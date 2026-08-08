@@ -26,13 +26,17 @@
 ---
 
 ### 2. 現在進行中のタスク・懸念事項（毎セッション更新）
-* （2026-08-08時点）Phase01-03のDIRをCowork側で確認済み。技術的懸念点（dprスケール累積バグ、resize再描画トリガーの所在、Step2/3間の一時的な機能欠落、削除機能のスコープ未確定、ツール切替時の選択/ホバー状態の扱い未定義、直線確定後の自動select復帰の是非）をユーザーへ提示し、回答待ちの状態。全項目の解消後にREQ（`TEMPLATE_REQ_ImpretonPlanMake.md`）を作成する。
+* （2026-08-09時点）Phase01-03はチェック0/1/2すべて通過後、タスク1〜8（全実装＋PROJECT_ARCHITECTURE.md更新）を1タスクずつ実行・git diffベースで逐次監査し、全タスク完了・問題なしを確認済み。残るは発注者自身によるブラウザでのテストプレイ（RES懸念事項欄の目視確認項目：z-index、dprリサイズ時の累積有無、ボタンのアクティブ表示、コントロールパネルのイベント遮断等）。テストプレイ完了後、Phaseクローズ手順（`PROJECT_AI_WORKFLOW.md`3-5章）へ進む。
+* 軽微な既知事項：タスク6で`handleMouseMove`/`handleMouseDown`の既存JSDoc説明文が、新設した`currentTool`ガード条件を反映せず据え置かれている（動作に影響なし、ドキュメント精度のみの軽微な指摘）。次のInterrupt等でまとめて直してよい。
 
-* **B. Phase01-03のDIRで対応方針が確定した項目**
-  * `VectorModel.startDraft`が`new Line(x, y, x, y)`とLine固定でインスタンス化しており、`updateDraft`も`this.#draftLine.x2 = x`のようにLine固有プロパティへ直接アクセスしている問題 → Phase01-03 DIR要件4（`ShapeFactory.js`新設・`VectorModel`のLine直接依存排除）で解決方針が確定。REQ作成時に反映する。ただしStep2（Factory導入）とStep3（InputTracker側のcurrentTool配線）の間で`startDraft`の呼び出しが一時的に不整合になる懸念があるため、REQ側でタスク分割・暫定対応を明記すること。
+* **B. Phase01-03のチェック1（アーキテクチャ監査）で判明し、後続Phaseへ持ち越した項目**
+  * RES `260808_2356_RES_Phase01-03_CanvasFullscreen_And_FloatUI.md`要件7で、`main.js`にツールボタンのクリック配線・アクティブCSSクラス付与/削除ロジックを直書きする計画になっている。`PROJECT_ARCHITECTURE.md`のフォルダ方針上は「自己完結するUI部品（ツールバー等）」は`palette/`配下に置く想定だが、本Phaseはボタン2つのみの土台構築段階であり過剰設計を避けるため`main.js`実装のまま許容した。後続の図形パレット実装Phase（旧P1-3、現Phase01-04想定）着手時に、この`main.js`のツールボタン配線を`palette/`配下の専用モジュールへ切り出すかどうかを検討すること。
+
+* **C. Phase01-02から持ち越した設計判断確定項目**
+  * `VectorModel.startDraft`が`new Line(x, y, x, y)`とLine固定でインスタンス化しており、`updateDraft`も`this.#draftLine.x2 = x`のようにLine固有プロパティへ直接アクセスしている問題 → Phase01-03 DIR要件4（`ShapeFactory.js`新設・`VectorModel`のLine直接依存排除）で解決方針が確定済み（RES要件5に反映済み）。
   * 曲線実装時（旧称P1-4、パレット実装の後続phaseへさらに1つずれる見込み）、moveハンドル（線分中点に配置）が曲線の中点ハンドルと位置的に衝突しうる問題 → 当たり判定・ハンドル描画のロジックはShape側に閉じているため今対処する必要はなく、該当Phase着手時の課題としてそのまま送る。
 
-* **C. さらに将来のPhaseへ先送り**
+* **D. さらに将来のPhaseへ先送り**
   * `moveShape`の差分計算はDPI・CSSズーム環境下での誤差が未検証 → ズーム/パン機能実装時に本格検証。
   * 「空白部分」の判定にホバー状態（`mousemove`更新）を流用しており、タッチ操作等`mousemove`を経由しない入力には非対応 → タッチ対応検討時に見直し。
   * `commitDraft()`のid採番（連番文字列）は永続化・再読込を考慮していない → `CodeImporter.js`実装時、既存idとの衝突可能性を検討。

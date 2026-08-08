@@ -32,6 +32,13 @@ export class InputTracker {
         this.state = InputState.IDLE;
 
         /**
+         * 現在アクティブなツール種別（'select' / 'line'）。ツールに応じてhandleMouseMove/
+         * handleMouseDown/handleClickの入力解釈を排他的に切り替える。setTool()経由でのみ更新する。
+         * @type {'select'|'line'}
+         */
+        this.currentTool = 'select';
+
+        /**
          * DRAGGING_HANDLE状態中、moveハンドルの差分移動計算に用いる直前のカーソル論理座標。
          * IDLE/DRAWING状態では未使用（null）。
          * @type {{x: number, y: number} | null}
@@ -64,6 +71,27 @@ export class InputTracker {
         this.canvas.addEventListener('mousedown', this.handleMouseDown.bind(this));
         this.canvas.addEventListener('mouseup', this.handleMouseUp.bind(this));
         this.canvas.addEventListener('click', this.handleClick.bind(this));
+        document.addEventListener('keydown', this.handleKeyDown.bind(this));
+    }
+
+    /**
+     * アクティブなツールを切り替える。
+     * 呼び出し時は常に、(1)currentToolの更新、(2)選択状態・ホバー状態の無条件クリア、
+     * (3)進行中の作成/ドラッグ操作（DRAWING/DRAGGING_HANDLE状態）があればcancelDraft()で
+     * 破棄したうえでIDLE状態へ強制リセット、の3処理を行う（ツール切り替え時に前ツールの
+     * 状態が残留することを防ぐため）。
+     * @param {'select'|'line'} tool 切り替え先のツール種別
+     */
+    setTool(tool) {
+        this.currentTool = tool;
+
+        this.model.clearSelection();
+        this.model.clearHovered();
+
+        if (this.state === InputState.DRAWING || this.state === InputState.DRAGGING_HANDLE) {
+            this.model.cancelDraft();
+            this.state = InputState.IDLE;
+        }
     }
 
     /**
@@ -97,7 +125,7 @@ export class InputTracker {
             return;
         }
 
-        if (this.state !== InputState.IDLE) {
+        if (this.state !== InputState.IDLE || this.currentTool !== 'select') {
             return;
         }
 
@@ -119,7 +147,7 @@ export class InputTracker {
      * @param {MouseEvent} event
      */
     handleMouseDown(event) {
-        if (this.state !== InputState.IDLE) {
+        if (this.state !== InputState.IDLE || this.currentTool !== 'select') {
             return;
         }
 
@@ -178,18 +206,45 @@ export class InputTracker {
         }
 
         const { x, y } = this.getLogicalCoordinate(event);
-        const hoveredId = this.model.getHoveredId();
 
-        if (hoveredId) {
-            this.model.selectShape(hoveredId);
+        if (this.currentTool === 'select') {
+            const hoveredId = this.model.getHoveredId();
+            if (hoveredId) {
+                this.model.selectShape(hoveredId);
+            } else if (this.model.getSelectedId()) {
+                this.model.clearSelection();
+            }
             return;
         }
 
-        if (this.model.getSelectedId()) {
-            this.model.clearSelection();
-        }
-        this.model.startDraft(x, y);
+        this.model.startDraft(x, y, 'line');
         this.state = InputState.DRAWING;
+    }
+
+    /**
+     * keydownイベントのハンドラ。documentへ購読する（<canvas>要素はデフォルトでフォーカスを
+     * 持てずキーボードイベントを受け取れないため）。
+     * selectツール中に選択中図形が存在する状態でDelete/Backspaceが押下された場合のみ、
+     * ブラウザのデフォルト動作（Backspaceでの戻る操作等）をpreventDefault()で抑止した上で、
+     * その図形をModelから削除する。
+     * @param {KeyboardEvent} event
+     */
+    handleKeyDown(event) {
+        if (this.currentTool !== 'select') {
+            return;
+        }
+
+        const selectedId = this.model.getSelectedId();
+        if (!selectedId) {
+            return;
+        }
+
+        if (event.key !== 'Delete' && event.key !== 'Backspace') {
+            return;
+        }
+
+        event.preventDefault();
+        this.model.deleteShape(selectedId);
     }
 
     /**

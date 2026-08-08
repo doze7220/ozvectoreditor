@@ -1,7 +1,7 @@
 /**
  * 責務：図形データの状態管理（SSOT：Single Source of Truth）と更新通知を担う。
  */
-import { Line } from '../shapes/Line.js';
+import { ShapeFactory } from './ShapeFactory.js';
 
 export class VectorModel {
     /**
@@ -29,7 +29,8 @@ export class VectorModel {
     #hoveredId;
 
     /**
-     * @type {Line|null} 作成中（始点確定・終点未確定）の未コミットLine
+     * @type {Object|null} 作成中（始点確定・終点未確定）の未コミット図形オブジェクト
+     * （draw/setVertex等の共通インターフェースを持つ図形オブジェクト。ShapeFactory経由で生成される）
      * @private
      */
     #draftLine;
@@ -117,13 +118,14 @@ export class VectorModel {
     }
 
     /**
-     * 始点を確定し、始点・終点が同一座標の仮Lineを作成中データとして生成する。
+     * 始点を確定し、始点・終点が同一座標の仮図形を作成中データとして生成する。
      * 生成した時点ではidを持たず、#shapesにも登録しない（コミットはcommitDraftで行う）。
      * @param {number} x 始点のX座標（論理座標系）
      * @param {number} y 始点のY座標（論理座標系）
+     * @param {string} [type='line'] 生成する図形の種別（ShapeFactory.createへ渡される）
      */
-    startDraft(x, y) {
-        this.#draftLine = new Line(x, y, x, y);
+    startDraft(x, y, type = 'line') {
+        this.#draftLine = ShapeFactory.create(type, x, y, x, y);
         this.#notifyChange();
     }
 
@@ -136,8 +138,7 @@ export class VectorModel {
         if (!this.#draftLine) {
             return;
         }
-        this.#draftLine.x2 = x;
-        this.#draftLine.y2 = y;
+        this.#draftLine.setVertex(1, x, y);
         this.#notifyChange();
     }
 
@@ -167,8 +168,8 @@ export class VectorModel {
     }
 
     /**
-     * 作成中（未コミット）のLineを取得する。
-     * @returns {Line|null} 作成中のLine（存在しない場合はnull）
+     * 作成中（未コミット）の図形オブジェクトを取得する。
+     * @returns {Object|null} 作成中の図形オブジェクト（存在しない場合はnull）
      */
     getDraftLine() {
         return this.#draftLine;
@@ -210,6 +211,31 @@ export class VectorModel {
         }
 
         shape.translate(dx, dy);
+
+        this.#notifyChange();
+    }
+
+    /**
+     * 指定したidの図形を#shapesから除去し、変更を通知する。
+     * 除去対象が選択中またはホバー中であった場合は、それらの状態も同時にクリアする
+     * （存在しない図形のidが選択/ホバー状態に残留することを防ぐため）。
+     * 該当図形が存在しない場合は何もしない。
+     * @param {string} id 削除する図形のid
+     */
+    deleteShape(id) {
+        const index = this.#shapes.findIndex((s) => s.id === id);
+        if (index === -1) {
+            return;
+        }
+
+        this.#shapes.splice(index, 1);
+
+        if (this.#selectedId === id) {
+            this.#selectedId = null;
+        }
+        if (this.#hoveredId === id) {
+            this.#hoveredId = null;
+        }
 
         this.#notifyChange();
     }

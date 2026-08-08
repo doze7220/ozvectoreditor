@@ -9,16 +9,21 @@ export class CanvasManager {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
 
-        this.initCanvasSize();
+        this.resize();
     }
 
     /**
      * 高DPIディスプレイ対応のため、キャンバスの内部バッファサイズを調整し、
-     * 描画スケールを初期化する。
+     * 描画スケールを再計算する。コンストラクタからの初期化と、ウィンドウリサイズ時の
+     * 再同期（呼び出し元は`main.js`）の両方から呼ばれる公開メソッドである。
+     * shapes/Modelへの参照は持たず、render()の呼び出しも行わない（純粋なレンダラーの責務維持）。
      */
-    initCanvasSize() {
+    resize() {
         const dpr = window.devicePixelRatio || 1;
-        
+
+        // 直前のctx.scale(dpr, dpr)適用を確実にリセットし、拡大率の累積を防止する
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+
         // 現在のレイアウト上の表示サイズ（論理サイズ）を取得
         const logicalWidth = this.canvas.clientWidth;
         const logicalHeight = this.canvas.clientHeight;
@@ -30,7 +35,7 @@ export class CanvasManager {
         // 内部バッファのサイズをdpr倍にして鮮明化する
         this.canvas.width = logicalWidth * dpr;
         this.canvas.height = logicalHeight * dpr;
-        
+
         /**
          * ※将来的にキャンバスのズーム機能を追加する際は、本箇所のスケール計算ロジックの修正が必要
          */

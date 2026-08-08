@@ -6,22 +6,73 @@
     <title>OZ Vector Editor</title>
     <style>
         body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
             margin: 0;
+            overflow: hidden;
             background-color: #f9f9f9;
         }
         #editor-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
             background-color: #ffffff;
+        }
+        #control-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            z-index: 10;
+            width: 220px;
+            background-color: #ffffff;
+            border-left: 1px solid #ccc;
+            box-shadow: -2px 0 6px rgba(0,0,0,0.1);
+            font-family: sans-serif;
+        }
+        #control-panel-header {
+            padding: 10px 12px;
+            border-bottom: 1px solid #ddd;
+            font-size: 13px;
+            font-weight: bold;
+            color: #333;
+            background-color: #f0f0f0;
+            cursor: default;
+        }
+        #control-panel-body {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .tool-btn {
+            padding: 8px 10px;
+            font-size: 13px;
             border: 1px solid #ccc;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-radius: 4px;
+            background-color: #fafafa;
+            cursor: pointer;
+            text-align: left;
+        }
+        .tool-btn:hover {
+            background-color: #eee;
+        }
+        .tool-btn.active {
+            background-color: #dbe9ff;
+            border-color: #6699ff;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
-    <canvas id="editor-canvas" width="800" height="600"></canvas>
+    <canvas id="editor-canvas"></canvas>
+    <div id="control-panel">
+        <div id="control-panel-header">OZ Vector Editor</div>
+        <div id="control-panel-body">
+            <button type="button" id="tool-select" class="tool-btn active">🖱 選択ツール</button>
+            <button type="button" id="tool-line" class="tool-btn">／ 直線ツール</button>
+        </div>
+    </div>
     <script type="module" src="js/main.js"></script>
 </body>
 </html>
