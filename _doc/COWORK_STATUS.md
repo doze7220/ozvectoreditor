@@ -32,6 +32,12 @@
 * RES監査で見つけた実装時の軽微な注意点（RESの修正までは不要、タスク8/10実装時に留意すればよいレベル）：
   * `DRAGGING_HANDLE`状態で`mouseup`により`IDLE`へ戻った直後、ブラウザ仕様上その直後に`click`イベントが発火する。ハンドル位置はほぼ常にshape本体の`hitTest`範囲内でもあるため、IDLE側の「クリックで選択」処理が同一図形に対して冗長に再発火しうる（実害はほぼ無い＝同じidへの再selectShapeなので無視して問題ないが、念のためタスク8実装時に意識しておくとよい）。
 * 恒久対応として、RES→REQ逆リンク（参照元REQ行）が全RESテンプレート（ImpretonPlan/SurveyPlan/Interrupt/AddInterrupt/Survey）に欠けていたため、5テンプレートすべてに`* 参照元REQ:`行を追加。今回のPhase01-02のRESにも遡って追記済み。Phase01-01のRESには未追記（過去ログ保護のため、触れる場合は別途ユーザー判断で対応）。
+* Phase01-02 タスク1〜5完了・監査済み。ただしタスク5（`updateVertex`/`moveShape`）で、`VectorModel`が`shape.x1`等のLine固有プロパティに直接アクセスするアーキテクチャ上の不備を発見（実装AIも懸念事項欄で自己申告済み）。
+* **Task5.5（Interrupt）完了・監査済み**：REQ `_log/req/20260808_2011_REQ_Interrupt_Phase01-02_Task5.5_ShapeVertexPolymorphism.md`。`Line.js`に`setVertex`/`translate`を追加し、`VectorModel.updateVertex`/`moveShape`をポリモーフィック呼び出しへ置き換え済み。`updateVertex`/`moveShape`内のLine固有プロパティ直接アクセスは解消。次はタスク6（`CanvasManager.js`のrenderシグネチャ拡張）。
+* タスク5.5見出しの不一致はユーザー側で修正済み。
+* Phase01-02 タスク6完了・監査済み（`CanvasManager.render`のシグネチャ拡張、問題なし）。ただしタスク6実施時点で計画の穴を発見：`main.js`の`render`呼び出しに状態を渡す配線タスクがどこにも存在しなかった（タスク7〜11のいずれにも`main.js`の言及なし）。
+* **タスク6.5（PlanningUpdate）発行済み**：REQ `_log/req/20260808_2036_REQ_PlanningUpdate_Phase01-02_Task6.5_MainJsWiring.md`。タスク6直後・タスク7の前に`main.js`の状態配線タスクを新設。タスク7〜10を段階的に目視確認できるようにする狙い。次のアクションはこのPlanningUpdateの実行（RESへのタスク6.5追加）→その後タスク6.5自体の実行→監査→タスク7へ進行。
+* **バックログ候補（P1-3着手時に検討）**：`VectorModel.startDraft`が`new Line(x, y, x, y)`とLine固定でインスタンス化しており（タスク4実装）、`updateDraft`も`this.#draftLine.x2 = x`のようにLine固有プロパティへ直接アクセスしている（タスク5.5実施時点で確認・スコープ外として現状維持）。P1-3でパレットが導入され複数図形をツールとして切り替えられるようになった際、「選択中ツールに応じてどの図形クラスを生成するか」をVectorModel内でif/switch分岐させると、本Phaseで徹底している「core/に図形種別分岐を持ち込まない」原則に抵触する。ファクトリパターンの導入、またはInputTracker側で生成済みdraftオブジェクトをVectorModelへ渡す設計など、P1-3の企画検討（Step 0）時に解決方針を決めること（`updateDraft`は`setVertex`が既に存在するため、ドラフト生成方式が決まればごく小さな修正で追従可能）。
 
 ---
 

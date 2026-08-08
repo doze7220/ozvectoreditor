@@ -26,6 +26,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // 依存性の注入と連携セットアップ: 
     // Modelのデータが変更されたら、Viewに描画を要求する
     model.onChange(() => {
-        canvasManager.render(model.getShapes());
+        canvasManager.render(model.getShapes(), {
+            selectedId: model.getSelectedId(),
+            hoveredId: model.getHoveredId(),
+            draftLine: model.getDraftLine()
+        });
     });
 });

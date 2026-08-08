@@ -1,6 +1,7 @@
 /**
  * 責務：図形データの状態管理（SSOT：Single Source of Truth）と更新通知を担う。
  */
+import { Line } from '../shapes/Line.js';
 
 export class VectorModel {
     /**
@@ -15,9 +16,37 @@ export class VectorModel {
      */
     #listeners;
 
+    /**
+     * @type {string|null} 選択中の図形のid
+     * @private
+     */
+    #selectedId;
+
+    /**
+     * @type {string|null} ホバー中の図形のid
+     * @private
+     */
+    #hoveredId;
+
+    /**
+     * @type {Line|null} 作成中（始点確定・終点未確定）の未コミットLine
+     * @private
+     */
+    #draftLine;
+
+    /**
+     * @type {number} 図形id採番用の連番カウンタ
+     * @private
+     */
+    #nextId;
+
     constructor() {
         this.#shapes = [];
         this.#listeners = [];
+        this.#selectedId = null;
+        this.#hoveredId = null;
+        this.#draftLine = null;
+        this.#nextId = 1;
     }
 
     /**
@@ -35,6 +64,154 @@ export class VectorModel {
      */
     getShapes() {
         return [...this.#shapes];
+    }
+
+    /**
+     * 指定したidの図形を選択状態にし、変更を通知する。
+     * @param {string} id 選択する図形のid
+     */
+    selectShape(id) {
+        this.#selectedId = id;
+        this.#notifyChange();
+    }
+
+    /**
+     * 選択状態を解除し、変更を通知する。
+     */
+    clearSelection() {
+        this.#selectedId = null;
+        this.#notifyChange();
+    }
+
+    /**
+     * 現在選択中の図形のidを取得する。
+     * @returns {string|null} 選択中の図形のid（未選択時はnull）
+     */
+    getSelectedId() {
+        return this.#selectedId;
+    }
+
+    /**
+     * 指定したidの図形をホバー状態にし、変更を通知する。
+     * @param {string} id ホバー中の図形のid
+     */
+    setHovered(id) {
+        this.#hoveredId = id;
+        this.#notifyChange();
+    }
+
+    /**
+     * ホバー状態を解除し、変更を通知する。
+     */
+    clearHovered() {
+        this.#hoveredId = null;
+        this.#notifyChange();
+    }
+
+    /**
+     * 現在ホバー中の図形のidを取得する。
+     * @returns {string|null} ホバー中の図形のid（非ホバー時はnull）
+     */
+    getHoveredId() {
+        return this.#hoveredId;
+    }
+
+    /**
+     * 始点を確定し、始点・終点が同一座標の仮Lineを作成中データとして生成する。
+     * 生成した時点ではidを持たず、#shapesにも登録しない（コミットはcommitDraftで行う）。
+     * @param {number} x 始点のX座標（論理座標系）
+     * @param {number} y 始点のY座標（論理座標系）
+     */
+    startDraft(x, y) {
+        this.#draftLine = new Line(x, y, x, y);
+        this.#notifyChange();
+    }
+
+    /**
+     * 作成中Lineの終点をカーソル位置に追従させる。作成中Lineが存在しない場合は何もしない。
+     * @param {number} x 終点のX座標（論理座標系）
+     * @param {number} y 終点のY座標（論理座標系）
+     */
+    updateDraft(x, y) {
+        if (!this.#draftLine) {
+            return;
+        }
+        this.#draftLine.x2 = x;
+        this.#draftLine.y2 = y;
+        this.#notifyChange();
+    }
+
+    /**
+     * 作成中Lineに一意なidを採番して#shapesへ確定登録し、作成中データを破棄する。
+     * 作成中Lineが存在しない場合は何もしない。
+     */
+    commitDraft() {
+        if (!this.#draftLine) {
+            return;
+        }
+        this.#draftLine.id = `shape-${this.#nextId++}`;
+        this.#shapes.push(this.#draftLine);
+        this.#draftLine = null;
+        this.#notifyChange();
+    }
+
+    /**
+     * 作成中Lineを確定せずに破棄する（作成中断用）。作成中Lineが存在しない場合は何もしない。
+     */
+    cancelDraft() {
+        if (!this.#draftLine) {
+            return;
+        }
+        this.#draftLine = null;
+        this.#notifyChange();
+    }
+
+    /**
+     * 作成中（未コミット）のLineを取得する。
+     * @returns {Line|null} 作成中のLine（存在しない場合はnull）
+     */
+    getDraftLine() {
+        return this.#draftLine;
+    }
+
+    /**
+     * 指定したidの図形の、指定した頂点インデックスの座標を絶対座標で更新する。
+     * 該当図形が存在しない場合は何もしない。頂点インデックスと図形固有プロパティとの
+     * 対応関係は関知せず、更新処理自体はshape.setVertex(vertexIndex, x, y)へポリモー
+     * フィックに委譲する（図形種別を問わず同一の呼び出しで動作する）。
+     * @param {string} id 対象図形のid
+     * @param {number} vertexIndex 更新する頂点のインデックス（0: 始点, 1: 終点）
+     * @param {number} x 更新後のX座標（論理座標系）
+     * @param {number} y 更新後のY座標（論理座標系）
+     */
+    updateVertex(id, vertexIndex, x, y) {
+        const shape = this.#shapes.find((s) => s.id === id);
+        if (!shape) {
+            return;
+        }
+
+        shape.setVertex(vertexIndex, x, y);
+
+        this.#notifyChange();
+    }
+
+    /**
+     * 指定したidの図形全体を、相対差分(dx, dy)だけ平行移動する。
+     * 該当図形が存在しない場合は何もしない。移動処理自体はshape.translate(dx, dy)へ
+     * ポリモーフィックに委譲する（図形種別を問わず同一の呼び出しで動作する）。
+     * @param {string} id 対象図形のid
+     * @param {number} dx X方向の移動差分（論理座標系）
+     * @param {number} dy Y方向の移動差分（論理座標系）
+     */
+    moveShape(id, dx, dy) {
+        const shape = this.#shapes.find((s) => s.id === id);
+        if (!shape) {
+            return;
+        }
+
+        shape.translate(dx, dy);
+
+        this.#notifyChange();
     }
 
     /**
