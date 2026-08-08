@@ -1,4 +1,4 @@
-### (Phase XX-XX TaskX.X / Hotfix 等、REQ内容に合わせる)
+### (Phase XX-XX TaskX.X / Interrupt 等、REQ内容に合わせる)
 #### 追加作業目的:
 *  (要件詳細)
 

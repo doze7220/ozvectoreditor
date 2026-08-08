@@ -1,4 +1,4 @@
-# RES: 作業計画・作業レポート (Phase X-X / Hotfix ※REQに合わせること) : (作業概要)
+# RES: 作業計画・作業レポート (Phase X-X / Interrupt ※REQに合わせること) : (作業概要)
 
 ## 1. 作業目的
 (作業目的詳細)

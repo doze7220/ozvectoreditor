@@ -16,7 +16,7 @@
     *   **ステップ分割**: Phaseはさらにステップごとに分解し、`Phase XX-XX`（Phase番号-Step番号）といった表記で管理を行う。各ステップは「明確な単一機能の作業」に相当する。
     *   **終了条件**: Phaseの終了は常に「ユーザー（発注者）の決定」によって行われる。開発状況によっては、初期テーマの完遂を待たずにPhaseを中断（クローズ）し、次の開発へ移行することもある。
 
-*   **Hotfix（単発・独立型タスク）**
+*   **Interrupt（単発・独立型タスク）**
     *   **定義**: 現在のPhaseのメインテーマとは直接関係しない、文脈の連続性を必要としない「単発で完結するタスク」の総称。
     *   不具合の修正（Bugfix）だけでなく、UIの微細な調整、既存機能の小拡張、パラメータのINI化などすべてを内包する。
 
@@ -41,7 +41,7 @@ RESは「AIの作業結果を記録する正式な作業レポート」である
 #### ファイル名
 *   **REQファイル名**: `YYYYMMDD_HHMM_(要件名).md`
     *   Phase作業中は PhaseXX-XX_作業概要
-    *   Hotfixは Hotfix_作業概要 、ただし特定Phaseステップに対して明確な場合は Hotfix_PhaseXX-XX_作業概要
+    *   Interruptは Interrupt_作業概要 、ただし特定Phaseステップに対して明確な場合は Interrupt_PhaseXX-XX_作業概要
     *   調査指示は Survey_調査内容
 
 *   **RESファイル名**: `YYYYMMDD_HHMM_(REQ要件名).md`
@@ -50,7 +50,7 @@ RESは「AIの作業結果を記録する正式な作業レポート」である
 
 
 ### 1-3. 作業規模とアプローチの選択（運用の柔軟性）
-Phase内のステップであるか、Hotfixであるかに関わらず、その作業の「複雑さ・規模」に応じて以下の発注アプローチを柔軟に使い分ける。
+Phase内のステップであるか、Interruptであるかに関わらず、その作業の「複雑さ・規模」に応じて以下の発注アプローチを柔軟に使い分ける。
 
 *   **大規模・複雑な作業（事前計画を伴うアプローチ）**
     *   アーキテクチャの変更を伴う場合や、修正箇所が複数にまたがりハルシネーションのリスクがある場合は、必ず事前の計画立案（Step 1: ImpretonPlanMake）を行わせ、タスクを分割してから順次実行させる。
@@ -62,21 +62,21 @@ Phase内のステップであるか、Hotfixであるかに関わらず、その
 発注者間でアーキテクチャを議論し、作業規模に応じて以下の4パターンから最適なREQ/RESの組み合わせを選択する。
 
 *   **A. 複数タスクにまたがる本格的な実装**
-    *   発注: `TEMPLATE_REQ_Hotfix_Immediately.md` （計画を立てろと指示）
+    *   発注: `TEMPLATE_REQ_Interrupt_Immediately.md` （計画を立てろと指示）
     *   応答: `TEMPLATE_RES_ImpretonPlan.md` （AI自身に作業計画書を作らせる）
     *   実行: 計画立案後、`TEMPLATE_REQ_TaskExecution_Additional_.md` か `TEMPLATE_REQ_TaskExecution_Lite.md` を用いて、AIに「1タスク＝1チャット」で段階的にタスクを実行し、タスクごとに作業レポートに追記させる。
 *   **B. 軽微な新規作業（単一タスク規模）**
-    *   発注: `TEMPLATE_REQ_Hotfix_Immediately.md` （計画なしで直接作業しろと指示）
-    *   応答: `TEMPLATE_RES_Hotfix.md` （単独の直接作業レポートを出力させる）
-*   **C. 直前の作業のバグ修正（Hotfix）**
-    *   発注: `TEMPLATE_REQ_Hotfix_unImmediately.md` （直前のRESファイルに追記して直せと指示）
-    *   応答: `TEMPLATE_RES_AddHotfix.md` （直前のRESファイル末尾に、該当テンプレートで追記させる）
-*   **D. 時系列が離れた過去のバグ修正（Hotfix）**
-    *   発注: `TEMPLATE_REQ_Hotfix_Immediately.md`
-    *   応答: `TEMPLATE_RES_Hotfix.md` （過去の文脈を引きずらないよう、新規に単独レポートを立てさせる）
+    *   発注: `TEMPLATE_REQ_Interrupt_Immediately.md` （計画なしで直接作業しろと指示）
+    *   応答: `TEMPLATE_RES_Interrupt.md` （単独の直接作業レポートを出力させる）
+*   **C. 直前の作業のバグ修正（Interrupt）**
+    *   発注: `TEMPLATE_REQ_Interrupt_unImmediately.md` （直前のRESファイルに追記して直せと指示）
+    *   応答: `TEMPLATE_RES_AddInterrupt.md` （直前のRESファイル末尾に、該当テンプレートで追記させる）
+*   **D. 時系列が離れた過去のバグ修正（Interrupt）**
+    *   発注: `TEMPLATE_REQ_Interrupt_Immediately.md`
+    *   応答: `TEMPLATE_RES_Interrupt.md` （過去の文脈を引きずらないよう、新規に単独レポートを立てさせる）
 *   **E. 原因不明のバグ調査・コード監査：単一タスク規模 (Survey)**
     *   目的: AIの勝手な推測やコード改変を防ぎ、「現在のコードの事実」のみを抽出させる。
-    *   発注: `TEMPLATE_REQ_Hotfix_Immediately.md` （単独の直接作業レポートを出力させる。※コード修正の絶対禁止を厳命する）
+    *   発注: `TEMPLATE_REQ_Interrupt_Immediately.md` （単独の直接作業レポートを出力させる。※コード修正の絶対禁止を厳命する）
     *  
     *   応答: `TEMPLATE_RES_Survey.md` に準拠した調査タスクリスト。
 *   **E. 原因不明のバグ調査・コード監査：複数タスク規模 (SurveyPlan)**
