@@ -1,4 +1,6 @@
 ### (Phase XX-XX TaskX.X / Interrupt 等、REQ内容に合わせる)
+* 参照元REQ: `./_log/req/（対応するREQファイル名）.md`
+
 #### 追加作業目的:
 *  (要件詳細)
 
