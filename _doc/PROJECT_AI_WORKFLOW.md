@@ -79,11 +79,15 @@ Phase内のステップであるか、Interruptであるかに関わらず、そ
     *   発注: `TEMPLATE_REQ_Interrupt_Immediately.md` （単独の直接作業レポートを出力させる。※コード修正の絶対禁止を厳命する）
     *  
     *   応答: `TEMPLATE_RES_Survey.md` に準拠した調査タスクリスト。
-*   **E. 原因不明のバグ調査・コード監査：複数タスク規模 (SurveyPlan)**
+*   **F. 原因不明のバグ調査・コード監査：複数タスク規模 (SurveyPlan)**
     *   目的: AIの勝手な推測やコード改変を防ぎ、「現在のコードの事実」のみを抽出させる。
     *   発注: `TEMPLATE_REQ_ImpretonPlanMake.md` （「調査計画書」を作らせる。※コード修正の絶対禁止を厳命する）
     *   応答: `TEMPLATE_RES_SurveyPlan.md` に準拠した調査タスクリスト。
     *   実行: 計画立案後、`TEMPLATE_REQ_TaskExecution_Additional_.md` か `TEMPLATE_REQ_TaskExecution_Lite.md` を用いて、AIに「1タスク＝1観点」で段階的にコードを監査させ、事実をレポートに追記させる。
+*   **G. 進行中計画の要件追加・中途改修（Plan Revision）**
+    *   **目的**: 開発途中で発覚した設計漏れや追加要件を、コードが汚れる前に未実行タスクに先回りして注入し、計画のSSOTを最新化する。
+    *   **発注**: `TEMPLATE_REQ_PlanRevision.md` （コード修正禁止、未実行タスクのみの書き換えを厳命）
+    *   **応答**: 既存の作業計画書（RES）ファイルを直接アップデート（完了済タスク `[x]` のステータスは完全保護し、未完了タスク `[ ]` の中身とアーキテクチャ設計を拡張）
 
 ### 2-2. 【Step 1: 計画立案（REQ → RES）】※計画立案を伴うREQのみ
 発注者がAI-IDEへREQを投げ、AI-IDE自身に自分の理解度に基づいた細かなタスクリスト（RES）を構築させる。

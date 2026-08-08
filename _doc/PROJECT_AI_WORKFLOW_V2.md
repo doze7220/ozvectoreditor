@@ -131,15 +131,15 @@ Phase内のステップであるか、Spotであるかに関わらず、その�
 
 発注者間でアーキテクチャを議論し、作業規模に応じて以下のパターンから最適なREQ/RESの組み合わせを選択する。
 
-| | ケース | 発注（REQ） | 応答（RES） |
-|---|---|---|---|
-| **A** | 複数タスクにまたがる本格的な実装 | `TEMPLATE_REQ_PlanMake.md` | `TEMPLATE_RES_ImplementationPlan.md` |
-| **B** | 軽微な新規作業（単一タスク規模） | `TEMPLATE_REQ_Direct.md` | `TEMPLATE_RES_Spot.md` |
-| **C** | 直前の作業のバグ修正 | `TEMPLATE_REQ_DirectAppend.md` | `TEMPLATE_RES_AddSpot.md`（直前RES末尾へ追記） |
-| **D** | 時系列が離れた過去のバグ修正 | `TEMPLATE_REQ_Direct.md` | `TEMPLATE_RES_Spot.md`（新規に単独レポート） |
-| **E** | 調査・コード監査（単一タスク規模） | `TEMPLATE_REQ_Direct.md` ※コード修正の絶対禁止を厳命 | `TEMPLATE_RES_Survey.md` |
-| **F** | 調査・コード監査（複数タスク規模） | `TEMPLATE_REQ_PlanMake.md` ※コード修正の絶対禁止を厳命 | `TEMPLATE_RES_SurveyPlan.md` |
-| **G** | 実行中の計画が破綻した場合の計画改訂 | `TEMPLATE_REQ_PlanRevise.md` | `TEMPLATE_RES_ImplementationPlan.md`（改訂版） |
+|       | ケース                               | 発注（REQ）                                            | 応答（RES）                                    |
+| ----- | ------------------------------------ | ------------------------------------------------------ | ---------------------------------------------- |
+| **A** | 複数タスクにまたがる本格的な実装     | `TEMPLATE_REQ_PlanMake.md`                             | `TEMPLATE_RES_ImplementationPlan.md`           |
+| **B** | 軽微な新規作業（単一タスク規模）     | `TEMPLATE_REQ_Direct.md`                               | `TEMPLATE_RES_Spot.md`                         |
+| **C** | 直前の作業のバグ修正                 | `TEMPLATE_REQ_DirectAppend.md`                         | `TEMPLATE_RES_AddSpot.md`（直前RES末尾へ追記） |
+| **D** | 時系列が離れた過去のバグ修正         | `TEMPLATE_REQ_Direct.md`                               | `TEMPLATE_RES_Spot.md`（新規に単独レポート）   |
+| **E** | 調査・コード監査（単一タスク規模）   | `TEMPLATE_REQ_Direct.md` ※コード修正の絶対禁止を厳命   | `TEMPLATE_RES_Survey.md`                       |
+| **F** | 調査・コード監査（複数タスク規模）   | `TEMPLATE_REQ_PlanMake.md` ※コード修正の絶対禁止を厳命 | `TEMPLATE_RES_SurveyPlan.md`                   |
+| **G** | 実行中の計画が破綻した場合の計画改訂 | `TEMPLATE_REQ_PlanRevise.md`                           | `TEMPLATE_RES_ImplementationPlan.md`（改訂版） |
 
 補足：
 
@@ -167,11 +167,11 @@ Phase内のステップであるか、Spotであるかに関わらず、その�
 
 「全タスクに同じ深度の監査」は人間がボトルネックになり、疲弊によって監査の質そのものが落ちる。以下で深度を変える。
 
-| Lv | 該当条件 | 監査 |
-|---|---|---|
-| **Lv.3（全項目）** | アーキテクチャ変更を含む／Manager・共通基盤に触る／3ファイル以上に跨る | 上記1・2を1ステップずつ独立監査。省略不可 |
-| **Lv.2（スコープのみ）** | 単一ファイル内で完結し、責務境界を跨がない | 項目2のみ。項目1は「跨がないこと」の確認で代替 |
-| **Lv.1（受け入れ基準のみ）** | 定数値・文言・INI化など、ロジックを変更しない | 受け入れ基準と証跡の整合のみ確認 |
+| Lv                           | 該当条件                                                               | 監査                                           |
+| ---------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------- |
+| **Lv.3（全項目）**           | アーキテクチャ変更を含む／Manager・共通基盤に触る／3ファイル以上に跨る | 上記1・2を1ステップずつ独立監査。省略不可      |
+| **Lv.2（スコープのみ）**     | 単一ファイル内で完結し、責務境界を跨がない                             | 項目2のみ。項目1は「跨がないこと」の確認で代替 |
+| **Lv.1（受け入れ基準のみ）** | 定数値・文言・INI化など、ロジックを変更しない                          | 受け入れ基準と証跡の整合のみ確認               |
 
 Lvの判定は**発注者が行い、REQに明記する**（実装AIに自己申告させない）。
 
@@ -244,17 +244,17 @@ Phaseは初期テーマの完遂を待たずに中断されうるため、未完
 
 テンプレートのリネームは移行コストを伴うため、必要に応じて旧名称のまま運用してもよい（意味の変更はない）。ただし **`Impreton` は `Implementation` の綴り崩れ**であり、テンプレート名は実装AIが読む識別子であるため、綴りの修正は推奨する。
 
-| v1 | v2 | 備考 |
-|---|---|---|
-| Hotfix（タスク区分名） | Spot | 語義バイアス回避のため改称 |
-| `TEMPLATE_REQ_Hotfix_Immediately.md` | `TEMPLATE_REQ_Direct.md` | 計画なし即時実行の発注 |
-| `TEMPLATE_REQ_Hotfix_unImmediately.md` | `TEMPLATE_REQ_DirectAppend.md` | 直前RESへの追記指示 |
-| `TEMPLATE_REQ_ImpretonPlanMake.md` | `TEMPLATE_REQ_PlanMake.md` | 綴り修正。実装計画・調査計画で共用 |
-| `TEMPLATE_REQ_TaskExecution_Additional_.md` | `TEMPLATE_REQ_TaskExecution_Additional.md` | 末尾アンダースコア除去 |
-| `TEMPLATE_RES_ImpretonPlan.md` | `TEMPLATE_RES_ImplementationPlan.md` | 綴り修正 |
-| `TEMPLATE_RES_Hotfix.md` | `TEMPLATE_RES_Spot.md` | |
-| `TEMPLATE_RES_AddHotfix.md` | `TEMPLATE_RES_AddSpot.md` | |
-| （なし） | `TEMPLATE_REQ_PlanRevise.md` | ★新規：計画改訂用 |
+| v1                                          | v2                                         | 備考                               |
+| ------------------------------------------- | ------------------------------------------ | ---------------------------------- |
+| Hotfix（タスク区分名）                      | Spot                                       | 語義バイアス回避のため改称         |
+| `TEMPLATE_REQ_Hotfix_Immediately.md`        | `TEMPLATE_REQ_Direct.md`                   | 計画なし即時実行の発注             |
+| `TEMPLATE_REQ_Hotfix_unImmediately.md`      | `TEMPLATE_REQ_DirectAppend.md`             | 直前RESへの追記指示                |
+| `TEMPLATE_REQ_ImpretonPlanMake.md`          | `TEMPLATE_REQ_PlanMake.md`                 | 綴り修正。実装計画・調査計画で共用 |
+| `TEMPLATE_REQ_TaskExecution_Additional_.md` | `TEMPLATE_REQ_TaskExecution_Additional.md` | 末尾アンダースコア除去             |
+| `TEMPLATE_RES_ImpretonPlan.md`              | `TEMPLATE_RES_ImplementationPlan.md`       | 綴り修正                           |
+| `TEMPLATE_RES_Hotfix.md`                    | `TEMPLATE_RES_Spot.md`                     |                                    |
+| `TEMPLATE_RES_AddHotfix.md`                 | `TEMPLATE_RES_AddSpot.md`                  |                                    |
+| （なし）                                    | `TEMPLATE_REQ_PlanRevise.md`               | ★新規：計画改訂用                  |
 
 ## 付録B. v1からの主な変更点
 

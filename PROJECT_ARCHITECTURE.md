@@ -65,7 +65,7 @@ ShapeDataは `id, type, color, strokeWidth, isFilled, points` を共通プロパ
 *   **VectorModel.js** : 描画データ（Shape配列）と選択状態を保持する単一の真実（SSOT）。
 *   **CanvasManager.js** : Canvasへの純粋な描画（レンダラーの責務）。状態は持たない。
 *   **InputTracker.js** : マウス・キーボード入力の解釈、キャンバス座標への変換。
-*   **shapes/** : 図形種別ごとの定義・当たり判定。追加され次第、ここに列挙していく。
+*   **shapes/** : 図形種別ごとの定義・当たり判定。各図形が自身のプロパティと描画ロジック(`draw`メソッド)を持つ。追加され次第、ここに列挙していく。
 *   **palette/** : ツールバー・カラーピッカー等のUI部品。追加され次第、ここに列挙していく。
 *   **CodeExporter.js** : ゲームで再利用可能なJavaScript(ESM)コードの出力を担当。出力フォーマットの詳細は、当該Phaseの実装REQ/RESで確定させる。
 *   **CodeImporter.js** : 出力されたJSファイルを解析し、`VectorModel` に再ロードする。
