@@ -86,6 +86,24 @@ export class Line {
     }
 
     /**
+     * 作図中に終点をカーソル位置へ追従させる。setVertex(1, x, y)と同義（終点をそのまま更新する）。
+     * @param {number} x - 追従先のX座標（論理座標系）
+     * @param {number} y - 追従先のY座標（論理座標系）
+     */
+    updateDraftEnd(x, y) {
+        this.setVertex(1, x, y);
+    }
+
+    /**
+     * ハンドル名（hitTestHandleの戻り値）から対応する頂点インデックスを自己申告する。
+     * @param {string} handleName - ハンドル名（'start'|'end'）
+     * @returns {number|null} 対応する頂点インデックス。該当なしはnull
+     */
+    getVertexIndexForHandle(handleName) {
+        return { start: 0, end: 1 }[handleName] ?? null;
+    }
+
+    /**
      * 自身の全頂点(x1,y1,x2,y2)を相対差分(dx, dy)だけ平行移動する。
      * @param {number} dx - X方向の移動差分（論理座標系）
      * @param {number} dy - Y方向の移動差分（論理座標系）

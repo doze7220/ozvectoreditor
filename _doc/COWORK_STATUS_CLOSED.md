@@ -109,3 +109,33 @@
 * `PaletteController`のボタンid解決が見つからない場合に静かにフィルタされエラー化しない仕様 → 将来ボタンid命名規則を変更する際に注意
 * 初期`.disabled`（`index.html`側）と`InputTracker`の初期`currentTool`（`'select'`）の暗黙的な結合 → 将来初期ツールを変更する際は両方を同期させること
 * `ShapeFactory`の`curve`/`arc`/`rect`/`circle`フォールスルー`case`構造、将来矩形・円等でコンストラクタ引数の意味・個数が変わる場合の呼び出し元見直し → 次の図形追加Phaseで対応（既存の同種項目へ統合）
+
+---
+
+### Phase01-05「ベジエ曲線（Curve.js）の完全実装と幾何ポリモーフィズムの確立」（クローズ日：2026-08-09）
+
+* DIR: `_log/dir/20260809_1727_DIR_Phase01-05_BezierCurve_Implementation.md`
+* RES: `_log/res/20260809_1745_RES_Phase01-05_BezierCurve_Implementation.md`
+* 参照元REQ群:
+  * `_log/req/20260809_1735_REQ_Phase01-05_BezierCurve_Implementation.md`（本体）
+  * `_log/req/20260809_1830_REQ_Interrupt_Phase01-05_DraftTypeHardcoded.md`（Interrupt：作図時の図形type固定バグ修正）
+  * `_log/req/20260809_1842_REQ_Interrupt_Phase01-05_MultiVertexShapeContract.md`（Interrupt：`vertexIndex`意味不一致の解消）
+
+| 項目 | 結論 | 対応箇所 |
+|---|---|---|
+| 2次ベジェ（制御点1つ）限定か3次まで対応するか | データ構造の簡素化・処理の軽量化のため2次限定に決定。3次ベジェは対象外 | DIR/Step0企画検討 |
+| `Curve`に移動（move）ハンドルを持たせるか | 本Phaseでは持たせず、始点・制御点・終点の個別ドラッグのみに限定。制御点の追加削除・moveハンドル追加は発注者の意向により別Phaseで対応予定 | DIR6章/Step0企画検討 |
+| ひし形（制御点）ハンドルの当たり判定方式 | 正方形ハンドルと同様の円形近似（`Math.hypot`によるハンドル中心からの距離判定）で確定。実機確認で操作感に問題なし | タスク3/テストプレイ |
+| 点線ヘルパーの配色・太さ | `rgba(0, 0, 0, 0.4)`・`lineWidth 1`で確定。実機確認で視認性に問題なし | タスク2/テストプレイ |
+| `Curve`コンストラクタの`strokeColor`/`strokeWidth`引数が`ShapeFactory`経由では常にデフォルト値になる件 | 現行`Line`と同一挙動であり本Phaseでは問題なしと判断。将来カラーピッカー機能実装時に`ShapeFactory.create`のシグネチャ拡張が必要になる点のみ申し送り | 実装時の設計注記 |
+| パレットで「曲線」を選んで作図しても直線が生成される不具合 | `InputTracker.handleClick`が新規図形のtypeを`'line'`固定の文字列リテラルで渡していたバグ（Phase01-02由来、Phase01-04のパレット追加時も見過ごされていた）。`this.currentTool`を参照する実装に修正して解消 | Interrupt `20260809_1830` |
+| 作図プレビューがマウスまでの半分の距離までしか伸びず、確定後も始点・終点が同一座標になる不具合 | `VectorModel.updateDraft`が`setVertex(1, x, y)`という`Line`前提（`vertexIndex=1`＝終点）の呼び出しをハードコードしており、`Curve`では同じ`1`が制御点を指すため終点が更新されていなかったのが原因。`Line`/`Curve`双方に`updateDraftEnd(x, y)`を新設し、`VectorModel`はこれへポリモーフィックに委譲する設計に変更して解消 | Interrupt `20260809_1842` |
+| 終点ハンドルをドラッグすると制御点が動いてしまう潜在バグ（実機発見前だが同根のため合わせて修正） | `InputTracker`のハンドルドラッグ処理が`activeHandle === 'start' ? 0 : 1`という2値決め打ちの三項演算子で`vertexIndex`を算出しており、`Curve`の`'end'`（本来index2）を`'control'`と同じindex1に誤って丸めていたのが原因。`Line`/`Curve`双方に`getVertexIndexForHandle(handleName)`を新設し、`InputTracker`はこれへポリモーフィックに委譲する設計に変更して解消 | Interrupt `20260809_1842` |
+| タスク1〜4内に累積した「中間状態」注記群（`hitTest`等未実装によるTypeError警告等） | 全タスク・全Interruptの完了により解消、記録不要と判断 | タスク1〜4/Interrupt2件 |
+| `PROJECT_ARCHITECTURE.md`記載と実コードの整合性（RESが一次情報として記述したことへの注記） | Coworkによる各タスク・Interruptのgit diff監査で都度整合を確認済み、問題なし | 各RES監査 |
+
+**未解決のまま次に持ち越した項目**（`COWORK_STATUS.md`側で追跡中。ここには含めない）:
+* `draw(ctx, t=0)`の`t`引数（将来のモーフィング機能用の伏線） → 将来のモーフィング機能実装Phaseで対応
+* `hitTest`の100分割ループの計算コスト → 頂点数が数千を超える規模になった際のパフォーマンスPhaseで、AABBによる早期判定フィルタリング等を検討（既存の同種項目へ統合）
+* `ShapeFactory`の`arc`/`rect`/`circle`は引き続き`Line`スタブ。専用クラス実装時は、今回`Curve`で確立した9メソッド契約（`hitTest`/`hitTestHandle`/`draw`/`drawHandles`/`drawHover`/`setVertex`/`translate`/`updateDraftEnd`/`getVertexIndexForHandle`）、特に`updateDraftEnd`・`getVertexIndexForHandle`の自己申告を必ず倣うこと（詳細はインシデント履歴の`vertexIndex`不一致バグを参照）
+* 制御点の追加・削除、moveハンドルの追加 → 発注者の意向により別Phaseで対応予定

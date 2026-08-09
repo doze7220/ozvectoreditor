@@ -119,7 +119,8 @@ export class InputTracker {
                 this.model.moveShape(this.activeShapeId, dx, dy);
                 this.lastCursor = { x, y };
             } else {
-                const vertexIndex = this.activeHandle === 'start' ? 0 : 1;
+                const shape = this.model.getShapes().find((s) => s.id === this.activeShapeId);
+                const vertexIndex = shape.getVertexIndexForHandle(this.activeHandle);
                 this.model.updateVertex(this.activeShapeId, vertexIndex, x, y);
             }
             return;
@@ -192,6 +193,7 @@ export class InputTracker {
      * IDLE状態では、ホバー中の図形があればそれを選択状態にする。
      * ホバー中の図形がない（空白部分のクリック）場合は、選択中であればまず選択解除し、
      * その上でModelへ新規Line作成の開始を指示してDRAWING状態へ遷移する。
+     * 作成する図形のtypeには、現在アクティブなツール種別（currentTool）をそのまま使用する。
      * @param {MouseEvent} event
      */
     handleClick(event) {
@@ -217,7 +219,7 @@ export class InputTracker {
             return;
         }
 
-        this.model.startDraft(x, y, 'line');
+        this.model.startDraft(x, y, this.currentTool);
         this.state = InputState.DRAWING;
     }
 

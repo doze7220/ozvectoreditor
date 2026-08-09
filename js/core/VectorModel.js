@@ -131,6 +131,7 @@ export class VectorModel {
 
     /**
      * 作成中Lineの終点をカーソル位置に追従させる。作成中Lineが存在しない場合は何もしない。
+     * 追従処理自体はshape.updateDraftEnd(x, y)へポリモーフィックに委譲する（図形種別を問わず同一の呼び出しで動作する）。
      * @param {number} x 終点のX座標（論理座標系）
      * @param {number} y 終点のY座標（論理座標系）
      */
@@ -138,7 +139,7 @@ export class VectorModel {
         if (!this.#draftLine) {
             return;
         }
-        this.#draftLine.setVertex(1, x, y);
+        this.#draftLine.updateDraftEnd(x, y);
         this.#notifyChange();
     }
 
