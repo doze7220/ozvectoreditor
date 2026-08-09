@@ -43,3 +43,34 @@
 **未解決のまま次に持ち越した項目**（`COWORK_STATUS.md`側で追跡中。ここには含めない）:
 * `startDraft`/`updateDraft`のLine固定インスタンス化・直接プロパティアクセス → P1-3着手時に設計判断
 * `moveShape`のDPI/CSSズーム誤差、タッチ非対応、id採番方式とImport機能の衝突、無条件notifyChangeのパフォーマンス → いずれも将来Phase（ズーム/パン、タッチ対応、Import機能実装、パフォーマンス問題顕在化時）に先送り
+
+---
+
+### Phase01-03「キャンバス全体化、右側固定フロートUI、およびツールモード切り替えの基盤確立」（クローズ日：2026-08-09）
+
+* DIR: `_log/dir/20260808_2307_DIR_Phase01-03_CanvasFullscreen_And_FloatUI.md`
+* RES: `_log/res/260808_2356_RES_Phase01-03_CanvasFullscreen_And_FloatUI.md`
+* 参照元REQ群:
+  * `_log/req/20260808_2345_REQ_Phase01-03_CanvasFullscreen_And_FloatUI.md`（本体）
+  * `_log/req/20260809_0002_REQ_PlanningUpdate_Phase01-03_StartDraftSignatureFix.md`（PlanningUpdate）
+  * `_log/req/20260809_0015_REQ_PlanningUpdate_Phase01-03_ArchDocPreviewFix.md`（PlanningUpdate）
+
+| 項目 | 結論 | 対応箇所 |
+|---|---|---|
+| `startDraft(type = 'line', x, y)`のデフォルト引数順序が後方互換動作を実現しないJS仕様上の欠陥（チェック0で発見） | `startDraft(x, y, type = 'line')`へ変更し、`type`を末尾・デフォルト値付きに修正して解消 | PlanningUpdate `20260809_0002` |
+| `keydown`リスナーの購読先未指定（`<canvas>`はフォーカス不可でキーボードイベントを受け取れない懸念、チェック0で発見） | `document`への購読と明記し解消 | PlanningUpdate `20260809_0002` |
+| 「開発資料の更新予定」欄に残った旧シグネチャ表記の修正漏れ（チェック0再監査で発見） | 該当1箇所を修正 | PlanningUpdate `20260809_0015` |
+| Canvas全画面化・ウィンドウリサイズ追従・dprスケール累積の有無 | ユーザーが実機で目視確認し、問題なしと判断 | テストプレイ（2026-08-09） |
+| コントロールパネルの`z-index`層順・ボタンのアクティブ状態CSS表示 | 問題報告なし、正常動作と判断 | テストプレイ（2026-08-09） |
+| コントロールパネル上のマウスイベント遮断（`stopPropagation`） | 問題報告なし、正常動作と判断 | テストプレイ（2026-08-09） |
+| 図形削除機能（`select`ツール中の`Delete`/`Backspace`キー） | 実機で動作確認済み（削除ボタン等のUI不在による発見しにくさは別課題として次フェイズへ持ち越し） | テストプレイ（2026-08-09） |
+| タスク1〜8内に累積した「中間状態」注記群（各タスク完了前後の一時的な未実装状態の説明） | 全8タスク完了により解消、記録不要と判断 | タスク1〜8 |
+| `deleteShape(id)`の実装スタイル（`findIndex`+`splice`採用の理由） | 既存メソッドとの一貫性を優先した設計判断として記録のみ、対応不要 | タスク5 |
+
+**未解決のまま次に持ち越した項目**（`COWORK_STATUS.md`側で追跡中。ここには含めない）:
+* パン機能の不在、ツール操作の直感性の低さ、削除UIの不在（キーボードのみで発見しにくい） → 「UI・操作充実フェイズ」で対応
+* `line`ツール中のホバー視覚フィードバック欠如、コントロールパネルヘッダーのドラッグ移動非機能、`setTool`引数バリデーション欠如、`createToolClickHandler`の2ボタン限定実装、`keydown`の`document`購読と将来のテキスト入力UI追加時の誤爆対策 → 同上フェイズで検討
+* 新規図形クラス追加時の`setVertex`/`translate`/`draw`インターフェース契約遵守、`ShapeFactory.create`の未知type時Error未キャッチ → 次の図形追加Phaseで対応
+* resizeイベントのデバウンス未実装、resizeリスナーのクリーンアップ未実装、`mouseup`への`stopPropagation`未実装 → いずれも実害なしと確認済み、将来の設計変更・パフォーマンス問題顕在化時に検討
+* タスク6の`handleMouseMove`/`handleMouseDown`のJSDoc説明文が`currentTool`ガード条件を反映していない軽微な記載漏れ → 次のInterruptでまとめて修正
+* `main.js`のツールボタン配線を`palette/`へ切り出すか（チェック1で判明） → 次の図形パレット実装Phaseで再検討
