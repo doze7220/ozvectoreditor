@@ -34,11 +34,16 @@
   * RES: `_log/res/20260809_1745_RES_Phase01-05_BezierCurve_Implementation.md`（タスク1〜4すべて完了、チェック0/1/2＋タスクごとのgit diff監査、テストプレイすべて通過）
   * 最初の新規具象図形クラス`js/shapes/Curve.js`（2次ベジェ曲線、始点・制御点・終点の3頂点構造）を実装し、`Line.js`と同名・同シグネチャの共通APIを自律実装することで、`core/`層（`VectorModel`/`CanvasManager`/`InputTracker`）を変更せずに図形種別を追加できる幾何ポリモーフィズムを実証した。`ShapeFactory`の`curve`分岐を本実装に接続。テストプレイで発見された2件の不具合（パレットで「曲線」を選んでも直線が生成される／作図プレビューが正しく追従せず始点終点が同一座標になる）はInterrupt2件（`_log/req/20260809_1830_REQ_Interrupt_Phase01-05_DraftTypeHardcoded.md`、`_log/req/20260809_1842_REQ_Interrupt_Phase01-05_MultiVertexShapeContract.md`）で修正済み。後者の修正で、共通APIは`updateDraftEnd`/`getVertexIndexForHandle`が加わり9メソッドに拡張された。
   * 解決済み事項の詳細は`_doc/COWORK_STATUS_CLOSED.md`のPhase01-05章を参照。
+* **Phase01-06「矩形（Rect.js）の実装および図形パレット・ツール切替のハードコード排除」：完了・クローズ済み（2026-08-09）。**
+  * DIR: `_log/dir/20260809_1915_DIR_Phase01-06_Rect_And_PaletteRefinement.md`（リード設計AI発行）
+  * RES: `_log/res/20260809_1925_RES_Phase01-06_Rect_And_PaletteRefinement.md`（タスク1〜5すべて完了、チェック0/1/2＋タスクごとのgit diff監査、テストプレイ通過）
+  * 図形ポリモーフィズム実証の第二弾として`js/shapes/Rect.js`（4頂点構造、`Line`/`Curve`と同一の9メソッド契約）を実装し、`ShapeFactory`の`rect`分岐を本実装に接続。同時に`main.js`のツール切替ロジック（コントロールパネルの`select`/`line`ボタン）を、個別ハードコードされた`classList.toggle`/`addEventListener`から`toolButtons`オブジェクトを走査する汎用ループへリファクタリングし、ボタン増設時に`main.js`本体を書き換えなくてよい開閉原則を成立させた（パレット側`PaletteController`は変更対象外のまま、コントロールパネル領域とパレット領域で`.active`管理の責任者を分離する設計とした）。チェック2でタスク2（Rect.js本実装）の粒度が前例（Curve.js）より大きいことが判明し、描画系（タスク2）と当たり判定・頂点操作系（タスク3）の2タスクに分割する差し戻しを実施。
+  * 解決済み事項の詳細は`_doc/COWORK_STATUS_CLOSED.md`のPhase01-06章を参照。
 
 ---
 
 ### 2. 現在進行中のタスク・懸念事項（毎セッション更新）
-* （2026-08-09時点、Phase01-05クローズ後）次の一手は未確定。ユーザーの意向として、パン機能・直感的な操作・削除UI等の不足を補う「UI・操作充実フェイズ」、または円・楕円等の次の図形追加Phase（P1-6）のいずれかが候補。着手時はStep 0（企画検討）から。
+* （2026-08-09時点、Phase01-06クローズ後）次の一手は未確定。ユーザーの意向として、パン機能・直感的な操作・削除UI等の不足を補う「UI・操作充実フェイズ」、または弧・円等の次の図形追加Phase（P1-7）のいずれかが候補。着手時はStep 0（企画検討）から。
 
 * **A. 次の「UI・操作充実フェイズ」へ持ち越し**
   * パン機能が未実装で、実用的な編集アプリとしては不十分（ユーザー自身がテストプレイで指摘、2026-08-09）。
@@ -49,12 +54,14 @@
   * `InputTracker.setTool(tool)`に引数バリデーションがなく、`main.js`の`createToolClickHandler`も2ボタン限定実装。ツール種別を増やす際は両方の書き換えが必要。
   * `InputTracker`の`keydown`は`document`購読のため、将来カラーコード入力欄等のテキスト入力UIを追加する際は、フォーカス中要素を判定して`Delete`/`Backspace`の誤爆を除外するロジックが必要。
   * タスク6で追加した`currentTool`ガード条件が`handleMouseMove`/`handleMouseDown`の既存JSDoc説明文に反映されていない軽微な記載漏れ（動作に影響なし）。まとめて修正してよい。
-  * コントロールパネルの操作モードボタン再設計：「直線ツール」は現状パレットの「直線」ボタンと同一の`tool='line'`を指すため、両者が連動してハイライトされる（バグではなく仕様上の帰結）。コントロールパネルは「現在の操作モード」を設定する場所であり、将来「キャンバス移動（パン）」等のモードも同列に追加予定のため、「直線ツール」は図形種別選択ではなく「図形作成」等の汎用モードボタンへ統合するのが妥当（ユーザー指摘、2026-08-09）。
+  * コントロールパネルの操作モードボタン再設計：「直線ツール」は現状パレットの「直線」ボタンと同一の`tool='line'`を指すため、両者が連動してハイライトされる（バグではなく仕様上の帰結）。コントロールパネルは「現在の操作モード」を設定する場所であり、将来「キャンバス移動（パン）」等のモードも同列に追加予定のため、「直線ツール」は図形種別選択ではなく「図形作成」等の汎用モードボタンへ統合するのが妥当（ユーザー指摘、2026-08-09）。なお、Phase01-06で`main.js`のトグル機構自体は汎用化済み（`toolButtons`走査ループ）だが、ボタンの意味づけ自体の再設計はまだ手つかず。
+  * `hitTestHandle`の優先順位問題（Phase01-06由来）：矩形（`Rect`）を`setVertex`による自由変形で極端に小さく潰した場合、複数の頂点が同一`tolerance`範囲内に密集すると常に`topLeft`側のハンドルが優先的に選ばれる（`Line`/`Curve`と同じ設計思想で不具合ではないが、極端な変形を行うUIが必要になった場合は最小サイズ制約等の検討が要る）。
+  * `toolButtons`（`main.js`、Phase01-06由来）へ将来ボタン追加時の注意点：対応するDOM要素を`index.html`側に先に用意しないと、`document.getElementById(...)`が`null`を返し`.classList`アクセスで`TypeError`になる。パン/zoom等の新規モードボタンを追加する際はDOM側を先に用意すること。
 
-* **B. 次の図形追加Phase（矩形・円等）へ持ち越し**
-  * 新規図形クラスは`Line`/`Curve`と同一の9メソッド共通インターフェース（`hitTest`/`hitTestHandle`/`draw`/`drawHandles`/`drawHover`/`setVertex`/`translate`/`updateDraftEnd`/`getVertexIndexForHandle`）を実装する必要がある（`VectorModel`/`InputTracker`は具象クラスを意識しないため、契約が破られると発生箇所から遠いエラーになる。Phase01-05で`vertexIndex`の意味不一致により実際に発生した不具合の詳細は5章のインシデント履歴を参照）。特に`updateDraftEnd`（2クリック作図中の追従挙動）と`getVertexIndexForHandle`（ハンドル名→vertexIndexの自己申告）は、頂点数・頂点構造が図形ごとに異なる場合に食い違いが起きやすいため要注意。
+* **B. 次の図形追加Phase（弧・円等）へ持ち越し**
+  * 新規図形クラスは`Line`/`Curve`/`Rect`と同一の9メソッド共通インターフェース（`hitTest`/`hitTestHandle`/`draw`/`drawHandles`/`drawHover`/`setVertex`/`translate`/`updateDraftEnd`/`getVertexIndexForHandle`）を実装する必要がある（`VectorModel`/`InputTracker`は具象クラスを意識しないため、契約が破られると発生箇所から遠いエラーになる。Phase01-05で`vertexIndex`の意味不一致により実際に発生した不具合の詳細は5章のインシデント履歴を参照）。特に`updateDraftEnd`（2クリック作図中の追従挙動）と`getVertexIndexForHandle`（ハンドル名→vertexIndexの自己申告）は、頂点数・頂点構造が図形ごとに異なる場合に食い違いが起きやすいため要注意。
   * `ShapeFactory.create()`は未知の`type`に対し`Error`をthrowするが、呼び出し元は`try/catch`していない。図形種別を追加する際は`type`文字列の綴りに注意、または呼び出し元のバリデーション導入を検討。
-  * `ShapeFactory`の`arc`/`rect`/`circle`は現状フォールスルー`case`でLineスタブを共有している（`curve`はPhase01-05で個別`case`に分離済み）。専用クラス実装時は該当`case`を個別の`return new XXX(...)`に差し替える。矩形・円等、直線とコンストラクタ引数の意味・個数が異なりうる図形を実装する際は、`ShapeFactory.create`の呼び出し元（`InputTracker`等）の引数の渡し方も合わせて見直す必要がある。
+  * `ShapeFactory`の`arc`/`circle`は現状フォールスルー`case`でLineスタブを共有している（`curve`はPhase01-05、`rect`はPhase01-06でそれぞれ個別`case`に分離済み）。専用クラス実装時は該当`case`を個別の`return new XXX(...)`に差し替える。将来`arc`/`circle`のどちらか一方だけ先に専用クラス化された場合、`PROJECT_ARCHITECTURE.md`の`ShapeFactory.js`エントリの言及順序（現在「`arc`/`circle`の2種は...」とまとめて記載）も1種のみに絞り込む修正が必要（Phase01-06由来）。弧・円等、直線とコンストラクタ引数の意味・個数が異なりうる図形を実装する際は、`ShapeFactory.create`の呼び出し元（`InputTracker`等）の引数の渡し方も合わせて見直す必要がある。
   * `Curve.draw(ctx, t=0)`の`t`引数は将来のモーフィング機能用の伏線として維持されているが本Phaseでは未使用 → モーフィング機能実装Phaseで対応。
   * `Curve.hitTest`の100分割ループによる当たり判定コストは、現状のベクター数（数十個程度）では無視できる計算量と評価済み → 頂点数が数千を超える規模になった際にAABB等の早期判定フィルタリングを検討（Cセクションのパフォーマンス項目と合わせて）。
   * `Curve`への制御点の追加・削除、moveハンドル（平行移動）の追加は、発注者の意向により別Phaseで対応予定（Phase01-05 DIR6章の設計決定）。
@@ -83,6 +90,7 @@
 * **Phase01-03（2026-08-09クローズ）**：RESの懸念事項欄（約25項目）を棚卸し。タスク間の中間状態注記や、チェック0で発見・PlanningUpdateで解消済みのバグ（`startDraft`引数順序、`keydown`購読先）、テストプレイで確認済みの項目は`_doc/COWORK_STATUS_CLOSED.md`へ移動。ユーザー自身がテストプレイで指摘した「UI・操作充実フェイズ」向けの項目（A）、パレット実装Phase向け（B）、図形追加Phase向け（C）、さらに将来へ先送り（D）は本ファイル2章に残した。次フェイズは未着手（Step 0から開始）。
 * **Phase01-04（2026-08-09クローズ）**：RESの懸念事項欄・Interrupt追記分を棚卸し。テストプレイで発見された3件の不具合（フロートウィンドウのドラッグ不可、パレットのアクティブ表示非同期、テキスト選択）はInterrupt（`20260809_1633`）で修正・実機確認済みのため`_doc/COWORK_STATUS_CLOSED.md`へ移動。Phase01-03から持ち越されていた「`main.js`のパレット配線切り出し」（旧B）は`PaletteController.js`新設により解消し同ファイルへ移動。ドラッグ・z-index排他・作図パイプライン・既存機能の回帰確認はすべてユーザーのテストプレイで問題なしと確認済み。テストプレイ中に新たに判明した「コントロールパネルの操作モードボタン再設計（直線ツール→図形作成等への統合）」は「UI・操作充実フェイズ」向け（A）として、`ShapeFactory`のフォールスルー`case`・将来のコンストラクタ引数差異は次の図形追加Phase向け（B）として、`WindowManager`の動的検知非対応等は将来へ先送り（C）として本ファイル2章に残した。次フェイズは未着手（Step 0から開始）。
 * **Phase01-05（2026-08-09クローズ）**：`Curve.js`実装本体（RES `20260809_1745`）に加え、テストプレイで発見された2件の不具合修正Interrupt（`20260809_1830`：作図type固定バグ、`20260809_1842`：`vertexIndex`意味不一致バグ）を含めて棚卸し。3件のRESすべてのチェック0/1/2＋タスク/Interruptごとのgit diff監査を実施し、いずれも計画・REQ通りの実装であることを確認済み。2件の不具合はいずれも`Curve.js`自体の実装ミスではなく、`Line`（2頂点）を前提に書かれていた`core/`層（`VectorModel.updateDraft`／`InputTracker`のハンドルドラッグ処理）の規約ハードコードが原因であり、`updateDraftEnd`/`getVertexIndexForHandle`という2つの新規共通APIをShape側に自己申告させる設計で解消した（詳細は5章のインシデント履歴）。ひし形ハンドルの当たり判定・点線ヘルパーの視認性・作図/選択/ハンドルドラッグの一連の操作フローはすべてユーザーのテストプレイで問題なしと確認済み。`Curve`のmoveハンドル非搭載・2次ベジェ限定という設計決定は発注者の事前合意通りで確定事項として`_doc/COWORK_STATUS_CLOSED.md`へ移動。`t`引数・100分割ループのパフォーマンス・制御点追加削除機能・`arc`/`rect`/`circle`実装時の9メソッド契約遵守は次フェイズ向け（B）として本ファイル2章に残した。次フェイズは未着手（Step 0から開始）。
+* **Phase01-06（2026-08-09クローズ）**：`Rect.js`実装（タスク1〜3）と`main.js`のツール切替汎用化（タスク4）、開発資料更新（タスク5）を含む全5タスクのRESを棚卸し。チェック0でDIR2章/4章の記載齟齬（`main.js`/`PaletteController.js`の責務分担）を発見しユーザー承認のうえ領域分担案で確定、チェック2でタスク2の粒度が前例（Curve.js）超過と判明しタスク2/3への分割差し戻しを実施（差し戻し後は再監査PASS）。Claude Browser paneのローカル`file://`環境制約により実装AI自身は画面上のマウス操作テストができなかったが、ユーザー自身のテストプレイ（選択・ハンドルドラッグ・ボタン同期）で解消・確認済み。`Rect`コンストラクタの非正規化方針・`hitTest`内部ヘルパーの位置づけ・`main.js`と`PaletteController`の責務分担・`PROJECT_ARCHITECTURE.md`の`main.js`項目追加判断は確定事項として`_doc/COWORK_STATUS_CLOSED.md`へ移動。`hitTestHandle`の優先順位問題・`toolButtons`拡張時の注意点は次のUI充実フェイズ向け（A）、`ShapeFactory`の`arc`/`circle`残存フォールバック文言の将来修正は次の図形追加Phase向け（B）として本ファイル2章に残した。次フェイズは未着手（Step 0から開始）。
 
 ---
 

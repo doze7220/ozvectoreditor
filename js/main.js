@@ -53,30 +53,33 @@ document.addEventListener('DOMContentLoaded', () => {
     new WindowManager();
 
     // 5. フロートパネル（コントロールパネル）配線
-    const toolSelectBtn = document.getElementById('tool-select');
-    const toolLineBtn = document.getElementById('tool-line');
+    // コントロールパネルがownするツールボタンをツール名文字列でマッピングする汎用テーブル。
+    // 将来ボタンが増設された場合、このオブジェクトへのエントリ追加のみで対応でき、
+    // 下記のapplyTool本体・クリックリスナー登録ループの書き換えは一切不要になる（開閉原則）。
+    const toolButtons = {
+        select: document.getElementById('tool-select'),
+        line: document.getElementById('tool-line')
+    };
 
     // 6. 図形選択パレット配線
     const shapePaletteEl = document.getElementById('window-shape-palette');
     const paletteController = new PaletteController(shapePaletteEl, applyTool);
 
     /**
-     * ツール切り替えを一元的に行う共通関数。コントロールパネル既存2ボタン('select'/'line')の
+     * ツール切り替えを一元的に行う共通関数。コントロールパネル各ボタン（`toolButtons`）の
      * clickリスナー、およびPaletteControllerへ`onToolSelected`コールバックとして渡され
      * パレット5ボタン('line'/'curve'/'arc'/'rect'/'circle')のclick時にも呼び出される。
-     * InputTrackerへのツール切り替え要求、コントロールパネル側2ボタンの排他的な`.active`
-     * 付け外し（'select'/'line'以外のtoolの場合はいずれの`.active`も外れる）、末尾での
-     * PaletteController#setActiveToolへの委譲（パレット側の活性/非活性・アクティブ表示更新）
-     * の3処理を担う。
+     * InputTrackerへのツール切り替え要求、`toolButtons`を走査する汎用ループによる
+     * コントロールパネル側ボタンの排他的な`.active`付け外し（`toolButtons`に存在しない
+     * toolの場合はいずれの`.active`も外れる）、末尾でのPaletteController#setActiveToolへの
+     * 委譲（パレット側の活性/非活性・アクティブ表示更新）の3処理を担う。
      * @param {string} tool - 切り替え先のツール名（'select' | 'line' | 'curve' | 'arc' | 'rect' | 'circle'）
      */
     function applyTool(tool) {
         inputTracker.setTool(tool);
-        toolSelectBtn.classList.toggle('active', tool === 'select');
-        toolLineBtn.classList.toggle('active', tool === 'line');
+        Object.entries(toolButtons).forEach(([key, btn]) => btn.classList.toggle('active', key === tool));
         paletteController.setActiveTool(tool);
     }
 
-    toolSelectBtn.addEventListener('click', () => applyTool('select'));
-    toolLineBtn.addEventListener('click', () => applyTool('line'));
+    Object.entries(toolButtons).forEach(([tool, btn]) => btn.addEventListener('click', () => applyTool(tool)));
 });

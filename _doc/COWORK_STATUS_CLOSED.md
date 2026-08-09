@@ -139,3 +139,27 @@
 * `hitTest`の100分割ループの計算コスト → 頂点数が数千を超える規模になった際のパフォーマンスPhaseで、AABBによる早期判定フィルタリング等を検討（既存の同種項目へ統合）
 * `ShapeFactory`の`arc`/`rect`/`circle`は引き続き`Line`スタブ。専用クラス実装時は、今回`Curve`で確立した9メソッド契約（`hitTest`/`hitTestHandle`/`draw`/`drawHandles`/`drawHover`/`setVertex`/`translate`/`updateDraftEnd`/`getVertexIndexForHandle`）、特に`updateDraftEnd`・`getVertexIndexForHandle`の自己申告を必ず倣うこと（詳細はインシデント履歴の`vertexIndex`不一致バグを参照）
 * 制御点の追加・削除、moveハンドルの追加 → 発注者の意向により別Phaseで対応予定
+
+---
+
+### Phase01-06「矩形（Rect.js）の実装および図形パレット・ツール切替のハードコード排除」（クローズ日：2026-08-09）
+
+* DIR: `_log/dir/20260809_1915_DIR_Phase01-06_Rect_And_PaletteRefinement.md`
+* RES: `_log/res/20260809_1925_RES_Phase01-06_Rect_And_PaletteRefinement.md`
+* 参照元REQ: `_log/req/20260809_1918_REQ_Phase01-06_Rect_And_PaletteRefinement.md`（本体、Interruptなし）
+
+| 項目 | 結論 | 対応箇所 |
+|---|---|---|
+| DIR2章（「main.js/PaletteController.js双方の汎用化」）とDIR4章（改修対象は`main.js`のみ）の記載齟齬 | `main.js`＝コントロールパネル領域、`PaletteController`＝パレット領域という領域分担で二重管理を回避する設計として、チェック0でユーザー承認のうえ確定 | チェック0/タスク4 |
+| タスク2（Rect.js本実装、9メソッド分）の粒度がCurve.js実装時の前例より大きい | チェック2で判明し、描画・プレビュー追従系（タスク2）と当たり判定・頂点操作・ホバー系（タスク3）の2タスクへ分割する差し戻しを実施。再監査でPASS | チェック2/RES差し戻し |
+| `Rect`コンストラクタの非正規化方針（`x1>x2`等で`topLeft`命名と実データが食い違いうる） | DIRのNon-goals（矩形維持ロジック非搭載）と`updateDraftEnd`側の非正規化ロジックとの一貫性を優先し、正規化を行わない設計として確定 | 要件1/タスク1 |
+| `hitTest`の内部ヘルパー（`#distanceToSegment`）切り出し、`Line.js`とのロジック重複 | Rect内部専用の実装詳細として9メソッド契約外に位置づけ、`Line.js`非変更方針（スコープ外）を維持したまま確定 | タスク3 |
+| Claude Browser paneのローカル`file://`ページ制約（`<canvas>`の`clientWidth`/`clientHeight`が`0`のまま）により、実装AI自身は画面上のマウス操作テストができなかった | 動的import＋メソッド直接呼び出しによる構造的検証で代替。最終的にユーザー自身のテストプレイ（選択・ハンドルドラッグ・ボタン同期いずれもOK）で解消・確認済み | タスク1〜5/テストプレイ（2026-08-09） |
+| RESヘッダーの「参照元DIR」バックリンク行の欠落 | ユーザーが意図的に削除。DIRはRES段階で実装形態が変わりうるため、残すと実装AIが読んでハルシネーションを招くとの判断（参照元REQは残しているため実害なし） | ユーザー判断（2026-08-09） |
+| `main.js`の`toolButtons`汎用トグル化の達成度 | `Object.entries`ベースの汎用ループへの置換で、個別ボタンのハードコード分岐を完全撤去。開閉原則が成立し実機確認済み | タスク4/テストプレイ |
+| `PROJECT_ARCHITECTURE.md`の`main.js`項目要否 | 「4. 各モジュールの責務リファレンス」に`main.js`専用項目が存在しなかったため、新規追加する判断で確定（今後`main.js`に責務が増えた際の追記の前例とする） | タスク5 |
+
+**未解決のまま次に持ち越した項目**（`COWORK_STATUS.md`側で追跡中。ここには含めない）:
+* `hitTestHandle`の優先順位問題（矩形を極端に小さく変形させた場合、複数頂点が近接すると`topLeft`側が常に優先される） → 「UI・操作充実フェイズ」で最小サイズ制約等を検討する際に対応
+* `toolButtons`への将来ツールボタン追加時の注意点（対応DOM要素を`index.html`側に先に用意しないと`TypeError`になる） → 同フェイズでpan/zoom等の新規モード追加時に対応
+* `ShapeFactory.js`の`arc`/`circle`残存フォールバック文言、将来どちらか一方だけ先に専用クラス化された場合の言及順序修正 → 次の図形追加Phaseで対応（既存の同種項目へ統合）
