@@ -20,10 +20,12 @@ AIは新規にファイルを作成、あるいはログを記録する際、必
 │   │   ├── VectorModel.js
 │   │   ├── CanvasManager.js
 │   │   ├── InputTracker.js
-│   │   └── ShapeFactory.js
+│   │   ├── ShapeFactory.js
+│   │   └── WindowManager.js
 │   ├── shapes/
 │   │   └── (図形クラスを種別ごとに1ファイルで追加していく)
 │   ├── palette/
+│   │   ├── PaletteController.js
 │   │   └── (ツールバー・カラーピッカー等、自己完結するUI部品をここに追加していく)
 │   └── io/
 │       ├── CodeExporter.js
@@ -66,9 +68,11 @@ ShapeDataは `id, type, color, strokeWidth, isFilled, points` を共通プロパ
 *   **VectorModel.js** : 描画データ（Shape配列）と選択状態を保持する単一の真実（SSOT）。選択状態(`#selectedId`)・ホバー状態(`#hoveredId`)・作成中Line(`#draftLine`)を併せて保持する。選択/ホバーの読み書きAPI（`selectShape`/`clearSelection`/`getSelectedId`、`setHovered`/`clearHovered`/`getHoveredId`）と、ドラフト（作成中Line）のライフサイクルAPI（`startDraft`/`updateDraft`/`commitDraft`/`cancelDraft`/`getDraftLine`）を持つ。図形idの採番（連番）は`commitDraft()`実行時にここで行う。再編集用の`updateVertex(id, vertexIndex, x, y)`/`moveShape(id, dx, dy)`は、図形固有の頂点構造を意識せず対象shapeの`setVertex(vertexIndex, x, y)`/`translate(dx, dy)`へポリモーフィックに委譲する（`core/`側にshapeの内部プロパティ名を持ち込まない）。図形の生成は`Line`への直接依存を持たず`ShapeFactory.create(type, x1, y1, x2, y2)`へ完全委譲する（`startDraft(x, y, type = 'line')`のシグネチャで生成種別を受け取る）。図形削除用の`deleteShape(id)`を持ち、削除対象が選択中/ホバー中であった場合はそれらの状態も同時にクリアする。
 *   **CanvasManager.js** : Canvasへの純粋な描画（レンダラーの責務）。状態は持たない。`render(shapes, { hoveredId, selectedId, draftLine } = {})`の形で呼び出される。通常描画（`shape.draw(ctx)`）に加え、`hoveredId`と一致する図形には`drawHover(ctx)`を、`selectedId`と一致する図形には`drawHandles(ctx)`をポリモーフィックに追加呼び出す。`draftLine`が渡された場合は全図形描画後に`draw(ctx)`のみ重ねて描画する。第2引数は省略可能（省略時はデフォルト値によりすべてnull扱いとなり通常描画のみ行う）。内部バッファサイズとdprスケールの計算・再適用は公開メソッド`resize()`（旧`initCanvasSize()`を一本化・改称）が担い、コンストラクタからの初期化と`main.js`からのウィンドウリサイズ時の再同期の両方から呼び出される。`resize()`はバッファサイズ・スケールの再計算のみを行い、`render()`の呼び出しは行わない（再描画トリガーは`main.js`側の責務）。
 *   **InputTracker.js** : マウス・キーボード入力の解釈、キャンバス座標への変換。`IDLE`/`DRAWING`/`DRAGGING_HANDLE`の3状態を持つ状態遷移マシンとして実装する。`IDLE`ではホバー判定・選択・新規作成の開始、`DRAWING`では作成中Lineの追従・確定、`DRAGGING_HANDLE`ではハンドルドラッグによる頂点更新・平行移動を扱い、状態に応じて`VectorModel`の対応するAPIを呼び出す。図形種別のif/switch分岐は一切行わず、`shape.hitTest(...)`/`shape.hitTestHandle(...)`をポリモーフィックに呼び出すのみとする。現在アクティブなツール種別(`currentTool`: `'select'`/`'line'`)を保持し、`setTool(tool)`によって切り替える。ツール切り替え時は選択/ホバー状態の無条件クリアおよび進行中操作の強制中断（IDLE復帰）を行う。`currentTool`に応じて`handleMouseMove`のホバー判定・`handleMouseDown`のハンドル検出・`handleClick`のクリック解釈を排他的に切り替える（`select`ツール中のみホバー判定/ハンドル検出/選択操作を行い、`line`ツール中は常に新規Line作成を開始する）。`document`を購読先とする`keydown`ハンドラも持ち、`select`ツール中に選択図形がある状態での`Delete`/`Backspace`押下で`VectorModel.deleteShape(id)`を呼び出す図形削除機能を持つ。
-*   **ShapeFactory.js** : 図形typeに応じたインスタンス生成を一元的に担うFactory。静的メソッド`create(type, x1, y1, x2, y2)`を持ち、`type === 'line'`の場合は`new Line(x1, y1, x2, y2)`を返す。未知の`type`が渡された場合は`Error`をthrowする。`core/`層全体を通じて図形種別のif/switch分岐を許容する唯一の例外モジュールである。
+*   **ShapeFactory.js** : 図形typeに応じたインスタンス生成を一元的に担うFactory。静的メソッド`create(type, x1, y1, x2, y2)`を持ち、`type`は`'line' | 'curve' | 'arc' | 'rect' | 'circle'`の5種を受理する。`type === 'line'`の場合は`new Line(x1, y1, x2, y2)`を返す。`curve`/`arc`/`rect`/`circle`の4種は専用クラス未実装のため、暫定的にいずれも`new Line(x1, y1, x2, y2)`を返すスタブフォールバックとなっている（将来専用クラスを実装する際は、この`switch`文の該当`case`を個別の`return new XXX(...)`に差し替える）。上記5種以外の未知の`type`が渡された場合は`Error`をthrowする。`core/`層全体を通じて図形種別のif/switch分岐を許容する唯一の例外モジュールである。
+*   **WindowManager.js** : `.float-window`要素の動的検知と、ドラッグ移動・アクティブ最前面化・イベント遮断（バブリングによる下層要素への透過防止）を一元管理する。コンストラクタ実行時点でDOMに存在する`.float-window`を`querySelectorAll`で検知し、各要素の`mousedown`で遮断＋z-index最前面化を、`.window-header`の`mousedown`起点かつ`window`レベル共通の`mousemove`/`mouseup`でドラッグ状態機械を駆動する。動的に後から追加される`.float-window`の再検知（MutationObserver等）は未対応。`VectorModel`が持つ図形データ・選択状態・ツール状態には一切関与しない、DOM統治専任のクラスである。
 *   **shapes/** : 図形種別ごとの定義・当たり判定。各図形が自身のプロパティと描画ロジック(`draw`メソッド)を持つ。追加され次第、ここに列挙していく。
     *   **Line.js**（作成済み）: 直線のデータ保持・描画・当たり判定を担う。共通インターフェースとして `hitTest(x, y, tolerance)`（本体の当たり判定）、`hitTestHandle(x, y, tolerance)`（start/end/moveハンドルの当たり判定、戻り値`'start'|'end'|'move'|null`）、`drawHandles(ctx)`（選択中のハンドル描画）、`drawHover(ctx)`（ホバー時の強調描画）、`setVertex(vertexIndex, x, y)`（頂点の絶対座標更新）、`translate(dx, dy)`（相対移動）を実装する。今後追加する図形（曲線・円・楕円等）も、この6メソッドを自身に実装することで`core/`側（VectorModel/CanvasManager/InputTracker）を変更せずに同一の作成・選択・再編集フローへ組み込める。
 *   **palette/** : ツールバー・カラーピッカー等のUI部品。追加され次第、ここに列挙していく。
+    *   **PaletteController.js**（作成済み）: 図形選択パレット（直線・曲線・弧・矩形・円の5ボタン）の配線を担う自己完結UI部品。コンストラクタは`InputTracker`インスタンスへ直接依存せず、ツール選択時に呼び出す汎用コールバック`onToolSelected(type)`（`main.js`側の`applyTool`）を受け取り、パレット5ボタンの`click`時に対応する図形種別`type`文字列を渡してこれを呼び出す。公開メソッド`setActiveTool(tool)`により、パレット本体の`.disabled`制御（`tool === 'select'`時に付与）と、5ボタンの`.active`排他制御（`tool`と一致するボタンのみ付与）を行う。`WindowManager`と同様、`VectorModel`・図形データ・選択状態には一切関与しないDOM操作専任のクラスである。
 *   **CodeExporter.js** : ゲームで再利用可能なJavaScript(ESM)コードの出力を担当。出力フォーマットの詳細は、当該Phaseの実装REQ/RESで確定させる。
 *   **CodeImporter.js** : 出力されたJSファイルを解析し、`VectorModel` に再ロードする。

@@ -74,3 +74,38 @@
 * resizeイベントのデバウンス未実装、resizeリスナーのクリーンアップ未実装、`mouseup`への`stopPropagation`未実装 → いずれも実害なしと確認済み、将来の設計変更・パフォーマンス問題顕在化時に検討
 * タスク6の`handleMouseMove`/`handleMouseDown`のJSDoc説明文が`currentTool`ガード条件を反映していない軽微な記載漏れ → 次のInterruptでまとめて修正
 * `main.js`のツールボタン配線を`palette/`へ切り出すか（チェック1で判明） → 次の図形パレット実装Phaseで再検討
+
+---
+
+### Phase01-04「フロートウィンドウシステムの構築と図形パレットの統合」（クローズ日：2026-08-09）
+
+* DIR: `_log/dir/20260808_1952_DIR_Phase01-04_FloatWindowManager_And_PaletteP.md`
+* RES: `_log/res/20260809_1212_RES_Phase01-04_FloatWindowManager_And_PaletteP.md`
+* 参照元REQ群:
+  * `_log/req/20260809_1157_REQ_Phase01-04_FloatWindowManager_And_PaletteP.md`（本体）
+  * `_log/req/20260809_1242_REQ_PlanningUpdate_Phase01-04_PaletteExtraction.md`（PlanningUpdate：パレット配線のmain.jsからの切り出し）
+  * `_log/req/20260809_1633_REQ_Interrupt_Phase01-04_DragAndPaletteSyncFix.md`（Interrupt：テストプレイ発見の3件修正）
+
+| 項目 | 結論 | 対応箇所 |
+|---|---|---|
+| フロートウィンドウのドラッグが機能しない（ウィンドウ自身の`stopPropagation`が`WindowManager`自身の`window`レベル追従リスナーを遮断していた） | ドラッグ追従用の`window`の`mousemove`/`mouseup`リスナーをキャプチャフェーズ登録に変更し解消 | Interrupt `20260809_1633` |
+| パレット5ボタン直接クリック時に`.active`表示が更新されない（`PaletteController`が`inputTracker`を直接呼び`applyTool`を経由しない設計だった） | `PaletteController`をコールバック（`onToolSelected`）受け取り式に変更し、`main.js`が`applyTool`自体を渡すことで全7ボタンの表示更新を一元化 | Interrupt `20260809_1633` |
+| Ctrl+A・ダブルクリックでウィンドウ内テキストが選択状態になる | `.float-window`に`user-select: none;`を追加 | Interrupt `20260809_1633` |
+| `main.js`にツールボタン配線を直書きする責務違反（Phase01-03から持ち越し） | `js/palette/PaletteController.js`（`js/palette/`フォルダの最初の入居者）へ切り出して解消 | PlanningUpdate `20260809_1242` / タスク5 |
+| 将来`applyTool`をパレットにも使い回すと干渉するのではという懸念（タスク6の申し送り） | `PaletteController`がコールバックを受け取る設計への変更により、`applyTool`一本化で自然に解消 | Interrupt `20260809_1633` |
+| top/right→left/top切替方式によるドラッグ開始時の位置ジャンプ有無 | ドラッグ修正後、ユーザーが実機で確認し問題なしと判断 | テストプレイ（2026-08-09） |
+| 複数`.float-window`間のz-index最前面化の排他制御 | ユーザーが実機で確認、問題なしと判断 | テストプレイ（2026-08-09） |
+| コントロールパネル／パレット内操作のCanvasへの透過（誤爆）有無 | ユーザーが実機で確認、問題なしと判断 | テストプレイ（2026-08-09） |
+| 5大図形ボタン（line/curve/arc/rect/circle）での作図・スタブフォールバック動作 | ユーザーが実機で確認、いずれもLineとして正常描画、問題なしと判断 | テストプレイ（2026-08-09） |
+| 選択ツールでのホバー/選択/ハンドルドラッグ/Delete削除・リサイズ追従の回帰確認 | ユーザーが実機で確認、Phase01-01〜03の既存機能に影響なしと判断 | テストプレイ（2026-08-09） |
+| パレット初期配置座標（`top:320px`仮値）の重なり有無、ボタンラベル記号（`◠`等）のフォント崩れ有無、コントロールパネル/パレットの×ボタンの見た目バランス | テストプレイで問題報告なし、現状のままで問題なしと判断 | テストプレイ（2026-08-09） |
+| `.disabled`の適用範囲（ルート要素全体、ヘッダーごと非活性化する設計判断） | 実害なしと確認、設計判断として確定 | タスク3/テストプレイ |
+| `tool`不一致時のパレット全ボタン非アクティブ表現（`.disabled`と`.active`を独立に評価する二重非活性化構造） | 実害なしと確認、現状の実装のまま確定 | タスク5/テストプレイ |
+
+**未解決のまま次に持ち越した項目**（`COWORK_STATUS.md`側で追跡中。ここには含めない）:
+* コントロールパネルの操作モードボタン再設計（「直線ツール」の扱い。将来「キャンバス移動」等のモードも同列に追加予定のため、「図形作成」等への統合を検討） → 「UI・操作充実フェイズ」で対応（ユーザー指摘、2026-08-09）
+* `WindowManager`の動的追加ウィンドウ再検知（`MutationObserver`等）非対応、単一`#draggingWindow`フィールドによる複数ウィンドウ同時ドラッグ非対応 → 将来ウィンドウを動的生成／複数同時操作するPhaseで対応
+* `.disabled`クラスの意味（`opacity:0.4`+`pointer-events:none`）が将来増える他の`.float-window`種別すべてに適切か → ウィンドウ種類が増えた時点で再検討
+* `PaletteController`のボタンid解決が見つからない場合に静かにフィルタされエラー化しない仕様 → 将来ボタンid命名規則を変更する際に注意
+* 初期`.disabled`（`index.html`側）と`InputTracker`の初期`currentTool`（`'select'`）の暗黙的な結合 → 将来初期ツールを変更する際は両方を同期させること
+* `ShapeFactory`の`curve`/`arc`/`rect`/`circle`フォールスルー`case`構造、将来矩形・円等でコンストラクタ引数の意味・個数が変わる場合の呼び出し元見直し → 次の図形追加Phaseで対応（既存の同種項目へ統合）

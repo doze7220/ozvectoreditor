@@ -19,31 +19,63 @@
             z-index: 1;
             background-color: #ffffff;
         }
-        #control-panel {
+        /* 共通フロートウィンドウ規格（WindowManagerの管理対象）: 個々のウィンドウはこのクラス群に準拠する */
+        .float-window {
             position: fixed;
-            top: 0;
-            right: 0;
             z-index: 10;
-            width: 220px;
             background-color: #ffffff;
-            border-left: 1px solid #ccc;
+            border: 1px solid #ccc;
             box-shadow: -2px 0 6px rgba(0,0,0,0.1);
             font-family: sans-serif;
+            user-select: none;
         }
-        #control-panel-header {
+        .window-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             padding: 10px 12px;
             border-bottom: 1px solid #ddd;
             font-size: 13px;
             font-weight: bold;
             color: #333;
             background-color: #f0f0f0;
-            cursor: default;
+            cursor: move;
         }
-        #control-panel-body {
+        .window-title {
+            flex: 1;
+        }
+        .window-close-btn {
+            border: none;
+            background: none;
+            font-size: 14px;
+            line-height: 1;
+            color: #666;
+            cursor: pointer;
+            padding: 2px 4px;
+        }
+        .window-close-btn:hover {
+            color: #333;
+        }
+        .window-body {
             padding: 12px;
             display: flex;
             flex-direction: column;
             gap: 8px;
+        }
+        #window-control-panel {
+            top: 16px;
+            right: 16px;
+            width: 220px;
+        }
+        #window-shape-palette {
+            top: 320px;
+            right: 16px;
+            width: 220px;
+        }
+        /* SELECTモード中など非活性化させたい.float-windowに付与する（クリック不可＋半透明化） */
+        .disabled {
+            opacity: 0.4;
+            pointer-events: none;
         }
         .tool-btn {
             padding: 8px 10px;
@@ -66,11 +98,27 @@
 </head>
 <body>
     <canvas id="editor-canvas"></canvas>
-    <div id="control-panel">
-        <div id="control-panel-header">OZ Vector Editor</div>
-        <div id="control-panel-body">
+    <div id="window-control-panel" class="float-window">
+        <div class="window-header">
+            <span class="window-title">OZ Vector Editor</span>
+            <button type="button" class="window-close-btn">×</button>
+        </div>
+        <div class="window-body">
             <button type="button" id="tool-select" class="tool-btn active">🖱 選択ツール</button>
             <button type="button" id="tool-line" class="tool-btn">／ 直線ツール</button>
+        </div>
+    </div>
+    <div id="window-shape-palette" class="float-window disabled">
+        <div class="window-header">
+            <span class="window-title">図形選択パレット</span>
+            <button type="button" class="window-close-btn">×</button>
+        </div>
+        <div class="window-body">
+            <button type="button" id="palette-line" class="tool-btn">／ 直線</button>
+            <button type="button" id="palette-curve" class="tool-btn">〜 曲線</button>
+            <button type="button" id="palette-arc" class="tool-btn">◠ 弧</button>
+            <button type="button" id="palette-rect" class="tool-btn">▭ 矩形</button>
+            <button type="button" id="palette-circle" class="tool-btn">◯ 円</button>
         </div>
     </div>
     <script type="module" src="js/main.js"></script>

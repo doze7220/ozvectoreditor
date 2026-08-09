@@ -5,6 +5,8 @@
 import { VectorModel } from './core/VectorModel.js';
 import { CanvasManager } from './core/CanvasManager.js';
 import { InputTracker } from './core/InputTracker.js';
+import { WindowManager } from './core/WindowManager.js';
+import { PaletteController } from './palette/PaletteController.js';
 
 // DOMが読み込まれた後に初期化を行う
 document.addEventListener('DOMContentLoaded', () => {
@@ -47,34 +49,34 @@ document.addEventListener('DOMContentLoaded', () => {
         renderCurrentState();
     });
 
-    // 4. フロートパネル（コントロールパネル）配線
-    const controlPanel = document.getElementById('control-panel');
+    // 4. フロートウィンドウ統治（ドラッグ・最前面化・イベント遮断の一元管理）
+    new WindowManager();
+
+    // 5. フロートパネル（コントロールパネル）配線
     const toolSelectBtn = document.getElementById('tool-select');
     const toolLineBtn = document.getElementById('tool-line');
 
+    // 6. 図形選択パレット配線
+    const shapePaletteEl = document.getElementById('window-shape-palette');
+    const paletteController = new PaletteController(shapePaletteEl, applyTool);
+
     /**
-     * ツールボタンのクリックハンドラを生成する。
-     * InputTrackerへのツール切り替え要求と、アクティブツールを示すCSSクラスの
-     * 付与/削除を同一ハンドラ内で行う。
-     * @param {string} tool - 切り替え先のツール名（'select'/'line'）
-     * @param {HTMLButtonElement} activeBtn - アクティブ化するボタン要素
-     * @param {HTMLButtonElement} inactiveBtn - 非アクティブ化するボタン要素
-     * @returns {Function} クリックイベントハンドラ
+     * ツール切り替えを一元的に行う共通関数。コントロールパネル既存2ボタン('select'/'line')の
+     * clickリスナー、およびPaletteControllerへ`onToolSelected`コールバックとして渡され
+     * パレット5ボタン('line'/'curve'/'arc'/'rect'/'circle')のclick時にも呼び出される。
+     * InputTrackerへのツール切り替え要求、コントロールパネル側2ボタンの排他的な`.active`
+     * 付け外し（'select'/'line'以外のtoolの場合はいずれの`.active`も外れる）、末尾での
+     * PaletteController#setActiveToolへの委譲（パレット側の活性/非活性・アクティブ表示更新）
+     * の3処理を担う。
+     * @param {string} tool - 切り替え先のツール名（'select' | 'line' | 'curve' | 'arc' | 'rect' | 'circle'）
      */
-    function createToolClickHandler(tool, activeBtn, inactiveBtn) {
-        return () => {
-            inputTracker.setTool(tool);
-            activeBtn.classList.add('active');
-            inactiveBtn.classList.remove('active');
-        };
+    function applyTool(tool) {
+        inputTracker.setTool(tool);
+        toolSelectBtn.classList.toggle('active', tool === 'select');
+        toolLineBtn.classList.toggle('active', tool === 'line');
+        paletteController.setActiveTool(tool);
     }
 
-    toolSelectBtn.addEventListener('click', createToolClickHandler('select', toolSelectBtn, toolLineBtn));
-    toolLineBtn.addEventListener('click', createToolClickHandler('line', toolLineBtn, toolSelectBtn));
-
-    // コントロールパネル上でのマウス操作がCanvas側のInputTrackerへ伝播し、
-    // 意図しない選択解除やライン描画開始を引き起こさないよう、伝播を遮断する
-    controlPanel.addEventListener('mousedown', (event) => event.stopPropagation());
-    controlPanel.addEventListener('click', (event) => event.stopPropagation());
-    controlPanel.addEventListener('mousemove', (event) => event.stopPropagation());
+    toolSelectBtn.addEventListener('click', () => applyTool('select'));
+    toolLineBtn.addEventListener('click', () => applyTool('line'));
 });
