@@ -1,7 +1,7 @@
 # 作業指示書 REQ: Interrupt : 3頂点図形（Curve）の作図・再編集フローにおけるvertexIndex意味不一致の解消
 *  ルール: `./PROJECT_CONSTITUTION.md`
 *  開発資料: `./PROJECT_ARCHITECTURE.md`
-*  参考資料: `./_log/res/20260809_1745_RES_Phase01-05_BezierCurve_Implementation.md`（`Curve.js`の実装内容）、`./_log/res/20260809_1830_RES_Interrupt_Phase01-05_DraftTypeHardcoded.md`（直前に修正した関連Interrupt）
+*  参考資料: `./_log/res/2609_1745_RES_Phase01-05_BezierCurve_Implementation.md`（`Curve.js`の実装内容）、`./_log/res/2626_1830_RES_Interrupt_Phase01-05_DraftTypeHardcoded.md`（直前に修正した関連Interrupt）
 
 ## 【作業手順（厳守事項）】
 本プロンプトは、Phase01-05完了後の実機テストプレイで発見された、`Curve`（3頂点図形）特有の2件の不具合に対するInterruptである。必ず以下の順序で作業を行うこと。
@@ -9,7 +9,7 @@
 2. 参考資料（上記2件のRES）を読み、`Curve.js`の`points`構造（`points[0]`=始点／`points[1]`=制御点／`points[2]`=終点）と、直前のInterruptで解消した内容を把握すること。
 3. 以下の【実装要件】に従って、2件の修正をすべて実装すること（互いに関連するため、まとめて実行してよい）。
 4. コード修正が完了したら、Interrupt作業レポートテンプレート（`./_log/TEMPLATE_RES_Interrupt.md`）を元に、作業レポートを新規作成して出力すること。
-    * 出力先・ファイル名: `./_log/res/20260809_1842_RES_Interrupt_Phase01-05_MultiVertexShapeContract.md`
+    * 出力先・ファイル名: `./_log/res/2609_1842_RES_Interrupt_Phase01-05_MultiVertexShapeContract.md`
 5. 開発資料（`PROJECT_ARCHITECTURE.md`）の「4. 各モジュールの責務リファレンス」内、`Line.js`/`Curve.js`/`VectorModel.js`/`InputTracker.js`の各記述に、本Interruptで追加・変更した内容を反映すること（詳細は【実装要件】各項末尾を参照）。
 6. すべての作業が完了したら、チャットにて「実装が完了しました。ビルド・動作確認をお願いします」と報告すること。
 

@@ -1,5 +1,5 @@
 # RES: 作業計画・作業レポート (Phase 01-03) : キャンバス全体化、右側固定フロートUI、およびツールモード切り替えの基盤確立
-* 参照元REQ: `./_log/req/20260808_2345_REQ_Phase01-03_CanvasFullscreen_And_FloatUI.md`
+* 参照元REQ: `./_log/req/2608_2345_REQ_Phase01-03_CanvasFullscreen_And_FloatUI.md`
 
 ## 1. 作業目的
 Phase01-02で確立したLINE専用の入力・描画・座標基盤を土台に、以下4つの基盤整備を並行して行う。

@@ -1,14 +1,14 @@
 # 作業指示書 REQ: Interrupt : Phase01-04 テストプレイで発見されたフロートウィンドウ関連3件の不具合修正
 *  ルール: `./PROJECT_CONSTITUTION.md`
 *  開発資料: `./PROJECT_ARCHITECTURE.md`
-*  作業計画書: `./_log/res/20260809_1212_RES_Phase01-04_FloatWindowManager_And_PaletteP.md`
+*  作業計画書: `./_log/res/2609_1212_RES_Phase01-04_FloatWindowManager_And_PaletteP.md`
 
 ## 【作業手順（厳守事項）】
 本プロンプトは、Phase01-04（フロートウィンドウシステムの構築と図形パレットの統合）完了後のテストプレイで発見された3件の不具合に対するInterruptである。必ず以下の順序で作業を行うこと。
 1. ルール（`PROJECT_CONSTITUTION.md`）および開発資料（`PROJECT_ARCHITECTURE.md`）を熟読・把握すること。
-2. 作業計画書（`./_log/res/20260809_1212_RES_Phase01-04_FloatWindowManager_And_PaletteP.md`）を読み、Phase01-04で確立した`WindowManager`/`PaletteController`/`main.js`の設計・現状を把握すること。
+2. 作業計画書（`./_log/res/2609_1212_RES_Phase01-04_FloatWindowManager_And_PaletteP.md`）を読み、Phase01-04で確立した`WindowManager`/`PaletteController`/`main.js`の設計・現状を把握すること。
 3. 以下の【実装要件】に従って、3件の修正をすべて実装すること（3件は互いに独立しており、まとめて実行してよい）。
-4. コード修正が完了したら、既存の作業レポート（`./_log/res/20260809_1212_RES_Phase01-04_FloatWindowManager_And_PaletteP.md`）の末尾に、追記用テンプレート（`./_log/TEMPLATE_RES_AddInterrupt.md`）を用いて作業の詳細を追記すること。3件それぞれについて「原因・理由」と「対応（対象ファイル・具体的な修正内容）」を分けて記述すること。
+4. コード修正が完了したら、既存の作業レポート（`./_log/res/2609_1212_RES_Phase01-04_FloatWindowManager_And_PaletteP.md`）の末尾に、追記用テンプレート（`./_log/TEMPLATE_RES_AddInterrupt.md`）を用いて作業の詳細を追記すること。3件それぞれについて「原因・理由」と「対応（対象ファイル・具体的な修正内容）」を分けて記述すること。
 5. 開発資料（`PROJECT_ARCHITECTURE.md`）の記述に影響がある場合（`WindowManager.js`・`PaletteController.js`の責務説明の変更等）は資料を修正し、その旨を作業レポートの対応内容に含めること。
 6. すべての作業が完了したら、チャットにて「実装が完了しました。ビルド・動作確認をお願いします」と報告すること。
 

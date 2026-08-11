@@ -1,5 +1,5 @@
 # RES: 作業計画・作業レポート Interrupt : 3頂点図形（Curve）の作図・再編集フローにおけるvertexIndex意味不一致の解消
-* 参照元REQ: `./_log/req/20260809_1842_REQ_Interrupt_Phase01-05_MultiVertexShapeContract.md`
+* 参照元REQ: `./_log/req/2609_1842_REQ_Interrupt_Phase01-05_MultiVertexShapeContract.md`
 
 ## 1. 作業目的
 `Line`（2頂点）と`Curve`（3頂点）とで`vertexIndex=1`の意味が異なる（`Line`は終点、`Curve`は制御点）にもかかわらず、`core/`層（`VectorModel`/`InputTracker`）が「`vertexIndex=1`は常に終点」という`Line`前提の規約をハードコードしていたことに起因する、`Curve`特有の2件の不具合（作図中プレビューが正しく追従しない／終点ハンドルドラッグで制御点が動いてしまう）を解消する。

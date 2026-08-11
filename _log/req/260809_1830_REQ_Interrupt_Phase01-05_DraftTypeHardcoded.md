@@ -1,14 +1,14 @@
 # 作業指示書 REQ: Interrupt : `InputTracker.handleClick`の新規図形作成タイプ固定バグ修正
 *  ルール: `./PROJECT_CONSTITUTION.md`
 *  開発資料: `./PROJECT_ARCHITECTURE.md`
-*  参考資料: `./_log/res/20260809_1745_RES_Phase01-05_BezierCurve_Implementation.md`（不具合が顕在化したPhase01-05のRES。原因箇所自体はこのRESの変更対象外）
+*  参考資料: `./_log/res/2609_1745_RES_Phase01-05_BezierCurve_Implementation.md`（不具合が顕在化したPhase01-05のRES。原因箇所自体はこのRESの変更対象外）
 
 ## 【作業手順（厳守事項）】
 本プロンプトは、Phase01-05（`Curve.js`実装）完了後のテストプレイで発見された不具合に対するInterruptである。必ず以下の順序で作業を行うこと。
 1. ルール（`PROJECT_CONSTITUTION.md`）および開発資料（`PROJECT_ARCHITECTURE.md`）を熟読・把握すること。
 2. 以下の【実装要件】に従って、修正を実装すること。
 3. コード修正が完了したら、Interrupt作業レポートテンプレート（`./_log/TEMPLATE_RES_Interrupt.md`）を元に、作業レポートを新規作成して出力すること。
-    * 出力先・ファイル名: `./_log/res/20260809_1830_RES_Interrupt_Phase01-05_DraftTypeHardcoded.md`
+    * 出力先・ファイル名: `./_log/res/2609_1830_RES_Interrupt_Phase01-05_DraftTypeHardcoded.md`
 4. すべての作業が完了したら、チャットにて「実装が完了しました。ビルド・動作確認をお願いします」と報告すること。
 
 ## 【実装要件】

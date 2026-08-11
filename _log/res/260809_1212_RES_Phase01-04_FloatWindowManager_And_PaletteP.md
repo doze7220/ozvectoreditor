@@ -1,6 +1,6 @@
 # RES: 作業計画・作業レポート (Phase 01-04) : フロートウィンドウシステムの構築と図形パレットの統合
-* 参照元REQ: `./_log/req/20260809_1157_REQ_Phase01-04_FloatWindowManager_And_PaletteP.md`
-* 参照元DIR: `./_log/dir/20260808_1952_DIR_Phase01-04_FloatWindowManager_And_PaletteP.md`
+* 参照元REQ: `./_log/req/2609_1157_REQ_Phase01-04_FloatWindowManager_And_PaletteP.md`
+* 参照元DIR: `./_log/dir/2608_1952_DIR_Phase01-04_FloatWindowManager_And_PaletteP.md`
 
 ## 1. 作業目的
 将来乱立するフロートウィンドウ（プロパティ、レイヤー、カラーサークル等）の衝突バグ（z-index崩壊、イベント透過、ドラッグロジックの重複）を構造的に防止するため、`core/WindowManager.js` として「ドラッグ移動」「アクティブ最前面化」「イベント透過防止」を一元管理する共通基盤を新設する。
@@ -252,7 +252,7 @@
 ---
 
 ### Interrupt: Phase01-04 テストプレイで発見されたフロートウィンドウ関連3件の不具合修正
-* 参照元REQ: `./_log/req/20260809_1633_REQ_Interrupt_Phase01-04_DragAndPaletteSyncFix.md`
+* 参照元REQ: `./_log/req/2609_1633_REQ_Interrupt_Phase01-04_DragAndPaletteSyncFix.md`
 
 #### 追加作業目的:
 * Phase01-04完了後のテストプレイで発見された3件の不具合（フロートウィンドウのドラッグ不具合／パレットのアクティブ表示同期／テキスト選択防止）を、REQの指示通り即時実行アプローチで修正する。3件は互いに独立しており、まとめて実装した。

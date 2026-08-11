@@ -1,12 +1,12 @@
 ### 作業指示書 REQ: Phase 01-04 : フロートウィンドウシステムの構築と図形パレットの統合
 *  ルール: ./PROJECT_CONSTITUTION.md
 *  開発資料: ./PROJECT_ARCHITECTURE.md
-*  指針書(DIR): ./_log/dir/20260808_1952_DIR_Phase01-04_FloatWindowManager_And_PaletteP.md
+*  指針書(DIR): ./_log/dir/2608_1952_DIR_Phase01-04_FloatWindowManager_And_PaletteP.md
 
 --------------------------------------------------------------------------------
 
 #### 【作業手順（厳守事項）】
-本プロンプトは、リード設計AIが発行したDIR（`./_log/dir/20260808_1952_DIR_Phase01-04_FloatWindowManager_And_PaletteP.md`）に基づく、Phase 01-04「フロートウィンドウシステムの構築と図形パレットの統合」の **「計画立案」のみを目的とする。絶対にソースコードの修正（ファイルの書き換え）を行わないこと。** 計画立案のみに留めること。
+本プロンプトは、リード設計AIが発行したDIR（`./_log/dir/2608_1952_DIR_Phase01-04_FloatWindowManager_And_PaletteP.md`）に基づく、Phase 01-04「フロートウィンドウシステムの構築と図形パレットの統合」の **「計画立案」のみを目的とする。絶対にソースコードの修正（ファイルの書き換え）を行わないこと。** 計画立案のみに留めること。
 
 1. ルール（`./PROJECT_CONSTITUTION.md`）、開発資料（`./PROJECT_ARCHITECTURE.md`）、および指針書（DIR、上記パス）を熟読・把握すること。DIRは本Phaseにおいて実装AIが1歩も逸脱してはならない制約事項（北極星）である。
 2. 以下の【実装要件】を満たすための高度なアーキテクチャ設計と作業計画を立案し、AIがハルシネーションを起こさない適切なスコープを持つ細かなタスクリストを構築すること。DIRとREQの記載に矛盾がある場合はDIRを優先すること。

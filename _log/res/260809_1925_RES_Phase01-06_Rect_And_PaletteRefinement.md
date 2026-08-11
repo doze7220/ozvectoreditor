@@ -1,5 +1,5 @@
 # RES: 作業計画・作業レポート (Phase 01-06) : 矩形（Rect.js）の実装および図形パレット・ツール切替のハードコード排除
-* 参照元REQ: `./_log/req/20260809_1918_REQ_Phase01-06_Rect_And_PaletteRefinement.md`
+* 参照元REQ: `./_log/req/2609_1918_REQ_Phase01-06_Rect_And_PaletteRefinement.md`
 
 ## 1. 作業目的
 図形ポリモーフィズム実証の第二弾として、4頂点構造を持つ「矩形（`Rect`）」を`Line`/`Curve`と完全に同一の9メソッド契約で実装し、`core/`層（`VectorModel`/`CanvasManager`/`InputTracker`）を1行も変更せずに既存の作成・選択・再編集フローへ統合する。同時に、`main.js`のツールボタン切替ロジックに残る「ボタンA/ボタンB」式のハードコードされた相互排他処理を、データ駆動の汎用トグルループへリファクタリングし、将来ツール（pan/zoom等）が増設されても`main.js`の当該ループを書き換える必要がない開閉原則（O-C原則）を成立させる。

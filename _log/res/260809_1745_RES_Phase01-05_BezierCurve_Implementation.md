@@ -1,6 +1,6 @@
 # RES: 作業計画・作業レポート (Phase 01-05) : ベジエ曲線（Curve.js）の完全実装と幾何ポリモーフィズムの確立
-* 参照元REQ: `./_log/req/20260809_1735_REQ_Phase01-05_BezierCurve_Implementation.md`
-* 参照元DIR: `./_log/dir/20260809_1727_DIR_Phase01-05_BezierCurve_Implementation.md`
+* 参照元REQ: `./_log/req/2609_1735_REQ_Phase01-05_BezierCurve_Implementation.md`
+* 参照元DIR: `./_log/dir/2609_1727_DIR_Phase01-05_BezierCurve_Implementation.md`
 
 ## 1. 作業目的
 5大図形パレットの空スタブとして残っている `curve` に対し、最初の新規具象図形クラス `Curve.js`（2次ベジェ曲線、始点・制御点・終点の3頂点構造）を完全実装する。`Line.js` が確立した7つの共通API（`hitTest`/`hitTestHandle`/`draw`/`drawHandles`/`drawHover`/`setVertex`/`translate`）を同名・同シグネチャで自律実装することで、`core/`層（`VectorModel`/`CanvasManager`/`InputTracker`）を1行も変更せずに「頂点数・形状の異なる図形」を扱える幾何ポリモーフィズムを実証し、後続の `arc`/`rect`/`circle` 実装の拡張基盤を確立する。`ShapeFactory.js` の `curve` 分岐を暫定 `Line` フォールバックから本物の `Curve` 接続に切り替える。

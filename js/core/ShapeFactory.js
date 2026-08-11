@@ -5,17 +5,17 @@
 import { Line } from '../shapes/Line.js';
 import { Curve } from '../shapes/Curve.js';
 import { Rect } from '../shapes/Rect.js';
+import { Ellipse } from '../shapes/Ellipse.js';
 
 export class ShapeFactory {
     /**
      * typeに応じた図形インスタンスを生成する。
-     * arc/circleは専用クラス未実装のため、暫定的にLineへフォールバックするスタブ。
      * @param {string} type - 生成する図形の種別（'line' | 'curve' | 'arc' | 'rect' | 'circle'）
      * @param {number} x1 - 始点のX座標
      * @param {number} y1 - 始点のY座標
      * @param {number} x2 - 終点のX座標
      * @param {number} y2 - 終点のY座標
-     * @returns {Line|Curve|Rect} 生成された図形インスタンス（arc/circleの未実装2種は暫定的にLineインスタンスを返す）
+     * @returns {Line|Curve|Rect|Ellipse} 生成された図形インスタンス
      * @throws {Error} 上記5種以外の未知のtypeが渡された場合
      */
     static create(type, x1, y1, x2, y2) {
@@ -26,10 +26,10 @@ export class ShapeFactory {
                 return new Curve(x1, y1, x2, y2);
             case 'rect':
                 return new Rect(x1, y1, x2, y2);
-            case 'arc':
             case 'circle':
-                // TODO(Phase未定): 専用クラス未実装のためLineへポリモーフィックにフォールバックするスタブ
-                return new Line(x1, y1, x2, y2);
+                return new Ellipse(x1, y1, x2, y2, 'circle');
+            case 'arc':
+                return new Ellipse(x1, y1, x2, y2, 'arc');
             default:
                 throw new Error(`ShapeFactory: unknown shape type "${type}"`);
         }

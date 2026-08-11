@@ -1,5 +1,5 @@
 # RES: 作業計画・作業レポート Interrupt : `InputTracker.handleClick`の新規図形作成タイプ固定バグ修正
-* 参照元REQ: `./_log/req/20260809_1830_REQ_Interrupt_Phase01-05_DraftTypeHardcoded.md`
+* 参照元REQ: `./_log/req/2609_1830_REQ_Interrupt_Phase01-05_DraftTypeHardcoded.md`
 
 ## 1. 作業目的
 図形選択パレットで「曲線」等を選択して作図しても、生成される図形が常に`Line`になってしまう不具合を修正する。原因は`InputTracker.handleClick`が`VectorModel.startDraft`呼び出し時に図形typeを`'line'`固定の文字列リテラルで渡していたことであり、これを現在アクティブなツール種別（`this.currentTool`）を参照する形に修正する。

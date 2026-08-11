@@ -1,7 +1,7 @@
 # RES: 作業計画・作業レポート (Phase 01-02) : LINEの作成・選択・再編集における入力・描画・座標基盤の確立
-* 参照元REQ: `./_log/req/20260808_1831_REQ_Phase01-02_LineInteraction_Foundation.md`
-* 参照元REQ: `./_log/req/20260808_2011_REQ_Interrupt_Phase01-02_Task5.5_ShapeVertexPolymorphism.md` ※タスク5.5として追加作業
-* 参照元REQ: `./_log/req/20260808_2036_REQ_PlanningUpdate_Phase01-02_Task6.5_MainJsWiring.md` ※タスク6.5として追加作業
+* 参照元REQ: `./_log/req/2608_1831_REQ_Phase01-02_LineInteraction_Foundation.md`
+* 参照元REQ: `./_log/req/2608_2011_REQ_Interrupt_Phase01-02_Task5.5_ShapeVertexPolymorphism.md` ※タスク5.5として追加作業
+* 参照元REQ: `./_log/req/2608_2036_REQ_PlanningUpdate_Phase01-02_Task6.5_MainJsWiring.md` ※タスク6.5として追加作業
 
 ## 1. 作業目的
 Phase01-01で構築したMVC最小骨格（`VectorModel` / `CanvasManager` / `InputTracker` / `shapes/Line.js`）を土台に、LINE（直線）1種類のみを対象として「作成」「選択」「再編集」の一連の操作フローを実現する。パレット未実装の現段階では、「空白クリック＝新規作成」「既存図形クリック＝選択」という暗黙の分岐で操作モードを切り替える。
@@ -445,7 +445,7 @@ Phase01-01で構築したMVC最小骨格（`VectorModel` / `CanvasManager` / `In
      *   実装中に判断に迷った点があれば「5. 懸念事項・要確認ポイント」に記述する。
 
 *  「3. タスクリスト」のタスク6の直後・タスク7の前に、新規タスク「タスク6.5: `main.js` - `render`呼び出しへの状態配線」をREQ本文の指定通り転記・挿入した（対象ファイル`./js/main.js`、`canvasManager.render`の第2引数として`{ selectedId: model.getSelectedId(), hoveredId: model.getHoveredId(), draftLine: model.getDraftLine() }`を渡す配線作業。状態の判定・加工ロジックは追加せず、既存getterの戻り値をそのまま橋渡しするのみに限定する内容）。
-*  冒頭の参照元REQ一覧に、本PlanningUpdateの参照元REQ（`20260808_2036_REQ_PlanningUpdate_Phase01-02_Task6.5_MainJsWiring.md`）を追記した。
+*  冒頭の参照元REQ一覧に、本PlanningUpdateの参照元REQ（`2608_2036_REQ_PlanningUpdate_Phase01-02_Task6.5_MainJsWiring.md`）を追記した。
 *  既に完了報告済みのタスク1〜6の`[x]`マーク・完了日時・詳細作業内容のテキストは一切改変していない。
 *  `./js/main.js`の`model.onChange(...)`コールバックを、`canvasManager.render(model.getShapes(), { selectedId: model.getSelectedId(), hoveredId: model.getHoveredId(), draftLine: model.getDraftLine() })`という形へ実装した。状態の判定・加工ロジックは追加せず、`VectorModel`の既存3getterの戻り値をそのままオブジェクトリテラルとして`render`の第2引数へ橋渡しするのみに留めており、`main.js`の責務（各モジュールの初期化と連携）を逸脱していない。既存のファイル先頭JSDoc（責務コメント）にも変更は不要と判断した（コールバック内部の1行の書き換えであり、ファイル・関数単位の責務は変わらないため）。
 
