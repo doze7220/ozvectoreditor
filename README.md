@@ -31,8 +31,8 @@ AI-IDEの不要なインデックス汚染や、GitHub Pages等でのビルド�
 │   ├── PROJECT_AI_WORKFLOW.md  # 人間と設計AIのための発注ワークフロー
 │   └── TEMPLATE_REQ_*.md       # 指示書（REQ）テンプレート
 └── _log/                       # AI駆動開発の実行履歴ログ（親のみアンダースコアでJekyllビルド回避）
-    ├── req/                    # 実際に出された作業指示書 (YYYYMMDD_HHMM_REQ_*.md)
-    ├── res/                    # 実装AIが出力した計画・報告書 (YYYYMMDD_HHMM_RES_*.md)
+    ├── req/                    # 実際に出された作業指示書 (YYMMDD_HHMM_REQ_*.md)
+    ├── res/                    # 実装AIが出力した計画・報告書 (YYMMDD_HHMM_RES_*.md)
     └── TEMPLATE_RES_*.md       # 報告書（RES）テンプレート
 ```
 

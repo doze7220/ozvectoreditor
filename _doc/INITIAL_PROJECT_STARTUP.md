@@ -48,7 +48,7 @@
 憲法とアーキテクチャが確定し、人間がローカルフォルダ（`_log/req/`, `_log/res/`, `_doc/`）を準備したら、設計AIは以下のインプットを基に、実装AI（AI-IDE）へ投げるための**最初の計画立案用指示書（Phase 1-1 REQ）**を自動生成する。
 1.  **適用パターン**: 通常は「パターンA：複数タスクにまたがる本格的な実装（計画立案アプローチ）」
 2.  **使用テンプレート**: `TEMPLATE_REQ_ImpretonPlanMake.md`
-3.  **指示書（REQ）の出力ファイルパス**: `./_log/req/YYYYMMDD_HHMM_REQ_Phase01-01_BaseUIAndStaticCanvas.md` のように具体的なパスを指定する。
+3.  **指示書（REQ）の出力ファイルパス**: `./_log/req/YYMMDD_HHMM_REQ_Phase01-01_BaseUIAndStaticCanvas.md` のように具体的なパスを指定する。
 
 ---
 
