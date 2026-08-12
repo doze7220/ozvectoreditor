@@ -28,6 +28,7 @@
 | `PROJECT_CONSTITUTION.md`       | 実装AI                               | 絶対ルール（フレームワーク禁止・責務分離・責務定義義務など）                    |
 | `PROJECT_ARCHITECTURE.md`       | 現場設計AI（実装AIは計画立案時のみ） | 実装の見取り図（索引）。実装が進むごとに更新する                                |
 | `PROJECT_MILESTONE.md`          | 発注者（人間）                       | フェイズ分解・機能バックログ。DIR発行タイミングで更新する要メンテナンス系ソース |
+| `PROJECT_PHASE_TRANSITION_CLEANUP.md` | 現場設計AI（Cowork）           | フェイズ大番号移行時（例：Phase1→Phase2）に実行する、ドキュメント・実行ログの棚卸し定型プロセス |
 
 ### DIR / REQ / RESについて
 本ワークフローの作業単位。詳細な運用ルールは`PROJECT_AI_WORKFLOW.md`を参照（ここでは概要のみ）。
@@ -62,10 +63,15 @@ REQテンプレートは`_doc/`、RESテンプレートは`_log/`に配置する
 │ └ COWORK_STATUS_CLOSED.md
 └ _log/                      Cowork・Claude Code用
   ├ dir/
+  │ └ closed/                フェイズ大番号移行時にアーカイブ済みDIRを退避
   ├ req/
+  │ └ closed/                フェイズ大番号移行時にアーカイブ済みREQを退避
   ├ res/
+  │ └ closed/                フェイズ大番号移行時にアーカイブ済みRESを退避
   └ TEMPLATE_RES*.md
 ```
+
+`closed/`への退避は`_doc/PROJECT_PHASE_TRANSITION_CLEANUP.md`が定める定型プロセスで、フェイズ大番号移行時にまとめて行う（詳細は同ファイル参照）。
 
 `PROJECT_CONSTITUTION.md`・`PROJECT_ARCHITECTURE.md`のみルート直下に置く（実装AIがREQのヘッダーからパス参照するため）。それ以外の人間・設計AI向け資料は`_doc/`、実装AIとの日々のやり取り（DIR/REQ/RES）は`_log/`に集約する。
 

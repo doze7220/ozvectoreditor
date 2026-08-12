@@ -37,6 +37,7 @@
 * **`PROJECT_CONSTITUTION.md`**：実装AI向けの絶対ルール（Vanilla JS縛り、状態と描画の分離、責務定義の義務等）。チェック1（ルール・責務違反監査）の判定基準として必須。
 * **`PROJECT_ARCHITECTURE.md`**：フォルダ構造・モジュール責務マッピング。REQ作成時（対象ファイルの特定、既存責務との整合確認）と、RES監査時の両方で必須。
 * **`_log/dir/`配下のDIRファイル**：Phase規模の開発に着手する際、リード設計AI（Gemini Notebook）が発行する大局的指針書。該当PhaseのREQ（`TEMPLATE_REQ_ImpretonPlanMake.md`）を作成する前に必ず読み込み、DIRの制約から逸脱していないかを確認する。
+* **`_doc/PROJECT_PHASE_TRANSITION_CLEANUP.md`**：フェイズ大番号移行時（例：Phase1→Phase2）にCoworkが実行する、ドキュメント・実行ログ棚卸しの定型プロセス。フェイズ完了RESコミット直後、次フェイズのDIR策定前に必ず参照する。
 
 ---
 

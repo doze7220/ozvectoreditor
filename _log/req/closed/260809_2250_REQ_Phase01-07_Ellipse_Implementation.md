@@ -1,7 +1,7 @@
 ### 作業指示書 REQ: Phase 01-07 : 楕円弧（Ellipse.js）の一元化設計と段階的実装
 *  ルール: ./PROJECT_CONSTITUTION.md
 *  開発資料: ./PROJECT_ARCHITECTURE.md
-*  指針書(DIR): ./_log/dir/2609_2247_DIR_Phase01-07_Ellipse_Implementation-v2.md
+*  指針書(DIR): ./_log/dir/260809_2247_DIR_Phase01-07_Ellipse_Implementation-v2.md
 
 --------------------------------------------------------------------------------
 
