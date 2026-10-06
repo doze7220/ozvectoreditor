@@ -204,3 +204,28 @@
 * `hitTest`の楕円境界判定が厳密な楕円上距離ではなく比率近似（`allowedDiff`）である点の精度 → 実害が顕在化した場合に将来検討
 
 ---
+
+### Phase02-01「操作モード再設計」（クローズ日：2026-10-06）
+* DIR: `_log/dir/261006_2239_DIR_Phase02-00_UI_And_Operation_Enhancement.md`（Phase 02-01節）
+* REQ: `_log/req/261006_2244_REQ_Phase02-01_OperationMode_Redesign.md`
+* RES: `_log/res/261006_2247_RES_Phase02-01_OperationMode_Redesign.md`（全6タスク、PlanningUpdate・Interruptなし）
+
+| 項目 | 結論 | 対応箇所 |
+| ---- | ---- | -------- |
+| 「直線ツール」とパレット「直線」が同じ`tool='line'`を指し同時ハイライトされる問題（操作モードと図形種別の混在） | `InputTracker`の状態を`currentMode`（`OperationMode`：`'select'`/`'create'`）と`currentShapeType`に分離。コントロールパネルは「選択」「図形作成」の操作モード専用、パレットは図形種別専用として解消 | タスク1〜4 |
+| 図形作成モードへ戻った際の図形種別 | `currentShapeType`をモード切替でリセットしない設計で「前回使った図形」に復帰（初回は直線）。発注者決定 | REQ要件1 / タスク1 |
+| 選択モード中（パレット非活性）のパレット内ハイライト | 記憶中の図形種別をハイライトしたままとする（RES設計どおり）。発注者決定 | RES監査時（2026-10-06） |
+| `setTool`の引数バリデーション欠如・`createToolClickHandler`の2ボタン限定 | `setMode`/`setShapeType`に未知値の`console.warn`＋無視を導入。`main.js`は`modeButtons`走査ループ＋`getMode()`読み返しで表示同期し、モード追加は`index.html`・`OperationMode`・`modeButtons`への追加のみで対応可能 | タスク1・4 |
+| パンモード追加時にクリックで図形が作成される事故の予防 | `handleClick`の作成開始を`currentMode === OperationMode.CREATE`の明示ガードに変更 | タスク1 |
+| `line`ツール中のホバー視覚フィードバック欠如 | カーソル形状を導入（作成モード`crosshair`／選択モードでハンドル上・ドラッグ中`move`／図形上`pointer`／その他`default`）。担当は`InputTracker`（`#resolveCursor`/`#updateCursor`）、判定は`hitTestHandle`とホバー状態のポリモーフィック利用のみ | タスク1 |
+| `PaletteController.setActiveTool`のモード知識混入 | `setEnabled(enabled)`／`setActiveType(type)`に分割し、パレットは操作モードを知らない構造に。活性判断は`main.js`の責務 | タスク2・4 |
+| コントロールパネルのヘッダードラッグ非機能（Phase01-03由来の持ち越し） | 実際はInterrupt `260809_1633`で解消済みの古い記載だった。今回は回帰防止のみとし、テストプレイでドラッグ可能を確認 | テストプレイ（2026-10-06） |
+| `currentTool`ガード条件のJSDoc記載漏れ・`'select'|'line'`型注釈 | 新API・新フィールドのJSDocとして実態どおりに更新、旧名称の残存0件を確認。クラスJSDoc（`InputTracker`/`PaletteController`）と`modeButtons`の`@type`も補完 | タスク1・5 |
+| `toolButtons`へのボタン追加時はDOM側を先に用意する注意点 | `modeButtons`に引き継ぎ、開発資料4章の`main.js`記述に明記 | タスク6 |
+| `PROJECT_ARCHITECTURE.md`の反映 | 4章`main.js`/`InputTracker.js`/`PaletteController.js`の3項目を更新、旧名称の残存0件。CoworkがRES更新予定欄との一致を確認 | タスク6 |
+
+**未解決のまま次に持ち越した項目**（`COWORK_STATUS.md`側で追跡中。ここには含めない）:
+* 選択モード中は図形パレットのヘッダーもドラッグできない（`.disabled`の`pointer-events: none`） → Phase 02-02で判断
+* 図形種別一覧の二重管理（`ShapeFactory`/`SHAPE_TYPES`）、古いJSDoc・「ツール状態」表記の残存、カーソル再評価タイミング → Interrupt候補
+
+---

@@ -4,7 +4,7 @@
 
 import { VectorModel } from './core/VectorModel.js';
 import { CanvasManager } from './core/CanvasManager.js';
-import { InputTracker } from './core/InputTracker.js';
+import { InputTracker, OperationMode } from './core/InputTracker.js';
 import { WindowManager } from './core/WindowManager.js';
 import { PaletteController } from './palette/PaletteController.js';
 
@@ -53,33 +53,55 @@ document.addEventListener('DOMContentLoaded', () => {
     new WindowManager();
 
     // 5. フロートパネル（コントロールパネル）配線
-    // コントロールパネルがownするツールボタンをツール名文字列でマッピングする汎用テーブル。
-    // 将来ボタンが増設された場合、このオブジェクトへのエントリ追加のみで対応でき、
-    // 下記のapplyTool本体・クリックリスナー登録ループの書き換えは一切不要になる（開閉原則）。
-    const toolButtons = {
-        select: document.getElementById('tool-select'),
-        line: document.getElementById('tool-line')
+    /**
+     * コントロールパネルがownする操作モードボタンを、OperationModeの値でマッピングする汎用テーブル。
+     * モード追加時は、index.htmlへのボタン追加・InputTrackerのOperationModeへの値追加・
+     * 本テーブルへのエントリ追加のみで対応でき、下記のapplyMode本体・クリックリスナー登録ループの
+     * 書き換えは一切不要になる（開閉原則）。
+     * @type {Object<string, HTMLElement>} キー: OperationModeの値、値: 対応するボタン要素
+     */
+    const modeButtons = {
+        [OperationMode.SELECT]: document.getElementById('mode-select'),
+        [OperationMode.CREATE]: document.getElementById('mode-create'),
     };
 
     // 6. 図形選択パレット配線
     const shapePaletteEl = document.getElementById('window-shape-palette');
-    const paletteController = new PaletteController(shapePaletteEl, applyTool);
+    const paletteController = new PaletteController(shapePaletteEl, applyShapeType);
 
     /**
-     * ツール切り替えを一元的に行う共通関数。コントロールパネル各ボタン（`toolButtons`）の
-     * clickリスナー、およびPaletteControllerへ`onToolSelected`コールバックとして渡され
-     * パレット5ボタン('line'/'curve'/'arc'/'rect'/'circle')のclick時にも呼び出される。
-     * InputTrackerへのツール切り替え要求、`toolButtons`を走査する汎用ループによる
-     * コントロールパネル側ボタンの排他的な`.active`付け外し（`toolButtons`に存在しない
-     * toolの場合はいずれの`.active`も外れる）、末尾でのPaletteController#setActiveToolへの
-     * 委譲（パレット側の活性/非活性・アクティブ表示更新）の3処理を担う。
-     * @param {string} tool - 切り替え先のツール名（'select' | 'line' | 'curve' | 'arc' | 'rect' | 'circle'）
+     * 操作モードの切り替えを一元的に行う共通関数。コントロールパネル各ボタン（`modeButtons`）の
+     * clickリスナー、および起動時の初期化から呼び出される。InputTrackerへのモード切り替え要求の後、
+     * `inputTracker.getMode()`で実際の内部状態を読み返してから表示を同期する（未知の値が渡され
+     * InputTracker側で無視された場合でも、UI表示と内部状態が乖離しないようにするため）。
+     * 表示同期として、`modeButtons`を走査する汎用ループによる`.active`の排他的な付け外し、
+     * パレットの活性制御（図形作成モードのときのみ活性）、および記憶中の図形種別のハイライトを
+     * PaletteControllerへ委譲する。モードごとのif/else分岐は持たない。
+     * @param {'select'|'create'} mode - 切り替え先の操作モード（OperationModeの値）
      */
-    function applyTool(tool) {
-        inputTracker.setTool(tool);
-        Object.entries(toolButtons).forEach(([key, btn]) => btn.classList.toggle('active', key === tool));
-        paletteController.setActiveTool(tool);
+    function applyMode(mode) {
+        inputTracker.setMode(mode);
+        const currentMode = inputTracker.getMode();
+        Object.entries(modeButtons).forEach(([key, btn]) => btn.classList.toggle('active', key === currentMode));
+        paletteController.setEnabled(currentMode === OperationMode.CREATE);
+        paletteController.setActiveType(inputTracker.getShapeType());
     }
 
-    Object.entries(toolButtons).forEach(([tool, btn]) => btn.addEventListener('click', () => applyTool(tool)));
+    /**
+     * 図形種別の切り替えを一元的に行う共通関数。PaletteControllerへ`onTypeSelected`コールバック
+     * として渡され、パレット5ボタンのclick時に呼び出される。操作モードは変更しない。
+     * InputTrackerへの図形種別切り替え要求の後、`inputTracker.getShapeType()`で実際の内部状態を
+     * 読み返してパレットのハイライトを同期する（未知の値が無視された場合でもUIと内部状態を一致させるため）。
+     * @param {'line'|'curve'|'arc'|'rect'|'circle'} type - 切り替え先の図形種別
+     */
+    function applyShapeType(type) {
+        inputTracker.setShapeType(type);
+        paletteController.setActiveType(inputTracker.getShapeType());
+    }
+
+    Object.entries(modeButtons).forEach(([mode, btn]) => btn.addEventListener('click', () => applyMode(mode)));
+
+    // 起動時初期化：UIの初期表示（モードボタンの.active・パレットの.disabled・パレット内ハイライト）を
+    // InputTrackerの内部状態に同期させる
+    applyMode(OperationMode.SELECT);
 });
