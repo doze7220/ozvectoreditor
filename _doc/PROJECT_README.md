@@ -11,7 +11,7 @@
 
 * **事前の完璧な指示より、多段の監査で誤りを後から拾う**：REQへの抜粋転載やAIの自己申告は多少の漏れ・誤りを許容し、チェック0/1/2の監査、Git diffレビュー、テストプレイといった後工程で拾う設計にしている。単一障害点を作らない。
 * **合意形成のコストを最初から発生させない**：個人開発では意思決定権が発注者一人にあるため、複数人チームで必要になる説得・調整のプロセスを持たない。DIR/REQ/RESのすべてが、発注者の主観判断で完結する。
-* **トークンコストに応じてAIの役割を階層化する**：大局判断（NotebookLM）・実務監査（Cowork）・実装（Claude Code）を、扱う情報量とコストの高さで分担する。
+* **役割ごとにセッションを分けてコンテキストを絞る**：方針策定（`Phase XX-00`のDIR策定セッション）・実務監査（サブフェイズごとのCoworkセッション）・実装（Claude Code、タスクごとのチャット）を分離し、各セッションが扱う情報量を必要な分だけに絞る。
 * **絶対ルールと可変索引を分離する**：プロジェクト固有の絶対ルール（PROJECT_CONSTITUTION.md）と、実装が進むごとに変化する索引（PROJECT_ARCHITECTURE.md）を別文書にし、それぞれの陳腐化・混同を防ぐ。
 * **実装AIのコンテキストを能動的に管理する**：実装AIはタスクごとに新規チャットで起動し、その都度記憶を失う。必要な責務情報だけを設計AIが選んでREQ/RESに載せることで、無関係な情報によるハルシネーションを防ぐ（詳細は`PROJECT_AI_WORKFLOW.md`の2-0節）。
 
@@ -22,18 +22,17 @@
 | ファイル                        | 対象読者                             | 役割                                                                            |
 | ------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------- |
 | **`PROJECT_README.md`（本書）** | **発注者（人間）**                   | **文書群の見取り図・操作手順**                                                  |
-| `NOTEBOOK_HANDOFF.md`           | NotebookLM（リード設計AI）           | NotebookLM固有の運用情報（固定方針編、現在ステータスは持たない）                |
-| `COWORK_HANDOFF.md`             | Cowork（現場設計AI）                 | Cowork固有の運用情報（固定方針編）                                              |
+| `COWORK_HANDOFF.md`             | Cowork（リード設計AI・現場設計AI）   | Cowork固有の運用情報（固定方針編）                                              |
 | `PROJECT_AI_WORKFLOW.md`        | リード設計AI・現場設計AI             | AI側の役割定義・DIR/REQ/RES駆動開発のルール（静的構造）。実装AIには読ませない   |
 | `PROJECT_CONSTITUTION.md`       | 実装AI                               | 絶対ルール（フレームワーク禁止・責務分離・責務定義義務など）                    |
 | `PROJECT_ARCHITECTURE.md`       | 現場設計AI（実装AIは計画立案時のみ） | 実装の見取り図（索引）。実装が進むごとに更新する                                |
-| `PROJECT_MILESTONE.md`          | 発注者（人間）                       | フェイズ分解・機能バックログ。DIR発行タイミングで更新する要メンテナンス系ソース |
+| `PROJECT_MILESTONE.md`          | 発注者（人間）                       | Phase大番号の並び・機能バックログ。DIR策定（`Phase XX-00`）の材料               |
 | `PROJECT_PHASE_TRANSITION_CLEANUP.md` | 現場設計AI（Cowork）           | フェイズ大番号移行時（例：Phase1→Phase2）に実行する、ドキュメント・実行ログの棚卸し定型プロセス |
 
 ### DIR / REQ / RESについて
 本ワークフローの作業単位。詳細な運用ルールは`PROJECT_AI_WORKFLOW.md`を参照（ここでは概要のみ）。
 
-* **DIR**：リード設計AI（NotebookLM）が発行する設計指針書。Phase規模の着手時に、大局方針を固定する。保存先: `_log/dir/`
+* **DIR**：`Phase XX-00`（DIR策定セッション）で発行する、Phase全体で1本の基礎設計方針。大ゴール・サブフェイズ分け・サブフェイズごとの実装要件を定め、「次に何をするか」を見失わないための地図として使う。途中変更は許容し、変更時は直接書き換えて変更履歴を残す。保存先: `_log/dir/`
 * **REQ**：現場設計AI（Cowork）が実装AIへ渡す作業指示書。DIRまたは軽微な要件をもとに作成する。保存先: `_log/req/`（タスク実行系など、チャットへ直接入力するREQは保存しない）
 * **RES**：実装AIが作成する作業計画書・作業レポート。Coworkの監査（チェック0/1/2）対象。保存先: `_log/res/`
 
@@ -51,13 +50,12 @@ REQテンプレートは`_doc/`、RESテンプレートは`_log/`に配置する
 ├ README.md                  ※必要に応じて生成
 ├ PROJECT_CONSTITUTION.md
 ├ PROJECT_ARCHITECTURE.md
-├ _doc/                      人間・NotebookLM・Cowork用
+├ _doc/                      人間・Cowork用
 │ ├ PROJECT_AI_WORKFLOW.md
 │ ├ PROJECT_README.md
 │ ├ PROJECT_MILESTONE.md
 │ ├ TEMPLATE_DIR.md
 │ ├ TEMPLATE_REQ*.md
-│ ├ NOTEBOOK_HANDOFF.md
 │ ├ COWORK_HANDOFF.md
 │ ├ COWORK_STATUS.md
 │ └ COWORK_STATUS_CLOSED.md
@@ -81,35 +79,27 @@ REQテンプレートは`_doc/`、RESテンプレートは`_log/`に配置する
 
 ## 3. 初期セットアップ手順
 
-### NotebookLM側（リード設計AI）
-1. NotebookLMにAIワークフロー（`PROJECT_AI_WORKFLOW.md`）、DIRテンプレート（`TEMPLATE_DIR.md`）を登録する。
-2. まず最初に、どんなものを作りたいかを伝える。
-3. `PROJECT_CONSTITUTION.md` と `PROJECT_ARCHITECTURE.md` の最初の雛形を作らせる。
-
-### Cowork側（現場設計AI）
-4. リポジトリを作成し、`PROJECT_CONSTITUTION.md`・`PROJECT_ARCHITECTURE.md` を読ませる。
-5. `COWORK_HANDOFF.md` と `COWORK_STATUS.md` のテンプレートを渡し、今回のプロジェクト用に編集させる。
-
-### NotebookLM側（再登録）
-6. 4〜5で確定した `PROJECT_CONSTITUTION.md`・`PROJECT_ARCHITECTURE.md` をNotebookLMに登録する。
+1. リポジトリを作成し、Coworkに`PROJECT_AI_WORKFLOW.md`を読ませたうえで、どんなものを作りたいかを伝える。
+2. `PROJECT_CONSTITUTION.md` と `PROJECT_ARCHITECTURE.md` の最初の雛形を作らせる。
+3. `COWORK_HANDOFF.md` と `COWORK_STATUS.md` のテンプレートを渡し、今回のプロジェクト用に編集させる。
 
 ---
 
 ## 4. 反復サイクル（Phaseごと）
 
-### 企画計画フェイズ
-1. NotebookLMと相談して、DIRを作らせる。
-2. ワークプレイスにDIRを置き、Coworkに読ませ、REQを作らせる。
-3. Claude CodeにREQを読ませ、RESを作らせる。
-4. Coworkに戻り、RESの精査を行う（チェック0/1/2）。
+### DIR策定（`Phase XX-00`、Coworkの新規セッション）
+1. Coworkと相談して、DIR（大ゴール・サブフェイズ分け・サブフェイズごとの実装要件）を作らせる。
 
-### 実装フェイズ
+### サブフェイズ（`Phase XX-01`以降、サブフェイズごとにCoworkの新規セッション）
+2. CoworkにDIRの該当サブフェイズを読ませ、詳細を詰めてREQを作らせる。
+3. Claude CodeにREQを読ませ、RES（計画書の原本）を作らせる。
+4. Coworkに戻り、RESの精査を行う（チェック0/1/2）。
 5. **タスクごとに新規チャットを立て**、RESからTASK単位で実装する。実装AIはチャットごとに記憶を失うため、責務情報はRESの『参照する責務』から供給される。
 6. CoworkでRESを確認し、問題がなければTASKが終わるまで5・6を繰り返す。
+7. テストプレイでDIRの実装要件を確認し、DIRの「サブフェイズ一覧」を完了にする。後続サブフェイズの見直しが必要ならDIRを書き換えて変更履歴に残す。次のサブフェイズへ。
 
 ### Phase終了フェイズ
-7. フェイズクローズ処理、`PROJECT_ARCHITECTURE.md` 更新、`PROJECT_MILESTONE.md` 更新を行う。
-8. アーキテクチャ・REQ/RES・マイルストーンをNotebookLMに登録する。
+8. フェイズクローズ処理、`PROJECT_ARCHITECTURE.md` 更新、`PROJECT_MILESTONE.md` 更新を行う。
 
 ---
 
@@ -124,10 +114,10 @@ REQテンプレートは`_doc/`、RESテンプレートは`_log/`に配置する
 当初（P1-1・P1-2）はNotebookLMがREQそのものを作成し、それをコピペしてAI-IDE側に渡していた。Claude Desktop導入によりCoworkが直接ファイルを読み書きできるようになったため、REQ作成をCoworkに直接担わせることを検討したが、NotebookLMでの壁打ち結果をREQレベルの技術的な情報として自分で直接プロンプトに書くのは不可能だと分かった。そこでNotebookLMにDIR（設計指針書）を作らせ、それをCoworkに読ませてREQを作らせる、という中間文書を挟む形にした。DIR導入はP1-3から。
 
 ### なぜCOWORK_HANDOFF.md／NOTEBOOK_HANDOFF.mdを分離したか
-ワークフロー本体（`PROJECT_AI_WORKFLOW.md`）はツール名を含まない普遍的な役割構造として記述する方針のため、「現在どのツールがどの役を担っているか」というツール固有の運用情報は別ファイルに分離した。ツールを乗り換える際も、書き換えるのは運用メモ側だけで済む。
+ワークフロー本体（`PROJECT_AI_WORKFLOW.md`）はツール名を含まない普遍的な役割構造として記述する方針のため、「現在どのツールがどの役を担っているか」というツール固有の運用情報は別ファイルに分離した。ツールを乗り換える際も、書き換えるのは運用メモ側だけで済む。※ `NOTEBOOK_HANDOFF.md`は2026-10のNotebookLM利用中止に伴い廃止した。
 
 ### なぜPROJECT_MILESTONE.mdを3種類に分けたか
-* フェイズ分解（P1-1〜）：DIR発行のタイミングで印を付けて残す。DIRが正式な確定記録のため、記述が食い違えばDIR側を正とする。
+* フェイズ分解（P1-1〜）：DIR発行のタイミングで印を付けて残す。DIRが正式な確定記録のため、記述が食い違えばDIR側を正とする。（2026-10以降、サブフェイズ分解はDIR側に一本化し、本ファイルにはPhase大番号のみを書く）
 * 機能バックログ：完了項目は同期前に削除する。時間経過とともに実態と乖離していく性質のため。
 * 将来構想（別プロダクト相当のもの）：粒度が異なるため物理的に別ファイルへ分離する。
 
@@ -143,3 +133,6 @@ Phase進行中に実装AIが`PROJECT_ARCHITECTURE.md`を書き換えると、同
 
 ### なぜImmediately／unImmediatelyという命名をやめたか
 初期は「即時実行か否か」でテンプレートを分けていたが、実際の分岐軸は「RESを新規作成するか、既存RESに追記するか」だった。名前と分岐軸が一致していないため選択時に毎回迷う状態が続いていた。追記型を`Additional`に統一し、`REQ名からRES名が導ける`という既存の命名規則（`ImpretonPlanMake`↔`ImpretonPlan`など）に揃えた。
+
+### なぜNotebookLMをやめ、DIRを`Phase XX-00`に切り出したか
+2026-10、運用コストの都合でNotebookLMの利用を中止し、リード設計AIの役もCoworkが担うことになった。方針を書いた本人がそのままREQまで書くと、自分の方針を自分で監査する形になる。そこでDIR策定を`Phase XX-00`という独立セッションに切り出し、各サブフェイズは別セッションでDIRを文書として読み直す運用にした。あわせてDIRの位置づけを、詳細仕様やアーキテクチャまで固める「北極星」から、「次に何をするか」「何が目的か」を見失わないための地図（大ゴール・サブフェイズ分け・実装要件）へ軽量化し、作業途中での変更を許容した。詳細仕様・アーキテクチャ設計は、実コードを見られる各サブフェイズのREQ作成時に詰める。

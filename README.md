@@ -69,5 +69,5 @@ AI-IDEの不要なインデックス汚染や、GitHub Pages等でのビルド�
 
 ## 📝 ライセンス & クレジット
 - **Developer / Director**: ユーザー (Human)
-- **Architect / Co-Pilot**: Gemini Notebook (Design AI)
-- **Engineer**: Google Antigravity (Implementation AI-IDE)
+- **Architect / Co-Pilot**: Claude Cowork (Design AI)
+- **Engineer**: Claude Code (Implementation AI)

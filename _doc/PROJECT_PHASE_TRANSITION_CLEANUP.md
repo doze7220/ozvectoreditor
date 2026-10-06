@@ -60,7 +60,7 @@
 1. 移行元フェイズ大番号に属するREQ・RES・DIRファイルを洗い出し、`git mv`で各`closed/`サブフォルダへ移動する（4章の基準に従う）。
 2. `PROJECT_ARCHITECTURE.md`を2章の基準で監査・スリムアップする。削除内容が仕様の実質的な変更に見える箇所は、確定前に発注者へ差分を提示して確認を取る。
 3. `COWORK_STATUS.md`を3章の基準でスリムアップし、詳細を`COWORK_STATUS_CLOSED.md`へ退避する。
-4. 変更ファイルをコミットする（コミットメッセージ例：`docs: phase cleanup and status defragmentation`）。**GitHubへのpushと、Gemini Notebook（リード設計AI）側のソース再同期は発注者（人間）が行う**（Cowork実行環境にはpush用のGit認証情報がないため）。
+4. 変更ファイルをコミットする（コミットメッセージ例：`docs: phase cleanup and status defragmentation`）。**GitHubへのpushは発注者（人間）が行う**（Cowork実行環境にはpush用のGit認証情報がないため）。
 
 ---
 
