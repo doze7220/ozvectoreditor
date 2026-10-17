@@ -44,16 +44,17 @@ export class Rect {
 
     /**
      * 選択中に4隅のハンドルを描き分けて描画する。
-     * Line/Curveと同一配色（白塗り／青枠）・同一サイズ（一辺8pxの正方形）で4頂点すべてに描画する。
+     * Line/Curveと同一配色（白塗り／青枠）・同一サイズ（画面上で一辺8pxの正方形）で4頂点すべてに描画する。
      * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
+     * @param {number} [viewScale=1] - 現在の表示倍率。ハンドルの大きさ・枠線幅を画面上で一定に保つために用いる。省略時は倍率1.0として現行と同じ見た目になる
      */
-    drawHandles(ctx) {
-        const handleSize = 8;
+    drawHandles(ctx, viewScale = 1) {
+        const handleSize = 8 / viewScale; // 画面上8px一定（ワールド長へ換算）
         const half = handleSize / 2;
 
         ctx.fillStyle = '#ffffff';
         ctx.strokeStyle = '#4a90e2';
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 1.5 / viewScale;
 
         this.points.forEach(({ x: hx, y: hy }) => {
             ctx.beginPath();
@@ -181,8 +182,9 @@ export class Rect {
      * draw()と同じ4頂点パス（closePath含む）に対し、Line/Curveと同一仕様
      * （半透明の太線）を重ねて強調する。
      * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
+     * @param {number} [viewScale=1] - 現在の表示倍率。強調の上乗せ幅を画面上で一定に保つために用いる（図形本体の`strokeWidth`部分は倍率に比例して表示される）。省略時は倍率1.0として現行と同じ見た目になる
      */
-    drawHover(ctx) {
+    drawHover(ctx, viewScale = 1) {
         ctx.beginPath();
         ctx.moveTo(this.points[0].x, this.points[0].y);
         ctx.lineTo(this.points[1].x, this.points[1].y);
@@ -191,7 +193,7 @@ export class Rect {
         ctx.closePath();
 
         ctx.strokeStyle = 'rgba(74, 144, 226, 0.4)';
-        ctx.lineWidth = this.strokeWidth + 6;
+        ctx.lineWidth = this.strokeWidth + 6 / viewScale;
         ctx.stroke();
     }
 }

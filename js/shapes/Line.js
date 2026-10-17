@@ -134,16 +134,17 @@ export class Line {
      * 選択中に始点・終点・移動ハンドルの3種を描き分けて描画する（暫定デザイン）。
      * 始点・終点ハンドルは正方形、移動ハンドル（中点）は円で視覚的に区別する。
      * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
+     * @param {number} [viewScale=1] - 現在の表示倍率。ハンドルの大きさ・枠線幅を画面上で一定に保つために用いる。省略時は倍率1.0として現行と同じ見た目になる
      */
-    drawHandles(ctx) {
-        const handleSize = 8;
+    drawHandles(ctx, viewScale = 1) {
+        const handleSize = 8 / viewScale; // 画面上8px一定（ワールド長へ換算）
         const half = handleSize / 2;
         const midX = (this.x1 + this.x2) / 2;
         const midY = (this.y1 + this.y2) / 2;
 
         ctx.fillStyle = '#ffffff';
         ctx.strokeStyle = '#4a90e2';
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 1.5 / viewScale;
 
         // 始点・終点ハンドル（正方形）
         [[this.x1, this.y1], [this.x2, this.y2]].forEach(([hx, hy]) => {
@@ -164,14 +165,15 @@ export class Line {
      * ホバー時の強調表示を描画する（暫定デザイン）。
      * 本体の線より太い半透明の線を重ねて強調する。
      * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
+     * @param {number} [viewScale=1] - 現在の表示倍率。強調の上乗せ幅を画面上で一定に保つために用いる（図形本体の`strokeWidth`部分は倍率に比例して表示される）。省略時は倍率1.0として現行と同じ見た目になる
      */
-    drawHover(ctx) {
+    drawHover(ctx, viewScale = 1) {
         ctx.beginPath();
         ctx.moveTo(this.x1, this.y1);
         ctx.lineTo(this.x2, this.y2);
 
         ctx.strokeStyle = 'rgba(74, 144, 226, 0.4)';
-        ctx.lineWidth = this.strokeWidth + 6;
+        ctx.lineWidth = this.strokeWidth + 6 / viewScale;
         ctx.stroke();
     }
 }

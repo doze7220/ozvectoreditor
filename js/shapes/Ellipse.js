@@ -66,8 +66,9 @@ export class Ellipse {
      * ホバー時の強調表示を描画する。
      * draw()と同じパスに対し、半透明の太線を重ねて強調する。
      * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
+     * @param {number} [viewScale=1] - 現在の表示倍率。強調の上乗せ幅を画面上で一定に保つために用いる（図形本体の`strokeWidth`部分は倍率に比例して表示される）。省略時は倍率1.0として現行と同じ見た目になる
      */
-    drawHover(ctx) {
+    drawHover(ctx, viewScale = 1) {
         const xc = this.points[0].x;
         const yc = this.points[0].y;
         const rx = Math.abs(this.points[1].x - xc);
@@ -80,7 +81,7 @@ export class Ellipse {
         }
 
         ctx.strokeStyle = 'rgba(74, 144, 226, 0.4)';
-        ctx.lineWidth = this.strokeWidth + 6;
+        ctx.lineWidth = this.strokeWidth + 6 / viewScale;
         ctx.stroke();
     }
 
@@ -88,8 +89,9 @@ export class Ellipse {
      * 選択時のハンドル（操作点）を描画する。
      * 中心（円形: move）、右端・上端（正方形: points[1], points[2]）、左端・下端（正方形: 計算値ダミー）の計5個を描画。
      * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
+     * @param {number} [viewScale=1] - 現在の表示倍率。ハンドルの大きさ・枠線幅を画面上で一定に保つために用いる。省略時は倍率1.0として現行と同じ見た目になる
      */
-    drawHandles(ctx) {
+    drawHandles(ctx, viewScale = 1) {
         const xc = this.points[0].x;
         const yc = this.points[0].y;
         const rx = Math.abs(this.points[1].x - xc);
@@ -97,9 +99,9 @@ export class Ellipse {
 
         ctx.fillStyle = '#ffffff';
         ctx.strokeStyle = '#4a90e2';
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 1.5 / viewScale;
         
-        const half = 4;
+        const half = 4 / viewScale; // 画面上4px一定（ワールド長へ換算）
 
         // 中心（moveハンドル: 円形）
         ctx.beginPath();

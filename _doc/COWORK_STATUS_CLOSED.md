@@ -229,3 +229,26 @@
 * 図形種別一覧の二重管理（`ShapeFactory`/`SHAPE_TYPES`）、古いJSDoc・「ツール状態」表記の残存、カーソル再評価タイミング → Interrupt候補
 
 ---
+
+### Phase02-02「ビュー変換（パン・ズーム・グリッド）」（クローズ日：2026-10-18）
+* DIR: `_log/dir/261006_2239_DIR_Phase02-00_UI_And_Operation_Enhancement.md`（Phase 02-02節）
+* REQ: `_log/req/261008_2031_REQ_Phase02-02_View_Transform.md`
+* RES: `_log/res/261008_2150_RES_Phase02-02_View_Transform.md`（全10タスク、PlanningUpdate・Interruptなし。タスク4・9にCoworkの追加注意事項あり）
+
+| 項目 | 結論 | 対応箇所 |
+| ---- | ---- | -------- |
+| パン機能が未実装（Phase01由来、2026-08-09ユーザー指摘） | 中ボタンドラッグ・スペース＋左ドラッグ・「✋ キャンバス移動」モード（`OperationMode.PAN`）の3経路でパン。パン状態は`InputState`と直交するフラグで持ち、作成途中（`DRAWING`）を保持したままパン可能。終了検知は`window`のcapture購読、左ボタンのパン後の`click`は1回抑止 | REQ要件2 / タスク6・7・8 |
+| ワールド座標とスクリーン座標の分離 | `core/ViewTransform.js`を新設し、倍率・オフセットと変換式を一元化。`InputTracker`は`getScreenCoordinate`/`getWorldCoordinate`に分離、`CanvasManager`は`render()`の引数で受け取った`view`とdprを毎フレーム合成 | REQ要件1・7 / タスク1・2・4・5 |
+| ズーム・倍率表示・リセット | ホイールでカーソル中心ズーム（約1.1倍刻み、10%〜1000%）。コントロールパネルに倍率表示とリセット。発注者決定（範囲・連続ズーム） | REQ要件3・4 / タスク5・7・8 |
+| 背景グリッド | ワールド座標上の細線10/太線100、画面上8px未満で10倍ずつ間引き、線幅は画面上1px一定。発注者決定（自動調整） | REQ要件5 / タスク2 |
+| ズーム時のハンドル・当たり判定 | 画面上一定（発注者決定）。当たり判定は`InputTracker`でワールド換算、描画は`drawHandles`/`drawHover`に`viewScale`引数（既定1）を追加し9メソッド契約を更新 | REQ要件6 / タスク3・5 |
+| `moveShape`の差分計算のDPI・CSSズーム環境下での誤差（Phase01由来） | 差分をワールド座標で計算。ブラウザズーム125〜150%を含むテストプレイでずれなしを発注者が確認（2026-10-18） | REQ要件8 / タスク5 |
+| 起動直後の初回描画が`clearSelection()`の無条件通知の副作用に依存 | 起動時初期化の末尾に`renderCurrentState()`・`syncZoomDisplay()`の明示呼び出しを追加（Cowork監査で発見） | タスク4・8（追加注意事項） |
+| `PROJECT_ARCHITECTURE.md`の反映 | 1〜4章を更新（`ViewTransform`新設、座標系とビュー変換の節、各モジュール責務、9メソッド契約）。旧記述の残存0件 | タスク10 |
+
+**未解決のまま次に持ち越した項目**（`COWORK_STATUS.md`側で追跡中。ここには含めない）:
+* ハンドルドラッグの終了検知漏れ・マウスボタン種別未判定、ハンドルドラッグ直後の選択解除（要調査） → Interrupt候補
+* 用語「論理座標系」の残存、開発資料3章・`WindowManager`項目の既存記述のズレ → Interrupt／資料監査
+* `InputTracker`の肥大化 → Phase 02-03でドラッグ操作の分離を検討（DIRメモに記載）
+
+---

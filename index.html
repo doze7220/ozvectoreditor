@@ -94,6 +94,15 @@
             border-color: #6699ff;
             font-weight: bold;
         }
+        /* コントロールパネルの表示倍率行（倍率表示＋リセットボタン） */
+        .view-zoom-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 13px;
+            color: #333;
+        }
     </style>
 </head>
 <body>
@@ -106,6 +115,11 @@
         <div class="window-body">
             <button type="button" id="mode-select" class="tool-btn active">🖱 選択</button>
             <button type="button" id="mode-create" class="tool-btn">✏ 図形作成</button>
+            <button type="button" id="mode-pan" class="tool-btn">✋ キャンバス移動</button>
+            <div class="view-zoom-row">
+                <span id="view-zoom-display">100%</span>
+                <button type="button" id="view-reset" class="tool-btn">リセット</button>
+            </div>
         </div>
     </div>
     <div id="window-shape-palette" class="float-window disabled">

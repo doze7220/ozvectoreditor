@@ -11,11 +11,11 @@
 
 ---
 
-### 1. プロジェクト現況スナップショット（最終更新：2026-10-06）
+### 1. プロジェクト現況スナップショット（最終更新：2026-10-18）
 * **Phase 1「ベクターエディタとしての最低限機能実装とパイプライン構築」：完了・クローズ済み（2026-08-12）。**
   * MVC最小骨格構築（P1-01）を土台に、LINE操作基盤（P1-02）、キャンバス全画面化・フロートUI・ツールモード基盤（P1-03）、フロートウィンドウ管理・図形パレット統合（P1-04）を経て、曲線（P1-05）・矩形（P1-06）・円/楕円/弧（P1-07）の5大図形すべてを、共通9メソッド契約（`draw`/`drawHandles`/`drawHover`/`hitTest`/`hitTestHandle`/`setVertex`/`translate`/`updateDraftEnd`/`getVertexIndexForHandle`）を各図形クラスが自律実装する形で`core/`層無改修のまま実装完了。
   * 各サブフェイズ（P1-01〜P1-07）の実装詳細・棚卸し結果・監査記録は`_doc/COWORK_STATUS_CLOSED.md`の対応章を参照。REQ/RES/DIRファイル本体は`_log/req/closed/`・`_log/res/closed/`・`_log/dir/closed/`にアーカイブ済み。
-* **Phase 2「UI・操作充実」：進行中。** 2026-10-06に`Phase02-00`でDIRを発行（`_log/dir/261006_2239_DIR_Phase02-00_UI_And_Operation_Enhancement.md`）。`Phase02-01`（操作モード再設計）は2026-10-06に完了。次は`Phase02-02`（ビュー変換：パン・ズーム・グリッド）。サブフェイズの進行状況はDIRの「サブフェイズ一覧」が正本。
+* **Phase 2「UI・操作充実」：進行中。** 2026-10-06に`Phase02-00`でDIRを発行（`_log/dir/261006_2239_DIR_Phase02-00_UI_And_Operation_Enhancement.md`）。`Phase02-01`（操作モード再設計）は2026-10-06に完了。`Phase02-02`（ビュー変換：パン・ズーム・グリッド）は2026-10-18に完了。次は`Phase02-03`（範囲選択・複数選択）。サブフェイズの進行状況はDIRの「サブフェイズ一覧」が正本。
 * **2026-10-06：ワークフロー改訂（Interrupt扱い）。** NotebookLMの利用を中止し、リード設計AI役もCoworkが担う体制へ移行。DIRは`Phase XX-00`でPhase全体に1本だけ発行する軽量な基礎設計方針（大ゴール・サブフェイズ分け・サブフェイズごとの実装要件）とし、`Phase XX-01`以降はサブフェイズごとに別セッションでREQ→RES原本を作成する。途中変更はDIRを直接書き換えて変更履歴に残す。改訂対象：`TEMPLATE_DIR.md`、`PROJECT_AI_WORKFLOW.md`、`COWORK_HANDOFF.md`、`PROJECT_README.md`、`PROJECT_MILESTONE.md`、`PROJECT_PHASE_TRANSITION_CLEANUP.md`、`README.md`（クレジット欄）。`NOTEBOOK_HANDOFF.md`は廃止。
 * Phase進行中は、サブフェイズの進み具合をDIRの「サブフェイズ一覧」で管理する（本ファイルでは重複管理しない）。
 
@@ -25,21 +25,18 @@
 * （2026-10-06、Phase02-00）Phase 2のテーマを「UI・操作充実」に決定（多角形生成はP3、着色はP4へ繰り下げ）。下記Aの大半はPhase 2 DIRの各サブフェイズ「持ち越し事項」に割り当て済み。`hitTestHandle`の優先順位問題のみ本Phaseの対象外（極端な変形UIを扱わないため）。
 
 * **A. 次の「UI・操作充実フェイズ」へ持ち越し**
-  * パン機能が未実装で、実用的な編集アプリとしては不十分（ユーザー自身がテストプレイで指摘、2026-08-09）。
   * 図形削除は`Delete`/`Backspace`キーで機能しているが、削除ボタン等のUIがなく発見しにくい（同上）。
   * `InputTracker`の`keydown`は`document`購読のため、将来カラーコード入力欄等のテキスト入力UIを追加する際は、フォーカス中要素を判定して`Delete`/`Backspace`の誤爆を除外するロジックが必要。
   * `hitTestHandle`の優先順位問題（Phase01-06由来、Phase01-07のEllipseでも同様）：図形を`setVertex`による自由変形で極端に小さく潰した場合、複数の頂点が同一`tolerance`範囲内に密集すると常に先着の1ハンドルが優先的に選ばれる（`Line`/`Curve`/`Rect`/`Ellipse`共通の設計思想で不具合ではないが、極端な変形を行うUIが必要になった場合は最小サイズ制約等の検討が要る）。
   * 【Phase01-07由来・新規】縮退状態（`rx`または`ry`がほぼ0）の`Ellipse`は、`hitTest`の0除算ガードにより選択不可能になる（意図した安全策の副作用であり不具合ではない）。将来的にマーキー選択（ドラッグ範囲選択）や図形リスト（レイヤー）ウィンドウからの直接選択機能を実装する際に、この制約への対応（縮退図形へのアクセス手段の確保）を検討する（ユーザー指摘、2026-08-12）。
-  * 【Phase02-01由来】選択モード中は図形パレットが`.disabled`（`pointer-events: none`がウィンドウ全体に掛かる）のため、ヘッダーもドラッグ移動できない。Phase01-04で「ヘッダーごと非活性化」と決めた仕様で回帰ではない。発注者は現状許容（2026-10-06）。Phase 02-02でモード追加時に`.disabled`の適用先を`.window-body`に限定するか判断する（DIRのPhase 02-02メモに記載済み）。
 
 * **B. さらに将来のPhaseへ先送り**
   * 当初想定していた5大図形（直線・曲線・弧・矩形・円）の実装がPhase01-07で完了したため、「次の図形追加Phase」区分は本クローズをもって統合・整理した（新規図形クラス実装時に必要な9メソッド共通インターフェース遵守の教訓は`_doc/COWORK_STATUS_CLOSED.md`のPhase01-05章を参照）。
   * `ShapeFactory.create()`は未知の`type`に対し`Error`をthrowするが、呼び出し元は`try/catch`していない。将来新たな図形種別を追加する場合は`type`文字列の綴りに注意、または呼び出し元のバリデーション導入を検討。
-  * `Curve.draw`/`Rect.draw`/`Ellipse.draw`の`t`引数は将来のモーフィング機能用の伏線として維持されているが未使用 → モーフィング機能実装Phaseで対応。
+  * `Curve.draw`/`Rect.draw`/`Ellipse.draw`の`t`引数は将来のモーフィング機能用の伏線として維持されているが未使用（`Line.draw`は`t`引数自体を持たず、開発資料の9メソッド契約`draw(ctx, t)`と不一致） → モーフィング機能実装Phaseで対応。
   * `Curve.hitTest`の100分割ループによる当たり判定コストは、現状のベクター数（数十個程度）では無視できる計算量と評価済み → 頂点数が数千を超える規模になった際にAABB等の早期判定フィルタリングを検討。
   * `Curve`への制御点の追加・削除、moveハンドル（平行移動）の追加は、発注者の意向により別Phaseで対応予定（Phase01-05 DIR6章の設計決定）。
   * `Ellipse.hitTest`の境界線判定は、中心距離比率と平均半径`(rx+ry)/2`による近似判定（真の最短距離計算を避けた設計、Phase01-07由来）。極端に細長い楕円の場合、長軸側と短軸側で当たり判定の許容幅に視覚的なブレが生じる可能性があるが、通常操作ではテストプレイで問題なしと確認済みの低優先度事項。
-  * `moveShape`の差分計算はDPI・CSSズーム環境下での誤差が未検証 → ズーム/パン機能実装時に本格検証。
   * 「空白部分」の判定にホバー状態（`mousemove`更新）を流用しており、タッチ操作等`mousemove`を経由しない入力には非対応 → タッチ対応検討時に見直し。
   * `commitDraft()`のid採番（連番文字列）は永続化・再読込を考慮していない → `CodeImporter.js`実装時、既存idとの衝突可能性を検討。
   * 選択・ホバー系APIの無条件`notifyChange()`呼び出し → 図形数増加でパフォーマンス問題が顕在化したら値変化チェックの追加を検討。
@@ -49,7 +46,14 @@
   * `PaletteController`のボタンid解決が見つからない場合に静かにフィルタされエラー化しない仕様、初期`.disabled`/`.active`（`index.html`）と`InputTracker`の初期`currentMode`の暗黙的な結合（Phase01-04由来。Phase02-01で起動時の`applyMode(OperationMode.SELECT)`による同期を導入したが、JS読込前の初期表示用に静的記述も残している） → ボタンid命名規則の変更時・初期モード変更時は`index.html`と`main.js`の両方を揃えること。
   * 【Phase02-01由来】図形種別の一覧が`ShapeFactory`の受理種別と`InputTracker`の`SHAPE_TYPES`に二重管理されている（加えて`PaletteController.#BUTTON_DEFS`・`index.html`も揃える必要あり）。`ShapeFactory`側に受理種別一覧を公開させて単一化するのが望ましい → 図形種別追加時、または次に`ShapeFactory.js`に触れる際にInterruptで対応。
   * 【Phase02-01由来】古いJSDoc・用語の残存：`InputState`のJSDoc（「新規Line作成中」「start/end/move」）、`activeHandle`の`@type {'start'|'end'|'move'|null}`、`handleMouseMove`の「作成中Line」表記、`WindowManager.js`責務JSDocと開発資料4章の「ツール状態」表記（→「操作モード」）。いずれも動作に影響なし → 該当ファイルに触れる際、またはまとめてInterruptで修正。
-  * 【Phase02-01由来】カーソル形状は`setMode`・`mousemove`・ハンドルドラッグ開始時にのみ再評価されるため、クリック選択直後・ドラッグ終了直後・`Delete`削除直後はマウスを動かすまで直前の形状が残る（実害小） → テストプレイで気になった場合に対応。
+  * 【Phase02-01由来】カーソル形状は`setMode`・`mousemove`・ハンドルドラッグ開始時にのみ再評価されるため、クリック選択直後・ドラッグ終了直後・`Delete`削除直後はマウスを動かすまで直前の形状が残る（実害小。Phase02-02でホイールズーム直後・パン終了直後も同様） → テストプレイで気になった場合に対応。
+  * 【Phase02-01/02由来】選択モード・キャンバス移動モード中は図形パレットが`.disabled`（`pointer-events: none`がウィンドウ全体に掛かる）のため、ヘッダーもドラッグ移動できず、半透明で背景グリッドが透けて見える。発注者判断で現状維持（2026-10-08・2026-10-18）。使いづらくなった時点で`.disabled`の適用先を`.window-body`に限定する等を検討。
+  * 【Phase02-02由来・Interrupt候補】ハンドルドラッグの終了検知漏れ：`handleMouseUp`がキャンバス要素にのみ購読しているため、ハンドルドラッグ中にフロートウィンドウ上・ブラウザ外でボタンを離すと`DRAGGING_HANDLE`が残留し、キャンバスへ戻ると押していないのに図形が追従する。あわせて`handleMouseDown`/`handleMouseUp`がマウスボタン種別を判定しておらず、右ボタンでもハンドルドラッグが始まる・ドラッグ中の中ボタンの`mouseup`でドラッグが終わる。Phase02-02でパン用に導入した`window`のcapture購読（`#handleWindowMouseUp`）に載せる＋`event.button === 0`ガードで解消見込み（RES `261008_2150` 懸念事項参照）。
+  * 【Phase02-02由来・要調査】ハンドルドラッグ直後に選択（ハンドル表示）が外れる場合がある（実装AIが確認中に観測）。ドラッグ終了後の`click`で、ドラッグ中に更新されないホバー状態（例：楕円の中心moveハンドルは輪郭外のため非ホバー）を基に空白クリック扱いとなり選択解除している可能性。Phase 1からの既存挙動と推定。発注者のテストプレイでは再現せず（2026-10-18）、再発した時点で対応する方針。
+  * 【Phase02-02由来】用語「論理座標系」の残存：`VectorModel.js`（`startDraft`/`updateDraft`/`updateVertex`/`moveShape`の`@param`計8箇所）と`shapes/`各クラスの対象外メソッドのJSDocに残る。意味は「ワールド座標」 → 上記「古いJSDoc・用語の残存」とまとめてInterruptで修正。
+  * 【Phase02-02由来】`PROJECT_ARCHITECTURE.md`の既存記述のズレ：3章項目2「`requestAnimationFrame`を用いた描画ループ」（実装はイベント駆動の同期再描画でrAFループなし）、3章項目1の起動処理の列挙に`ViewTransform`/`PaletteController`/`WindowManager`がない、4章`WindowManager`の「`VectorModel`が持つ…ツール状態」（Phase02-01以降は`InputTracker`が保持）。4章の記載形式（`InputTracker`のみサブ項目化）も混在 → 次のフェイズ移行時の資料監査、またはInterruptで整理。
+  * 【Phase02-02由来】非表示状態（タブ・ペインが非表示等）で読み込むと、`CanvasManager.resize()`が`style.width/height = 0px`を固定し、以後リサイズしても0×0のまま復帰しない（再読み込みで解消）。通常利用では発生しない → 気になった場合に`resize()`のCSSサイズ固定ロジックを見直す。
+  * 【Phase02-02由来・低優先】ビュー変換まわりの調整余地：トラックパッド／ピンチでのズームが過敏になる可能性（`deltaY`の符号のみで1刻み）、グリッド線のにじみ・80%付近で細線が切り替わる見え方、ズーム往復で倍率が厳密に1へ戻らない浮動小数誤差（表示は四捨五入で100%）、倍率10%付近で小さな図形のハンドル同士が重なる → いずれもテストプレイで違和感が出た場合に対応（RES `261008_2150` 懸念事項に対処方針あり）。
 
 ---
 
