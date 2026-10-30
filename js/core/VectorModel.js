@@ -1,5 +1,5 @@
 /**
- * 責務：図形データの状態管理（SSOT：Single Source of Truth）と更新通知を担う。
+ * 責務：図形データ・選択集合・ホバー・作成中図形・選択矩形の状態管理（SSOT：Single Source of Truth）と更新通知を担う。
  */
 import { ShapeFactory } from './ShapeFactory.js';
 
@@ -17,10 +17,10 @@ export class VectorModel {
     #listeners;
 
     /**
-     * @type {string|null} 選択中の図形のid
+     * @type {Set<string>} 選択集合：選択中の図形idの集合（0個以上）。常に現存図形のidのみを含む
      * @private
      */
-    #selectedId;
+    #selectedIds;
 
     /**
      * @type {string|null} ホバー中の図形のid
@@ -36,6 +36,14 @@ export class VectorModel {
     #draftLine;
 
     /**
+     * @type {{x1: number, y1: number, x2: number, y2: number}|null}
+     * 範囲選択中の選択矩形。ワールド座標の対角2点（x1,y1=押下点、x2,y2=現在のカーソル位置）。
+     * 正規化しない。描画用（範囲選択中でなければnull）
+     * @private
+     */
+    #selectionRect;
+
+    /**
      * @type {number} 図形id採番用の連番カウンタ
      * @private
      */
@@ -44,9 +52,10 @@ export class VectorModel {
     constructor() {
         this.#shapes = [];
         this.#listeners = [];
-        this.#selectedId = null;
+        this.#selectedIds = new Set();
         this.#hoveredId = null;
         this.#draftLine = null;
+        this.#selectionRect = null;
         this.#nextId = 1;
     }
 
@@ -68,28 +77,47 @@ export class VectorModel {
     }
 
     /**
-     * 指定したidの図形を選択状態にし、変更を通知する。
-     * @param {string} id 選択する図形のid
+     * 選択集合を指定したidの集合で置き換え、変更を通知する（1回）。
+     * 現存しない図形のidは除外する（選択集合は常に現存図形のidのみを含む）。
+     * 単一選択は setSelection([id]) で表現する。
+     * @param {Iterable<string>} ids 新しい選択集合とする図形idの集合
      */
-    selectShape(id) {
-        this.#selectedId = id;
+    setSelection(ids) {
+        const existingIds = new Set(this.#shapes.map((s) => s.id));
+        this.#selectedIds = new Set();
+        for (const id of ids) {
+            if (existingIds.has(id)) {
+                this.#selectedIds.add(id);
+            }
+        }
         this.#notifyChange();
     }
 
     /**
-     * 選択状態を解除し、変更を通知する。
+     * 選択集合を空にし、変更を通知する（1回）。
      */
     clearSelection() {
-        this.#selectedId = null;
+        this.#selectedIds.clear();
         this.#notifyChange();
     }
 
     /**
-     * 現在選択中の図形のidを取得する。
-     * @returns {string|null} 選択中の図形のid（未選択時はnull）
+     * 選択集合の図形idを取得する。
+     * @returns {Array<string>} 選択中の図形idの新しい配列（#shapesの並び順＝描画順。未選択時は空配列）
      */
-    getSelectedId() {
-        return this.#selectedId;
+    getSelectedIds() {
+        return this.#shapes
+            .filter((s) => this.#selectedIds.has(s.id))
+            .map((s) => s.id);
+    }
+
+    /**
+     * 指定したidの図形が選択集合に含まれるかを判定する。
+     * @param {string} id 判定する図形のid
+     * @returns {boolean} 選択集合に含まれる場合true
+     */
+    isSelected(id) {
+        return this.#selectedIds.has(id);
     }
 
     /**
@@ -118,10 +146,42 @@ export class VectorModel {
     }
 
     /**
+     * 選択矩形を設定し、変更を通知する（1回）。座標は正規化せずそのまま保持する。
+     * @param {number} x1 押下点のX座標（ワールド座標）
+     * @param {number} y1 押下点のY座標（ワールド座標）
+     * @param {number} x2 現在のカーソル位置のX座標（ワールド座標）
+     * @param {number} y2 現在のカーソル位置のY座標（ワールド座標）
+     */
+    setSelectionRect(x1, y1, x2, y2) {
+        this.#selectionRect = { x1, y1, x2, y2 };
+        this.#notifyChange();
+    }
+
+    /**
+     * 選択矩形を破棄する。選択矩形が存在した場合のみ変更を通知する。
+     */
+    clearSelectionRect() {
+        if (this.#selectionRect === null) {
+            return;
+        }
+        this.#selectionRect = null;
+        this.#notifyChange();
+    }
+
+    /**
+     * 選択矩形を取得する。
+     * @returns {{x1: number, y1: number, x2: number, y2: number}|null}
+     * 選択矩形のコピー（ワールド座標の対角2点。正規化されていない）、存在しない場合はnull
+     */
+    getSelectionRect() {
+        return this.#selectionRect ? { ...this.#selectionRect } : null;
+    }
+
+    /**
      * 始点を確定し、始点・終点が同一座標の仮図形を作成中データとして生成する。
      * 生成した時点ではidを持たず、#shapesにも登録しない（コミットはcommitDraftで行う）。
-     * @param {number} x 始点のX座標（論理座標系）
-     * @param {number} y 始点のY座標（論理座標系）
+     * @param {number} x 始点のX座標（ワールド座標）
+     * @param {number} y 始点のY座標（ワールド座標）
      * @param {string} [type='line'] 生成する図形の種別（ShapeFactory.createへ渡される）
      */
     startDraft(x, y, type = 'line') {
@@ -130,10 +190,10 @@ export class VectorModel {
     }
 
     /**
-     * 作成中Lineの終点をカーソル位置に追従させる。作成中Lineが存在しない場合は何もしない。
+     * 作成中の図形の終点をカーソル位置に追従させる。作成中の図形が存在しない場合は何もしない。
      * 追従処理自体はshape.updateDraftEnd(x, y)へポリモーフィックに委譲する（図形種別を問わず同一の呼び出しで動作する）。
-     * @param {number} x 終点のX座標（論理座標系）
-     * @param {number} y 終点のY座標（論理座標系）
+     * @param {number} x 終点のX座標（ワールド座標）
+     * @param {number} y 終点のY座標（ワールド座標）
      */
     updateDraft(x, y) {
         if (!this.#draftLine) {
@@ -144,8 +204,8 @@ export class VectorModel {
     }
 
     /**
-     * 作成中Lineに一意なidを採番して#shapesへ確定登録し、作成中データを破棄する。
-     * 作成中Lineが存在しない場合は何もしない。
+     * 作成中の図形に一意なidを採番して#shapesへ確定登録し、作成中データを破棄する。
+     * 作成中の図形が存在しない場合は何もしない。
      */
     commitDraft() {
         if (!this.#draftLine) {
@@ -158,7 +218,7 @@ export class VectorModel {
     }
 
     /**
-     * 作成中Lineを確定せずに破棄する（作成中断用）。作成中Lineが存在しない場合は何もしない。
+     * 作成中の図形を確定せずに破棄する（作成中断用）。作成中の図形が存在しない場合は何もしない。
      */
     cancelDraft() {
         if (!this.#draftLine) {
@@ -181,10 +241,10 @@ export class VectorModel {
      * 該当図形が存在しない場合は何もしない。頂点インデックスと図形固有プロパティとの
      * 対応関係は関知せず、更新処理自体はshape.setVertex(vertexIndex, x, y)へポリモー
      * フィックに委譲する（図形種別を問わず同一の呼び出しで動作する）。
-     * @param {string} id 対象図形のid
-     * @param {number} vertexIndex 更新する頂点のインデックス（0: 始点, 1: 終点）
-     * @param {number} x 更新後のX座標（論理座標系）
-     * @param {number} y 更新後のY座標（論理座標系）
+     * @param {string} id 対象図形のid（単一）
+     * @param {number} vertexIndex 更新する頂点のインデックス（各図形のgetVertexIndexForHandleの規約に従う頂点インデックス）
+     * @param {number} x 更新後のX座標（ワールド座標）
+     * @param {number} y 更新後のY座標（ワールド座標）
      */
     updateVertex(id, vertexIndex, x, y) {
         const shape = this.#shapes.find((s) => s.id === id);
@@ -198,43 +258,50 @@ export class VectorModel {
     }
 
     /**
-     * 指定したidの図形全体を、相対差分(dx, dy)だけ平行移動する。
-     * 該当図形が存在しない場合は何もしない。移動処理自体はshape.translate(dx, dy)へ
-     * ポリモーフィックに委譲する（図形種別を問わず同一の呼び出しで動作する）。
-     * @param {string} id 対象図形のid
-     * @param {number} dx X方向の移動差分（論理座標系）
-     * @param {number} dy Y方向の移動差分（論理座標系）
+     * 指定したidの集合に含まれる全図形を、相対差分(dx, dy)だけ平行移動する。
+     * 移動処理自体はshape.translate(dx, dy)へポリモーフィックに委譲する（図形種別を問わず同一の呼び出しで動作する）。
+     * 存在しないidは無視する。1件以上移動した場合のみ変更を通知する（1回。図形数分は発行しない）。
+     * @param {Iterable<string>} ids 移動する図形idの集合
+     * @param {number} dx X方向の移動差分（ワールド座標）
+     * @param {number} dy Y方向の移動差分（ワールド座標）
      */
-    moveShape(id, dx, dy) {
-        const shape = this.#shapes.find((s) => s.id === id);
-        if (!shape) {
-            return;
+    moveShapes(ids, dx, dy) {
+        const targetIds = new Set(ids);
+        let moved = false;
+        for (const shape of this.#shapes) {
+            if (targetIds.has(shape.id)) {
+                shape.translate(dx, dy);
+                moved = true;
+            }
         }
 
-        shape.translate(dx, dy);
-
-        this.#notifyChange();
+        if (moved) {
+            this.#notifyChange();
+        }
     }
 
     /**
-     * 指定したidの図形を#shapesから除去し、変更を通知する。
-     * 除去対象が選択中またはホバー中であった場合は、それらの状態も同時にクリアする
-     * （存在しない図形のidが選択/ホバー状態に残留することを防ぐため）。
-     * 該当図形が存在しない場合は何もしない。
-     * @param {string} id 削除する図形のid
+     * 指定したidの集合に含まれる全図形を#shapesから除去する。
+     * 除去した図形のidは選択集合・ホバー状態からも除去する（存在しない図形のidが残留することを防ぐため）。
+     * 存在しないidは無視する。1件以上削除した場合のみ変更を通知する（1回。図形数分は発行しない）。
+     * @param {Iterable<string>} ids 削除する図形idの集合
      */
-    deleteShape(id) {
-        const index = this.#shapes.findIndex((s) => s.id === id);
-        if (index === -1) {
+    deleteShapes(ids) {
+        const targetIds = new Set(ids);
+        const remaining = this.#shapes.filter((s) => !targetIds.has(s.id));
+        if (remaining.length === this.#shapes.length) {
             return;
         }
 
-        this.#shapes.splice(index, 1);
+        const removedIds = this.#shapes
+            .filter((s) => targetIds.has(s.id))
+            .map((s) => s.id);
+        this.#shapes = remaining;
 
-        if (this.#selectedId === id) {
-            this.#selectedId = null;
+        for (const id of removedIds) {
+            this.#selectedIds.delete(id);
         }
-        if (this.#hoveredId === id) {
+        if (this.#hoveredId !== null && removedIds.includes(this.#hoveredId)) {
             this.#hoveredId = null;
         }
 

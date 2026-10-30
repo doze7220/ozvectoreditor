@@ -1,6 +1,14 @@
 /**
  * 責務: 2次ベジェ曲線（始点・制御点・終点）のデータ保持・Canvasへの描画処理・当たり判定を担う。
  */
+
+/**
+ * 範囲選択の交差判定（intersectsRect）で用いる輪郭サンプリングの分割数。
+ * hitTestの100分割と同程度の計算量。
+ * @type {number}
+ */
+const CURVE_INTERSECT_SEGMENTS = 100;
+
 export class Curve {
     /**
      * @param {number} x1 - 始点のX座標
@@ -130,6 +138,91 @@ export class Curve {
         if (distTo(control.x, control.y) <= tolerance) return 'control';
 
         return null;
+    }
+
+    /**
+     * 選択矩形に輪郭線（中心線。`strokeWidth`は含めない）の一部でも掛かるかを判定する範囲選択用の共通メソッド
+     * （共通メソッド契約の第10メソッド）。塗り内部は判定しない。矩形の境界上も交差とみなす。
+     * 早期棄却として制御多角形（points[0..2]）の外接矩形が判定矩形と重ならなければfalseを返す
+     * （ベジェ曲線は制御点の凸包内にあるため正しい）。重なる場合はB(t)をt = i / N（i = 0..N、N = CURVE_INTERSECT_SEGMENTS）で
+     * サンプリングし、隣接点を結ぶN本の線分のいずれかが交差すればtrueを返す。
+     * 折れ線近似のため、真の輪郭とのずれがわずかに生じる。
+     * @param {number} minX - 判定矩形の左端X座標（ワールド座標。呼び出し側で正規化済み（minX ≤ maxX））
+     * @param {number} minY - 判定矩形の上端Y座標（ワールド座標。呼び出し側で正規化済み（minY ≤ maxY））
+     * @param {number} maxX - 判定矩形の右端X座標（ワールド座標。呼び出し側で正規化済み（minX ≤ maxX））
+     * @param {number} maxY - 判定矩形の下端Y座標（ワールド座標。呼び出し側で正規化済み（minY ≤ maxY））
+     * @returns {boolean} 輪郭線の一部でも矩形に掛かればtrue
+     */
+    intersectsRect(minX, minY, maxX, maxY) {
+        const [p0, p1, p2] = this.points;
+
+        // 早期棄却：制御多角形の外接矩形と判定矩形が重ならなければ交差しない
+        const boundMinX = Math.min(p0.x, p1.x, p2.x);
+        const boundMaxX = Math.max(p0.x, p1.x, p2.x);
+        const boundMinY = Math.min(p0.y, p1.y, p2.y);
+        const boundMaxY = Math.max(p0.y, p1.y, p2.y);
+        if (boundMaxX < minX || boundMinX > maxX || boundMaxY < minY || boundMinY > maxY) {
+            return false;
+        }
+
+        const segments = CURVE_INTERSECT_SEGMENTS;
+        let prevX = p0.x;
+        let prevY = p0.y;
+        for (let i = 1; i <= segments; i++) {
+            const t = i / segments;
+            const oneMinusT = 1 - t;
+            const bx = oneMinusT * oneMinusT * p0.x + 2 * oneMinusT * t * p1.x + t * t * p2.x;
+            const by = oneMinusT * oneMinusT * p0.y + 2 * oneMinusT * t * p1.y + t * t * p2.y;
+            if (this.#segmentIntersectsRect(prevX, prevY, bx, by, minX, minY, maxX, maxY)) {
+                return true;
+            }
+            prevX = bx;
+            prevY = by;
+        }
+        return false;
+    }
+
+    /**
+     * 線分（ワールド座標）と軸平行矩形（ワールド座標・正規化済み・境界含む）の交差判定（Liang–Barsky法）。
+     * 長さ0の線分は点の内包判定となる（全組でp === 0となり除算しないため0除算は起きない）。
+     * 契約メソッドではない内部ヘルパー（同一ロジックをshapes/の各図形クラスが個別に持つ）。
+     * @param {number} ax - 線分始点のX座標（ワールド座標）
+     * @param {number} ay - 線分始点のY座標（ワールド座標）
+     * @param {number} bx - 線分終点のX座標（ワールド座標）
+     * @param {number} by - 線分終点のY座標（ワールド座標）
+     * @param {number} minX - 矩形の左端X座標（ワールド座標）
+     * @param {number} minY - 矩形の上端Y座標（ワールド座標）
+     * @param {number} maxX - 矩形の右端X座標（ワールド座標）
+     * @param {number} maxY - 矩形の下端Y座標（ワールド座標）
+     * @returns {boolean} 線分の一部でも矩形（境界含む）内にあればtrue
+     */
+    #segmentIntersectsRect(ax, ay, bx, by, minX, minY, maxX, maxY) {
+        const dx = bx - ax;
+        const dy = by - ay;
+        let t0 = 0;
+        let t1 = 1;
+        const pairs = [
+            [-dx, ax - minX],
+            [dx, maxX - ax],
+            [-dy, ay - minY],
+            [dy, maxY - ay],
+        ];
+
+        for (const [p, q] of pairs) {
+            if (p === 0) {
+                if (q < 0) return false; // 平行かつ外側
+                continue; // 除算しない
+            }
+            const r = q / p;
+            if (p < 0) {
+                if (r > t1) return false;
+                if (r > t0) t0 = r;
+            } else {
+                if (r < t0) return false;
+                if (r < t1) t1 = r;
+            }
+        }
+        return true;
     }
 
     /**

@@ -252,3 +252,28 @@
 * `InputTracker`の肥大化 → Phase 02-03でドラッグ操作の分離を検討（DIRメモに記載）
 
 ---
+
+### Phase02-03「範囲選択・複数選択」（クローズ日：2026-10-31）
+* DIR: `_log/dir/261006_2239_DIR_Phase02-00_UI_And_Operation_Enhancement.md`（Phase 02-03節）
+* REQ: `_log/req/261018_0212_REQ_Phase02-03_Marquee_Multi_Select.md`
+* RES: `_log/res/261018_0222_RES_Phase02-03_Marquee_Multi_Select.md`（全12タスク、PlanningUpdate・Interruptなし。タスク6にCoworkの追加注意事項あり）
+
+| 項目 | 結論 | 対応箇所 |
+| ---- | ---- | -------- |
+| 選択状態の複数化 | `VectorModel`の`#selectedId`を選択集合`#selectedIds`（`Set`）へ。`setSelection(ids)`/`clearSelection()`/`getSelectedIds()`/`isSelected(id)`、一括`moveShapes`/`deleteShapes`（通知1回）、選択矩形API。旧単一選択API（`selectShape`/`getSelectedId`/`moveShape`/`deleteShape`）は互換ラッパー経由で段階移行し削除 | REQ要件1 / タスク3・7・10 |
+| 範囲選択（マーキー選択） | 空白から左ドラッグ（スクリーン3px閾値）。判定は「輪郭線の中心線が一部でも掛かれば選択」（発注者決定）、塗り内部は対象外。各図形クラスに第10共通メソッド`intersectsRect`（Line/Rectは厳密、Curve/Ellipseは100分割の折れ線近似）を追加。矩形の正規化は確定処理1箇所のみ | REQ要件2 / タスク1・2・9 |
+| 縮退した楕円が選択不可（Phase01-07由来、2026-08-12ユーザー指摘） | 範囲選択で選択・削除可能に（`intersectsRect`は0除算なし）。クリック選択不可の`hitTest`ガードは維持 | REQ要件2 / タスク2・9 |
+| 複数選択中の表示・操作 | 全図形のハンドルを表示（発注者決定）。ハンドル描画は全図形描画後の2パス、当たり判定は前面優先。頂点ハンドルは1図形のみ変形、moveハンドル・本体ドラッグは選択集合の全図形を移動。単一選択でも本体ドラッグ可（発注者決定） | REQ要件3・4 / タスク4・7・8 |
+| ハンドルドラッグの終了検知漏れ・ボタン種別未判定（Phase02-02由来） | `core/DragTracker.js`を新設し、パン・左ドラッグのライフサイクル（開始ボタン・閾値・`window`のcapture購読による追従/終了・`buttons`による取りこぼし検知・blur中断・click抑止）を一元化。キャンバスの`mouseup`購読を廃止 | REQ要件5・8 / タスク5・6 |
+| ハンドルドラッグ直後に選択が外れる（Phase02-02由来・要調査） | 原因はクリック時に古いホバー状態を参照していたこと（輪郭外のハンドルではホバーが`null`）。当たり分類`#classifyPoint`をホバー・押下・クリック・カーソルで共用し、クリックをその場の座標で判定するよう変更。ドラッグ後のclickは抑止 | REQ要件5 / タスク6・7 |
+| 「空白部分」の判定にホバー状態を流用（Phase01由来、タッチ非対応の懸念） | 上記の`#classifyPoint`によりクリック時に直接判定するため解消 | タスク7 |
+| `InputTracker`の肥大化（Phase02-02由来、DIRメモ） | ドラッグのライフサイクルのみを`DragTracker`へ分離（計画AI判断）。意味の解釈・当たり分類・カーソルは`InputTracker`に残し、セクション区切りで整理。行数は約960行で、再分離候補は`COWORK_STATUS.md`で追跡 | REQ要件8 / タスク5・10 |
+| `VectorModel.js`・`InputTracker.js`の古い用語（「論理座標系」「作成中Line」「start/end/move」等） | 両ファイル分は修正済み（図形クラス分は持ち越し） | タスク3・6・11 |
+| `PROJECT_ARCHITECTURE.md`の反映 | 1〜4章を更新（`DragTracker`新設、選択集合・選択矩形、ドラッグのライフサイクル・範囲選択の流れ、各モジュール責務、10メソッド契約）。`Line.js`項の頂点表記の誤り（`points[0]`/`[1]`）はCowork監査で発見し発注者が修正 | タスク12 |
+
+**未解決のまま次に持ち越した項目**（`COWORK_STATUS.md`側で追跡中。ここには含めない）:
+* ハンドルの2パス描画による見え方（発注者判断で後回し）、輪郭付近からの範囲選択開始・ハンドル付近の別図形選択の操作感 → 作業での使用感次第
+* 図形クラスの「論理座標系」、`draftLine`命名、`WindowManager`の「ツール状態」表記、開発資料の既存記述のズレ → Interrupt／資料監査
+* `#segmentIntersectsRect`の4重複、弧の角度可変化時の注意、`InputTracker`の再分離候補、`buttons`の環境依存 → 該当箇所の変更時に対応
+
+---

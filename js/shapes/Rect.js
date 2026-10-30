@@ -112,6 +112,68 @@ export class Rect {
     }
 
     /**
+     * 選択矩形に輪郭線（中心線。`strokeWidth`は含めない）の一部でも掛かるかを判定する範囲選択用の共通メソッド
+     * （共通メソッド契約の第10メソッド）。塗り内部は判定しない（選択矩形が矩形の内側に収まり辺と交差しない場合はfalse）。
+     * 4辺（[0,1],[1,2],[2,3],[3,0]。hitTestと同じ辺の組）のいずれかが交差すればtrueを返す。矩形の境界上も交差とみなす。
+     * @param {number} minX - 判定矩形の左端X座標（ワールド座標。呼び出し側で正規化済み（minX ≤ maxX））
+     * @param {number} minY - 判定矩形の上端Y座標（ワールド座標。呼び出し側で正規化済み（minY ≤ maxY））
+     * @param {number} maxX - 判定矩形の右端X座標（ワールド座標。呼び出し側で正規化済み（minX ≤ maxX））
+     * @param {number} maxY - 判定矩形の下端Y座標（ワールド座標。呼び出し側で正規化済み（minY ≤ maxY））
+     * @returns {boolean} 輪郭線の一部でも矩形に掛かればtrue
+     */
+    intersectsRect(minX, minY, maxX, maxY) {
+        const edges = [[0, 1], [1, 2], [2, 3], [3, 0]];
+        return edges.some(([a, b]) => {
+            const pa = this.points[a];
+            const pb = this.points[b];
+            return this.#segmentIntersectsRect(pa.x, pa.y, pb.x, pb.y, minX, minY, maxX, maxY);
+        });
+    }
+
+    /**
+     * 線分（ワールド座標）と軸平行矩形（ワールド座標・正規化済み・境界含む）の交差判定（Liang–Barsky法）。
+     * 長さ0の線分は点の内包判定となる（全組でp === 0となり除算しないため0除算は起きない）。
+     * 契約メソッドではない内部ヘルパー（同一ロジックをshapes/の各図形クラスが個別に持つ）。
+     * @param {number} ax - 線分始点のX座標（ワールド座標）
+     * @param {number} ay - 線分始点のY座標（ワールド座標）
+     * @param {number} bx - 線分終点のX座標（ワールド座標）
+     * @param {number} by - 線分終点のY座標（ワールド座標）
+     * @param {number} minX - 矩形の左端X座標（ワールド座標）
+     * @param {number} minY - 矩形の上端Y座標（ワールド座標）
+     * @param {number} maxX - 矩形の右端X座標（ワールド座標）
+     * @param {number} maxY - 矩形の下端Y座標（ワールド座標）
+     * @returns {boolean} 線分の一部でも矩形（境界含む）内にあればtrue
+     */
+    #segmentIntersectsRect(ax, ay, bx, by, minX, minY, maxX, maxY) {
+        const dx = bx - ax;
+        const dy = by - ay;
+        let t0 = 0;
+        let t1 = 1;
+        const pairs = [
+            [-dx, ax - minX],
+            [dx, maxX - ax],
+            [-dy, ay - minY],
+            [dy, maxY - ay],
+        ];
+
+        for (const [p, q] of pairs) {
+            if (p === 0) {
+                if (q < 0) return false; // 平行かつ外側
+                continue; // 除算しない
+            }
+            const r = q / p;
+            if (p < 0) {
+                if (r > t1) return false;
+                if (r > t0) t0 = r;
+            } else {
+                if (r < t0) return false;
+                if (r < t1) t1 = r;
+            }
+        }
+        return true;
+    }
+
+    /**
      * 点(x, y)が4隅のハンドルいずれかの許容誤差(tolerance)以内にあるかを判定する。
      * 複数のハンドルが同時にtolerance以内となる場合は、topLeft → topRight → bottomRight → bottomLeftの優先順位で先着1件を返す。
      * @param {number} x - 判定対象点のX座標（論理座標系）

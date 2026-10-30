@@ -1,6 +1,14 @@
 /**
  * 責務: 円・楕円・弧のデータ保持・Canvasへの描画処理・当たり判定を担う。
  */
+
+/**
+ * 範囲選択の交差判定（intersectsRect）で用いる輪郭サンプリングの分割数。
+ * hitTestの100分割と同程度の計算量。
+ * @type {number}
+ */
+const ELLIPSE_INTERSECT_SEGMENTS = 100;
+
 export class Ellipse {
     /**
      * @param {number} x1 - 中心のX座標（1回目クリック地点）
@@ -292,6 +300,93 @@ export class Ellipse {
             }
         }
 
+        return true;
+    }
+
+    /**
+     * 選択矩形に輪郭線（中心線。`strokeWidth`は含めない）の一部でも掛かるかを判定する範囲選択用の共通メソッド
+     * （共通メソッド契約の第10メソッド）。塗り内部は判定しない。矩形の境界上も交差とみなす。
+     * rx/ryはdraw()と同じ式で求め、外接矩形[xc − rx, xc + rx] × [yc − ry, yc + ry]が判定矩形と重ならなければfalseを返す（早期棄却）。
+     * 重なる場合はθ = startAngle + (endAngle − startAngle) × i / N（i = 0..N、N = ELLIPSE_INTERSECT_SEGMENTS）で
+     * 点(xc + rx·cosθ, yc + ry·sinθ)をサンプリングし、隣接点を結ぶN本の線分のいずれかが交差すればtrueを返す。
+     * draw()のctx.ellipse(xc, yc, rx, ry, 0, startAngle, endAngle)と同じパラメータ化のため、円・弧をtypeで分岐せず同一処理で扱い、
+     * 弧は描画されている弧部分のみが判定対象となる（弦は含めない）。
+     * 縮退した楕円（rx/ryが0）でもサンプル点が線分状・点状に並ぶだけで0除算を起こさず、輪郭が掛かればtrueを返す。
+     * 折れ線近似のため、真の輪郭とのずれ（最大で半径×(1−cos(π/N))程度）がある。
+     * @param {number} minX - 判定矩形の左端X座標（ワールド座標。呼び出し側で正規化済み（minX ≤ maxX））
+     * @param {number} minY - 判定矩形の上端Y座標（ワールド座標。呼び出し側で正規化済み（minY ≤ maxY））
+     * @param {number} maxX - 判定矩形の右端X座標（ワールド座標。呼び出し側で正規化済み（minX ≤ maxX））
+     * @param {number} maxY - 判定矩形の下端Y座標（ワールド座標。呼び出し側で正規化済み（minY ≤ maxY））
+     * @returns {boolean} 輪郭線の一部でも矩形に掛かればtrue
+     */
+    intersectsRect(minX, minY, maxX, maxY) {
+        const xc = this.points[0].x;
+        const yc = this.points[0].y;
+        const rx = Math.abs(this.points[1].x - xc);
+        const ry = Math.abs(this.points[2].y - yc);
+
+        // 早期棄却：外接矩形と判定矩形が重ならなければ交差しない
+        if (xc + rx < minX || xc - rx > maxX || yc + ry < minY || yc - ry > maxY) {
+            return false;
+        }
+
+        const segments = ELLIPSE_INTERSECT_SEGMENTS;
+        const angleSpan = this.endAngle - this.startAngle;
+        let prevX = xc + rx * Math.cos(this.startAngle);
+        let prevY = yc + ry * Math.sin(this.startAngle);
+        for (let i = 1; i <= segments; i++) {
+            const theta = this.startAngle + angleSpan * i / segments;
+            const px = xc + rx * Math.cos(theta);
+            const py = yc + ry * Math.sin(theta);
+            if (this.#segmentIntersectsRect(prevX, prevY, px, py, minX, minY, maxX, maxY)) {
+                return true;
+            }
+            prevX = px;
+            prevY = py;
+        }
+        return false;
+    }
+
+    /**
+     * 線分（ワールド座標）と軸平行矩形（ワールド座標・正規化済み・境界含む）の交差判定（Liang–Barsky法）。
+     * 長さ0の線分は点の内包判定となる（全組でp === 0となり除算しないため0除算は起きない）。
+     * 契約メソッドではない内部ヘルパー（同一ロジックをshapes/の各図形クラスが個別に持つ）。
+     * @param {number} ax - 線分始点のX座標（ワールド座標）
+     * @param {number} ay - 線分始点のY座標（ワールド座標）
+     * @param {number} bx - 線分終点のX座標（ワールド座標）
+     * @param {number} by - 線分終点のY座標（ワールド座標）
+     * @param {number} minX - 矩形の左端X座標（ワールド座標）
+     * @param {number} minY - 矩形の上端Y座標（ワールド座標）
+     * @param {number} maxX - 矩形の右端X座標（ワールド座標）
+     * @param {number} maxY - 矩形の下端Y座標（ワールド座標）
+     * @returns {boolean} 線分の一部でも矩形（境界含む）内にあればtrue
+     */
+    #segmentIntersectsRect(ax, ay, bx, by, minX, minY, maxX, maxY) {
+        const dx = bx - ax;
+        const dy = by - ay;
+        let t0 = 0;
+        let t1 = 1;
+        const pairs = [
+            [-dx, ax - minX],
+            [dx, maxX - ax],
+            [-dy, ay - minY],
+            [dy, maxY - ay],
+        ];
+
+        for (const [p, q] of pairs) {
+            if (p === 0) {
+                if (q < 0) return false; // 平行かつ外側
+                continue; // 除算しない
+            }
+            const r = q / p;
+            if (p < 0) {
+                if (r > t1) return false;
+                if (r > t0) t0 = r;
+            } else {
+                if (r < t0) return false;
+                if (r < t1) t1 = r;
+            }
+        }
         return true;
     }
 }

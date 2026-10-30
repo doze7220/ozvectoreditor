@@ -1,13 +1,17 @@
 /**
- * 責務：ユーザー入力（パン・ズームを含む）の解釈とModel・ビュー変換への反映、
- * および入力状態に応じたキャンバスのカーソル形状のフィードバックを担う。
+ * 責務：ユーザー入力（図形作成・選択・範囲選択・本体ドラッグ・ハンドルドラッグ・一括削除・パン・ズーム）の解釈と
+ * Model・ビュー変換への反映、および入力状態に応じたキャンバスのカーソル形状のフィードバックを担う。
  */
+
+import { DragTracker } from './DragTracker.js';
 
 /**
  * InputTrackerが取りうる内部状態。
  * IDLE: 待機状態（ホバー判定・クリックによる新規作成/選択待ち）。
- * DRAWING: 新規Line作成中（始点確定済み、終点をカーソルに追従させている）。
- * DRAGGING_HANDLE: 選択中図形のハンドル（start/end/move）をドラッグ中。
+ * DRAWING: 作成中の図形の終点をカーソルに追従させている（始点確定済み）。
+ * DRAGGING_HANDLE: 選択集合内の1図形の頂点ハンドルを押下・ドラッグ中（閾値以前を含む。閾値を超えたかはDragTrackerが保持する）。
+ * MOVING_SELECTION: 選択集合の全図形を平行移動するドラッグを押下・ドラッグ中（moveハンドル・本体ドラッグ。閾値以前を含む）。
+ * MARQUEE_SELECTING: 範囲選択を押下・ドラッグ中（閾値以前を含む）。
  * @readonly
  * @enum {string}
  */
@@ -15,11 +19,23 @@ export const InputState = {
     IDLE: 'IDLE',
     DRAWING: 'DRAWING',
     DRAGGING_HANDLE: 'DRAGGING_HANDLE',
+    MOVING_SELECTION: 'MOVING_SELECTION',
+    MARQUEE_SELECTING: 'MARQUEE_SELECTING',
 };
 
 /**
+ * 当たり分類（#classifyPoint）の結果。ホバー・押下・クリック・カーソル形状の判定で共通に用いる。
+ * handleもbodyIdもnullの場合は「空白」を表す。
+ * @typedef {Object} PointHit
+ * @property {{shapeId: string, handle: string} | null} handle
+ *     選択集合の図形のハンドル（前面優先）。shapeId：ハンドルが属する図形のid（単一）、handle：hitTestHandleの戻り値
+ * @property {string | null} bodyId
+ *     本体（hitTest）が真の図形のid（単一）。選択集合の図形を優先し、同順位は図形配列の先頭
+ */
+
+/**
  * 操作モード。コントロールパネルの各ボタンはこの値に1対1で対応する。
- * SELECT: 選択モード（ホバー判定・選択・ハンドルドラッグ・削除）。
+ * SELECT: 選択モード（ホバー判定・選択・範囲選択・本体ドラッグ・ハンドルドラッグ・一括削除）。
  * CREATE: 図形作成モード（currentShapeTypeの図形を新規作成）。
  * PAN: キャンバス移動モード（左ドラッグでパン）。
  * モードを追加する際は、ここへ1エントリを追加する（setMode()のバリデーションは本定義の値を正とする）。
@@ -48,6 +64,14 @@ export const SHAPE_TYPES = Object.freeze(['line', 'curve', 'arc', 'rect', 'circl
 const WHEEL_ZOOM_STEP = 1.1;
 
 /**
+ * クリックとドラッグを区別する移動量の閾値。スクリーン座標のCSSピクセル。
+ * 左ドラッグ（ハンドルドラッグ・本体ドラッグ・範囲選択）は、押下点からの移動距離がこれを超えた時点で初めて実際の操作を開始する
+ * （DragTracker.begin()のthresholdとして渡す。パンには用いない）。
+ * @type {number}
+ */
+const DRAG_START_THRESHOLD = 3;
+
+/**
  * 要素がテキスト入力中とみなすべき要素（input / textarea / contenteditable）かを判定する。
  * キーボードショートカット（スペースパン、将来のDelete/Backspace等）の誤爆防止に用いる。
  * 現状はSpace判定にのみ使用し、Phase 02-04でDelete/Backspaceの誤爆対策に再利用する想定。
@@ -64,20 +88,25 @@ export function isTextInputElement(element) {
 
 /**
  * キャンバスのマウス・キーボード入力を解釈し、VectorModelの対応APIを呼び出す状態遷移マシン
- * （IDLE / DRAWING / DRAGGING_HANDLE）。操作モード（currentMode）と図形種別（currentShapeType）を
- * 独立した状態として保持し、操作モード・入力状態・当たり判定に応じてキャンバスのカーソル形状を更新する。
+ * （IDLE / DRAWING / DRAGGING_HANDLE / MOVING_SELECTION / MARQUEE_SELECTING）。操作モード（currentMode）と
+ * 図形種別（currentShapeType）を独立した状態として保持し、操作モード・入力状態・当たり分類（#classifyPoint）に応じて
+ * キャンバスのカーソル形状を更新する。当たり分類はホバー・押下・クリック・カーソル形状の判定で共用する。
  * パン（中ボタンドラッグ・スペース＋左ドラッグ・キャンバス移動モードの左ドラッグ）は、DRAWINGを保持したまま
- * 行えるよう、InputStateとは直交するprivateフラグ（#panDrag / #isSpacePressed / #suppressNextClick）で表現する。
+ * 行えるよう、InputStateとは直交するprivateフラグ（パン中：#isPanning、スペース押下中：#isSpacePressed）で表現する。
+ * パンと左ドラッグ（ハンドルドラッグ・本体ドラッグ・範囲選択）のライフサイクル（開始ボタン・移動量閾値・直前位置・
+ * window capture購読による追従/終了・blur時の中断・終了直後のclick抑止）は、本クラスが生成・所有するDragTracker（#drag）へ
+ * 委譲し、本クラスはドラッグの意味の解釈（パン量、頂点変形・選択集合の平行移動・範囲選択のModel反映）のみを行う。
  * ズーム・パンによる表示の変更はViewTransformへ委譲する。
+ * メソッドは区切りコメントで「公開API（モード・図形種別）」「イベントハンドラ」「左ドラッグ」「パン」「当たり分類」
+ * 「座標取得」「カーソル形状」の順に整理している。
  */
 export class InputTracker {
     /**
-     * パンのドラッグ状態。非nullがパン中を表す。
-     * button: パンを開始したマウスボタン（0=左 / 1=中）。終了判定（同じボタンのmouseup）に用いる。
-     * lastScreen: 直前のカーソル位置（スクリーン座標）。パン量（スクリーン座標の差分）の計算に用いる。
-     * @type {{button: number, lastScreen: {x: number, y: number}} | null}
+     * パン中か。パンの開始時に立て、DragTrackerのセッション終了（onEnd）・中断（onCancel）時に#finishPan()で解除する。
+     * パンを開始したボタン・直前のカーソル位置（スクリーン座標）はDragTrackerのセッションが保持する。
+     * @type {boolean}
      */
-    #panDrag = null;
+    #isPanning = false;
 
     /**
      * スペースキー押下中か。押下中は左ドラッグでパンする。keyup・window blurで解除する。
@@ -86,12 +115,20 @@ export class InputTracker {
     #isSpacePressed = false;
 
     /**
-     * 左ボタンのパン終了直後に発火するclickを1回だけ無視するためのフラグ。
-     * #endPan()で立て、handleClickで消費する。clickを伴わずにパンが終わった場合の残留は、
-     * 次のhandleMouseDownで必ず解除する。
-     * @type {boolean}
+     * 範囲選択の押下点。ワールド座標。選択矩形の固定側の頂点。
+     * MARQUEE_SELECTING状態への遷移時に記憶し、#finishLeftDrag()でnullに戻す。
+     * VectorModelの選択矩形（描画用の派生値）は、毎回この値と現在のカーソル位置から再設定する（Model側の値を読み返さない）。
+     * @type {{x: number, y: number} | null}
      */
-    #suppressNextClick = false;
+    #marqueeAnchor = null;
+
+    /**
+     * ドラッグのライフサイクル管理（コンストラクタで生成・所有）。パンと左ドラッグ（ハンドルドラッグ・本体ドラッグ・範囲選択）が利用する。
+     * セッションは同時に1つのみ。
+     * click抑止フラグの所有者もこのインスタンスである。
+     * @type {DragTracker}
+     */
+    #drag;
 
     /**
      * @param {HTMLCanvasElement} canvas - イベントをリッスンするキャンバス
@@ -110,7 +147,7 @@ export class InputTracker {
         this.viewTransform = viewTransform;
 
         /**
-         * 現在の内部状態（IDLE / DRAWING / DRAGGING_HANDLE）。状態遷移マシンの起点。
+         * 現在の内部状態（InputStateの値：IDLE / DRAWING / DRAGGING_HANDLE / MOVING_SELECTION / MARQUEE_SELECTING）。状態遷移マシンの起点。
          * @type {string}
          */
         this.state = InputState.IDLE;
@@ -130,65 +167,70 @@ export class InputTracker {
         this.currentShapeType = 'line';
 
         /**
-         * DRAGGING_HANDLE状態中、moveハンドルの差分移動計算に用いる直前のカーソル位置（ワールド座標）。
-         * IDLE/DRAWING状態では未使用（null）。
+         * MOVING_SELECTION状態中、選択集合の差分移動計算に用いる直前のカーソル位置（ワールド座標）。
+         * 押下時に押下点で初期化し、移動を反映するたびに更新する（閾値分の移動量は閾値超過時の最初の更新でまとめて反映される）。
+         * DRAGGING_HANDLE状態でも押下点を記憶するが、頂点の更新には用いない。
+         * IDLE/DRAWING/MARQUEE_SELECTING状態では未使用（null。範囲選択の押下点は#marqueeAnchorが保持する）。
          * @type {{x: number, y: number} | null}
          */
         this.lastCursor = null;
 
         /**
-         * DRAGGING_HANDLE状態中に操作しているハンドルの種別。mousedown時にhitTestHandleの
-         * 戻り値を記憶しておき、mousemove/mouseupから参照する。
-         * IDLE/DRAWING状態では未使用（null）。
-         * @type {'start'|'end'|'move'|null}
+         * DRAGGING_HANDLE状態中に操作している頂点ハンドルの名前（押下時の各図形のhitTestHandleの戻り値。'move'以外）。
+         * 押下時に記憶し、ドラッグの追従（#applyLeftDragUpdate）でshape.getVertexIndexForHandle()により頂点インデックスへ解決する。
+         * moveハンドルの押下はMOVING_SELECTIONへ遷移するため、ここには記憶しない。
+         * IDLE/DRAWING/MOVING_SELECTION/MARQUEE_SELECTING状態では未使用（null）。
+         * @type {string|null}
          */
         this.activeHandle = null;
 
         /**
-         * DRAGGING_HANDLE状態中に操作している図形のid。
-         * IDLE/DRAWING状態では未使用（null）。
+         * DRAGGING_HANDLE状態中に操作している図形のid（単一。頂点ハンドルが属する図形）。
+         * IDLE/DRAWING/MOVING_SELECTION/MARQUEE_SELECTING状態では未使用（null）。
          * @type {string|null}
          */
         this.activeShapeId = null;
 
         /**
-         * 当たり判定（線分本体のhitTest・ハンドルのhitTestHandle共通）の許容誤差。
+         * 当たり判定（図形本体のhitTest・ハンドルのhitTestHandle共通）の許容誤差。
          * 画面上（スクリーン座標）のピクセル単位。当たり判定時は#getWorldHitTolerance()で
          * ワールド換算して渡す（表示倍率によらず画面上で一定の判定幅になる）。
          * @type {number}
          */
         this.hitTolerance = 5;
 
+        // パン・左ドラッグの追従・終了検知（windowへのcapture購読）とblur時の中断はDragTrackerが担う
+        // （キャンバスのmouseupは購読しない）。DragTrackerへはスクリーン座標の取得関数のみを渡す（一方向の依存）。
+        this.#drag = new DragTracker((event) => this.getScreenCoordinate(event));
+
         this.canvas.addEventListener('mousemove', this.handleMouseMove.bind(this));
         this.canvas.addEventListener('mousedown', this.handleMouseDown.bind(this));
-        this.canvas.addEventListener('mouseup', this.handleMouseUp.bind(this));
         this.canvas.addEventListener('click', this.handleClick.bind(this));
         // preventDefault()でページスクロール・ブラウザズームを抑止するため、passive: falseで購読する
         this.canvas.addEventListener('wheel', this.handleWheel.bind(this), { passive: false });
         document.addEventListener('keydown', this.handleKeyDown.bind(this));
         document.addEventListener('keyup', this.handleKeyUp.bind(this));
 
-        // パンの追従・終了はwindowへcaptureフェーズ（第3引数true）で購読する。
-        // WindowManagerが.float-window上のmousemove/mouseupの伝播を止めるため、キャンバスへの購読だけでは
-        // フロートウィンドウ上・ブラウザ外でボタンを離した場合を検知できない（captureは対象要素のstopPropagationより先に到達する）。
-        // 常設し、パン中（#panDrag !== null）以外は何もしない。
-        window.addEventListener('mousemove', this.#handleWindowMouseMove.bind(this), true);
-        window.addEventListener('mouseup', this.#handleWindowMouseUp.bind(this), true);
-        // タブ切替等でkeyup/mouseupを取りこぼした場合に、スペース押下状態・パン状態を残留させない
+        // タブ切替等でkeyupを取りこぼした場合に、スペース押下状態を残留させない
+        // （ドラッグ（パン・左ドラッグ）の中断はDragTracker自身のblur購読が担う）
         window.addEventListener('blur', this.#handleWindowBlur.bind(this));
 
         this.#updateCursor();
     }
 
+    // ---- 公開API（モード・図形種別） ----
+
     /**
      * 操作モードを切り替える。
      * OperationModeに定義されていない値が渡された場合はconsole.warnを出して何もしない
-     * （内部状態・選択状態・カーソルは一切変更しない）。
-     * 有効な値の場合は常に（同じモードの再指定でも）、(1)currentModeの更新、(2)選択状態・
-     * ホバー状態の無条件クリア、(3)進行中の作成/ドラッグ操作（DRAWING/DRAGGING_HANDLE状態）が
-     * あればcancelDraft()で破棄したうえでIDLE状態へ強制リセット、(4)カーソル形状の再評価、
+     * （内部状態・選択集合・カーソルは一切変更しない）。
+     * 有効な値の場合は常に（同じモードの再指定でも）、(1)currentModeの更新、(2)選択集合・
+     * ホバー状態の無条件クリア、(3)IDLE以外の状態（進行中の作成/ドラッグ操作）であれば
+     * cancelDraft()で作成途中の図形を破棄したうえでIDLE状態へ強制リセット、(4)カーソル形状の再評価、
      * の4処理を行う（モード切り替え時に前モードの状態が残留することを防ぐため）。
-     * 安全策として、パンのドラッグ中であれば先に#endPan()でパンを終了する。
+     * 安全策として、ドラッグセッション（パン・左ドラッグ。閾値以前を含む）中であれば先にDragTracker.cancel()で中断する
+     * （onCancel経由で、パンは#finishPan()、左ドラッグは#onLeftDragCancel()によりIDLEへ戻る。頂点・位置の変更は確定済みのまま残り、
+     * 範囲選択は選択矩形を破棄して確定しない）。
      * 図形種別（currentShapeType）は変更しない。
      * @param {'select'|'create'|'pan'} mode 切り替え先の操作モード（OperationModeの値）
      */
@@ -198,8 +240,8 @@ export class InputTracker {
             return;
         }
 
-        if (this.#panDrag !== null) {
-            this.#endPan();
+        if (this.#drag.isActive()) {
+            this.#drag.cancel();
         }
 
         this.currentMode = mode;
@@ -207,7 +249,7 @@ export class InputTracker {
         this.model.clearSelection();
         this.model.clearHovered();
 
-        if (this.state === InputState.DRAWING || this.state === InputState.DRAGGING_HANDLE) {
+        if (this.state !== InputState.IDLE) {
             this.model.cancelDraft();
             this.state = InputState.IDLE;
         }
@@ -220,7 +262,7 @@ export class InputTracker {
      * SHAPE_TYPESに含まれない値が渡された場合はconsole.warnを出して何もしない。
      * 有効な値の場合はcurrentShapeTypeを更新し、作成途中の図形（DRAWING状態）があれば
      * cancelDraft()で破棄してIDLE状態へ戻す。
-     * 操作モード・選択状態・ホバー状態・カーソル形状は変更しない（図形作成モード中に呼ばれても
+     * 操作モード・選択集合・ホバー状態・カーソル形状は変更しない（図形作成モード中に呼ばれても
      * モードは'create'のまま維持される）。
      * @param {'line'|'curve'|'arc'|'rect'|'circle'} type 切り替え先の図形種別（SHAPE_TYPESのいずれか）
      */
@@ -254,23 +296,23 @@ export class InputTracker {
         return this.currentShapeType;
     }
 
+    // ---- イベントハンドラ（キャンバス・document・windowの購読先） ----
+
     /**
      * mousemoveイベントのハンドラ。
-     * IDLE状態かつ選択モード中のみ、図形配列に対し shape.hitTest(...) をポリモーフィックに呼び出して
-     * ホバー判定を行い、該当図形があればModelへホバー登録、なければホバー解除した上で、
-     * カーソル位置に応じてカーソル形状を更新する（選択モード以外のIDLE状態では何もしない）。
-     * DRAWING状態では、作成中Lineの終点をカーソル位置に追従させる。
-     * DRAGGING_HANDLE状態では、start/endハンドルなら現在のワールド座標をそのままModelへ、
-     * moveハンドルなら直前カーソル座標との差分をModelへ渡し、直前カーソル座標を更新する。
-     * Modelへ渡す座標・当たり判定に用いる座標はすべてワールド座標（getWorldCoordinate由来）、
-     * 当たり判定の許容誤差は画面上一定値のワールド換算値とする。
-     * パンのドラッグ中は何もしない（パンの追従は#handleWindowMouseMoveが担い、ホバー判定・作成途中図形の更新・
-     * ハンドルドラッグは走らせない。パン中はカーソル下のワールド点がカーソルに追従するため、パン終了後の
-     * 次のmousemoveから作成途中図形の終点は従来どおりカーソルに追従する）。
+     * IDLE状態かつ選択モード中のみ、カーソル位置を#classifyPointで1回だけ当たり分類し、その結果を
+     * ホバー更新（bodyIdがあればModelへホバー登録、なければホバー解除）とカーソル形状の更新で共用する
+     * （選択モード以外のIDLE状態では何もしない）。
+     * DRAWING状態では、作成中の図形の終点をカーソル位置に追従させる。
+     * Modelへ渡す座標・当たり判定に用いる座標はすべてワールド座標（getWorldCoordinate由来）。
+     * ドラッグセッション中（パン・左ドラッグ。閾値以前を含む）は何もしない。追従はDragTrackerのonMoveが担い
+     * （パンは#beginPan、左ドラッグは#applyLeftDragUpdate）、ホバー判定・作成途中図形の更新は走らせない。
+     * パン中はカーソル下のワールド点がカーソルに追従するため、パン終了後の次のmousemoveから作成途中図形の終点は
+     * 従来どおりカーソルに追従する。
      * @param {MouseEvent} event
      */
     handleMouseMove(event) {
-        if (this.#panDrag !== null) {
+        if (this.#drag.isActive()) {
             return;
         }
 
@@ -280,71 +322,60 @@ export class InputTracker {
             return;
         }
 
-        if (this.state === InputState.DRAGGING_HANDLE) {
-            const { x, y } = this.getWorldCoordinate(event);
-
-            if (this.activeHandle === 'move') {
-                const dx = x - this.lastCursor.x;
-                const dy = y - this.lastCursor.y;
-                this.model.moveShape(this.activeShapeId, dx, dy);
-                this.lastCursor = { x, y };
-            } else {
-                const shape = this.model.getShapes().find((s) => s.id === this.activeShapeId);
-                const vertexIndex = shape.getVertexIndexForHandle(this.activeHandle);
-                this.model.updateVertex(this.activeShapeId, vertexIndex, x, y);
-            }
-            return;
-        }
-
         if (this.state !== InputState.IDLE || this.currentMode !== OperationMode.SELECT) {
             return;
         }
 
-        const { x, y } = this.getWorldCoordinate(event);
-        const hitShape = this.model.getShapes().find((shape) => shape.hitTest(x, y, this.#getWorldHitTolerance()));
+        const hit = this.#classifyPoint(this.getWorldCoordinate(event));
 
-        if (hitShape) {
-            this.model.setHovered(hitShape.id);
+        if (hit.bodyId) {
+            this.model.setHovered(hit.bodyId);
         } else {
             this.model.clearHovered();
         }
 
-        this.#updateCursor({ x, y });
+        this.#updateCursor(hit);
     }
 
     /**
-     * mousedownイベントのハンドラ。
-     * IDLE状態かつ選択モード中で、選択中図形が存在する場合のみ、その図形へ shape.hitTestHandle(...) を
-     * ポリモーフィックに呼び出してハンドル上での押下かを判定する。該当すれば操作対象の
-     * ハンドル種別・図形id・直前カーソル座標（ワールド座標）を記憶し、DRAGGING_HANDLE状態へ遷移して
-     * カーソル形状を更新する。
-     * 上記より先に、パン開始の判定を行う：(1)前回のパンのclick抑止フラグの残留を解除、(2)既にパン中なら何もしない、
-     * (3)中ボタンはpreventDefault()（オートスクロール抑止）したうえで、DRAGGING_HANDLE状態でなければパンを開始する
-     * （DRAGGING_HANDLE中はパンせず終了）、(4)左ボタンでスペース押下中またはキャンバス移動モードなら、
-     * DRAGGING_HANDLE状態でなければパンを開始する。パンはDRAWING状態・作成途中図形を保持したまま行う。
+     * mousedownイベントのハンドラ。以下の順に判定する。
+     * (1)前回のドラッグのclick抑止フラグの残留をDragTracker.clearSuppressedClick()で解除する。
+     * (2)中ボタンはpreventDefault()（オートスクロール抑止）したうえで、ドラッグセッション中でなければパンを開始して終了する
+     * （セッション中＝パン中・左ドラッグ中はパンせず終了）。
+     * (3)ドラッグセッション中（パン・左ドラッグ。閾値以前を含む）なら何もしない（セッションは同時に1つのみ）。
+     * (4)左ボタンでスペース押下中またはキャンバス移動モードならパンを開始する。パンはDRAWING状態・作成途中図形を保持したまま行う。
+     * (5)左ボタン以外（右ボタン等）なら何もしない（右ボタンで左ドラッグを開始しない）。
+     * (6)IDLE状態かつ選択モード中のみ、押下点（ワールド座標）を#classifyPointで当たり分類し、以下の表で分岐する
+     * （左ドラッグは#beginLeftDragで開始し、閾値以内で離した場合は離した後のclickで判定する）：
+     * ・ハンドルあり・'move'            → MOVING_SELECTION（moveハンドル。選択集合の全図形を平行移動）
+     * ・ハンドルあり・それ以外（頂点）   → DRAGGING_HANDLE（そのハンドルが属する1図形の頂点のみ変形）
+     * ・本体（bodyId）が選択集合内       → MOVING_SELECTION（本体ドラッグ。単一選択でも有効）
+     * ・本体（bodyId）が選択集合外       → 遷移しない（セッションも開始しない。離した後のclickで判定する）
+     * ・空白                             → MARQUEE_SELECTING（範囲選択。押下点を#marqueeAnchorに記憶）
+     * スペース押下中・中ボタン・キャンバス移動モードは(2)(4)のパン判定が先に成立するため、範囲選択は起きない。
      * @param {MouseEvent} event
      */
     handleMouseDown(event) {
-        this.#suppressNextClick = false;
-
-        if (this.#panDrag !== null) {
-            return;
-        }
+        this.#drag.clearSuppressedClick();
 
         if (event.button === 1) {
             event.preventDefault();
-            if (this.state !== InputState.DRAGGING_HANDLE) {
+            if (!this.#drag.isActive()) {
                 this.#beginPan(event);
             }
             return;
         }
 
-        if (
-            event.button === 0 &&
-            (this.#isSpacePressed || this.currentMode === OperationMode.PAN) &&
-            this.state !== InputState.DRAGGING_HANDLE
-        ) {
+        if (this.#drag.isActive()) {
+            return;
+        }
+
+        if (event.button === 0 && (this.#isSpacePressed || this.currentMode === OperationMode.PAN)) {
             this.#beginPan(event);
+            return;
+        }
+
+        if (event.button !== 0) {
             return;
         }
 
@@ -352,58 +383,46 @@ export class InputTracker {
             return;
         }
 
-        const selectedId = this.model.getSelectedId();
-        if (!selectedId) {
+        const point = this.getWorldCoordinate(event);
+        const hit = this.#classifyPoint(point);
+
+        if (hit.handle) {
+            if (hit.handle.handle === 'move') {
+                this.#beginLeftDrag(event, InputState.MOVING_SELECTION, point);
+            } else {
+                this.#beginLeftDrag(event, InputState.DRAGGING_HANDLE, point, hit.handle);
+            }
             return;
         }
 
-        const selectedShape = this.model.getShapes().find((shape) => shape.id === selectedId);
-        if (!selectedShape) {
+        if (hit.bodyId && this.model.isSelected(hit.bodyId)) {
+            this.#beginLeftDrag(event, InputState.MOVING_SELECTION, point);
             return;
         }
 
-        const { x, y } = this.getWorldCoordinate(event);
-        const handle = selectedShape.hitTestHandle(x, y, this.#getWorldHitTolerance());
-        if (!handle) {
-            return;
+        if (hit.bodyId === null) {
+            this.#beginLeftDrag(event, InputState.MARQUEE_SELECTING, point);
         }
-
-        this.activeHandle = handle;
-        this.activeShapeId = selectedId;
-        this.lastCursor = { x, y };
-        this.state = InputState.DRAGGING_HANDLE;
-        this.#updateCursor();
-    }
-
-    /**
-     * mouseupイベントのハンドラ。
-     * DRAGGING_HANDLE状態でのハンドルドラッグを終了し、IDLE状態へ遷移する。
-     * @param {MouseEvent} event
-     */
-    handleMouseUp(event) {
-        if (this.state !== InputState.DRAGGING_HANDLE) {
-            return;
-        }
-
-        this.state = InputState.IDLE;
     }
 
     /**
      * clickイベントのハンドラ。
-     * DRAWING状態では、作成中Lineを確定登録してIDLE状態へ遷移する。
-     * IDLE状態かつ選択モード中では、ホバー中の図形があればそれを選択状態にし、
-     * ホバー中の図形がない（空白部分のクリック）場合は、選択中であれば選択解除する。
+     * DRAWING状態では、作成中の図形を確定登録してIDLE状態へ遷移する。
+     * IDLE状態かつ選択モード中では、クリック位置を#classifyPointで当たり分類し（ホバー状態は参照しない）、
+     * 選択集合の図形のハンドル上なら何もしない（選択集合を維持）、図形の本体上ならその図形のみの単一選択
+     * （setSelection([bodyId])）、空白なら選択集合が空でなければ全解除（clearSelection()）する。
      * IDLE状態かつ図形作成モード中では、Modelへ新規図形作成の開始を指示してDRAWING状態へ遷移する。
      * 作成する図形のtypeには、現在記憶している図形種別（currentShapeType）をそのまま使用し、
      * 作成開始位置はクリック位置のワールド座標とする。
      * 選択モード・図形作成モード以外のモードでは、IDLE状態のクリックを無視する。
-     * 左ボタンのパン（スペース＋左ドラッグ・キャンバス移動モード）終了直後のclickは、#suppressNextClickを
-     * 解除したうえで1回だけ無視する（作成開始・確定・選択・選択解除を起こさない）。
+     * 左ボタンのパン（スペース＋左ドラッグ・キャンバス移動モード）終了直後、および閾値を超えて動かした左ドラッグの
+     * 終了直後のclickは、DragTrackerのclick抑止フラグをconsumeSuppressedClick()で消費したうえで1回だけ無視する
+     * （作成開始・確定・選択・選択解除を起こさない）。左ドラッグを閾値以内で離した場合のclickは抑止せず、上記の通常処理を行う
+     * （ハンドル上で離した場合は選択集合を維持し、選択集合内の図形の本体上で離した場合はその図形のみの単一選択になる）。
      * @param {MouseEvent} event
      */
     handleClick(event) {
-        if (this.#suppressNextClick) {
-            this.#suppressNextClick = false;
+        if (this.#drag.consumeSuppressedClick()) {
             return;
         }
 
@@ -420,10 +439,13 @@ export class InputTracker {
         const { x, y } = this.getWorldCoordinate(event);
 
         if (this.currentMode === OperationMode.SELECT) {
-            const hoveredId = this.model.getHoveredId();
-            if (hoveredId) {
-                this.model.selectShape(hoveredId);
-            } else if (this.model.getSelectedId()) {
+            const hit = this.#classifyPoint({ x, y });
+            if (hit.handle) {
+                return;
+            }
+            if (hit.bodyId) {
+                this.model.setSelection([hit.bodyId]);
+            } else if (this.model.getSelectedIds().length > 0) {
                 this.model.clearSelection();
             }
             return;
@@ -438,9 +460,11 @@ export class InputTracker {
     /**
      * keydownイベントのハンドラ。documentへ購読する（<canvas>要素はデフォルトでフォーカスを
      * 持てずキーボードイベントを受け取れないため）。
-     * 選択モード中に選択中図形が存在する状態でDelete/Backspaceが押下された場合のみ、
+     * 選択モード中かつIDLE状態で、選択集合が空でない状態でDelete/Backspaceが押下された場合のみ、
      * ブラウザのデフォルト動作（Backspaceでの戻る操作等）をpreventDefault()で抑止した上で、
-     * その図形をModelから削除する。
+     * 選択集合の全図形をModelから一括削除する（deleteShapes。変更通知は1回）。
+     * 左ドラッグ中（DRAGGING_HANDLE/MOVING_SELECTION/MARQUEE_SELECTING。閾値以前を含む）は削除を受け付けない
+     * （ドラッグ対象の図形が消えたままドラッグの追従が続くことを防ぐため）。
      * Spaceキーは操作モードによらず、上記の判定より先に#handleSpaceKeyDownへ委譲する（スペースパン）。
      * @param {KeyboardEvent} event
      */
@@ -454,8 +478,12 @@ export class InputTracker {
             return;
         }
 
-        const selectedId = this.model.getSelectedId();
-        if (!selectedId) {
+        if (this.state !== InputState.IDLE) {
+            return;
+        }
+
+        const selectedIds = this.model.getSelectedIds();
+        if (selectedIds.length === 0) {
             return;
         }
 
@@ -464,31 +492,8 @@ export class InputTracker {
         }
 
         event.preventDefault();
-        this.model.deleteShape(selectedId);
+        this.model.deleteShapes(selectedIds);
     }
-
-    /**
-     * wheelイベントのハンドラ。キャンバスへ{ passive: false }で購読する。
-     * ページスクロール・Ctrl+ホイールのブラウザズームをpreventDefault()で抑止したうえで、
-     * カーソル位置を中心にズームする（ViewTransform.zoomAt()へ委譲。倍率のクランプ・再描画通知も同クラスが担う）。
-     * 操作モード・入力状態によらず常に有効（DRAWING/DRAGGING_HANDLE中も、カーソル下のワールド点は不変）。
-     * ズーム方向はdeltaYの符号のみで決め（負：拡大、正：縮小）、大きさは用いない。deltaYが0（横スクロールのみ）なら何もしない。
-     * ズーム中心はスクリーン座標（getScreenCoordinate由来）。ズーム後のホバー・カーソル形状は次のmousemoveで再評価する。
-     * @param {WheelEvent} event
-     */
-    handleWheel(event) {
-        event.preventDefault();
-
-        if (event.deltaY === 0) {
-            return;
-        }
-
-        const factor = event.deltaY < 0 ? WHEEL_ZOOM_STEP : 1 / WHEEL_ZOOM_STEP;
-        const { x, y } = this.getScreenCoordinate(event);
-        this.viewTransform.zoomAt(x, y, factor);
-    }
-
-    // ---- パン（中ボタンドラッグ・スペース＋左ドラッグ・キャンバス移動モード） ----
 
     /**
      * keyupイベントのハンドラ。documentへ購読する。
@@ -513,64 +518,252 @@ export class InputTracker {
     }
 
     /**
-     * パンのドラッグを開始する。handleMouseDownから呼ばれる。
-     * 開始したマウスボタンと現在のカーソル位置（スクリーン座標）を#panDragへ記憶し、
-     * 選択モード中のホバー表示が古いまま残らないようホバー状態をクリアして、カーソルをgrabbingにする。
-     * InputState（DRAWING状態）・作成途中図形には触れない。
-     * @param {MouseEvent} event パンを開始したmousedownイベント
+     * wheelイベントのハンドラ。キャンバスへ{ passive: false }で購読する。
+     * ページスクロール・Ctrl+ホイールのブラウザズームをpreventDefault()で抑止したうえで、
+     * カーソル位置を中心にズームする（ViewTransform.zoomAt()へ委譲。倍率のクランプ・再描画通知も同クラスが担う）。
+     * 操作モード・入力状態によらず常に有効（DRAWING・左ドラッグ中も、カーソル下のワールド点は不変）。
+     * ズーム方向はdeltaYの符号のみで決め（負：拡大、正：縮小）、大きさは用いない。deltaYが0（横スクロールのみ）なら何もしない。
+     * ズーム中心はスクリーン座標（getScreenCoordinate由来）。ズーム後のホバー・カーソル形状は次のmousemoveで再評価する。
+     * 左ドラッグ中（閾値超過後）は、ズーム直後にホイールイベントの座標で#applyLeftDragUpdateを呼び、
+     * ドラッグ対象をズーム後のカーソル位置へ追従し直す（パン中・閾値以前は何もしない）。範囲選択中は、押下点のワールド位置を
+     * 固定したまま選択矩形をズーム後のカーソル位置まで伸ばし直す。
+     * @param {WheelEvent} event
      */
-    #beginPan(event) {
-        this.#panDrag = { button: event.button, lastScreen: this.getScreenCoordinate(event) };
+    handleWheel(event) {
+        event.preventDefault();
+
+        if (event.deltaY === 0) {
+            return;
+        }
+
+        const factor = event.deltaY < 0 ? WHEEL_ZOOM_STEP : 1 / WHEEL_ZOOM_STEP;
+        const { x, y } = this.getScreenCoordinate(event);
+        this.viewTransform.zoomAt(x, y, factor);
+
+        if (this.#drag.hasMoved() && this.#isLeftDragState()) {
+            this.#applyLeftDragUpdate(event);
+        }
+    }
+
+    /**
+     * windowのblurイベントのハンドラ（タブ切替・ウィンドウ非アクティブ化）。
+     * keyupを取りこぼしても状態が残らないよう、スペース押下状態を解除してカーソル形状を再評価する。
+     * ドラッグ（パン・左ドラッグ）の中断（とclick抑止フラグの解除）はDragTracker自身のblur購読が担うため、ここでは扱わない。
+     */
+    #handleWindowBlur() {
+        this.#isSpacePressed = false;
+        this.#updateCursor();
+    }
+
+    // ---- 左ドラッグ（ハンドルドラッグ・選択集合の平行移動・範囲選択） ----
+
+    /**
+     * 現在のInputStateが左ドラッグ（DragTrackerのセッションで追従する選択モードのドラッグ）の状態かを返す。
+     * DRAGGING_HANDLE・MOVING_SELECTION・MARQUEE_SELECTING。パン（InputStateと直交する）は含まない。
+     * @returns {boolean}
+     */
+    #isLeftDragState() {
+        return (
+            this.state === InputState.DRAGGING_HANDLE ||
+            this.state === InputState.MOVING_SELECTION ||
+            this.state === InputState.MARQUEE_SELECTING
+        );
+    }
+
+    /**
+     * 左ドラッグ（頂点ハンドルのドラッグ、選択集合の平行移動、または範囲選択）を開始する。handleMouseDownから左ボタン押下時に呼ばれる。
+     * DragTrackerのセッションを閾値DRAG_START_THRESHOLD（スクリーンpx）・click抑止'whenMoved'（閾値を超えて動かした場合のみ
+     * 直後のclickを抑止）で開始し、成功した場合のみ押下点を記憶して（MARQUEE_SELECTINGなら#marqueeAnchor、それ以外なら
+     * 直前カーソル座標lastCursor）、DRAGGING_HANDLEなら操作対象のハンドル名・図形idも記憶してnextStateへ遷移し、
+     * カーソル形状を更新する。閾値以内では図形・選択矩形は変化しない。
+     * 追従（onMove）は#applyLeftDragUpdate、開始（onStart）は#onLeftDragStart、
+     * 終了（onEnd：左ボタンの解放）は#onLeftDragEnd、中断（onCancel：blur・setMode）は#onLeftDragCancelが担う。
+     * @param {MouseEvent} event ドラッグを開始したmousedownイベント
+     * @param {'DRAGGING_HANDLE'|'MOVING_SELECTION'|'MARQUEE_SELECTING'} nextState 遷移先の状態（InputStateの値）
+     * @param {{x: number, y: number}} point 押下点（ワールド座標）
+     * @param {{shapeId: string, handle: string} | null} [target=null] DRAGGING_HANDLEの操作対象（頂点ハンドルが属する図形のid（単一）と
+     *     ハンドル名）。MOVING_SELECTION（選択集合の全図形が対象）・MARQUEE_SELECTINGでは不要
+     */
+    #beginLeftDrag(event, nextState, point, target = null) {
+        const started = this.#drag.begin(
+            event,
+            {
+                onStart: () => this.#onLeftDragStart(),
+                onMove: (e) => this.#applyLeftDragUpdate(e),
+                onEnd: (e, moved) => this.#onLeftDragEnd(e, moved),
+                onCancel: () => this.#onLeftDragCancel(),
+            },
+            { threshold: DRAG_START_THRESHOLD, suppressClick: 'whenMoved' },
+        );
+        if (!started) {
+            return;
+        }
+
+        const isMarquee = nextState === InputState.MARQUEE_SELECTING;
+        this.activeHandle = target?.handle ?? null;
+        this.activeShapeId = target?.shapeId ?? null;
+        this.lastCursor = isMarquee ? null : point;
+        this.#marqueeAnchor = isMarquee ? point : null;
+        this.state = nextState;
+        this.#updateCursor();
+    }
+
+    /**
+     * 左ドラッグの移動量が閾値を超えた時点の処理（DragTrackerのonStart）。
+     * 押下前のホバー表示が古いまま残らないようホバー状態をクリアし、カーソル形状を更新する。
+     */
+    #onLeftDragStart() {
         this.model.clearHovered();
         this.#updateCursor();
     }
 
     /**
-     * パンのドラッグを終了する。#handleWindowMouseUp・#handleWindowBlur・setModeから呼ばれる。
-     * 開始ボタンが左（0）だった場合は、直後に発火するclickを無視するため#suppressNextClickを立てる
-     * （中ボタンではclickは発火しないため立てない）。その後#panDragを解除し、カーソル形状を再評価する。
+     * 左ドラッグの追従処理（DragTrackerのonMove、およびドラッグ中のhandleWheelから呼ばれる）。
+     * InputStateで処理を振り分けるディスパッチャ（図形種別の分岐ではない）：
+     * MOVING_SELECTIONなら直前カーソル座標（lastCursor）との差分（ワールド座標）を選択集合の全図形へ一括で渡し
+     * （moveShapes。変更通知は1回）、直前カーソル座標を更新する。
+     * MARQUEE_SELECTINGなら押下点（#marqueeAnchor）と現在のカーソル位置（いずれもワールド座標）を対角2点として
+     * 選択矩形をModelへ設定する（正規化しない。選択集合は確定時まで変更しない）。
+     * DRAGGING_HANDLEならshape.getVertexIndexForHandle()で頂点インデックスを解決して現在のワールド座標をModelへ渡す
+     * （その1図形のみ。選択集合は変更しない）。対象図形が存在しない場合は何もしない。
+     * @param {MouseEvent} event カーソル位置を持つイベント（window captureのmousemove、またはwheel）
      */
-    #endPan() {
-        if (this.#panDrag === null) {
+    #applyLeftDragUpdate(event) {
+        if (!this.#isLeftDragState()) {
             return;
         }
 
-        if (this.#panDrag.button === 0) {
-            this.#suppressNextClick = true;
+        const { x, y } = this.getWorldCoordinate(event);
+
+        if (this.state === InputState.MARQUEE_SELECTING) {
+            this.model.setSelectionRect(this.#marqueeAnchor.x, this.#marqueeAnchor.y, x, y);
+            return;
         }
-        this.#panDrag = null;
+
+        if (this.state === InputState.MOVING_SELECTION) {
+            const dx = x - this.lastCursor.x;
+            const dy = y - this.lastCursor.y;
+            this.model.moveShapes(this.model.getSelectedIds(), dx, dy);
+            this.lastCursor = { x, y };
+            return;
+        }
+
+        const shape = this.model.getShapes().find((s) => s.id === this.activeShapeId);
+        if (!shape) {
+            return;
+        }
+        const vertexIndex = shape.getVertexIndexForHandle(this.activeHandle);
+        this.model.updateVertex(this.activeShapeId, vertexIndex, x, y);
+    }
+
+    /**
+     * 左ドラッグの終了処理（DragTrackerのonEnd：開始ボタン（左）の解放、またはbuttonsによる解放の検知）。
+     * MARQUEE_SELECTINGかつ閾値を超えて動かしていた場合のみ#commitMarqueeで範囲選択を確定し、その後#finishLeftDragで後始末する。
+     * 閾値以内で離した範囲選択は何も確定しない（直後のclickが通常の空白クリック＝全解除として処理される）。
+     * @param {MouseEvent} event 終了のきっかけとなったイベント（通常はmouseup。buttons検知時はmousemove）
+     * @param {boolean} moved 閾値を超えて動かしたか
+     */
+    #onLeftDragEnd(event, moved) {
+        if (this.state === InputState.MARQUEE_SELECTING && moved) {
+            this.#commitMarquee(event);
+        }
+        this.#finishLeftDrag();
+    }
+
+    /**
+     * 左ドラッグの中断処理（DragTrackerのonCancel：window blur・setModeによる強制中断）。
+     * MARQUEE_SELECTINGなら選択矩形を破棄するのみで選択集合は変更しない（確定しない）。その後#finishLeftDragで後始末する。
+     */
+    #onLeftDragCancel() {
+        if (this.state === InputState.MARQUEE_SELECTING) {
+            this.model.clearSelectionRect();
+        }
+        this.#finishLeftDrag();
+    }
+
+    /**
+     * 範囲選択を確定する。#onLeftDragEndから、閾値を超えて動かした範囲選択の終了時にのみ呼ばれる。
+     * 押下点（#marqueeAnchor）と終了位置（イベントのワールド座標。キャンバス外で離してもキャンバス左上基準で求まる）から
+     * 選択矩形を正規化し（**矩形の正規化を行う唯一の箇所**。Modelの選択矩形・描画側では正規化しない）、
+     * 全図形のshape.intersectsRect(minX, minY, maxX, maxY)（ワールド座標・正規化済み）をポリモーフィックに呼んで、
+     * 輪郭線が矩形に掛かる図形のidで選択集合を置き換える（0件なら全解除）。図形種別の分岐は持たない。
+     * Modelへの変更通知は選択矩形の破棄と選択集合の置き換えの2回（図形数に比例しない）。
+     * @param {MouseEvent} event 範囲選択を終了したイベント（通常はmouseup）
+     */
+    #commitMarquee(event) {
+        const anchor = this.#marqueeAnchor;
+        const end = this.getWorldCoordinate(event);
+
+        const minX = Math.min(anchor.x, end.x);
+        const maxX = Math.max(anchor.x, end.x);
+        const minY = Math.min(anchor.y, end.y);
+        const maxY = Math.max(anchor.y, end.y);
+
+        const ids = this.model
+            .getShapes()
+            .filter((shape) => shape.intersectsRect(minX, minY, maxX, maxY))
+            .map((shape) => shape.id);
+
+        this.model.clearSelectionRect();
+        this.model.setSelection(ids);
+    }
+
+    /**
+     * 左ドラッグの終了・中断時の後始末（#onLeftDragEnd・#onLeftDragCancelから呼ばれる）。
+     * IDLE状態へ戻し、作業用フィールド（activeHandle・activeShapeId・lastCursor・#marqueeAnchor）をnullにして、
+     * カーソル形状を再評価する。ドラッグ中に反映した変更（頂点・位置）は取り消さない。
+     * 範囲選択の確定・選択矩形の破棄は呼び出し前に済ませること。click抑止フラグの管理はDragTrackerが担う。
+     */
+    #finishLeftDrag() {
+        this.state = InputState.IDLE;
+        this.activeHandle = null;
+        this.activeShapeId = null;
+        this.lastCursor = null;
+        this.#marqueeAnchor = null;
+        this.#updateCursor();
+    }
+
+    // ---- パン（中ボタンドラッグ・スペース＋左ドラッグ・キャンバス移動モード） ----
+
+    /**
+     * パンのドラッグを開始する。handleMouseDownから呼ばれる。
+     * DragTrackerのセッションを閾値0・click抑止'always'（左ボタンのパン後のclickは移動の有無によらず抑止。
+     * 中ボタンはDragTracker側の規則によりclick抑止しない）で開始し、パン中フラグを立て、
+     * 選択モード中のホバー表示が古いまま残らないようホバー状態をクリアして、カーソルをgrabbingにする。
+     * 追従（onMove）では現在位置と直前位置の差分（スクリーン座標。キャンバス外でもキャンバス左上基準）を
+     * ViewTransform.panBy()へ渡す（再描画通知は同クラスが担う）。開始ボタンの解放（onEnd）・
+     * blur/setModeによる中断（onCancel）で#finishPan()する。
+     * InputState（DRAWING状態）・作成途中図形には触れない。
+     * DragTrackerがセッション中で開始できなかった場合は何もしない。
+     * @param {MouseEvent} event パンを開始したmousedownイベント
+     */
+    #beginPan(event) {
+        const started = this.#drag.begin(
+            event,
+            {
+                onMove: (e, screen, prevScreen) =>
+                    this.viewTransform.panBy(screen.x - prevScreen.x, screen.y - prevScreen.y),
+                onEnd: () => this.#finishPan(),
+                onCancel: () => this.#finishPan(),
+            },
+            { threshold: 0, suppressClick: 'always' },
+        );
+        if (!started) {
+            return;
+        }
+
+        this.#isPanning = true;
+        this.model.clearHovered();
         this.#updateCursor();
     }
 
     /**
-     * windowへcaptureで購読するmousemoveのハンドラ。パン中以外は何もしない。
-     * 現在のカーソル位置（スクリーン座標。キャンバス外でもキャンバス左上基準）と直前位置の差分を
-     * ViewTransform.panBy()へ渡し（再描画通知は同クラスが担う）、直前位置を更新する。
-     * @param {MouseEvent} event
+     * パンの終了処理。DragTrackerのonEnd（開始ボタンの解放）・onCancel（blur・setModeによる中断）から呼ばれる。
+     * パン中フラグを解除し、カーソル形状を再評価する（click抑止フラグの管理はDragTrackerが担う）。
      */
-    #handleWindowMouseMove(event) {
-        if (this.#panDrag === null) {
-            return;
-        }
-
-        const current = this.getScreenCoordinate(event);
-        const dx = current.x - this.#panDrag.lastScreen.x;
-        const dy = current.y - this.#panDrag.lastScreen.y;
-        this.#panDrag.lastScreen = current;
-        this.viewTransform.panBy(dx, dy);
-    }
-
-    /**
-     * windowへcaptureで購読するmouseupのハンドラ。パン中かつパンを開始したボタンが離された場合のみ#endPan()する
-     * （フロートウィンドウ上・ブラウザ外でボタンを離した場合も検知できる）。
-     * @param {MouseEvent} event
-     */
-    #handleWindowMouseUp(event) {
-        if (this.#panDrag === null || event.button !== this.#panDrag.button) {
-            return;
-        }
-
-        this.#endPan();
+    #finishPan() {
+        this.#isPanning = false;
+        this.#updateCursor();
     }
 
     /**
@@ -595,20 +788,53 @@ export class InputTracker {
         this.#updateCursor();
     }
 
-    /**
-     * windowのblurイベントのハンドラ（タブ切替・ウィンドウ非アクティブ化）。
-     * keyup/mouseupを取りこぼしても状態が残らないよう、スペース押下状態を解除し、パン中であれば終了する。
-     * blur後にclickは来ないため、#endPan()が立てたclick抑止フラグは解除する。最後にカーソル形状を再評価する。
-     */
-    #handleWindowBlur() {
-        this.#isSpacePressed = false;
+    // ---- 当たり分類 ----
 
-        if (this.#panDrag !== null) {
-            this.#endPan();
-            this.#suppressNextClick = false;
+    /**
+     * 指定位置の当たり分類を行う。ホバー（handleMouseMove）・押下（handleMouseDown）・クリック（handleClick）・
+     * カーソル形状（#resolveCursor）で共通に用いる（クリック時に古いホバー状態へ依存しないため）。
+     * 規則：
+     * ・ハンドル：選択集合の全図形を対象に、図形配列の後ろ（描画順で前面）からshape.hitTestHandle(...)を呼び、
+     *   最初に非nullとなった図形・ハンドルを採用する（前面優先。CanvasManagerがハンドルを図形配列順に描くため、重なり順と一致する）。
+     * ・本体：図形配列を先頭から1回だけ走査し、shape.hitTest(...)が真の最初の図形を記録しつつ、
+     *   選択集合の図形で真になった時点でそれを採用して打ち切る（選択集合の図形を優先、同順位は図形配列の先頭）。
+     * 図形種別の分岐は持たず、isSelected・hitTestHandle・hitTestのポリモーフィック呼び出しのみで判定する。
+     * 許容誤差は#getWorldHitTolerance()（画面上hitTolerance pxのワールド換算値）。
+     * @param {{x: number, y: number}} point 判定位置（ワールド座標）
+     * @returns {PointHit} 当たり分類の結果（handle・bodyIdともnullなら空白）
+     */
+    #classifyPoint(point) {
+        const shapes = this.model.getShapes();
+        const tolerance = this.#getWorldHitTolerance();
+
+        let handle = null;
+        for (let i = shapes.length - 1; i >= 0; i--) {
+            const shape = shapes[i];
+            if (!this.model.isSelected(shape.id)) {
+                continue;
+            }
+            const handleName = shape.hitTestHandle(point.x, point.y, tolerance);
+            if (handleName) {
+                handle = { shapeId: shape.id, handle: handleName };
+                break;
+            }
         }
 
-        this.#updateCursor();
+        let bodyId = null;
+        for (const shape of shapes) {
+            if (!shape.hitTest(point.x, point.y, tolerance)) {
+                continue;
+            }
+            if (this.model.isSelected(shape.id)) {
+                bodyId = shape.id;
+                break;
+            }
+            if (bodyId === null) {
+                bodyId = shape.id;
+            }
+        }
+
+        return { handle, bodyId };
     }
 
     // ---- 座標取得 ----
@@ -654,28 +880,34 @@ export class InputTracker {
         return this.viewTransform.screenLengthToWorld(this.hitTolerance);
     }
 
+    // ---- カーソル形状 ----
+
     /**
-     * 現在の操作モード・入力状態・カーソル位置から、キャンバスに適用すべきCSS cursor値を判定する。
+     * 現在の操作モード・入力状態・カーソル位置の当たり分類から、キャンバスに適用すべきCSS cursor値を判定する。
      * DOMには触れない純粋な判定関数。判定順序：
      * (0a)パンのドラッグ中 → 'grabbing'、
-     * (0b)スペース押下中かつDRAGGING_HANDLE状態でない → 'grab'（ハンドルドラッグ中はパンを開始しないため除外し'move'を維持）、
+     * (0b)スペース押下中かつ左ドラッグ状態（DRAGGING_HANDLE/MOVING_SELECTION/MARQUEE_SELECTING）でない → 'grab'
+     * （左ドラッグ中はパンを開始しないため除外し、ドラッグ中のカーソルを維持）、
      * (1)図形作成モード → 'crosshair'（作成途中を含む）、
      * (2)キャンバス移動モード → 'grab'、
      * (3)選択モード以外のモード → 'default'（将来のモード追加時の既定値）、
-     * (4)DRAGGING_HANDLE状態 → 'move'、
-     * (5)座標不明（point === null） → 'default'、
-     * (6)選択中図形のハンドル上（shape.hitTestHandle(...)のポリモーフィック呼び出し。許容誤差はワールド換算値） → 'move'、
-     * (7)ホバー中の図形あり（直前のhandleMouseMoveで更新されたホバー状態を再利用） → 'pointer'、
-     * (8)それ以外 → 'default'。
-     * @param {{x: number, y: number} | null} point カーソル位置（ワールド座標）。座標が不明なとき（setMode直後・パン開始/終了・スペース押下/解放等）はnull
+     * (4)DRAGGING_HANDLE・MOVING_SELECTION状態 → 'move'、
+     * (5)MARQUEE_SELECTING状態 → 'default'、
+     * (6)当たり分類なし（hit === null。座標不明） → 'default'、
+     * (7)選択集合の図形のハンドル上（hit.handle） → 'move'、
+     * (8)選択集合内の図形の本体上（hit.bodyIdが選択集合内） → 'move'、
+     * (9)それ以外の図形の本体上（hit.bodyId） → 'pointer'、
+     * (10)それ以外 → 'default'。
+     * @param {PointHit | null} hit カーソル位置の当たり分類（#classifyPointの結果）。座標が不明なとき
+     *     （setMode直後・パン開始/終了・左ドラッグ開始/終了・スペース押下/解放等）はnull
      * @returns {'grabbing'|'grab'|'crosshair'|'move'|'pointer'|'default'} 適用すべきCSS cursor値
      */
-    #resolveCursor(point) {
-        if (this.#panDrag !== null) {
+    #resolveCursor(hit) {
+        if (this.#isPanning) {
             return 'grabbing';
         }
 
-        if (this.#isSpacePressed && this.state !== InputState.DRAGGING_HANDLE) {
+        if (this.#isSpacePressed && !this.#isLeftDragState()) {
             return 'grab';
         }
 
@@ -691,23 +923,27 @@ export class InputTracker {
             return 'default';
         }
 
-        if (this.state === InputState.DRAGGING_HANDLE) {
+        if (this.state === InputState.DRAGGING_HANDLE || this.state === InputState.MOVING_SELECTION) {
             return 'move';
         }
 
-        if (point === null) {
+        if (this.state === InputState.MARQUEE_SELECTING) {
             return 'default';
         }
 
-        const selectedId = this.model.getSelectedId();
-        const selectedShape = selectedId
-            ? this.model.getShapes().find((shape) => shape.id === selectedId)
-            : null;
-        if (selectedShape && selectedShape.hitTestHandle(point.x, point.y, this.#getWorldHitTolerance())) {
+        if (hit === null) {
+            return 'default';
+        }
+
+        if (hit.handle) {
             return 'move';
         }
 
-        if (this.model.getHoveredId()) {
+        if (hit.bodyId && this.model.isSelected(hit.bodyId)) {
+            return 'move';
+        }
+
+        if (hit.bodyId) {
             return 'pointer';
         }
 
@@ -715,10 +951,10 @@ export class InputTracker {
     }
 
     /**
-     * #resolveCursor(point)の判定結果をキャンバス要素のCSS cursorへ適用する。
-     * @param {{x: number, y: number} | null} [point=null] カーソル位置（ワールド座標）。座標が不明なときはnull
+     * #resolveCursor(hit)の判定結果をキャンバス要素のCSS cursorへ適用する。
+     * @param {PointHit | null} [hit=null] カーソル位置の当たり分類（#classifyPointの結果）。座標が不明なときはnull
      */
-    #updateCursor(point = null) {
-        this.canvas.style.cursor = this.#resolveCursor(point);
+    #updateCursor(hit = null) {
+        this.canvas.style.cursor = this.#resolveCursor(hit);
     }
 }

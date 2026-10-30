@@ -1,5 +1,5 @@
 /**
- * 責務：Canvas要素への純粋な描画処理（背景グリッドを含む）のみを担う。
+ * 責務：Canvas要素への純粋な描画処理（背景グリッド・選択矩形を含む）のみを担う。
  * 描画変換は引数で受け取ったビュー変換値から毎フレーム設定し、状態は保持しない。
  */
 
@@ -42,10 +42,34 @@ const GRID_MINOR_COLOR = 'rgba(0, 0, 0, 0.06)';
  */
 const GRID_MAJOR_COLOR = 'rgba(0, 0, 0, 0.14)';
 
+/**
+ * 選択矩形（範囲選択中の表示）の線の色。
+ * @type {string}
+ */
+const SELECTION_RECT_STROKE_COLOR = '#4a90e2';
+
+/**
+ * 選択矩形の塗りの色（薄い半透明）。
+ * @type {string}
+ */
+const SELECTION_RECT_FILL_COLOR = 'rgba(74, 144, 226, 0.08)';
+
+/**
+ * 選択矩形の線幅（スクリーン座標のCSSピクセル）。描画時に`÷ view.scale`して画面上一定にする。
+ * @type {number}
+ */
+const SELECTION_RECT_LINE_WIDTH = 1;
+
+/**
+ * 選択矩形の破線パターン（スクリーン座標のCSSピクセル）。描画時に各値を`÷ view.scale`して画面上一定にする。
+ * @type {ReadonlyArray<number>}
+ */
+const SELECTION_RECT_DASH = Object.freeze([4, 3]);
+
 export class CanvasManager {
     /**
      * `resize()`で算出したデバイスピクセル比（dpr）。
-     * 描画バッファの設定値（`canvas.width`と同種の情報）であり、図形データ・選択状態・
+     * 描画バッファの設定値（`canvas.width`と同種の情報）であり、図形データ・選択集合・
      * ビュー変換状態は含まない。`render()`がビュー変換と合成して描画変換を設定する際に用いる。
      * @type {number}
      */
@@ -91,20 +115,27 @@ export class CanvasManager {
 
     /**
      * 画面をクリアし、背景グリッドと指定された図形リストを全て描画する。
-     * 状態の判定は一切行わず、渡された引数（hoveredId / selectedId / draftLine / view）を
+     * 状態の判定は一切行わず、渡された引数（hoveredId / selectedIds / draftLine / selectionRect / view）を
      * そのまま描画に反映するだけの純粋なレンダラーとして振る舞う。
      * 描画変換は毎フレーム`setTransform`で「dpr × ビュー変換」を明示設定する（累積させない）。
-     * 図形はワールド座標で描画される。
+     * 図形・選択矩形はワールド座標で描画される。
+     * 描画順：背景グリッド → (1)全図形の draw（＋ホバー中図形の drawHover）
+     * → (2)選択集合に含まれる図形の drawHandles（図形配列の順。後ろの図形ほど前面）
+     * → (3)作成中の図形 → (4)選択矩形。
+     * ハンドルを全図形の描画後にまとめて描くのは、複数選択時に前面の図形が背面図形のハンドルを覆い隠さないためである。
      * @param {Array<Object>} shapes - draw(ctx) / drawHover(ctx, viewScale) / drawHandles(ctx, viewScale) メソッドを持つ図形オブジェクトの配列
      * @param {Object} [state] - 描画状態
-     * @param {string|null} [state.hoveredId] - ホバー中の図形id。一致する図形の drawHover(ctx, viewScale) を追加で呼び出す
-     * @param {string|null} [state.selectedId] - 選択中の図形id。一致する図形の drawHandles(ctx, viewScale) を追加で呼び出す
-     * @param {Object|null} [state.draftLine] - 作成中の未確定図形。draw(ctx) メソッドを持つ場合、最後に重ねて描画する
+     * @param {string|null} [state.hoveredId] - ホバー中の図形id（単一）。一致する図形の drawHover(ctx, viewScale) を追加で呼び出す
+     * @param {Array<string>} [state.selectedIds] - 選択集合（選択中の図形idの配列。0個以上）。
+     *     含まれる図形の drawHandles(ctx, viewScale) を全図形の描画後に呼び出す。省略時は空配列
+     * @param {Object|null} [state.draftLine] - 作成中の未確定図形。draw(ctx) メソッドを持つ場合、全図形・ハンドルの後に重ねて描画する
+     * @param {{x1: number, y1: number, x2: number, y2: number}|null} [state.selectionRect] - 範囲選択中の選択矩形。
+     *     ワールド座標の対角2点（正規化不要。幅・高さが負でもよい）。非nullの場合、最前面に描画する
      * @param {{scale: number, offsetX: number, offsetY: number}} [state.view] - ビュー変換値
      *     （`スクリーン = ワールド × scale ＋ offset`。offsetX/offsetYはスクリーン座標のCSSピクセル）。
      *     省略時は倍率1.0・オフセット(0,0)
      */
-    render(shapes, { hoveredId = null, selectedId = null, draftLine = null, view = DEFAULT_VIEW } = {}) {
+    render(shapes, { hoveredId = null, selectedIds = [], draftLine = null, selectionRect = null, view = DEFAULT_VIEW } = {}) {
         const dpr = this.#pixelRatio;
 
         // 1. 変換の影響を受けずに内部バッファ全体をクリアする
@@ -121,21 +152,61 @@ export class CanvasManager {
         // 3. 背景グリッド（図形の背面）
         this.#drawGrid(view);
 
-        // 4. 各Shapeの通常描画に加え、ホバー中・選択中の強調描画をポリモーフィックに呼び出す
+        // 4. 各Shapeの通常描画に加え、ホバー中の強調描画をポリモーフィックに呼び出す
         for (const shape of shapes) {
             shape.draw(this.ctx);
             if (shape.id === hoveredId) {
                 shape.drawHover(this.ctx, view.scale);
             }
-            if (shape.id === selectedId) {
-                shape.drawHandles(this.ctx, view.scale);
+        }
+
+        // 5. 選択集合に含まれる図形のハンドルを、全図形の描画後に図形配列の順で描画する
+        //    （所属判定用のSetはこのフレーム内の一時値であり、インスタンスには保持しない）
+        const selectedSet = new Set(selectedIds);
+        if (selectedSet.size > 0) {
+            for (const shape of shapes) {
+                if (selectedSet.has(shape.id)) {
+                    shape.drawHandles(this.ctx, view.scale);
+                }
             }
         }
 
-        // 5. 作成中のドラフト図形があれば、最後に重ねて描画する
+        // 6. 作成中のドラフト図形があれば、図形・ハンドルの上に重ねて描画する
         if (draftLine) {
             draftLine.draw(this.ctx);
         }
+
+        // 7. 範囲選択中の選択矩形があれば、最前面に描画する
+        if (selectionRect) {
+            this.#drawSelectionRect(selectionRect, view.scale);
+        }
+    }
+
+    /**
+     * 範囲選択中の選択矩形（画面上1pxの破線＋薄い半透明塗り）を描画する。
+     * 呼び出し時点でワールド座標の描画変換が設定済みであることを前提とする。
+     * - 線幅・破線パターンは`÷ scale`し、画面上で一定（`SELECTION_RECT_LINE_WIDTH`px・`SELECTION_RECT_DASH`px）にする。
+     * - 対角2点は正規化しない（幅・高さが負でもCanvasは正しく描画する）。
+     * - スタイル（線幅・破線・色）は`save()`/`restore()`で後続の描画へ残さない。
+     * @param {{x1: number, y1: number, x2: number, y2: number}} rect - 選択矩形（ワールド座標の対角2点。正規化不要）
+     * @param {number} scale - ビュー変換の倍率（ワールド長 → スクリーン長の係数）
+     */
+    #drawSelectionRect(rect, scale) {
+        if (!(scale > 0) || !Number.isFinite(scale)) {
+            return;
+        }
+        const { x1, y1, x2, y2 } = rect;
+
+        this.ctx.save();
+        this.ctx.lineWidth = SELECTION_RECT_LINE_WIDTH / scale;
+        this.ctx.setLineDash(SELECTION_RECT_DASH.map(v => v / scale));
+        this.ctx.strokeStyle = SELECTION_RECT_STROKE_COLOR;
+        this.ctx.fillStyle = SELECTION_RECT_FILL_COLOR;
+        this.ctx.beginPath();
+        this.ctx.rect(x1, y1, x2 - x1, y2 - y1);
+        this.ctx.fill();
+        this.ctx.stroke();
+        this.ctx.restore();
     }
 
     /**

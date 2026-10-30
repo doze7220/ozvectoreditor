@@ -30,16 +30,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputTracker = new InputTracker(canvas, model, viewTransform);
 
     /**
-     * Modelの現在の状態（shapes/selectedId/hoveredId/draftLine）とビュー変換の現在の状態
+     * Modelの現在の状態（shapes/selectedIds/hoveredId/draftLine/selectionRect）とビュー変換の現在の状態
      * （`viewTransform.getState()`による倍率・オフセットのスナップショット）をCanvasManagerへ渡し、
      * 再描画を要求するローカル関数。model.onChange・viewTransform.onChangeのコールバックと
      * resizeハンドラの3経路から同一の引数構成で呼び出すことで、再描画トリガーの重複定義を避ける。
      */
     function renderCurrentState() {
         canvasManager.render(model.getShapes(), {
-            selectedId: model.getSelectedId(),
+            selectedIds: model.getSelectedIds(),
             hoveredId: model.getHoveredId(),
             draftLine: model.getDraftLine(),
+            selectionRect: model.getSelectionRect(),
             view: viewTransform.getState()
         });
     }
@@ -93,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
     viewTransform.onChange(syncZoomDisplay);
 
     // リセットボタン：ビュー変換を初期状態（倍率1.0・オフセット(0,0)）へ戻すのみ。
-    // 操作モード・選択状態には触れない（再描画・倍率表示の更新はviewTransform.onChange経由）
+    // 操作モード・選択集合には触れない（再描画・倍率表示の更新はviewTransform.onChange経由）
     viewResetBtn.addEventListener('click', () => viewTransform.reset());
 
     // 7. 図形選択パレット配線
