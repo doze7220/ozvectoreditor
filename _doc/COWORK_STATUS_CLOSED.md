@@ -298,3 +298,10 @@
 * `KeyboardShortcuts`の無効化API、`InputTracker`・`main.js`の肥大化防止、キーボードズームの中心・`WHEEL_ZOOM_STEP`の名称 → 必要になった時点で対応
 
 ---
+
+---
+
+### Phase 2「UI・操作充実」フェイズ大番号クローズ（クローズ日：2026-11-01）
+* `COWORK_STATUS.md` 2章の未解決事項を、A（Phase 3候補）／B（テストプレイ待ち）／C（条件付き将来）の3区分に再整理。旧区分「A. 次の『UI・操作充実フェイズ』へ持ち越し」「B. さらに将来のPhaseへ先送り」と、Phase02-00時点の割り当てメモ（2026-10-06）は廃止。
+* 【解決】`PROJECT_ARCHITECTURE.md`の既存記述のズレ（Phase02-02由来）：2章ShapeData共通プロパティ（`type`/`color`/`isFilled`/`points`は実在せず、実際の共通プロパティは`id`/`strokeColor`/`strokeWidth`、`Line`は`x1/y1/x2/y2`）、3章1.起動処理の列挙漏れ（`ViewTransform`/`WindowManager`/`PaletteController`/`KeyboardShortcuts`）、3章2.の`requestAnimationFrame`描画ループ記述（実装はイベント駆動の同期再描画）、4章`WindowManager`の「ツール状態」表記、4章の記載形式の混在（`main.js`・`InputTracker`をサブ項目形式に統一）を、`PROJECT_PHASE_TRANSITION_CLEANUP.md`の資料監査で修正。
+* `_log/req`・`_log/res`・`_log/dir`のPhase 2関連ファイル（REQ 4件・RES 4件・DIR 1件）を`closed/`へ`git mv`でアーカイブ。
