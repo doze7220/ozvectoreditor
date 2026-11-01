@@ -86,8 +86,15 @@
             cursor: pointer;
             text-align: left;
         }
-        .tool-btn:hover {
+        /* 押せる状態のボタンのみホバー色を変える（押せない状態＝:disabledでは色を変えない） */
+        .tool-btn:hover:not(:disabled) {
             background-color: #eee;
+        }
+        /* ボタン単体の押せない状態（HTMLのdisabled属性。例：選択集合が空の削除ボタン）。
+           フロートウィンドウ全体を非活性化する.disabledクラスとは別物 */
+        .tool-btn:disabled {
+            opacity: 0.4;
+            cursor: default;
         }
         .tool-btn.active {
             background-color: #dbe9ff;
@@ -113,12 +120,13 @@
             <button type="button" class="window-close-btn">×</button>
         </div>
         <div class="window-body">
-            <button type="button" id="mode-select" class="tool-btn active">🖱 選択</button>
-            <button type="button" id="mode-create" class="tool-btn">✏ 図形作成</button>
-            <button type="button" id="mode-pan" class="tool-btn">✋ キャンバス移動</button>
+            <button type="button" id="mode-select" class="tool-btn active" title="選択 (V)">🖱 選択</button>
+            <button type="button" id="mode-create" class="tool-btn" title="図形作成 (P)">✏ 図形作成</button>
+            <button type="button" id="mode-pan" class="tool-btn" title="キャンバス移動 (H)">✋ キャンバス移動</button>
+            <button type="button" id="selection-delete" class="tool-btn" title="選択中の図形を削除 (Delete / Backspace)" disabled>🗑 削除</button>
             <div class="view-zoom-row">
                 <span id="view-zoom-display">100%</span>
-                <button type="button" id="view-reset" class="tool-btn">リセット</button>
+                <button type="button" id="view-reset" class="tool-btn" title="表示をリセット (Ctrl+0)">リセット</button>
             </div>
         </div>
     </div>
@@ -128,11 +136,11 @@
             <button type="button" class="window-close-btn">×</button>
         </div>
         <div class="window-body">
-            <button type="button" id="palette-line" class="tool-btn">／ 直線</button>
-            <button type="button" id="palette-curve" class="tool-btn">〜 曲線</button>
-            <button type="button" id="palette-arc" class="tool-btn">◠ 弧</button>
-            <button type="button" id="palette-rect" class="tool-btn">▭ 矩形</button>
-            <button type="button" id="palette-circle" class="tool-btn">◯ 円</button>
+            <button type="button" id="palette-line" class="tool-btn" title="直線 (1)">／ 直線</button>
+            <button type="button" id="palette-curve" class="tool-btn" title="曲線 (2)">〜 曲線</button>
+            <button type="button" id="palette-arc" class="tool-btn" title="弧 (3)">◠ 弧</button>
+            <button type="button" id="palette-rect" class="tool-btn" title="矩形 (4)">▭ 矩形</button>
+            <button type="button" id="palette-circle" class="tool-btn" title="円 (5)">◯ 円</button>
         </div>
     </div>
     <script type="module" src="js/main.js"></script>

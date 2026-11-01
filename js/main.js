@@ -4,7 +4,8 @@
 
 import { VectorModel } from './core/VectorModel.js';
 import { CanvasManager } from './core/CanvasManager.js';
-import { InputTracker, OperationMode } from './core/InputTracker.js';
+import { InputTracker, OperationMode, WHEEL_ZOOM_STEP } from './core/InputTracker.js';
+import { KeyboardShortcuts } from './core/KeyboardShortcuts.js';
 import { WindowManager } from './core/WindowManager.js';
 import { ViewTransform } from './core/ViewTransform.js';
 import { PaletteController } from './palette/PaletteController.js';
@@ -79,6 +80,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // コントロールパネルの倍率表示・リセットボタン（modeButtonsには含めない：.activeの対象外）
     const zoomDisplayEl = document.getElementById('view-zoom-display');
     const viewResetBtn = document.getElementById('view-reset');
+    // コントロールパネルの削除ボタン（modeButtonsには含めない：.activeの対象外）
+    const deleteSelectionBtn = document.getElementById('selection-delete');
 
     /**
      * コントロールパネルの倍率表示（`#view-zoom-display`）を、ViewTransformの現在の倍率に同期する。
@@ -96,6 +99,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // リセットボタン：ビュー変換を初期状態（倍率1.0・オフセット(0,0)）へ戻すのみ。
     // 操作モード・選択集合には触れない（再描画・倍率表示の更新はviewTransform.onChange経由）
     viewResetBtn.addEventListener('click', () => viewTransform.reset());
+
+    /**
+     * コントロールパネルの削除ボタン（`#selection-delete`）の押せる/押せない状態を、Modelの選択集合に
+     * 同期する。選択集合が空なら押せない状態（HTMLの`disabled`属性）にする。model.onChangeの
+     * コールバックとして登録し、起動時にも明示的に1回呼び出す（通知の有無に依存しない）。
+     * ボタンのDOM更新はmain.jsが担い、VectorModel・InputTrackerはDOMに触れない。
+     * 選択集合は操作モード切替でクリアされるため、図形作成・キャンバス移動モード中は常に押せない
+     * 状態になる（モード別の分岐は不要）。
+     */
+    function syncDeleteButtonState() {
+        deleteSelectionBtn.disabled = model.getSelectedIds().length === 0;
+    }
+
+    // 選択集合の変化（選択・選択解除・削除）に応じて削除ボタンの状態を更新する
+    model.onChange(syncDeleteButtonState);
+
+    // 削除ボタン：受理条件の判定と削除はinputTracker.deleteSelection()のみが担う
+    // （Delete/Backspaceショートカットと同一経路。ここでmodel.deleteShapesを直接呼ばないこと）
+    deleteSelectionBtn.addEventListener('click', () => inputTracker.deleteSelection());
 
     // 7. 図形選択パレット配線
     const shapePaletteEl = document.getElementById('window-shape-palette');
@@ -133,6 +155,62 @@ document.addEventListener('DOMContentLoaded', () => {
 
     Object.entries(modeButtons).forEach(([mode, btn]) => btn.addEventListener('click', () => applyMode(mode)));
 
+    // 8. キーボードショートカット配線
+    /**
+     * 表示中キャンバスの中心を基準に、ホイール1刻みと同じ刻み幅（WHEEL_ZOOM_STEP）で拡大・縮小する。
+     * ズーム中心はスクリーン座標（キャンバス左上基準のCSSピクセル）で、変換式・クランプは
+     * ViewTransform.zoomAtへ委譲する。再描画・倍率表示の更新はviewTransform.onChange経由で行われる。
+     * @param {1|-1} direction - 1：拡大、-1：縮小
+     */
+    function zoomAtCanvasCenter(direction) {
+        viewTransform.zoomAt(canvas.clientWidth / 2, canvas.clientHeight / 2, direction > 0 ? WHEEL_ZOOM_STEP : 1 / WHEEL_ZOOM_STEP);
+    }
+
+    // キー→操作の対応表と受理判定はKeyboardShortcutsが担い、操作の実体はここで注入するコールバックが行う。
+    // 各コールバックの戻り値はtrue＝受理（KeyboardShortcutsがpreventDefault()する）、false＝受理せず。
+    // UI同期は既存経路（applyMode/applyShapeType、viewTransform.onChange、model.onChange）のみを通り、
+    // ショートカット専用のUI同期・再描画呼び出しは書かない。
+    new KeyboardShortcuts({
+        // ドラッグ中（パン・左ドラッグ。閾値以前を含む）か。受理判定専用
+        isDragging: () => inputTracker.isDragging(),
+        // 操作モード切替（モードボタンと同一経路）
+        setMode: (mode) => {
+            applyMode(mode);
+            return true;
+        },
+        // 図形種別切替。図形作成モード以外では先に図形作成モードへ切り替える（パレットと同一経路）
+        setShapeType: (type) => {
+            if (inputTracker.getMode() !== OperationMode.CREATE) {
+                applyMode(OperationMode.CREATE);
+            }
+            applyShapeType(type);
+            return true;
+        },
+        // 表示中キャンバスの中心基準で拡大・縮小
+        zoomStep: (direction) => {
+            zoomAtCanvasCenter(direction);
+            return true;
+        },
+        // ビュー変換のリセット（リセットボタンと同一。操作モード・選択集合には触れない）
+        resetView: () => {
+            viewTransform.reset();
+            return true;
+        },
+        // 作成途中の図形の破棄／選択解除（何もしなかった場合はfalse）
+        cancel: () => inputTracker.cancelDraftOrClearSelection(),
+        // 全選択。選択モード以外では先に選択モードへ切り替える。図形0個・非受理でもページ全選択を
+        // 起こさないよう常にtrueを返す
+        selectAll: () => {
+            if (inputTracker.getMode() !== OperationMode.SELECT) {
+                applyMode(OperationMode.SELECT);
+            }
+            inputTracker.selectAll();
+            return true;
+        },
+        // 選択集合の削除（削除ボタンと同一経路。受理条件はdeleteSelection()のみが判定する）
+        deleteSelection: () => inputTracker.deleteSelection(),
+    });
+
     // 起動時初期化：UIの初期表示（モードボタンの.active・パレットの.disabled・パレット内ハイライト）を
     // InputTrackerの内部状態に同期させる
     applyMode(OperationMode.SELECT);
@@ -146,4 +224,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 倍率表示の初期化も同様に、index.htmlの初期文字列（"100%"）やonChange通知に依存させず、
     // ViewTransformの実値で明示的に1回同期する
     syncZoomDisplay();
+
+    // 削除ボタンの押せる/押せない状態も同様に、index.htmlの初期disabled属性やonChange通知に
+    // 依存させず、Modelの選択集合の実値で明示的に1回同期する
+    syncDeleteButtonState();
 });

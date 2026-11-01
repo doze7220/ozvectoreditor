@@ -1,6 +1,6 @@
 /**
- * 責務：ユーザー入力（図形作成・選択・範囲選択・本体ドラッグ・ハンドルドラッグ・一括削除・パン・ズーム）の解釈と
- * Model・ビュー変換への反映、および入力状態に応じたキャンバスのカーソル形状のフィードバックを担う。
+ * 責務：ユーザー入力（図形作成・選択・範囲選択・本体ドラッグ・ハンドルドラッグ・パン・ズーム。キーはスペースパンのみ）の解釈と
+ * Model・ビュー変換への反映、状態依存の操作（一括削除・取消・全選択）の公開、および入力状態に応じたカーソル形状のフィードバックを担う。
  */
 
 import { DragTracker } from './DragTracker.js';
@@ -59,9 +59,10 @@ export const SHAPE_TYPES = Object.freeze(['line', 'curve', 'arc', 'rect', 'circl
 /**
  * ホイール1刻みあたりのズーム倍率（無次元）。拡大時はこの値を、縮小時はその逆数を
  * ViewTransform.zoomAt()のfactorとして渡す。
+ * キーボードショートカットの拡大・縮小（main.js）でも同値を用いる（刻み幅を重複定義しないため共有する）。
  * @type {number}
  */
-const WHEEL_ZOOM_STEP = 1.1;
+export const WHEEL_ZOOM_STEP = 1.1;
 
 /**
  * クリックとドラッグを区別する移動量の閾値。スクリーン座標のCSSピクセル。
@@ -72,22 +73,38 @@ const WHEEL_ZOOM_STEP = 1.1;
 const DRAG_START_THRESHOLD = 3;
 
 /**
- * 要素がテキスト入力中とみなすべき要素（input / textarea / contenteditable）かを判定する。
- * キーボードショートカット（スペースパン、将来のDelete/Backspace等）の誤爆防止に用いる。
- * 現状はSpace判定にのみ使用し、Phase 02-04でDelete/Backspaceの誤爆対策に再利用する想定。
- * input要素はtype（button/checkbox等）を問わずテキスト入力扱いとする（保守的な判定）。select要素は含めない。
+ * テキスト入力扱いとするinput要素のtype一覧（isTextInputElementの判定に用いる）。
+ * 日付・時刻系（date/datetime-local/month/time/week）は数字キー・Backspaceによる直接入力を受け付けるため含める。
+ * 含めないtypeの例：checkbox / radio / range / color / button / submit / reset / file / image / hidden。
+ * HTMLInputElement.typeプロパティは小文字に正規化され、type属性なし・未知の値の場合は'text'を返すため、
+ * それらもテキスト入力扱いになる。
+ * @type {ReadonlyArray<string>}
+ */
+const TEXT_INPUT_TYPES = Object.freeze([
+    'text', 'search', 'email', 'url', 'tel', 'password', 'number',
+    'date', 'datetime-local', 'month', 'time', 'week',
+]);
+
+/**
+ * 要素がテキスト入力中とみなすべき要素かを判定する。
+ * スペースパンとショートカット（KeyboardShortcuts）の誤爆防止に用いる。
+ * input要素はtype別に判定し、TEXT_INPUT_TYPESに含まれる場合のみテキスト入力扱いとする。
+ * textarea・contenteditableはテキスト入力扱い、select要素を含むそれ以外は対象外。
  * @param {Element|null} element 判定対象（通常は document.activeElement）
  * @returns {boolean} テキスト入力中とみなすべき要素ならtrue
  */
 export function isTextInputElement(element) {
-    if (!(element instanceof HTMLElement)) {
-        return false;
+    if (element instanceof HTMLInputElement) {
+        return TEXT_INPUT_TYPES.includes(element.type);
     }
-    return element.tagName === 'INPUT' || element.tagName === 'TEXTAREA' || element.isContentEditable;
+    if (element instanceof HTMLTextAreaElement) {
+        return true;
+    }
+    return element instanceof HTMLElement && element.isContentEditable;
 }
 
 /**
- * キャンバスのマウス・キーボード入力を解釈し、VectorModelの対応APIを呼び出す状態遷移マシン
+ * キャンバスのマウス入力とスペースキー（スペースパン）を解釈し、VectorModelの対応APIを呼び出す状態遷移マシン
  * （IDLE / DRAWING / DRAGGING_HANDLE / MOVING_SELECTION / MARQUEE_SELECTING）。操作モード（currentMode）と
  * 図形種別（currentShapeType）を独立した状態として保持し、操作モード・入力状態・当たり分類（#classifyPoint）に応じて
  * キャンバスのカーソル形状を更新する。当たり分類はホバー・押下・クリック・カーソル形状の判定で共用する。
@@ -97,7 +114,9 @@ export function isTextInputElement(element) {
  * window capture購読による追従/終了・blur時の中断・終了直後のclick抑止）は、本クラスが生成・所有するDragTracker（#drag）へ
  * 委譲し、本クラスはドラッグの意味の解釈（パン量、頂点変形・選択集合の平行移動・範囲選択のModel反映）のみを行う。
  * ズーム・パンによる表示の変更はViewTransformへ委譲する。
- * メソッドは区切りコメントで「公開API（モード・図形種別）」「イベントハンドラ」「左ドラッグ」「パン」「当たり分類」
+ * Space以外のキー（ショートカット）は解釈しない。削除・取消・全選択は状態依存の公開メソッドとして提供し、
+ * 削除ボタン・ショートカット（KeyboardShortcuts）からはmain.js経由で呼び出される。
+ * メソッドは区切りコメントで「公開API（モード・図形種別）」「公開API（状態依存の操作：削除・取消・全選択）」「イベントハンドラ」「左ドラッグ」「パン」「当たり分類」
  * 「座標取得」「カーソル形状」の順に整理している。
  */
 export class InputTracker {
@@ -154,7 +173,8 @@ export class InputTracker {
 
         /**
          * 現在の操作モード（OperationModeの値）。モードに応じてhandleMouseMove/handleMouseDown/
-         * handleClick/handleKeyDownの入力解釈を排他的に切り替える。setMode()経由でのみ更新する。
+         * handleClickの入力解釈、および状態依存の公開操作（deleteSelection/cancelDraftOrClearSelection/selectAll）の
+         * 受理可否を切り替える。setMode()経由でのみ更新する。
          * @type {'select'|'create'|'pan'}
          */
         this.currentMode = OperationMode.SELECT;
@@ -294,6 +314,87 @@ export class InputTracker {
      */
     getShapeType() {
         return this.currentShapeType;
+    }
+
+    // ---- 公開API（状態依存の操作：削除・取消・全選択） ----
+
+    /**
+     * ドラッグ中かを返す。ドラッグ中＝パン・左ドラッグ（ハンドルドラッグ・本体ドラッグ・範囲選択）の
+     * DragTrackerセッション中（閾値以前を含む）。ショートカットの受理判定（KeyboardShortcuts）に用いる。
+     * @returns {boolean} ドラッグ中ならtrue
+     */
+    isDragging() {
+        return this.#drag.isActive();
+    }
+
+    /**
+     * 選択集合の全図形を一括削除する。
+     * 受理条件「選択モード かつ IDLE状態 かつ ドラッグ中でない かつ 選択集合が空でない」はこのメソッド内でのみ判定する。
+     * 受理時はModelのdeleteShapes(selectedIds)を呼ぶ（変更通知1回）。非受理時は何もしない。
+     * 削除ボタン（main.js）とDelete/Backspaceショートカット（KeyboardShortcuts→main.jsの注入コールバック）の
+     * 唯一の削除経路であり、呼び出し側で条件を重複判定しないこと。
+     * ドラッグ中（パン中を含む）は受け付けない（ドラッグ対象の図形が消えたまま追従が続くことを防ぐため）。
+     * @returns {boolean} 削除を受理したらtrue（呼び出し側はtrueのときのみpreventDefault()する）
+     */
+    deleteSelection() {
+        if (this.currentMode !== OperationMode.SELECT || this.state !== InputState.IDLE || this.#drag.isActive()) {
+            return false;
+        }
+
+        const selectedIds = this.model.getSelectedIds();
+        if (selectedIds.length === 0) {
+            return false;
+        }
+
+        this.model.deleteShapes(selectedIds);
+        return true;
+    }
+
+    /**
+     * 作成途中の図形の破棄、または選択解除を行う。Escショートカットの実体。以下の順に判定する。
+     * (1)ドラッグ中（パン・左ドラッグ。閾値以前を含む）なら何もしない。
+     * (2)DRAWING状態なら、cancelDraft()で作成途中の図形を破棄してIDLE状態へ戻す（変更通知はcancelDraftに従う）。
+     * (3)選択モード かつ IDLE状態 かつ 選択集合が空でなければ、clearSelection()で全解除する（変更通知1回）。
+     * (4)それ以外は何もしない。
+     * @returns {boolean} (2)(3)を実行したらtrue。falseの場合、呼び出し側はpreventDefault()しない
+     */
+    cancelDraftOrClearSelection() {
+        if (this.#drag.isActive()) {
+            return false;
+        }
+
+        if (this.state === InputState.DRAWING) {
+            this.model.cancelDraft();
+            this.state = InputState.IDLE;
+            return true;
+        }
+
+        if (
+            this.currentMode === OperationMode.SELECT &&
+            this.state === InputState.IDLE &&
+            this.model.getSelectedIds().length > 0
+        ) {
+            this.model.clearSelection();
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * 全図形を選択する。受理条件「選択モード かつ IDLE状態 かつ ドラッグ中でない」。
+     * 受理時は全図形のidで選択集合を置き換える（setSelection。変更通知1回。図形0個なら空集合で置き換え）。
+     * 選択モード以外からの全選択は、呼び出し側（main.js）が先にapplyModeで選択モードへ切り替える
+     * （本クラスはmain.jsの関数を呼ばない）。
+     * @returns {boolean} 受理したらtrue
+     */
+    selectAll() {
+        if (this.currentMode !== OperationMode.SELECT || this.state !== InputState.IDLE || this.#drag.isActive()) {
+            return false;
+        }
+
+        this.model.setSelection(this.model.getShapes().map((shape) => shape.id));
+        return true;
     }
 
     // ---- イベントハンドラ（キャンバス・document・windowの購読先） ----
@@ -460,39 +561,15 @@ export class InputTracker {
     /**
      * keydownイベントのハンドラ。documentへ購読する（<canvas>要素はデフォルトでフォーカスを
      * 持てずキーボードイベントを受け取れないため）。
-     * 選択モード中かつIDLE状態で、選択集合が空でない状態でDelete/Backspaceが押下された場合のみ、
-     * ブラウザのデフォルト動作（Backspaceでの戻る操作等）をpreventDefault()で抑止した上で、
-     * 選択集合の全図形をModelから一括削除する（deleteShapes。変更通知は1回）。
-     * 左ドラッグ中（DRAGGING_HANDLE/MOVING_SELECTION/MARQUEE_SELECTING。閾値以前を含む）は削除を受け付けない
-     * （ドラッグ対象の図形が消えたままドラッグの追従が続くことを防ぐため）。
-     * Spaceキーは操作モードによらず、上記の判定より先に#handleSpaceKeyDownへ委譲する（スペースパン）。
+     * keydownはSpace（スペースパン）のみを解釈し、操作モードによらず#handleSpaceKeyDownへ委譲する。
+     * それ以外のキー（Delete/Backspaceを含む）はKeyboardShortcutsが担当し、同一キーを二重に解釈しない。
      * @param {KeyboardEvent} event
      */
     handleKeyDown(event) {
-        if (event.code === 'Space') {
-            this.#handleSpaceKeyDown(event);
+        if (event.code !== 'Space') {
             return;
         }
-
-        if (this.currentMode !== OperationMode.SELECT) {
-            return;
-        }
-
-        if (this.state !== InputState.IDLE) {
-            return;
-        }
-
-        const selectedIds = this.model.getSelectedIds();
-        if (selectedIds.length === 0) {
-            return;
-        }
-
-        if (event.key !== 'Delete' && event.key !== 'Backspace') {
-            return;
-        }
-
-        event.preventDefault();
-        this.model.deleteShapes(selectedIds);
+        this.#handleSpaceKeyDown(event);
     }
 
     /**

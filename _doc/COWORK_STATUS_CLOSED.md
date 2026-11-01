@@ -277,3 +277,24 @@
 * `#segmentIntersectsRect`の4重複、弧の角度可変化時の注意、`InputTracker`の再分離候補、`buttons`の環境依存 → 該当箇所の変更時に対応
 
 ---
+
+### Phase02-04「削除UI・キーボードショートカット」（クローズ日：2026-11-01）
+* DIR: `_log/dir/261006_2239_DIR_Phase02-00_UI_And_Operation_Enhancement.md`（Phase 02-04節）
+* REQ: `_log/req/261031_0331_REQ_Phase02-04_Delete_UI_And_Shortcuts.md`
+* RES: `_log/res/261031_2121_RES_Phase02-04_Delete_UI_And_Shortcuts.md`（全8タスク、PlanningUpdate・Interruptなし。タスク5に追加仕様あり）
+
+| 項目 | 結論 | 対応箇所 |
+| ---- | ---- | -------- |
+| 図形削除UIがなく発見しにくい（Phase01由来） | コントロールパネルに削除ボタン`#selection-delete`を追加。選択集合が空なら`disabled`（`main.js`の`syncDeleteButtonState()`を`model.onChange`へ登録＋起動時に明示呼び出し）。押せない状態は`.tool-btn:disabled`で表し、フロートウィンドウ用の`.disabled`とは使い分け | REQ要件1 / タスク3・4 |
+| 削除経路の一本化 | `InputTracker.deleteSelection()`（受理条件：選択モード・`IDLE`・ドラッグ中でない・選択集合が空でない）を削除ボタンと`Delete`/`Backspace`の唯一の経路とした。パン中の削除は受け付けない形に厳格化 | REQ要件1 / タスク2・6 |
+| キーボードショートカット | `V`/`P`/`H`（モード）、`1`〜`5`・テンキー（図形種別、他モードからは図形作成モードへ切替）、`Ctrl`/`⌘`+`0`（リセット）・`=`/`;`/テンキー`+`（拡大）・`-`/テンキー`-`（縮小）、`Esc`（作成途中の破棄／選択解除）、`Ctrl`+`A`（全選択、他モードからは選択モードへ切替）、`Delete`/`Backspace`。`event.code`で識別し、Shift併用は拡大・縮小のみ、キーリピートも拡大・縮小のみ実行。UI同期は`applyMode`/`applyShapeType`/`onChange`の既存経路のみ | REQ要件2 / タスク5・6 |
+| ショートカットの責務配置・`InputTracker`の`keydown` | `core/KeyboardShortcuts.js`を新設し、対応表`SHORTCUT_BINDINGS`と受理判定のみを担当（操作の実体は`main.js`から注入）。`InputTracker`の`keydown`はスペースパンのみに縮退し、同一キーの二重解釈をなくした。`preventDefault()`は受理したキーのみ（例外：`Ctrl`系エントリがドラッグ中・リピートで実行されなかった場合。タスク5の追加仕様） | REQ要件3 / タスク5・6 |
+| テキスト入力中の`Delete`/`Backspace`等の誤爆（Phase01由来） | ショートカット・スペースパンとも`isTextInputElement`で除外。`input`は`type`別判定（`TEXT_INPUT_TYPES`）に変更。IME変換中も除外。確認用の入力欄は置かない（発注者決定） | REQ要件4 / タスク1・5 |
+| `PROJECT_ARCHITECTURE.md`の反映 | 1章（`KeyboardShortcuts.js`）、3章（キーボード操作の小項目）、4章（`index.html`項の新設、`main.js`・`InputTracker.js`の更新、`KeyboardShortcuts.js`項の新設）を更新 | タスク8 |
+
+**未解決のまま次に持ち越した項目**（`COWORK_STATUS.md`側で追跡中。ここには含めない）:
+* 実機での目視確認（ブラウザズーム・ページ全選択の抑止、IME、macOS、削除ボタン押下後のフォーカス） → テストプレイ
+* `title`属性と対応表の手動同期、`SHAPE_TYPES`の並び順への依存、テキスト入力UI追加時の確認項目、コントロールパネルの余白 → 該当箇所の変更時に対応
+* `KeyboardShortcuts`の無効化API、`InputTracker`・`main.js`の肥大化防止、キーボードズームの中心・`WHEEL_ZOOM_STEP`の名称 → 必要になった時点で対応
+
+---
