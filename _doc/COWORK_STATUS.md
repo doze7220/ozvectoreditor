@@ -18,16 +18,16 @@
 * **Phase 2「UI・操作充実」：完了・クローズ済み（2026-11-01）。**
   * 操作モード再設計（P2-01：選択／図形作成／キャンバス移動の`OperationMode`）、ビュー変換（P2-02：`ViewTransform`によるワールド/スクリーン座標の分離、パン・ズーム・グリッド）、範囲選択・複数選択（P2-03：選択集合、図形の`intersectsRect`契約追加、`DragTracker`へのドラッグライフサイクル分離）、削除UI・キーボードショートカット（P2-04：削除ボタン、`KeyboardShortcuts`の新設）を実装完了。
   * 各サブフェイズの実装詳細は`_doc/COWORK_STATUS_CLOSED.md`のPhase02-01〜02-04章を参照。REQ/RES/DIRファイル本体は各`closed/`にアーカイブ済み。
-* **Phase 3「多角形生成」：未着手。** `Phase03-00`（DIR策定）の相談中。
+* **Phase 3「編集基盤」：進行中。** 2026-11-01に`Phase03-00`でDIRを発行（`_log/dir/261101_2154_DIR_Phase03-00_Editing_Foundation.md`）。当初P3予定だった多角形生成はP4（パス）、着色はP5へ繰り下げ（`_doc/PROJECT_MILESTONE.md`参照）。次は`Phase03-01`（シリアライズ契約）。
 * **2026-10-06：ワークフロー改訂（Interrupt扱い）。** NotebookLMの利用を中止し、リード設計AI役もCoworkが担う体制へ移行。DIRは`Phase XX-00`でPhase全体に1本だけ発行する軽量な基礎設計方針（大ゴール・サブフェイズ分け・サブフェイズごとの実装要件）とし、`Phase XX-01`以降はサブフェイズごとに別セッションでREQ→RES原本を作成する。途中変更はDIRを直接書き換えて変更履歴に残す。改訂対象：`TEMPLATE_DIR.md`、`PROJECT_AI_WORKFLOW.md`、`COWORK_HANDOFF.md`、`PROJECT_README.md`、`PROJECT_MILESTONE.md`、`PROJECT_PHASE_TRANSITION_CLEANUP.md`、`README.md`（クレジット欄）。`NOTEBOOK_HANDOFF.md`は廃止。
 * Phase進行中は、サブフェイズの進み具合をDIRの「サブフェイズ一覧」で管理する（本ファイルでは重複管理しない）。
 
 ---
 
 ### 2. 現在進行中のタスク・懸念事項（毎セッション更新）
-* （2026-11-01、Phase 2クローズ時の仕分け）未解決事項を、Phase 3（多角形生成）のDIR策定で拾う候補（A）、テストプレイ・操作感の確認待ち（B）、条件付きで将来検討（C）の3区分に再整理した。
+* （2026-11-01、Phase 2クローズ時の仕分け）未解決事項を、パス（多角形）Phaseで拾う候補（A）、テストプレイ・操作感の確認待ち（B）、条件付きで将来検討（C）の3区分に再整理した。
 
-* **A. Phase 3（多角形生成）のDIR策定で拾う候補**
+* **A. パス（多角形）Phaseで拾う候補**（図形種別一覧の多重管理・`ShapeFactory.create()`の例外はPhase 3 DIRの03-01に割り当て済み）
   * `hitTestHandle`の優先順位問題（Phase01-06由来、Phase01-07のEllipseでも同様）：図形を`setVertex`による自由変形で極端に小さく潰した場合、複数の頂点が同一`tolerance`範囲内に密集すると常に先着の1ハンドルが優先的に選ばれる（`Line`/`Curve`/`Rect`/`Ellipse`共通の設計思想で不具合ではないが、極端な変形を行うUIが必要になった場合は最小サイズ制約等の検討が要る）。
   * `Curve`への制御点の追加・削除、moveハンドル（平行移動）の追加は、発注者の意向により別Phaseで対応予定（Phase01-05 DIR6章の設計決定）。
   * 【Phase02-01由来・Phase02-04で依存追加】図形種別の一覧が`ShapeFactory`の受理種別と`InputTracker`の`SHAPE_TYPES`に二重管理されている（加えて`PaletteController.#BUTTON_DEFS`・`index.html`も揃える必要あり）。Phase02-04で数字キー`1`〜`5`のショートカットを`SHAPE_TYPES`の並びから生成したため、「`SHAPE_TYPES`の並び＝パレットのボタン順＝`index.html`の`title`属性の数字」という並び順の一致にも依存する。`ShapeFactory`側に受理種別一覧を公開させて単一化するのが望ましい → 図形種別追加時、または次に`ShapeFactory.js`に触れる際にInterruptで対応。
@@ -78,7 +78,7 @@
 （Phaseがクローズされるたびに、棚卸し結果・仕分け結果をここに追記する。手順は`PROJECT_AI_WORKFLOW.md`3-5章参照）
 
 * **Phase 1（P1-01〜P1-07、2026-08-12にフェイズ大番号クローズ）**：全7サブフェイズの棚卸しが完了。サブフェイズごとの棚卸し記録・解決済み事項は`_doc/COWORK_STATUS_CLOSED.md`（Phase01-02〜01-07の各章）へ移動済み。未解決のまま持ち越した項目は本ファイル2章にA/B区分で整理済み。あわせて`_doc/PROJECT_PHASE_TRANSITION_CLEANUP.md`の定型プロセスに沿って、`_log/req`・`_log/res`・`_log/dir`のPhase1関連ファイルを`closed/`へ物理アーカイブ、`PROJECT_ARCHITECTURE.md`の監査（コード追従記述・比喩・多重表記の排除）を実施した。
-* **Phase 2（P2-01〜P2-04、2026-11-01にフェイズ大番号クローズ）**：各サブフェイズの解決済み事項は`_doc/COWORK_STATUS_CLOSED.md`（Phase02-01〜02-04の各章）へ移動済み。未解決事項は本ファイル2章をA（Phase 3候補）／B（テストプレイ待ち）／C（条件付き将来）の3区分に再整理した。`_log/req`・`_log/res`・`_log/dir`のPhase 2関連ファイルを`closed/`へ物理アーカイブし、`PROJECT_ARCHITECTURE.md`を監査した（2章の図形データ記述を実コードに合わせて訂正、3章の起動処理・描画サイクル（rAFループなし）を訂正、4章`WindowManager`の「ツール状態」表記を訂正、4章`main.js`・`InputTracker`項をサブ項目形式に統一し`main.js`項のコード追従記述を削減）。
+* **Phase 2（P2-01〜P2-04、2026-11-01にフェイズ大番号クローズ）**：各サブフェイズの解決済み事項は`_doc/COWORK_STATUS_CLOSED.md`（Phase02-01〜02-04の各章）へ移動済み。未解決事項は本ファイル2章をA（パスPhase候補）／B（テストプレイ待ち）／C（条件付き将来）の3区分に再整理した。`_log/req`・`_log/res`・`_log/dir`のPhase 2関連ファイルを`closed/`へ物理アーカイブし、`PROJECT_ARCHITECTURE.md`を監査した（2章の図形データ記述を実コードに合わせて訂正、3章の起動処理・描画サイクル（rAFループなし）を訂正、4章`WindowManager`の「ツール状態」表記を訂正、4章`main.js`・`InputTracker`項をサブ項目形式に統一し`main.js`項のコード追従記述を削減）。
 
 ---
 
