@@ -110,6 +110,35 @@
             font-size: 13px;
             color: #333;
         }
+        /* 開発者向け確認用ウィンドウ（?dev時のみ表示。右側のコントロールパネル・図形パレットと重ならない左上に置く） */
+        #window-dev-panel {
+            top: 16px;
+            left: 16px;
+            width: 360px;
+        }
+        .dev-button-row {
+            display: flex;
+            gap: 8px;
+        }
+        /* .float-windowのuser-select: noneは変更せず、テキスト欄・結果表示欄に限って文字の選択を許可する */
+        #dev-json {
+            width: 100%;
+            box-sizing: border-box;
+            font-family: monospace;
+            font-size: 12px;
+            resize: vertical;
+            user-select: text;
+        }
+        #dev-result {
+            margin: 0;
+            max-height: 120px;
+            overflow: auto;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            color: #333;
+            user-select: text;
+        }
     </style>
 </head>
 <body>
@@ -141,6 +170,20 @@
             <button type="button" id="palette-arc" class="tool-btn" title="弧 (3)">◠ 弧</button>
             <button type="button" id="palette-rect" class="tool-btn" title="矩形 (4)">▭ 矩形</button>
             <button type="button" id="palette-circle" class="tool-btn" title="円 (5)">◯ 円</button>
+        </div>
+    </div>
+    <div id="window-dev-panel" class="float-window" hidden>
+        <div class="window-header">
+            <span class="window-title">開発者用：作業データ</span>
+            <button type="button" class="window-close-btn">×</button>
+        </div>
+        <div class="window-body">
+            <div class="dev-button-row">
+                <button type="button" id="dev-export" class="tool-btn">JSONへ変換</button>
+                <button type="button" id="dev-import" class="tool-btn">JSONから復元</button>
+            </div>
+            <textarea id="dev-json" rows="14" spellcheck="false"></textarea>
+            <pre id="dev-result"></pre>
         </div>
     </div>
     <script type="module" src="js/main.js"></script>

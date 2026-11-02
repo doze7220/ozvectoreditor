@@ -18,7 +18,7 @@
 * **Phase 2「UI・操作充実」：完了・クローズ済み（2026-11-01）。**
   * 操作モード再設計（P2-01：選択／図形作成／キャンバス移動の`OperationMode`）、ビュー変換（P2-02：`ViewTransform`によるワールド/スクリーン座標の分離、パン・ズーム・グリッド）、範囲選択・複数選択（P2-03：選択集合、図形の`intersectsRect`契約追加、`DragTracker`へのドラッグライフサイクル分離）、削除UI・キーボードショートカット（P2-04：削除ボタン、`KeyboardShortcuts`の新設）を実装完了。
   * 各サブフェイズの実装詳細は`_doc/COWORK_STATUS_CLOSED.md`のPhase02-01〜02-04章を参照。REQ/RES/DIRファイル本体は各`closed/`にアーカイブ済み。
-* **Phase 3「編集基盤」：進行中。** 2026-11-01に`Phase03-00`でDIRを発行（`_log/dir/261101_2154_DIR_Phase03-00_Editing_Foundation.md`）。当初P3予定だった多角形生成はP4（パス）、着色はP5へ繰り下げ（`_doc/PROJECT_MILESTONE.md`参照）。次は`Phase03-01`（シリアライズ契約）。
+* **Phase 3「編集基盤」：進行中。** 2026-11-01に`Phase03-00`でDIRを発行（`_log/dir/261101_2154_DIR_Phase03-00_Editing_Foundation.md`）。当初P3予定だった多角形生成はP4（パス）、着色はP5へ繰り下げ（`_doc/PROJECT_MILESTONE.md`参照）。2026-11-03に`Phase03-01`（シリアライズ契約）が完了（解決事項は`_doc/COWORK_STATUS_CLOSED.md`のPhase03-01章）。次は`Phase03-02`（Undo/Redo）。
 * **2026-10-06：ワークフロー改訂（Interrupt扱い）。** NotebookLMの利用を中止し、リード設計AI役もCoworkが担う体制へ移行。DIRは`Phase XX-00`でPhase全体に1本だけ発行する軽量な基礎設計方針（大ゴール・サブフェイズ分け・サブフェイズごとの実装要件）とし、`Phase XX-01`以降はサブフェイズごとに別セッションでREQ→RES原本を作成する。途中変更はDIRを直接書き換えて変更履歴に残す。改訂対象：`TEMPLATE_DIR.md`、`PROJECT_AI_WORKFLOW.md`、`COWORK_HANDOFF.md`、`PROJECT_README.md`、`PROJECT_MILESTONE.md`、`PROJECT_PHASE_TRANSITION_CLEANUP.md`、`README.md`（クレジット欄）。`NOTEBOOK_HANDOFF.md`は廃止。
 * Phase進行中は、サブフェイズの進み具合をDIRの「サブフェイズ一覧」で管理する（本ファイルでは重複管理しない）。
 
@@ -27,15 +27,19 @@
 ### 2. 現在進行中のタスク・懸念事項（毎セッション更新）
 * （2026-11-01、Phase 2クローズ時の仕分け）未解決事項を、パス（多角形）Phaseで拾う候補（A）、テストプレイ・操作感の確認待ち（B）、条件付きで将来検討（C）の3区分に再整理した。
 
-* **A. パス（多角形）Phaseで拾う候補**（図形種別一覧の多重管理・`ShapeFactory.create()`の例外はPhase 3 DIRの03-01に割り当て済み）
+* **P3. Phase 3後続サブフェイズへの申し送り（Phase03-01由来。各REQ作成時に確認する。詳細はRES `261102_0003` 5章の該当番号）**
+  * 【03-02へ】進行中操作の中断は`InputTracker.abortOngoingOperation()`（常に受理）を履歴適用の前処理として再利用する。スナップショットは`DocumentSerializer`のオブジェクト層（`serialize`/`deserialize`）を使う想定。`setMode`の中断処理の共通化により、作成途中からのモード切替時の変更通知の順序が「作成途中の破棄 → 選択解除 → ホバー解除」に変わった（回数は同じ）。履歴記録を`model.onChange`で行う場合は中間状態を記録しないこと（C-35）。マイグレーション関数は引数を書き換えない契約（書き換えるとスナップショットが壊れる。C-33）。
+  * 【03-03へ】`VectorModel.replaceAllShapes`はidの重複を値で判定し、振り直しは受け取ったインスタンスの`id`を直接書き換える。同一インスタンスを2回渡すと両方が同じidになるため、貼り付け時は複製（`toJSON`→`fromJSON`）してから渡すこと（C-38・C-40）。既存図形と合わせたidの振り直しは03-03の範囲（DIR持ち越し事項）。
+  * 【03-04へ】フロートウィンドウの`×`ボタンは全ウィンドウとも無機能（C-46）。ファイル用パレットの開閉を決める際に、全ウィンドウ共通の閉じる機能としてまとめて検討する。開発者用確認用ウィンドウ（`?dev`）を残すか外すかもここ以降で判断。
+  * 【03-05へ】一般利用者向けの読み込み失敗通知UIは未実装（03-01は確認用ウィンドウと`console.warn`のみ）。全図形スキップでも`ok: true`（図形0個）として扱う方針（C-6）、スキップ1件ごとの`console.warn`（C-34）、`version: "1"`が表示上は数値の1と見分けにくい点（C-32）を、開く・インポートの仕様決定時に見直す。
+
+* **A. パス（多角形）Phaseで拾う候補**
   * `hitTestHandle`の優先順位問題（Phase01-06由来、Phase01-07のEllipseでも同様）：図形を`setVertex`による自由変形で極端に小さく潰した場合、複数の頂点が同一`tolerance`範囲内に密集すると常に先着の1ハンドルが優先的に選ばれる（`Line`/`Curve`/`Rect`/`Ellipse`共通の設計思想で不具合ではないが、極端な変形を行うUIが必要になった場合は最小サイズ制約等の検討が要る）。
   * `Curve`への制御点の追加・削除、moveハンドル（平行移動）の追加は、発注者の意向により別Phaseで対応予定（Phase01-05 DIR6章の設計決定）。
-  * 【Phase02-01由来・Phase02-04で依存追加】図形種別の一覧が`ShapeFactory`の受理種別と`InputTracker`の`SHAPE_TYPES`に二重管理されている（加えて`PaletteController.#BUTTON_DEFS`・`index.html`も揃える必要あり）。Phase02-04で数字キー`1`〜`5`のショートカットを`SHAPE_TYPES`の並びから生成したため、「`SHAPE_TYPES`の並び＝パレットのボタン順＝`index.html`の`title`属性の数字」という並び順の一致にも依存する。`ShapeFactory`側に受理種別一覧を公開させて単一化するのが望ましい → 図形種別追加時、または次に`ShapeFactory.js`に触れる際にInterruptで対応。
-  * 【Phase02-01由来・Phase02-03で一部解消】古いJSDoc・用語の残存：`InputTracker.js`・`VectorModel.js`分はPhase02-03で修正済み。残りは`WindowManager.js`責務JSDocの「ツール状態」表記（→「操作モード」。開発資料側はPhase 2クローズ時に修正済み）。動作に影響なし → 下記「論理座標系」とまとめてInterruptで修正。
+  * 【Phase02-01由来・Phase02-03で一部解消】古いJSDoc・用語の残存：`InputTracker.js`・`VectorModel.js`分はPhase02-03で修正済み。残りは`WindowManager.js`責務JSDocの「ツール状態」表記（→「操作モード」。開発資料側はPhase 2クローズ時に修正済み）と、Phase03-01で追加した`VectorModel`のクラスJSDocの「図形の生成・復元はShapeFactoryへ委譲」（実際は生成のみ。復元は`DocumentSerializer`→`ShapeFactory`で、`VectorModel`は`replaceAllShapes`で受け取るのみ。開発資料側は正しく記載済み）。動作に影響なし → 下記「論理座標系」とまとめてInterruptで修正。
   * 【Phase02-02由来・Phase02-03で一部解消】用語「論理座標系」の残存：`VectorModel.js`分はPhase02-03で修正済み。`shapes/`4クラスの既存メソッド（`hitTest`・`hitTestHandle`・`setVertex`・`updateDraftEnd`・`translate`）の`@param`に約40箇所残る（意味は「ワールド座標」。`tolerance`の「論理座標系のピクセル単位」は「ワールド座標の長さ（呼び出し側が画面上の許容誤差をワールド換算して渡す）」へ直す）。あわせて`#draftLine`/`getDraftLine()`/`render()`の`draftLine`引数の名称がLine時代のまま（JSDocは「作成中の図形」で統一済み。`main.js`・`CanvasManager.js`・`VectorModel.js`の同時変更が必要） → まとめてInterruptで修正（RES `261018_0222` タスク11追記参照）。
   * 【Phase02-03由来】交差判定ヘルパー`#segmentIntersectsRect`が`Line`/`Curve`/`Rect`/`Ellipse`の4ファイルに同一コードで重複（図形クラスの自己完結方針による）。修正時は4ファイル同時に直すこと。共通化する場合は`shapes/`配下のユーティリティ新設を別REQで検討。
   * 【Phase02-03由来】`InputTracker.js`は`DragTracker`へドラッグのライフサイクルを分離した後も約960行（範囲選択・本体ドラッグ・当たり分類の追加による）。再分離の候補は「選択モードのジェスチャー解釈（押下時分岐・クリック解釈・範囲選択の確定）」だが、`InputState`の所有者が分散するため状態の所有者設計を先に行うこと。
-  * `ShapeFactory.create()`は未知の`type`に対し`Error`をthrowするが、呼び出し元は`try/catch`していない。将来新たな図形種別を追加する場合は`type`文字列の綴りに注意、または呼び出し元のバリデーション導入を検討。
 
 * **B. テストプレイ・操作感の確認待ち（違和感が出たらInterruptで対応）**
   * 【Phase02-04由来・テストプレイ待ち】実装AIの確認は合成イベントのみで、画面描画の目視、実キー入力でのブラウザズーム（`Ctrl`+`=`/`-`/`0`）・ページ全選択の抑止、IME変換中の挙動、macOSの⌘系、削除ボタン押下直後の`Space`/`Enter`（`disabled`化後もフォーカスがボタンに残ることを確認済み）は未確認。確認項目はRES `261031_2121` 5章「テストプレイでの目視確認項目」を参照。
@@ -49,11 +53,11 @@
   * 【Phase02-04由来・低優先】キーボードの拡大・縮小はキャンバス全体の中心基準（フロートウィンドウに隠れた領域を除いた中心ではない）。刻み幅は`WHEEL_ZOOM_STEP`を共有しており、名称が「ホイール」のまま。修飾キーなしのテンキー`+`/`-`は受け付けない（必要なら対応表へのエントリ追加で対応可能）。
 
 * **C. 条件付きで将来検討（該当する設計変更・機能追加のPhaseで拾う）**
+  * 【Phase03-01由来】`PROJECT_ARCHITECTURE.md`がPhase03-01の反映で約34KB→約52KBに増えた（記述は責務・契約の水準で、コード追従記述は除外済み）→ Phase 3クローズ時の資料監査で言い回しの整理・削減を検討。
   * 当初想定していた5大図形（直線・曲線・弧・矩形・円）の実装がPhase01-07で完了したため、「次の図形追加Phase」区分は本クローズをもって統合・整理した（新規図形クラス実装時に必要な9メソッド共通インターフェース遵守の教訓は`_doc/COWORK_STATUS_CLOSED.md`のPhase01-05章を参照）。
   * `Curve.draw`/`Rect.draw`/`Ellipse.draw`の`t`引数は将来のモーフィング機能用の伏線として維持されているが未使用（`Line.draw`は`t`引数自体を持たず、開発資料の9メソッド契約`draw(ctx, t)`と不一致） → モーフィング機能実装Phaseで対応。
   * `Curve.hitTest`の100分割ループによる当たり判定コストは、現状のベクター数（数十個程度）では無視できる計算量と評価済み → 頂点数が数千を超える規模になった際にAABB等の早期判定フィルタリングを検討。
   * `Ellipse.hitTest`の境界線判定は、中心距離比率と平均半径`(rx+ry)/2`による近似判定（真の最短距離計算を避けた設計、Phase01-07由来）。極端に細長い楕円の場合、長軸側と短軸側で当たり判定の許容幅に視覚的なブレが生じる可能性があるが、通常操作ではテストプレイで問題なしと確認済みの低優先度事項。
-  * `commitDraft()`のid採番（連番文字列）は永続化・再読込を考慮していない → `CodeImporter.js`実装時、既存idとの衝突可能性を検討。
   * 選択・ホバー系APIの無条件`notifyChange()`呼び出し → 図形数増加でパフォーマンス問題が顕在化したら値変化チェックの追加を検討。
   * `window.addEventListener('resize', ...)`のデバウンス未実装、`removeEventListener`によるクリーンアップ未実装、`mouseup`への`stopPropagation`未実装 → いずれも現状は実害なしと確認済み。図形数の大幅増加やCanvasの動的生成/破棄など設計変更が入る場合に検討。
   * `WindowManager`の動的追加ウィンドウ再検知（`MutationObserver`等）非対応、単一`#draggingWindow`フィールドによる複数ウィンドウ同時ドラッグ非対応（Phase01-04由来） → ウィンドウを動的生成／複数同時操作する設計が入るPhaseで検討。
@@ -62,7 +66,7 @@
   * 【Phase02-02由来】非表示状態（タブ・ペインが非表示等）で読み込むと、`CanvasManager.resize()`が`style.width/height = 0px`を固定し、以後リサイズしても0×0のまま復帰しない（再読み込みで解消）。通常利用では発生しない → 気になった場合に`resize()`のCSSサイズ固定ロジックを見直す。
   * 【Phase02-03由来】`Ellipse.intersectsRect`は`startAngle`/`endAngle`の差をそのまま分割してサンプリングする。現状は角度固定（0と2π／π）だが、弧の角度編集を実装する際は`draw`（`ctx.ellipse`）の角度正規化と同じ規則をここにも適用すること。
   * 【Phase02-04由来】ボタンの`title`属性（例：`選択 (V)`）は`KeyboardShortcuts.js`の`SHORTCUT_BINDINGS`と手動で一致させている（macOSでも`Ctrl+0`表記）。キー割り当ての変更時は`index.html`も更新すること。自動生成するなら`SHORTCUT_BINDINGS`のexportを検討。
-  * 【Phase02-04由来】テキスト入力UIを追加する際の注意：`isTextInputElement`は`input`を`type`別に判定するため、`checkbox`/`range`/`color`等にフォーカス中はショートカットが効き、`Space`はスペースパン側で`preventDefault()`される（チェックボックスを`Space`で切り替えられない）。`select`もテキスト入力扱いせず選択肢のキー移動と競合しうる。入力欄追加時はRES `261031_2121` 5章「将来テキスト入力欄を追加した際の確認項目」で確認すること。
+  * 【Phase02-04由来】テキスト入力UIを追加する際の注意：`isTextInputElement`は`input`を`type`別に判定するため、`checkbox`/`range`/`color`等にフォーカス中はショートカットが効き、`Space`はスペースパン側で`preventDefault()`される（チェックボックスを`Space`で切り替えられない）。`select`もテキスト入力扱いせず選択肢のキー移動と競合しうる。入力欄追加時はRES `261031_2121` 5章「将来テキスト入力欄を追加した際の確認項目」で確認すること（Phase03-01で初のテキスト入力欄（`?dev`の確認用ウィンドウ）を追加し、RES `261102_0003` 5章B-1〜B-11で確認済み）。既知の挙動：テキスト入力欄にフォーカス中は`Ctrl`+`+`/`-`/`0`がブラウザのページズームになる（RES `261031_2121`の想定どおり）。また中ボタンでパンしても入力欄のフォーカスが外れず、パン後もショートカットが無効のまま（左クリックで解消。B-6）。
   * 【Phase02-04由来】コントロールパネル下端と図形パレット（`top: 320px`）の余白は24pxのみ。コントロールパネルにボタンをもう1つ追加すると重なる → 追加時に`#window-shape-palette`の`top`調整またはパレット位置の自動配置を検討。
   * 【Phase02-04由来】`main.js`は`KeyboardShortcuts`のインスタンスを保持せず、購読解除・一時無効化のAPIもない → モーダル表示等でショートカットを止める必要が出たら、インスタンス保持と有効/無効APIを追加。
   * 【Phase02-04由来】`InputTracker`に状態依存の公開操作（`deleteSelection`/`cancelDraftOrClearSelection`/`selectAll`）を加えた。今後、状態に依存しない操作をショートカット用に足す場合は`InputTracker`へ入れず、`main.js`の注入コールバック側か別クラスへ置くこと（肥大化防止）。`main.js`も約230行となり、コールバックがさらに増える場合は注入オブジェクトの組み立ての分離を検討。

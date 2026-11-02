@@ -9,6 +9,9 @@ import { KeyboardShortcuts } from './core/KeyboardShortcuts.js';
 import { WindowManager } from './core/WindowManager.js';
 import { ViewTransform } from './core/ViewTransform.js';
 import { PaletteController } from './palette/PaletteController.js';
+import { SHAPE_TYPES } from './core/ShapeFactory.js';
+import { DocumentSerializer } from './io/DocumentSerializer.js';
+import { DevPanel } from './palette/DevPanel.js';
 
 // DOMが読み込まれた後に初期化を行う
 document.addEventListener('DOMContentLoaded', () => {
@@ -121,7 +124,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 7. 図形選択パレット配線
     const shapePaletteEl = document.getElementById('window-shape-palette');
-    const paletteController = new PaletteController(shapePaletteEl, applyShapeType);
+    // 図形種別一覧は正本（ShapeFactory.js）から直接渡す。パレットのボタンはid`palette-${type}`で照合される
+    const paletteController = new PaletteController(shapePaletteEl, SHAPE_TYPES, applyShapeType);
 
     /**
      * 操作モードの切り替えを一元的に行う共通関数。コントロールパネル各ボタン（`modeButtons`）の
@@ -143,10 +147,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * 図形種別の切り替えを一元的に行う共通関数。PaletteControllerへ`onTypeSelected`コールバック
-     * として渡され、パレット5ボタンのclick時に呼び出される。操作モードは変更しない。
+     * として渡され、パレットの各図形種別ボタンのclick時に呼び出される。操作モードは変更しない。
      * InputTrackerへの図形種別切り替え要求の後、`inputTracker.getShapeType()`で実際の内部状態を
      * 読み返してパレットのハイライトを同期する（未知の値が無視された場合でもUIと内部状態を一致させるため）。
-     * @param {'line'|'curve'|'arc'|'rect'|'circle'} type - 切り替え先の図形種別
+     * @param {string} type - 切り替え先の図形種別（`SHAPE_TYPES`のいずれか）
      */
     function applyShapeType(type) {
         inputTracker.setShapeType(type);
@@ -210,6 +214,28 @@ document.addEventListener('DOMContentLoaded', () => {
         // 選択集合の削除（削除ボタンと同一経路。受理条件はdeleteSelection()のみが判定する）
         deleteSelection: () => inputTracker.deleteSelection(),
     });
+
+    // 9. 開発者向け確認用ウィンドウ配線（URLに`?dev`がある場合のみ。判定結果はグローバルへ公開しない）
+    const isDevMode = new URLSearchParams(window.location.search).has('dev');
+    if (isDevMode) {
+        const devPanel = new DevPanel(document.getElementById('window-dev-panel'), {
+            // 現在の全図形を作業データ形式のJSON文字列へ変換する
+            onExport: () => DocumentSerializer.serializeToString(model.getShapes()),
+            // JSON文字列から図形一式を復元する。全体の読み込みに失敗した場合はキャンバスを変更しない。
+            // 成功時のみ、進行中の入力操作を中断してから図形一式を入れ替える（この順序を厳守すること）。
+            // 再描画・削除ボタンの同期はmodel.onChange経路のみで行い、ここでは呼ばない
+            onImport: (text) => {
+                const result = DocumentSerializer.deserializeFromString(text);
+                if (!result.ok) {
+                    return { ok: false, restoredCount: 0, reassignedCount: 0, skipped: [], error: result.error };
+                }
+                inputTracker.abortOngoingOperation();
+                const reassignedCount = model.replaceAllShapes(result.shapes);
+                return { ok: true, restoredCount: result.shapes.length, reassignedCount, skipped: result.skipped, error: null };
+            },
+        });
+        devPanel.show();
+    }
 
     // 起動時初期化：UIの初期表示（モードボタンの.active・パレットの.disabled・パレット内ハイライト）を
     // InputTrackerの内部状態に同期させる

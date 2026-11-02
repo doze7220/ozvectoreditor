@@ -1,9 +1,10 @@
 /**
  * 責務：ユーザー入力（図形作成・選択・範囲選択・本体ドラッグ・ハンドルドラッグ・パン・ズーム。キーはスペースパンのみ）の解釈と
- * Model・ビュー変換への反映、状態依存の操作（一括削除・取消・全選択）の公開、および入力状態に応じたカーソル形状のフィードバックを担う。
+ * Model・ビュー変換への反映、状態依存の操作（一括削除・取消・全選択・進行中操作の中断）の公開、および入力状態に応じたカーソル形状のフィードバックを担う。
  */
 
 import { DragTracker } from './DragTracker.js';
+import { SHAPE_TYPES } from './ShapeFactory.js';
 
 /**
  * InputTrackerが取りうる内部状態。
@@ -49,12 +50,11 @@ export const OperationMode = Object.freeze({
 });
 
 /**
- * 図形作成モードで作成可能な図形種別のホワイトリスト。setShapeType()の引数バリデーション
- * （includes()による受理判定）のみに用いる。図形種別ごとの分岐には用いない。
- * ※ShapeFactoryの受理種別と一致させること。
- * @type {ReadonlyArray<'line'|'curve'|'arc'|'rect'|'circle'>}
+ * 図形作成モードで作成可能な図形種別の一覧（ReadonlyArray<string>）。正本はShapeFactory.js（SHAPE_REGISTRYから導出）。
+ * 既存のimport元（KeyboardShortcuts.js）を変えないための再export。本ファイルでは setShapeType() の引数バリデーション
+ * （includes()による受理判定）と currentShapeType の初期値（先頭要素）にのみ用い、図形種別ごとの分岐には用いない。
  */
-export const SHAPE_TYPES = Object.freeze(['line', 'curve', 'arc', 'rect', 'circle']);
+export { SHAPE_TYPES };
 
 /**
  * ホイール1刻みあたりのズーム倍率（無次元）。拡大時はこの値を、縮小時はその逆数を
@@ -114,9 +114,9 @@ export function isTextInputElement(element) {
  * window capture購読による追従/終了・blur時の中断・終了直後のclick抑止）は、本クラスが生成・所有するDragTracker（#drag）へ
  * 委譲し、本クラスはドラッグの意味の解釈（パン量、頂点変形・選択集合の平行移動・範囲選択のModel反映）のみを行う。
  * ズーム・パンによる表示の変更はViewTransformへ委譲する。
- * Space以外のキー（ショートカット）は解釈しない。削除・取消・全選択は状態依存の公開メソッドとして提供し、
- * 削除ボタン・ショートカット（KeyboardShortcuts）からはmain.js経由で呼び出される。
- * メソッドは区切りコメントで「公開API（モード・図形種別）」「公開API（状態依存の操作：削除・取消・全選択）」「イベントハンドラ」「左ドラッグ」「パン」「当たり分類」
+ * Space以外のキー（ショートカット）は解釈しない。削除・取消・全選択・進行中操作の中断は状態依存の公開メソッドとして提供し、
+ * 削除ボタン・ショートカット（KeyboardShortcuts）・作業データの復元からはmain.js経由で呼び出される。
+ * メソッドは区切りコメントで「公開API（モード・図形種別）」「公開API（状態依存の操作：削除・取消・全選択・中断）」「イベントハンドラ」「左ドラッグ」「パン」「当たり分類」
  * 「座標取得」「カーソル形状」の順に整理している。
  */
 export class InputTracker {
@@ -182,9 +182,10 @@ export class InputTracker {
         /**
          * 図形作成モードで作成する図形種別（SHAPE_TYPESのいずれか）。setShapeType()経由でのみ更新する。
          * 操作モードの切り替えではリセットされないため、図形作成モードへ戻った際は前回の種別へ復帰する。
-         * @type {'line'|'curve'|'arc'|'rect'|'circle'}
+         * 初期値はSHAPE_TYPESの先頭要素（図形パレットの先頭ボタン）。
+         * @type {string}
          */
-        this.currentShapeType = 'line';
+        this.currentShapeType = SHAPE_TYPES[0];
 
         /**
          * MOVING_SELECTION状態中、選択集合の差分移動計算に用いる直前のカーソル位置（ワールド座標）。
@@ -244,13 +245,14 @@ export class InputTracker {
      * 操作モードを切り替える。
      * OperationModeに定義されていない値が渡された場合はconsole.warnを出して何もしない
      * （内部状態・選択集合・カーソルは一切変更しない）。
-     * 有効な値の場合は常に（同じモードの再指定でも）、(1)currentModeの更新、(2)選択集合・
-     * ホバー状態の無条件クリア、(3)IDLE以外の状態（進行中の作成/ドラッグ操作）であれば
-     * cancelDraft()で作成途中の図形を破棄したうえでIDLE状態へ強制リセット、(4)カーソル形状の再評価、
-     * の4処理を行う（モード切り替え時に前モードの状態が残留することを防ぐため）。
-     * 安全策として、ドラッグセッション（パン・左ドラッグ。閾値以前を含む）中であれば先にDragTracker.cancel()で中断する
-     * （onCancel経由で、パンは#finishPan()、左ドラッグは#onLeftDragCancel()によりIDLEへ戻る。頂点・位置の変更は確定済みのまま残り、
-     * 範囲選択は選択矩形を破棄して確定しない）。
+     * 有効な値の場合は常に（同じモードの再指定でも）、以下の順に処理する（モード切り替え時に前モードの状態が残留することを防ぐため）。
+     * (1)進行中操作の中断（#abortOngoingOperation()。abortOngoingOperation()と同一の処理）：ドラッグセッション
+     * （パン・左ドラッグ。閾値以前を含む）中であればDragTracker.cancel()で中断し（onCancel経由で、パンは#finishPan()、
+     * 左ドラッグは#onLeftDragCancel()によりIDLEへ戻る。頂点・位置の変更は確定済みのまま残り、範囲選択は選択矩形を破棄して
+     * 確定しない）、なおIDLE以外の状態（作成途中）であればcancelDraft()で作成途中の図形を破棄してIDLE状態へ戻す。
+     * (2)currentModeの更新、(3)選択集合・ホバー状態の無条件クリア、(4)カーソル形状の再評価。
+     * 中断処理の共通化に伴い、作成途中の図形の破棄（cancelDraftの変更通知）は選択集合・ホバーのクリアより前に行われる
+     * （従来はクリアの後。最終状態は同一）。
      * 図形種別（currentShapeType）は変更しない。
      * @param {'select'|'create'|'pan'} mode 切り替え先の操作モード（OperationModeの値）
      */
@@ -260,19 +262,12 @@ export class InputTracker {
             return;
         }
 
-        if (this.#drag.isActive()) {
-            this.#drag.cancel();
-        }
+        this.#abortOngoingOperation();
 
         this.currentMode = mode;
 
         this.model.clearSelection();
         this.model.clearHovered();
-
-        if (this.state !== InputState.IDLE) {
-            this.model.cancelDraft();
-            this.state = InputState.IDLE;
-        }
 
         this.#updateCursor();
     }
@@ -284,7 +279,7 @@ export class InputTracker {
      * cancelDraft()で破棄してIDLE状態へ戻す。
      * 操作モード・選択集合・ホバー状態・カーソル形状は変更しない（図形作成モード中に呼ばれても
      * モードは'create'のまま維持される）。
-     * @param {'line'|'curve'|'arc'|'rect'|'circle'} type 切り替え先の図形種別（SHAPE_TYPESのいずれか）
+     * @param {string} type 切り替え先の図形種別（SHAPE_TYPESのいずれか）
      */
     setShapeType(type) {
         if (!SHAPE_TYPES.includes(type)) {
@@ -310,13 +305,13 @@ export class InputTracker {
 
     /**
      * 現在記憶している図形種別を返す。UI側がバリデーション後の実際の内部状態を読み返して表示を同期するために用いる。
-     * @returns {'line'|'curve'|'arc'|'rect'|'circle'} 現在の図形種別（SHAPE_TYPESのいずれか）
+     * @returns {string} 現在の図形種別（SHAPE_TYPESのいずれか）
      */
     getShapeType() {
         return this.currentShapeType;
     }
 
-    // ---- 公開API（状態依存の操作：削除・取消・全選択） ----
+    // ---- 公開API（状態依存の操作：削除・取消・全選択・中断） ----
 
     /**
      * ドラッグ中かを返す。ドラッグ中＝パン・左ドラッグ（ハンドルドラッグ・本体ドラッグ・範囲選択）の
@@ -395,6 +390,51 @@ export class InputTracker {
 
         this.model.setSelection(this.model.getShapes().map((shape) => shape.id));
         return true;
+    }
+
+    /**
+     * 進行中の入力操作を強制中断する。図形一式の入れ替え（VectorModel.replaceAllShapes）の前処理として、
+     * 作業データの復元時にmain.jsから呼ばれる。Phase 03-02（Undo/Redo）でも「履歴適用の前処理」として再利用する前提である。
+     * 受理条件：常に受け付ける（どの操作モード・入力状態からでも呼べる。何も進行していなければ何もしない）。
+     * 中断するもの（setModeの中断処理と同一。#abortOngoingOperation()）：
+     * ・パン・左ドラッグ（ハンドルドラッグ・本体ドラッグ・範囲選択。閾値以前を含む）のドラッグセッション。
+     *   範囲選択は選択矩形を破棄して確定しない。ドラッグ中に反映済みの頂点・位置は取り消さず残る。
+     * ・作成途中の図形（cancelDraft()で破棄してIDLE状態へ戻す）。
+     * 変更しないもの：操作モード・図形種別・選択集合・ホバー状態（これらのクリアは呼び出し側・replaceAllShapesの責務）、
+     * スペース押下状態（キーの物理状態であり進行中操作ではないため）。
+     * 最後にカーソル形状を再評価する。
+     * @returns {boolean} 何かを中断したらtrue（何も進行していなければfalse）
+     */
+    abortOngoingOperation() {
+        const aborted = this.#abortOngoingOperation();
+        this.#updateCursor();
+        return aborted;
+    }
+
+    /**
+     * 進行中の入力操作の中断処理の本体（setMode・abortOngoingOperationが共用する）。以下の順に処理する。
+     * (1)ドラッグセッション（パン・左ドラッグ。閾値以前を含む）中であればDragTracker.cancel()で中断する
+     * （onCancel経由で、パンは#finishPan()、左ドラッグは#onLeftDragCancel()によりIDLEへ戻る）。
+     * (2)なおIDLE以外の状態（DRAWING。作成途中のままパンしていた場合を含む）であれば、cancelDraft()で作成途中の図形を
+     * 破棄してIDLE状態へ戻す。
+     * カーソル形状の再評価は呼び出し側で行う（setModeはモード更新後に1回だけ評価するため）。
+     * @returns {boolean} 何かを中断したらtrue
+     */
+    #abortOngoingOperation() {
+        let aborted = false;
+
+        if (this.#drag.isActive()) {
+            this.#drag.cancel();
+            aborted = true;
+        }
+
+        if (this.state !== InputState.IDLE) {
+            this.model.cancelDraft();
+            this.state = InputState.IDLE;
+            aborted = true;
+        }
+
+        return aborted;
     }
 
     // ---- イベントハンドラ（キャンバス・document・windowの購読先） ----
@@ -654,7 +694,7 @@ export class InputTracker {
      * 直前カーソル座標lastCursor）、DRAGGING_HANDLEなら操作対象のハンドル名・図形idも記憶してnextStateへ遷移し、
      * カーソル形状を更新する。閾値以内では図形・選択矩形は変化しない。
      * 追従（onMove）は#applyLeftDragUpdate、開始（onStart）は#onLeftDragStart、
-     * 終了（onEnd：左ボタンの解放）は#onLeftDragEnd、中断（onCancel：blur・setMode）は#onLeftDragCancelが担う。
+     * 終了（onEnd：左ボタンの解放）は#onLeftDragEnd、中断（onCancel：blur・setMode・abortOngoingOperation）は#onLeftDragCancelが担う。
      * @param {MouseEvent} event ドラッグを開始したmousedownイベント
      * @param {'DRAGGING_HANDLE'|'MOVING_SELECTION'|'MARQUEE_SELECTING'} nextState 遷移先の状態（InputStateの値）
      * @param {{x: number, y: number}} point 押下点（ワールド座標）
@@ -748,7 +788,7 @@ export class InputTracker {
     }
 
     /**
-     * 左ドラッグの中断処理（DragTrackerのonCancel：window blur・setModeによる強制中断）。
+     * 左ドラッグの中断処理（DragTrackerのonCancel：window blur・setMode・abortOngoingOperationによる強制中断）。
      * MARQUEE_SELECTINGなら選択矩形を破棄するのみで選択集合は変更しない（確定しない）。その後#finishLeftDragで後始末する。
      */
     #onLeftDragCancel() {
@@ -809,7 +849,7 @@ export class InputTracker {
      * 選択モード中のホバー表示が古いまま残らないようホバー状態をクリアして、カーソルをgrabbingにする。
      * 追従（onMove）では現在位置と直前位置の差分（スクリーン座標。キャンバス外でもキャンバス左上基準）を
      * ViewTransform.panBy()へ渡す（再描画通知は同クラスが担う）。開始ボタンの解放（onEnd）・
-     * blur/setModeによる中断（onCancel）で#finishPan()する。
+     * blur/setMode/abortOngoingOperationによる中断（onCancel）で#finishPan()する。
      * InputState（DRAWING状態）・作成途中図形には触れない。
      * DragTrackerがセッション中で開始できなかった場合は何もしない。
      * @param {MouseEvent} event パンを開始したmousedownイベント
@@ -835,7 +875,7 @@ export class InputTracker {
     }
 
     /**
-     * パンの終了処理。DragTrackerのonEnd（開始ボタンの解放）・onCancel（blur・setModeによる中断）から呼ばれる。
+     * パンの終了処理。DragTrackerのonEnd（開始ボタンの解放）・onCancel（blur・setMode・abortOngoingOperationによる中断）から呼ばれる。
      * パン中フラグを解除し、カーソル形状を再評価する（click抑止フラグの管理はDragTrackerが担う）。
      */
     #finishPan() {

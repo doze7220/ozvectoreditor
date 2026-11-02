@@ -1,5 +1,6 @@
 /**
- * 責務: 円・楕円・弧のデータ保持・Canvasへの描画処理・当たり判定を担う。
+ * 責務: 円・楕円・弧のデータ保持・Canvasへの描画処理・当たり判定、
+ * および図形データとの相互変換を担う。
  */
 
 /**
@@ -9,6 +10,24 @@
  */
 const ELLIPSE_INTERSECT_SEGMENTS = 100;
 
+/**
+ * 円・弧の図形データ（1図形のJSON表現・バージョン1）が持つ頂点数。
+ * @type {number}
+ */
+const ELLIPSE_POINT_COUNT = 5;
+
+/**
+ * 本クラスが扱う図形種別（`fromJSON`の`type`検証に用いる）。
+ * @type {ReadonlyArray<string>}
+ */
+const ELLIPSE_TYPES = Object.freeze(['circle', 'arc']);
+
+/**
+ * 円・弧の図形クラス（図形種別`'circle'`|`'arc'`。`type`で振る舞いを分岐する）。頂点は`points[0]`＝中心、`[1]`＝右端制御点、
+ * `[2]`＝上端制御点、`[3]`＝開始角制御点、`[4]`＝終了角制御点。開始角・終了角は`type`から決まり、図形データには保存しない。
+ * 共通メソッド契約（12メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON）を自律実装する。座標はすべてワールド座標。
+ */
 export class Ellipse {
     /**
      * @param {number} x1 - 中心のX座標（1回目クリック地点）
@@ -23,7 +42,7 @@ export class Ellipse {
         /** @type {string|number|null} 図形の一意なID。外部（VectorModel）から設定される。 */
         this.id = null;
         
-        /** @type {string} 図形の種別（'circle' または 'arc'）。内部判定でのみ用いる。 */
+        /** @type {string} 図形種別（`ShapeFactory`が受理する文字列と一致）。'circle'|'arc'で振る舞いも分岐する。 */
         this.type = shapeType;
         
         /** @type {number} 描画開始角度（常に0固定） */
@@ -388,5 +407,85 @@ export class Ellipse {
             }
         }
         return true;
+    }
+
+    /**
+     * 自身を図形データ（1図形のJSON表現・バージョン1）へ変換する（共通メソッド契約の第11メソッド）。
+     * 形（キー順もこの順）: `{ type: 'circle'|'arc', id, points: [中心{x, y}, 右端制御点{x, y}, 上端制御点{x, y}, 開始角制御点{x, y}, 終了角制御点{x, y}], strokeColor, strokeWidth }`。
+     * 座標はワールド座標。`points`は各頂点を新規オブジェクトとして複製するため、戻り値と自身は内部配列・頂点を共有しない。
+     * `startAngle`/`endAngle`は出力しない（現状は`type`から一意に決まる固定値のため。
+     * 弧の角度編集を実装する際に保存対象へ加え、作業データ形式の版番号を上げること）。
+     * `id`が`null`（作成中の図形など）の場合もそのまま出力する。
+     * `JSON.stringify(ellipse)`でも本メソッドの戻り値が出力される。
+     * @returns {{type: string, id: (string|number|null), points: {x: number, y: number}[], strokeColor: string, strokeWidth: number}} 新しい図形データ
+     */
+    toJSON() {
+        return {
+            type: this.type,
+            id: this.id,
+            points: this.points.map((point) => ({ x: point.x, y: point.y })),
+            strokeColor: this.strokeColor,
+            strokeWidth: this.strokeWidth,
+        };
+    }
+
+    /**
+     * 図形データ（`toJSON()`の形）から円・弧を復元する（共通メソッド契約の第12メソッド）。
+     * 中心と`type`でコンストラクタを仮生成して`startAngle`/`endAngle`を`type`から求めた後、
+     * 5頂点を`data`の座標値から新規オブジェクトとして設定し直す。
+     * `points[3]`/`[4]`（開始角・終了角制御点）も再計算せず`data`の値をそのまま採用する
+     * （往復で`toJSON()`の内容を一致させるため。描画・当たり判定は`points[0..2]`と角度のみに依存し、
+     * 不整合な値でも次のハンドル操作で正準位置へ再計算される）。
+     * 座標・色・太さ・種別を`data`の値どおりに復元し、角度は`type`から同一値に決まるため、`toJSON()`の出力から
+     * 復元した図形は描画・当たり判定・頂点操作・`toJSON()`の結果が元の図形と一致する（往復の一致）。
+     * `id`は検証せず`data.id`をそのまま保持する（欠落なら`undefined`）。idの正規化・振り直しは
+     * 図形一式を管理する`VectorModel`の責務であり、図形クラスはidの規則を知らないため。
+     * `data`内の配列・頂点オブジェクトは流用しない。余分なプロパティ（`startAngle`等を含む）は無視する。
+     * 例外の捕捉は行わない（呼び出し側の`DocumentSerializer`が図形単位で捕捉する）。
+     * @param {Object} data - 図形データ（プレーンオブジェクト）
+     * @returns {Ellipse} 復元した円・弧
+     * @throws {Error} `data`がプレーンオブジェクトでない／`type`が`'circle'`・`'arc'`のいずれでもない／
+     *     `points`が5要素の配列でない／頂点がオブジェクトでないか`x`・`y`が有限の数値でない／
+     *     `strokeColor`が文字列でない／`strokeWidth`が有限の数値でないか0以下の場合
+     */
+    static fromJSON(data) {
+        Ellipse.#validateData(data);
+        const center = data.points[0];
+        const ellipse = new Ellipse(center.x, center.y, center.x, center.y, data.type, data.strokeColor, data.strokeWidth);
+        ellipse.points = data.points.map((point) => ({ x: point.x, y: point.y }));
+        ellipse.id = data.id;
+        return ellipse;
+    }
+
+    /**
+     * `fromJSON`の入力検証を行う。違反があれば「`Ellipse.fromJSON: 理由`」形式のメッセージで`Error`をthrowする。
+     * `strokeWidth`の0以下を不正とするのは、Canvasが0以下の`lineWidth`代入を無視して直前の値が残り、
+     * 描画結果が前に描いた図形に依存してしまうため。
+     * 契約メソッドではない内部ヘルパー（同等のロジックをshapes/の各図形クラスが個別に持つ）。
+     * @param {*} data - 検証対象の図形データ
+     * @throws {Error} 図形データとして不正な場合（条件は`fromJSON`を参照）
+     */
+    static #validateData(data) {
+        const fail = (reason) => {
+            throw new Error(`Ellipse.fromJSON: ${reason}`);
+        };
+        const isPlainObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+
+        if (!isPlainObject(data)) fail('図形データがオブジェクトではありません');
+        if (!ELLIPSE_TYPES.includes(data.type)) {
+            fail(`図形種別が'circle'・'arc'のいずれでもありません（${String(data.type)}）`);
+        }
+        if (!Array.isArray(data.points) || data.points.length !== ELLIPSE_POINT_COUNT) {
+            fail(`pointsが${ELLIPSE_POINT_COUNT}要素の配列ではありません`);
+        }
+        data.points.forEach((point, index) => {
+            if (!isPlainObject(point) || !Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+                fail(`points[${index}]のx・yが有限の数値ではありません`);
+            }
+        });
+        if (typeof data.strokeColor !== 'string') fail('strokeColorが文字列ではありません');
+        if (!Number.isFinite(data.strokeWidth) || data.strokeWidth <= 0) {
+            fail('strokeWidthが正の有限の数値ではありません');
+        }
     }
 }

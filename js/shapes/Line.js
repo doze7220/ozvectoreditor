@@ -1,5 +1,17 @@
 /**
- * 責務: 直線のデータ保持・Canvasへの描画処理・当たり判定を担う。
+ * 責務: 直線のデータ保持・Canvasへの描画処理・当たり判定、および図形データとの相互変換を担う。
+ */
+
+/**
+ * 直線の図形データ（1図形のJSON表現・バージョン1）が持つ頂点数。
+ * @type {number}
+ */
+const LINE_POINT_COUNT = 2;
+
+/**
+ * 直線の図形クラス（図形種別`'line'`）。頂点は`x1, y1`＝始点、`x2, y2`＝終点として保持する。
+ * 共通メソッド契約（12メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON）を自律実装する。座標はすべてワールド座標。
  */
 export class Line {
     /**
@@ -11,6 +23,8 @@ export class Line {
      * @param {number} [strokeWidth=2] - 線の太さ
      */
     constructor(x1, y1, x2, y2, strokeColor = '#000000', strokeWidth = 2) {
+        /** @type {string} 図形種別（`ShapeFactory`が受理する文字列と一致） */
+        this.type = 'line';
         /** @type {string|number|null} 図形の一意なID。採番ロジックは持たず、外部（VectorModel）から設定される。 */
         this.id = null;
         this.x1 = x1;
@@ -232,5 +246,78 @@ export class Line {
         ctx.strokeStyle = 'rgba(74, 144, 226, 0.4)';
         ctx.lineWidth = this.strokeWidth + 6 / viewScale;
         ctx.stroke();
+    }
+
+    /**
+     * 自身を図形データ（1図形のJSON表現・バージョン1）へ変換する（共通メソッド契約の第11メソッド）。
+     * 形（キー順もこの順）: `{ type: 'line', id, points: [始点{x, y}, 終点{x, y}], strokeColor, strokeWidth }`。
+     * 座標はワールド座標。`points`は内部表現（x1, y1, x2, y2）から新規に組み立てるため、戻り値と自身は状態を共有しない。
+     * `id`が`null`（作成中の図形など）の場合もそのまま出力する。
+     * `JSON.stringify(line)`でも本メソッドの戻り値が出力される。
+     * @returns {{type: string, id: (string|number|null), points: {x: number, y: number}[], strokeColor: string, strokeWidth: number}} 新しい図形データ
+     */
+    toJSON() {
+        return {
+            type: this.type,
+            id: this.id,
+            points: [
+                { x: this.x1, y: this.y1 },
+                { x: this.x2, y: this.y2 },
+            ],
+            strokeColor: this.strokeColor,
+            strokeWidth: this.strokeWidth,
+        };
+    }
+
+    /**
+     * 図形データ（`toJSON()`の形）から直線を復元する（共通メソッド契約の第12メソッド）。
+     * 座標・色・太さ・種別を`data`の値どおりに復元するため、`toJSON()`の出力から復元した図形は
+     * 描画・当たり判定・頂点操作・`toJSON()`の結果が元の図形と一致する（往復の一致）。
+     * `id`は検証せず`data.id`をそのまま保持する（欠落なら`undefined`）。idの正規化・振り直しは
+     * 図形一式を管理する`VectorModel`の責務であり、図形クラスはidの規則を知らないため。
+     * `data`内の配列・頂点オブジェクトは流用せず、座標値をコピーした新しい状態を持つ。余分なプロパティは無視する。
+     * 例外の捕捉は行わない（呼び出し側の`DocumentSerializer`が図形単位で捕捉する）。
+     * @param {Object} data - 図形データ（プレーンオブジェクト）
+     * @returns {Line} 復元した直線
+     * @throws {Error} `data`がプレーンオブジェクトでない／`type`が`'line'`でない／`points`が2要素の配列でない／
+     *     頂点がオブジェクトでないか`x`・`y`が有限の数値でない／`strokeColor`が文字列でない／
+     *     `strokeWidth`が有限の数値でないか0以下の場合
+     */
+    static fromJSON(data) {
+        Line.#validateData(data);
+        const [start, end] = data.points;
+        const line = new Line(start.x, start.y, end.x, end.y, data.strokeColor, data.strokeWidth);
+        line.id = data.id;
+        return line;
+    }
+
+    /**
+     * `fromJSON`の入力検証を行う。違反があれば「`Line.fromJSON: 理由`」形式のメッセージで`Error`をthrowする。
+     * `strokeWidth`の0以下を不正とするのは、Canvasが0以下の`lineWidth`代入を無視して直前の値が残り、
+     * 描画結果が前に描いた図形に依存してしまうため。
+     * 契約メソッドではない内部ヘルパー（同等のロジックをshapes/の各図形クラスが個別に持つ）。
+     * @param {*} data - 検証対象の図形データ
+     * @throws {Error} 図形データとして不正な場合（条件は`fromJSON`を参照）
+     */
+    static #validateData(data) {
+        const fail = (reason) => {
+            throw new Error(`Line.fromJSON: ${reason}`);
+        };
+        const isPlainObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+
+        if (!isPlainObject(data)) fail('図形データがオブジェクトではありません');
+        if (data.type !== 'line') fail(`図形種別が'line'ではありません（${String(data.type)}）`);
+        if (!Array.isArray(data.points) || data.points.length !== LINE_POINT_COUNT) {
+            fail(`pointsが${LINE_POINT_COUNT}要素の配列ではありません`);
+        }
+        data.points.forEach((point, index) => {
+            if (!isPlainObject(point) || !Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+                fail(`points[${index}]のx・yが有限の数値ではありません`);
+            }
+        });
+        if (typeof data.strokeColor !== 'string') fail('strokeColorが文字列ではありません');
+        if (!Number.isFinite(data.strokeWidth) || data.strokeWidth <= 0) {
+            fail('strokeWidthが正の有限の数値ではありません');
+        }
     }
 }

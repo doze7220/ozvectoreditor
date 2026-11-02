@@ -1,5 +1,5 @@
 /**
- * 責務：Canvas要素への純粋な描画処理（背景グリッド・選択矩形を含む）のみを担う。
+ * 責務：Canvas要素への純粋な描画処理（背景グリッド・原点表示・選択矩形を含む）のみを担う。
  * 描画変換は引数で受け取ったビュー変換値から毎フレーム設定し、状態は保持しない。
  */
 
@@ -43,6 +43,30 @@ const GRID_MINOR_COLOR = 'rgba(0, 0, 0, 0.06)';
 const GRID_MAJOR_COLOR = 'rgba(0, 0, 0, 0.14)';
 
 /**
+ * 軸線（ワールド座標の`x = 0`・`y = 0`の直線）の色。グリッドの太線（`GRID_MAJOR_COLOR`）より濃くして区別する。
+ * @type {string}
+ */
+const ORIGIN_AXIS_COLOR = 'rgba(0, 0, 0, 0.32)';
+
+/**
+ * 原点マーク（ワールド座標(0, 0)の十字と円）の色。
+ * @type {string}
+ */
+const ORIGIN_MARK_COLOR = 'rgba(0, 0, 0, 0.6)';
+
+/**
+ * 原点マークの十字の全長（スクリーン座標のCSSピクセル）。描画時に`÷ view.scale`して画面上一定にする。
+ * @type {number}
+ */
+const ORIGIN_MARK_SIZE = 12;
+
+/**
+ * 原点マークの円の半径（スクリーン座標のCSSピクセル）。描画時に`÷ view.scale`して画面上一定にする。
+ * @type {number}
+ */
+const ORIGIN_MARK_RADIUS = 3;
+
+/**
  * 選択矩形（範囲選択中の表示）の線の色。
  * @type {string}
  */
@@ -66,6 +90,10 @@ const SELECTION_RECT_LINE_WIDTH = 1;
  */
 const SELECTION_RECT_DASH = Object.freeze([4, 3]);
 
+/**
+ * Canvasへの描画を行うクラス。render()の引数（図形の配列・表示状態・ビュー変換値）のみから毎回描画し、
+ * 図形データ・選択状態などのアプリケーション状態は保持しない（保持するのはCanvas要素・2Dコンテキスト・dprのみ）。
+ */
 export class CanvasManager {
     /**
      * `resize()`で算出したデバイスピクセル比（dpr）。
@@ -114,12 +142,12 @@ export class CanvasManager {
     }
 
     /**
-     * 画面をクリアし、背景グリッドと指定された図形リストを全て描画する。
+     * 画面をクリアし、背景グリッド・原点表示と指定された図形リストを全て描画する。
      * 状態の判定は一切行わず、渡された引数（hoveredId / selectedIds / draftLine / selectionRect / view）を
      * そのまま描画に反映するだけの純粋なレンダラーとして振る舞う。
      * 描画変換は毎フレーム`setTransform`で「dpr × ビュー変換」を明示設定する（累積させない）。
      * 図形・選択矩形はワールド座標で描画される。
-     * 描画順：背景グリッド → (1)全図形の draw（＋ホバー中図形の drawHover）
+     * 描画順：背景グリッド → 軸線・原点マーク → (1)全図形の draw（＋ホバー中図形の drawHover）
      * → (2)選択集合に含まれる図形の drawHandles（図形配列の順。後ろの図形ほど前面）
      * → (3)作成中の図形 → (4)選択矩形。
      * ハンドルを全図形の描画後にまとめて描くのは、複数選択時に前面の図形が背面図形のハンドルを覆い隠さないためである。
@@ -151,6 +179,9 @@ export class CanvasManager {
 
         // 3. 背景グリッド（図形の背面）
         this.#drawGrid(view);
+
+        // 3-2. 軸線・原点マーク（グリッドの前面・図形の背面）
+        this.#drawOrigin(view);
 
         // 4. 各Shapeの通常描画に加え、ホバー中の強調描画をポリモーフィックに呼び出す
         for (const shape of shapes) {
@@ -215,8 +246,7 @@ export class CanvasManager {
      * - 線幅は`1 / view.scale`（ワールド長）とし、画面上で常に1px相当にする。
      * - 間引き規則：細線間隔は`GRID_BASE_SPACING`（ワールド長10）から開始し、画面上の間隔が
      *   `GRID_MIN_SCREEN_SPACING`（8px）未満の間は10倍ずつ繰り上げる。太線間隔は細線間隔の10倍。
-     * - 可視範囲は現在の描画変換の逆行列でバッファ四隅をワールド座標へ写して求める
-     *   （スクリーン⇔ワールドの変換式をここに重複させないため）。
+     * - 可視範囲は`#getVisibleWorldBounds()`で求める（原点表示と共用）。
      * - スタイル（線幅・色）は`save()`/`restore()`で後続の描画へ残さない。
      * @param {{scale: number, offsetX: number, offsetY: number}} view - ビュー変換値（offsetはスクリーン座標）
      */
@@ -233,22 +263,81 @@ export class CanvasManager {
         }
         const major = minor * 10;
 
-        // 可視範囲（ワールド座標）：バッファ四隅を描画変換の逆行列で写す
-        const inverse = this.ctx.getTransform().inverse();
-        const p0 = inverse.transformPoint(new DOMPoint(0, 0));
-        const p1 = inverse.transformPoint(new DOMPoint(this.canvas.width, this.canvas.height));
-        const bounds = {
-            minX: Math.min(p0.x, p1.x),
-            maxX: Math.max(p0.x, p1.x),
-            minY: Math.min(p0.y, p1.y),
-            maxY: Math.max(p0.y, p1.y)
-        };
+        const bounds = this.#getVisibleWorldBounds();
 
         this.ctx.save();
         this.ctx.lineWidth = 1 / scale;
         this.#strokeGridLines(minor, bounds, GRID_MINOR_COLOR);
         this.#strokeGridLines(major, bounds, GRID_MAJOR_COLOR);
         this.ctx.restore();
+    }
+
+    /**
+     * ワールド座標の軸線（`x = 0`・`y = 0`）と原点マーク（(0, 0)の十字＋円）を描画する。
+     * 呼び出し時点でワールド座標の描画変換が設定済みであることを前提とする。
+     * - 軸線：`x = 0`が可視範囲内ならY軸、`y = 0`が可視範囲内ならX軸を、可視範囲の端から端まで描く。
+     * - 原点マーク：十字（全長`ORIGIN_MARK_SIZE`px）と円（半径`ORIGIN_MARK_RADIUS`px）。
+     *   可視範囲外でも描画命令は発行する（数本のパスのみで、はみ出し分はCanvasが切り捨てる）。
+     * - 線幅・十字の長さ・円の半径は`÷ view.scale`し、画面上で一定（線幅1px）にする。
+     * - スタイル（線幅・色）は`save()`/`restore()`で後続の描画へ残さない。
+     * @param {{scale: number, offsetX: number, offsetY: number}} view - ビュー変換値（offsetはスクリーン座標）
+     */
+    #drawOrigin(view) {
+        const scale = view.scale;
+        if (!(scale > 0) || !Number.isFinite(scale)) {
+            return;
+        }
+        const { minX, maxX, minY, maxY } = this.#getVisibleWorldBounds();
+
+        this.ctx.save();
+        this.ctx.lineWidth = 1 / scale;
+
+        // 軸線（可視範囲に入っている軸のみ）
+        this.ctx.beginPath();
+        if (minX <= 0 && 0 <= maxX) {
+            this.ctx.moveTo(0, minY);
+            this.ctx.lineTo(0, maxY);
+        }
+        if (minY <= 0 && 0 <= maxY) {
+            this.ctx.moveTo(minX, 0);
+            this.ctx.lineTo(maxX, 0);
+        }
+        this.ctx.strokeStyle = ORIGIN_AXIS_COLOR;
+        this.ctx.stroke();
+
+        // 原点マーク（十字＋円。サイズは画面上一定）
+        const half = ORIGIN_MARK_SIZE / 2 / scale;
+        const radius = ORIGIN_MARK_RADIUS / scale;
+        this.ctx.beginPath();
+        this.ctx.moveTo(-half, 0);
+        this.ctx.lineTo(half, 0);
+        this.ctx.moveTo(0, -half);
+        this.ctx.lineTo(0, half);
+        this.ctx.moveTo(radius, 0);
+        this.ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        this.ctx.strokeStyle = ORIGIN_MARK_COLOR;
+        this.ctx.stroke();
+
+        this.ctx.restore();
+    }
+
+    /**
+     * 画面に見えている範囲（描画バッファ全体）をワールド座標の軸平行矩形として返す。
+     * 現在の描画変換の逆行列でバッファの対角2隅をワールド座標へ写して求める
+     * （スクリーン⇔ワールドの変換式を重複させないため。描画変換は拡大縮小＋平行移動のみのため対角2隅で足りる）。
+     * 呼び出し時点でワールド座標の描画変換が設定済みであることを前提とする。状態は持たない。
+     * @returns {{minX: number, maxX: number, minY: number, maxY: number}} 可視範囲（ワールド座標）
+     */
+    #getVisibleWorldBounds() {
+        const inverse = this.ctx.getTransform().inverse();
+        const p0 = inverse.transformPoint(new DOMPoint(0, 0));
+        const p1 = inverse.transformPoint(new DOMPoint(this.canvas.width, this.canvas.height));
+        return {
+            minX: Math.min(p0.x, p1.x),
+            maxX: Math.max(p0.x, p1.x),
+            minY: Math.min(p0.y, p1.y),
+            maxY: Math.max(p0.y, p1.y)
+        };
     }
 
     /**

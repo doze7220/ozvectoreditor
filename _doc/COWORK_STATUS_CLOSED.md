@@ -305,3 +305,29 @@
 * `COWORK_STATUS.md` 2章の未解決事項を、A（Phase 3候補）／B（テストプレイ待ち）／C（条件付き将来）の3区分に再整理。旧区分「A. 次の『UI・操作充実フェイズ』へ持ち越し」「B. さらに将来のPhaseへ先送り」と、Phase02-00時点の割り当てメモ（2026-10-06）は廃止。
 * 【解決】`PROJECT_ARCHITECTURE.md`の既存記述のズレ（Phase02-02由来）：2章ShapeData共通プロパティ（`type`/`color`/`isFilled`/`points`は実在せず、実際の共通プロパティは`id`/`strokeColor`/`strokeWidth`、`Line`は`x1/y1/x2/y2`）、3章1.起動処理の列挙漏れ（`ViewTransform`/`WindowManager`/`PaletteController`/`KeyboardShortcuts`）、3章2.の`requestAnimationFrame`描画ループ記述（実装はイベント駆動の同期再描画）、4章`WindowManager`の「ツール状態」表記、4章の記載形式の混在（`main.js`・`InputTracker`をサブ項目形式に統一）を、`PROJECT_PHASE_TRANSITION_CLEANUP.md`の資料監査で修正。
 * `_log/req`・`_log/res`・`_log/dir`のPhase 2関連ファイル（REQ 4件・RES 4件・DIR 1件）を`closed/`へ`git mv`でアーカイブ。
+
+---
+
+### Phase03-01「シリアライズ契約」（クローズ日：2026-11-03）
+* DIR: `_log/dir/261101_2154_DIR_Phase03-00_Editing_Foundation.md`（Phase 03-01節）
+* REQ: `_log/req/261101_2257_REQ_Phase03-01_Serialization_Contract.md`
+* RES: `_log/res/261102_0003_RES_Phase03-01_Serialization_Contract.md`（全11タスク、PlanningUpdate・Interruptなし。タスク8に追加仕様あり）
+
+| 項目 | 結論 | 対応箇所 |
+| ---- | ---- | -------- |
+| 図形種別（`type`）の持たせ方 | 全図形クラスに`type`プロパティを持たせ、値は`ShapeFactory`の受理文字列と一致（`Ellipse`は既存の`'circle'`/`'arc'`を維持）。発注者決定 | REQ要件1 / タスク1・2 |
+| `Line`の頂点保持形式 | 内部は`x1/y1/x2/y2`のまま、図形データ（JSON）のみ`points`2点に揃えた。内部の`points`化はパスPhaseで検討。発注者決定 | REQ要件1・2 / タスク1 |
+| 図形種別一覧の多重管理（Phase02-01由来・DIR持ち越し） | `ShapeFactory.js`の対応表`SHAPE_REGISTRY`を正本とし`SHAPE_TYPES`を導出・export。`InputTracker`は再export（`KeyboardShortcuts`は無変更）、`PaletteController`は種別一覧を引数で受け取りid規則`palette-${type}`で照合し、不整合を`console.warn`。`index.html`のボタンは静的記述のまま | REQ要件1 / タスク3・4 |
+| `ShapeFactory.create()`の例外を呼び出し元が捕捉しない件（Phase01由来・DIR持ち越し） | `create()`の仕様は変えず（プログラムの誤りとして例外のまま）。種別一覧の一本化で受理種別と対応表の食い違いが構造上起きなくなったため解消とした。JSONからの復元は例外を結果オブジェクトへ変換 | REQ要件2・4 / タスク3・5 |
+| 図形のシリアライズ契約 | 共通メソッド契約を10→12メソッドに拡張（`toJSON()`・`static fromJSON(data)`）。図形データは`{type, id, points, strokeColor, strokeWidth}`。`Ellipse`の角度は保存しない。`id`は`fromJSON`で検証しない。`strokeWidth`の0以下は不正 | REQ要件2 / タスク1・2 |
+| 版番号とマイグレーションの置き場所 | `io/DocumentSerializer.js`を新設。最上位は`{format: "oz-vector-editor", version: 1, shapes}`。マイグレーション表（版n→n+1、引数を書き換えない）と版の追加手順を同ファイルに置く。保存対象は図形データのみ（選択・ホバー・ビュー変換は含めない） | REQ要件3 / タスク5 |
+| 未知の図形種別の伝え方 | デシリアライズは例外を出さず結果オブジェクト（`ok`/`shapes`/`skipped`/`error`）を返し、不正な図形のみスキップ。図形単位の`try/catch`は1箇所。03-01時点の伝え方は確認用ウィンドウと`console.warn` | REQ要件4 / タスク5・8 |
+| 図形一式の入れ替えとidの扱い | `VectorModel.replaceAllShapes`を新設（idは保存値を使い、欠落・重複は振り直し、`#nextId`を繰り上げ、採番は`#issueId()`に一本化）。入れ替え前の中断用に`InputTracker.abortOngoingOperation()`を新設（`setMode`と中断処理を共用。新旧30通りの比較で最終状態の同一性を確認） | REQ要件5 / タスク6 |
+| 確認用の操作手段 | `?dev`時のみ表示する確認用ウィンドウ（`palette/DevPanel.js`＋`index.html`の静的DOM）。`window`への公開はしない。本アプリ初のテキスト入力欄として誤作動防止を確認（自動確認できなかったテンキー・IME・Space残留・コピー＆ペーストは発注者のテストプレイで問題報告なし） | REQ要件6 / タスク8 |
+| 原点(0, 0)の表示 | `CanvasManager`にグリッドの直後・図形の背面で軸線（画面上1px）と原点マーク（十字＋円、画面上一定）を追加。可視範囲の計算を共用化し、グリッドの描画結果が不変であることを描画命令522通り・画素比較で確認。初期表示の原点位置（左上）は変更しない（発注者決定） | REQ要件7 / タスク7 |
+| `PROJECT_ARCHITECTURE.md`の反映 | 1〜4章を更新。コード追従記述（文言・定数値・コメント位置）は除外するよう指示して反映 | タスク11 |
+
+**未解決のまま次に持ち越した項目**（`COWORK_STATUS.md`側で追跡中。ここには含めない）:
+* 後続サブフェイズへの申し送り（03-02：中断手段の再利用・通知順、03-03：インスタンス重複時のid・既存図形と合わせたid振り直し、03-04：`×`ボタン・確認用ウィンドウの扱い、03-05：一般利用者向けの通知UI） → `COWORK_STATUS.md` 2章P3
+* `VectorModel`クラスJSDocの「生成・復元」表記 → 古いJSDoc・用語の修正Interruptにまとめる
+* 開発資料の記述量の増加 → Phase 3クローズ時の資料監査
