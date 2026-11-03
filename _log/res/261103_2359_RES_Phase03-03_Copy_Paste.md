@@ -188,7 +188,7 @@ main.js ──生成・注入──▶ ClipboardController ──insertDocument�
 *   **4章に新項目`edit/`**: `ShapeInserter.js`・`ClipboardController.js`の責務・公開API・前提（選択モード・ドラッグ中でない）・依存の制約（DOM・図形種別・id形式を知らない、`InputTracker`に依存しない）。
 
 ## 3. タスクリスト
-*   [ ] タスク1: `VectorModel`に新しいidで図形を追加する公開操作を追加
+*   [x] タスク1: `VectorModel`に新しいidで図形を追加する公開操作を追加
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js` :（更新）
     *   **作業内容** :
@@ -262,7 +262,13 @@ main.js ──生成・注入──▶ ClipboardController ──insertDocument�
 
 ### タスク1: `VectorModel`に新しいidで図形を追加する公開操作を追加
 *   **作業内容** :
-    *   （未実施）
+    *   `./js/core/VectorModel.js`：`replaceAllShapes`の直後に公開メソッド`addShapesWithNewIds(shapes)`を追加した。
+        *   既存の`#shapes`のインスタンスを入れた`Set`と、処理済みインスタンスの`Set`（いずれもインスタンス参照）で重複を判定し、該当要素は`console.warn`のうえスキップする。
+        *   それ以外は引数の順に`shape.id = this.#issueId()`で上書きして`#shapes`の末尾へ`push`し、新しいidを戻り値の配列へ積む（id形式を組み立てる処理は新たに書いていない）。
+        *   追加0件なら何も変更せず（通知もせず）空配列を返す。1件以上なら`#selectedIds = new Set(追加したid)`で選択集合を置き換え、`#notifyChange()`を1回呼んで追加したidの配列（描画順）を返す。ホバー・作成中の図形・選択矩形には触れない。
+        *   JSDocに、効果（末尾＝最前面へ引数の順で追加）・idの上書きと衝突しない理由（`#nextId`の単調増加）・重複インスタンスの除外・追加した図形だけを選択する規則・通知回数・戻り値・前提（呼び出し側が選択モードを保証）・`id`の代入以外で図形に触れないことを記載した。
+    *   `#issueId()`のJSDocの採番箇所の列挙を「commitDraft・replaceAllShapes・addShapesWithNewIds」に更新した。`#nextId`のJSDocには採番箇所の列挙が元々なかったため、「#issueId()による採番（commitDraft・replaceAllShapes・addShapesWithNewIds）で1ずつ増える」の1行を追記した。
+    *   先頭行の責務JSDoc・クラスJSDocは実態と一致しているため変更していない。図形種別の分岐・図形固有のプロパティ名は持ち込んでいない。`node --check`で構文エラーがないことを確認した。他ファイルは変更していない。
 
 ### タスク2: `ShapeInserter`の新設
 *   **作業内容** :
@@ -288,6 +294,7 @@ main.js ──生成・注入──▶ ClipboardController ──insertDocument�
 * **新設フォルダ`js/edit/`**: `core/`から`io/`をimportしない方針と、`io/`に編集手順を混ぜない判断から新設した（2章「置き場所の判断理由」）。Phase 03-04で`main.js`の`captureSnapshot`/`restoreSnapshot`を切り出す際も、`DocumentSerializer`と`VectorModel`を組み合わせる処理であるため、同じ`edit/`が置き場所の候補になる。
 * **貼り付け・複製の前提は呼び出し側の責務**: `ShapeInserter`・`ClipboardController`は操作モードを知らない。選択モード以外で`insertDocument`を呼ぶと「選択集合は選択モード以外では常に空」の不変条件が崩れるため、Phase 03-05のインポートで再利用する際は、呼び出し側で先に選択モードへの切り替え（`applyMode`）と進行中の入力操作の中断を行うこと。
 * **既存の`VectorModel.addShape(shape)`との併存**: `VectorModel`には、id採番を通らず`#shapes`へ追加するだけの既存公開メソッド`addShape(shape)`（呼び出し元なし）があり、本作業後は追加の公開操作が`addShape`と`addShapesWithNewIds`の2つ並ぶ。貼り付け・複製・インポート等で図形を追加する場合は必ず`addShapesWithNewIds`を使い、`addShape`は使わないこと（idの重複・未採番を防ぐため）。`addShape`の扱い（削除等）は本作業の範囲外とする。
+* **`addShapesWithNewIds`は引数の図形インスタンスの`id`を書き換える（タスク1）**: 受け取ったインスタンスをそのまま`#shapes`へ保持し`id`を上書きするため、呼び出し側は追加後にそのインスタンスを他の用途（別キャンバスへの追加等）に流用しないこと。`ShapeInserter`は毎回`deserialize`で新しいインスタンスを作るため問題ない。また、重複判定はインスタンス参照のみで行い、id文字列の値では判定しない（idは常に上書きするため不要）。
 * **スキップの扱い**: `insertDocument`は一部がスキップされても読めた図形を追加する（貼り付け・複製では通常起きない）。インポートでスキップを利用者へ通知する方法はPhase 03-05で決める（戻り値の`skipped`で取得できる）。
 * **`Ctrl`+`C`/`X`のキーリピート**: `repeatable: false`のため押しっぱなしの2回目以降は実行されないが、`ctrl: true`の既存例外により`preventDefault()`は行われる（選択集合が空の場合でも、2回目以降はブラウザ標準のコピーが起きない）。実害はない想定だが、ページ上の文字を押しっぱなしでコピーする操作は通常ないため許容する。
 * **`main.js`の行数**: 約416行になる見込み。Phase 03-04の切り出し検討（`_doc/COWORK_STATUS.md` 2章P3【03-04へ】）の際に考慮すること。

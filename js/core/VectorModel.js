@@ -64,6 +64,7 @@ export class VectorModel {
 
     /**
      * @type {number} 図形id採番用の連番カウンタ（次に#issueId()が発行する連番）。
+     * #issueId()による採番（commitDraft・replaceAllShapes・addShapesWithNewIds）で1ずつ増える。
      * 単調増加し、減らさない。replaceAllShapesでは、保持したidのうち採番形式（`shape-<連番>`。
      * 連番がNumber.isSafeIntegerのもの）の最大連番をnとして max(現在値, n + 1) へ繰り上げる
      * （以後に発行するidが保持idと衝突しないため）。
@@ -386,6 +387,45 @@ export class VectorModel {
     }
 
     /**
+     * 指定した図形を、新しいidを採番したうえで#shapesの末尾（最前面）へ引数の順に追加し、
+     * 追加した図形だけを選択する（貼り付け・複製・インポート等で図形を追加する場合の公開操作）。
+     * (1)idの上書き：追加する各図形の`id`を常に#issueId()で発行した新しいidで上書きする（引数の図形のidは引き継がない）。
+     *    #nextIdは単調増加で減らさないため、キャンバス上の既存図形のidとも、過去に発行したidとも衝突しない。
+     * (2)重複インスタンスの除外：引数内で2回目以降に現れるインスタンス、および既に#shapesに含まれるインスタンスは、
+     *    同じidを持つ2要素を作らないためconsole.warnのうえ追加しない（判定はインスタンス参照で行う）。
+     * (3)選択集合を、追加した図形のidの集合で置き換える（追加した図形だけが選択される）。
+     *    ホバー状態・作成中の図形・選択矩形には触れない。
+     * (4)1件以上追加した場合のみ変更を通知する（1回。図形数分は発行しない）。0件なら何も変更しない。
+     * 図形インスタンスには`id`の代入以外で触れない（頂点・図形固有のプロパティ・図形種別を関知しない）。
+     * 前提：呼び出し側が選択モードであることを保証すること（選択集合は選択モード以外では常に空という不変条件を守るため）。
+     * @param {Array<Object>} shapes 追加する図形の配列（描画順。共通インターフェースを持つ図形インスタンス）
+     * @returns {Array<string>} 追加した図形の新しいidの配列（描画順。追加0件なら空配列）
+     */
+    addShapesWithNewIds(shapes) {
+        const existingShapes = new Set(this.#shapes);
+        const processedShapes = new Set();
+        const addedIds = [];
+        for (const shape of shapes) {
+            if (existingShapes.has(shape) || processedShapes.has(shape)) {
+                console.warn('VectorModel.addShapesWithNewIds: 既に追加済みの図形インスタンスのため追加しません。', shape);
+                continue;
+            }
+            processedShapes.add(shape);
+            shape.id = this.#issueId();
+            this.#shapes.push(shape);
+            addedIds.push(shape.id);
+        }
+
+        if (addedIds.length === 0) {
+            return addedIds;
+        }
+
+        this.#selectedIds = new Set(addedIds);
+        this.#notifyChange();
+        return addedIds;
+    }
+
+    /**
      * データ変更時に呼び出されるコールバック関数を登録する。
      * @param {Function} callback 登録するコールバック関数
      */
@@ -397,7 +437,7 @@ export class VectorModel {
 
     /**
      * 新しい図形idを1つ発行する（`shape-<連番>`。発行のたびに#nextIdを1増やす）。
-     * 図形idの採番はすべてこのメソッドを経由する（commitDraft・replaceAllShapes）。
+     * 図形idの採番はすべてこのメソッドを経由する（commitDraft・replaceAllShapes・addShapesWithNewIds）。
      * @returns {string} 発行した図形id
      * @private
      */
