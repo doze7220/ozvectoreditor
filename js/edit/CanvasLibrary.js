@@ -1,5 +1,5 @@
 /**
- * 責務：キャンバス一覧の管理（起動時の復元・開く・新規作成・切り替え処理・開いているキャンバスの自動保存・保存失敗の状態）を担う。DOMに触れない。
+ * 責務：キャンバス一覧の管理（起動時の復元・開く・新規作成・名前の変更・削除・切り替え処理・開いているキャンバスの自動保存・保存失敗の状態）を担う。DOMに触れない。
  */
 import { DocumentSerializer } from '../io/DocumentSerializer.js';
 
@@ -18,6 +18,14 @@ const AUTOSAVE_DELAY_MS = 500;
 const UNTITLED_NAME_PREFIX = '無題 ';
 
 /**
+ * キャンバス名の最大文字数（`Array.from`で数えた文字数。サロゲートペアを1文字と数える）。
+ * 名前の変更で、前後の空白を除いた名前がこれを超える場合は先頭からこの文字数に切り詰めて受理する。
+ * 唯一の定義箇所（exportしない）。
+ * @type {number}
+ */
+const CANVAS_NAME_MAX_LENGTH = 100;
+
+/**
  * キャンバスの要約：キャンバス一覧（メモリ上）の1件。作業データは保持しない。
  * @typedef {Object} CanvasSummary
  * @property {string} id キャンバスの識別子（`canvas-<Date.now()の36進>-<Math.randomの36進8文字>`。形式は本クラスに閉じる）
@@ -29,7 +37,7 @@ const UNTITLED_NAME_PREFIX = '無題 ';
  * 利用者に示す保存・読み込みの問題（最後に起きたものを1つだけ保持する）。
  *   - `'unavailable'`: 起動時に保存先を開けない・一覧を読み出せない。メモリ上だけのキャンバスで編集を続ける。
  *     開く・新規作成（・名前の変更・削除）を受け付けず、自動保存も行わない。解除しない。
- *   - `'writeFailed'`: 自動保存・新規作成の記録・最後に開いていたキャンバスの識別子の書き込みに失敗した。
+ *   - `'writeFailed'`: 自動保存・新規作成の記録・名前の変更・削除・最後に開いていたキャンバスの識別子の書き込みに失敗した。
  *     次に自動保存が成功した時点で解除する。
  *   - `'loadFailed'`: 開こうとしたキャンバスの作業データが全体として読み込めない・記録が見つからない。
  *     次の切り替えの成功で解除する（読み込みに失敗して別のキャンバスを開いた場合は残す）。
@@ -41,7 +49,7 @@ const UNTITLED_NAME_PREFIX = '無題 ';
  * `getState()`の戻り値（毎回新しいオブジェクト）。CanvasPalette・main.jsの表示同期が読み取る。
  * @typedef {Object} CanvasLibraryState
  * @property {boolean} loading 起動時の読み込み中か（`start()`の完了まで真。`start()`の呼び出し前も真）
- * @property {boolean} busy 開く・新規作成・起動時の復元などの処理中か（処理中は新たな操作を受け付けない）
+ * @property {boolean} busy 開く・新規作成・名前の変更・削除・起動時の復元の処理中か（処理中は新たな操作を受け付けない）
  * @property {boolean} canManage キャンバスの管理操作ができるか（`'unavailable'`でない）
  * @property {string|null} openCanvasId 開いているキャンバスの識別子（読み込み完了前は`null`）
  * @property {string|null} openCanvasName 開いているキャンバスの名前（読み込み完了前は`null`）
@@ -53,7 +61,7 @@ const UNTITLED_NAME_PREFIX = '無題 ';
 
 /**
  * キャンバス一覧の管理クラス。ブラウザ内に保存された複数のキャンバスのうち1枚を開き、
- * 開く・新規作成・切り替え・自動保存を行う。main.jsが1つだけ生成する。
+ * 開く・新規作成・名前の変更・削除・切り替え・自動保存を行う。main.jsが1つだけ生成する。
  *
  * ■ キャンバス記録と保存しないもの
  *   - 保存単位は記録`{ id, name, updatedAt, document }`（typedefは`io/CanvasStorage.js`の`CanvasRecord`）。
@@ -71,7 +79,11 @@ const UNTITLED_NAME_PREFIX = '無題 ';
  *   - 通知のたびに保留中のタイマーを張り直し、最後の通知から`AUTOSAVE_DELAY_MS`後に1回保存する。
  *   - 予約しない条件：開いているキャンバスが無い（読み込み完了前）／`'unavailable'`／`#isSwitching`が真。
  *   - ページ非表示時の確定：main.jsが`visibilitychange`（hidden）・`pagehide`で`flushPendingSave()`を呼ぶ
- *     （本クラスは`document`・`window`のイベントを購読しない）。
+ *     （本クラスは`document`・`window`のイベントを購読しない）。保留中の保存の作業データの取得と書き込みの呼び出しは
+ *     `flushPendingSave()`内で同期的に行われる。
+ *   - 書き込み中の保存：タイマーが発火して書き込み中（`putRecord`の完了待ち）の自動保存は`#inFlightSave`に保持する。
+ *     `flushPendingSave()`は保留中のタイマーが無くても書き込み中の保存があればその完了を待って成否を返すため、
+ *     切り替え処理の手順2は書き込み中の保存の失敗でも切り替えを中止する（保存できていない変更を画面から消さない）。
  *
  * ■ 非同期保存と切り替えの順序の保証
  *   1. 保存の作業データは呼び出し時点で同期的に取得し、予約時点のキャンバスidと一致する場合のみ、そのidの記録へ書く。
@@ -85,7 +97,8 @@ const UNTITLED_NAME_PREFIX = '無題 ';
  * ■ 切り替え処理（開く・新規作成・起動時の復元が共通して通る手順）
  *   1. `prepareSwitch()`（実体は選択モードへの切り替え。進行中の入力操作を中断し、作成途中の図形は破棄。
  *      本体ドラッグ・ハンドル操作で動かした分は1件の編集操作として記録され、自動保存が予約される）。
- *   2. 切り替え前のキャンバスの保留中の保存を`await flushPendingSave()`で確定する。失敗したら切り替えを中止する
+ *   2. 切り替え前のキャンバスの保留中の保存を`await flushPendingSave()`で確定する（タイマー待ちの保存は直ちに書き、
+ *      書き込み中の保存はその完了を待つ）。失敗したら切り替えを中止する
  *      （開いているキャンバスのまま。`'writeFailed'`。保存できていない変更を画面から消さないため）。
  *   3. 切り替え先の読み込み（開く：記録の取得→`deserialize`。記録が無い・全体失敗なら中止して`'loadFailed'`。
  *      新規作成：記録を作成して書き込む。失敗しても中止せず`'writeFailed'`として開く（次の自動保存で記録が作られる））。
@@ -127,9 +140,32 @@ const UNTITLED_NAME_PREFIX = '無題 ';
  * ■ 新規キャンバスの命名規則
  *   - 「無題 1」「無題 2」…のうち、キャンバス一覧の名前と一致しない最小の番号。`'unavailable'`時のメモリ上のキャンバスも同じ規則。
  *
+ * ■ 名前の変更（`renameCanvas(id, rawName)`）
+ *   - 対象は一覧の任意のキャンバス。受理条件：読み込み中・処理中・`'unavailable'`でない、`id`が一覧にある、
+ *     `rawName`が文字列で、前後の空白を除いて空でない（キャンセルは呼び出し側で何も呼ばない）。
+ *   - `CANVAS_NAME_MAX_LENGTH`（100文字）を超える場合は先頭100文字（`Array.from`でサロゲートペアを分断しない）に切り詰めて受理する。
+ *     変更後の名前が現在の名前と同じなら書き込まない（`false`）。名前の重複は許す。
+ *   - 受理時はメモリ上の要約の名前を更新して通知し、保存先は名前のみ書き換える（`renameRecord`）。失敗時は`'writeFailed'`
+ *     （メモリ上の名前は新しいまま。開いているキャンバスなら次の自動保存で記録の名前も揃う）。
+ *   - 最終更新日時は更新しない（図形一式の変更ではなく、一覧の並び（最終更新日時の新しい順）が名前の変更で入れ替わると
+ *     押そうとした行が動いて紛らわしいため）。
+ *
+ * ■ 削除（`deleteCanvas(id)`）
+ *   - 対象は一覧の任意のキャンバス。受理条件：読み込み中・処理中・`'unavailable'`でない、`id`が一覧にある（確認の小窓は呼び出し側）。
+ *   - 開いていないキャンバス：記録を削除し、成功で一覧から除いて通知する。失敗なら`'writeFailed'`で一覧に残す。
+ *     開いているキャンバス・図形一式・履歴・自動保存には触れない。
+ *   - 開いているキャンバス：(1)`prepareSwitch()` (2)保留中の保存を破棄（確定しない）(3)`#isSwitching = true`
+ *     (4)記録を削除。失敗したら`#isSwitching = false`へ戻して中止し（開いているキャンバスのまま。`'writeFailed'`）、
+ *     破棄した保留分と削除の`await`中の編集を保存するため自動保存を予約し直す（記録は残っているため、そのキャンバス自身へ書く）
+ *     (5)成功したら一覧から除き、残りを最終更新日時の新しい順に読み込みを試して最初に読めたものを開く（切り替え処理の手順3〜6。
+ *     手順2は不要）。1枚も残らない・すべて読めない場合は新しい空のキャンバスを作成して開く。
+ *   - 削除したキャンバスの記録が復活しない理由：保留中の保存は(2)で破棄され、削除の開始から削除後の切り替え処理の手順5の終わり
+ *     （`#enterCanvas`内）までの予約は`#isSwitching`で止められ（それ以降の予約は新しく開いたキャンバスのidで行われる）、
+ *     削除前に生成済みの書き込みは削除より先に実行される（生成順）。削除のために`#openCanvasId`を`null`にする処理は設けない。
+ *
  * ■ 処理中の直列化
- *   - 開く・新規作成・起動時の復元は`#isBusy`で直列化し、処理中・読み込み中・`'unavailable'`では新たな操作を受け付けない
- *     （`false`で解決）。処理中もキャンバスの編集は止めない（手順4で整合を取る）。
+ *   - 開く・新規作成・名前の変更・削除・起動時の復元は`#isBusy`で直列化し、処理中・読み込み中・`'unavailable'`では
+ *     新たな操作を受け付けない（`false`で解決）。処理中もキャンバスの編集は止めない（手順4で整合を取る）。
  *
  * ■ 公開メソッドのPromise
  *   - rejectしない（内部で捕捉して`console.warn`＋`issue`）。
@@ -224,6 +260,14 @@ export class CanvasLibrary {
      * @type {string|null}
      */
     #pendingSaveCanvasId = null;
+
+    /**
+     * 書き込み中（`putRecord`の完了待ち）の自動保存の`Promise`（書き込み中でなければ`null`）。
+     * `#saveOpenCanvasNow()`が書き込みを開始したときに設定し、完了時（成功・失敗とも）に、それが自分自身である場合のみ`null`へ戻す
+     * （後から開始した保存で上書きされていれば戻さない）。`flushPendingSave()`が、保留中のタイマーが無いときにその完了を待つために使う。
+     * @type {Promise<boolean>|null}
+     */
+    #inFlightSave = null;
 
     /**
      * 状態の変化時に呼び出すリスナーの配列。
@@ -399,15 +443,104 @@ export class CanvasLibrary {
     }
 
     /**
-     * 保留中の自動保存があれば直ちに確定する（main.jsがページ非表示時に呼ぶ。切り替え処理の手順2でも使う）。
-     * 作業データの取得と書き込みの呼び出しは本メソッド内で同期的に行われる。保留が無ければ`true`で解決する。rejectしない。
+     * キャンバスの名前を変更する（クラスJSDocの「名前の変更」参照）。
+     * 受理条件：読み込み中・処理中・`'unavailable'`でない、`id`が一覧にある、`rawName`が文字列で前後の空白を除いて空でない。
+     * `CANVAS_NAME_MAX_LENGTH`を超える名前は先頭から切り詰めて受理する（切り詰めで末尾に残った空白も除く）。
+     * 変更後の名前が現在の名前と同じなら書き込まず`false`。受理時はメモリ上の名前を更新して通知し、保存先の名前のみを書き換える
+     * （最終更新日時は変えない）。書き込みの失敗・記録が無い場合は`console.warn`＋`'writeFailed'`（メモリ上の名前は新しいまま）。
+     * rejectしない。
+     * @param {string} id 名前を変更するキャンバスの識別子
+     * @param {*} rawName 利用者が入力した名前（前後の空白を除いて使う）
+     * @returns {Promise<boolean>} 名前を変更したか（保存先への書き込みに失敗した場合も、メモリ上で変更していれば`true`）
+     */
+    async renameCanvas(id, rawName) {
+        if (!this.#canAcceptOperation() || !this.#summaries.has(id) || typeof rawName !== 'string') {
+            return false;
+        }
+        const trimmed = rawName.trim();
+        if (trimmed === '') {
+            return false;
+        }
+        const name = Array.from(trimmed).slice(0, CANVAS_NAME_MAX_LENGTH).join('').trimEnd();
+        const summary = this.#summaries.get(id);
+        if (!summary || name === summary.name) {
+            return false;
+        }
+        this.#isBusy = true;
+        this.#summaries.set(id, { ...summary, name });
+        this.#notifyChange();
+        try {
+            let renamed;
+            try {
+                renamed = await this.#storage.renameRecord(id, name);
+            } catch (error) {
+                console.warn('CanvasLibrary: キャンバスの名前の保存に失敗しました。', id, error);
+                this.#setIssue('writeFailed');
+                return true;
+            }
+            if (renamed !== true) {
+                console.warn('CanvasLibrary: 名前を変更するキャンバスの記録が見つかりません。', id);
+                this.#setIssue('writeFailed');
+            }
+            return true;
+        } catch (error) {
+            console.warn('CanvasLibrary: 名前の変更で予期しないエラーが発生しました。', error);
+            return true;
+        } finally {
+            this.#isBusy = false;
+            this.#notifyChange();
+        }
+    }
+
+    /**
+     * キャンバスを削除する（クラスJSDocの「削除」参照）。
+     * 受理条件：読み込み中・処理中・`'unavailable'`でない、`id`が一覧にある。受理しなければ何もせず`false`。
+     * 開いていないキャンバスは記録を削除して一覧から除く（開いているキャンバス・図形一式・履歴・自動保存には触れない）。
+     * 開いているキャンバスは、保留中の保存を破棄し`#isSwitching = true`にしてから記録を削除し、成功したら残りのうち
+     * 最終更新日時の新しい順で最初に読めたものを開く（無ければ新しい空のキャンバスを作成して開く）。
+     * 削除に失敗した場合は`console.warn`＋`'writeFailed'`で一覧に残し（開いているキャンバスなら`#isSwitching = false`へ戻して
+     * 自動保存を予約し直す）、`false`。rejectしない。
+     * @param {string} id 削除するキャンバスの識別子
+     * @returns {Promise<boolean>} 削除したか
+     */
+    async deleteCanvas(id) {
+        if (!this.#canAcceptOperation() || !this.#summaries.has(id)) {
+            return false;
+        }
+        this.#isBusy = true;
+        this.#notifyChange();
+        try {
+            if (id !== this.#openCanvasId) {
+                return await this.#deleteClosedCanvas(id);
+            }
+            return await this.#deleteOpenCanvas(id);
+        } catch (error) {
+            console.warn('CanvasLibrary: キャンバスの削除で予期しないエラーが発生しました。', error);
+            return false;
+        } finally {
+            this.#isBusy = false;
+            this.#notifyChange();
+        }
+    }
+
+    /**
+     * 保留中の自動保存・書き込み中の自動保存を確定する（main.jsがページ非表示時に呼ぶ。切り替え処理の手順2でも使う）。
+     *   - 保留中のタイマーがあれば直ちに`#saveOpenCanvasNow()`で保存し、その結果を返す（作業データの取得と書き込みの呼び出しは
+     *     本メソッド内で同期的に行われる。ページ非表示時の確定はこれに依存する）。
+     *   - タイマーが無く書き込み中の保存（`#inFlightSave`）があれば、その完了を待って成否を返す（タイマーが発火して書き込み中の
+     *     保存の失敗でも、切り替え処理の手順2が切り替えを中止できるようにするため）。
+     *   - どちらも無ければ`true`で解決する。
+     * rejectしない。
      * @returns {Promise<boolean>} 保存が成功した（または保存すべきものが無かった）か
      */
     flushPendingSave() {
-        if (this.#pendingSaveTimer === null) {
-            return Promise.resolve(true);
+        if (this.#pendingSaveTimer !== null) {
+            return this.#saveOpenCanvasNow();
         }
-        return this.#saveOpenCanvasNow();
+        if (this.#inFlightSave !== null) {
+            return this.#inFlightSave;
+        }
+        return Promise.resolve(true);
     }
 
     /**
@@ -501,6 +634,9 @@ export class CanvasLibrary {
      * 破棄して`true`（別のキャンバスの記録へ書かない防御）。一致すれば同期的に記録を組み立てて書き込みを呼び
      * （トランザクションはこの時点で生成される）、要約の最終更新日時を更新して通知する。
      * 書き込み成功で`'writeFailed'`を解除して通知、失敗で`console.warn`＋`'writeFailed'`＋通知。rejectしない。
+     * 書き込みを開始したときに、その完了を表す`Promise`を`#inFlightSave`へ設定し、完了時（成功・失敗とも）に`#inFlightSave`が
+     * それ自身である場合のみ`null`へ戻す（`flushPendingSave()`が書き込み中の保存の完了を待てるようにするため）。
+     * 書くべきものが無く破棄した場合は`#inFlightSave`に触れない。
      * @returns {Promise<boolean>} 書き込みに成功した（または書くべきものが無かった）か
      */
     #saveOpenCanvasNow() {
@@ -534,8 +670,9 @@ export class CanvasLibrary {
         this.#summaries.set(canvasId, { ...summary, updatedAt });
         this.#notifyChange();
 
-        return writing.then(
+        const saving = writing.then(
             () => {
+                this.#finishInFlightSave(saving);
                 if (this.#issue === 'writeFailed') {
                     this.#setIssue(null);
                     this.#notifyChange();
@@ -543,16 +680,91 @@ export class CanvasLibrary {
                 return true;
             },
             (error) => {
+                this.#finishInFlightSave(saving);
                 console.warn('CanvasLibrary: キャンバスの自動保存に失敗しました。', canvasId, error);
                 this.#setIssue('writeFailed');
                 this.#notifyChange();
                 return false;
             }
         );
+        this.#inFlightSave = saving;
+        return saving;
+    }
+
+    /**
+     * 書き込み中の自動保存の完了時に呼ぶ：`#inFlightSave`が完了した保存自身である場合のみ`null`へ戻す
+     * （後から開始した保存で上書きされていれば、そちらの完了を待てるよう残す）。
+     * @param {Promise<boolean>} saving 完了した保存の`Promise`（`#saveOpenCanvasNow()`の戻り値）
+     * @returns {void}
+     */
+    #finishInFlightSave(saving) {
+        if (this.#inFlightSave === saving) {
+            this.#inFlightSave = null;
+        }
+    }
+
+    /**
+     * 開いていないキャンバスを削除する（`deleteCanvas`の一部。`#isBusy`の設定・解除と最後の通知は呼び出し側）。
+     * 記録を削除し、成功で一覧から除いて通知する。失敗なら`console.warn`＋`'writeFailed'`で一覧に残す。
+     * 開いているキャンバス・図形一式・履歴・自動保存には触れない。
+     * @param {string} id 削除するキャンバスの識別子（開いているキャンバスでないこと）
+     * @returns {Promise<boolean>} 削除したか
+     */
+    async #deleteClosedCanvas(id) {
+        try {
+            await this.#storage.deleteRecord(id);
+        } catch (error) {
+            console.warn('CanvasLibrary: キャンバスの削除に失敗しました。', id, error);
+            this.#setIssue('writeFailed');
+            return false;
+        }
+        this.#summaries.delete(id);
+        this.#notifyChange();
+        return true;
+    }
+
+    /**
+     * 開いているキャンバスを削除し、残りのキャンバスへ切り替える（`deleteCanvas`の一部。`#isBusy`の設定・解除と最後の通知は呼び出し側）。
+     * 手順：(1)`prepareSwitch()` (2)保留中の保存を破棄（確定しない）(3)`#isSwitching = true`（削除後の切り替え処理の手順5の終わり
+     * （`#enterCanvas`内）で`false`に戻る）(4)記録を削除。失敗したら`#isSwitching = false`へ戻して中止し、`'writeFailed'`とし、
+     * 破棄した保留分と`await`中の編集を保存するため`#scheduleSave()`で予約し直す (5)成功したら一覧から除き、残りを最終更新日時の
+     * 新しい順に`#openFirstLoadable`で開く（作業データは保存先から取得。読めるものが無ければ新しい空のキャンバスを作成して開く）。
+     * @param {string} id 削除するキャンバスの識別子（開いているキャンバスであること）
+     * @returns {Promise<boolean>} 削除したか
+     */
+    async #deleteOpenCanvas(id) {
+        // (1)
+        this.#prepareSwitch();
+        // (2)
+        if (this.#pendingSaveTimer !== null) {
+            clearTimeout(this.#pendingSaveTimer);
+            this.#pendingSaveTimer = null;
+        }
+        this.#pendingSaveCanvasId = null;
+        // (3)
+        this.#isSwitching = true;
+        // (4)
+        try {
+            await this.#storage.deleteRecord(id);
+        } catch (error) {
+            this.#isSwitching = false;
+            console.warn('CanvasLibrary: キャンバスの削除に失敗しました。', id, error);
+            this.#setIssue('writeFailed');
+            this.#scheduleSave();
+            return false;
+        }
+        // (5)
+        this.#summaries.delete(id);
+        await this.#openFirstLoadable(this.#sortedSummaries(), async (summary) => {
+            const record = await this.#storage.getRecord(summary.id);
+            return record ? record.document : null;
+        });
+        return true;
     }
 
     /**
      * 切り替え処理の手順1〜2：進行中の入力操作を中断して選択モードへ切り替え、切り替え前のキャンバスの保留中の保存を確定する。
+     * タイマー待ちの保存は直ちに書き、書き込み中の保存はその完了を待つ（`flushPendingSave()`）。
      * 保存に失敗した場合は`false`（呼び出し側は切り替えを中止する。`'writeFailed'`は`#saveOpenCanvasNow()`が設定済み）。
      * @returns {Promise<boolean>} 切り替えを続けてよいか
      */

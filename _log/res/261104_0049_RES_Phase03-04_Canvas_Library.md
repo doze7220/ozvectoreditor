@@ -92,7 +92,8 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
 * **保留中の保存**: privateフィールド`#pendingSaveTimer`（タイマーid または`null`）と`#pendingSaveCanvasId`（予約時点の開いているキャンバスのid）。
   * 予約しない条件：開いているキャンバスがない（起動時の読み込み完了前。`#openCanvasId === null`）／`'unavailable'`／`#isSwitching`が真（切り替え処理の同期区間・開いているキャンバスの削除中）。
 * **保存の実行（private`#saveOpenCanvasNow(): Promise<boolean>`）**: タイマーを解除し、`#pendingSaveCanvasId`が現在の`#openCanvasId`と一致しなければ破棄して`true`（別のキャンバスの記録へ書かない防御）。一致すれば、**同期的に**`{ id, name（メモリ上の現在名）, updatedAt: Date.now(), document: DocumentSerializer.serialize(model.getShapes()) }`を組み立てて`storage.putRecord`を呼び（トランザクションはこの時点で生成される）、メモリ上の要約の`updatedAt`を更新して変更通知する。書き込み成功で`'writeFailed'`を解除して通知、失敗で`console.warn`＋`'writeFailed'`＋通知。戻り値は成功したか。
-* **ページ非表示時の確定**: `main.js`が`document`の`visibilitychange`（`document.visibilityState === 'hidden'`のとき）と`window`の`pagehide`で`canvasLibrary.flushPendingSave()`を呼ぶ。`flushPendingSave(): Promise<boolean>`は保留中の保存があれば直ちに`#saveOpenCanvasNow()`を呼ぶ（作業データの取得と`putRecord`の呼び出しはハンドラ内で同期的に行われる）。保留が無ければ`true`で解決する。`CanvasLibrary`自体は`document`・`window`のイベントを購読しない（DOMに触れないため）。
+* **ページ非表示時の確定**: `main.js`が`document`の`visibilitychange`（`document.visibilityState === 'hidden'`のとき）と`window`の`pagehide`で`canvasLibrary.flushPendingSave()`を呼ぶ。`flushPendingSave(): Promise<boolean>`は保留中の保存があれば直ちに`#saveOpenCanvasNow()`を呼ぶ（作業データの取得と`putRecord`の呼び出しはハンドラ内で同期的に行われる）。保留が無ければ`true`で解決する。
+* **書き込み中の保存（タスク4の追加仕様による）**: privateフィールド`#inFlightSave`（書き込み中＝`putRecord`の完了待ちの自動保存の`Promise<boolean>`、または`null`）を持つ。`#saveOpenCanvasNow()`が書き込みを開始したときに設定し、完了時（成功・失敗とも）に、それが自分自身である場合のみ`null`へ戻す。`flushPendingSave()`は、保留中のタイマーがあれば従来どおり直ちに保存してその結果を返し、タイマーが無く書き込み中の保存があればその完了を待って成否を返し、どちらも無ければ`true`を返す。これにより、タイマーが発火して書き込み中の保存が失敗した場合も切り替え処理の手順2で切り替えを中止する。ページ非表示時の確定（保存の開始が同期的に行われる点）と手順4の扱いは変わらない。`CanvasLibrary`自体は`document`・`window`のイベントを購読しない（DOMに触れないため）。
 * **名前の変更**: その時点で`storage.renameRecord(id, name)`で名前のみを保存する。**最終更新日時は更新しない**（理由：図形一式の変更ではなく、一覧の並び（最終更新日時の新しい順）が名前の変更で入れ替わると押そうとした行が動いて紛らわしいため）。
 * **非同期保存と切り替えの順序の保証**:
   1. 保存の作業データは呼び出し時点で同期的に取得し、予約時点のキャンバスidと一致する場合のみ、そのidの記録へ書く。
@@ -128,7 +129,7 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
 * **置き場所**: `CanvasLibrary`のprivateメソッド。手順1〜2を`async`のprivate`#prepareLeave()`、手順4〜6を同期のprivate`#enterCanvas(summary, shapes)`に分ける（`await`を挟まない区間を明確にするため）。
 * **手順（順序）**:
   1. **進行中の入力操作の中断と選択モードへの切り替え**: 注入された`prepareSwitch()`（実体`applyMode(OperationMode.SELECT)`。`InputTracker.setMode`の強制中断で作成途中の図形は破棄。**ドラッグ中の扱い（決定）**: パン・範囲選択は中断、本体ドラッグ・ハンドル操作は既存の`setMode`の仕様どおり、そこまでの移動・変形を残したまま中断され1件の編集操作として記録される → 自動保存が予約され、手順2で切り替え前のキャンバスへ保存される）。
-  2. **切り替え前のキャンバスの保留中の保存の確定**: `await flushPendingSave()`。失敗した場合は**切り替えを中止**する（開いているキャンバスのまま。`'writeFailed'`。保存できていない変更を画面から消さないため）。
+  2. **切り替え前のキャンバスの保留中の保存の確定**: `await flushPendingSave()`（タイマー待ちの保存は直ちに書き、書き込み中の保存はその完了を待つ。タスク4の追加仕様による）。失敗した場合（書き込み中だった保存の失敗を含む）は**切り替えを中止**する（開いているキャンバスのまま。`'writeFailed'`。保存できていない変更を画面から消さないため）。
   3. **切り替え先の読み込み**（開く：`await storage.getRecord(id)`→`deserialize`。`null`・`ok: false`なら中止して`'loadFailed'`。新規作成：記録を作成して`await storage.putRecord`。失敗しても中止せず`'writeFailed'`として開く（次の自動保存で記録が作成される））。
   4. **同期区間の開始**（ここから手順6まで`await`を挟まない）: もう一度`prepareSwitch()`を呼び（`await`中に始まった作成途中の図形・ドラッグを中断する）、保留中の保存があれば`#saveOpenCanvasNow()`を呼んで切り替え前のキャンバスへ書く（完了は待たない。生成順で反映される）。**手順2との違い（決定）**：手順2は書き込みの失敗で切り替えを中止するが、手順4は失敗しても切り替えを続ける。理由：手順4は`await`を挟まない同期区間のため完了を待てない（待つと区間が途切れ、`await`中の編集の取りこぼしを防ぐ目的が崩れる）。また手順4で書くのは手順2〜3の`await`中に行われた編集のみ（それ以前の変更は手順2で書き込み済み）であり、書き込みに失敗した場合は`#saveOpenCanvasNow()`の失敗処理により`console.warn`＋`'writeFailed'`で示す（その分の変更は切り替え前のキャンバスに保存されない可能性がある）。続けて`#isSwitching = true`とし、**図形一式の入れ替え**`model.replaceAllShapes(shapes)`（図形のidは記録されたものを保持する既存仕様）。
   5. **履歴のリセット**`historyManager.clear()`（切り替えそのものは編集操作として記録しない。`beginEdit`/`commitEdit`を呼ばない）→ **ビュー変換を初期表示へ**`resetView()`（実体`viewTransform.reset()`）→ `#isSwitching = false`。
@@ -290,7 +291,7 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
         *   切り替え処理の手順4は保留中の保存を`#saveOpenCanvasNow()`で書くが完了を待たず、失敗しても切り替えを続ける（手順2は失敗で中止。2章要件4の「手順2との違い」）。
         *   JSDocに次を記載する：キャンバス記録と保存しないもの／キャンバスの識別子の形式（本クラスに閉じる）／自動保存の契機（`historyManager.onChange`。選択・ホバー・パン・ズームでは保存しない）と待ち時間とページ非表示時の確定（`flushPendingSave`は`main.js`から呼ばれる）／非同期保存と切り替えの順序の保証（2章要件2の1〜4）／起動時に開くキャンバスの決定規則と読み込み完了前の操作の扱い（`loading`の間は`main.js`が覆い要素でキャンバスへのマウス入力を止める前提。本クラスは読み込み中の操作を受理しない）／`#isSwitching`の意味（自動保存の予約を止める区間と、`true`にする2箇所。`false`へ戻すのは切り替え処理の手順5の終わり（`#enterCanvas`内）と削除の中止時）／壊れた作業データ・一部スキップの扱い／切り替え処理の手順1〜6（履歴のリセット・ビュー変換の初期化・切り替えを編集操作として記録しない・クリップボードに触れない（段数もリセットしない））／手順2と手順4の保存の失敗時の違いとその理由（手順4は`await`を挟まない同期区間のため待てない。手順4で書くのは手順2〜3の`await`中に行われた編集のみで、失敗時は`'writeFailed'`で示す）／新規キャンバスの命名規則／処理中の直列化／`issue`の種類と解除条件。
         *   図形種別の分岐・図形固有のプロパティ名・図形のid形式を持たないこと（作業データは不透明に扱う）。本タスクでは他ファイルを変更しない（未使用のためアプリの起動・動作は変わらない）。
-*   [ ] タスク4: `CanvasLibrary`への名前の変更・削除の追加
+*   [x] タスク4: `CanvasLibrary`への名前の変更・削除の追加
     *   **対象ファイル** :
         *   `./js/edit/CanvasLibrary.js` :（更新）
     *   **作業内容** :
@@ -391,8 +392,19 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
     *   他ファイルは変更していない（未使用のためアプリの動作は変わらない）。`node --check`で構文確認し、スクラッチのNodeスクリプト（保存先・Model・履歴のスタブ）で起動→自動保存→新規作成→開くの基本経路が動くことを確認した。
 
 ### タスク4: `CanvasLibrary`への名前の変更・削除の追加
+*   **対象ファイル** : `./js/edit/CanvasLibrary.js`（更新）、本RES（更新）
 *   **作業内容** :
-    *   (未実施)
+    *   先頭行の責務JSDocを計画の案どおり更新（名前の変更・削除を追加。1行）。モジュール定数`CANVAS_NAME_MAX_LENGTH = 100`（exportしない）を追加。
+    *   typedef`CanvasIssue`の`'writeFailed'`の説明に名前の変更・削除を、`CanvasLibraryState.busy`の説明に名前の変更・削除を追加。クラスJSDocに「名前の変更」「削除」の節（受理条件・最大文字数・最終更新日時を変えない理由・開いているキャンバスを削除した場合の挙動・削除したキャンバスの記録が復活しない理由）を追加し、「処理中の直列化」に名前の変更・削除を加えた。`#isSwitching`の節（true にする2箇所・false へ戻す2箇所）とは矛盾しないことを確認した（変更なし）。
+    *   公開API`renameCanvas(id, rawName)`：受理条件は`#canAcceptOperation()`・`id`が一覧にある・`rawName`が文字列・前後の空白を除いて空でない。`Array.from`で先頭100文字に切り詰め、その後`trimEnd()`（切り詰めで末尾に残った空白を除く）。現在名と同じなら`false`。受理時は`#isBusy = true`・要約の名前を更新して通知 → `await storage.renameRecord`。例外・`false`なら`console.warn`＋`'writeFailed'`。`finally`で`#isBusy = false`＋通知。戻り値はメモリ上で名前を変更したら`true`（保存先への書き込み失敗時も`true`。JSDocに記載）。最終更新日時は変えない。
+    *   公開API`deleteCanvas(id)`：受理条件は`#canAcceptOperation()`・`id`が一覧にある。`#isBusy`で直列化し、`finally`で解除＋通知。開いていないキャンバスはprivate`#deleteClosedCanvas(id)`（`deleteRecord`成功で要約から除いて通知／失敗で`'writeFailed'`・一覧に残す）、開いているキャンバスはprivate`#deleteOpenCanvas(id)`（2章要件5の(1)〜(5)：`prepareSwitch()`→保留の破棄（タイマー解除・`#pendingSaveCanvasId = null`）→`#isSwitching = true`→`await deleteRecord`。失敗時は`#isSwitching = false`・`'writeFailed'`・`#scheduleSave()`で中止。成功時は要約から除き、`#openFirstLoadable(#sortedSummaries(), storage.getRecordで取得)`で切り替え（読めるものが無ければタスク3の`#createAndEnter`で新規作成））。
+    *   **追加仕様による変更（書き込み中の自動保存の確定）**：
+        *   privateフィールド`#inFlightSave`（`Promise<boolean>|null`）を新設。`#saveOpenCanvasNow()`が`putRecord`を呼んだ後、完了を表す`Promise`（`saving`）を`#inFlightSave`へ設定し、成功・失敗の各ハンドラの先頭でprivate`#finishInFlightSave(saving)`（`#inFlightSave === saving`のときのみ`null`へ戻す）を呼ぶ。破棄（id不一致・要約なし）の場合は`#inFlightSave`に触れない。
+        *   `flushPendingSave()`：タイマーがあれば`#saveOpenCanvasNow()`の結果、タイマーが無く`#inFlightSave`があればそれ（完了を待って成否）、どちらも無ければ`true`。保存の開始は従来どおり同期的に行われるため、ページ非表示時の確定の挙動は変わらない。手順4（`#enterCanvas`内の`void this.#saveOpenCanvasNow()`）は変更していない。
+        *   JSDocを追記：`flushPendingSave`・`#saveOpenCanvasNow`・`#inFlightSave`・`#finishInFlightSave`・`#prepareLeave`、クラスJSDocの「自動保存」節（書き込み中の保存）と切り替え処理の手順2。
+        *   本RES 2章の要件2（「書き込み中の保存」の項を追加）と要件4の手順2の記述を、追加仕様により追記した。
+    *   他ファイルは変更していない（未使用のためアプリの動作は変わらない）。`node --check`で構文確認し、スクラッチのNodeスクリプト（保存先・Model・履歴のスタブ）で、名前の変更（切り詰め・同名・空白のみ）、書き込み中の保存が失敗したときに開く操作が中止されること、開いていないキャンバスの削除、開いている最後の1枚の削除で新しい「無題 1」が開き、削除した記録が復活しないことを確認した。
+    *   開発資料への影響：「開発資料の更新予定」の3章8.（自動保存・切り替えの流れ）に、書き込み中の保存も`flushPendingSave()`の確定の対象であること（`#inFlightSave`）を含める必要がある（資料本体は未修正）。
 
 ### タスク5: `PaletteLauncher`と`CanvasPalette`の新設
 *   **作業内容** :
@@ -433,6 +445,11 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
 * **（タスク3）新規作成の書き込み失敗と`'loadFailed'`が重なった場合**: 起動時にすべての候補が読めず新規作成し、その記録の書き込みも失敗した場合は、後に起きた`'writeFailed'`を残す（`'loadFailed'`は表示されない）。`issue`は1つだけ保持する仕様による。
 * **（タスク3）新規作成の要約の登録時点**: `#createAndEnter`は記録の書き込み（`await`）の前に要約を一覧へ加える（識別子・名前の重複判定を確定させるため）。処理中（`busy`）の間に一覧を描画すると、開く前の新しいキャンバスが一覧に見える場合がある（処理中は操作ボタンが押せないため実害はない）。
 * **（タスク3）変更通知の回数**: 開く・新規作成では、切り替え時（手順6）と処理中の解除時（`finally`）の2回通知する。パレットの描画が2回走るが表示は最終状態に揃う。タスク4で削除後の切り替えに`#openFirstLoadable`・`#createAndEnter`を使う際も、`#isBusy`の解除と通知は呼び出し側の`finally`で行うこと。
+* **（タスク4）名前の切り詰め後の`trimEnd()`**: 100文字に切り詰めた結果の末尾が空白になる場合、その空白も除く（キャンバス名は「前後の空白を除いた1〜100文字」という2章要件1の定義を保つため）。このため切り詰め後の名前が100文字未満になることがある。
+* **（タスク4）`renameCanvas`の戻り値**: メモリ上で名前を変えた場合は、保存先への書き込みに失敗しても`true`を返す（失敗は`'writeFailed'`で示す）。呼び出し側（`CanvasPalette`）は戻り値を待たない計画のため影響はない。
+* **（タスク4・追加仕様）`#inFlightSave`は切り替え前のキャンバスの保存も対象になる**: `flushPendingSave()`は書き込み中の保存がどのキャンバス宛てかを区別しない。そのため、切り替え処理の手順4で書き始めた切り替え前のキャンバスAへの保存が書き込み中のまま、切り替え後のBからさらに別のキャンバスへ切り替えると、その完了を待ち、Aへの書き込みが失敗していればBからの切り替えも中止される（Bの変更が失われることはない。`'writeFailed'`は表示済み）。開いているキャンバスの削除では保留を破棄し`flushPendingSave()`を呼ばないため、書き込み中の保存は待たない（削除より先に実行される）。
+* **（タスク4・追加仕様）書き込み中の保存が複数ある場合**: タイマーが発火して書き込み中の間に次の保存が始まると、`#inFlightSave`は後から始めた保存を指し、`flushPendingSave()`はその成否のみを返す。後の保存は最新の作業データを含み生成順に反映されるため、後の保存が成功すれば最新の内容は保存済みである（先の保存の失敗による`'writeFailed'`は後の保存の成功で解除される）。
+* **（タスク4）開いているキャンバスの削除中の`#isSwitching`**: 削除成功後の切り替えで`#enterCanvas`に到達する前に予期しない例外が起きた場合、`#isSwitching`が`true`のまま残り自動保存が予約されなくなる。現状の経路（`#openFirstLoadable`・`#createAndEnter`は内部で例外を捕捉、`#enterCanvas`は`finally`で戻す）では起きないが、将来この経路を変更する際は`#isSwitching`を戻す箇所（2箇所のみの規則）に注意すること。
 * **テストプレイでの目視確認項目**:
     * 図形を描いて再読み込みすると同じ図形が出る／ブラウザを閉じて開き直しても残る／描いた直後（1秒以内）に再読み込みしても残る。
     * 再読み込み後は倍率100%・選択モード・取り消しボタンが押せない状態。
