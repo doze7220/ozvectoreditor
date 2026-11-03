@@ -277,7 +277,7 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
         *   クラス`CanvasStorage`：private`#db`（`IDBDatabase|null`）。公開API`open`・`getAllRecords`・`getRecord`・`putRecord`・`renameRecord`・`deleteRecord`・`getLastOpenedId`・`setLastOpenedId`を2章要件1のとおり実装する（`IDBRequest`／`IDBTransaction`を`Promise`へ包むprivateヘルパーを1つ持ってよい）。書き込みは`transaction`の`oncomplete`で解決、`onerror`/`onabort`でreject。`open`は`onupgradeneeded`でストアを作成し、`onblocked`は`console.warn`のみ。
         *   JSDocに、書き込み順序の保証（呼び出し時点で同期的にトランザクションを生成し、IndexedDBが生成順に実行する）・失敗時はrejectし捕捉は呼び出し側の責務であること・`open()`前の呼び出しはrejectすること・版を上げる場合の手順（`databaseVersion`を+1し`onupgradeneeded`に旧版からの移行を追加）を記載する。
         *   DOM・図形種別・図形固有のプロパティ名・作業データ形式の知識を持たないこと。本タスクでは他ファイルを変更しない（未使用のためアプリの動作は変わらない）。
-*   [ ] タスク3: キャンバス一覧の管理を担う`CanvasLibrary`の新設（状態・起動時の復元・切り替え処理・自動保存・開く・新規作成）
+*   [x] タスク3: キャンバス一覧の管理を担う`CanvasLibrary`の新設（状態・起動時の復元・切り替え処理・自動保存・開く・新規作成）
     *   **対象ファイル** :
         *   `./js/edit/CanvasLibrary.js` :（新規）
     *   **作業内容** :
@@ -382,7 +382,13 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
 
 ### タスク3: キャンバス一覧の管理を担う`CanvasLibrary`の新設（状態・起動時の復元・切り替え処理・自動保存・開く・新規作成）
 *   **作業内容** :
-    *   (未実施)
+    *   `js/edit/CanvasLibrary.js`を新設。先頭行の責務JSDocは計画の案どおり（1行）。importは`../io/DocumentSerializer.js`のみ。
+    *   モジュール定数`AUTOSAVE_DELAY_MS = 500`・`UNTITLED_NAME_PREFIX = '無題 '`（exportしない）。typedef`CanvasSummary`・`CanvasIssue`（各種類の意味と解除条件）・`CanvasLibraryState`（2章要件6の全項目）。
+    *   クラスJSDocに、キャンバス記録と保存しないもの／識別子の形式／自動保存の契機・待ち時間・予約しない条件・ページ非表示時の確定／非同期保存と切り替えの順序の保証（1〜4）／切り替え処理の手順1〜6（手順2と手順4の失敗時の違いと理由、履歴のリセット、ビュー変換の初期化、クリップボードに触れない）／`#isSwitching`の意味（true にする2箇所・false へ戻す2箇所）／起動時の決定規則と読み込み完了前の扱い／壊れた作業データ／命名規則／処理中の直列化／公開Promiseはrejectしない／依存の制約、を記載。
+    *   `constructor({ storage, model, historyManager, prepareSwitch, resetView })`：`prepareSwitch`・`resetView`が関数でなければ`Error`。`historyManager.onChange`へ`#scheduleSave()`を登録。
+    *   公開API：`start()`（2回目以降は無視。`#isBusy`も立てる。`open`/`getAllRecords`/`getLastOpenedId`の失敗で`'unavailable'`＋メモリ上の「無題 1」を`#enterCanvas`で開く（`setLastOpenedId`は呼ばない）。記録の検証で外れたものは`console.warn`して除外。候補順で`#openFirstLoadable`）・`openCanvas(id)`・`createCanvas()`・`flushPendingSave()`・`getState()`・`onChange(listener)`。
+    *   private：`#canAcceptOperation()`（読み込み中・処理中・`'unavailable'`でない）・`#issueCanvasId()`・`#nextUntitledName()`・`#scheduleSave()`・`#saveOpenCanvasNow()`（同期的に記録を組み立てて`putRecord`を呼び、要約の`updatedAt`を更新して通知。成功で`'writeFailed'`解除、失敗で`'writeFailed'`）・`#prepareLeave()`（手順1〜2）・`#enterCanvas(summary, shapes, loadIssue = null)`（手順4〜6。`#isSwitching`は`try/finally`で手順5の終わりに`false`へ戻す）・`#openFirstLoadable(candidates, loadDocument)`・`#createAndEnter(loadIssue)`（新規作成の記録の作成・書き込み・切り替え。起動時・`createCanvas`・タスク4の削除後で共通利用）・`#setIssue(issue)`（`'unavailable'`は上書きしない。通知は呼び出し側）・`#sortedSummaries()`・`#notifyChange()`・static`#isValidRecord(record)`。
+    *   他ファイルは変更していない（未使用のためアプリの動作は変わらない）。`node --check`で構文確認し、スクラッチのNodeスクリプト（保存先・Model・履歴のスタブ）で起動→自動保存→新規作成→開くの基本経路が動くことを確認した。
 
 ### タスク4: `CanvasLibrary`への名前の変更・削除の追加
 *   **作業内容** :
@@ -423,6 +429,10 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
 * **図形パレットの`top`（440px）**: ボタンの高さはフォント・絵文字の表示に依存するため、コントロールパネル下端との余白が24px以上あるかを目視確認すること。
 * **（タスク1）`Snapshot`の型定義の二重化**: typedef`Snapshot`は`HistoryManager.js`と`SnapshotAdapter.js`の両方にある。スナップショットの形を変える場合は両方を揃えること。タスク1完了時点で、取り消し・やり直し（選択モード時の選択集合の復元を含む）の挙動が従来どおりかを目視確認すること。
 * **（タスク2）`CanvasStorage`の読み出しの解決時点と`open()`の再試行**: 読み出し（`getRecord`等）も書き込みと同じく、要求の`onsuccess`ではなくトランザクションの`oncomplete`で解決する（ヘルパーを1つにまとめるため。結果は同じ）。`open()`が失敗した場合は`#openPromise`を`null`へ戻すため、再度`open()`を呼ぶと開き直しを試みる（現計画では起動時に1回だけ呼ぶ想定）。他のタブが古い版で開いている場合の`onversionchange`（自タブの接続を閉じる処理）は扱っていない（版1のみで、複数タブの整合はNon-goals）。将来`databaseVersion`を上げる際は、`onversionchange`で`#db.close()`する処理の追加を検討すること。
+* **（タスク3）`#enterCanvas`の第3引数**: 計画の`#enterCanvas(summary, shapes)`に、手順6で残す読み込みの問題を渡す省略可能な第3引数`loadIssue`（`'loadFailed'`/`'partialLoad'`/`null`）を加えた（手順6の「`issue`の更新（解除・設定）」を区間内で1回の通知にまとめるため）。手順6では先に`'loadFailed'`/`'partialLoad'`を解除し、`loadIssue`があれば設定する（`'writeFailed'`は解除しない）。
+* **（タスク3）新規作成の書き込み失敗と`'loadFailed'`が重なった場合**: 起動時にすべての候補が読めず新規作成し、その記録の書き込みも失敗した場合は、後に起きた`'writeFailed'`を残す（`'loadFailed'`は表示されない）。`issue`は1つだけ保持する仕様による。
+* **（タスク3）新規作成の要約の登録時点**: `#createAndEnter`は記録の書き込み（`await`）の前に要約を一覧へ加える（識別子・名前の重複判定を確定させるため）。処理中（`busy`）の間に一覧を描画すると、開く前の新しいキャンバスが一覧に見える場合がある（処理中は操作ボタンが押せないため実害はない）。
+* **（タスク3）変更通知の回数**: 開く・新規作成では、切り替え時（手順6）と処理中の解除時（`finally`）の2回通知する。パレットの描画が2回走るが表示は最終状態に揃う。タスク4で削除後の切り替えに`#openFirstLoadable`・`#createAndEnter`を使う際も、`#isBusy`の解除と通知は呼び出し側の`finally`で行うこと。
 * **テストプレイでの目視確認項目**:
     * 図形を描いて再読み込みすると同じ図形が出る／ブラウザを閉じて開き直しても残る／描いた直後（1秒以内）に再読み込みしても残る。
     * 再読み込み後は倍率100%・選択モード・取り消しボタンが押せない状態。
