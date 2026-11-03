@@ -183,7 +183,7 @@ main.js ──生成・注入──▶ ClipboardController ──insertDocument�
 *   **3章6.履歴の「記録の流れ」**: 編集操作の一覧に、切り取り（`deleteSelection`経由で削除と同一）・貼り付け・複製（`ShapeInserter.insertDocument`：`addShapesWithNewIds`の前後）を追加。「後続の編集操作（複製・貼り付け等）は…」の未来形の記述を、インポート（Phase 03-05。`ShapeInserter`再利用）等の記述へ更新。
 *   **4章`main.js`**: `// 7.5.`のクリップボード配線（生成・注入）と、キーボードショートカット配線の注入コールバック一覧に`copy`/`cut`/`paste`/`duplicate`（`paste`は空なら何もしない・選択モード以外では先に`applyMode`、`paste`/`duplicate`は常に`true`）を追加。あわせて「`core/`から`io/`をimportしないため、`DocumentSerializer`を使う処理は`main.js`が持つ」の文を、「`DocumentSerializer`を使う処理は`main.js`と`edit/`が持つ」旨へ修正する。
 *   **4章`VectorModel.js`**: 公開操作`addShapesWithNewIds(shapes)`（新しいidでの末尾追加・追加図形のみの選択・重複インスタンスの除外・通知1回）を追加し、`#issueId()`の利用箇所の列挙に加える。
-*   **4章`KeyboardShortcuts.js`**: 対応表に`Ctrl`+`C`/`X`/`V`/`D`を追加、キーリピートの実行対象に貼り付け・複製を追加、`V`と`Ctrl`+`V`の区別。
+*   **4章`KeyboardShortcuts.js`**: 対応表に`Ctrl`+`C`/`X`/`V`/`D`を追加、キーリピートの実行対象に貼り付け・複製を追加、`V`と`Ctrl`+`V`の区別。（タスク5追記）`paste`/`duplicate`のコールバックはドラッグ中を自ら判定せず、ドラッグ中は受理判定で呼ばれないこと（`undo`/`redo`がコールバック内で判定するのとの違い）を記載する。
 *   **4章`HistoryManager.js`・`InputTracker.js`**: 編集操作の一覧（`InputTracker.js`の「編集操作の通知」には切り取りが`deleteSelection()`経由で記録されることを、`HistoryManager.js`の項には記録元として`ShapeInserter`を）追記。
 *   **4章に新項目`edit/`**: `ShapeInserter.js`・`ClipboardController.js`の責務・公開API・前提（選択モード・ドラッグ中でない）・依存の制約（DOM・図形種別・id形式を知らない、`InputTracker`に依存しない）。
 
@@ -241,7 +241,7 @@ main.js ──生成・注入──▶ ClipboardController ──insertDocument�
             *   再描画・ボタン同期の呼び出しを追加しない（`model.onChange`・`historyManager.onChange`経路に任せる）。`window`への公開を行わない。
             *   先頭行の責務JSDoc（「各モジュールの初期化と連携(依存性の注入)を担う」）が実態と一致していることを確認する（変更不要の見込み）。
         *   本タスク完了時点でコピー・切り取り・貼り付け・複製が動作する。
-*   [ ] タスク5: JSDocの確認とRESの完成
+*   [x] タスク5: JSDocの確認とRESの完成
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js`、`./js/edit/ShapeInserter.js`、`./js/edit/ClipboardController.js`、`./js/core/KeyboardShortcuts.js`、`./js/main.js` :（確認・必要ならJSDoc・コメントのみ更新）
         *   `./_log/res/261103_2359_RES_Phase03-03_Copy_Paste.md` :（更新）
@@ -310,7 +310,19 @@ main.js ──生成・注入──▶ ClipboardController ──insertDocument�
 
 ### タスク5: JSDocの確認とRESの完成
 *   **作業内容** :
-    *   （未実施）
+    *   改修・新設した5ファイル（`VectorModel.js`・`ShapeInserter.js`・`ClipboardController.js`・`KeyboardShortcuts.js`・`main.js`）のJSDocを確認し、次の項目がJSDocから読み取れることを確認した。
+        *   クリップボードの保持内容と独立性：`ClipboardController`のクラスJSDoc・`#documentData`。
+        *   コピー・切り取り・貼り付け・複製の効果と受理条件：`ClipboardController`の各メソッドJSDoc、`ShortcutActions` typedef。
+        *   ずらし量と段数の規則：`PASTE_OFFSET_STEP`・クラスJSDocの段数の規則・`#nextPasteStep`。
+        *   貼り付け時のidの採番：`VectorModel.addShapesWithNewIds`の(1)、`#issueId()`・`#nextId`の採番箇所の列挙、`ShapeInserter.insertDocument`の独立性。
+        *   追加した図形だけを選択する規則：`addShapesWithNewIds`の(3)、`ShapeInserter`の責務JSDoc・`insertDocument`。
+        *   選択モード以外での貼り付けの扱い：`main.js`の`paste`コールバックのコメント、`ShortcutActions`の`paste`、`ClipboardController`・`ShapeInserter`の前提。
+        *   履歴への記録単位：`ShapeInserter.insertDocument`の「履歴への記録単位」、`ClipboardController.cut()`（既存の削除経路で1件）・`copy()`（記録しない）。
+        *   ショートカットの修飾キーとキーリピートの扱い：`SHORTCUT_BINDINGS`のJSDoc（`V`と`Ctrl`+`V`の区別）とエントリのコメント、`#handleKeyDown`のJSDocの例外（`C/X/V/D`）。
+    *   タスク4監査の観点外メモを受け、`KeyboardShortcuts.js`の`ShortcutActions` typedefの`paste`の説明「ドラッグ中でなければ常にtrue」を、「クリップボードが空でも常にtrue（ブラウザ標準の貼り付けを起こさないため。ドラッグ中は受理判定（#handleKeyDownの手順4）によりそもそも呼ばれない）」へ書き換えた（JSDocのみ。2行）。`undo`/`redo`の同様の表現は、`performUndo`/`performRedo`自身がドラッグ中を判定して`false`を返す実態どおりのため変更していない。
+    *   5ファイルの先頭行の責務JSDoc（いずれも3行以内）が実態と一致していることを確認した（変更なし）。
+    *   `main.js`は418行（2章要件7の見込み約416行に対し+2行。タスク4で生成ブロックのコメントを3行としたため。タスク5での変更なし）。
+    *   5ファイルとも`node --check`で構文エラーがないことを確認した。
 
 ### タスク6: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
 *   **作業内容** :
@@ -328,6 +340,7 @@ main.js ──生成・注入──▶ ClipboardController ──insertDocument�
 * **`Ctrl`+`C`/`X`のキーリピート**: `repeatable: false`のため押しっぱなしの2回目以降は実行されないが、`ctrl: true`の既存例外により`preventDefault()`は行われる（選択集合が空の場合でも、2回目以降はブラウザ標準のコピーが起きない）。実害はない想定だが、ページ上の文字を押しっぱなしでコピーする操作は通常ないため許容する。
 * **`paste`コールバックの空判定の二重化（タスク4）**: `main.js`の`paste`コールバックは`isEmpty()`を先に確認してからモード切替・`paste()`を呼ぶ（空振りでモードを変えないため）。`ClipboardController.paste()`自身も空なら`false`を返すため判定は二重になるが、RESの指定どおりであり意図的。将来`paste`の受理条件を変える場合は両方を確認すること。
 * **`copy`/`cut`のショートカットは選択集合が空ならpreventDefaultしない（タスク4）**: 選択モードで図形を選択していない状態の`Ctrl`+`C`はブラウザ標準のコピーへ素通りする（`?dev`の結果表示欄で選択した文字のコピーを妨げないため。2章要件2の決定どおり）。目視確認では、図形未選択時の`Ctrl`+`C`で異常が起きないことも確認すること。
+* **`ShortcutActions`の「常にtrue」の意味の違い（タスク5）**: `undo`/`redo`の「ドラッグ中でなければ常にtrue」はコールバック（`performUndo`/`performRedo`）自身がドラッグ中を判定して`false`を返すことを表す。一方`paste`/`duplicate`のコールバックはドラッグ中を判定せず、ドラッグ中は`KeyboardShortcuts`の受理判定（手順4）で呼ばれないだけである。`paste`の説明はこの違いが読み取れる表現へ修正した。将来`paste`/`duplicate`をショートカット以外（ボタン等）から呼ぶ場合は、ドラッグ中の判定を呼び出し側で別途行う必要がある。
 * **`main.js`の行数**: 実測418行（タスク4完了時点。見込み約416行）。Phase 03-04の切り出し検討（`_doc/COWORK_STATUS.md` 2章P3【03-04へ】）の際に考慮すること。
 * **テストプレイでの目視確認項目**:
     * 単一・複数選択の図形を`Ctrl`+`C`→`Ctrl`+`V`で貼り付けると、右下（20, 20）にずれて貼られ、貼った図形だけが選択される（複数選択時は重なり順も元と同じ）。
