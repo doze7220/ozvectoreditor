@@ -182,7 +182,7 @@ performRedo():
     *   `HistoryManager.js`の項を新設（責務・公開API・`HISTORY_LIMIT`・エントリ構造・`Snapshot`型・凍結・比較方法・変更通知の条件・importなし・`capture`/`restore`注入）。
     *   `KeyboardShortcuts.js`：「Shift併用は拡大・縮小のみ許容」「キーリピートは拡大・縮小のみ実行」を更新（`shift`の3値規則、`Ctrl`+`Shift`+`Z`の`REQUIRED`、取り消し・やり直しもリピート可）。Shift判定はprivate static`#matchesShiftRule`が担い、`ANY`・`REQUIRED`以外の値は`FORBIDDEN`として扱う（タスク4で判明）。
     *   `InputTracker.js`：コンストラクタの第4引数`editRecorder`（`EditRecorder`＝`beginEdit`/`commitEdit`）と、編集操作の開始・確定の通知箇所（作成・削除・左ドラッグの閾値超過と`#finishLeftDrag`）、`#isEditOpen`。`abortOngoingOperation()`が履歴適用の前処理として実際に使われるようになったこと。
-    *   `main.js`：履歴配線（`captureSnapshot`/`restoreSnapshot`/`performUndo`/`performRedo`/`syncHistoryButtonState`、履歴配線ブロックの位置（`ViewTransform`生成後・`InputTracker`生成前の1ブロック。ボタン関連はコントロールパネル配線内）、生成順の注意、`onImport`から例外を漏らさない方針、起動時の同期に`syncHistoryButtonState()`を追加、注入コールバックに`undo`/`redo`を追加、`onImport`の`beginEdit`/`commitEdit`）。
+    *   `main.js`：履歴配線（`captureSnapshot`/`restoreSnapshot`/`performUndo`/`performRedo`/`syncHistoryButtonState`、履歴配線ブロックの位置（`ViewTransform`生成後・`InputTracker`生成前の1ブロック。ボタン関連はコントロールパネル配線内）、生成順の注意、`onImport`から例外を漏らさない方針、起動時の同期に`syncHistoryButtonState()`を追加、注入コールバックに`undo`/`redo`を追加、`onImport`の`beginEdit`/`commitEdit`）。先頭行の責務記述は変更していない（タスク6で照合済み。資料側の責務記述「インスタンス化・依存の注入とイベントバインド」に、履歴の取得・適用・取り消し/やり直しの操作関数をモジュール間の連携として含める旨を補うとよい）。
     *   `index.html`：取り消し・やり直しボタン行（`#history-undo`/`#history-redo`、`.history-button-row`）と図形パレットの`top: 368px`。
     *   `VectorModel.js`：変更なし（記述の変更不要。`replaceAllShapes`の「将来はUndo履歴」等の未来形の表現があれば現在形へ）。
     *   `DocumentSerializer.js`：「将来はUndo履歴のスナップショットが壊れる」の表現を現在形へ（記述のみ）。
@@ -257,7 +257,7 @@ performRedo():
             *   **onChange登録**: `syncHistoryButtonState()`の定義の直後に、`model.onChange(syncHistoryButtonState)`と`historyManager.onChange(syncHistoryButtonState)`をコメント付きで登録する。
             *   **click登録**: onChange登録の直後（`// 7.`の直前）に、両ボタンの`click`で`performUndo()`／`performRedo()`を呼ぶのみのリスナーを登録する（コメント：ショートカットと同一経路。ここで`historyManager.undo()`/`redo()`を直接呼ばないこと）。`performUndo`/`performRedo`・`historyManager`は3.5.のブロックで宣言済みのため、この位置から参照できる。
             *   **起動時の同期**: ファイル末尾の起動時初期化部分で、`syncDeleteButtonState();`の直後（`DOMContentLoaded`コールバックの最後）に、既存と同様の説明コメント付きで`syncHistoryButtonState();`を明示的に1回呼ぶ。
-*   [ ] タスク6: JSDocの確認とRESの完成
+*   [x] タスク6: JSDocの確認とRESの完成
     *   **対象ファイル** :
         *   `./js/core/HistoryManager.js`、`./js/core/InputTracker.js`、`./js/core/KeyboardShortcuts.js`、`./js/main.js` :（確認・必要ならJSDocのみ更新）
         *   `./_log/res/261103_1911_RES_Phase03-02_Undo_Redo.md` :（更新）
@@ -344,7 +344,21 @@ performRedo():
 
 ### タスク6: JSDocの確認とRESの完成
 *   **作業内容** :
-    *   (未実施)
+    *   JSDocの記載確認（`HistoryManager.js`・`InputTracker.js`・`KeyboardShortcuts.js`・`main.js`）。指定の各項目が次の箇所から読み取れることを確認した。
+        *   記録される操作と記録の時点：`InputTracker`のクラスJSDoc、`handleClick`・`deleteSelection`・`#onLeftDragStart`・`#finishLeftDrag`・`setMode`・`abortOngoingOperation`のJSDoc、`main.js`の`onImport`のコメント。
+        *   変化のない操作を記録しない規則：`HistoryManager.commitEdit`のJSDoc（`document`部分の`JSON.stringify`比較。選択集合は比較しない）と`#finishLeftDrag`のJSDoc。
+        *   スナップショットの内容：typedef`Snapshot`、`main.js`の`captureSnapshot`のJSDoc。
+        *   履歴の上限：`HISTORY_LIMIT`のJSDoc、`commitEdit`のJSDoc。
+        *   取り消し・やり直し・リセットの効果と受理条件：`HistoryManager`の`undo`・`redo`・`clear`・`canUndo`・`canRedo`のJSDoc、`main.js`の`performUndo`・`performRedo`のJSDoc。
+        *   作成途中の図形がある場合の取り消しの扱い：`performUndo`・`performRedo`のJSDoc、`ShortcutActions`の`undo`・`redo`。
+        *   適用後の選択集合の規則：`restoreSnapshot`のJSDoc。
+        *   修飾キー規則の拡張：`ShiftRule`・`ShortcutBinding`・対応表・`#findBinding`・`#matchesShiftRule`のJSDoc。
+    *   記載漏れとして、`KeyboardShortcuts.#matchesShiftRule`の`@returns`に「`ANY`・`REQUIRED`以外の値（`shift`の書き忘れ・綴りの誤りを含む）はすべて`FORBIDDEN`として扱う」を追記した。JSDocのみの変更で、コードは変えていない。ほかの3ファイルは変更していない。
+    *   先頭行の責務JSDocを照合した。
+        *   `HistoryManager.js`・`InputTracker.js`・`KeyboardShortcuts.js`は実態と一致している（`InputTracker.js`はタスク2で「編集操作の開始・確定の通知」を追加済み）。
+        *   `main.js`（「各モジュールの初期化と連携(依存性の注入)を担う。」）は**変更不要と判断した**。理由は次のとおり。追加した`captureSnapshot`・`restoreSnapshot`は、`DocumentSerializer`と`VectorModel`の既存APIを決められた順に呼ぶだけで、図形種別・作業データの中身を解釈しない。`performUndo`・`performRedo`も、`InputTracker`（`isDragging`・`abortOngoingOperation`）と`HistoryManager`（`undo`・`redo`）の既存APIを順に呼ぶだけである。どれもモジュール間をつなぐ処理であり、「連携」の範囲に収まる。既存の`applyMode`・`applyShapeType`・`zoomAtCanvasCenter`・`syncDeleteButtonState`も同じ種類の処理で、この責務記述のもとに置かれている。履歴の保持・判定は`HistoryManager`、ドラッグ中・作成途中の判定は`InputTracker`にあり、`main.js`は判定ロジックを持たない。
+    *   本RESの「4. 詳細作業内容」がタスク1〜6のすべてで記入済みであることを確認した。懸念事項のうち、後続タスクの完了で古くなった記述（タスク3・タスク4完了時点の中間状態）は、全タスク完了後の実態に合わせて1項目に整理した。`main.js`の行数は実測値に更新した。
+    *   `node --check`で4ファイルの構文を確認した。
 
 ### タスク7: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
 *   **作業内容** :
@@ -355,7 +369,7 @@ performRedo():
 * **取り消しの前処理と`abortOngoingOperation()`の戻り値**: `performUndo()`は「ドラッグ中でないことを確認した後」の`abortOngoingOperation()`の戻り値で作成途中の図形の有無を判定する（その時点で中断し得るのは作成途中の図形のみ）。将来`abortOngoingOperation()`が中断する対象を増やす場合は、この判定を見直すこと。
 * **生成順と`restoreSnapshot`の`inputTracker`参照**: `HistoryManager`は`InputTracker`より先に生成し、`restoreSnapshot`・`performUndo`・`performRedo`は後で宣言される`inputTracker`を実行時に参照する。取り消し・やり直しは起動完了後にしか呼ばれないため問題ないが、将来起動処理中に`undo()`／`redo()`を呼ぶ変更をする場合は注意すること。
 * **`onImport`からの例外**: `DevPanel.js`はコールバックの例外を捕捉しないため、`onImport`から例外が漏れると結果表示が更新されない。追加する`beginEdit()`／`commitEdit()`は通常動作で例外を投げない想定のため`try/catch`は追加しない（要件6）。将来`captureSnapshot`や`HistoryManager`の記録処理に例外を投げ得る処理を加える場合は、`onImport`側の扱いを見直すこと。
-* **`main.js`の肥大化**: 約260行→約340〜360行の見込み。今回のスコープでは新設ファイルが履歴管理のみのため分割しない。後続Phase（03-03の複製・貼り付け、03-04のキャンバス管理）で配線がさらに増える場合は、スナップショットの取得・適用関数を別モジュール（例：`io/`配下の小さなアダプタ）へ切り出すことを検討する。
+* **`main.js`の肥大化**: 約260行→約340〜360行の見込みだったが、全タスク完了後の実測は389行（JSDoc・コメントが見込みより多いため）。今回のスコープでは新設ファイルが履歴管理のみのため分割しない。後続Phase（03-03の複製・貼り付け、03-04のキャンバス管理）で配線がさらに増える場合は、スナップショットの取得・適用関数を別モジュール（例：`io/`配下の小さなアダプタ）へ切り出すことを検討する。
 * **メモリと処理量**: スナップショットは編集操作1件につき前後2つ（最大100件×2）を作業データ形式で保持し、記録時に`JSON.stringify`で2回比較する。ゲーム用パーツ規模（図形数十〜数百）では問題ない想定だが、図形数が極端に多い場合は記録時の遅延・メモリを確認すること。
 * **スナップショットの凍結**: 保持するスナップショットは再帰的に`Object.freeze`する。マイグレーション関数が契約に反して引数を書き換えると例外→全体の読み込み失敗→取り消し・やり直しが`console.warn`のうえ無効（履歴・キャンバスとも不変）になる。`DocumentSerializer`のマイグレーション追加時に注意すること。
 * **適用失敗時の扱い**: 自分で記録したスナップショットのデシリアライズ失敗・スキップは起こらない想定だが、起きた場合はキャンバスを変更せず、`console.warn`を出し、履歴の位置も動かさない（スキップ1件以上も失敗扱い。一部の図形だけが戻る中途半端な状態を避けるため）。
@@ -367,11 +381,12 @@ performRedo():
 * **`#deepFreeze`の凍結済み判定（タスク1）**: 循環参照で無限再帰しないよう、凍結済みの値は辿らずに返す。このため`capture()`が「凍結済みだが子が未凍結」のオブジェクトを含むスナップショットを返した場合、その子は凍結されない。現行の`captureSnapshot`（`serialize`＝`toJSON()`の新しいオブジェクト＋新しい配列）では起こらない想定だが、`toJSON()`が凍結済みの共有オブジェクトを返すよう変更する場合は注意すること。
 * **`#onLeftDragStart`の前提（タスク2）**: 移動・変形の`beginEdit()`は、「`DragTracker.begin()`が`onStart`を同期的に呼ばない」こと、つまり「閾値超過時には状態が遷移済みである」ことを前提にしている。将来`DragTracker`を変更して`begin()`内で`onStart`を呼ぶようにする場合（閾値0のセッションで即時開始させる等）は、`#beginLeftDrag`の中で状態を遷移させる順序と合わせて見直すこと。
 * **`setMode`中断時の記録順（タスク2）**: `setMode`では`#abortOngoingOperation()`、つまりドラッグの中断から`#finishLeftDrag()`の`commitEdit()`までが、`clearSelection()`より前に実行される。このため、中断で記録される後の状態の選択集合は操作中のもの（クリア前）になる。`setMode`の処理順を変える場合は注意すること。
-* **タスク3完了時点の中間状態（タスク3）**: この時点では作成・削除・移動・変形・`?dev`復元が履歴に記録されるが、取り消し・やり直しの手段（ショートカット・ボタン）はまだない（タスク4・5で接続）。記録処理が加わるため、編集操作ごとに`serialize`と`JSON.stringify`が2回ずつ走るが、従来の動作は変わらない想定である。テストプレイでは回帰（作成・削除・移動・変形・`?dev`復元）がないかを確認すること。
-* **タスク4完了時点の中間状態（タスク4）**: ショートカットでの取り消し・やり直しは動作する。ただしボタンはまだない（タスク5で追加）。`performUndo`/`performRedo`のJSDocには「6.のボタン登録より前で宣言」と書いてあるが、ボタンのclick登録はタスク5で追加する。
+* **全タスク完了後の接続状態（タスク3〜5の中間状態の記述を整理）**: 作成・削除・移動・変形・`?dev`復元が履歴に記録され、ショートカット（8.の注入）とボタン（6.のclick登録）の両方から`performUndo`/`performRedo`を通じて取り消し・やり直しできる。`performUndo`/`performRedo`のJSDocにある「8.の注入・6.のボタン登録より前で宣言」は実態と一致している。編集操作ごとに`serialize`と`JSON.stringify`が2回ずつ走る（記録処理）。テストプレイでは、下記の目視確認項目に加えて、作成・削除・移動・変形・`?dev`復元に回帰がないかを確認すること。
 * **Shift規則の既定値（タスク4）**: `#matchesShiftRule`は、`ANY`・`REQUIRED`以外の値をすべて`FORBIDDEN`として扱う。エントリの`shift`を書き忘れた（`undefined`）場合や綴りを誤った場合も「Shift禁止」として動き、エラーにはならない。エントリを追加するときは、`shift`に必ず`ShiftRule`の値を指定すること。
 * **ボタン同期の通知順（タスク5）**: `syncHistoryButtonState`は`model.onChange`へ`renderCurrentState`・`syncDeleteButtonState`の後に登録している。取り消し・やり直しの適用中は`model.onChange`（2回）→`historyManager.onChange`（1回）の順に呼ばれるため、`model.onChange`経由の呼び出しでは履歴の位置がまだ動いていない状態で一時的に同期されるが、直後の`historyManager.onChange`で最終状態へ同期され、同期的に連続して実行されるため表示上の問題はない想定である。`HistoryManager`の通知順序を変える場合は注意すること。
 * **ボタン行・パレット位置の目視確認（タスク5）**: 2ボタンが1行に収まっているか（「↶ 取り消し」「↷ やり直し」の文字詰まり）、図形パレット（`top: 368px`）とコントロールパネル下端の余白が24px以上あるかを目視確認すること（計算値のみで実測はしていない）。
+* **`main.js`の先頭行の責務（タスク6）**: 「初期化と連携」の範囲に収まると判断し、変更しなかった（理由は4章タスク6）。今後`main.js`に、判定ロジックや作業データの中身を解釈する処理が加わる場合は、責務の逸脱にあたるので別モジュールへ分離すること。スナップショットの取得・適用関数の切り出しは、上記「`main.js`の肥大化」を参照。
+* **`onImport`のコメントの範囲（タスク6）**: `onImport`のコメント「再描画・削除ボタンの同期は`model.onChange`経路のみで行い、ここでは呼ばない」は、既存の記述のままにしてある。取り消し・やり直しボタンは、`model.onChange`と`historyManager.onChange`（`commitEdit`で記録したとき）の両方から同期される。どちらにしても`onImport`内で同期関数を直接呼ばない方針は同じで、記述と実態は食い違っていない。
 * **変更しないファイル**: `CanvasManager.js`／`ShapeFactory.js`／`ViewTransform.js`／`DragTracker.js`／`WindowManager.js`／`DocumentSerializer.js`／`PaletteController.js`／`DevPanel.js`／`shapes/`・`VectorModel.js`は変更不要と判断した。
 * **テストプレイでの目視確認項目**:
     1. 5種の図形（直線・曲線・弧・矩形・円）を作成→`Ctrl`+`Z`で新しい順に1つずつ消え、`Ctrl`+`Y`で順に戻る。

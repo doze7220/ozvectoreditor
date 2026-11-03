@@ -185,6 +185,7 @@ export class KeyboardShortcuts {
      * @param {string} rule - エントリのShift規則（ShiftRuleの値）
      * @param {boolean} shiftPressed - event.shiftKey
      * @returns {boolean} ANY：常にtrue、REQUIRED：shiftPressed、FORBIDDEN：!shiftPressed
+     *     （ANY・REQUIRED以外の値（shiftの書き忘れ・綴りの誤りを含む）はすべてFORBIDDENとして扱う）
      */
     static #matchesShiftRule(rule, shiftPressed) {
         if (rule === ShiftRule.ANY) {
