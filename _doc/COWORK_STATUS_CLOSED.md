@@ -353,3 +353,22 @@
 
 **未解決のまま次に持ち越した項目**（`COWORK_STATUS.md`側で追跡中。ここには含めない）:
 * 03-03への申し送り（編集操作の追加方法・`ShiftRule`）、03-04への申し送り（`clear()`の呼び出し・`main.js`の肥大化） → `COWORK_STATUS.md` 2章P3
+
+### Phase03-03「複製・コピー＆ペースト」（クローズ日：2026-11-04）
+* DIR: `_log/dir/261101_2154_DIR_Phase03-00_Editing_Foundation.md`（Phase 03-03節）
+* REQ: `_log/req/261103_2355_REQ_Phase03-03_Copy_Paste.md`
+* RES: `_log/res/261103_2359_RES_Phase03-03_Copy_Paste.md`（全6タスク。計画監査の軽微指摘2件を受けて計画書を1回修正。Interruptなし）
+
+| 項目 | 結論 | 対応箇所 |
+| ---- | ---- | -------- |
+| クリップボード | アプリ内部（メモリ）に作業データ形式で保持。OSのクリップボードは使わない（別タブ不可・再読み込みで消える）。取り消し・やり直しの対象外。発注者決定 | REQ要件1 / タスク3 |
+| 置き場所 | `js/edit/`を新設し、`ShapeInserter.js`（作業データ→新しいidで追加・選択・履歴記録。03-05のインポートで再利用）と`ClipboardController.js`（クリップボードとコピー/切り取り/貼り付け/複製）に分割。依存は`main.js → edit → io → core → shapes` | REQ要件1・4 / タスク2・3 |
+| idの採番（DIR持ち越し：`commitDraft()`の連番と永続化） | `VectorModel.addShapesWithNewIds`を新設。追加する図形に`#issueId()`で新しいidを採番（`#nextId`は単調増加・03-01で`replaceAllShapes`時の繰り上げ済み）。同一インスタンスの重複は参照で除外 | REQ要件3 / タスク1 |
+| ずらし量 | 1段＝ワールド座標20。コピー後は1段目から、切り取り後は0段（元の位置）から、貼るたびに1段ずつ右下へ。複製は常に1段（段数・クリップボードは変えない）。発注者決定 | REQ要件3・4 / タスク3 |
+| 選択モード以外での貼り付け | 選択モードへ切り替えてから貼り付け（クリップボードが空ならモードも変えない）。発注者決定 | REQ要件3 / タスク4 |
+| ショートカット | `Ctrl`+`C`/`X`（リピート不可）・`Ctrl`+`V`/`D`（リピート可）、すべて`ShiftRule.FORBIDDEN`。`Ctrl`+`D`は常に`preventDefault()`。ボタンは追加しない（発注者決定） | REQ要件6 / タスク4 |
+| 履歴（03-02申し送り） | 切り取りは既存の`deleteSelection()`経由、貼り付け・複製は`ShapeInserter`が`beginEdit`/`commitEdit`で囲んで各1件 | REQ要件5 / タスク2〜4 |
+| `PROJECT_ARCHITECTURE.md`の反映 | 1・3・4章を更新（3章に7.クリップボードを新設）。完了処理で3章6.の見出しの呼び出し元に`edit/ShapeInserter.js`を設計AIが追記 | タスク6・完了処理 |
+
+**未解決のまま次に持ち越した項目**（`COWORK_STATUS.md`側で追跡中。ここには含めない）:
+* 別キャンバスへの貼り付けの確認・`main.js`の肥大化（418行）→ 2章P3【03-04へ】、インポートでの`ShapeInserter`再利用の前提 → 2章P3【03-05へ】、`paste`/`duplicate`のドラッグ判定・`EditRecorder`の重複定義・未使用の`addShape` → 2章C

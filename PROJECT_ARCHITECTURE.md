@@ -78,7 +78,7 @@ AIは新規にファイルを作成、あるいはログを記録する際、必
     *   **描画** : `main.js`の`renderCurrentState()`が`viewTransform.getState()`を`CanvasManager.render()`へ渡し、`CanvasManager`がdprと合成した描画変換を毎フレーム設定する。
     *   **再描画の経路** : `VectorModel.onChange`・`ViewTransform.onChange`・ウィンドウリサイズの3経路から、同一関数`renderCurrentState()`で再描画する。
 5.  **作業データの変換・復元 (`DocumentSerializer.js` ⇔ `VectorModel.js`)** : 変換は`DocumentSerializer`が`model.getShapes()`の各図形の`toJSON()`から作業データを組み立てる。復元は`DocumentSerializer`のデシリアライズ（`ShapeFactory.fromJSON`→各図形クラスの`fromJSON`）で図形インスタンスを生成し、成功時のみ`InputTracker.abortOngoingOperation()`（進行中の入力操作の中断）→`HistoryManager.beginEdit()`→`VectorModel.replaceAllShapes(shapes)`（図形一式の入れ替え）→`HistoryManager.commitEdit()`の順に呼ぶ（復元は1件の編集操作として履歴に記録される。中断を先に行うのは、ドラッグ中だった場合にその中断分を先に1件確定させるため）。全体の読み込みに失敗した場合はキャンバスを変更せず、履歴にも記録しない。再描画・UI同期は`model.onChange`・`historyManager.onChange`経路のみで行い、復元専用の再描画は持たない。
-6.  **履歴（取り消し・やり直し） (`InputTracker.js`・`main.js` → `HistoryManager.js`)** : 編集操作（図形一式を変化させる利用者の1回の操作）の前後の図形一式を丸ごと記録するスナップショット方式である。スナップショットは`{ document: 作業データ（DocumentSerializer.serialize(model.getShapes())）, selectedIds: 選択集合 }`。
+6.  **履歴（取り消し・やり直し） (`InputTracker.js`・`edit/ShapeInserter.js`・`main.js` → `HistoryManager.js`)** : 編集操作（図形一式を変化させる利用者の1回の操作）の前後の図形一式を丸ごと記録するスナップショット方式である。スナップショットは`{ document: 作業データ（DocumentSerializer.serialize(model.getShapes())）, selectedIds: 選択集合 }`。
     *   **記録の流れ** : 変更処理を`HistoryManager.beginEdit()`（前の状態を取得）と`commitEdit()`（後の状態を取得して1件記録）で挟む。`model.onChange`ごとの記録は行わない。記録される操作と時点は次のとおり。
         *   図形の作成：`InputTracker.handleClick`の`DRAWING`確定時、`model.commitDraft()`の前後。
         *   削除（削除ボタン・`Delete`/`Backspace`）：`InputTracker.deleteSelection()`の受理時、`model.deleteShapes(ids)`の前後。
