@@ -180,6 +180,7 @@
             color: #b00020;
         }
         /* 読み込み中の覆い要素（キャンバス全面を覆い、読み込み完了までキャンバスへのマウス入力を遮る）。
+           表示状態で始まり（main.jsの実行前から遮るため）、main.jsのsyncLoadingCover()が読み込み完了でhidden属性を付けて非表示にする。
            z-index: 5はキャンバス（1）より前面・フロートウィンドウ（10以上。最前面化でも下がらない）より背面のため、
            コントロールパネル・パレット・?devの確認用ウィンドウは読み込み中も操作できる */
         .canvas-loading-cover {
@@ -236,7 +237,7 @@
 </head>
 <body>
     <canvas id="editor-canvas"></canvas>
-    <div id="canvas-loading-cover" class="canvas-loading-cover" hidden>読み込み中…</div>
+    <div id="canvas-loading-cover" class="canvas-loading-cover">読み込み中…</div>
     <div id="window-control-panel" class="float-window">
         <div class="window-header">
             <span class="window-title">OZ Vector Editor</span>

@@ -320,7 +320,7 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
         *   スタイルを追加し（`#window-canvas-palette`・`.canvas-name-display`・`.canvas-list`・`.canvas-row`・`.canvas-row-open`・`.canvas-row-btn`・`.canvas-row.current .canvas-row-open`・`.canvas-notice`・`.canvas-loading-cover`・`.canvas-loading-cover[hidden]`）、それぞれにコメント（役割・位置の根拠。覆い要素は`z-index`の根拠と`[hidden]`指定が必須な理由）を付ける。
         *   `#window-shape-palette`の`top`を`440px`へ変更し、直前のコメントを計算根拠（2章要件6）に更新する。
         *   既存の要素・スタイルは変更しない。本タスク完了時点では呼び出し口は未配線（押しても何も起きない）で、覆い要素は非表示のため、キャンバスへのマウス入力を含む既存の操作は従来どおり動作する。
-*   [ ] タスク7: `main.js`のキャンバス管理の配線（覆い要素の表示開始を含む）
+*   [x] タスク7: `main.js`のキャンバス管理の配線（覆い要素の表示開始を含む）
     *   **対象ファイル** :
         *   `./js/main.js` :（更新）
         *   `./index.html` :（更新。`#canvas-loading-cover`の`hidden`属性の削除のみ）
@@ -429,7 +429,21 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
 
 ### タスク7: `main.js`のキャンバス管理の配線（覆い要素の表示開始を含む）
 *   **作業内容** :
-    *   (未実施)
+    *   `js/main.js`：
+        *   import追加：`CanvasStorage`（`./io/CanvasStorage.js`）・`CanvasLibrary`（`./edit/CanvasLibrary.js`）・`CanvasPalette`・`PaletteLauncher`（`./palette/`）。
+        *   `// 7.5.`の後に`// 7.6. キャンバス管理（キャンバス一覧・自動保存・キャンバスパレット・呼び出し口）配線`を新設（処理本体は`CanvasLibrary`が持ち、ここは生成・注入・表示の同期・イベントの配線のみである旨をコメントに明記）。
+            *   定数`paletteLaunchers`（JSDocに後続のパレットの追加方法）と`new PaletteLauncher(paletteLaunchers)`。
+            *   `canvasLibrary`の生成（`storage: new CanvasStorage()`・`model`・`historyManager`・`prepareSwitch: () => applyMode(OperationMode.SELECT)`・`resetView: () => viewTransform.reset()`）。
+            *   `canvasPalette`の生成（`onOpen`/`onCreate`/`onRename`/`onDelete`を`canvasLibrary`の各メソッドへ委譲）。
+            *   `syncCanvasNameDisplay()`（JSDoc付き）：`textContent`（`hasSaveProblem`なら先頭に`⚠ `、読み込み中は「読み込み中…」）・`title`（名前全体。読み込み中は空）・`document.title`（`<名前> - OZ Vector Editor`／読み込み中は`OZ Vector Editor`）。
+            *   `syncLoadingCover()`（JSDoc付き。目的を記載）：`#canvas-loading-cover`の`hidden`を`!getState().loading`に設定。要素が無ければ`console.warn`のみ。
+            *   `canvasLibrary.onChange`へ`syncCanvasNameDisplay`・`syncLoadingCover`・パレットの`render`を登録。
+            *   `document`の`visibilitychange`（`visibilityState === 'hidden'`のとき）と`window`の`pagehide`で`canvasLibrary.flushPendingSave()`。
+        *   `// 9.`の`onImport`の先頭に、`canvasLibrary.getState().loading`が真なら`{ ok: false, restoredCount: 0, reassignedCount: 0, skipped: [], error: 'キャンバスの読み込み中です' }`を返す判定を追加し、理由をコメントに追記。それ以外の`onImport`の処理は変更していない。
+        *   初期化の最後（`syncHistoryButtonState()`の後）に`syncCanvasNameDisplay()`・`syncLoadingCover()`・`canvasPalette.render(canvasLibrary.getState())`・`canvasLibrary.start()`（`await`しない）をコメント付きで追加。
+        *   再描画・削除ボタン・取り消し/やり直しボタンの同期処理は追加していない。`window`への公開なし。先頭行の責務JSDoc（「各モジュールの初期化と連携(依存性の注入)を担う」）は実態と一致しているため変更なし。
+        *   行数：390行 → 496行（計画の見込み約470〜490行をやや超過。主にJSDoc・コメントによる）。`node --check`で構文確認済み。
+    *   `index.html`：`#canvas-loading-cover`の`hidden`属性を削除（初期表示）。覆い要素のスタイルのコメントに「表示状態で始まり、`syncLoadingCover()`が読み込み完了で`hidden`を付けて非表示にする」旨を1行追記。それ以外は変更していない。
 
 ### タスク8: JSDocの確認とRESの完成
 *   **作業内容** :
@@ -469,6 +483,9 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
 * **（タスク5）×ボタンのmousedown**: キャンバスパレットの×はヘッダー内にあり、`WindowManager`のヘッダーの`mousedown`（ドラッグ開始）も受ける。`click`で閉じる動作には影響しない見込みだが、×を押した際にウィンドウが動かないかを目視確認すること。
 * **（タスク6）開いている行のホバー時の配色**: `.canvas-row.current .canvas-row-open`は既存の`.tool-btn:hover:not(:disabled)`と詳細度が同じで後に書かれているため、開いているキャンバスの行はホバーしても配色が変わらない（`.tool-btn.active`はホバー色に負けて`#eee`になる点と異なる）。見た目の違いのみで動作には影響しない。
 * **（タスク6）タスク7完了までの見た目**: タスク6完了時点では`#canvas-name-display`が空のため、コントロールパネルに空の1行（18px）が見える。タスク7の`syncCanvasNameDisplay()`の配線で埋まる。
+* **（タスク7）覆い要素が残る場合**: 覆い要素は`index.html`の時点で表示状態のため、`main.js`の読み込み・初期化が途中で失敗した場合（モジュールの読み込みエラー、`#editor-canvas`が見つからない等）は「読み込み中…」の覆いが消えない。従来も同じ状況ではアプリは動作しないため実害は小さいが、覆いが消えない場合は開発者ツールのコンソールでエラーを確認すること。
+* **（タスク7）`syncCanvasNameDisplay()`の読み込み中の判定**: `loading`が偽でも`openCanvasName`が`null`（開いているキャンバスが無い）の場合は「読み込み中…」として扱う防御を入れた（現状の`CanvasLibrary`では読み込み完了後に必ずキャンバスが開いているため通らない見込み）。
+* **（タスク7）`main.js`の行数**: 496行で計画の見込み（約470〜490行）をやや超えた。今後`main.js`へ配線を追加する場合は、配線ブロックの切り出しを検討すること。
 * **テストプレイでの目視確認項目**:
     * 図形を描いて再読み込みすると同じ図形が出る／ブラウザを閉じて開き直しても残る／描いた直後（1秒以内）に再読み込みしても残る。
     * 再読み込み後は倍率100%・選択モード・取り消しボタンが押せない状態。

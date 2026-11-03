@@ -16,6 +16,10 @@ import { DevPanel } from './palette/DevPanel.js';
 import { ShapeInserter } from './edit/ShapeInserter.js';
 import { ClipboardController } from './edit/ClipboardController.js';
 import { SnapshotAdapter } from './edit/SnapshotAdapter.js';
+import { CanvasStorage } from './io/CanvasStorage.js';
+import { CanvasLibrary } from './edit/CanvasLibrary.js';
+import { CanvasPalette } from './palette/CanvasPalette.js';
+import { PaletteLauncher } from './palette/PaletteLauncher.js';
 
 // DOMが読み込まれた後に初期化を行う
 document.addEventListener('DOMContentLoaded', () => {
@@ -259,6 +263,92 @@ document.addEventListener('DOMContentLoaded', () => {
     // 切り取りの削除は、既存の唯一の削除経路inputTracker.deleteSelection()を注入する（Delete/削除ボタンと同一経路）
     const clipboardController = new ClipboardController({ model, inserter: shapeInserter, deleteSelection: () => inputTracker.deleteSelection() });
 
+    // 7.6. キャンバス管理（キャンバス一覧・自動保存・キャンバスパレット・呼び出し口）配線
+    // 処理本体（起動時の復元・開く・新規作成・名前の変更・削除・切り替え処理・自動保存）はCanvasLibrary（edit/）が持ち、
+    // ここは生成・注入コールバック・表示の同期・イベントの配線のみを行う。
+    // applyMode・viewTransform・historyManagerの生成後であること（切り替え処理の前提）。
+    /**
+     * 呼び出し口のボタンと開閉式パレットの対応表（PaletteLauncherへ渡す。唯一の定義箇所）。
+     * 後続のパレットを追加する場合は、index.htmlへ呼び出し口のボタンとパレットのDOM（`hidden`で初期非表示）を
+     * 静的に置き、本表へ`{ button, palette }`の1エントリを追加する（PaletteLauncherの変更は不要）。
+     * @type {Array<{button: HTMLElement|null, palette: HTMLElement|null}>}
+     */
+    const paletteLaunchers = [
+        { button: document.getElementById('launcher-canvas'), palette: document.getElementById('window-canvas-palette') },
+    ];
+    new PaletteLauncher(paletteLaunchers);
+
+    // 切り替え処理の手順1（進行中の入力操作の中断と選択モードへの切り替え）はapplyModeの経路、
+    // ビュー変換の初期化はviewTransform.reset()を注入する（再描画・UI同期は既存のonChange経路に任せる）
+    const canvasLibrary = new CanvasLibrary({
+        storage: new CanvasStorage(),
+        model,
+        historyManager,
+        prepareSwitch: () => applyMode(OperationMode.SELECT),
+        resetView: () => viewTransform.reset()
+    });
+
+    // キャンバスパレットの操作は通知をCanvasLibraryへ渡すのみ（受理判定はCanvasLibraryが行う）
+    const canvasPalette = new CanvasPalette(document.getElementById('window-canvas-palette'), {
+        onOpen: (id) => canvasLibrary.openCanvas(id),
+        onCreate: () => canvasLibrary.createCanvas(),
+        onRename: (id, name) => canvasLibrary.renameCanvas(id, name),
+        onDelete: (id) => canvasLibrary.deleteCanvas(id)
+    });
+
+    const canvasNameDisplayEl = document.getElementById('canvas-name-display');
+    const canvasLoadingCoverEl = document.getElementById('canvas-loading-cover');
+
+    /**
+     * 開いているキャンバスの名前の表示（`#canvas-name-display`）とページのタイトル（`document.title`）を、
+     * `canvasLibrary.getState()`に同期する。
+     * 読み込み中は「読み込み中…」（タイトルは`OZ Vector Editor`）。それ以外は`<キャンバス名> - OZ Vector Editor`とし、
+     * 保存の問題があるとき（`hasSaveProblem`）は表示の先頭に`⚠ `を付ける。長い名前は省略表示されるため、
+     * 名前全体を`title`属性に設定する。canvasLibrary.onChangeのコールバックとして登録し、起動時にも明示的に1回呼び出す。
+     * 表示要素が無ければ表示の更新は行わない（タイトルは更新する）。
+     */
+    function syncCanvasNameDisplay() {
+        const state = canvasLibrary.getState();
+        const name = state.openCanvasName;
+        const isLoading = state.loading || name === null;
+        const label = isLoading ? '読み込み中…' : name;
+        if (canvasNameDisplayEl) {
+            canvasNameDisplayEl.textContent = (state.hasSaveProblem ? '⚠ ' : '') + label;
+            canvasNameDisplayEl.title = isLoading ? '' : name;
+        }
+        document.title = isLoading ? 'OZ Vector Editor' : `${name} - OZ Vector Editor`;
+    }
+
+    /**
+     * 読み込み中の覆い要素（`#canvas-loading-cover`）の表示を`canvasLibrary.getState().loading`に同期する
+     * （読み込み中なら表示、それ以外は非表示。`hidden`属性の切り替えのみ）。
+     * 目的：起動時の読み込み完了まで、キャンバスへのマウス入力（図形作成・選択・ドラッグ・パン・ホイールズーム）を
+     * 前面の覆い要素で遮り、読み込み完了時の切り替え処理（図形一式の入れ替え・履歴のリセット）で利用者の操作が消されたり、
+     * 別のキャンバスに保存されたりしないようにする。覆い要素はindex.htmlの時点で表示状態で始まる。
+     * canvasLibrary.onChangeのコールバックとして登録し、起動時にも明示的に1回呼び出す。要素が無ければ`console.warn`のみ。
+     */
+    function syncLoadingCover() {
+        if (!canvasLoadingCoverEl) {
+            console.warn('読み込み中の覆い要素（#canvas-loading-cover）が見つかりません。');
+            return;
+        }
+        canvasLoadingCoverEl.hidden = !canvasLibrary.getState().loading;
+    }
+
+    // キャンバス一覧の状態の変化（名前の変更・切り替え・削除・読み込み完了・保存の問題）で表示を直ちに更新する
+    canvasLibrary.onChange(syncCanvasNameDisplay);
+    canvasLibrary.onChange(syncLoadingCover);
+    canvasLibrary.onChange(() => canvasPalette.render(canvasLibrary.getState()));
+
+    // ページ非表示時（タブの切り替え・閉じる・再読み込み）に保留中の自動保存を直ちに確定する
+    // （作業データの取得と書き込みの開始はハンドラ内で同期的に行われる）
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            canvasLibrary.flushPendingSave();
+        }
+    });
+    window.addEventListener('pagehide', () => canvasLibrary.flushPendingSave());
+
     // 8. キーボードショートカット配線
     /**
      * 表示中キャンバスの中心を基準に、ホイール1刻みと同じ刻み幅（WHEEL_ZOOM_STEP）で拡大・縮小する。
@@ -351,7 +441,12 @@ document.addEventListener('DOMContentLoaded', () => {
             // 復元は1件の編集操作として履歴に記録する（失敗時は記録しない）。中断を先に行うのは、
             // ドラッグ中だった場合にその中断分が先に1件として確定するため（beginEditは必ず中断の後）。
             // 本コールバックから例外を漏らさないこと（DevPanelは捕捉しない）
+            // キャンバスの読み込み中（起動時の復元の完了前）は、図形一式・履歴に触れずに失敗として返す
+            // （読み込み完了時の切り替え処理で図形一式が入れ替えられ、履歴もリセットされて復元内容が消されるため）
             onImport: (text) => {
+                if (canvasLibrary.getState().loading) {
+                    return { ok: false, restoredCount: 0, reassignedCount: 0, skipped: [], error: 'キャンバスの読み込み中です' };
+                }
                 const result = DocumentSerializer.deserializeFromString(text);
                 if (!result.ok) {
                     return { ok: false, restoredCount: 0, reassignedCount: 0, skipped: [], error: result.error };
@@ -387,4 +482,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // 取り消し・やり直しボタンの押せる/押せない状態も同様に、index.htmlの初期disabled属性やonChange通知に
     // 依存させず、履歴と作成途中の図形の実値で明示的に1回同期する
     syncHistoryButtonState();
+
+    // キャンバス名の表示・読み込み中の覆い要素・キャンバスパレットも同様に、onChange通知に依存させず
+    // CanvasLibraryの状態の実値で明示的に1回同期する（start()前のgetState().loadingは真のため「読み込み中」として表示される）
+    syncCanvasNameDisplay();
+    syncLoadingCover();
+    canvasPalette.render(canvasLibrary.getState());
+
+    // 最後に開いていたキャンバスを非同期に読み込む（awaitしない。start()はrejectしない）。
+    // 読み込み完了時に切り替え処理で図形一式が入り（倍率100%・選択モード・履歴は空）、
+    // onChange通知で覆い要素が非表示になってキャンバスを操作できるようになる
+    canvasLibrary.start();
 });
