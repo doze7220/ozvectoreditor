@@ -268,7 +268,7 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
         *   `main.js`：`import { SnapshotAdapter } from './edit/SnapshotAdapter.js';`を追加し、`// 3.5.`の`captureSnapshot`/`restoreSnapshot`の関数定義を削除して2章のとおり`snapshotAdapter`の生成と`HistoryManager`への注入に置き換える。`// 3.5.`の見出しコメントを実態（スナップショットの実体は`SnapshotAdapter`）に合わせて更新する。注入する`shouldRestoreSelection`の実体（`inputTracker.getMode() === OperationMode.SELECT`）が後で宣言される`inputTracker`を参照する旨のコメントを残す。`SnapshotAdapter.js`は`OperationMode`・`InputTracker`をimport・参照しない（JSDocで`shouldRestoreSelection`は「選択集合を復元してよいか」を返す関数とだけ説明し、操作モードに言及しない）。`performUndo`/`performRedo`・`?dev`の`onImport`は変更しない。
         *   `main.js`がまだ`DocumentSerializer`を使う（`?dev`）ためimportは残す。
         *   本タスク完了時点で、取り消し・やり直しの挙動が変わらないこと。
-*   [ ] タスク2: IndexedDBへの読み書きを担う`CanvasStorage`の新設
+*   [x] タスク2: IndexedDBへの読み書きを担う`CanvasStorage`の新設
     *   **対象ファイル** :
         *   `./js/io/CanvasStorage.js` :（新規）
     *   **作業内容** :
@@ -369,7 +369,16 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
 
 ### タスク2: IndexedDBへの読み書きを担う`CanvasStorage`の新設
 *   **作業内容** :
-    *   (未実施)
+    *   `js/io/CanvasStorage.js`を新設。先頭行の責務JSDocは計画の案どおり（2行）。importなし。
+    *   モジュール定数`STORAGE_CONFIG`（`Object.freeze`。exportしない）を2章要件1の値で定義し、JSDocに各項目の意味と版を上げる手順（`databaseVersion`を+1し、`#handleUpgrade`に`event.oldVersion`に応じた移行を追加）を記載。typedef`CanvasRecord`を定義し、各項目の意味・保存しないもの・`document`と`id`を解釈しないことを記載。
+    *   クラス`CanvasStorage`：private`#db`（`IDBDatabase|null`）と`#openPromise`（2回目以降の`open()`で同じPromiseを返すため。失敗時は`null`へ戻し再試行可能）。公開API`open`・`getAllRecords`・`getRecord`・`putRecord`・`renameRecord`・`deleteRecord`・`getLastOpenedId`・`setLastOpenedId`を実装。
+        *   `open()`：`indexedDB`が無い・`indexedDB.open`の例外・`onerror`でreject。`onupgradeneeded`で`#handleUpgrade`（`canvases`（`keyPath: 'id'`）・`meta`を無ければ作成）。`onblocked`は`console.warn`のみ。
+        *   privateヘルパー`#runTransaction(storeNames, mode, operate)`を1つ持つ：呼び出し時点で同期的にトランザクションを生成して要求を発行し、`oncomplete`で結果を返して解決、`onerror`/`onabort`でreject。`#db`が`null`（`open()`前）なら reject、生成時の例外もreject。読み出しも書き込みもこのヘルパーを通す（読み出しの結果は`oncomplete`時点で返す）。
+        *   `getRecord`は記録が無ければ`null`、`getAllRecords`は配列（内容の検証は呼び出し側）、`getLastOpenedId`は文字列でなければ`null`。
+        *   `renameRecord`：1つのreadwriteトランザクション内で`get`→`onsuccess`で`{ ...record, name }`を`put`（`updatedAt`・`document`は変えない）。記録が無ければ`false`で解決。
+        *   `deleteRecord`は記録が無くても成功として解決する。
+    *   クラスJSDocに、失敗時はrejectし捕捉は呼び出し側の責務であること、`open()`前の呼び出しはrejectすること、書き込み順序の保証（呼び出し時点で同期的にトランザクションを生成し、IndexedDBが生成順に実行する。`CanvasLibrary`の順序保証が依存）を記載。
+    *   DOM・図形種別・図形固有のプロパティ名・作業データ形式の知識は持たない。他ファイルは変更していない（未使用のためアプリの動作は変わらない）。`node --check`で構文確認済み。
 
 ### タスク3: キャンバス一覧の管理を担う`CanvasLibrary`の新設（状態・起動時の復元・切り替え処理・自動保存・開く・新規作成）
 *   **作業内容** :
@@ -413,6 +422,7 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
 * **`WindowManager.js`は変更しない**: 非表示で静的に置いたウィンドウも起動時に配線され、表示後のドラッグ移動・最前面化が働く見込み。働かない場合のみ、理由を記録したうえで変更を検討する。開いたパレットが他のウィンドウの下に隠れる場合（ドラッグで重ねた後）は、クリックで最前面になる（既存の最前面化）。
 * **図形パレットの`top`（440px）**: ボタンの高さはフォント・絵文字の表示に依存するため、コントロールパネル下端との余白が24px以上あるかを目視確認すること。
 * **（タスク1）`Snapshot`の型定義の二重化**: typedef`Snapshot`は`HistoryManager.js`と`SnapshotAdapter.js`の両方にある。スナップショットの形を変える場合は両方を揃えること。タスク1完了時点で、取り消し・やり直し（選択モード時の選択集合の復元を含む）の挙動が従来どおりかを目視確認すること。
+* **（タスク2）`CanvasStorage`の読み出しの解決時点と`open()`の再試行**: 読み出し（`getRecord`等）も書き込みと同じく、要求の`onsuccess`ではなくトランザクションの`oncomplete`で解決する（ヘルパーを1つにまとめるため。結果は同じ）。`open()`が失敗した場合は`#openPromise`を`null`へ戻すため、再度`open()`を呼ぶと開き直しを試みる（現計画では起動時に1回だけ呼ぶ想定）。他のタブが古い版で開いている場合の`onversionchange`（自タブの接続を閉じる処理）は扱っていない（版1のみで、複数タブの整合はNon-goals）。将来`databaseVersion`を上げる際は、`onversionchange`で`#db.close()`する処理の追加を検討すること。
 * **テストプレイでの目視確認項目**:
     * 図形を描いて再読み込みすると同じ図形が出る／ブラウザを閉じて開き直しても残る／描いた直後（1秒以内）に再読み込みしても残る。
     * 再読み込み後は倍率100%・選択モード・取り消しボタンが押せない状態。
