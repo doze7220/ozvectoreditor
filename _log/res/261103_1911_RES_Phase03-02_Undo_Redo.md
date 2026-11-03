@@ -245,7 +245,7 @@ performRedo():
             *   タスク3で新設した履歴配線ブロック（`// 3.5. 履歴（取り消し・やり直し）配線`。`InputTracker`生成の直前）の末尾、`const historyManager = ...`の行の後に、`performUndo()`／`performRedo()`を`function`宣言で2章要件4の擬似コードどおり追加する（`inputTracker`生成後の位置へ別ブロックを作らないこと。両関数は本体内で`inputTracker`を参照するが、呼ばれるのは起動完了後のみのため問題ない旨をJSDocまたはコメントに記載する。巻き上げには頼らない：8.の注入より前にあるため）。JSDocに受理条件（ドラッグ中は不受理）・作成途中の図形がある場合の扱い・戻り値の方針（ドラッグ中でなければ常に`true`）・ボタンとショートカットの共通経路であることを記載する。
             *   `new KeyboardShortcuts({...})`に`undo: performUndo`、`redo: performRedo`を追加する（コメント付き）。
         *   本タスク完了時点でショートカットによる取り消し・やり直しが動作する。
-*   [ ] タスク5: 取り消し・やり直しボタンと押せる/押せない状態の同期、図形パレットの位置
+*   [x] タスク5: 取り消し・やり直しボタンと押せる/押せない状態の同期、図形パレットの位置
     *   **対象ファイル** :
         *   `./index.html` :（更新）
         *   `./js/main.js` :（更新）
@@ -330,7 +330,17 @@ performRedo():
 
 ### タスク5: 取り消し・やり直しボタンと押せる/押せない状態の同期、図形パレットの位置
 *   **作業内容** :
-    *   (未実施)
+    *   `index.html`：
+        *   削除ボタン（`#selection-delete`）の直後、倍率表示行（`.view-zoom-row`）の前に、2章要件5のとおり`.history-button-row`の中に`#history-undo`（`title="取り消し (Ctrl+Z)"`、`disabled`）と`#history-redo`（`title="やり直し (Ctrl+Y / Ctrl+Shift+Z)"`、`disabled`）を追加した。
+        *   `<style>`の`.view-zoom-row`の直後に、`.history-button-row { display: flex; gap: 8px; }`と`.history-button-row .tool-btn { flex: 1; text-align: center; white-space: nowrap; }`をコメント付きで追加した。
+        *   `#window-shape-palette`の`top`を`320px`→`368px`へ変更し、変更理由（ボタン行1行分の追加、パネル下端との余白24px以上の確保、自動配置しない）をコメントで付した。他の要素・スタイルは変更していない。
+    *   `main.js`（いずれも`// 6.`セクション内。指定どおりの位置）：
+        *   要素取得：`const deleteSelectionBtn = ...`の直後に、コメント付きで`historyUndoBtn`／`historyRedoBtn`を取得した（`modeButtons`には含めない）。
+        *   関数定義：削除ボタンのclick登録行の直後に`syncHistoryButtonState()`を`function`宣言で追加した（取り消し：`!(historyManager.canUndo() || model.getDraftLine() !== null)`、やり直し：`!historyManager.canRedo()`）。JSDocに押せない条件・登録先・`HistoryManager`等がDOMに触れないことを記載した。
+        *   onChange登録：定義の直後に`model.onChange(syncHistoryButtonState)`・`historyManager.onChange(syncHistoryButtonState)`をコメント付きで登録した。
+        *   click登録：その直後（`// 7.`の直前）に、両ボタンの`click`で`performUndo()`／`performRedo()`を呼ぶのみのリスナーを登録した（ショートカットと同一経路、`historyManager.undo()/redo()`を直接呼ばない旨のコメント付き）。
+        *   起動時の同期：`syncDeleteButtonState();`の直後（`DOMContentLoaded`コールバックの最後）に、既存と同様の説明コメント付きで`syncHistoryButtonState();`を1回呼ぶようにした。
+    *   `node --check`で`main.js`の構文を確認した。`model.getDraftLine()`が`VectorModel`に存在することを確認した。
 
 ### タスク6: JSDocの確認とRESの完成
 *   **作業内容** :
@@ -360,6 +370,8 @@ performRedo():
 * **タスク3完了時点の中間状態（タスク3）**: この時点では作成・削除・移動・変形・`?dev`復元が履歴に記録されるが、取り消し・やり直しの手段（ショートカット・ボタン）はまだない（タスク4・5で接続）。記録処理が加わるため、編集操作ごとに`serialize`と`JSON.stringify`が2回ずつ走るが、従来の動作は変わらない想定である。テストプレイでは回帰（作成・削除・移動・変形・`?dev`復元）がないかを確認すること。
 * **タスク4完了時点の中間状態（タスク4）**: ショートカットでの取り消し・やり直しは動作する。ただしボタンはまだない（タスク5で追加）。`performUndo`/`performRedo`のJSDocには「6.のボタン登録より前で宣言」と書いてあるが、ボタンのclick登録はタスク5で追加する。
 * **Shift規則の既定値（タスク4）**: `#matchesShiftRule`は、`ANY`・`REQUIRED`以外の値をすべて`FORBIDDEN`として扱う。エントリの`shift`を書き忘れた（`undefined`）場合や綴りを誤った場合も「Shift禁止」として動き、エラーにはならない。エントリを追加するときは、`shift`に必ず`ShiftRule`の値を指定すること。
+* **ボタン同期の通知順（タスク5）**: `syncHistoryButtonState`は`model.onChange`へ`renderCurrentState`・`syncDeleteButtonState`の後に登録している。取り消し・やり直しの適用中は`model.onChange`（2回）→`historyManager.onChange`（1回）の順に呼ばれるため、`model.onChange`経由の呼び出しでは履歴の位置がまだ動いていない状態で一時的に同期されるが、直後の`historyManager.onChange`で最終状態へ同期され、同期的に連続して実行されるため表示上の問題はない想定である。`HistoryManager`の通知順序を変える場合は注意すること。
+* **ボタン行・パレット位置の目視確認（タスク5）**: 2ボタンが1行に収まっているか（「↶ 取り消し」「↷ やり直し」の文字詰まり）、図形パレット（`top: 368px`）とコントロールパネル下端の余白が24px以上あるかを目視確認すること（計算値のみで実測はしていない）。
 * **変更しないファイル**: `CanvasManager.js`／`ShapeFactory.js`／`ViewTransform.js`／`DragTracker.js`／`WindowManager.js`／`DocumentSerializer.js`／`PaletteController.js`／`DevPanel.js`／`shapes/`・`VectorModel.js`は変更不要と判断した。
 * **テストプレイでの目視確認項目**:
     1. 5種の図形（直線・曲線・弧・矩形・円）を作成→`Ctrl`+`Z`で新しい順に1つずつ消え、`Ctrl`+`Y`で順に戻る。

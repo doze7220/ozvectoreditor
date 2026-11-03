@@ -176,6 +176,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const viewResetBtn = document.getElementById('view-reset');
     // コントロールパネルの削除ボタン（modeButtonsには含めない：.activeの対象外）
     const deleteSelectionBtn = document.getElementById('selection-delete');
+    // コントロールパネルの取り消し・やり直しボタン（modeButtonsには含めない：.activeの対象外）
+    const historyUndoBtn = document.getElementById('history-undo');
+    const historyRedoBtn = document.getElementById('history-redo');
 
     /**
      * コントロールパネルの倍率表示（`#view-zoom-display`）を、ViewTransformの現在の倍率に同期する。
@@ -212,6 +215,31 @@ document.addEventListener('DOMContentLoaded', () => {
     // 削除ボタン：受理条件の判定と削除はinputTracker.deleteSelection()のみが担う
     // （Delete/Backspaceショートカットと同一経路。ここでmodel.deleteShapesを直接呼ばないこと）
     deleteSelectionBtn.addEventListener('click', () => inputTracker.deleteSelection());
+
+    /**
+     * コントロールパネルの取り消し・やり直しボタン（`#history-undo`／`#history-redo`）の押せる/押せない状態を
+     * 同期する（HTMLの`disabled`属性）。
+     * 取り消しボタンは「取り消す履歴がなく、作成途中の図形もない」ときに押せない状態にする
+     * （作成途中の図形がある間は、取り消しで破棄できるため押せる）。
+     * やり直しボタンは「やり直す履歴がない」ときに押せない状態にする。
+     * model.onChange（作成途中の図形の有無の変化）とhistoryManager.onChange（記録・適用・リセット）の
+     * 両方のコールバックとして登録し、起動時にも明示的に1回呼び出す。ボタンのDOM更新はmain.jsが担い、
+     * HistoryManager・VectorModel・InputTrackerはDOMに触れない。
+     */
+    function syncHistoryButtonState() {
+        historyUndoBtn.disabled = !(historyManager.canUndo() || model.getDraftLine() !== null);
+        historyRedoBtn.disabled = !historyManager.canRedo();
+    }
+
+    // 作成途中の図形の有無の変化に応じて取り消しボタンの状態を更新する
+    model.onChange(syncHistoryButtonState);
+    // 履歴の変化（記録・取り消し・やり直し・リセット）に応じて両ボタンの状態を更新する
+    historyManager.onChange(syncHistoryButtonState);
+
+    // 取り消し・やり直しボタン：受理条件の判定と実行はperformUndo/performRedoのみが担う
+    // （ショートカットと同一経路。ここでhistoryManager.undo()/redo()を直接呼ばないこと）
+    historyUndoBtn.addEventListener('click', () => performUndo());
+    historyRedoBtn.addEventListener('click', () => performRedo());
 
     // 7. 図形選択パレット配線
     const shapePaletteEl = document.getElementById('window-shape-palette');
@@ -353,4 +381,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 削除ボタンの押せる/押せない状態も同様に、index.htmlの初期disabled属性やonChange通知に
     // 依存させず、Modelの選択集合の実値で明示的に1回同期する
     syncDeleteButtonState();
+
+    // 取り消し・やり直しボタンの押せる/押せない状態も同様に、index.htmlの初期disabled属性やonChange通知に
+    // 依存させず、履歴と作成途中の図形の実値で明示的に1回同期する
+    syncHistoryButtonState();
 });

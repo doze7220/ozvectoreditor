@@ -67,8 +67,10 @@
             right: 16px;
             width: 220px;
         }
+        /* topはコントロールパネルの取り消し・やり直しボタン行（1行分）の追加に合わせて320px→368pxへ下げた
+           （パネル下端 約341px との余白を24px以上確保するため。自動配置はしない） */
         #window-shape-palette {
-            top: 320px;
+            top: 368px;
             right: 16px;
             width: 220px;
         }
@@ -109,6 +111,17 @@
             gap: 8px;
             font-size: 13px;
             color: #333;
+        }
+        /* コントロールパネルの取り消し・やり直しボタン行（2ボタンを1行に横並び。
+           パネル内側196pxに2ボタン＋余白8pxで収める。押せない状態は.tool-btn:disabledを用いる） */
+        .history-button-row {
+            display: flex;
+            gap: 8px;
+        }
+        .history-button-row .tool-btn {
+            flex: 1;
+            text-align: center;
+            white-space: nowrap;
         }
         /* 開発者向け確認用ウィンドウ（?dev時のみ表示。右側のコントロールパネル・図形パレットと重ならない左上に置く） */
         #window-dev-panel {
@@ -153,6 +166,10 @@
             <button type="button" id="mode-create" class="tool-btn" title="図形作成 (P)">✏ 図形作成</button>
             <button type="button" id="mode-pan" class="tool-btn" title="キャンバス移動 (H)">✋ キャンバス移動</button>
             <button type="button" id="selection-delete" class="tool-btn" title="選択中の図形を削除 (Delete / Backspace)" disabled>🗑 削除</button>
+            <div class="history-button-row">
+                <button type="button" id="history-undo" class="tool-btn" title="取り消し (Ctrl+Z)" disabled>↶ 取り消し</button>
+                <button type="button" id="history-redo" class="tool-btn" title="やり直し (Ctrl+Y / Ctrl+Shift+Z)" disabled>↷ やり直し</button>
+            </div>
             <div class="view-zoom-row">
                 <span id="view-zoom-display">100%</span>
                 <button type="button" id="view-reset" class="tool-btn" title="表示をリセット (Ctrl+0)">リセット</button>
