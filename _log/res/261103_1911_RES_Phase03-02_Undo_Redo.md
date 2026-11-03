@@ -188,7 +188,7 @@ performRedo():
     *   `DocumentSerializer.js`：「将来はUndo履歴のスナップショットが壊れる」の表現を現在形へ（記述のみ）。
 
 ## 3. タスクリスト
-*   [ ] タスク1: 履歴管理クラス`HistoryManager`の新設
+*   [x] タスク1: 履歴管理クラス`HistoryManager`の新設
     *   **対象ファイル** :
         *   `./js/core/HistoryManager.js` :（新規）
     *   **作業内容** :
@@ -278,7 +278,16 @@ performRedo():
 
 ### タスク1: 履歴管理クラス`HistoryManager`の新設
 *   **作業内容** :
-    *   (未実施)
+    *   `js/core/HistoryManager.js`を新規作成した（importなし）。先頭行に2章要件7の案どおりの責務JSDoc（3行以内）を記載。
+    *   `export const HISTORY_LIMIT = 100`（JSDoc：取り消せる編集操作の上限件数。超えたら最古から捨てる。唯一の定義箇所）。
+    *   typedef`Snapshot`（`document`は中身を解釈しない旨、`selectedIds`の時点の定義）・`HistoryEntry`・`HistoryCallbacks`を記載。
+    *   `HistoryManager`クラス：privateフィールド`#capture`/`#restore`/`#entries`/`#cursor`/`#pendingBefore`/`#listeners`。公開API`constructor({ capture, restore })`（関数でなければ`Error`）、`beginEdit()`、`commitEdit()`、`undo()`、`redo()`、`canUndo()`、`canRedo()`、`clear()`、`onChange(listener)`。private`#notifyChange()`、`#takeSnapshot()`、static`#deepFreeze(value)`。
+        *   `commitEdit()`：`#pendingBefore`を先に取り出して破棄→なければ`console.warn`して`false`→`document`部分の`JSON.stringify`比較で同一なら`false`（やり直しの履歴は破棄しない・通知なし）→異なれば`#entries.length = #cursor`で切り詰め→エントリ（`Object.freeze({ before, after })`）を追加→上限超過分を先頭から`splice`→`#cursor = #entries.length`→通知して`true`。
+        *   `undo()`/`redo()`：冒頭で`#pendingBefore`が残っていれば`console.warn`して破棄（共通処理をprivate`#discardPendingWithWarning(methodName)`として追加。計画に明記のないprivateヘルパーだが、undo/redoの重複を避けるためのみ）。可否が偽なら`false`。`restore`が`false`なら位置を動かさず通知せず`false`。成功時に位置を増減し通知して`true`。
+        *   `clear()`：エントリまたは`#pendingBefore`があった場合のみ通知。
+        *   `#deepFreeze`：`null`・非オブジェクト・凍結済みはそのまま返し、それ以外は`Object.freeze`→`Object.values`で子を再帰（プロパティ名を参照しない）。
+    *   各メソッド・クラスJSDocに、効果・受理条件・戻り値・変更通知の条件、「DOMに触れない」「図形種別・図形固有のプロパティ名を持たない」「`beginEdit`/`commitEdit`の明示呼び出しでのみ記録」「進行中の入力操作の中断は呼び出し側の責務」を記載。
+    *   他ファイルは変更していない（未使用のためアプリの動作は不変）。Node.jsでの簡易動作確認（記録・不記録・取り消し・やり直し・上限100件）を一時スクリプトで実施し、スクリプトは削除済み。
 
 ### タスク2: `InputTracker`に編集操作の開始・確定を伝える経路を追加
 *   **作業内容** :
@@ -318,6 +327,7 @@ performRedo():
 * **ボタンのフォーカス**: 取り消し・やり直しボタンをクリックした後、フォーカスがボタンに残ったまま`Enter`を押すとボタンが再度押される（削除ボタンと同じ既存の挙動を踏襲。`Space`は`InputTracker`がスペースパンのため`preventDefault()`するが、`keyup`での誤クリック抑止はテキスト入力中以外で既存どおり）。
 * **ボタン行の幅**: パネル内側196pxに2ボタンを並べるため、`white-space: nowrap`・中央揃えで収める。フォント環境によっては文字が詰まって見える可能性があるため目視確認すること。
 * **図形パレットの位置**: `top`を320px→368pxへ下げる。コントロールパネル下端との余白は計算上約27px。フォント環境で高さが変わる場合は目視確認すること。
+* **`#deepFreeze`の凍結済み判定（タスク1）**: 循環参照で無限再帰しないよう、凍結済みの値は辿らずに返す。このため`capture()`が「凍結済みだが子が未凍結」のオブジェクトを含むスナップショットを返した場合、その子は凍結されない。現行の`captureSnapshot`（`serialize`＝`toJSON()`の新しいオブジェクト＋新しい配列）では起こらない想定だが、`toJSON()`が凍結済みの共有オブジェクトを返すよう変更する場合は注意すること。
 * **変更しないファイル**: `CanvasManager.js`／`ShapeFactory.js`／`ViewTransform.js`／`DragTracker.js`／`WindowManager.js`／`DocumentSerializer.js`／`PaletteController.js`／`DevPanel.js`／`shapes/`・`VectorModel.js`は変更不要と判断した。
 * **テストプレイでの目視確認項目**:
     1. 5種の図形（直線・曲線・弧・矩形・円）を作成→`Ctrl`+`Z`で新しい順に1つずつ消え、`Ctrl`+`Y`で順に戻る。
