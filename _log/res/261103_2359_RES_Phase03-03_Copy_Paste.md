@@ -224,7 +224,7 @@ main.js ──生成・注入──▶ ClipboardController ──insertDocument�
             *   `copy()`・`cut()`・`paste()`・`duplicate()`・`isEmpty()`を2章要件2〜4のとおり実装する。
         *   JSDocに次を記載する：クリップボードの保持内容（作業データ形式のオブジェクト・図形インスタンスを参照しない・外部へ返さず書き換えない・履歴の対象外で取り消し/やり直しで変わらない・インスタンスはページを開いている間保持され、キャンバスを切り替えても消えない）／各操作の効果と受理条件・戻り値（コピー・切り取りで何もしなかった場合は`false`＝`preventDefault()`しない理由）／段数の規則（コピーで1・切り取りで0にリセット、貼り付けで追加するたびに+1、複製・取り消し・やり直しでは不変）／切り取りの削除が既存の削除経路（`deleteSelection`）を通り、削除と同じ結果・1件の編集操作になること／貼り付け・複製の前提（選択モード・ドラッグ中でないことは呼び出し側の責務。本クラスは操作モードを知らない）／図形種別の分岐・図形固有のプロパティ名・id形式を持たないこと。
         *   本タスクでは他ファイルを変更しない（未使用のファイルのためアプリの動作は変わらない）。
-*   [ ] タスク4: ショートカットの追加と`main.js`の配線
+*   [x] タスク4: ショートカットの追加と`main.js`の配線
     *   **対象ファイル** :
         *   `./js/core/KeyboardShortcuts.js` :（更新）
         *   `./js/main.js` :（更新）
@@ -297,7 +297,16 @@ main.js ──生成・注入──▶ ClipboardController ──insertDocument�
 
 ### タスク4: ショートカットの追加と`main.js`の配線
 *   **作業内容** :
-    *   （未実施）
+    *   `./js/core/KeyboardShortcuts.js`：
+        *   `SHORTCUT_BINDINGS`の末尾（`KeyY`の`redo`エントリの後）に、コメント付きで`copy`（`KeyC`・`repeatable: false`）／`cut`（`KeyX`・`false`）／`paste`（`KeyV`・`true`）／`duplicate`（`KeyD`・`true`）の4エントリ（いずれも`ctrl: true`・`ShiftRule.FORBIDDEN`）を追加した。既存エントリは変更していない。
+        *   `ShortcutActions` typedefに`copy`／`cut`／`paste`／`duplicate`の説明を追加した。
+        *   `SHORTCUT_BINDINGS`のJSDocの修飾キー規則に「KeyVは`ctrl`の値でV単体（選択モード）と`Ctrl`+`V`（貼り付け）に排他的に区別される」を、`#handleKeyDown`のJSDocの例外の説明に`C/X/V/D`（標準のコピー・切り取り・貼り付け・ブックマーク追加）を追記した。判定ロジック（`#handleKeyDown`・`#findBinding`・`#matchesShiftRule`）は変更していない。先頭行の責務JSDocは実態と一致しているため変更していない。
+    *   `./js/main.js`：
+        *   `ShapeInserter`・`ClipboardController`のimport 2行を`DevPanel`のimportの後に追加した。
+        *   モードボタンのクリック登録行の後・`// 8.`の前に、見出し`// 7.5. クリップボード（コピー・切り取り・貼り付け・複製）配線`とコメント付きで`shapeInserter`・`clipboardController`の生成を置いた（`deleteSelection`には`() => inputTracker.deleteSelection()`を注入）。
+        *   `new KeyboardShortcuts({...})`の`redo: performRedo,`の後に、コメント付きで4コールバックを追加した：`copy`／`cut`は`clipboardController.copy()`／`cut()`の戻り値をそのまま返す。`paste`は`isEmpty()`なら何もせず`true`、選択モード以外なら`applyMode(OperationMode.SELECT)`の後に`clipboardController.paste()`を呼び常に`true`。`duplicate`は`clipboardController.duplicate()`を呼び常に`true`。
+        *   再描画・ボタン同期の呼び出し、`window`への公開は追加していない。先頭行の責務JSDocは実態と一致しているため変更していない。
+    *   `node --check`で両ファイルに構文エラーがないことを確認した。`main.js`は418行（見込み約416行に対し+2行。生成ブロックのコメントを3行としたため）。
 
 ### タスク5: JSDocの確認とRESの完成
 *   **作業内容** :
@@ -317,7 +326,9 @@ main.js ──生成・注入──▶ ClipboardController ──insertDocument�
 * **`ClipboardController`は`deleteSelection`のみ型検証する（タスク3）**: コンストラクタは`deleteSelection`が関数かのみ検証し、`model`・`inserter`は検証しない（RESの指定どおり）。注入漏れは呼び出し時の例外で判明する。
 * **スキップの扱い**: `insertDocument`は一部がスキップされても読めた図形を追加する（貼り付け・複製では通常起きない）。インポートでスキップを利用者へ通知する方法はPhase 03-05で決める（戻り値の`skipped`で取得できる）。
 * **`Ctrl`+`C`/`X`のキーリピート**: `repeatable: false`のため押しっぱなしの2回目以降は実行されないが、`ctrl: true`の既存例外により`preventDefault()`は行われる（選択集合が空の場合でも、2回目以降はブラウザ標準のコピーが起きない）。実害はない想定だが、ページ上の文字を押しっぱなしでコピーする操作は通常ないため許容する。
-* **`main.js`の行数**: 約416行になる見込み。Phase 03-04の切り出し検討（`_doc/COWORK_STATUS.md` 2章P3【03-04へ】）の際に考慮すること。
+* **`paste`コールバックの空判定の二重化（タスク4）**: `main.js`の`paste`コールバックは`isEmpty()`を先に確認してからモード切替・`paste()`を呼ぶ（空振りでモードを変えないため）。`ClipboardController.paste()`自身も空なら`false`を返すため判定は二重になるが、RESの指定どおりであり意図的。将来`paste`の受理条件を変える場合は両方を確認すること。
+* **`copy`/`cut`のショートカットは選択集合が空ならpreventDefaultしない（タスク4）**: 選択モードで図形を選択していない状態の`Ctrl`+`C`はブラウザ標準のコピーへ素通りする（`?dev`の結果表示欄で選択した文字のコピーを妨げないため。2章要件2の決定どおり）。目視確認では、図形未選択時の`Ctrl`+`C`で異常が起きないことも確認すること。
+* **`main.js`の行数**: 実測418行（タスク4完了時点。見込み約416行）。Phase 03-04の切り出し検討（`_doc/COWORK_STATUS.md` 2章P3【03-04へ】）の際に考慮すること。
 * **テストプレイでの目視確認項目**:
     * 単一・複数選択の図形を`Ctrl`+`C`→`Ctrl`+`V`で貼り付けると、右下（20, 20）にずれて貼られ、貼った図形だけが選択される（複数選択時は重なり順も元と同じ）。
     * 続けて`Ctrl`+`V`を押すと、さらに右下（40, 40）…へずれる。もう一度`Ctrl`+`C`すると段数がリセットされ、次の貼り付けは（20, 20）からになる。

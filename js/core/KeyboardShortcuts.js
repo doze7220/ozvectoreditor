@@ -48,6 +48,13 @@ const ShiftRule = Object.freeze({
  *     取り消せる履歴がなくても、ドラッグ中でなければ常にtrue（ブラウザ標準のCtrl+Zを起こさないため）
  * @property {() => boolean} redo 取り消した編集操作をやり直す。作成途中の図形があれば破棄したうえでやり直す。
  *     やり直せる履歴がなくても、ドラッグ中でなければ常にtrue（ブラウザ標準のCtrl+Y等を起こさないため）
+ * @property {() => boolean} copy 選択集合の図形をクリップボードへ記録する。記録した場合のみtrue
+ *     （選択集合が空ならfalse＝ページ上の文字の標準のコピーを妨げない）
+ * @property {() => boolean} cut 選択集合の図形をクリップボードへ記録して削除する。切り取った場合のみtrue
+ *     （選択集合が空・削除の非受理ならfalse）
+ * @property {() => boolean} paste クリップボードの図形を貼り付ける。クリップボードが空なら何もしない（操作モードも切り替えない）。
+ *     選択モード以外では選択モードへ切り替えてから貼り付ける。ドラッグ中でなければ常にtrue
+ * @property {() => boolean} duplicate 選択集合の図形をその場で複製する。ブラウザ標準のブックマーク追加を抑止するため常にtrue
  */
 
 /**
@@ -59,6 +66,7 @@ const ShiftRule = Object.freeze({
  * ・新しいショートカットはエントリの追加（＋必要なら注入コールバックの追加）で対応する。
  * ・修飾キー規則：Shiftはshiftプロパティの3値（ShiftRule）で指定する。通常はFORBIDDEN、拡大・縮小のみANY、
  *   やり直しのCtrl+Shift+ZのみREQUIRED。KeyZはShiftの有無で取り消し（FORBIDDEN）とやり直し（REQUIRED）に排他的に分かれる。
+ *   KeyVはctrlの値でV単体（ctrl: false。選択モードへの切り替え）とCtrl+V（ctrl: true。貼り付け）に排他的に区別される。
  * ・index.htmlの各ボタンのtitle属性（例：「選択 (V)」）はこの表と手動で一致させている。
  * @type {ReadonlyArray<Readonly<ShortcutBinding>>}
  */
@@ -84,6 +92,11 @@ const SHORTCUT_BINDINGS = Object.freeze([
     { codes: ['KeyZ'], ctrl: true, shift: ShiftRule.FORBIDDEN, repeatable: true, action: 'undo' },
     { codes: ['KeyZ'], ctrl: true, shift: ShiftRule.REQUIRED, repeatable: true, action: 'redo' },
     { codes: ['KeyY'], ctrl: true, shift: ShiftRule.FORBIDDEN, repeatable: true, action: 'redo' },
+    // コピー・切り取り（キーリピートでは実行しない）・貼り付け・複製（押しっぱなしで連続実行できるようrepeatable: true）
+    { codes: ['KeyC'], ctrl: true, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'copy' },
+    { codes: ['KeyX'], ctrl: true, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'cut' },
+    { codes: ['KeyV'], ctrl: true, shift: ShiftRule.FORBIDDEN, repeatable: true, action: 'paste' },
+    { codes: ['KeyD'], ctrl: true, shift: ShiftRule.FORBIDDEN, repeatable: true, action: 'duplicate' },
 ].map((binding) => Object.freeze(binding)));
 
 /**
@@ -125,7 +138,8 @@ export class KeyboardShortcuts {
      * preventDefault()の原則：受理した（コールバックがtrueを返した）キーのみpreventDefault()し、受理しなかったキーは
      * preventDefault()しない（IME変換中・テキスト入力中・対応表に一致なし・コールバックがfalseを含む）。
      * 唯一の例外：ctrl: trueのエントリが、ドラッグ中（手順4）またはキーリピート（手順5）で実行されなかった場合は、
-     * 操作は実行せずpreventDefault()のみ行う（Ctrl+=/-/0/A/Z/Yでブラウザのズーム・ページ全選択・標準の取り消し/やり直しが起きないようにするため）。
+     * 操作は実行せずpreventDefault()のみ行う（Ctrl+=/-/0/A/Z/Y/C/X/V/Dでブラウザのズーム・ページ全選択・標準の取り消し/やり直し・
+     * 標準のコピー・切り取り・貼り付け・ブックマーク追加が起きないようにするため）。
      * ctrl: falseのエントリが手順4・5で実行されなかった場合はpreventDefault()もしない。
      * @param {KeyboardEvent} event
      */

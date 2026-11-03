@@ -13,6 +13,8 @@ import { PaletteController } from './palette/PaletteController.js';
 import { SHAPE_TYPES } from './core/ShapeFactory.js';
 import { DocumentSerializer } from './io/DocumentSerializer.js';
 import { DevPanel } from './palette/DevPanel.js';
+import { ShapeInserter } from './edit/ShapeInserter.js';
+import { ClipboardController } from './edit/ClipboardController.js';
 
 // DOMが読み込まれた後に初期化を行う
 document.addEventListener('DOMContentLoaded', () => {
@@ -278,6 +280,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     Object.entries(modeButtons).forEach(([mode, btn]) => btn.addEventListener('click', () => applyMode(mode)));
 
+    // 7.5. クリップボード（コピー・切り取り・貼り付け・複製）配線
+    // 処理本体はedit/の新設クラスが持ち、ここは生成と注入のみを行う。
+    // 貼り付け・複製は編集操作の記録先（EditRecorder）としてhistoryManagerを注入する
+    const shapeInserter = new ShapeInserter({ model, editRecorder: historyManager });
+    // 切り取りの削除は、既存の唯一の削除経路inputTracker.deleteSelection()を注入する（Delete/削除ボタンと同一経路）
+    const clipboardController = new ClipboardController({ model, inserter: shapeInserter, deleteSelection: () => inputTracker.deleteSelection() });
+
     // 8. キーボードショートカット配線
     /**
      * 表示中キャンバスの中心を基準に、ホイール1刻みと同じ刻み幅（WHEEL_ZOOM_STEP）で拡大・縮小する。
@@ -335,6 +344,27 @@ document.addEventListener('DOMContentLoaded', () => {
         // 取り消し・やり直し（取り消し・やり直しボタンと同一経路。受理条件はperformUndo/performRedoのみが判定する）
         undo: performUndo,
         redo: performRedo,
+        // コピー・切り取り（記録・切り取りした場合のみtrue。何もしなかった場合はページ上の文字の標準のコピー等を妨げない）
+        copy: () => clipboardController.copy(),
+        cut: () => clipboardController.cut(),
+        // 貼り付け。クリップボードが空なら何もしない（モードも切り替えない）。選択モード以外では先に選択モードへ
+        // 切り替えてから貼り付ける（作成途中の図形はapplyModeの経路で破棄される）。ブラウザ標準の貼り付けを
+        // 起こさないよう常にtrueを返す
+        paste: () => {
+            if (clipboardController.isEmpty()) {
+                return true;
+            }
+            if (inputTracker.getMode() !== OperationMode.SELECT) {
+                applyMode(OperationMode.SELECT);
+            }
+            clipboardController.paste();
+            return true;
+        },
+        // 複製（選択集合が空でもブラウザ標準のブックマーク追加を起こさないよう常にtrueを返す）
+        duplicate: () => {
+            clipboardController.duplicate();
+            return true;
+        },
     });
 
     // 9. 開発者向け確認用ウィンドウ配線（URLに`?dev`がある場合のみ。判定結果はグローバルへ公開しない）
