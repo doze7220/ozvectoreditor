@@ -250,7 +250,7 @@ main.js ──生成・注入──▶ ClipboardController ──insertDocument�
         *   改修・新設した全`.js`ファイルの先頭行の責務JSDoc（3行以内）が実態と一致していることを確認する。
         *   `main.js`の行数を数え、2章要件7の見込み（約416行）との差を4章に記録する。
         *   本RESの「4. 詳細作業内容」を全タスク分記載し、「開発資料の更新予定」「懸念事項・要確認ポイント」に実装中の判明事項を追記する。
-*   [ ] タスク6: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
+*   [x] タスク6: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新）
     *   **作業内容** :
@@ -326,7 +326,19 @@ main.js ──生成・注入──▶ ClipboardController ──insertDocument�
 
 ### タスク6: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
 *   **作業内容** :
-    *   （未実施）
+    *   `./PROJECT_ARCHITECTURE.md`に「開発資料の更新予定」の各項目を反映した。
+        *   1章：フォルダ構造に`js/edit/`（`ShapeInserter.js`・`ClipboardController.js`）を追加。フォルダ分割の方針に`edit/`の置き場所の基準と依存方向`main.js → edit → io → core → shapes`（`core/`・`io/`は`edit/`をimportしない）を追記。
+        *   3章1.：インスタンス化一覧に`ShapeInserter`・`ClipboardController`を追加。
+        *   3章3.キーボード操作：`ctrl: true`の例外による抑止の例にコピー・切り取り・貼り付け・ブックマーク追加を、注入コールバックの列挙に`ClipboardController`の`copy`・`cut`・`paste`・`duplicate`を追加。
+        *   3章6.記録の流れ：切り取り（`deleteSelection`経由で削除と同一）・貼り付け・複製（`addShapesWithNewIds`の前後）・コピーは記録しないことを追加。「後続の編集操作（複製・貼り付け等）」をインポート（Phase 03-05。`ShapeInserter`再利用の想定）の記述へ更新。
+        *   3章に新項目「7. コピー・貼り付け・複製」：クリップボード、コピー・切り取り、貼り付け・複製（ずらし量・段数）、選択モード以外での貼り付け、`insertDocument`の処理順、再描画経路。
+        *   4章`main.js`：「`DocumentSerializer`を使う処理は`main.js`と`edit/`が持つ」へ修正。新項目「クリップボード配線」（`// 7.5.`）を追加。キーボードショートカット配線に4コールバックとその戻り値・`paste`のモード切替・ドラッグ中を自ら判定しない点（`undo`/`redo`との違い）を追記。
+        *   4章`VectorModel.js`：`#issueId()`の利用箇所に`addShapesWithNewIds()`を追加し、新項目「新しいidでの追加」（効果・重複インスタンスの除外・選択・通知・前提・`addShape`を使わないこと）を追加。
+        *   4章`InputTracker.js`：`deleteSelection()`の唯一の削除経路の利用元と、編集操作の通知の削除に切り取りを追記。
+        *   4章`KeyboardShortcuts.js`：`Ctrl`+`C`/`X`/`V`/`D`のエントリ、`V`と`Ctrl`+`V`の区別、キーリピートの実行対象に貼り付け・複製を追加。
+        *   4章`HistoryManager.js`：変更通知の項に`beginEdit`/`commitEdit`の呼び出し元（`InputTracker`・`main.js`・`ShapeInserter`）を追記。
+        *   4章に新項目`edit/`（共通の制約・前提、`ShapeInserter.js`・`ClipboardController.js`の責務・公開API・注意点）を`palette/`と`io/`の間に追加。`io/DocumentSerializer.js`の依存方向の記述に`edit/`から利用される旨を追記。
+    *   ソースコードは変更していない。
 
 ## 5. 懸念事項・要確認ポイント
 * **新設フォルダ`js/edit/`**: `core/`から`io/`をimportしない方針と、`io/`に編集手順を混ぜない判断から新設した（2章「置き場所の判断理由」）。Phase 03-04で`main.js`の`captureSnapshot`/`restoreSnapshot`を切り出す際も、`DocumentSerializer`と`VectorModel`を組み合わせる処理であるため、同じ`edit/`が置き場所の候補になる。
@@ -341,6 +353,7 @@ main.js ──生成・注入──▶ ClipboardController ──insertDocument�
 * **`paste`コールバックの空判定の二重化（タスク4）**: `main.js`の`paste`コールバックは`isEmpty()`を先に確認してからモード切替・`paste()`を呼ぶ（空振りでモードを変えないため）。`ClipboardController.paste()`自身も空なら`false`を返すため判定は二重になるが、RESの指定どおりであり意図的。将来`paste`の受理条件を変える場合は両方を確認すること。
 * **`copy`/`cut`のショートカットは選択集合が空ならpreventDefaultしない（タスク4）**: 選択モードで図形を選択していない状態の`Ctrl`+`C`はブラウザ標準のコピーへ素通りする（`?dev`の結果表示欄で選択した文字のコピーを妨げないため。2章要件2の決定どおり）。目視確認では、図形未選択時の`Ctrl`+`C`で異常が起きないことも確認すること。
 * **`ShortcutActions`の「常にtrue」の意味の違い（タスク5）**: `undo`/`redo`の「ドラッグ中でなければ常にtrue」はコールバック（`performUndo`/`performRedo`）自身がドラッグ中を判定して`false`を返すことを表す。一方`paste`/`duplicate`のコールバックはドラッグ中を判定せず、ドラッグ中は`KeyboardShortcuts`の受理判定（手順4）で呼ばれないだけである。`paste`の説明はこの違いが読み取れる表現へ修正した。将来`paste`/`duplicate`をショートカット以外（ボタン等）から呼ぶ場合は、ドラッグ中の判定を呼び出し側で別途行う必要がある。
+* **開発資料への反映（タスク6）**: `HistoryManager.js`の項の「呼び出し元」は、`main.js`（`?dev`の復元）が`historyManager`を直接呼ぶのに対し、`InputTracker`・`ShapeInserter`は`EditRecorder`として注入で受け取る違いが分かる表現にした。3章3.の「入力監視」冒頭の操作列挙（マウスドラッグ…キーボードショートカット）はコピー等を個別に列挙していないため変更していない（3章7.を新設して記載）。
 * **`main.js`の行数**: 実測418行（タスク4完了時点。見込み約416行）。Phase 03-04の切り出し検討（`_doc/COWORK_STATUS.md` 2章P3【03-04へ】）の際に考慮すること。
 * **テストプレイでの目視確認項目**:
     * 単一・複数選択の図形を`Ctrl`+`C`→`Ctrl`+`V`で貼り付けると、右下（20, 20）にずれて貼られ、貼った図形だけが選択される（複数選択時は重なり順も元と同じ）。
