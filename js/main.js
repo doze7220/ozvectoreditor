@@ -15,6 +15,7 @@ import { DocumentSerializer } from './io/DocumentSerializer.js';
 import { DevPanel } from './palette/DevPanel.js';
 import { ShapeInserter } from './edit/ShapeInserter.js';
 import { ClipboardController } from './edit/ClipboardController.js';
+import { SnapshotAdapter } from './edit/SnapshotAdapter.js';
 
 // DOMが読み込まれた後に初期化を行う
 document.addEventListener('DOMContentLoaded', () => {
@@ -34,50 +35,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const viewTransform = new ViewTransform();
 
     // 3.5. 履歴（取り消し・やり直し）配線
-    // main.js内で唯一の履歴配線ブロック。スナップショットの取得・適用の実体をここで組み立て、
-    // HistoryManagerへ注入する（core/からio/をimportしないため、DocumentSerializerを使う処理はmain.jsが持つ）。
+    // main.js内で唯一の履歴配線ブロック。スナップショットの取得・適用の実体はSnapshotAdapter（edit/）が持ち、
+    // ここでは生成とHistoryManagerへの注入のみを行う（core/からio/をimportしないため、DocumentSerializerを使う処理はedit/に置く）。
     // HistoryManagerはInputTrackerのコンストラクタへ注入するため、InputTrackerより先に生成する。
-    /**
-     * 現在の図形一式と選択集合をスナップショットとして取得する（HistoryManagerへ`capture`として注入）。
-     * スナップショットは作業データ形式のオブジェクト（`DocumentSerializer.serialize`の戻り値）と、
-     * その時点の選択集合（図形idの配列）からなる。`serialize`は各図形の`toJSON()`で新しいオブジェクトを作り、
-     * `getSelectedIds()`は新しい配列を返すため、図形インスタンス・Modelの内部状態とは共有しない。
-     * @returns {{ document: Object, selectedIds: string[] }} スナップショット
-     */
-    function captureSnapshot() {
-        return {
-            document: DocumentSerializer.serialize(model.getShapes()),
-            selectedIds: model.getSelectedIds()
-        };
-    }
+    // shouldRestoreSelectionの実体：選択モードのときのみ記録時点の選択集合を復元する（選択モード以外では選択集合は空のまま）。
+    // 本体で後に`const`宣言される`inputTracker`を参照するが、この関数が呼ばれるのは起動完了後の
+    // 取り消し・やり直しの実行時のみで、生成時には呼ばれないため問題ない。
+    const snapshotAdapter = new SnapshotAdapter({
+        model,
+        shouldRestoreSelection: () => inputTracker.getMode() === OperationMode.SELECT
+    });
 
-    /**
-     * スナップショットの状態をキャンバスへ適用する（HistoryManagerへ`restore`として注入）。
-     * 作業データをデシリアライズし、全体の読み込み失敗またはスキップが1件以上あれば`console.warn`して
-     * キャンバスを変更せず`false`を返す（一部の図形だけが戻る中途半端な状態を避けるため）。
-     * 成功時は図形一式を入れ替え（idは保持される。選択集合・ホバー・作成中の図形・選択矩形はクリアされる）、
-     * 選択モードのときのみ記録時点の選択集合を復元する（存在しないidは`setSelection`が無視する。
-     * 選択モード以外では選択集合は空のまま）。
-     * 進行中の入力操作の中断は本関数では行わない（呼び出し側＝取り消し・やり直しの操作経路の責務）。
-     * 本体で後に`const`宣言される`inputTracker`を参照するが、本関数が呼ばれるのは起動完了後の
-     * 取り消し・やり直しの実行時のみで、生成時には呼ばれないため問題ない。
-     * @param {{ document: Object, selectedIds: string[] }} snapshot - 適用するスナップショット
-     * @returns {boolean} 適用したか（falseならキャンバスは変更されていない）
-     */
-    function restoreSnapshot(snapshot) {
-        const result = DocumentSerializer.deserialize(snapshot.document);
-        if (!result.ok || result.skipped.length > 0) {
-            console.warn('履歴の適用に失敗したため、キャンバスを変更しません。', result.error, result.skipped);
-            return false;
-        }
-        model.replaceAllShapes(result.shapes);
-        if (inputTracker.getMode() === OperationMode.SELECT) {
-            model.setSelection(snapshot.selectedIds);
-        }
-        return true;
-    }
-
-    const historyManager = new HistoryManager({ capture: captureSnapshot, restore: restoreSnapshot });
+    const historyManager = new HistoryManager({
+        capture: () => snapshotAdapter.capture(),
+        restore: (snapshot) => snapshotAdapter.restore(snapshot)
+    });
 
     /**
      * 取り消しの操作関数。キーボードショートカット（Ctrl+Z）とコントロールパネルの取り消しボタンの

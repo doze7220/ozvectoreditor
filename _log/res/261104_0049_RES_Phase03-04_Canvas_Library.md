@@ -258,7 +258,7 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
 *   **4章に新項目**: `edit/SnapshotAdapter.js`・`edit/CanvasLibrary.js`・`io/CanvasStorage.js`・`palette/CanvasPalette.js`・`palette/PaletteLauncher.js`の責務・公開API・依存の制約。コントロールパネルの位置づけ（操作モード切替・頻繁に使う操作・他パレットの呼び出し口）と、呼び出し口の追加手順。
 
 ## 3. タスクリスト
-*   [ ] タスク1: スナップショットの取得・適用を`SnapshotAdapter`へ切り出す
+*   [x] タスク1: スナップショットの取得・適用を`SnapshotAdapter`へ切り出す
     *   **対象ファイル** :
         *   `./js/edit/SnapshotAdapter.js` :（新規）
         *   `./js/main.js` :（更新）
@@ -358,7 +358,14 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
 
 ### タスク1: スナップショットの取得・適用を`SnapshotAdapter`へ切り出す
 *   **作業内容** :
-    *   (未実施)
+    *   `js/edit/SnapshotAdapter.js`を新設。先頭行の責務JSDocは計画の案どおり（1行）。importは`../io/DocumentSerializer.js`のみ。typedef`Snapshot`（`HistoryManager.js`と同じ内容である旨・形を変える場合は両方を揃える旨を記載）とクラス`SnapshotAdapter`を定義した。
+        *   `constructor({ model, shouldRestoreSelection })`：`shouldRestoreSelection`が関数でなければ`Error`。private`#model`・`#shouldRestoreSelection`に保持。
+        *   `capture()`：旧`captureSnapshot`と同一（`{ document: DocumentSerializer.serialize(model.getShapes()), selectedIds: model.getSelectedIds() }`）。共有しない理由のJSDocを移した。
+        *   `restore(snapshot)`：旧`restoreSnapshot`と同一の処理・戻り値・`console.warn`文言（「履歴の適用に失敗したため、キャンバスを変更しません。」）。選択集合の復元条件のみ`inputTracker.getMode() === OperationMode.SELECT`→`this.#shouldRestoreSelection()`に置き換えた。JSDocは「`shouldRestoreSelection()`が真のときのみ復元」とし、操作モードには言及しない。進行中の入力操作の中断は呼び出し側の責務である旨を記載。
+        *   クラスJSDocに依存の制約（DOMに触れない・図形種別等の知識なし・`OperationMode`/`InputTracker`をimport・参照しない）を記載。
+    *   `js/main.js`：`import { SnapshotAdapter } from './edit/SnapshotAdapter.js';`を追加。`// 3.5.`の`captureSnapshot`/`restoreSnapshot`の関数定義（JSDoc含む）を削除し、`snapshotAdapter`の生成（`shouldRestoreSelection: () => inputTracker.getMode() === OperationMode.SELECT`）と`new HistoryManager({ capture: () => snapshotAdapter.capture(), restore: (snapshot) => snapshotAdapter.restore(snapshot) })`に置き換えた。見出しコメントを「実体はSnapshotAdapter（edit/）、ここは生成と注入のみ」へ更新し、「選択モードのときのみ選択集合を復元する」規則と、後で宣言される`inputTracker`を参照するが起動完了後の取り消し・やり直し時のみ呼ばれる旨のコメントを残した。
+    *   `DocumentSerializer`のimportは`?dev`（`onExport`/`onImport`）で使うため残した。`performUndo`/`performRedo`・`onImport`は変更していない。
+    *   `main.js`の行数：418行 → 390行。
 
 ### タスク2: IndexedDBへの読み書きを担う`CanvasStorage`の新設
 *   **作業内容** :
@@ -405,6 +412,7 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
 * **小窓とスペースパン**: `Space`を押したまま名前の変更・削除の小窓を開き、表示中に離すと、`keyup`を取りこぼして`grab`カーソルが残る可能性がある（次の`Space`の`keyup`・ウィンドウの`blur`で解消）。`InputTracker`は変更しない。
 * **`WindowManager.js`は変更しない**: 非表示で静的に置いたウィンドウも起動時に配線され、表示後のドラッグ移動・最前面化が働く見込み。働かない場合のみ、理由を記録したうえで変更を検討する。開いたパレットが他のウィンドウの下に隠れる場合（ドラッグで重ねた後）は、クリックで最前面になる（既存の最前面化）。
 * **図形パレットの`top`（440px）**: ボタンの高さはフォント・絵文字の表示に依存するため、コントロールパネル下端との余白が24px以上あるかを目視確認すること。
+* **（タスク1）`Snapshot`の型定義の二重化**: typedef`Snapshot`は`HistoryManager.js`と`SnapshotAdapter.js`の両方にある。スナップショットの形を変える場合は両方を揃えること。タスク1完了時点で、取り消し・やり直し（選択モード時の選択集合の復元を含む）の挙動が従来どおりかを目視確認すること。
 * **テストプレイでの目視確認項目**:
     * 図形を描いて再読み込みすると同じ図形が出る／ブラウザを閉じて開き直しても残る／描いた直後（1秒以内）に再読み込みしても残る。
     * 再読み込み後は倍率100%・選択モード・取り消しボタンが押せない状態。
