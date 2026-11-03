@@ -1,6 +1,7 @@
 /**
  * 責務：ユーザー入力（図形作成・選択・範囲選択・本体ドラッグ・ハンドルドラッグ・パン・ズーム。キーはスペースパンのみ）の解釈と
- * Model・ビュー変換への反映、状態依存の操作（一括削除・取消・全選択・進行中操作の中断）の公開、および入力状態に応じたカーソル形状のフィードバックを担う。
+ * Model・ビュー変換への反映、状態依存の操作（一括削除・取消・全選択・進行中操作の中断）の公開、編集操作の開始・確定の通知（注入された記録先へ）、
+ * および入力状態に応じたカーソル形状のフィードバックを担う。
  */
 
 import { DragTracker } from './DragTracker.js';
@@ -73,6 +74,25 @@ export const WHEEL_ZOOM_STEP = 1.1;
 const DRAG_START_THRESHOLD = 3;
 
 /**
+ * 編集操作（図形一式を変化させる利用者の1回の操作）の開始・確定を受け取る記録先。
+ * 実体はmain.jsが注入するHistoryManager（本ファイルはHistoryManager.jsをimportせず、この2メソッドのみを呼ぶ）。
+ * @typedef {Object} EditRecorder
+ * @property {() => void} beginEdit 編集操作の開始を宣言する（その時点の状態を「前の状態」として記録する）
+ * @property {() => boolean} commitEdit 編集操作の確定を宣言する（前後で図形一式が変化していれば1件として記録しtrue）
+ */
+
+/**
+ * 記録先が注入されなかった場合の既定値（何も記録しない）。InputTrackerのコンストラクタ第4引数の省略時に用いる。
+ * @type {EditRecorder}
+ */
+const NO_EDIT_RECORDER = Object.freeze({
+    beginEdit() {},
+    commitEdit() {
+        return false;
+    },
+});
+
+/**
  * テキスト入力扱いとするinput要素のtype一覧（isTextInputElementの判定に用いる）。
  * 日付・時刻系（date/datetime-local/month/time/week）は数字キー・Backspaceによる直接入力を受け付けるため含める。
  * 含めないtypeの例：checkbox / radio / range / color / button / submit / reset / file / image / hidden。
@@ -115,7 +135,11 @@ export function isTextInputElement(element) {
  * 委譲し、本クラスはドラッグの意味の解釈（パン量、頂点変形・選択集合の平行移動・範囲選択のModel反映）のみを行う。
  * ズーム・パンによる表示の変更はViewTransformへ委譲する。
  * Space以外のキー（ショートカット）は解釈しない。削除・取消・全選択・進行中操作の中断は状態依存の公開メソッドとして提供し、
- * 削除ボタン・ショートカット（KeyboardShortcuts）・作業データの復元からはmain.js経由で呼び出される。
+ * 削除ボタン・ショートカット（KeyboardShortcuts）・作業データの復元・取り消し/やり直しの前処理からはmain.js経由で呼び出される。
+ * 編集操作（図形の作成・一括削除・選択集合の平行移動・ハンドルによる変形）は、変更処理を注入された記録先（EditRecorder）の
+ * beginEdit()／commitEdit()で挟んで開始・確定を伝える（履歴の保持・適用は行わない。記録先はコンストラクタ第4引数）。
+ * 範囲選択・クリック選択・全選択・選択解除・ホバー・パン・ズーム・モード/図形種別の切り替えは編集操作として伝えない。
+ * 図形種別の分岐・図形固有のプロパティ名は持たない。
  * メソッドは区切りコメントで「公開API（モード・図形種別）」「公開API（状態依存の操作：削除・取消・全選択・中断）」「イベントハンドラ」「左ドラッグ」「パン」「当たり分類」
  * 「座標取得」「カーソル形状」の順に整理している。
  */
@@ -150,13 +174,29 @@ export class InputTracker {
     #drag;
 
     /**
+     * 編集操作の開始・確定の記録先（コンストラクタ第4引数。省略時はNO_EDIT_RECORDER＝何も記録しない）。
+     * @type {EditRecorder}
+     */
+    #editRecorder;
+
+    /**
+     * 左ドラッグ（MOVING_SELECTION・DRAGGING_HANDLE）で、閾値超過時（#onLeftDragStart）に記録先のbeginEdit()を呼んだか。
+     * 立っていれば#finishLeftDrag()（終了・中断の共通の後始末）でcommitEdit()を呼んで下ろす。範囲選択では立てない。
+     * @type {boolean}
+     */
+    #isEditOpen = false;
+
+    /**
      * @param {HTMLCanvasElement} canvas - イベントをリッスンするキャンバス
      * @param {Object} model - 図形データを管理するVectorModelインスタンス
      * @param {ViewTransform} viewTransform - スクリーン⇔ワールド変換とズーム・パンを担うビュー変換
+     * @param {EditRecorder} [editRecorder=NO_EDIT_RECORDER] - 編集操作の開始・確定を受け取る記録先（実体はmain.jsが注入する
+     *     HistoryManager）。省略時は何も記録しない（既存の呼び出しは従来どおり動作する）
      */
-    constructor(canvas, model, viewTransform) {
+    constructor(canvas, model, viewTransform, editRecorder = NO_EDIT_RECORDER) {
         this.canvas = canvas;
         this.model = model;
+        this.#editRecorder = editRecorder;
 
         /**
          * スクリーン⇔ワールド座標変換とズーム・パンを担うビュー変換（main.jsが生成・注入）。
@@ -250,6 +290,9 @@ export class InputTracker {
      * （パン・左ドラッグ。閾値以前を含む）中であればDragTracker.cancel()で中断し（onCancel経由で、パンは#finishPan()、
      * 左ドラッグは#onLeftDragCancel()によりIDLEへ戻る。頂点・位置の変更は確定済みのまま残り、範囲選択は選択矩形を破棄して
      * 確定しない）、なおIDLE以外の状態（作成途中）であればcancelDraft()で作成途中の図形を破棄してIDLE状態へ戻す。
+     * 中断した左ドラッグ（本体ドラッグ・moveハンドル・ハンドル変形）で頂点・位置の変化が残った場合は、#finishLeftDrag()で
+     * 1件の編集操作として記録先へ確定する（選択集合のクリアより前のため、記録される選択集合は操作中のもの）。
+     * 作成途中の図形の破棄・範囲選択の中断は編集操作として伝えない。
      * (2)currentModeの更新、(3)選択集合・ホバー状態の無条件クリア、(4)カーソル形状の再評価。
      * 中断処理の共通化に伴い、作成途中の図形の破棄（cancelDraftの変更通知）は選択集合・ホバーのクリアより前に行われる
      * （従来はクリアの後。最終状態は同一）。
@@ -326,6 +369,8 @@ export class InputTracker {
      * 選択集合の全図形を一括削除する。
      * 受理条件「選択モード かつ IDLE状態 かつ ドラッグ中でない かつ 選択集合が空でない」はこのメソッド内でのみ判定する。
      * 受理時はModelのdeleteShapes(selectedIds)を呼ぶ（変更通知1回）。非受理時は何もしない。
+     * 受理時のみ、deleteShapesの直前に記録先のbeginEdit()、直後にcommitEdit()を呼び、1件の編集操作として伝える
+     * （前の状態の選択集合＝削除した図形、後の状態の選択集合＝空）。非受理時は記録経路を通らない。
      * 削除ボタン（main.js）とDelete/Backspaceショートカット（KeyboardShortcuts→main.jsの注入コールバック）の
      * 唯一の削除経路であり、呼び出し側で条件を重複判定しないこと。
      * ドラッグ中（パン中を含む）は受け付けない（ドラッグ対象の図形が消えたまま追従が続くことを防ぐため）。
@@ -341,7 +386,9 @@ export class InputTracker {
             return false;
         }
 
+        this.#editRecorder.beginEdit();
         this.model.deleteShapes(selectedIds);
+        this.#editRecorder.commitEdit();
         return true;
     }
 
@@ -394,7 +441,10 @@ export class InputTracker {
 
     /**
      * 進行中の入力操作を強制中断する。図形一式の入れ替え（VectorModel.replaceAllShapes）の前処理として、
-     * 作業データの復元時にmain.jsから呼ばれる。Phase 03-02（Undo/Redo）でも「履歴適用の前処理」として再利用する前提である。
+     * 作業データの復元時、および取り消し・やり直し（履歴の適用）の前処理としてmain.jsから呼ばれる。
+     * 中断した左ドラッグ（本体ドラッグ・moveハンドル・ハンドル変形）で頂点・位置の変化が残った場合は、#finishLeftDrag()で
+     * 1件の編集操作として記録先へ確定する（中断で残った変化も単独で取り消せるようにするため）。
+     * 作成途中の図形の破棄・範囲選択の中断は編集操作として伝えない。
      * 受理条件：常に受け付ける（どの操作モード・入力状態からでも呼べる。何も進行していなければ何もしない）。
      * 中断するもの（setModeの中断処理と同一。#abortOngoingOperation()）：
      * ・パン・左ドラッグ（ハンドルドラッグ・本体ドラッグ・範囲選択。閾値以前を含む）のドラッグセッション。
@@ -548,7 +598,8 @@ export class InputTracker {
 
     /**
      * clickイベントのハンドラ。
-     * DRAWING状態では、作成中の図形を確定登録してIDLE状態へ遷移する。
+     * DRAWING状態では、作成中の図形を確定登録してIDLE状態へ遷移する。確定登録（commitDraft）の直前に記録先のbeginEdit()、
+     * 直後にcommitEdit()を呼び、図形の作成を1件の編集操作として伝える（作成の開始・作成途中の破棄は伝えない）。
      * IDLE状態かつ選択モード中では、クリック位置を#classifyPointで当たり分類し（ホバー状態は参照しない）、
      * 選択集合の図形のハンドル上なら何もしない（選択集合を維持）、図形の本体上ならその図形のみの単一選択
      * （setSelection([bodyId])）、空白なら選択集合が空でなければ全解除（clearSelection()）する。
@@ -568,7 +619,9 @@ export class InputTracker {
         }
 
         if (this.state === InputState.DRAWING) {
+            this.#editRecorder.beginEdit();
             this.model.commitDraft();
+            this.#editRecorder.commitEdit();
             this.state = InputState.IDLE;
             return;
         }
@@ -727,9 +780,17 @@ export class InputTracker {
 
     /**
      * 左ドラッグの移動量が閾値を超えた時点の処理（DragTrackerのonStart）。
-     * 押下前のホバー表示が古いまま残らないようホバー状態をクリアし、カーソル形状を更新する。
+     * 状態がMOVING_SELECTION（本体ドラッグ・moveハンドル）またはDRAGGING_HANDLE（ハンドル変形）のときのみ、記録先の
+     * beginEdit()を呼んで#isEditOpenを立てる（まだ図形は動いていない時点の状態が「前の状態」になる。確定は#finishLeftDrag()）。
+     * MARQUEE_SELECTING（範囲選択）では呼ばない（編集操作ではないため）。閾値以内で離した場合は本メソッドが呼ばれないため記録しない。
+     * 状態は押下時（#beginLeftDrag）に遷移済みである（DragTracker.begin()はonStartを同期的に呼ばず、閾値超過時のmousemoveで呼ぶ）。
+     * あわせて、押下前のホバー表示が古いまま残らないようホバー状態をクリアし、カーソル形状を更新する。
      */
     #onLeftDragStart() {
+        if (this.state === InputState.MOVING_SELECTION || this.state === InputState.DRAGGING_HANDLE) {
+            this.#editRecorder.beginEdit();
+            this.#isEditOpen = true;
+        }
         this.model.clearHovered();
         this.#updateCursor();
     }
@@ -830,8 +891,14 @@ export class InputTracker {
      * IDLE状態へ戻し、作業用フィールド（activeHandle・activeShapeId・lastCursor・#marqueeAnchor）をnullにして、
      * カーソル形状を再評価する。ドラッグ中に反映した変更（頂点・位置）は取り消さない。
      * 範囲選択の確定・選択矩形の破棄は呼び出し前に済ませること。click抑止フラグの管理はDragTrackerが担う。
+     * 冒頭で、#isEditOpenが立っていれば（閾値超過時にbeginEdit()済みの移動・変形）記録先のcommitEdit()を呼んで下ろす
+     * （編集操作の終了・中断の共通の確定箇所。中断で残った変化も1件として記録される。結果が開始前と同一なら記録先が記録しない）。
      */
     #finishLeftDrag() {
+        if (this.#isEditOpen) {
+            this.#editRecorder.commitEdit();
+            this.#isEditOpen = false;
+        }
         this.state = InputState.IDLE;
         this.activeHandle = null;
         this.activeShapeId = null;

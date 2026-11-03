@@ -199,7 +199,7 @@ performRedo():
         *   各メソッドのJSDocに、効果・受理条件・戻り値・変更通知の条件を記載する（特に：`commitEdit`の「作業データ部分の`JSON.stringify`比較で同一なら記録せずやり直しの履歴も破棄しない」、記録時のやり直しの履歴の破棄と上限超過時の最古の破棄、`undo`/`redo`の「`restore`が`false`なら位置を動かさない」、`clear`の「履歴を空にする。図形一式・選択集合には触れない。キャンバスを開く・新規作成時に呼ぶ前提（Phase 03-04・03-05で接続）」）。
         *   クラスJSDocに「DOMに触れない」「図形種別・図形固有のプロパティ名を持たない」「`model.onChange`ごとの記録は行わず、`beginEdit`/`commitEdit`の明示呼び出しでのみ記録する」「進行中の入力操作の中断は呼び出し側の責務」を明記する。
         *   本タスクでは他ファイルを変更しない（未使用のファイルのためアプリの動作は変わらない）。
-*   [ ] タスク2: `InputTracker`に編集操作の開始・確定を伝える経路を追加
+*   [x] タスク2: `InputTracker`に編集操作の開始・確定を伝える経路を追加
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` :（更新）
     *   **作業内容** :
@@ -291,7 +291,15 @@ performRedo():
 
 ### タスク2: `InputTracker`に編集操作の開始・確定を伝える経路を追加
 *   **作業内容** :
-    *   (未実施)
+    *   **前提の確認（実装前）**: 前提は成り立つ。`#beginLeftDrag(event, nextState, ...)`は`this.#drag.begin(...)`の戻り値が真のとき、同じ同期処理の中で`this.state = nextState`に遷移させる。`DragTracker.begin()`はセッションを登録して`true`を返すだけで、`onStart`を同期的に呼ばない。`onStart`を呼ぶのは`DragTracker`の`#handleWindowMouseMove`だけで、押下点からの距離が`threshold`（3px）を超えた最初の`mousemove`のときである。したがって`#onLeftDragStart()`が呼ばれる時点では、`this.state`は必ず`MOVING_SELECTION`／`DRAGGING_HANDLE`／`MARQUEE_SELECTING`のいずれかになっている。
+    *   typedef`EditRecorder`（`beginEdit: () => void`／`commitEdit: () => boolean`。実体は`main.js`が注入する`HistoryManager`。importはしない）と、モジュール定数`NO_EDIT_RECORDER`（凍結。何もしない／`false`）を`DRAG_START_THRESHOLD`の直後に追加した。
+    *   コンストラクタに第4引数`editRecorder = NO_EDIT_RECORDER`を追加し、private`#editRecorder`に保持した（`@param`も追加）。private`#isEditOpen = false`を追加した。
+    *   `handleClick`の`DRAWING`分岐：`beginEdit()`→`commitDraft()`→`commitEdit()`→`state = IDLE`の順に変更した。
+    *   `deleteSelection()`の受理時：`beginEdit()`→`deleteShapes(selectedIds)`→`commitEdit()`の順に変更した。
+    *   `#onLeftDragStart()`：`MOVING_SELECTION`か`DRAGGING_HANDLE`のときだけ、`beginEdit()`を呼んで`#isEditOpen = true`にする。続けて、既存のホバークリア・カーソル更新を行う。
+    *   `#finishLeftDrag()`の冒頭：`#isEditOpen`が真なら、`commitEdit()`を呼んでフラグを下ろす。
+    *   JSDocの更新：先頭行の責務（3行以内）に「編集操作の開始・確定の通知（注入された記録先へ）」を追加した。クラスJSDoc（編集操作の通知、記録しない操作、図形種別の分岐を持たない）も更新した。加えて`setMode`・`deleteSelection`・`abortOngoingOperation`（「Phase 03-02でも再利用する前提」を「取り消し・やり直しの前処理として呼ばれる」へ更新）・`handleClick`・`#onLeftDragStart`・`#finishLeftDrag`に、記録の時点・中断で残った変化も1件として記録すること・範囲選択を記録しないことを追記した。
+    *   図形種別の分岐・図形固有のプロパティ名は追加していない。`main.js`は変更していない（第4引数を省略しているため記録は行われず、動作は従来どおり）。`node --check`で構文を確認した。
 
 ### タスク3: `main.js`で履歴管理を生成・注入し、`?dev`の復元を記録する
 *   **作業内容** :
@@ -328,6 +336,8 @@ performRedo():
 * **ボタン行の幅**: パネル内側196pxに2ボタンを並べるため、`white-space: nowrap`・中央揃えで収める。フォント環境によっては文字が詰まって見える可能性があるため目視確認すること。
 * **図形パレットの位置**: `top`を320px→368pxへ下げる。コントロールパネル下端との余白は計算上約27px。フォント環境で高さが変わる場合は目視確認すること。
 * **`#deepFreeze`の凍結済み判定（タスク1）**: 循環参照で無限再帰しないよう、凍結済みの値は辿らずに返す。このため`capture()`が「凍結済みだが子が未凍結」のオブジェクトを含むスナップショットを返した場合、その子は凍結されない。現行の`captureSnapshot`（`serialize`＝`toJSON()`の新しいオブジェクト＋新しい配列）では起こらない想定だが、`toJSON()`が凍結済みの共有オブジェクトを返すよう変更する場合は注意すること。
+* **`#onLeftDragStart`の前提（タスク2）**: 移動・変形の`beginEdit()`は、「`DragTracker.begin()`が`onStart`を同期的に呼ばない」こと、つまり「閾値超過時には状態が遷移済みである」ことを前提にしている。将来`DragTracker`を変更して`begin()`内で`onStart`を呼ぶようにする場合（閾値0のセッションで即時開始させる等）は、`#beginLeftDrag`の中で状態を遷移させる順序と合わせて見直すこと。
+* **`setMode`中断時の記録順（タスク2）**: `setMode`では`#abortOngoingOperation()`、つまりドラッグの中断から`#finishLeftDrag()`の`commitEdit()`までが、`clearSelection()`より前に実行される。このため、中断で記録される後の状態の選択集合は操作中のもの（クリア前）になる。`setMode`の処理順を変える場合は注意すること。
 * **変更しないファイル**: `CanvasManager.js`／`ShapeFactory.js`／`ViewTransform.js`／`DragTracker.js`／`WindowManager.js`／`DocumentSerializer.js`／`PaletteController.js`／`DevPanel.js`／`shapes/`・`VectorModel.js`は変更不要と判断した。
 * **テストプレイでの目視確認項目**:
     1. 5種の図形（直線・曲線・弧・矩形・円）を作成→`Ctrl`+`Z`で新しい順に1つずつ消え、`Ctrl`+`Y`で順に戻る。
