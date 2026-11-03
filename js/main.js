@@ -8,6 +8,7 @@ import { InputTracker, OperationMode, WHEEL_ZOOM_STEP } from './core/InputTracke
 import { KeyboardShortcuts } from './core/KeyboardShortcuts.js';
 import { WindowManager } from './core/WindowManager.js';
 import { ViewTransform } from './core/ViewTransform.js';
+import { HistoryManager } from './core/HistoryManager.js';
 import { PaletteController } from './palette/PaletteController.js';
 import { SHAPE_TYPES } from './core/ShapeFactory.js';
 import { DocumentSerializer } from './io/DocumentSerializer.js';
@@ -30,8 +31,55 @@ document.addEventListener('DOMContentLoaded', () => {
     // 3. ViewTransform (ビュー変換：表示倍率・オフセットの保持とスクリーン⇔ワールド座標変換)
     const viewTransform = new ViewTransform();
 
+    // 3.5. 履歴（取り消し・やり直し）配線
+    // main.js内で唯一の履歴配線ブロック。スナップショットの取得・適用の実体をここで組み立て、
+    // HistoryManagerへ注入する（core/からio/をimportしないため、DocumentSerializerを使う処理はmain.jsが持つ）。
+    // HistoryManagerはInputTrackerのコンストラクタへ注入するため、InputTrackerより先に生成する。
+    /**
+     * 現在の図形一式と選択集合をスナップショットとして取得する（HistoryManagerへ`capture`として注入）。
+     * スナップショットは作業データ形式のオブジェクト（`DocumentSerializer.serialize`の戻り値）と、
+     * その時点の選択集合（図形idの配列）からなる。`serialize`は各図形の`toJSON()`で新しいオブジェクトを作り、
+     * `getSelectedIds()`は新しい配列を返すため、図形インスタンス・Modelの内部状態とは共有しない。
+     * @returns {{ document: Object, selectedIds: string[] }} スナップショット
+     */
+    function captureSnapshot() {
+        return {
+            document: DocumentSerializer.serialize(model.getShapes()),
+            selectedIds: model.getSelectedIds()
+        };
+    }
+
+    /**
+     * スナップショットの状態をキャンバスへ適用する（HistoryManagerへ`restore`として注入）。
+     * 作業データをデシリアライズし、全体の読み込み失敗またはスキップが1件以上あれば`console.warn`して
+     * キャンバスを変更せず`false`を返す（一部の図形だけが戻る中途半端な状態を避けるため）。
+     * 成功時は図形一式を入れ替え（idは保持される。選択集合・ホバー・作成中の図形・選択矩形はクリアされる）、
+     * 選択モードのときのみ記録時点の選択集合を復元する（存在しないidは`setSelection`が無視する。
+     * 選択モード以外では選択集合は空のまま）。
+     * 進行中の入力操作の中断は本関数では行わない（呼び出し側＝取り消し・やり直しの操作経路の責務）。
+     * 本体で後に`const`宣言される`inputTracker`を参照するが、本関数が呼ばれるのは起動完了後の
+     * 取り消し・やり直しの実行時のみで、生成時には呼ばれないため問題ない。
+     * @param {{ document: Object, selectedIds: string[] }} snapshot - 適用するスナップショット
+     * @returns {boolean} 適用したか（falseならキャンバスは変更されていない）
+     */
+    function restoreSnapshot(snapshot) {
+        const result = DocumentSerializer.deserialize(snapshot.document);
+        if (!result.ok || result.skipped.length > 0) {
+            console.warn('履歴の適用に失敗したため、キャンバスを変更しません。', result.error, result.skipped);
+            return false;
+        }
+        model.replaceAllShapes(result.shapes);
+        if (inputTracker.getMode() === OperationMode.SELECT) {
+            model.setSelection(snapshot.selectedIds);
+        }
+        return true;
+    }
+
+    const historyManager = new HistoryManager({ capture: captureSnapshot, restore: restoreSnapshot });
+
     // 4. Controller (入力管理)
-    const inputTracker = new InputTracker(canvas, model, viewTransform);
+    // 編集操作の記録先（EditRecorder）としてhistoryManagerを注入する
+    const inputTracker = new InputTracker(canvas, model, viewTransform, historyManager);
 
     /**
      * Modelの現在の状態（shapes/selectedIds/hoveredId/draftLine/selectionRect）とビュー変換の現在の状態
@@ -223,14 +271,19 @@ document.addEventListener('DOMContentLoaded', () => {
             onExport: () => DocumentSerializer.serializeToString(model.getShapes()),
             // JSON文字列から図形一式を復元する。全体の読み込みに失敗した場合はキャンバスを変更しない。
             // 成功時のみ、進行中の入力操作を中断してから図形一式を入れ替える（この順序を厳守すること）。
-            // 再描画・削除ボタンの同期はmodel.onChange経路のみで行い、ここでは呼ばない
+            // 再描画・削除ボタンの同期はmodel.onChange経路のみで行い、ここでは呼ばない。
+            // 復元は1件の編集操作として履歴に記録する（失敗時は記録しない）。中断を先に行うのは、
+            // ドラッグ中だった場合にその中断分が先に1件として確定するため（beginEditは必ず中断の後）。
+            // 本コールバックから例外を漏らさないこと（DevPanelは捕捉しない）
             onImport: (text) => {
                 const result = DocumentSerializer.deserializeFromString(text);
                 if (!result.ok) {
                     return { ok: false, restoredCount: 0, reassignedCount: 0, skipped: [], error: result.error };
                 }
                 inputTracker.abortOngoingOperation();
+                historyManager.beginEdit();
                 const reassignedCount = model.replaceAllShapes(result.shapes);
+                historyManager.commitEdit();
                 return { ok: true, restoredCount: result.shapes.length, reassignedCount, skipped: result.skipped, error: null };
             },
         });

@@ -214,7 +214,7 @@ performRedo():
         *   上記各メソッド・`abortOngoingOperation()`・`setMode()`のJSDocに、編集操作として記録される時点（2章の一覧表）・中断で残った変化も1件として記録されること・範囲選択は記録しないことを追記する。`abortOngoingOperation()`のJSDocの「Phase 03-02でも再利用する前提」を、取り消し・やり直しの前処理として使われている旨の記述へ更新する。
         *   先頭行の責務JSDoc（3行以内）に「編集操作の開始・確定の通知」を加え、クラスJSDocにも同旨を追記する。図形種別の分岐・図形固有のプロパティ名を追加しないこと。
         *   本タスクでは`main.js`は変更しない（第4引数省略のため記録は行われず、既存の動作は変わらない）。
-*   [ ] タスク3: `main.js`で履歴管理を生成・注入し、`?dev`の復元を記録する
+*   [x] タスク3: `main.js`で履歴管理を生成・注入し、`?dev`の復元を記録する
     *   **対象ファイル** :
         *   `./js/main.js` :（更新）
     *   **作業内容** :
@@ -303,7 +303,14 @@ performRedo():
 
 ### タスク3: `main.js`で履歴管理を生成・注入し、`?dev`の復元を記録する
 *   **作業内容** :
-    *   (未実施)
+    *   `HistoryManager`のimportを`ViewTransform`のimportの直後に追加した。
+    *   `const viewTransform = new ViewTransform();`の直後、`// 4. Controller (入力管理)`の直前に、見出し`// 3.5. 履歴（取り消し・やり直し）配線`のブロックを新設した。ブロック冒頭には、唯一の履歴配線ブロックであること・`core/`から`io/`をimportしない理由・`InputTracker`より先に生成する理由をコメントで書いた。中身は次の順に置いた。
+        *   `captureSnapshot()`：`{ document: DocumentSerializer.serialize(model.getShapes()), selectedIds: model.getSelectedIds() }`を返す。JSDocに、スナップショットの内容と、図形インスタンス・Modelと共有しないことを書いた。
+        *   `restoreSnapshot(snapshot)`：`deserialize`の結果が`!ok`または`skipped.length > 0`なら`console.warn`して`false`を返す。成功時は`replaceAllShapes`を呼び、`inputTracker.getMode() === OperationMode.SELECT`のときだけ`setSelection(snapshot.selectedIds)`を呼んで`true`を返す。JSDocには次を書いた：適用後の選択集合の規則、中断は呼び出し側の責務であること、`inputTracker`を参照するが呼ばれるのは起動完了後だけであること。
+        *   `const historyManager = new HistoryManager({ capture: captureSnapshot, restore: restoreSnapshot });`
+    *   `new InputTracker(canvas, model, viewTransform, historyManager)`へ変更した（EditRecorderとして注入する旨のコメント付き）。`InputTracker`の生成位置は動かしていない。既存のセクション番号は振り直していない。
+    *   `onImport`の成功時を`abortOngoingOperation()`→`historyManager.beginEdit()`→`replaceAllShapes`→`historyManager.commitEdit()`の順にした。コメントには次を追記した：1件の編集操作として記録すること、失敗時は記録しないこと、中断を先に行う理由、例外を漏らさないこと（DevPanelは捕捉しない）。`try/catch`は追加していない。`beginEdit`/`commitEdit`の内部は`serialize`（`toJSON()`）・汎用の凍結・`JSON.stringify`比較だけで、通常動作で例外が起きる経路は見つからなかった。
+    *   先頭行の責務JSDoc（「各モジュールの初期化と連携(依存性の注入)を担う。」）は、本タスク時点では変更していない（最終照合はタスク6）。`node --check`で構文を確認した。
 
 ### タスク4: 修飾キー規則の拡張と、取り消し・やり直しのショートカット・操作関数
 *   **作業内容** :
@@ -338,6 +345,7 @@ performRedo():
 * **`#deepFreeze`の凍結済み判定（タスク1）**: 循環参照で無限再帰しないよう、凍結済みの値は辿らずに返す。このため`capture()`が「凍結済みだが子が未凍結」のオブジェクトを含むスナップショットを返した場合、その子は凍結されない。現行の`captureSnapshot`（`serialize`＝`toJSON()`の新しいオブジェクト＋新しい配列）では起こらない想定だが、`toJSON()`が凍結済みの共有オブジェクトを返すよう変更する場合は注意すること。
 * **`#onLeftDragStart`の前提（タスク2）**: 移動・変形の`beginEdit()`は、「`DragTracker.begin()`が`onStart`を同期的に呼ばない」こと、つまり「閾値超過時には状態が遷移済みである」ことを前提にしている。将来`DragTracker`を変更して`begin()`内で`onStart`を呼ぶようにする場合（閾値0のセッションで即時開始させる等）は、`#beginLeftDrag`の中で状態を遷移させる順序と合わせて見直すこと。
 * **`setMode`中断時の記録順（タスク2）**: `setMode`では`#abortOngoingOperation()`、つまりドラッグの中断から`#finishLeftDrag()`の`commitEdit()`までが、`clearSelection()`より前に実行される。このため、中断で記録される後の状態の選択集合は操作中のもの（クリア前）になる。`setMode`の処理順を変える場合は注意すること。
+* **タスク3完了時点の中間状態（タスク3）**: この時点では作成・削除・移動・変形・`?dev`復元が履歴に記録されるが、取り消し・やり直しの手段（ショートカット・ボタン）はまだない（タスク4・5で接続）。記録処理が加わるため、編集操作ごとに`serialize`と`JSON.stringify`が2回ずつ走るが、従来の動作は変わらない想定である。テストプレイでは回帰（作成・削除・移動・変形・`?dev`復元）がないかを確認すること。
 * **変更しないファイル**: `CanvasManager.js`／`ShapeFactory.js`／`ViewTransform.js`／`DragTracker.js`／`WindowManager.js`／`DocumentSerializer.js`／`PaletteController.js`／`DevPanel.js`／`shapes/`・`VectorModel.js`は変更不要と判断した。
 * **テストプレイでの目視確認項目**:
     1. 5種の図形（直線・曲線・弧・矩形・円）を作成→`Ctrl`+`Z`で新しい順に1つずつ消え、`Ctrl`+`Y`で順に戻る。
