@@ -67,10 +67,11 @@
             right: 16px;
             width: 220px;
         }
-        /* topはコントロールパネルの取り消し・やり直しボタン行（1行分）の追加に合わせて320px→368pxへ下げた
-           （パネル下端 約341px との余白を24px以上確保するため。自動配置はしない） */
+        /* topはコントロールパネルのキャンバス名の表示行・呼び出し口ボタンの追加に合わせて368px→440pxへ下げた
+           （変更前のパネル下端 約341px＋追加分 約70px（キャンバス名の行18px＋行間8px＋呼び出し口ボタン約36px＋行間8px）
+           ＝新しい下端 約411px。440−411＝約29pxで、余白24px以上を確保するため。自動配置はしない） */
         #window-shape-palette {
-            top: 368px;
+            top: 440px;
             right: 16px;
             width: 220px;
         }
@@ -123,6 +124,85 @@
             text-align: center;
             white-space: nowrap;
         }
+        /* コントロールパネルの開いているキャンバスの名前の表示（呼び出し口の直上の1行。
+           長い名前は省略表示し、名前全体はmain.jsがtitle属性に設定する） */
+        .canvas-name-display {
+            font-size: 12px;
+            line-height: 18px;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        /* キャンバスパレット（呼び出し口#launcher-canvasで開閉。hidden属性で初期非表示）。
+           コントロールパネルの左隣に置く（right: コントロールパネルのright 16px＋幅220px＋間隔16px＝252px）。
+           ?devの確認用ウィンドウ（left: 16px・幅360px）とは、画面幅が約870px以上なら重ならない */
+        #window-canvas-palette {
+            top: 16px;
+            right: 252px;
+            width: 240px;
+        }
+        /* キャンバスパレットの一覧（キャンバス数が多い場合はパレット内で縦スクロールする） */
+        .canvas-list {
+            max-height: 240px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        /* 一覧の1行（名前のボタン＋名前の変更・削除の小さなボタンを横並び） */
+        .canvas-row {
+            display: flex;
+            gap: 4px;
+        }
+        /* 行の名前のボタン（押すと開く）。残りの幅を使い、長い名前は省略表示する（名前全体はtitle属性） */
+        .canvas-row-open {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        /* 行の名前の変更（✎）・削除（🗑）の小さなボタン（伸縮させない。押せない状態は.tool-btn:disabledを用いる） */
+        .canvas-row-btn {
+            flex: none;
+        }
+        /* 開いているキャンバスの行の名前のボタン（.tool-btn.activeと同じ配色） */
+        .canvas-row.current .canvas-row-open {
+            background-color: #dbe9ff;
+            border-color: #6699ff;
+            font-weight: bold;
+        }
+        /* キャンバスパレットの保存・読み込みの問題の短い文言（問題が無いときはhidden属性で非表示） */
+        .canvas-notice {
+            margin: 0;
+            font-size: 12px;
+            color: #b00020;
+        }
+        /* 読み込み中の覆い要素（キャンバス全面を覆い、読み込み完了までキャンバスへのマウス入力を遮る）。
+           z-index: 5はキャンバス（1）より前面・フロートウィンドウ（10以上。最前面化でも下がらない）より背面のため、
+           コントロールパネル・パレット・?devの確認用ウィンドウは読み込み中も操作できる */
+        .canvas-loading-cover {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(255, 255, 255, 0.6);
+            font-family: sans-serif;
+            font-size: 14px;
+            color: #666;
+            cursor: progress;
+            user-select: none;
+        }
+        /* 必須：上のdisplay: flexがhidden属性の既定の非表示（display: none）を上書きするため、hidden時の非表示を明示する */
+        .canvas-loading-cover[hidden] {
+            display: none;
+        }
         /* 開発者向け確認用ウィンドウ（?dev時のみ表示。右側のコントロールパネル・図形パレットと重ならない左上に置く） */
         #window-dev-panel {
             top: 16px;
@@ -156,6 +236,7 @@
 </head>
 <body>
     <canvas id="editor-canvas"></canvas>
+    <div id="canvas-loading-cover" class="canvas-loading-cover" hidden>読み込み中…</div>
     <div id="window-control-panel" class="float-window">
         <div class="window-header">
             <span class="window-title">OZ Vector Editor</span>
@@ -174,6 +255,8 @@
                 <span id="view-zoom-display">100%</span>
                 <button type="button" id="view-reset" class="tool-btn" title="表示をリセット (Ctrl+0)">リセット</button>
             </div>
+            <div id="canvas-name-display" class="canvas-name-display"></div>
+            <button type="button" id="launcher-canvas" class="tool-btn" title="キャンバスパレットを開く／閉じる">📁 キャンバス</button>
         </div>
     </div>
     <div id="window-shape-palette" class="float-window disabled">
@@ -187,6 +270,17 @@
             <button type="button" id="palette-arc" class="tool-btn" title="弧 (3)">◠ 弧</button>
             <button type="button" id="palette-rect" class="tool-btn" title="矩形 (4)">▭ 矩形</button>
             <button type="button" id="palette-circle" class="tool-btn" title="円 (5)">◯ 円</button>
+        </div>
+    </div>
+    <div id="window-canvas-palette" class="float-window" hidden>
+        <div class="window-header">
+            <span class="window-title">キャンバス</span>
+            <button type="button" class="window-close-btn">×</button>
+        </div>
+        <div class="window-body">
+            <button type="button" id="canvas-create" class="tool-btn">＋ 新規作成</button>
+            <div id="canvas-list" class="canvas-list"></div>
+            <p id="canvas-notice" class="canvas-notice" hidden></p>
         </div>
     </div>
     <div id="window-dev-panel" class="float-window" hidden>

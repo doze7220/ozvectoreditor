@@ -311,7 +311,7 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
         *   `CanvasPalette.js`：先頭行の責務JSDoc案「責務：キャンバスパレット（キャンバス一覧・新規作成・名前の変更・削除・保存状態の表示）のDOM操作を担う自己完結UI部品。操作の実行は注入されたコールバックへ委譲する。」。2章要件5・6のとおり実装する（イベント委譲・`textContent`のみ・`window.prompt`/`window.confirm`の文言・押されたボタンの`blur()`・`ISSUE_MESSAGES`）。typedef`CanvasLibraryState`の受け取る項目をJSDocに記載する（`CanvasLibrary.js`の定義と揃える旨）。importなし。
         *   JSDocに、名前の変更・削除の小窓の扱い（キャンセル時は何も呼ばない。空文字の判定は`CanvasLibrary`側）、`busy`・`canManage`・`loading`・`issue`による表示の規則、`VectorModel`・図形データ・IndexedDBに依存しないことを記載する。
         *   本タスクでは他ファイルを変更しない（未使用のためアプリの動作は変わらない）。
-*   [ ] タスク6: `index.html`へキャンバスパレット・呼び出し口・キャンバス名の表示・読み込み中の覆い要素を追加
+*   [x] タスク6: `index.html`へキャンバスパレット・呼び出し口・キャンバス名の表示・読み込み中の覆い要素を追加
     *   **対象ファイル** :
         *   `./index.html` :（更新）
     *   **作業内容** :
@@ -420,7 +420,12 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
 
 ### タスク6: `index.html`へキャンバスパレット・呼び出し口・キャンバス名の表示・読み込み中の覆い要素を追加
 *   **作業内容** :
-    *   (未実施)
+    *   コントロールパネルの`.window-body`末尾（倍率表示行の後）に`#canvas-name-display`（空）と呼び出し口`#launcher-canvas`（`📁 キャンバス`）をこの順に追加した。
+    *   `#window-dev-panel`の前に`#window-canvas-palette`（`hidden`）を2章要件6のDOMどおり追加した（ヘッダー・`×`・`#canvas-create`・`#canvas-list`・`#canvas-notice`（`hidden`））。
+    *   `<canvas id="editor-canvas">`の直後に`#canvas-loading-cover`（文言「読み込み中…」）を**`hidden`付き**で追加した（`hidden`はタスク7で外す）。
+    *   `<style>`の`.history-button-row .tool-btn`の後（`#window-dev-panel`の前）に、`.canvas-name-display`・`#window-canvas-palette`・`.canvas-list`・`.canvas-row`・`.canvas-row-open`・`.canvas-row-btn`・`.canvas-row.current .canvas-row-open`（`.tool-btn.active`と同じ配色）・`.canvas-notice`・`.canvas-loading-cover`・`.canvas-loading-cover[hidden]`を2章要件6の値どおり追加し、それぞれに役割・位置の根拠（パレットの`right: 252px`の計算、覆い要素の`z-index: 5`の根拠、`[hidden]`指定が必須な理由）のコメントを付けた。
+    *   `#window-shape-palette`の`top`を`368px`→`440px`へ変更し、直前のコメントを計算根拠（約341px＋約70px＝約411px、余白約29px）に更新した。
+    *   既存の要素・スタイルは変更していない。本タスク完了時点では呼び出し口は未配線（押しても何も起きない）、キャンバスパレット・覆い要素は非表示、キャンバス名の表示は空のため、既存の操作は従来どおり動作する（コントロールパネルが約70px伸び、図形パレットが下がる見た目の変化のみ）。
 
 ### タスク7: `main.js`のキャンバス管理の配線（覆い要素の表示開始を含む）
 *   **作業内容** :
@@ -462,6 +467,8 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
 * **（タスク5）ボタンの押せない状態に`loading`を含めた**: 計画の`busy || !canManage`に`loading`を加えた（`start()`の呼び出し前は`loading: true`・`busy: false`のため。2章要件3「読み込み中はパレットの操作ボタンを押せない状態にする」による）。
 * **（タスク5）`typedef CanvasLibraryState`の二重化**: `CanvasPalette.js`と`CanvasLibrary.js`の両方に同じ内容で定義している。状態の形を変える場合は両方を揃えること。
 * **（タスク5）×ボタンのmousedown**: キャンバスパレットの×はヘッダー内にあり、`WindowManager`のヘッダーの`mousedown`（ドラッグ開始）も受ける。`click`で閉じる動作には影響しない見込みだが、×を押した際にウィンドウが動かないかを目視確認すること。
+* **（タスク6）開いている行のホバー時の配色**: `.canvas-row.current .canvas-row-open`は既存の`.tool-btn:hover:not(:disabled)`と詳細度が同じで後に書かれているため、開いているキャンバスの行はホバーしても配色が変わらない（`.tool-btn.active`はホバー色に負けて`#eee`になる点と異なる）。見た目の違いのみで動作には影響しない。
+* **（タスク6）タスク7完了までの見た目**: タスク6完了時点では`#canvas-name-display`が空のため、コントロールパネルに空の1行（18px）が見える。タスク7の`syncCanvasNameDisplay()`の配線で埋まる。
 * **テストプレイでの目視確認項目**:
     * 図形を描いて再読み込みすると同じ図形が出る／ブラウザを閉じて開き直しても残る／描いた直後（1秒以内）に再読み込みしても残る。
     * 再読み込み後は倍率100%・選択モード・取り消しボタンが押せない状態。
