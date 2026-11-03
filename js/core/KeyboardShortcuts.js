@@ -6,12 +6,27 @@
 import { OperationMode, SHAPE_TYPES, isTextInputElement } from './InputTracker.js';
 
 /**
+ * 対応表エントリのShift規則（3値）。本ファイル内でのみ用いる（exportしない）。
+ * ・FORBIDDEN：shiftKeyが偽であること（通常のショートカット。Shift+V等は将来のShift併用操作のために予約）
+ * ・ANY：shiftKeyを問わない（拡大・縮小。JIS配列のCtrl+Shift+;、US配列のCtrl+Shift+=に対応するため）
+ * ・REQUIRED：shiftKeyが真であること（Ctrl+Shift+Zのやり直し）
+ * @readonly
+ * @enum {string}
+ */
+const ShiftRule = Object.freeze({
+    FORBIDDEN: 'forbidden',
+    ANY: 'any',
+    REQUIRED: 'required',
+});
+
+/**
  * ショートカット対応表の1エントリ（データのみ。操作の実体は持たない）。
  * @typedef {Object} ShortcutBinding
  * @property {string[]} codes 一致とみなすevent.code（物理キー位置）の一覧
  * @property {boolean} ctrl CtrlまたはMeta（⌘）の押下を要するか。true：ctrlKey || metaKeyが真であること、
  *     false：ctrlKey・metaKeyがともに偽であること
- * @property {boolean} allowShift Shift押下を許容するか。false：shiftKeyが偽であること、true：shiftKeyを問わない
+ * @property {string} shift Shift規則（ShiftRuleの値）。FORBIDDEN：shiftKeyが偽であること、
+ *     ANY：shiftKeyを問わない、REQUIRED：shiftKeyが真であること
  * @property {boolean} repeatable キーリピート（event.repeat）でも実行するか
  * @property {string} action 実行する注入コールバック名（ShortcutActionsのプロパティ名）
  * @property {*} [arg] コールバックへ渡す引数（省略時はundefined）
@@ -29,6 +44,10 @@ import { OperationMode, SHAPE_TYPES, isTextInputElement } from './InputTracker.j
  * @property {() => boolean} cancel 作成途中の図形の破棄、または選択解除を行う
  * @property {() => boolean} selectAll 全図形を選択する（選択モード以外では選択モードへ切り替えた後）
  * @property {() => boolean} deleteSelection 選択集合の全図形を削除する
+ * @property {() => boolean} undo 直前の編集操作を取り消す。作成途中の図形があれば、その破棄のみを行い履歴は変化させない。
+ *     取り消せる履歴がなくても、ドラッグ中でなければ常にtrue（ブラウザ標準のCtrl+Zを起こさないため）
+ * @property {() => boolean} redo 取り消した編集操作をやり直す。作成途中の図形があれば破棄したうえでやり直す。
+ *     やり直せる履歴がなくても、ドラッグ中でなければ常にtrue（ブラウザ標準のCtrl+Y等を起こさないため）
  */
 
 /**
@@ -38,27 +57,33 @@ import { OperationMode, SHAPE_TYPES, isTextInputElement } from './InputTracker.j
  * ・Spaceは含めない（スペースパンはInputTrackerの担当であり、同一キーを二重に解釈しないため）。
  * ・同一のcode・修飾キーの組み合わせに一致するエントリが2件以上存在しないこと（#findBindingは最初の一致を返す）。
  * ・新しいショートカットはエントリの追加（＋必要なら注入コールバックの追加）で対応する。
+ * ・修飾キー規則：Shiftはshiftプロパティの3値（ShiftRule）で指定する。通常はFORBIDDEN、拡大・縮小のみANY、
+ *   やり直しのCtrl+Shift+ZのみREQUIRED。KeyZはShiftの有無で取り消し（FORBIDDEN）とやり直し（REQUIRED）に排他的に分かれる。
  * ・index.htmlの各ボタンのtitle属性（例：「選択 (V)」）はこの表と手動で一致させている。
  * @type {ReadonlyArray<Readonly<ShortcutBinding>>}
  */
 const SHORTCUT_BINDINGS = Object.freeze([
-    { codes: ['KeyV'], ctrl: false, allowShift: false, repeatable: false, action: 'setMode', arg: OperationMode.SELECT },
-    { codes: ['KeyP'], ctrl: false, allowShift: false, repeatable: false, action: 'setMode', arg: OperationMode.CREATE },
-    { codes: ['KeyH'], ctrl: false, allowShift: false, repeatable: false, action: 'setMode', arg: OperationMode.PAN },
+    { codes: ['KeyV'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'setMode', arg: OperationMode.SELECT },
+    { codes: ['KeyP'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'setMode', arg: OperationMode.CREATE },
+    { codes: ['KeyH'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'setMode', arg: OperationMode.PAN },
     ...SHAPE_TYPES.map((type, i) => ({
         codes: [`Digit${i + 1}`, `Numpad${i + 1}`],
         ctrl: false,
-        allowShift: false,
+        shift: ShiftRule.FORBIDDEN,
         repeatable: false,
         action: 'setShapeType',
         arg: type,
     })),
-    { codes: ['Digit0', 'Numpad0'], ctrl: true, allowShift: false, repeatable: false, action: 'resetView' },
-    { codes: ['Equal', 'Semicolon', 'NumpadAdd'], ctrl: true, allowShift: true, repeatable: true, action: 'zoomStep', arg: 1 },
-    { codes: ['Minus', 'NumpadSubtract'], ctrl: true, allowShift: true, repeatable: true, action: 'zoomStep', arg: -1 },
-    { codes: ['Escape'], ctrl: false, allowShift: false, repeatable: false, action: 'cancel' },
-    { codes: ['KeyA'], ctrl: true, allowShift: false, repeatable: false, action: 'selectAll' },
-    { codes: ['Delete', 'Backspace'], ctrl: false, allowShift: false, repeatable: false, action: 'deleteSelection' },
+    { codes: ['Digit0', 'Numpad0'], ctrl: true, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'resetView' },
+    { codes: ['Equal', 'Semicolon', 'NumpadAdd'], ctrl: true, shift: ShiftRule.ANY, repeatable: true, action: 'zoomStep', arg: 1 },
+    { codes: ['Minus', 'NumpadSubtract'], ctrl: true, shift: ShiftRule.ANY, repeatable: true, action: 'zoomStep', arg: -1 },
+    { codes: ['Escape'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'cancel' },
+    { codes: ['KeyA'], ctrl: true, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'selectAll' },
+    { codes: ['Delete', 'Backspace'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'deleteSelection' },
+    // 取り消し・やり直し（押しっぱなしで連続実行できるようrepeatable: true）
+    { codes: ['KeyZ'], ctrl: true, shift: ShiftRule.FORBIDDEN, repeatable: true, action: 'undo' },
+    { codes: ['KeyZ'], ctrl: true, shift: ShiftRule.REQUIRED, repeatable: true, action: 'redo' },
+    { codes: ['KeyY'], ctrl: true, shift: ShiftRule.FORBIDDEN, repeatable: true, action: 'redo' },
 ].map((binding) => Object.freeze(binding)));
 
 /**
@@ -100,7 +125,7 @@ export class KeyboardShortcuts {
      * preventDefault()の原則：受理した（コールバックがtrueを返した）キーのみpreventDefault()し、受理しなかったキーは
      * preventDefault()しない（IME変換中・テキスト入力中・対応表に一致なし・コールバックがfalseを含む）。
      * 唯一の例外：ctrl: trueのエントリが、ドラッグ中（手順4）またはキーリピート（手順5）で実行されなかった場合は、
-     * 操作は実行せずpreventDefault()のみ行う（Ctrl+=/-/0/Aでブラウザのズーム・ページ全選択が起きないようにするため）。
+     * 操作は実行せずpreventDefault()のみ行う（Ctrl+=/-/0/A/Z/Yでブラウザのズーム・ページ全選択・標準の取り消し/やり直しが起きないようにするため）。
      * ctrl: falseのエントリが手順4・5で実行されなかった場合はpreventDefault()もしない。
      * @param {KeyboardEvent} event
      */
@@ -136,8 +161,10 @@ export class KeyboardShortcuts {
      *   キーボード配列・IMEの影響を受けるため用いない（例：JIS配列の;/+キーはkeyが揺れるがcodeはSemicolonで一定）。
      * ・Alt押下時は常に不一致（AltGr＝Ctrl+Altによる文字入力を奪わないため）。
      * ・Meta（⌘）はCtrlと同一視する（macOS対応）。ctrl: trueはctrlKey || metaKeyが真、ctrl: falseは両方が偽であること。
-     * ・Shift：allowShift: falseのエントリはshiftKeyが偽であること。allowShift: true（拡大・縮小のみ）はshiftKeyを問わない
-     *   （JIS配列のCtrl+Shift+;、US配列のCtrl+Shift+=に対応するため）。Shift+V等は将来のShift併用操作のために予約する。
+     * ・Shift：エントリのshift（ShiftRule）の3値で判定する。FORBIDDENはshiftKeyが偽であること、
+     *   ANY（拡大・縮小のみ）はshiftKeyを問わない（JIS配列のCtrl+Shift+;、US配列のCtrl+Shift+=に対応するため）、
+     *   REQUIRED（やり直しのCtrl+Shift+Zのみ）はshiftKeyが真であること。Shift+V等は引き続き不一致であり、
+     *   将来のShift併用操作のために予約する。
      * @param {KeyboardEvent} event
      * @returns {Readonly<ShortcutBinding> | null} 一致したエントリ（なければnull）
      */
@@ -149,7 +176,23 @@ export class KeyboardShortcuts {
         return SHORTCUT_BINDINGS.find((binding) =>
             binding.codes.includes(event.code)
             && binding.ctrl === ctrlPressed
-            && (binding.allowShift || !event.shiftKey)
+            && KeyboardShortcuts.#matchesShiftRule(binding.shift, event.shiftKey)
         ) ?? null;
+    }
+
+    /**
+     * Shift規則（ShiftRule）とshiftKeyの押下状態が一致するかを返す。
+     * @param {string} rule - エントリのShift規則（ShiftRuleの値）
+     * @param {boolean} shiftPressed - event.shiftKey
+     * @returns {boolean} ANY：常にtrue、REQUIRED：shiftPressed、FORBIDDEN：!shiftPressed
+     */
+    static #matchesShiftRule(rule, shiftPressed) {
+        if (rule === ShiftRule.ANY) {
+            return true;
+        }
+        if (rule === ShiftRule.REQUIRED) {
+            return shiftPressed;
+        }
+        return !shiftPressed;
     }
 }

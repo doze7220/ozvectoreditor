@@ -77,6 +77,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const historyManager = new HistoryManager({ capture: captureSnapshot, restore: restoreSnapshot });
 
+    /**
+     * 取り消しの操作関数。キーボードショートカット（Ctrl+Z）とコントロールパネルの取り消しボタンの
+     * 共通経路であり、受理条件・動作はどちらから呼ばれても同一。
+     * (1) ドラッグ中（InputTracker.isDragging()が真）なら何もせずfalse（不受理）。
+     * (2) 進行中の入力操作を中断し、作成途中の図形を破棄した場合はそれで終了しtrue（履歴は変化させない。Escと同じ結果。
+     *     (1)でドラッグ中でないことを確認済みのため、ここで中断し得るのは作成途中の図形のみ）。
+     * (3) それ以外は履歴の取り消しを行いtrue。
+     * 戻り値の方針：ドラッグ中でなければ、取り消せる履歴がなくても常にtrue（ブラウザ標準のCtrl+Zを起こさないため）。
+     * 本体で後に`const`宣言される`inputTracker`を参照するが、本関数が呼ばれるのは起動完了後のみのため問題ない
+     * （8.の注入・6.のボタン登録より前で宣言しており、関数宣言の巻き上げには頼らない）。
+     * @returns {boolean} 受理したか（ドラッグ中のみfalse）
+     */
+    function performUndo() {
+        if (inputTracker.isDragging()) {
+            return false;
+        }
+        if (inputTracker.abortOngoingOperation()) {
+            return true;
+        }
+        historyManager.undo();
+        return true;
+    }
+
+    /**
+     * やり直しの操作関数。キーボードショートカット（Ctrl+Y／Ctrl+Shift+Z）とコントロールパネルのやり直しボタンの
+     * 共通経路であり、受理条件・動作はどちらから呼ばれても同一。
+     * (1) ドラッグ中（InputTracker.isDragging()が真）なら何もせずfalse（不受理）。
+     * (2) 進行中の入力操作を中断する（作成途中の図形があれば破棄する。戻り値は使わない）。
+     * (3) 履歴のやり直しを行いtrue（やり直せる履歴がなければ(2)の破棄のみ）。
+     * 戻り値の方針：ドラッグ中でなければ、やり直せる履歴がなくても常にtrue（ブラウザ標準のCtrl+Y等を起こさないため）。
+     * 本体で後に`const`宣言される`inputTracker`を参照するが、本関数が呼ばれるのは起動完了後のみのため問題ない
+     * （8.の注入・6.のボタン登録より前で宣言しており、関数宣言の巻き上げには頼らない）。
+     * @returns {boolean} 受理したか（ドラッグ中のみfalse）
+     */
+    function performRedo() {
+        if (inputTracker.isDragging()) {
+            return false;
+        }
+        inputTracker.abortOngoingOperation();
+        historyManager.redo();
+        return true;
+    }
+
     // 4. Controller (入力管理)
     // 編集操作の記録先（EditRecorder）としてhistoryManagerを注入する
     const inputTracker = new InputTracker(canvas, model, viewTransform, historyManager);
@@ -261,6 +304,9 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         // 選択集合の削除（削除ボタンと同一経路。受理条件はdeleteSelection()のみが判定する）
         deleteSelection: () => inputTracker.deleteSelection(),
+        // 取り消し・やり直し（取り消し・やり直しボタンと同一経路。受理条件はperformUndo/performRedoのみが判定する）
+        undo: performUndo,
+        redo: performRedo,
     });
 
     // 9. 開発者向け確認用ウィンドウ配線（URLに`?dev`がある場合のみ。判定結果はグローバルへ公開しない）

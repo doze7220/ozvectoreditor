@@ -180,7 +180,7 @@ performRedo():
 *   **3章**: 1.起動処理のインスタンス化一覧に`HistoryManager`を追加。新項目「6. 履歴（取り消し・やり直し）」を追加：編集操作の確定から記録までの流れ（`InputTracker`／`main.js`が変更処理を`beginEdit()`／`commitEdit()`で挟む。記録される操作と時点の一覧、変化のない操作は作業データの文字列比較で不記録、中断で残った変化も1件として記録）と、適用の流れ（`performUndo`/`performRedo`：ドラッグ中は不受理→`abortOngoingOperation()`（取り消しは作成途中の破棄のみで終了）→`HistoryManager.undo()/redo()`→注入`restore`＝`deserialize`→`replaceAllShapes`→選択モード時のみ`setSelection`）。3.キーボード操作の「Shift規則」に3値化を反映。
 *   **4章**:
     *   `HistoryManager.js`の項を新設（責務・公開API・`HISTORY_LIMIT`・エントリ構造・`Snapshot`型・凍結・比較方法・変更通知の条件・importなし・`capture`/`restore`注入）。
-    *   `KeyboardShortcuts.js`：「Shift併用は拡大・縮小のみ許容」「キーリピートは拡大・縮小のみ実行」を更新（`shift`の3値規則、`Ctrl`+`Shift`+`Z`の`REQUIRED`、取り消し・やり直しもリピート可）。
+    *   `KeyboardShortcuts.js`：「Shift併用は拡大・縮小のみ許容」「キーリピートは拡大・縮小のみ実行」を更新（`shift`の3値規則、`Ctrl`+`Shift`+`Z`の`REQUIRED`、取り消し・やり直しもリピート可）。Shift判定はprivate static`#matchesShiftRule`が担い、`ANY`・`REQUIRED`以外の値は`FORBIDDEN`として扱う（タスク4で判明）。
     *   `InputTracker.js`：コンストラクタの第4引数`editRecorder`（`EditRecorder`＝`beginEdit`/`commitEdit`）と、編集操作の開始・確定の通知箇所（作成・削除・左ドラッグの閾値超過と`#finishLeftDrag`）、`#isEditOpen`。`abortOngoingOperation()`が履歴適用の前処理として実際に使われるようになったこと。
     *   `main.js`：履歴配線（`captureSnapshot`/`restoreSnapshot`/`performUndo`/`performRedo`/`syncHistoryButtonState`、履歴配線ブロックの位置（`ViewTransform`生成後・`InputTracker`生成前の1ブロック。ボタン関連はコントロールパネル配線内）、生成順の注意、`onImport`から例外を漏らさない方針、起動時の同期に`syncHistoryButtonState()`を追加、注入コールバックに`undo`/`redo`を追加、`onImport`の`beginEdit`/`commitEdit`）。
     *   `index.html`：取り消し・やり直しボタン行（`#history-undo`/`#history-redo`、`.history-button-row`）と図形パレットの`top: 368px`。
@@ -228,7 +228,7 @@ performRedo():
             *   **注意（例外を`onImport`の外へ漏らさないこと）**: `DevPanel.js`はコールバックの例外を捕捉しない（漏れると結果表示が更新されない）。2章要件6「例外の扱い」のとおり、追加する`beginEdit()`／`commitEdit()`は通常動作では例外を投げない想定のため`try/catch`は追加せず、`onImport`内に新たに例外を投げる処理も書かない。通常動作で例外が起こり得る経路を見つけた場合は、推測で`try/catch`を追加せず作業を中断し、質問として報告する。`onImport`のコメントにも「本コールバックから例外を漏らさないこと（DevPanelは捕捉しない）」を一言添える。
         *   先頭行の責務JSDocが実態と一致しているか確認する（変更不要の見込み。最終的な照合はタスク6で行う）。
         *   本タスク完了時点で、編集操作は記録されるが取り消し手段はまだない（アプリは従来どおり動作する）。
-*   [ ] タスク4: 修飾キー規則の拡張と、取り消し・やり直しのショートカット・操作関数
+*   [x] タスク4: 修飾キー規則の拡張と、取り消し・やり直しのショートカット・操作関数
     *   **対象ファイル** :
         *   `./js/core/KeyboardShortcuts.js` :（更新）
         *   `./js/main.js` :（更新）
@@ -314,7 +314,19 @@ performRedo():
 
 ### タスク4: 修飾キー規則の拡張と、取り消し・やり直しのショートカット・操作関数
 *   **作業内容** :
-    *   (未実施)
+    *   `KeyboardShortcuts.js`：
+        *   import直後に、凍結定数`ShiftRule`（`FORBIDDEN: 'forbidden'`／`ANY: 'any'`／`REQUIRED: 'required'`。exportしない）を追加した。JSDocに3値の意味と用途を書いた。
+        *   `ShortcutBinding` typedefの`allowShift`を`shift`（`ShiftRule`の値）へ置き換え、3値の意味を書いた。
+        *   既存エントリを機械的に置き換えた。`allowShift: false`→`shift: ShiftRule.FORBIDDEN`で、図形種別の生成部分も含む。`allowShift: true`（拡大・縮小の2件）→`shift: ShiftRule.ANY`。ほかのプロパティと並びは変えていない。
+        *   対応表の末尾に、コメント付きで3エントリを追加した：`KeyZ`/ctrl/`FORBIDDEN`/repeatable→`undo`、`KeyZ`/ctrl/`REQUIRED`/repeatable→`redo`、`KeyY`/ctrl/`FORBIDDEN`/repeatable→`redo`。
+        *   `ShortcutActions` typedefに`undo`・`redo`を追加した。作成途中の図形がある場合の扱いと、「ドラッグ中でなければ常に`true`」を要約して書いた。
+        *   `#findBinding`のShift判定を3値にした。判定は、private static`#matchesShiftRule(rule, shiftPressed)`（`ANY`→`true`、`REQUIRED`→`shiftPressed`、それ以外（`FORBIDDEN`）→`!shiftPressed`）に分けた。計画に明記のないprivateヘルパーだが、`find`の条件式の中に3値の分岐を入れ子で書かないためだけのもの。`#findBinding`のJSDocのShift規則と、対応表のJSDoc（修飾キー規則の拡張・`KeyZ`の排他）も更新した。
+        *   `#handleKeyDown`のJSDocにある「`ctrl: true`の例外」の理由の例（`Ctrl+=/-/0/A`）に、`Z/Y`と「標準の取り消し/やり直し」を加えた（記述のみ）。
+        *   先頭行の責務JSDoc（対応表と受理判定のみ。修飾キーを含む）は実態と一致しているため、変更していない。
+    *   `main.js`：
+        *   3.5.の履歴配線ブロックの末尾、`const historyManager = ...`の直後に、`performUndo()`／`performRedo()`を`function`宣言で追加した。2章要件4の擬似コードどおりに実装した。JSDocに書いた内容：受理条件、作成途中の図形がある場合の扱い、戻り値の方針、ボタンとショートカットの共通経路であること、`inputTracker`を参照するが起動完了後にしか呼ばれないこと、巻き上げに頼らないこと。
+        *   `new KeyboardShortcuts({...})`に、コメント付きで`undo: performUndo`、`redo: performRedo`を追加した。
+    *   `node --check`で両ファイルの構文を確認した。`js/`配下に`allowShift`が残っていないことも確認した。
 
 ### タスク5: 取り消し・やり直しボタンと押せる/押せない状態の同期、図形パレットの位置
 *   **作業内容** :
@@ -346,6 +358,8 @@ performRedo():
 * **`#onLeftDragStart`の前提（タスク2）**: 移動・変形の`beginEdit()`は、「`DragTracker.begin()`が`onStart`を同期的に呼ばない」こと、つまり「閾値超過時には状態が遷移済みである」ことを前提にしている。将来`DragTracker`を変更して`begin()`内で`onStart`を呼ぶようにする場合（閾値0のセッションで即時開始させる等）は、`#beginLeftDrag`の中で状態を遷移させる順序と合わせて見直すこと。
 * **`setMode`中断時の記録順（タスク2）**: `setMode`では`#abortOngoingOperation()`、つまりドラッグの中断から`#finishLeftDrag()`の`commitEdit()`までが、`clearSelection()`より前に実行される。このため、中断で記録される後の状態の選択集合は操作中のもの（クリア前）になる。`setMode`の処理順を変える場合は注意すること。
 * **タスク3完了時点の中間状態（タスク3）**: この時点では作成・削除・移動・変形・`?dev`復元が履歴に記録されるが、取り消し・やり直しの手段（ショートカット・ボタン）はまだない（タスク4・5で接続）。記録処理が加わるため、編集操作ごとに`serialize`と`JSON.stringify`が2回ずつ走るが、従来の動作は変わらない想定である。テストプレイでは回帰（作成・削除・移動・変形・`?dev`復元）がないかを確認すること。
+* **タスク4完了時点の中間状態（タスク4）**: ショートカットでの取り消し・やり直しは動作する。ただしボタンはまだない（タスク5で追加）。`performUndo`/`performRedo`のJSDocには「6.のボタン登録より前で宣言」と書いてあるが、ボタンのclick登録はタスク5で追加する。
+* **Shift規則の既定値（タスク4）**: `#matchesShiftRule`は、`ANY`・`REQUIRED`以外の値をすべて`FORBIDDEN`として扱う。エントリの`shift`を書き忘れた（`undefined`）場合や綴りを誤った場合も「Shift禁止」として動き、エラーにはならない。エントリを追加するときは、`shift`に必ず`ShiftRule`の値を指定すること。
 * **変更しないファイル**: `CanvasManager.js`／`ShapeFactory.js`／`ViewTransform.js`／`DragTracker.js`／`WindowManager.js`／`DocumentSerializer.js`／`PaletteController.js`／`DevPanel.js`／`shapes/`・`VectorModel.js`は変更不要と判断した。
 * **テストプレイでの目視確認項目**:
     1. 5種の図形（直線・曲線・弧・矩形・円）を作成→`Ctrl`+`Z`で新しい順に1つずつ消え、`Ctrl`+`Y`で順に戻る。
