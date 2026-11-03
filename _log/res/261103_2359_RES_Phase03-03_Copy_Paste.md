@@ -201,7 +201,7 @@ main.js ──生成・注入──▶ ClipboardController ──insertDocument�
         *   `#issueId()`と`#nextId`のJSDocの採番箇所の列挙（「commitDraft・replaceAllShapes」）に`addShapesWithNewIds`を加える。
         *   先頭行の責務JSDoc・クラスJSDocが実態と一致していることを確認する（変更不要の見込み）。図形種別の分岐・図形固有のプロパティ名を持ち込まないこと。
         *   本タスクでは他ファイルを変更しない（呼び出し元がないためアプリの動作は変わらない）。
-*   [ ] タスク2: `ShapeInserter`の新設
+*   [x] タスク2: `ShapeInserter`の新設
     *   **対象ファイル** :
         *   `./js/edit/ShapeInserter.js` :（新規。フォルダ`js/edit/`も新設）
     *   **作業内容** :
@@ -272,7 +272,13 @@ main.js ──生成・注入──▶ ClipboardController ──insertDocument�
 
 ### タスク2: `ShapeInserter`の新設
 *   **作業内容** :
-    *   （未実施）
+    *   フォルダ`js/edit/`を新設し、`./js/edit/ShapeInserter.js`を新規作成した。
+        *   先頭に責務JSDoc（本文2行）を記載した。importは`../io/DocumentSerializer.js`の`DocumentSerializer`のみ（`VectorModel`・`HistoryManager`は型注釈の`import()`型参照のみで、実行時のimportはしていない）。
+        *   typedef`EditRecorder`（`InputTracker.js`の同名typedefと同じ内容で本ファイルにも定義）と`InsertResult`（`ok`・`insertedIds`・`skipped`・`error`。`skipped`の要素型は`DocumentSerializer.js`の`SkippedShape`を参照）を定義した。
+        *   クラス`ShapeInserter`：`constructor({ model, editRecorder })`でprivateフィールド`#model`・`#editRecorder`に保持。`insertDocument(documentData, dx = 0, dy = 0)`を2章の処理順（deserialize→`ok: false`なら`insertedIds: []`で返す→0件なら何もせず返す→`dx`/`dy`がともに0でなければ各図形に`translate`→`beginEdit`→`addShapesWithNewIds`→`commitEdit`→結果を返す）で実装した。
+        *   `ok: false`の場合も`skipped`・`error`は`DeserializeResult`の値（`skipped`は空配列）をそのまま返す。
+        *   JSDocに、処理順・ずらし量の引数の意味（ワールド座標。インポートでは0）・独立性（毎回新しいインスタンス、`documentData`を書き換えない）・スキップの扱い・履歴への記録単位（1件以上追加で1件、失敗・0件では`beginEdit`/`commitEdit`を呼ばない）・前提（選択モード・ドラッグ中/作成途中の図形がないことは呼び出し側の責務、モード切替・中断は行わない）・依存の制約（DOM・図形種別・図形固有のプロパティ名・id形式を持たない、`InputTracker`に依存しない）を記載した。
+    *   `node --check`で構文エラーがないことを確認した。他ファイルは変更していない（未使用ファイルのためアプリの動作は変わらない）。
 
 ### タスク3: `ClipboardController`の新設
 *   **作業内容** :
@@ -295,6 +301,7 @@ main.js ──生成・注入──▶ ClipboardController ──insertDocument�
 * **貼り付け・複製の前提は呼び出し側の責務**: `ShapeInserter`・`ClipboardController`は操作モードを知らない。選択モード以外で`insertDocument`を呼ぶと「選択集合は選択モード以外では常に空」の不変条件が崩れるため、Phase 03-05のインポートで再利用する際は、呼び出し側で先に選択モードへの切り替え（`applyMode`）と進行中の入力操作の中断を行うこと。
 * **既存の`VectorModel.addShape(shape)`との併存**: `VectorModel`には、id採番を通らず`#shapes`へ追加するだけの既存公開メソッド`addShape(shape)`（呼び出し元なし）があり、本作業後は追加の公開操作が`addShape`と`addShapesWithNewIds`の2つ並ぶ。貼り付け・複製・インポート等で図形を追加する場合は必ず`addShapesWithNewIds`を使い、`addShape`は使わないこと（idの重複・未採番を防ぐため）。`addShape`の扱い（削除等）は本作業の範囲外とする。
 * **`addShapesWithNewIds`は引数の図形インスタンスの`id`を書き換える（タスク1）**: 受け取ったインスタンスをそのまま`#shapes`へ保持し`id`を上書きするため、呼び出し側は追加後にそのインスタンスを他の用途（別キャンバスへの追加等）に流用しないこと。`ShapeInserter`は毎回`deserialize`で新しいインスタンスを作るため問題ない。また、重複判定はインスタンス参照のみで行い、id文字列の値では判定しない（idは常に上書きするため不要）。
+* **`EditRecorder` typedefの重複定義（タスク2）**: `ShapeInserter.js`は`InputTracker.js`をimportしない方針のため、`EditRecorder` typedefを`InputTracker.js`と同じ内容で本ファイルにも定義した。将来`EditRecorder`の形（メソッド）を変える場合は、両ファイルのtypedefを揃えて更新すること。
 * **スキップの扱い**: `insertDocument`は一部がスキップされても読めた図形を追加する（貼り付け・複製では通常起きない）。インポートでスキップを利用者へ通知する方法はPhase 03-05で決める（戻り値の`skipped`で取得できる）。
 * **`Ctrl`+`C`/`X`のキーリピート**: `repeatable: false`のため押しっぱなしの2回目以降は実行されないが、`ctrl: true`の既存例外により`preventDefault()`は行われる（選択集合が空の場合でも、2回目以降はブラウザ標準のコピーが起きない）。実害はない想定だが、ページ上の文字を押しっぱなしでコピーする操作は通常ないため許容する。
 * **`main.js`の行数**: 約416行になる見込み。Phase 03-04の切り出し検討（`_doc/COWORK_STATUS.md` 2章P3【03-04へ】）の際に考慮すること。
