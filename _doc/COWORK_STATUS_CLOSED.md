@@ -331,3 +331,25 @@
 * 後続サブフェイズへの申し送り（03-02：中断手段の再利用・通知順、03-03：インスタンス重複時のid・既存図形と合わせたid振り直し、03-04：`×`ボタン・確認用ウィンドウの扱い、03-05：一般利用者向けの通知UI） → `COWORK_STATUS.md` 2章P3
 * `VectorModel`クラスJSDocの「生成・復元」表記 → 古いJSDoc・用語の修正Interruptにまとめる
 * 開発資料の記述量の増加 → Phase 3クローズ時の資料監査
+
+---
+
+### Phase03-02「Undo/Redo」（クローズ日：2026-11-03）
+* DIR: `_log/dir/261101_2154_DIR_Phase03-00_Editing_Foundation.md`（Phase 03-02節）
+* REQ: `_log/req/261103_1904_REQ_Phase03-02_Undo_Redo.md`
+* RES: `_log/res/261103_1911_RES_Phase03-02_Undo_Redo.md`（全7タスク。計画監査の軽微指摘を受けてPlanningUpdate 1回（配線位置の明確化）。Interruptなし）
+
+| 項目 | 結論 | 対応箇所 |
+| ---- | ---- | -------- |
+| 実装方式 | スナップショット方式（作業データ形式＋選択集合を操作の前後で丸ごと記録）。`core/HistoryManager.js`を新設（importなし・DOM非依存・取得/適用は`main.js`から注入）。逆操作は書かない | REQ要件3・7 / タスク1・3 |
+| 記録の単位と時点 | 作成確定・削除・本体移動・ハンドル変形・`?dev`復元を各1件。`InputTracker`が注入された記録先へ`beginEdit`/`commitEdit`を通知（`model.onChange`は使わない）。変化がなければ記録しない（作業データの`JSON.stringify`比較）。ドラッグの中断で残った変化も1件として記録 | REQ要件2・6 / タスク2・3 |
+| 履歴の上限 | 100件（`HISTORY_LIMIT`）。発注者決定 | REQ要件1 / タスク1 |
+| 作成途中の取り消し | 作成途中の図形だけを破棄し履歴は変えない（`Esc`と同じ）。やり直しは破棄してから実行。発注者決定 | REQ要件4 / タスク4 |
+| 適用後の選択状態 | 記録時点の選択集合へ戻す（選択モード以外では空、存在しないidは無視）。発注者決定 | REQ要件3 / タスク3 |
+| ショートカット | `Ctrl`+`Z`／`Ctrl`+`Y`・`Ctrl`+`Shift`+`Z`（リピート可）。`KeyboardShortcuts`の`allowShift`（2値）を`ShiftRule`（`FORBIDDEN`/`ANY`/`REQUIRED`）へ拡張 | REQ要件5 / タスク4 |
+| ボタンと配置（`_doc/COWORK_STATUS.md` 2章C「余白24px」） | コントロールパネルの削除ボタンの下に「↶ 取り消し」「↷ やり直し」を横並び。押せる/押せないは`model.onChange`と`historyManager.onChange`で同期。図形パレットを`top: 368px`へ下げた。発注者決定 | REQ要件5 / タスク5 |
+| 履歴のリセット手段 | `HistoryManager.clear()`を用意（呼び出しは03-04・03-05で接続） | REQ要件1 / タスク1 |
+| `PROJECT_ARCHITECTURE.md`の反映 | 1・3・4章を更新（3章に6.履歴を新設）。完了処理で3章6.の通知回数の記述（選択モード以外では1回）を設計AIが訂正 | タスク7・完了処理 |
+
+**未解決のまま次に持ち越した項目**（`COWORK_STATUS.md`側で追跡中。ここには含めない）:
+* 03-03への申し送り（編集操作の追加方法・`ShiftRule`）、03-04への申し送り（`clear()`の呼び出し・`main.js`の肥大化） → `COWORK_STATUS.md` 2章P3

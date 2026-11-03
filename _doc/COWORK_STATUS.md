@@ -18,7 +18,7 @@
 * **Phase 2「UI・操作充実」：完了・クローズ済み（2026-11-01）。**
   * 操作モード再設計（P2-01：選択／図形作成／キャンバス移動の`OperationMode`）、ビュー変換（P2-02：`ViewTransform`によるワールド/スクリーン座標の分離、パン・ズーム・グリッド）、範囲選択・複数選択（P2-03：選択集合、図形の`intersectsRect`契約追加、`DragTracker`へのドラッグライフサイクル分離）、削除UI・キーボードショートカット（P2-04：削除ボタン、`KeyboardShortcuts`の新設）を実装完了。
   * 各サブフェイズの実装詳細は`_doc/COWORK_STATUS_CLOSED.md`のPhase02-01〜02-04章を参照。REQ/RES/DIRファイル本体は各`closed/`にアーカイブ済み。
-* **Phase 3「編集基盤」：進行中。** 2026-11-01に`Phase03-00`でDIRを発行（`_log/dir/261101_2154_DIR_Phase03-00_Editing_Foundation.md`）。当初P3予定だった多角形生成はP4（パス）、着色はP5へ繰り下げ（`_doc/PROJECT_MILESTONE.md`参照）。2026-11-03に`Phase03-01`（シリアライズ契約）が完了（解決事項は`_doc/COWORK_STATUS_CLOSED.md`のPhase03-01章）。次は`Phase03-02`（Undo/Redo）。
+* **Phase 3「編集基盤」：進行中。** 2026-11-01に`Phase03-00`でDIRを発行（`_log/dir/261101_2154_DIR_Phase03-00_Editing_Foundation.md`）。当初P3予定だった多角形生成はP4（パス）、着色はP5へ繰り下げ（`_doc/PROJECT_MILESTONE.md`参照）。2026-11-03に`Phase03-01`（シリアライズ契約）・`Phase03-02`（Undo/Redo）が完了（解決事項は`_doc/COWORK_STATUS_CLOSED.md`のPhase03-01・03-02章）。次は`Phase03-03`（複製・コピー＆ペースト）。
 * **2026-10-06：ワークフロー改訂（Interrupt扱い）。** NotebookLMの利用を中止し、リード設計AI役もCoworkが担う体制へ移行。DIRは`Phase XX-00`でPhase全体に1本だけ発行する軽量な基礎設計方針（大ゴール・サブフェイズ分け・サブフェイズごとの実装要件）とし、`Phase XX-01`以降はサブフェイズごとに別セッションでREQ→RES原本を作成する。途中変更はDIRを直接書き換えて変更履歴に残す。改訂対象：`TEMPLATE_DIR.md`、`PROJECT_AI_WORKFLOW.md`、`COWORK_HANDOFF.md`、`PROJECT_README.md`、`PROJECT_MILESTONE.md`、`PROJECT_PHASE_TRANSITION_CLEANUP.md`、`README.md`（クレジット欄）。`NOTEBOOK_HANDOFF.md`は廃止。
 * Phase進行中は、サブフェイズの進み具合をDIRの「サブフェイズ一覧」で管理する（本ファイルでは重複管理しない）。
 
@@ -27,9 +27,10 @@
 ### 2. 現在進行中のタスク・懸念事項（毎セッション更新）
 * （2026-11-01、Phase 2クローズ時の仕分け）未解決事項を、パス（多角形）Phaseで拾う候補（A）、テストプレイ・操作感の確認待ち（B）、条件付きで将来検討（C）の3区分に再整理した。
 
-* **P3. Phase 3後続サブフェイズへの申し送り（Phase03-01由来。各REQ作成時に確認する。詳細はRES `261102_0003` 5章の該当番号）**
-  * 【03-02へ】進行中操作の中断は`InputTracker.abortOngoingOperation()`（常に受理）を履歴適用の前処理として再利用する。スナップショットは`DocumentSerializer`のオブジェクト層（`serialize`/`deserialize`）を使う想定。`setMode`の中断処理の共通化により、作成途中からのモード切替時の変更通知の順序が「作成途中の破棄 → 選択解除 → ホバー解除」に変わった（回数は同じ）。履歴記録を`model.onChange`で行う場合は中間状態を記録しないこと（C-35）。マイグレーション関数は引数を書き換えない契約（書き換えるとスナップショットが壊れる。C-33）。
+* **P3. Phase 3後続サブフェイズへの申し送り（Phase03-01・03-02由来。各REQ作成時に確認する。詳細はRES `261102_0003`・`261103_1911` 5章）**
+  * 【03-03へ・03-02由来】貼り付け・切り取り・複製は、`HistoryManager`の`beginEdit()`→（図形の変更）→`commitEdit()`で囲めば1件の編集操作として記録される（変化がなければ記録されない。図形種別の知識は不要）。編集操作の一覧は開発資料3章6.と4章`HistoryManager.js`・`InputTracker.js`の2箇所に載っているため、両方を更新すること。`Ctrl`+`C`/`X`/`V`/`D`は`KeyboardShortcuts`の`ShiftRule`（3値）に従ってエントリを追加する（`shift`の書き忘れは`FORBIDDEN`扱いでエラーにならない）。
   * 【03-03へ】`VectorModel.replaceAllShapes`はidの重複を値で判定し、振り直しは受け取ったインスタンスの`id`を直接書き換える。同一インスタンスを2回渡すと両方が同じidになるため、貼り付け時は複製（`toJSON`→`fromJSON`）してから渡すこと（C-38・C-40）。既存図形と合わせたidの振り直しは03-03の範囲（DIR持ち越し事項）。
+  * 【03-04へ・03-02由来】キャンバスを開く・新規作成したときは`historyManager.clear()`を呼んで履歴をリセットする（03-02では手段の用意のみで呼び出し元なし）。`main.js`は388行に増えており（履歴の配線を追加）、03-04の配線追加時はスナップショットの取得・適用関数（`captureSnapshot`/`restoreSnapshot`）を別モジュールへ切り出すことを検討する（RES `261103_1911` 5章「`main.js`の肥大化」）。
   * 【03-04へ】フロートウィンドウの`×`ボタンは全ウィンドウとも無機能（C-46）。ファイル用パレットの開閉を決める際に、全ウィンドウ共通の閉じる機能としてまとめて検討する。開発者用確認用ウィンドウ（`?dev`）を残すか外すかもここ以降で判断。
   * 【03-05へ】一般利用者向けの読み込み失敗通知UIは未実装（03-01は確認用ウィンドウと`console.warn`のみ）。全図形スキップでも`ok: true`（図形0個）として扱う方針（C-6）、スキップ1件ごとの`console.warn`（C-34）、`version: "1"`が表示上は数値の1と見分けにくい点（C-32）を、開く・インポートの仕様決定時に見直す。
 
@@ -67,9 +68,9 @@
   * 【Phase02-03由来】`Ellipse.intersectsRect`は`startAngle`/`endAngle`の差をそのまま分割してサンプリングする。現状は角度固定（0と2π／π）だが、弧の角度編集を実装する際は`draw`（`ctx.ellipse`）の角度正規化と同じ規則をここにも適用すること。
   * 【Phase02-04由来】ボタンの`title`属性（例：`選択 (V)`）は`KeyboardShortcuts.js`の`SHORTCUT_BINDINGS`と手動で一致させている（macOSでも`Ctrl+0`表記）。キー割り当ての変更時は`index.html`も更新すること。自動生成するなら`SHORTCUT_BINDINGS`のexportを検討。
   * 【Phase02-04由来】テキスト入力UIを追加する際の注意：`isTextInputElement`は`input`を`type`別に判定するため、`checkbox`/`range`/`color`等にフォーカス中はショートカットが効き、`Space`はスペースパン側で`preventDefault()`される（チェックボックスを`Space`で切り替えられない）。`select`もテキスト入力扱いせず選択肢のキー移動と競合しうる。入力欄追加時はRES `261031_2121` 5章「将来テキスト入力欄を追加した際の確認項目」で確認すること（Phase03-01で初のテキスト入力欄（`?dev`の確認用ウィンドウ）を追加し、RES `261102_0003` 5章B-1〜B-11で確認済み）。既知の挙動：テキスト入力欄にフォーカス中は`Ctrl`+`+`/`-`/`0`がブラウザのページズームになる（RES `261031_2121`の想定どおり）。また中ボタンでパンしても入力欄のフォーカスが外れず、パン後もショートカットが無効のまま（左クリックで解消。B-6）。
-  * 【Phase02-04由来】コントロールパネル下端と図形パレット（`top: 320px`）の余白は24pxのみ。コントロールパネルにボタンをもう1つ追加すると重なる → 追加時に`#window-shape-palette`の`top`調整またはパレット位置の自動配置を検討。
+  * 【Phase02-04由来・Phase03-02で更新】コントロールパネル下端と図形パレットの余白：Phase03-02で取り消し・やり直しのボタン行を追加し、パレットの`top`を320px→368pxへ下げた（余白は計算上約27px、テストプレイで重なりなし）。コントロールパネルにボタン・行をさらに追加すると重なる → 追加時に`#window-shape-palette`の`top`調整またはパレット位置の自動配置を検討。
   * 【Phase02-04由来】`main.js`は`KeyboardShortcuts`のインスタンスを保持せず、購読解除・一時無効化のAPIもない → モーダル表示等でショートカットを止める必要が出たら、インスタンス保持と有効/無効APIを追加。
-  * 【Phase02-04由来】`InputTracker`に状態依存の公開操作（`deleteSelection`/`cancelDraftOrClearSelection`/`selectAll`）を加えた。今後、状態に依存しない操作をショートカット用に足す場合は`InputTracker`へ入れず、`main.js`の注入コールバック側か別クラスへ置くこと（肥大化防止）。`main.js`も約230行となり、コールバックがさらに増える場合は注入オブジェクトの組み立ての分離を検討。
+  * 【Phase02-04由来】`InputTracker`に状態依存の公開操作（`deleteSelection`/`cancelDraftOrClearSelection`/`selectAll`）を加えた。今後、状態に依存しない操作をショートカット用に足す場合は`InputTracker`へ入れず、`main.js`の注入コールバック側か別クラスへ置くこと（肥大化防止）。`main.js`はPhase03-02で388行となった（上記P3【03-04へ】参照）。コールバックがさらに増える場合は注入オブジェクトの組み立ての分離を検討。
 
 ---
 
