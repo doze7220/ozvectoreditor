@@ -302,7 +302,7 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
         *   外部からの公開メソッドの`Promise`はrejectしない（内部で捕捉して`console.warn`＋`issue`）。
         *   JSDocに次を記載する：名前の変更の受理条件（空・キャンセル・最大文字数・最終更新日時を変えない理由）／削除の受理条件と開いているキャンバスを削除した場合の挙動（削除したキャンバスの記録を復活させない理由）。タスク3で記載した`#isSwitching`の説明と矛盾しないことを確認する。
         *   既存（タスク3）の処理は変更しない。本タスクでは他ファイルを変更しない（未使用のためアプリの起動・動作は変わらない）。
-*   [ ] タスク5: `PaletteLauncher`と`CanvasPalette`の新設
+*   [x] タスク5: `PaletteLauncher`と`CanvasPalette`の新設
     *   **対象ファイル** :
         *   `./js/palette/PaletteLauncher.js` :（新規）
         *   `./js/palette/CanvasPalette.js` :（新規）
@@ -408,7 +408,15 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
 
 ### タスク5: `PaletteLauncher`と`CanvasPalette`の新設
 *   **作業内容** :
-    *   (未実施)
+    *   `js/palette/PaletteLauncher.js`を新設。先頭行の責務JSDocは計画の案どおり（1行）。importなし。typedef`PaletteLauncherBinding`（`{ button, palette }`）とクラス`PaletteLauncher`。
+        *   `constructor(bindings)`：配列でなければ`console.warn`のみ。ボタン・パレットが欠けるエントリは`console.warn`して配線しない（他のエントリは配線する）。各エントリはprivate static`#bind`で、起動時にパレットの`hidden`の現状へ`.active`を合わせ、ボタンの`click`で開閉を反転、パレット内の`.window-close-btn`の`click`で閉じる。開閉はprivate static`#setOpen`（`palette.hidden`と`button.classList.toggle('active', isOpen)`のみ）。
+        *   クラスJSDocに、開閉の規則・対応表のエントリの形・後続のパレットの追加方法（`index.html`へ静的にDOMを置き`hidden`で初期非表示 → `main.js`の対応表`paletteLaunchers`へ1エントリ追加）・`WindowManager`は開閉に関与しないこと・対応表に無いウィンドウの×は無機能のままであることを記載。
+    *   `js/palette/CanvasPalette.js`を新設。先頭行の責務JSDocは計画の案どおり（2行）。importなし。モジュール定数`ISSUE_MESSAGES`（凍結。2章要件1の4文言）・`LOADING_TEXT`。typedef`CanvasLibraryState`（`CanvasLibrary.js`と同じ内容で、形を変える場合は両方を揃える旨・本クラスが参照する項目を記載）・`CanvasPaletteActions`。
+        *   `constructor(rootElement, { onOpen, onCreate, onRename, onDelete })`：コールバックが関数でなければ`Error`。ルート要素内の`#canvas-create`・`#canvas-list`・`#canvas-notice`が1つでも欠ければ（ルート要素が`null`の場合を含む）`console.warn`して配線せず、以後の`render`は何もしない。
+        *   新規作成ボタンの`click`→`blur()`→`onCreate()`。一覧は`#canvas-list`への1本のイベント委譲（`button[data-action]`と行の`data-canvas-id`）。`blur()`後、`'open'`→`onOpen(id)`、`'rename'`→`window.prompt('キャンバス名を入力してください', 現在の名前)`で`null`以外なら未加工の文字列で`onRename(id, text)`、`'delete'`→`window.confirm('キャンバス「<名前>」を削除しますか？この操作は取り消せません。')`がOKなら`onDelete(id)`。コールバックの戻り値は待たない（`void`）。小窓の名前は直近の`render`で表示した一覧（private`#namesById`）から取る。
+        *   `render(state)`：`busy || !canManage || loading`で新規作成・各行のボタンを`disabled`。`loading`なら一覧の代わりに「読み込み中…」を表示。それ以外は`canvases`の順で行（`.canvas-row`＋`data-canvas-id`、開いているものに`.current`。名前ボタン`.tool-btn.canvas-row-open`（`textContent`・`title`に名前全体）、`✎`・`🗑`の`.tool-btn.canvas-row-btn`（`title`は「名前の変更」「削除」））を作り`replaceChildren`で置き換える。`innerHTML`は使わない。`issue`に応じた文言を`#canvas-notice`へ表示し、`null`・未知の値なら`hidden`。
+        *   クラスJSDocに、小窓の扱い（キャンセル時は何も呼ばない・空文字等の判定は`CanvasLibrary`側）・表示の規則・`blur()`の理由・`CanvasLibrary`/`VectorModel`/図形データ/IndexedDBに依存しないことを記載。
+    *   他ファイルは変更していない（未使用のためアプリの動作は変わらない）。`node --check`で構文確認済み。
 
 ### タスク6: `index.html`へキャンバスパレット・呼び出し口・キャンバス名の表示・読み込み中の覆い要素を追加
 *   **作業内容** :
@@ -450,6 +458,10 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
 * **（タスク4・追加仕様）`#inFlightSave`は切り替え前のキャンバスの保存も対象になる**: `flushPendingSave()`は書き込み中の保存がどのキャンバス宛てかを区別しない。そのため、切り替え処理の手順4で書き始めた切り替え前のキャンバスAへの保存が書き込み中のまま、切り替え後のBからさらに別のキャンバスへ切り替えると、その完了を待ち、Aへの書き込みが失敗していればBからの切り替えも中止される（Bの変更が失われることはない。`'writeFailed'`は表示済み）。開いているキャンバスの削除では保留を破棄し`flushPendingSave()`を呼ばないため、書き込み中の保存は待たない（削除より先に実行される）。
 * **（タスク4・追加仕様）書き込み中の保存が複数ある場合**: タイマーが発火して書き込み中の間に次の保存が始まると、`#inFlightSave`は後から始めた保存を指し、`flushPendingSave()`はその成否のみを返す。後の保存は最新の作業データを含み生成順に反映されるため、後の保存が成功すれば最新の内容は保存済みである（先の保存の失敗による`'writeFailed'`は後の保存の成功で解除される）。
 * **（タスク4）開いているキャンバスの削除中の`#isSwitching`**: 削除成功後の切り替えで`#enterCanvas`に到達する前に予期しない例外が起きた場合、`#isSwitching`が`true`のまま残り自動保存が予約されなくなる。現状の経路（`#openFirstLoadable`・`#createAndEnter`は内部で例外を捕捉、`#enterCanvas`は`finally`で戻す）では起きないが、将来この経路を変更する際は`#isSwitching`を戻す箇所（2箇所のみの規則）に注意すること。
+* **（タスク5）読み込み中の表示先**: 計画の「`loading`なら一覧の代わりに状態表示へ『読み込み中…』」は、`#canvas-list`の中に文言だけの要素（クラスなし）を置く形で実装した（`#canvas-notice`は`issue`の文言専用で赤字のため使わない）。タスク6で専用のスタイルは追加しない計画のため、見た目は既定の文字表示となる。
+* **（タスク5）ボタンの押せない状態に`loading`を含めた**: 計画の`busy || !canManage`に`loading`を加えた（`start()`の呼び出し前は`loading: true`・`busy: false`のため。2章要件3「読み込み中はパレットの操作ボタンを押せない状態にする」による）。
+* **（タスク5）`typedef CanvasLibraryState`の二重化**: `CanvasPalette.js`と`CanvasLibrary.js`の両方に同じ内容で定義している。状態の形を変える場合は両方を揃えること。
+* **（タスク5）×ボタンのmousedown**: キャンバスパレットの×はヘッダー内にあり、`WindowManager`のヘッダーの`mousedown`（ドラッグ開始）も受ける。`click`で閉じる動作には影響しない見込みだが、×を押した際にウィンドウが動かないかを目視確認すること。
 * **テストプレイでの目視確認項目**:
     * 図形を描いて再読み込みすると同じ図形が出る／ブラウザを閉じて開き直しても残る／描いた直後（1秒以内）に再読み込みしても残る。
     * 再読み込み後は倍率100%・選択モード・取り消しボタンが押せない状態。
