@@ -92,7 +92,7 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
 * **保留中の保存**: privateフィールド`#pendingSaveTimer`（タイマーid または`null`）と`#pendingSaveCanvasId`（予約時点の開いているキャンバスのid）。
   * 予約しない条件：開いているキャンバスがない（起動時の読み込み完了前。`#openCanvasId === null`）／`'unavailable'`／`#isSwitching`が真（切り替え処理の同期区間・開いているキャンバスの削除中）。
 * **保存の実行（private`#saveOpenCanvasNow(): Promise<boolean>`）**: タイマーを解除し、`#pendingSaveCanvasId`が現在の`#openCanvasId`と一致しなければ破棄して`true`（別のキャンバスの記録へ書かない防御）。一致すれば、**同期的に**`{ id, name（メモリ上の現在名）, updatedAt: Date.now(), document: DocumentSerializer.serialize(model.getShapes()) }`を組み立てて`storage.putRecord`を呼び（トランザクションはこの時点で生成される）、メモリ上の要約の`updatedAt`を更新して変更通知する。書き込み成功で`'writeFailed'`を解除して通知、失敗で`console.warn`＋`'writeFailed'`＋通知。戻り値は成功したか。
-* **ページ非表示時の確定**: `main.js`が`document`の`visibilitychange`（`document.visibilityState === 'hidden'`のとき）と`window`の`pagehide`で`canvasLibrary.flushPendingSave()`を呼ぶ。`flushPendingSave(): Promise<boolean>`は保留中の保存があれば直ちに`#saveOpenCanvasNow()`を呼ぶ（作業データの取得と`putRecord`の呼び出しはハンドラ内で同期的に行われる）。保留が無ければ`true`で解決する。
+* **ページ非表示時の確定**: `main.js`が`document`の`visibilitychange`（`document.visibilityState === 'hidden'`のとき）と`window`の`pagehide`で`canvasLibrary.flushPendingSave()`を呼ぶ。`flushPendingSave(): Promise<boolean>`は保留中の保存があれば直ちに`#saveOpenCanvasNow()`を呼ぶ（作業データの取得と`putRecord`の呼び出しはハンドラ内で同期的に行われる）。保留が無い場合の戻り値は次項「書き込み中の保存」のとおり（書き込み中の保存があればその完了を待って成否を返し、どちらも無ければ`true`で解決する）。
 * **書き込み中の保存（タスク4の追加仕様による）**: privateフィールド`#inFlightSave`（書き込み中＝`putRecord`の完了待ちの自動保存の`Promise<boolean>`、または`null`）を持つ。`#saveOpenCanvasNow()`が書き込みを開始したときに設定し、完了時（成功・失敗とも）に、それが自分自身である場合のみ`null`へ戻す。`flushPendingSave()`は、保留中のタイマーがあれば従来どおり直ちに保存してその結果を返し、タイマーが無く書き込み中の保存があればその完了を待って成否を返し、どちらも無ければ`true`を返す。これにより、タイマーが発火して書き込み中の保存が失敗した場合も切り替え処理の手順2で切り替えを中止する。ページ非表示時の確定（保存の開始が同期的に行われる点）と手順4の扱いは変わらない。`CanvasLibrary`自体は`document`・`window`のイベントを購読しない（DOMに触れないため）。
 * **名前の変更**: その時点で`storage.renameRecord(id, name)`で名前のみを保存する。**最終更新日時は更新しない**（理由：図形一式の変更ではなく、一覧の並び（最終更新日時の新しい順）が名前の変更で入れ替わると押そうとした行が動いて紛らわしいため）。
 * **非同期保存と切り替えの順序の保証**:
@@ -257,6 +257,11 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
 *   **4章`WindowManager.js`**: 静的に置いた非表示のウィンドウ（開閉式パレット）も起動時に配線され、表示後にドラッグ移動・最前面化が働くこと。開閉は`PaletteLauncher`が担う（`WindowManager`は開閉に関与しない）。
 *   **4章`edit/`**: `edit/`の定義（DOMに触れない・図形種別の分岐等を持たない・操作モードを知らない・importは`DocumentSerializer`のみ）の対象に、キャンバス一覧の管理（`CanvasLibrary`）とスナップショットの取得・適用（`SnapshotAdapter`）を含めるよう拡張する（`CanvasLibrary`の`CanvasStorage`は注入で受け取りimportしないこと、操作モード依存の判定は注入関数で受け取ることを併記）。
 *   **4章に新項目**: `edit/SnapshotAdapter.js`・`edit/CanvasLibrary.js`・`io/CanvasStorage.js`・`palette/CanvasPalette.js`・`palette/PaletteLauncher.js`の責務・公開API・依存の制約。コントロールパネルの位置づけ（操作モード切替・頻繁に使う操作・他パレットの呼び出し口）と、呼び出し口の追加手順。
+*   **（タスク8で追記：実装時の追加・変更点の反映）**:
+    *   3章8.：`flushPendingSave()`は保留中のタイマーが無くても書き込み中の保存（`#inFlightSave`）があればその完了を待って成否を返し、切り替え処理の手順2はその失敗でも中止すること（タスク4の追加仕様）。`#enterCanvas`の第3引数`loadIssue`（手順6で`'loadFailed'`/`'partialLoad'`を解除・設定）。名前の変更は切り詰め後に末尾の空白も除くこと。
+    *   4章`CanvasStorage`：読み出しもトランザクションの`oncomplete`で解決すること、`open()`失敗時は再試行可能であること、`onversionchange`は扱わないこと。
+    *   4章`CanvasPalette`：操作ボタンを押せない状態にする条件は`busy || !canManage || loading`であること、読み込み中は`#canvas-list`内に文言を表示すること。typedef`CanvasLibraryState`は`CanvasLibrary.js`と`CanvasPalette.js`の二重定義（形を変える場合は両方を揃える）。typedef`Snapshot`も`HistoryManager.js`と`SnapshotAdapter.js`の二重定義。
+    *   4章`main.js`：行数が約500行（496行）に達したため、今後の配線追加では配線ブロックの切り出しを検討する旨。
 
 ## 3. タスクリスト
 *   [x] タスク1: スナップショットの取得・適用を`SnapshotAdapter`へ切り出す
@@ -339,7 +344,7 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
         *   再描画・削除ボタン・取り消し/やり直しボタンの同期処理を追加しない（既存経路に任せる）。`window`への公開を行わない。図形種別・図形固有のプロパティ名を持ち込まない。
         *   先頭行の責務JSDocが実態と一致していることを確認する（変更不要の見込み）。改修後の行数を確認しRESへ記録する。
         *   本タスク完了時点で、自動保存・起動時の復元・キャンバスパレットの全操作が動作し、読み込み中はキャンバスへのマウス入力が遮られ、読み込み完了後に覆い要素が非表示になって操作できる。
-*   [ ] タスク8: JSDocの確認とRESの完成
+*   [x] タスク8: JSDocの確認とRESの完成
     *   **対象ファイル** :
         *   `./js/edit/SnapshotAdapter.js`、`./js/io/CanvasStorage.js`、`./js/edit/CanvasLibrary.js`、`./js/palette/CanvasPalette.js`、`./js/palette/PaletteLauncher.js`、`./js/main.js` :（確認・必要ならJSDoc・コメントのみ更新）
         *   `./_log/res/261104_0049_RES_Phase03-04_Canvas_Library.md` :（更新）
@@ -446,8 +451,27 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
     *   `index.html`：`#canvas-loading-cover`の`hidden`属性を削除（初期表示）。覆い要素のスタイルのコメントに「表示状態で始まり、`syncLoadingCover()`が読み込み完了で`hidden`を付けて非表示にする」旨を1行追記。それ以外は変更していない。
 
 ### タスク8: JSDocの確認とRESの完成
+*   **対象ファイル** : `./js/edit/CanvasLibrary.js`（JSDocのみ更新）、本RES（更新）。`SnapshotAdapter.js`・`CanvasStorage.js`・`CanvasPalette.js`・`PaletteLauncher.js`・`main.js`は確認のみ（変更なし）。
 *   **作業内容** :
-    *   (未実施)
+    *   タスクリストの確認項目がJSDocから読み取れることを確認した（記載箇所）：
+        *   キャンバス記録の内容と保存しないもの：`CanvasStorage.js`のtypedef`CanvasRecord`、`CanvasLibrary`のクラスJSDoc「キャンバス記録と保存しないもの」。
+        *   キャンバスの識別子の形式：`CanvasLibrary`のクラスJSDoc・typedef`CanvasSummary`・`#issueCanvasId()`。
+        *   自動保存の契機・待ち時間・ページ非表示時の確定（書き込み中の保存を含む）：`AUTOSAVE_DELAY_MS`、クラスJSDoc「自動保存」、`flushPendingSave()`・`#saveOpenCanvasNow()`・`#inFlightSave`、`main.js`の`// 7.6.`のページ非表示時のコメント。
+        *   非同期保存と切り替えの順序の保証（手順2と手順4の失敗時の違い）：クラスJSDoc「非同期保存と切り替えの順序の保証」「切り替え処理」の手順4、`#enterCanvas`、`CanvasStorage`のクラスJSDoc「書き込み順序の保証」。
+        *   起動時に開くキャンバスの決定規則と読み込み完了前の扱い：クラスJSDoc「起動時の復元」、`start()`、`main.js`の`syncLoadingCover()`（覆い要素）と`onImport`のコメント（`?dev`の復元の受理拒否）。
+        *   切り替え処理の手順（履歴のリセット・ビュー変換の初期化・クリップボードを消さない）：クラスJSDoc「切り替え処理」の手順1〜6。
+        *   新規キャンバスの命名規則：`UNTITLED_NAME_PREFIX`、クラスJSDoc、`#nextUntitledName()`。
+        *   名前の変更と削除の受理条件・開いているキャンバスを削除した場合の挙動：クラスJSDoc「名前の変更」「削除」、`renameCanvas`・`deleteCanvas`・`#deleteOpenCanvas`、`CanvasPalette`のクラスJSDoc「操作」。
+        *   保存失敗時の扱い：typedef`CanvasIssue`、`CanvasPalette`の`ISSUE_MESSAGES`、`main.js`の`syncCanvasNameDisplay()`（`⚠ `）。
+        *   呼び出し口とパレットの対応の追加方法：`PaletteLauncher`のクラスJSDoc「後続のパレットの追加方法」、`main.js`の`paletteLaunchers`のJSDoc。
+        *   `SnapshotAdapter`が操作モードを知らないこと：`SnapshotAdapter`のクラスJSDoc「依存の制約」・`#shouldRestoreSelection`・`restore()`、`main.js`の`// 3.5.`のコメント（実体は選択モードの判定）。
+    *   `CanvasLibrary.js`のJSDocの修正（コメントのみ。処理は変更していない）：
+        *   typedef`CanvasIssue`の`'unavailable'`：括弧書きだった「（・名前の変更・削除）」を「開く・新規作成・名前の変更・削除を受け付けず」に整理（タスク3時点の書き方の残り）。
+        *   クラスJSDoc「切り替え処理」の見出しに、開いているキャンバスの削除後の切り替えも通ること（起動時の復元は手順4以降、削除後は手順3以降）を追記。
+        *   `#isBusy`・`#canAcceptOperation()`の説明の列挙に名前の変更・削除を追加。
+    *   全改修対象`.js`（6ファイル）の先頭行の責務JSDoc（いずれも3行以内）が実態と一致していることを確認した（変更なし）。
+    *   本RES：2章要件2「ページ非表示時の確定」の項の旧仕様の1文「保留が無ければ`true`で解決する。」を、追加仕様（書き込み中の保存があればその完了を待って成否を返し、どちらも無ければ`true`）と矛盾しない記述に修正した。「開発資料の更新予定」欄・「5. 懸念事項・要確認ポイント」欄を追記した。
+    *   `node --check`で6ファイルの構文確認済み。行数：`main.js` 496行、`CanvasLibrary.js` 947行。
 
 ### タスク9: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
 *   **作業内容** :
@@ -486,6 +510,8 @@ main.js ─┬─ SnapshotAdapter ──▶ HistoryManager(capture/restore)
 * **（タスク7）覆い要素が残る場合**: 覆い要素は`index.html`の時点で表示状態のため、`main.js`の読み込み・初期化が途中で失敗した場合（モジュールの読み込みエラー、`#editor-canvas`が見つからない等）は「読み込み中…」の覆いが消えない。従来も同じ状況ではアプリは動作しないため実害は小さいが、覆いが消えない場合は開発者ツールのコンソールでエラーを確認すること。
 * **（タスク7）`syncCanvasNameDisplay()`の読み込み中の判定**: `loading`が偽でも`openCanvasName`が`null`（開いているキャンバスが無い）の場合は「読み込み中…」として扱う防御を入れた（現状の`CanvasLibrary`では読み込み完了後に必ずキャンバスが開いているため通らない見込み）。
 * **（タスク7）`main.js`の行数**: 496行で計画の見込み（約470〜490行）をやや超えた。今後`main.js`へ配線を追加する場合は、配線ブロックの切り出しを検討すること。
+* **（タスク8）JSDocの正本の所在**: キャンバス管理の仕様（自動保存・切り替え処理・削除・`#isSwitching`）の詳細は`CanvasLibrary`のクラスJSDocに集約し、各メソッドのJSDocはその要約と参照に留めている。今後仕様を変える場合は、クラスJSDocと該当メソッドのJSDoc、および本RES 2章の記述を併せて更新すること（タスク4の追加仕様では本RES 2章要件2に旧記述が残り、タスク8で修正した経緯がある）。
+* **（タスク8）`renameCanvas`の`!summary`の判定**: `#summaries.has(id)`の確認後に`get(id)`の結果も`!summary`で判定しており重複しているが、動作に影響しないため変更していない（指示による）。
 * **テストプレイでの目視確認項目**:
     * 図形を描いて再読み込みすると同じ図形が出る／ブラウザを閉じて開き直しても残る／描いた直後（1秒以内）に再読み込みしても残る。
     * 再読み込み後は倍率100%・選択モード・取り消しボタンが押せない状態。
