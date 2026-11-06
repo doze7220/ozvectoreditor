@@ -363,7 +363,7 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
         *   `./js/core/CanvasManager.js` : 更新
     *   **作業内容** :
         *   `resize()`のpx固定の2行とその説明のコメントを削除し、`resize()`のJSDocを修正後の動作に合わせる。
-*   [ ] タスク3: E-4 ウィンドウのドラッグの追従の残留（要件4）
+*   [x] タスク3: E-4 ウィンドウのドラッグの追従の残留（要件4）
     *   **対象ファイル** :
         *   `./js/core/WindowManager.js` : 更新
     *   **作業内容** :
@@ -428,7 +428,7 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
 
 ### タスク3: E-4 ウィンドウのドラッグの追従の残留（要件4）
 *   **作業内容** :
-    *   (タスク実行時に記入)
+    *   `WindowManager.js`：private`#endDrag()`を新設、`#handleWindowMouseUp`から呼ぶ。コンストラクタで`window`の`blur`を購読（第3引数なし）。`#handleWindowMouseMove`は`#draggingWindow`確認の直後に`event.buttons === 0`なら`#endDrag()`して`return`。`#handleWindowMouseMove`・`#handleWindowMouseUp`・`#endDrag`・コンストラクタのJSDocを修正後の動作に合わせた（「確実に解除される」を削除）。責務JSDocの用語はタスク9のため未変更。`node --check`成功。ブラウザ確認は未実施（現場設計AI）。
 
 ### タスク4: E-6 例外時の停止（要件5）
 *   **作業内容** :
@@ -477,5 +477,6 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
 *   **[タスク1実装時]** クラスJSDocの「■ 切り替え処理」「■ 自動保存」「■ 新規キャンバス…」「■ 開く（ファイル）」等は、保留・未保存・確認の小窓・`#settleAndEnter`の新設と食い違う記述が残っている（タスク8で修正）。`#prepareLeave`（手順1〜2）は変更せず残し、`#settleAndEnter`の確定手順は読み込み後の再確定として追加した。`#askOpenUnsaved`は`confirmOpenUnsaved() === true`のときのみ「はい」とする。目視確認推奨：put失敗下での新規作成（いいえ／はい）・開く（ファイル）・再読み込み時の`beforeunload`。
 
 ## 開発資料の更新予定
+*   [タスク3] `WindowManager`はwindowの`blur`と`mousemove`の`buttons === 0`でもドラッグを解除する（`_doc/arch/11_WindowManager.md`の「制約」。既に予定欄に記載済みの内容どおり）。
 *   [タスク2] `CanvasManager.resize()`はstyleのpx固定をしなくなった（`_doc/arch/04_CanvasManager.md`の「既知の不具合」削除・表示サイズはCSS任せへ。既に予定欄に記載済みの内容どおり）。
 *   [タスク1] `CanvasLibrary`のコンストラクタ注入に`confirmOpenUnsaved`が増え、公開メソッド`hasUnsavedChanges()`が追加、`flushPendingSave()`の判定が保留（`#pendingSaveCanvasId`）基準に変更、`CanvasPalette`に公開メソッド`confirmOpenUnsaved()`が追加、`main.js`に`beforeunload`の配線が追加された。

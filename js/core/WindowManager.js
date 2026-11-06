@@ -46,6 +46,7 @@ export class WindowManager {
      * DOM上に存在する`.float-window`要素を自動検知し、各要素へイベント遮断・最前面化・
      * ドラッグ開始の配線を行う。ドラッグ追従・解除はwindowレベルで1本だけ配線する
      * （マウスがウィンドウ外に外れても追従・解除が継続するようにするため）。
+     * mouseupの取りこぼしに備え、windowの`blur`でもドラッグを解除する。
      * 動的に後から追加される`.float-window`の再検知（MutationObserver等）は行わない。
      */
     constructor() {
@@ -61,6 +62,7 @@ export class WindowManager {
 
         window.addEventListener('mousemove', this.#handleWindowMouseMove.bind(this), true);
         window.addEventListener('mouseup', this.#handleWindowMouseUp.bind(this), true);
+        window.addEventListener('blur', this.#endDrag.bind(this));
     }
 
     /**
@@ -117,11 +119,17 @@ export class WindowManager {
      * window全体で1本だけ配線されるmousemoveハンドラ。ドラッグ中（`#draggingWindow`が
      * 非null）の場合のみ、ドラッグ開始時点からのマウス移動量(dx, dy)を開始時点の
      * left/topへ加算して対象ウィンドウの位置を更新する。ドラッグ中でなければ何もしない。
+     * ただしmouseupを取りこぼした場合に備え、`event.buttons === 0`（どのボタンも押されて
+     * いない）ならドラッグを解除して移動せずに戻る。
      * @param {MouseEvent} event windowのmousemoveイベント
      * @private
      */
     #handleWindowMouseMove(event) {
         if (!this.#draggingWindow) {
+            return;
+        }
+        if (event.buttons === 0) {
+            this.#endDrag();
             return;
         }
 
@@ -134,11 +142,20 @@ export class WindowManager {
 
     /**
      * window全体で1本だけ配線されるmouseupハンドラ。`#draggingWindow`をnullへ戻し、
-     * ドラッグ状態を終了する。マウスがウィンドウ外やブラウザ外で放されても、windowレベルの
-     * 購読のため確実に解除される。
+     * ドラッグ状態を終了する。ブラウザ外やタブ切り替え中に放されるなどでmouseupが届かない
+     * 場合は、`blur`と`#handleWindowMouseMove`の`buttons`判定が解除を担う。
      * @private
      */
     #handleWindowMouseUp() {
+        this.#endDrag();
+    }
+
+    /**
+     * ドラッグ状態を終了する（`#draggingWindow`をnullへ戻す）。ドラッグ中でなくても安全に呼べる。
+     * mouseup・windowの`blur`・`buttons === 0`のmousemoveから呼ばれる。
+     * @private
+     */
+    #endDrag() {
         this.#draggingWindow = null;
     }
 }
