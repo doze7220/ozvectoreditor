@@ -379,7 +379,7 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
         *   `./js/shapes/Rect.js` : 更新
     *   **作業内容** :
         *   `setVertex`の条件の変更とJSDoc。
-*   [ ] タスク6: E-8・E-7 つぶれた円・弧の当たり判定と弧の向き（要件7）
+*   [x] タスク6: E-8・E-7 つぶれた円・弧の当たり判定と弧の向き（要件7）
     *   **対象ファイル** :
         *   `./js/shapes/Ellipse.js` : 更新
     *   **作業内容** :
@@ -443,7 +443,8 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
 
 ### タスク6: E-8・E-7 つぶれた円・弧の当たり判定と弧の向き（要件7）
 *   **作業内容** :
-    *   (タスク実行時に記入)
+    *   `Ellipse.js`：コンストラクタの`startAngle`を円0・弧π、`endAngle`を2π固定へ。`points[3]`/`[4]`をコンストラクタと`#updatePointsFromRadii`の両方で`[3]`＝弧は左端・円は右端、`[4]`＝右端へ。`hitTest`の縮退ガードを`#distanceToOutline(...) <= tolerance + strokeWidth / 2`へ、角度の判定を`angle <= 0`へ。`#distanceToOutline`を新設（`intersectsRect`と同じパラメータ化、長さ0の線分は0除算しない）。
+    *   JSDoc：`startAngle`/`endAngle`/`points`の型コメント、`#updatePointsFromRadii`、`hitTest`、`#distanceToOutline`を更新。`intersectsRect`・`fromJSON`のコードは未変更。`ELLIPSE_INTERSECT_SEGMENTS`のコメントはタスク11の範囲のため未変更。`node --check`成功。ブラウザ確認は未実施（現場設計AI）。
 
 ### タスク7: 改名 `draftLine` → `draftShape`（要件8）
 *   **作業内容** :
@@ -478,4 +479,5 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
 *   **範囲外の残存**：E-6の対象は手順4の`prepareSwitch()`のみ。削除後の`#openFirstLoadable`の`deserialize`など`#enterCanvas`に入る前の例外では`#isSwitching`が真のまま残り、`replaceAllShapes`の例外では`#isSwitching`は`finally`で偽へ戻るが手順6へ進まず開いているキャンバスが一覧に無いまま残る。どちらも通常は例外を投げない。
 *   **保存済みの弧の`points[3]`/`[4]`**：描画に使わないため古い位置のまま残り、ハンドル操作（`move`を除く）で正準位置へ変わる。`toJSON`の往復は一致する。
 *   **[タスク1実装時]** クラスJSDocの「■ 切り替え処理」「■ 自動保存」「■ 新規キャンバス…」「■ 開く（ファイル）」等は、保留・未保存・確認の小窓・`#settleAndEnter`の新設と食い違う記述が残っている（タスク8で修正）。`#prepareLeave`（手順1〜2）は変更せず残し、`#settleAndEnter`の確定手順は読み込み後の再確定として追加した。`#askOpenUnsaved`は`confirmOpenUnsaved() === true`のときのみ「はい」とする。目視確認推奨：put失敗下での新規作成（いいえ／はい）・開く（ファイル）・再読み込み時の`beforeunload`。
+*   **[タスク6実装時]** `Ellipse.js`の`fromJSON`JSDoc・`draw`系のコメントのうち「弧は0〜π」を前提とする記述は見当たらなかった。`drawHandles`のJSDocの「左端・下端（ダミー）」は弧の下端が線上にない点を含め未修正（タスク11の範囲外のため）。目視確認推奨：弧の作図・保存済みの弧の表示（上下反転）、`up`ハンドルが頂上に重なること、右端・左端・頂上のクリック選択、`rx`/`ry`が1未満のクリック選択。
 *   **[タスク4実装時]** `#enterCanvas`の`!isRecordWritten`での`'writeFailed'`の再設定は、`#setIssue`が`'unavailable'`を上書きしないため`'unavailable'`中は影響しない。`#enterCanvas`の手順4の`prepareSwitch()`の捕捉は、`#settleAndEnter`内（例外は中止）と挙動が異なる点に注意。目視確認推奨：put失敗下での新規作成「はい」の後、切り替え前のキャンバスに保留があった場合でも`⚠`と文言が残ること。

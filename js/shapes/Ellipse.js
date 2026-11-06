@@ -45,22 +45,22 @@ export class Ellipse {
         /** @type {string} 図形種別（`ShapeFactory`が受理する文字列と一致）。'circle'|'arc'で振る舞いも分岐する。 */
         this.type = shapeType;
         
-        /** @type {number} 描画開始角度（常に0固定） */
-        this.startAngle = 0;
-        
-        /** @type {number} 描画終了角度（円の場合は2π、弧の場合はπ固定） */
-        this.endAngle = (this.type === 'circle') ? Math.PI * 2 : Math.PI;
+        /** @type {number} 描画開始角度（円の場合は0、弧の場合はπ固定。ctx.ellipseは時計回りのため弧はπ→2πで画面の上半分を描く） */
+        this.startAngle = (this.type === 'circle') ? 0 : Math.PI;
+
+        /** @type {number} 描画終了角度（常に2π固定） */
+        this.endAngle = Math.PI * 2;
 
         const rx = Math.abs(x2 - x1);
         const ry = Math.abs(y2 - y1);
 
-        /** @type {{x: number, y: number}[]} 頂点配列（長さ5固定）。points[0]=中心, [1]=右端, [2]=上端, [3]=開始角点, [4]=終了角点 */
+        /** @type {{x: number, y: number}[]} 頂点配列（長さ5固定）。points[0]=中心, [1]=右端, [2]=上端, [3]=開始角点（弧は左端・円は右端）, [4]=終了角点（右端） */
         this.points = [
             { x: x1, y: y1 },
             { x: x1 + rx, y: y1 },
             { x: x1, y: y1 - ry },
-            { x: x1 + rx, y: y1 },
-            { x: (this.type === 'circle') ? x1 + rx : x1 - rx, y: y1 }
+            { x: (this.type === 'circle') ? x1 + rx : x1 - rx, y: y1 },
+            { x: x1 + rx, y: y1 }
         ];
 
         this.strokeColor = strokeColor;
@@ -198,6 +198,7 @@ export class Ellipse {
     /**
      * 中心座標を維持したまま、指定されたrx, ryに基づいてpoints[1]〜points[4]を再計算・再配置する共通ヘルパー。
      * setVertex と updateDraftEnd で計算式が重複し、修正時に挙動が食い違うのを防ぐために用いる。
+     * points[3]（開始角制御点）は弧では左端・円では右端、points[4]（終了角制御点）は右端へ置く。
      * @param {number} rx - X軸方向の半径（絶対値）
      * @param {number} ry - Y軸方向の半径（絶対値）
      * @private
@@ -212,10 +213,10 @@ export class Ellipse {
         this.points[2].x = xc;
         this.points[2].y = yc - ry;
         
-        this.points[3].x = xc + rx;
+        this.points[3].x = (this.type === 'circle') ? xc + rx : xc - rx;
         this.points[3].y = yc;
-        
-        this.points[4].x = (this.type === 'circle') ? xc + rx : xc - rx;
+
+        this.points[4].x = xc + rx;
         this.points[4].y = yc;
     }
 
@@ -276,6 +277,10 @@ export class Ellipse {
 
     /**
      * 指定された座標(x, y)が図形の境界線上にあるかを判定する。
+     * 通常は距離比率r = sqrt((dx/rx)^2 + (dy/ry)^2)が1に近いかで判定し、許容幅は`tolerance + strokeWidth / 2`を
+     * 平均半径で割った比率とする。`rx < 1 || ry < 1`（つぶれた円・弧）では比率の式を使わず、
+     * `#distanceToOutline`による輪郭の折れ線までの距離が`tolerance + strokeWidth / 2`以下かで判定する。
+     * 弧は角度を(0, 2π]へ写して`startAngle`〜`endAngle`の範囲外（空隙）を除外する（右端のatan2=0は2πとして当たる）。
      * @param {number} x - 判定するX座標
      * @param {number} y - 判定するY座標
      * @param {number} tolerance - 当たり判定の許容誤差
@@ -287,9 +292,9 @@ export class Ellipse {
         const rx = Math.abs(this.points[1].x - xc);
         const ry = Math.abs(this.points[2].y - yc);
 
-        // 最優先ガード: 0除算によるNaN/Infinity暴走や画面全域での誤爆を防止
+        // 最優先ガード: 0除算によるNaN/Infinity暴走や画面全域での誤爆を防止（縮退時は折れ線への距離で判定）
         if (rx < 1 || ry < 1) {
-            return false;
+            return this.#distanceToOutline(x, y, xc, yc, rx, ry) <= tolerance + this.strokeWidth / 2;
         }
 
         const dx = x - xc;
@@ -311,7 +316,7 @@ export class Ellipse {
         // 弧の場合の角度フィルタ：空隙部分での誤爆を防止
         if (this.type !== 'circle') {
             let angle = Math.atan2(dy, dx);
-            if (angle < 0) {
+            if (angle <= 0) {
                 angle += Math.PI * 2;
             }
             if (angle < this.startAngle || angle > this.endAngle) {
@@ -320,6 +325,48 @@ export class Ellipse {
         }
 
         return true;
+    }
+
+    /**
+     * 点(x, y)から輪郭（中心線）の折れ線までの最短距離を返す。縮退時（rx/ryが1未満）の当たり判定用。
+     * `intersectsRect`と同じパラメータ化（θ = startAngle + (endAngle − startAngle) × i / N、i = 0..N、
+     * N = ELLIPSE_INTERSECT_SEGMENTS）で点をサンプリングし、隣接点を結ぶ各線分への距離の最小値を返す。
+     * 弧は描画されている部分のみが対象となる。長さ0の線分は点までの距離として扱い、0除算しない。
+     * @param {number} x - 判定するX座標（ワールド座標）
+     * @param {number} y - 判定するY座標（ワールド座標）
+     * @param {number} xc - 中心のX座標（ワールド座標）
+     * @param {number} yc - 中心のY座標（ワールド座標）
+     * @param {number} rx - X軸方向の半径（絶対値）
+     * @param {number} ry - Y軸方向の半径（絶対値）
+     * @returns {number} 折れ線までの最短距離（ワールド座標の長さ）
+     * @private
+     */
+    #distanceToOutline(x, y, xc, yc, rx, ry) {
+        const segments = ELLIPSE_INTERSECT_SEGMENTS;
+        const angleSpan = this.endAngle - this.startAngle;
+        let prevX = xc + rx * Math.cos(this.startAngle);
+        let prevY = yc + ry * Math.sin(this.startAngle);
+        let minDistance = Math.hypot(x - prevX, y - prevY);
+        for (let i = 1; i <= segments; i++) {
+            const theta = this.startAngle + angleSpan * i / segments;
+            const px = xc + rx * Math.cos(theta);
+            const py = yc + ry * Math.sin(theta);
+            const abx = px - prevX;
+            const aby = py - prevY;
+            const lengthSquared = abx * abx + aby * aby;
+            let t = 0;
+            if (lengthSquared > 0) {
+                t = ((x - prevX) * abx + (y - prevY) * aby) / lengthSquared;
+                t = Math.max(0, Math.min(1, t));
+            }
+            const distance = Math.hypot(x - (prevX + abx * t), y - (prevY + aby * t));
+            if (distance < minDistance) {
+                minDistance = distance;
+            }
+            prevX = px;
+            prevY = py;
+        }
+        return minDistance;
     }
 
     /**
