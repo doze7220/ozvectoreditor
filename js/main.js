@@ -18,6 +18,8 @@ import { ClipboardController } from './edit/ClipboardController.js';
 import { SnapshotAdapter } from './edit/SnapshotAdapter.js';
 import { CanvasStorage } from './io/CanvasStorage.js';
 import { CanvasLibrary } from './edit/CanvasLibrary.js';
+import { DocumentFileIO } from './io/DocumentFileIO.js';
+import { CanvasFileOperations } from './edit/CanvasFileOperations.js';
 import { CanvasPalette } from './palette/CanvasPalette.js';
 import { PaletteLauncher } from './palette/PaletteLauncher.js';
 
@@ -263,8 +265,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 切り取りの削除は、既存の唯一の削除経路inputTracker.deleteSelection()を注入する（Delete/削除ボタンと同一経路）
     const clipboardController = new ClipboardController({ model, inserter: shapeInserter, deleteSelection: () => inputTracker.deleteSelection() });
 
-    // 7.6. キャンバス管理（キャンバス一覧・自動保存・キャンバスパレット・呼び出し口）配線
-    // 処理本体（起動時の復元・開く・新規作成・名前の変更・削除・切り替え処理・自動保存）はCanvasLibrary（edit/）が持ち、
+    // 7.6. キャンバス管理（キャンバス一覧・自動保存・ファイル操作・キャンバスパレット・呼び出し口）配線
+    // 処理本体（起動時の復元・開く・新規作成・名前の変更・削除・切り替え処理・自動保存）はCanvasLibrary（edit/）が、
+    // ファイル操作（書き出し・開く（ファイル）・インポート）の組み立てはCanvasFileOperations（edit/）が持ち、
     // ここは生成・注入コールバック・表示の同期・イベントの配線のみを行う。
     // applyMode・viewTransform・historyManagerの生成後であること（切り替え処理の前提）。
     /**
@@ -288,12 +291,25 @@ document.addEventListener('DOMContentLoaded', () => {
         resetView: () => viewTransform.reset()
     });
 
-    // キャンバスパレットの操作は通知をCanvasLibraryへ渡すのみ（受理判定はCanvasLibraryが行う）
+    // ファイル操作（書き出し・開く（ファイル）・インポート）の組み立てはCanvasFileOperationsが持つ。
+    // ファイルの読み書きはDocumentFileIOを注入し、インポートの前提（選択モード）はprepareInsertで満たす
+    const canvasFileOperations = new CanvasFileOperations({
+        fileIO: new DocumentFileIO(),
+        canvasLibrary,
+        inserter: shapeInserter,
+        model,
+        prepareInsert: () => applyMode(OperationMode.SELECT)
+    });
+
+    // キャンバスパレットの操作は通知をCanvasLibrary／CanvasFileOperationsへ渡すのみ（受理判定は各クラスが行う）
     const canvasPalette = new CanvasPalette(document.getElementById('window-canvas-palette'), {
         onOpen: (id) => canvasLibrary.openCanvas(id),
         onCreate: () => canvasLibrary.createCanvas(),
         onRename: (id, name) => canvasLibrary.renameCanvas(id, name),
-        onDelete: (id) => canvasLibrary.deleteCanvas(id)
+        onDelete: (id) => canvasLibrary.deleteCanvas(id),
+        onExport: () => canvasFileOperations.exportCanvas(),
+        onOpenFile: (file) => canvasFileOperations.openFile(file),
+        onImportFile: (file) => canvasFileOperations.importFile(file)
     });
 
     const canvasNameDisplayEl = document.getElementById('canvas-name-display');
@@ -338,7 +354,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // キャンバス一覧の状態の変化（名前の変更・切り替え・削除・読み込み完了・保存の問題）で表示を直ちに更新する
     canvasLibrary.onChange(syncCanvasNameDisplay);
     canvasLibrary.onChange(syncLoadingCover);
-    canvasLibrary.onChange(() => canvasPalette.render(canvasLibrary.getState()));
+    // パレットの表示同期は、canvasLibrary.onChangeの転送を含むcanvasFileOperations.onChangeの1経路で行う
+    canvasFileOperations.onChange(() => canvasPalette.render(canvasFileOperations.getState()));
 
     // ページ非表示時（タブの切り替え・閉じる・再読み込み）に保留中の自動保存を直ちに確定する
     // （作業データの取得と書き込みの開始はハンドラ内で同期的に行われる）
@@ -484,10 +501,11 @@ document.addEventListener('DOMContentLoaded', () => {
     syncHistoryButtonState();
 
     // キャンバス名の表示・読み込み中の覆い要素・キャンバスパレットも同様に、onChange通知に依存させず
-    // CanvasLibraryの状態の実値で明示的に1回同期する（start()前のgetState().loadingは真のため「読み込み中」として表示される）
+    // 状態の実値で明示的に1回同期する（名前の表示・覆い要素はCanvasLibrary、パレットはCanvasFileOperationsの状態。
+    // start()前のloadingは真のため「読み込み中」として表示される）
     syncCanvasNameDisplay();
     syncLoadingCover();
-    canvasPalette.render(canvasLibrary.getState());
+    canvasPalette.render(canvasFileOperations.getState());
 
     // 最後に開いていたキャンバスを非同期に読み込む（awaitしない。start()はrejectしない）。
     // 読み込み完了時に切り替え処理で図形一式が入り（倍率100%・選択モード・履歴は空）、
