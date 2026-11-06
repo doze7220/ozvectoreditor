@@ -397,7 +397,7 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
         *   `./js/palette/CanvasPalette.js` : 更新（typedefの`openCanvasName`の記述のみ）
     *   **作業内容** :
         *   要件8の「`CanvasLibrary.js`」の表の全項目を修正する。実コードの変更は`renameCanvas`の`!summary`の除去のみ。JSDocの記述はタスク1・4で実装されたコードを読んで合わせる。
-*   [ ] タスク9: JSDoc修正 `core/`（要件8）
+*   [x] タスク9: JSDoc修正 `core/`（要件8）
     *   **対象ファイル** :
         *   `./js/core/WindowManager.js`・`./js/core/VectorModel.js`・`./js/core/HistoryManager.js`・`./js/core/InputTracker.js`・`./js/core/DragTracker.js` : 更新（コメントのみ）
     *   **作業内容** :
@@ -458,7 +458,10 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
 
 ### タスク9: JSDoc修正 `core/`（要件8）
 *   **作業内容** :
-    *   (タスク実行時に記入)
+    *   要件8の「`core/`」の表の全項目をJSDoc・コメントのみで修正（実コード未変更、5ファイルとも`node --check`成功）。
+    *   `WindowManager.js`：責務JSDocの「ツール状態」→「操作モード」。`#draggingWindow`のJSDocを、mousemoveのみがフィールドの有無でドラッグ中か判定し、mouseupは判定せず常にnullへ戻す旨に修正（タスク3監査対応）。
+    *   `VectorModel.js`：クラスJSDoc、`addShape`（使わないこと）、`replaceAllShapes`（用途・前処理・idの直接書き換えと重複インスタンス）、`addShapesWithNewIds`（流用しないこと）。
+    *   `HistoryManager.js`：`clear()`の呼び出し元。`InputTracker.js`：クラスJSDocと`deleteSelection`に切り取り、`abortOngoingOperation`に`performUndo`の依存、typedef`EditRecorder`に二重定義の注記。`DragTracker.js`：`begin`とtypedef`DragHandlers`の`onStart`に同期呼び出しをしない旨。
 
 ### タスク10: JSDoc修正 `edit/`・`main.js`（要件8）
 *   **作業内容** :

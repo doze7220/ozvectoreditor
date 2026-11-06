@@ -6,7 +6,8 @@
 /**
  * ドラッグセッションの各段階で呼ばれるコールバック群。いずれも省略可。
  * @typedef {Object} DragHandlers
- * @property {() => void} [onStart] 移動量が閾値を超えた時点で1回だけ呼ばれる（onMoveの直前）
+ * @property {() => void} [onStart] 移動量が閾値を超えた時点で1回だけ呼ばれる（onMoveの直前）。
+ *     `begin()`内では`onStart`を同期的に呼ばない（閾値超過時の`mousemove`で呼ぶ。`InputTracker`がこれに依存する）
  * @property {(event: MouseEvent, screen: {x: number, y: number}, prevScreen: {x: number, y: number}) => void} [onMove]
  *     閾値超過後のmousemoveごとに呼ばれる。screen：現在のカーソル位置（スクリーン座標）、
  *     prevScreen：直前のmousemove時点のカーソル位置（スクリーン座標）。直前位置は閾値以前のmousemoveでも更新されるため、
@@ -87,6 +88,7 @@ export class DragTracker {
     /**
      * ドラッグセッションを開始する（mousedownイベントのハンドラから呼ぶ）。
      * 既にセッション中の場合はconsole.warnを出して何もせずfalseを返す。
+     * `begin()`内では`onStart`を同期的に呼ばない（閾値超過時の`mousemove`で呼ぶ。`InputTracker`がこれに依存する）。
      * @param {MouseEvent} event ドラッグを開始したmousedownイベント（開始ボタン・押下点の取得に用いる）
      * @param {DragHandlers} handlers セッションのコールバック群
      * @param {Object} [options]

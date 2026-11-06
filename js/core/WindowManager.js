@@ -1,6 +1,6 @@
 /**
  * 責務: `.float-window`要素群の「ドラッグ移動」「アクティブ最前面化」「子要素からの
- * イベント伝播遮断」を一元的に管理する。図形データ・選択状態・ツール状態など
+ * イベント伝播遮断」を一元的に管理する。図形データ・選択状態・操作モードなど
  * VectorModel/InputTrackerが持つ状態には一切関与しない（DOM操作専任）。
  */
 
@@ -13,7 +13,8 @@ export class WindowManager {
 
     /**
      * @type {HTMLElement|null} 現在ドラッグ中の`.float-window`要素。ドラッグ中でなければnull。
-     * window単位のmousemove/mouseupはこのフィールドの有無でドラッグ中か否かを判定する。
+     * window単位のmousemoveはこのフィールドの有無でドラッグ中か否かを判定する
+     * （mouseupは判定せず、常にこのフィールドをnullへ戻す）。
      * @private
      */
     #draggingWindow;

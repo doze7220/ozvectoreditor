@@ -76,6 +76,7 @@ const DRAG_START_THRESHOLD = 3;
 /**
  * 編集操作（図形一式を変化させる利用者の1回の操作）の開始・確定を受け取る記録先。
  * 実体はmain.jsが注入するHistoryManager（本ファイルはHistoryManager.jsをimportせず、この2メソッドのみを呼ぶ）。
+ * `edit/ShapeInserter.js`に同じ内容の定義がある（二重定義。形を変える場合は両方を揃えること）。
  * @typedef {Object} EditRecorder
  * @property {() => void} beginEdit 編集操作の開始を宣言する（その時点の状態を「前の状態」として記録する）
  * @property {() => boolean} commitEdit 編集操作の確定を宣言する（前後で図形一式が変化していれば1件として記録しtrue）
@@ -135,7 +136,7 @@ export function isTextInputElement(element) {
  * 委譲し、本クラスはドラッグの意味の解釈（パン量、頂点変形・選択集合の平行移動・範囲選択のModel反映）のみを行う。
  * ズーム・パンによる表示の変更はViewTransformへ委譲する。
  * Space以外のキー（ショートカット）は解釈しない。削除・取消・全選択・進行中操作の中断は状態依存の公開メソッドとして提供し、
- * 削除ボタン・ショートカット（KeyboardShortcuts）・作業データの復元・取り消し/やり直しの前処理からはmain.js経由で呼び出される。
+ * 削除ボタン・ショートカット（KeyboardShortcuts）・切り取り（`ClipboardController.cut()`へ`main.js`が注入）・作業データの復元・取り消し/やり直しの前処理からはmain.js経由で呼び出される。
  * 編集操作（図形の作成・一括削除・選択集合の平行移動・ハンドルによる変形）は、変更処理を注入された記録先（EditRecorder）の
  * beginEdit()／commitEdit()で挟んで開始・確定を伝える（履歴の保持・適用は行わない。記録先はコンストラクタ第4引数）。
  * 範囲選択・クリック選択・全選択・選択解除・ホバー・パン・ズーム・モード/図形種別の切り替えは編集操作として伝えない。
@@ -371,8 +372,8 @@ export class InputTracker {
      * 受理時はModelのdeleteShapes(selectedIds)を呼ぶ（変更通知1回）。非受理時は何もしない。
      * 受理時のみ、deleteShapesの直前に記録先のbeginEdit()、直後にcommitEdit()を呼び、1件の編集操作として伝える
      * （前の状態の選択集合＝削除した図形、後の状態の選択集合＝空）。非受理時は記録経路を通らない。
-     * 削除ボタン（main.js）とDelete/Backspaceショートカット（KeyboardShortcuts→main.jsの注入コールバック）の
-     * 唯一の削除経路であり、呼び出し側で条件を重複判定しないこと。
+     * 削除ボタン（main.js）・Delete/Backspaceショートカット（KeyboardShortcuts→main.jsの注入コールバック）・
+     * 切り取り（`ClipboardController.cut()`へ`main.js`が注入）の唯一の削除経路であり、呼び出し側で条件を重複判定しないこと。
      * ドラッグ中（パン中を含む）は受け付けない（ドラッグ対象の図形が消えたまま追従が続くことを防ぐため）。
      * @returns {boolean} 削除を受理したらtrue（呼び出し側はtrueのときのみpreventDefault()する）
      */
@@ -453,6 +454,7 @@ export class InputTracker {
      * 変更しないもの：操作モード・図形種別・選択集合・ホバー状態（これらのクリアは呼び出し側・replaceAllShapesの責務）、
      * スペース押下状態（キーの物理状態であり進行中操作ではないため）。
      * 最後にカーソル形状を再評価する。
+     * `performUndo`（`main.js`）がこの戻り値で作成途中の図形の破棄を判定している。中断する対象を増やす場合は`performUndo`の判定を見直す。
      * @returns {boolean} 何かを中断したらtrue（何も進行していなければfalse）
      */
     abortOngoingOperation() {
