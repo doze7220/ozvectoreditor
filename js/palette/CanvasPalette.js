@@ -1,6 +1,6 @@
 /**
- * 責務：キャンバスパレット（キャンバス一覧・新規作成・名前の変更・削除・保存状態の表示）のDOM操作を担う自己完結UI部品。
- * 操作の実行は注入されたコールバックへ委譲する。
+ * 責務：キャンバスパレット（キャンバス一覧・新規作成・名前の変更・削除・ファイル操作の呼び出し・保存状態とファイル操作の通知の表示）の
+ * DOM操作を担う自己完結UI部品。操作の実行は注入されたコールバックへ委譲する。
  */
 
 /**
@@ -15,16 +15,28 @@ const ISSUE_MESSAGES = Object.freeze({
     partialLoad: '一部の図形を読み込めませんでした。編集すると、その図形は保存から失われます。'
 });
 
+/**
+ * ファイル操作の通知（`fileNotice`）の種類ごとの、パレット内の表示（`#canvas-file-notice`）の文言を作る関数の対応表。
+ * 対応表はこのファイルにのみ持つ（`CanvasFileOperations`は種類・ファイル名・件数のみを返し、文言を知らない）。
+ * @type {Readonly<Record<string, (notice: FileNotice) => string>>}
+ */
+const FILE_NOTICE_MESSAGES = Object.freeze({
+    readFailed: (notice) => `${notice.fileName ?? ''} を読み込めませんでした。本アプリの作業データファイルか確認してください。`,
+    partialRead: (notice) => `${notice.fileName ?? ''} の一部の図形（${notice.skippedCount}個）を読み込めませんでした。`,
+    noShapes: (notice) => `${notice.fileName ?? ''} に追加できる図形がありませんでした。`,
+    exportFailed: () => '書き出しに失敗しました。'
+});
+
 /** 読み込み中に一覧の代わりに表示する文言。 */
 const LOADING_TEXT = '読み込み中…';
 
 /**
- * パレットが受け取る状態（`CanvasLibrary.getState()`の戻り値）。
+ * キャンバス一覧の管理の状態（`CanvasLibrary.getState()`の戻り値）。
  * `js/edit/CanvasLibrary.js`のtypedef`CanvasLibraryState`と同じ内容であり、形を変える場合は両方を揃えること。
- * 本クラスが参照するのは`loading`・`busy`・`canManage`・`canvases`・`issue`のみ。
+ * 本クラスが参照するのは`loading`・`busy`・`canManage`・`canvases`・`issue`のみ（`render`の引数は`CanvasPaletteState`）。
  * @typedef {Object} CanvasLibraryState
  * @property {boolean} loading 起動時の読み込み中か
- * @property {boolean} busy 開く・新規作成・名前の変更・削除・起動時の復元の処理中か
+ * @property {boolean} busy 開く・新規作成・開く（ファイル）・名前の変更・削除・起動時の復元の処理中か（処理中は新たな操作を受け付けない）
  * @property {boolean} canManage キャンバスの管理操作ができるか（`'unavailable'`でない）
  * @property {string|null} openCanvasId 開いているキャンバスの識別子（読み込み完了前は`null`）
  * @property {string|null} openCanvasName 開いているキャンバスの名前（読み込み完了前は`null`）
@@ -35,12 +47,29 @@ const LOADING_TEXT = '読み込み中…';
  */
 
 /**
+ * ファイル操作の通知。`js/edit/CanvasFileOperations.js`のtypedef`FileNotice`と同じ内容であり、形を変える場合は両方を揃えること。
+ * @typedef {Object} FileNotice
+ * @property {'readFailed'|'partialRead'|'noShapes'|'exportFailed'} kind 通知の種類
+ * @property {string|null} fileName 対象のファイル名（書き出しの失敗は`null`）
+ * @property {number} skippedCount 読めなかった図形の数（`partialRead`以外は0）
+ */
+
+/**
+ * パレットが`render`で受け取る状態（`CanvasFileOperations.getState()`の戻り値）。
+ * `CanvasLibraryState`に`fileNotice`を加えたもので、`busy`はファイル操作の処理中も真になる。
+ * @typedef {CanvasLibraryState & {fileNotice: (FileNotice|null)}} CanvasPaletteState
+ */
+
+/**
  * キャンバスパレットの操作コールバック群（`main.js`から注入される）。戻り値（`Promise`）は待たない。
  * @typedef {Object} CanvasPaletteActions
  * @property {(id: string) => *} onOpen 一覧の行の名前が押されたとき、そのキャンバスを開く
  * @property {() => *} onCreate 「＋ 新規作成」が押されたとき、新しいキャンバスを作成して開く
  * @property {(id: string, name: string) => *} onRename 名前の変更の小窓で確定した文字列（未加工）を渡す
  * @property {(id: string) => *} onDelete 削除の確認の小窓で「OK」が押されたとき、そのキャンバスを削除する
+ * @property {() => *} onExport 「書き出し」が押されたとき、開いているキャンバスを作業データファイルとして書き出す
+ * @property {(file: File) => *} onOpenFile 「開く」でファイルが選ばれたとき、新しいキャンバスとして開く（`file`は不透明に渡す）
+ * @property {(file: File) => *} onImportFile 「インポート」でファイルが選ばれたとき、開いているキャンバスへ追加する（`file`は不透明に渡す）
  */
 
 /**
@@ -55,14 +84,23 @@ const LOADING_TEXT = '読み込み中…';
  *     それ以外の文字列は加工せず`onRename(id, text)`へ渡す（空文字・空白のみ・最大文字数の判定は`CanvasLibrary`側）。
  *   - 削除：`window.confirm('キャンバス「<名前>」を削除しますか？この操作は取り消せません。')`で「OK」の場合のみ`onDelete(id)`。
  *   - 押されたボタンにフォーカスが残ると`Enter`で再度押されるため、操作の処理前に押されたボタンの`blur()`を呼ぶ。
+ *   - 「書き出し」（`#canvas-export`）の`click`で`onExport()`。
+ *   - 「開く」（`#canvas-open-file`）・「インポート」（`#canvas-import`）：ボタンの`click`で`blur()`のうえ、
+ *     非表示の`input type="file"`（`#canvas-open-file-input`・`#canvas-import-file-input`）の`click()`を同期的に呼んで小窓を開く。
+ *     `input`の`change`で選ばれたファイルを取り出し、`input.value`を空にして（同じファイルを続けて選んでも毎回`change`が起きるように）
+ *     `input`を`blur()`したのち、ファイルがあれば`onOpenFile(file)`／`onImportFile(file)`を呼ぶ。
+ *     小窓のキャンセルでは`change`が起きず、何も呼ばない。`file`の中身・名前は読まない。
  *
  * ■ 表示の規則（`render(state)`）
  *   - `loading`：一覧の代わりに「読み込み中…」を表示する。
- *   - `busy || !canManage || loading`：新規作成・各行のボタンを`disabled`属性で押せない状態にする
+ *   - `busy || !canManage || loading`：新規作成・開く（ファイル）・各行のボタンを`disabled`属性で押せない状態にする
  *     （見た目は既存の`.tool-btn:disabled`。`.disabled`クラスは使わない）。
+ *   - `busy || loading`：書き出し・インポートを`disabled`にする。`'unavailable'`（`!canManage`）でも押せる。
  *   - 開いているキャンバス（`isOpen`）の行に`.current`を付ける。行の名前ボタンの`title`に名前全体を設定する。
  *   - 名前は`textContent`のみで設定し、`innerHTML`は使わない（利用者の入力した名前をHTMLとして解釈しないため）。
  *   - `issue`に応じた文言（`ISSUE_MESSAGES`）を`#canvas-notice`へ表示し、`null`（または未知の値）なら`hidden`にする。
+ *   - `fileNotice`に応じた文言（`FILE_NOTICE_MESSAGES`。ファイル名は`textContent`のみで設定）を`#canvas-file-notice`へ表示し、
+ *     `null`（または未知の種類）なら`hidden`にする。`issue`の表示とは独立で、互いに隠さない。
  */
 export class CanvasPalette {
     /**
@@ -84,6 +122,30 @@ export class CanvasPalette {
     #noticeElement = null;
 
     /**
+     * @type {HTMLButtonElement|null} 書き出しボタン（`#canvas-export`）。見つからなければnull。
+     * @private
+     */
+    #exportButton = null;
+
+    /**
+     * @type {HTMLButtonElement|null} 開く（ファイル）ボタン（`#canvas-open-file`）。見つからなければnull。
+     * @private
+     */
+    #openFileButton = null;
+
+    /**
+     * @type {HTMLButtonElement|null} インポートボタン（`#canvas-import`）。見つからなければnull。
+     * @private
+     */
+    #importButton = null;
+
+    /**
+     * @type {HTMLElement|null} ファイル操作の通知の表示先（`#canvas-file-notice`）。見つからなければnull。
+     * @private
+     */
+    #fileNoticeElement = null;
+
+    /**
      * @type {CanvasPaletteActions} 操作コールバック群。
      * @private
      */
@@ -102,31 +164,47 @@ export class CanvasPalette {
     #namesById = new Map();
 
     /**
-     * ルート要素内の`#canvas-create`・`#canvas-list`・`#canvas-notice`を解決し、新規作成ボタンと一覧のクリックを配線する。
+     * ルート要素内の`#canvas-create`・`#canvas-list`・`#canvas-notice`・`#canvas-export`・`#canvas-open-file`・`#canvas-import`・
+     * `#canvas-open-file-input`・`#canvas-import-file-input`・`#canvas-file-notice`を解決し、各ボタンと一覧のクリックを配線する。
      * コールバックが関数でなければ`Error`を投げる。要素が1つでも欠ける場合は`console.warn`で報告し、配線しない。
      * @param {HTMLElement|null} rootElement キャンバスパレットのルート要素（`#window-canvas-palette`）
      * @param {CanvasPaletteActions} actions 操作コールバック群
-     * @throws {Error} `onOpen`・`onCreate`・`onRename`・`onDelete`のいずれかが関数でない場合
+     * @throws {Error} `onOpen`・`onCreate`・`onRename`・`onDelete`・`onExport`・`onOpenFile`・`onImportFile`のいずれかが関数でない場合
      */
     constructor(rootElement, actions) {
-        const { onOpen, onCreate, onRename, onDelete } = actions || {};
+        const { onOpen, onCreate, onRename, onDelete, onExport, onOpenFile, onImportFile } = actions || {};
         if (typeof onOpen !== 'function' || typeof onCreate !== 'function'
-            || typeof onRename !== 'function' || typeof onDelete !== 'function') {
-            throw new Error('CanvasPalette: onOpen / onCreate / onRename / onDelete には関数を指定してください。');
+            || typeof onRename !== 'function' || typeof onDelete !== 'function'
+            || typeof onExport !== 'function' || typeof onOpenFile !== 'function'
+            || typeof onImportFile !== 'function') {
+            throw new Error('CanvasPalette: onOpen / onCreate / onRename / onDelete / onExport / onOpenFile / onImportFile には関数を指定してください。');
         }
-        this.#actions = { onOpen, onCreate, onRename, onDelete };
+        this.#actions = { onOpen, onCreate, onRename, onDelete, onExport, onOpenFile, onImportFile };
 
+        let openFileInput = null;
+        let importFileInput = null;
         if (rootElement) {
             this.#createButton = rootElement.querySelector('#canvas-create');
             this.#listElement = rootElement.querySelector('#canvas-list');
             this.#noticeElement = rootElement.querySelector('#canvas-notice');
+            this.#exportButton = rootElement.querySelector('#canvas-export');
+            this.#openFileButton = rootElement.querySelector('#canvas-open-file');
+            this.#importButton = rootElement.querySelector('#canvas-import');
+            openFileInput = rootElement.querySelector('#canvas-open-file-input');
+            importFileInput = rootElement.querySelector('#canvas-import-file-input');
+            this.#fileNoticeElement = rootElement.querySelector('#canvas-file-notice');
         }
-        if (!this.#createButton || !this.#listElement || !this.#noticeElement) {
-            console.warn('CanvasPalette: キャンバスパレットの要素（#canvas-create / #canvas-list / #canvas-notice）が見つかりません。配線しません。');
+        if (!this.#createButton || !this.#listElement || !this.#noticeElement
+            || !this.#exportButton || !this.#openFileButton || !this.#importButton
+            || !openFileInput || !importFileInput || !this.#fileNoticeElement) {
+            console.warn('CanvasPalette: キャンバスパレットの要素（#canvas-create / #canvas-list / #canvas-notice / #canvas-export / #canvas-open-file / #canvas-import / #canvas-open-file-input / #canvas-import-file-input / #canvas-file-notice）が見つかりません。配線しません。');
             return;
         }
 
         this.#createButton.addEventListener('click', () => this.#handleCreate());
+        this.#exportButton.addEventListener('click', () => this.#handleExport());
+        this.#bindFilePicker(this.#openFileButton, openFileInput, (file) => this.#actions.onOpenFile(file));
+        this.#bindFilePicker(this.#importButton, importFileInput, (file) => this.#actions.onImportFile(file));
         this.#listElement.addEventListener('click', (event) => this.#handleListClick(event));
         this.#isWired = true;
     }
@@ -134,7 +212,7 @@ export class CanvasPalette {
     /**
      * 状態からキャンバスパレットの表示（一覧・ボタンの押せる/押せない・状態表示）を作り直す。
      * 規則はクラスJSDocの「表示の規則」を参照。配線していない場合は何もしない。
-     * @param {CanvasLibraryState} state キャンバス一覧の管理の状態（`CanvasLibrary.getState()`の戻り値）
+     * @param {CanvasPaletteState} state パレットの表示に必要な状態（`CanvasFileOperations.getState()`の戻り値）
      */
     render(state) {
         if (!this.#isWired || !state) {
@@ -142,6 +220,10 @@ export class CanvasPalette {
         }
         const isLocked = Boolean(state.busy || !state.canManage || state.loading);
         this.#createButton.disabled = isLocked;
+        this.#openFileButton.disabled = isLocked;
+        const isFileBusy = Boolean(state.busy || state.loading);
+        this.#exportButton.disabled = isFileBusy;
+        this.#importButton.disabled = isFileBusy;
 
         this.#namesById = new Map();
         const fragment = document.createDocumentFragment();
@@ -163,6 +245,13 @@ export class CanvasPalette {
             : null;
         this.#noticeElement.textContent = message ?? '';
         this.#noticeElement.hidden = message === null;
+
+        const fileNotice = state.fileNotice;
+        const fileMessage = fileNotice != null && Object.hasOwn(FILE_NOTICE_MESSAGES, fileNotice.kind)
+            ? FILE_NOTICE_MESSAGES[fileNotice.kind](fileNotice)
+            : null;
+        this.#fileNoticeElement.textContent = fileMessage ?? '';
+        this.#fileNoticeElement.hidden = fileMessage === null;
     }
 
     /**
@@ -213,6 +302,41 @@ export class CanvasPalette {
     #handleCreate() {
         this.#createButton.blur();
         void this.#actions.onCreate();
+    }
+
+    /**
+     * 「書き出し」：押されたボタンのフォーカスを外してから`onExport()`を呼ぶ（戻り値は待たない）。
+     * @private
+     */
+    #handleExport() {
+        this.#exportButton.blur();
+        void this.#actions.onExport();
+    }
+
+    /**
+     * ファイルを選ぶボタンと非表示の`input type="file"`を配線する。
+     * ボタンの`click`で`blur()`のうえ`input.click()`を同期的に呼ぶ（ブラウザの利用者操作の要件のため）。
+     * `input`の`change`でファイルを取り出し、`input.value`を空にし（同じファイルを続けて選んでも毎回`change`が起きるように。
+     * `File`はリセット後も有効）、`input.blur()`ののち、ファイルがあれば`onFile(file)`を呼ぶ（戻り値は待たない）。
+     * キャンセルでは`change`が起きないため何も呼ばない。
+     * @param {HTMLButtonElement} button 小窓を開くボタン
+     * @param {HTMLInputElement} input 非表示の`input type="file"`
+     * @param {(file: File) => *} onFile 選ばれたファイルを渡すコールバック
+     * @private
+     */
+    #bindFilePicker(button, input, onFile) {
+        button.addEventListener('click', () => {
+            button.blur();
+            input.click();
+        });
+        input.addEventListener('change', () => {
+            const file = input.files?.[0] ?? null;
+            input.value = '';
+            input.blur();
+            if (file) {
+                void onFile(file);
+            }
+        });
     }
 
     /**
