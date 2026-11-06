@@ -173,11 +173,25 @@
             border-color: #6699ff;
             font-weight: bold;
         }
-        /* キャンバスパレットの保存・読み込みの問題の短い文言（問題が無いときはhidden属性で非表示） */
+        /* キャンバスパレットのファイル操作の行（書き出し・開く・インポートの3ボタンを横並び）。
+           パレットの内側は216px（幅240px−余白24px）。文字13px×(4+2+5)字＋余白・枠30px＋行間8pxで約181pxのため1行に収まる */
+        .canvas-file-row {
+            display: flex;
+            gap: 4px;
+        }
+        .canvas-file-row .tool-btn {
+            flex: 1 1 auto;
+            padding: 8px 4px;
+            text-align: center;
+            white-space: nowrap;
+        }
+        /* キャンバスパレットの保存・読み込みの問題（#canvas-notice）とファイル操作の通知（#canvas-file-notice）の短い文言
+           （無いときはhidden属性で非表示）。区切りの無い長いファイル名がパレットからはみ出さないよう、どこでも折り返す */
         .canvas-notice {
             margin: 0;
             font-size: 12px;
             color: #b00020;
+            overflow-wrap: anywhere;
         }
         /* 読み込み中の覆い要素（キャンバス全面を覆い、読み込み完了までキャンバスへのマウス入力を遮る）。
            表示状態で始まり（main.jsの実行前から遮るため）、main.jsのsyncLoadingCover()が読み込み完了でhidden属性を付けて非表示にする。
@@ -280,8 +294,16 @@
         </div>
         <div class="window-body">
             <button type="button" id="canvas-create" class="tool-btn">＋ 新規作成</button>
+            <div class="canvas-file-row">
+                <button type="button" id="canvas-export" class="tool-btn" title="開いているキャンバスをファイル（.json）としてダウンロードします">書き出し</button>
+                <button type="button" id="canvas-open-file" class="tool-btn" title="ファイルを新しいキャンバスとして開きます">開く</button>
+                <button type="button" id="canvas-import" class="tool-btn" title="ファイルの図形を開いているキャンバスへ追加します">インポート</button>
+            </div>
+            <input type="file" id="canvas-open-file-input" accept=".json,application/json" hidden>
+            <input type="file" id="canvas-import-file-input" accept=".json,application/json" hidden>
             <div id="canvas-list" class="canvas-list"></div>
             <p id="canvas-notice" class="canvas-notice" hidden></p>
+            <p id="canvas-file-notice" class="canvas-notice" hidden></p>
         </div>
     </div>
     <div id="window-dev-panel" class="float-window" hidden>
