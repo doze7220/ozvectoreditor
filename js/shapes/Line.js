@@ -25,7 +25,7 @@ export class Line {
     constructor(x1, y1, x2, y2, strokeColor = '#000000', strokeWidth = 2) {
         /** @type {string} 図形種別（`ShapeFactory`が受理する文字列と一致） */
         this.type = 'line';
-        /** @type {string|number|null} 図形の一意なID。採番ロジックは持たず、外部（VectorModel）から設定される。 */
+        /** @type {*} 図形の一意なID。作成中は`null`。`VectorModel`の採番・正規化の後は文字列。`fromJSON`直後は`data.id`のまま（欠落なら`undefined`、任意の型を取り得る）。 */
         this.id = null;
         this.x1 = x1;
         this.y1 = y1;
@@ -37,9 +37,9 @@ export class Line {
 
     /**
      * 点(x, y)が線分本体の許容誤差(tolerance)以内にあるかを判定する当たり判定。
-     * @param {number} x - 判定対象点のX座標（論理座標系）
-     * @param {number} y - 判定対象点のY座標（論理座標系）
-     * @param {number} tolerance - 許容誤差（論理座標系のピクセル単位）
+     * @param {number} x - 判定対象点のX座標（ワールド座標）
+     * @param {number} y - 判定対象点のY座標（ワールド座標）
+     * @param {number} tolerance - 許容誤差（ワールド座標の長さ。呼び出し側が画面上の許容誤差をワールド換算して渡す）
      * @returns {boolean} 線分との距離がtolerance以内であればtrue
      */
     hitTest(x, y, tolerance) {
@@ -63,9 +63,9 @@ export class Line {
     /**
      * 点(x, y)が始点・終点・移動（中点）のいずれかのハンドルの許容誤差(tolerance)以内にあるかを判定する。
      * 複数のハンドルが同時にtolerance以内となる場合は、start → end → move の優先順位で先着1件を返す。
-     * @param {number} x - 判定対象点のX座標（論理座標系）
-     * @param {number} y - 判定対象点のY座標（論理座標系）
-     * @param {number} tolerance - 許容誤差（論理座標系のピクセル単位）
+     * @param {number} x - 判定対象点のX座標（ワールド座標）
+     * @param {number} y - 判定対象点のY座標（ワールド座標）
+     * @param {number} tolerance - 許容誤差（ワールド座標の長さ。呼び出し側が画面上の許容誤差をワールド換算して渡す）
      * @returns {'start'|'end'|'move'|null} 該当したハンドルの種別。いずれにも該当しなければnull
      */
     hitTestHandle(x, y, tolerance) {
@@ -143,8 +143,8 @@ export class Line {
      * vertexIndexが0であれば始点(x1, y1)を、1であれば終点(x2, y2)を更新する。
      * それ以外の値が渡された場合は何もしない。
      * @param {number} vertexIndex - 更新する頂点のインデックス（0: 始点, 1: 終点）
-     * @param {number} x - 更新後のX座標（論理座標系）
-     * @param {number} y - 更新後のY座標（論理座標系）
+     * @param {number} x - 更新後のX座標（ワールド座標）
+     * @param {number} y - 更新後のY座標（ワールド座標）
      */
     setVertex(vertexIndex, x, y) {
         if (vertexIndex === 0) {
@@ -158,8 +158,8 @@ export class Line {
 
     /**
      * 作図中に終点をカーソル位置へ追従させる。setVertex(1, x, y)と同義（終点をそのまま更新する）。
-     * @param {number} x - 追従先のX座標（論理座標系）
-     * @param {number} y - 追従先のY座標（論理座標系）
+     * @param {number} x - 追従先のX座標（ワールド座標）
+     * @param {number} y - 追従先のY座標（ワールド座標）
      */
     updateDraftEnd(x, y) {
         this.setVertex(1, x, y);
@@ -176,8 +176,8 @@ export class Line {
 
     /**
      * 自身の全頂点(x1,y1,x2,y2)を相対差分(dx, dy)だけ平行移動する。
-     * @param {number} dx - X方向の移動差分（論理座標系）
-     * @param {number} dy - Y方向の移動差分（論理座標系）
+     * @param {number} dx - X方向の移動差分（ワールド座標）
+     * @param {number} dy - Y方向の移動差分（ワールド座標）
      */
     translate(dx, dy) {
         this.x1 += dx;
@@ -254,7 +254,7 @@ export class Line {
      * 座標はワールド座標。`points`は内部表現（x1, y1, x2, y2）から新規に組み立てるため、戻り値と自身は状態を共有しない。
      * `id`が`null`（作成中の図形など）の場合もそのまま出力する。
      * `JSON.stringify(line)`でも本メソッドの戻り値が出力される。
-     * @returns {{type: string, id: (string|number|null), points: {x: number, y: number}[], strokeColor: string, strokeWidth: number}} 新しい図形データ
+     * @returns {{type: string, id: *, points: {x: number, y: number}[], strokeColor: string, strokeWidth: number}} 新しい図形データ
      */
     toJSON() {
         return {

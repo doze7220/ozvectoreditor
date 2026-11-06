@@ -33,7 +33,7 @@ export class Curve {
     constructor(x1, y1, x2, y2, strokeColor = '#000000', strokeWidth = 2) {
         /** @type {string} 図形種別（`ShapeFactory`が受理する文字列と一致） */
         this.type = 'curve';
-        /** @type {string|number|null} 図形の一意なID。採番ロジックは持たず、外部（VectorModel）から設定される。 */
+        /** @type {*} 図形の一意なID。作成中は`null`。`VectorModel`の採番・正規化の後は文字列。`fromJSON`直後は`data.id`のまま（欠落なら`undefined`、任意の型を取り得る）。 */
         this.id = null;
         /** @type {{x: number, y: number}[]} 頂点配列。points[0]=始点, points[1]=制御点, points[2]=終点 */
         this.points = [
@@ -111,9 +111,9 @@ export class Curve {
      * 点(x, y)がベジェ曲線本体の許容誤差(tolerance)以内にあるかを判定する当たり判定。
      * B(t) = (1-t)^2 P0 + 2(1-t)t P1 + t^2 P2 をt=0〜1の範囲で100分割し、
      * 各分割点と入力点との最短距離がtolerance以内であればtrueを返す。
-     * @param {number} x - 判定対象点のX座標（論理座標系）
-     * @param {number} y - 判定対象点のY座標（論理座標系）
-     * @param {number} tolerance - 許容誤差（論理座標系のピクセル単位）
+     * @param {number} x - 判定対象点のX座標（ワールド座標）
+     * @param {number} y - 判定対象点のY座標（ワールド座標）
+     * @param {number} tolerance - 許容誤差（ワールド座標の長さ。呼び出し側が画面上の許容誤差をワールド換算して渡す）
      * @returns {boolean} 曲線との距離がtolerance以内であればtrue
      */
     hitTest(x, y, tolerance) {
@@ -138,9 +138,9 @@ export class Curve {
     /**
      * 点(x, y)が始点・制御点・終点のいずれかのハンドルの許容誤差(tolerance)以内にあるかを判定する。
      * 複数のハンドルが同時にtolerance以内となる場合は、start → end → control の優先順位で先着1件を返す。
-     * @param {number} x - 判定対象点のX座標（論理座標系）
-     * @param {number} y - 判定対象点のY座標（論理座標系）
-     * @param {number} tolerance - 許容誤差（論理座標系のピクセル単位）
+     * @param {number} x - 判定対象点のX座標（ワールド座標）
+     * @param {number} y - 判定対象点のY座標（ワールド座標）
+     * @param {number} tolerance - 許容誤差（ワールド座標の長さ。呼び出し側が画面上の許容誤差をワールド換算して渡す）
      * @returns {'start'|'end'|'control'|null} 該当したハンドルの種別。いずれにも該当しなければnull
      */
     hitTestHandle(x, y, tolerance) {
@@ -244,8 +244,8 @@ export class Curve {
      * vertexIndexが0であれば始点を、1であれば制御点を、2であれば終点を更新する。
      * それ以外の値が渡された場合は何もしない。
      * @param {number} vertexIndex - 更新する頂点のインデックス（0: 始点, 1: 制御点, 2: 終点）
-     * @param {number} x - 更新後のX座標（論理座標系）
-     * @param {number} y - 更新後のY座標（論理座標系）
+     * @param {number} x - 更新後のX座標（ワールド座標）
+     * @param {number} y - 更新後のY座標（ワールド座標）
      */
     setVertex(vertexIndex, x, y) {
         if (vertexIndex === 0 || vertexIndex === 1 || vertexIndex === 2) {
@@ -257,8 +257,8 @@ export class Curve {
      * 作図中に終点をカーソル位置へ追従させる。終点を(x, y)に更新し、制御点を
      * 「始点と新しい終点の中点」として再計算する（コンストラクタの初期配置ロジックと同一の考え方）。
      * これにより作図プレビュー中は常に直線に見える状態を保つ。
-     * @param {number} x - 追従先のX座標（論理座標系）
-     * @param {number} y - 追従先のY座標（論理座標系）
+     * @param {number} x - 追従先のX座標（ワールド座標）
+     * @param {number} y - 追従先のY座標（ワールド座標）
      */
     updateDraftEnd(x, y) {
         this.points[2] = { x, y };
@@ -279,8 +279,8 @@ export class Curve {
 
     /**
      * 自身の全頂点（始点・制御点・終点）を相対差分(dx, dy)だけ平行移動する。
-     * @param {number} dx - X方向の移動差分（論理座標系）
-     * @param {number} dy - Y方向の移動差分（論理座標系）
+     * @param {number} dx - X方向の移動差分（ワールド座標）
+     * @param {number} dy - Y方向の移動差分（ワールド座標）
      */
     translate(dx, dy) {
         this.points.forEach((point) => {
@@ -311,7 +311,7 @@ export class Curve {
      * 座標はワールド座標。`points`は各頂点を新規オブジェクトとして複製するため、戻り値と自身は内部配列・頂点を共有しない。
      * `id`が`null`（作成中の図形など）の場合もそのまま出力する。
      * `JSON.stringify(curve)`でも本メソッドの戻り値が出力される。
-     * @returns {{type: string, id: (string|number|null), points: {x: number, y: number}[], strokeColor: string, strokeWidth: number}} 新しい図形データ
+     * @returns {{type: string, id: *, points: {x: number, y: number}[], strokeColor: string, strokeWidth: number}} 新しい図形データ
      */
     toJSON() {
         return {

@@ -26,7 +26,7 @@ export class Rect {
     constructor(x1, y1, x2, y2, strokeColor = '#000000', strokeWidth = 2) {
         /** @type {string} 図形種別（`ShapeFactory`が受理する文字列と一致） */
         this.type = 'rect';
-        /** @type {string|number|null} 図形の一意なID。採番ロジックは持たず、外部（VectorModel）から設定される。 */
+        /** @type {*} 図形の一意なID。作成中は`null`。`VectorModel`の採番・正規化の後は文字列。`fromJSON`直後は`data.id`のまま（欠落なら`undefined`、任意の型を取り得る）。 */
         this.id = null;
         /** @type {{x: number, y: number}[]} 頂点配列（長さ4固定）。points[0]=topLeft, points[1]=topRight, points[2]=bottomRight, points[3]=bottomLeft */
         this.points = [
@@ -42,7 +42,7 @@ export class Rect {
     /**
      * Canvasに矩形を描画する。points[0]→[1]→[2]→[3]の順に結び閉じたパスをstrokeする。
      * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
-     * @param {number} [t=0] - Curve.drawとのシグネチャ統一のためだけに存在する予約引数（本Phaseでは未使用）
+     * @param {number} [t=0] - 将来のモーフィング機能用の予約引数（本Phaseでは未使用）
      */
     draw(ctx, t = 0) {
         ctx.beginPath();
@@ -81,7 +81,7 @@ export class Rect {
 
     /**
      * 点(px, py)と線分(ax, ay)-(bx, by)との最短距離を求める内部ヘルパー。
-     * hitTest内で4辺分ループして呼び出す実装詳細であり、9メソッド契約には含まれない。
+     * hitTest内で4辺分ループして呼び出す実装詳細であり、12メソッド契約には含まれない。
      * @param {number} px - 判定対象点のX座標
      * @param {number} py - 判定対象点のY座標
      * @param {number} ax - 線分始点のX座標
@@ -112,9 +112,9 @@ export class Rect {
      * 点(x, y)が矩形本体の許容誤差(tolerance)以内にあるかを判定する当たり判定。
      * 4辺（[0,1],[1,2],[2,3],[3,0]）それぞれについて点-線分距離を求め、
      * いずれか1辺でもtolerance以内であればtrueを返す。
-     * @param {number} x - 判定対象点のX座標（論理座標系）
-     * @param {number} y - 判定対象点のY座標（論理座標系）
-     * @param {number} tolerance - 許容誤差（論理座標系のピクセル単位）
+     * @param {number} x - 判定対象点のX座標（ワールド座標）
+     * @param {number} y - 判定対象点のY座標（ワールド座標）
+     * @param {number} tolerance - 許容誤差（ワールド座標の長さ。呼び出し側が画面上の許容誤差をワールド換算して渡す）
      * @returns {boolean} 矩形との距離がtolerance以内であればtrue
      */
     hitTest(x, y, tolerance) {
@@ -191,9 +191,9 @@ export class Rect {
     /**
      * 点(x, y)が4隅のハンドルいずれかの許容誤差(tolerance)以内にあるかを判定する。
      * 複数のハンドルが同時にtolerance以内となる場合は、topLeft → topRight → bottomRight → bottomLeftの優先順位で先着1件を返す。
-     * @param {number} x - 判定対象点のX座標（論理座標系）
-     * @param {number} y - 判定対象点のY座標（論理座標系）
-     * @param {number} tolerance - 許容誤差（論理座標系のピクセル単位）
+     * @param {number} x - 判定対象点のX座標（ワールド座標）
+     * @param {number} y - 判定対象点のY座標（ワールド座標）
+     * @param {number} tolerance - 許容誤差（ワールド座標の長さ。呼び出し側が画面上の許容誤差をワールド換算して渡す）
      * @returns {'topLeft'|'topRight'|'bottomRight'|'bottomLeft'|null} 該当したハンドルの種別。いずれにも該当しなければnull
      */
     hitTestHandle(x, y, tolerance) {
@@ -213,8 +213,8 @@ export class Rect {
      * vertexIndexが0〜3の整数であれば対応するpoints要素を直接上書きする（矩形維持のための連動再計算は行わない）。
      * 0〜3の整数以外（null・文字列・小数・範囲外）は何もしない。
      * @param {number} vertexIndex - 更新する頂点のインデックス（0: topLeft, 1: topRight, 2: bottomRight, 3: bottomLeft）
-     * @param {number} x - 更新後のX座標（論理座標系）
-     * @param {number} y - 更新後のY座標（論理座標系）
+     * @param {number} x - 更新後のX座標（ワールド座標）
+     * @param {number} y - 更新後のY座標（ワールド座標）
      */
     setVertex(vertexIndex, x, y) {
         if (Number.isInteger(vertexIndex) && vertexIndex >= 0 && vertexIndex <= 3) {
@@ -225,8 +225,8 @@ export class Rect {
     /**
      * 作図中にカーソル位置へ追従させる。points[0]（1回目クリック地点）は固定したまま、
      * points[2]をカーソル座標へ、points[1]/[3]を対角線上の交点として動的に再計算する。
-     * @param {number} x - 追従先のX座標（論理座標系）
-     * @param {number} y - 追従先のY座標（論理座標系）
+     * @param {number} x - 追従先のX座標（ワールド座標）
+     * @param {number} y - 追従先のY座標（ワールド座標）
      */
     updateDraftEnd(x, y) {
         this.points[2] = { x, y };
@@ -245,8 +245,8 @@ export class Rect {
 
     /**
      * 自身の全頂点(points)を相対差分(dx, dy)だけ平行移動する。
-     * @param {number} dx - X方向の移動差分（論理座標系）
-     * @param {number} dy - Y方向の移動差分（論理座標系）
+     * @param {number} dx - X方向の移動差分（ワールド座標）
+     * @param {number} dy - Y方向の移動差分（ワールド座標）
      */
     translate(dx, dy) {
         this.points.forEach((point) => {
@@ -281,7 +281,7 @@ export class Rect {
      * 座標はワールド座標。`points`は各頂点を新規オブジェクトとして複製するため、戻り値と自身は内部配列・頂点を共有しない。
      * `id`が`null`（作成中の図形など）の場合もそのまま出力する。
      * `JSON.stringify(rect)`でも本メソッドの戻り値が出力される。
-     * @returns {{type: string, id: (string|number|null), points: {x: number, y: number}[], strokeColor: string, strokeWidth: number}} 新しい図形データ
+     * @returns {{type: string, id: *, points: {x: number, y: number}[], strokeColor: string, strokeWidth: number}} 新しい図形データ
      */
     toJSON() {
         return {

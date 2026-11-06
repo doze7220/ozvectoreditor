@@ -407,7 +407,7 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
         *   `./js/edit/CanvasFileOperations.js`・`./js/edit/ShapeInserter.js`・`./js/main.js` : 更新（コメントのみ）
     *   **作業内容** :
         *   要件8の「`edit/`・`main.js`」の表の全項目を修正する。実コードは変更しない。
-*   [ ] タスク11: JSDoc修正 `shapes/`（要件8）
+*   [x] タスク11: JSDoc修正 `shapes/`（要件8）
     *   **対象ファイル** :
         *   `./js/shapes/Line.js`・`./js/shapes/Curve.js`・`./js/shapes/Rect.js`・`./js/shapes/Ellipse.js` : 更新（コメントのみ）
     *   **作業内容** :
@@ -473,7 +473,12 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
 
 ### タスク11: JSDoc修正 `shapes/`（要件8）
 *   **作業内容** :
-    *   (タスク実行時に記入)
+    *   要件8の「`shapes/`」の表の全項目をコメントのみで修正（実コード未変更、4ファイルとも`node --check`成功）。
+    *   `Line.js`・`Curve.js`・`Rect.js`：`（論理座標系）`→`（ワールド座標）`、`tolerance`の説明を「許容誤差（ワールド座標の長さ。呼び出し側が画面上の許容誤差をワールド換算して渡す）」へ。`js/`で`論理座標系`のGrepは0件。
+    *   4図形共通：`id`の型を`{*}`（`@returns`内は`id: *`）に、説明を指定どおりへ。
+    *   `Rect.js`：`#distanceToSegment`の「12メソッド契約」、`draw`の`t`の文言。
+    *   `Ellipse.js`：`ELLIPSE_INTERSECT_SEGMENTS`の用途、`fromJSON`（`right`/`up`/`left`/`down`で再計算・`move`は平行移動のみ）、`ELLIPSE_TYPES`（種別を増やす場合に揃える箇所）。
+    *   監査指摘対応：`Ellipse.js`の`ELLIPSE_INTERSECT_SEGMENTS`のJSDocで、修正前の1文目（`intersectsRect`のみ）を削除し、`intersectsRect`と`hitTest`（縮退時）の1文に統合。コードは未変更、`node --check js/shapes/Ellipse.js`成功。
 
 ## 5. 懸念事項・要確認ポイント
 計画時点のもの（実装時に判明したものはここへ追記する）。

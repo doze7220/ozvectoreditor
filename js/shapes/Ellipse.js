@@ -4,8 +4,7 @@
  */
 
 /**
- * 範囲選択の交差判定（intersectsRect）で用いる輪郭サンプリングの分割数。
- * hitTestの100分割と同程度の計算量。
+ * 範囲選択の交差判定（`intersectsRect`）と、縮退時の当たり判定（`hitTest`）で用いる輪郭サンプリングの分割数。
  * @type {number}
  */
 const ELLIPSE_INTERSECT_SEGMENTS = 100;
@@ -18,6 +17,8 @@ const ELLIPSE_POINT_COUNT = 5;
 
 /**
  * 本クラスが扱う図形種別（`fromJSON`の`type`検証に用いる）。
+ * 種別を増やす場合に揃える箇所：本一覧・種別で分岐する全箇所（コンストラクタ、`draw`、`drawHover`、`#updatePointsFromRadii`、
+ * `hitTest`。`!== 'circle'`の分岐は弧として扱われる）・`ShapeFactory`の対応表・`index.html`のボタン。
  * @type {ReadonlyArray<string>}
  */
 const ELLIPSE_TYPES = Object.freeze(['circle', 'arc']);
@@ -39,7 +40,7 @@ export class Ellipse {
      * @param {number} [strokeWidth=2] - 線の太さ
      */
     constructor(x1, y1, x2, y2, shapeType = 'circle', strokeColor = '#000000', strokeWidth = 2) {
-        /** @type {string|number|null} 図形の一意なID。外部（VectorModel）から設定される。 */
+        /** @type {*} 図形の一意なID。作成中は`null`。`VectorModel`の採番・正規化の後は文字列。`fromJSON`直後は`data.id`のまま（欠落なら`undefined`、任意の型を取り得る）。 */
         this.id = null;
         
         /** @type {string} 図形種別（`ShapeFactory`が受理する文字列と一致）。'circle'|'arc'で振る舞いも分岐する。 */
@@ -464,7 +465,7 @@ export class Ellipse {
      * 弧の角度編集を実装する際に保存対象へ加え、作業データ形式の版番号を上げること）。
      * `id`が`null`（作成中の図形など）の場合もそのまま出力する。
      * `JSON.stringify(ellipse)`でも本メソッドの戻り値が出力される。
-     * @returns {{type: string, id: (string|number|null), points: {x: number, y: number}[], strokeColor: string, strokeWidth: number}} 新しい図形データ
+     * @returns {{type: string, id: *, points: {x: number, y: number}[], strokeColor: string, strokeWidth: number}} 新しい図形データ
      */
     toJSON() {
         return {
@@ -482,7 +483,7 @@ export class Ellipse {
      * 5頂点を`data`の座標値から新規オブジェクトとして設定し直す。
      * `points[3]`/`[4]`（開始角・終了角制御点）も再計算せず`data`の値をそのまま採用する
      * （往復で`toJSON()`の内容を一致させるため。描画・当たり判定は`points[0..2]`と角度のみに依存し、
-     * 不整合な値でも次のハンドル操作で正準位置へ再計算される）。
+     * 不整合な値でも`right`/`up`/`left`/`down`のハンドル操作で正準位置へ再計算され、`move`では平行移動されるだけ）。
      * 座標・色・太さ・種別を`data`の値どおりに復元し、角度は`type`から同一値に決まるため、`toJSON()`の出力から
      * 復元した図形は描画・当たり判定・頂点操作・`toJSON()`の結果が元の図形と一致する（往復の一致）。
      * `id`は検証せず`data.id`をそのまま保持する（欠落なら`undefined`）。idの正規化・振り直しは
