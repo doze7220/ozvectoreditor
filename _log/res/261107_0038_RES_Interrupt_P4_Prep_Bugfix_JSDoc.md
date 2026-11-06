@@ -342,7 +342,7 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
 *   **`_doc/arch/11_WindowManager.md`**：「制約」を`blur`・`buttons`で解除する旨へ。
 *   **`_doc/arch/12_shapes.md`**：`Rect`の`setVertex`の範囲外（E-5）。`Ellipse`の`[3]`/`[4]`の位置、「弧は画面の上半分」（`down`ハンドルが線上にない）、`hitTest`の縮退時（折れ線への距離。E-8の記述を削除）、`intersectsRect`の説明に`hitTest`の縮退時の分割の共用。
 *   **`_doc/arch/13_palette.md`**：`CanvasPalette`の公開メソッドに`confirmOpenUnsaved`。確認の小窓の文言の置き場。
-*   **`_doc/arch/14_edit.md`**：`CanvasLibrary`の公開メソッドに`hasUnsavedChanges`、注入に`confirmOpenUnsaved`。「書き込み中の保存は宛先のキャンバスを区別しない…」の注意は確定手順により通常の切り替えでは起きなくなるため見直す。`ShapeInserter`の二重定義の「コードに注記は無い」を削除する。
+*   **`_doc/arch/14_edit.md`**：`CanvasLibrary`の公開メソッドに`hasUnsavedChanges`（`flushPendingSave()`の判定は保留（`#pendingSaveCanvasId`）基準へ変更）、注入に`confirmOpenUnsaved`。「書き込み中の保存は宛先のキャンバスを区別しない…」の注意は確定手順により通常の切り替えでは起きなくなるため見直す。`ShapeInserter`の二重定義の「コードに注記は無い」を削除する。
 
 ## 3. タスクリスト
 **全タスク共通の作業**：(1)「2. アーキテクチャ設計」の該当要件と「参照する責務」に従う (2)`node --check`で変更した各ファイルの構文を確かめる（ブラウザでの確認は現場設計AIが行う）(3)コード修正完了後、追加・変更した要素のJSDocに記載漏れがないことを確認する (4)本RESの該当タスクを`[x]`にし、「4. 詳細作業内容」へ記載する (5)開発資料への影響は資料本体を修正せず「開発資料の更新予定」欄へ追記する。
@@ -368,11 +368,12 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
         *   `./js/core/WindowManager.js` : 更新
     *   **作業内容** :
         *   `#endDrag`の新設、`blur`の購読、`mousemove`の`buttons === 0`の検知。`#handleWindowMouseMove`・`#handleWindowMouseUp`・新設メソッドのJSDocを書く。責務JSDocの用語はタスク9で直す。
-*   [ ] タスク4: E-6 例外時の停止（要件5）
+*   [x] タスク4: E-6 例外時の停止（要件5）
     *   **対象ファイル** :
         *   `./js/edit/CanvasLibrary.js` : 更新
     *   **作業内容** :
         *   `#notifyChange`のリスナーごとの捕捉、`#saveOpenCanvasNow`の記録の組み立てを`try`へ、`#enterCanvas`の手順4の`prepareSwitch()`の捕捉。各メソッドのJSDocを修正後の動作に合わせる。
+        *   （タスク1の監査の指摘への追加）`#enterCanvas`：`isRecordWritten`が偽のとき、手順6の最後（`loadIssue`の設定より後）で`#setIssue('writeFailed')`を設定する。`#createAndEnter`が設定した`'writeFailed'`は確定手順での切り替え前のキャンバスの保存成功で解除されるため、未保存のキャンバスで`⚠`と文言が消える経路を塞ぐ。
 *   [ ] タスク5: E-5 `Rect.setVertex`の範囲外（要件6）
     *   **対象ファイル** :
         *   `./js/shapes/Rect.js` : 更新
@@ -432,7 +433,9 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
 
 ### タスク4: E-6 例外時の停止（要件5）
 *   **作業内容** :
-    *   (タスク実行時に記入)
+    *   `CanvasLibrary.js`：`#notifyChange`をリスナーごとの`try/catch`（`console.warn`して続行）へ。`#saveOpenCanvasNow`の`record`の組み立て（`getShapes`・`serialize`）を`putRecord`と同じ`try`へ入れ（`updatedAt`は`try`の前のまま）、例外は`writing = Promise.reject(error)`。`#enterCanvas`の手順4の`prepareSwitch()`を`try/catch`で捕捉し`console.warn`して続行（`#settleAndEnter`内のものは変更なし）。
+    *   追加：`#enterCanvas`の手順6の最後（`loadIssue`設定の後・`#notifyChange`の前）に、`!isRecordWritten`なら`#setIssue('writeFailed')`。
+    *   JSDoc：`#notifyChange`・`#saveOpenCanvasNow`・`#enterCanvas`を更新。`node --check`成功。ブラウザ確認は未実施（現場設計AI）。
 
 ### タスク5: E-5 `Rect.setVertex`の範囲外（要件6）
 *   **作業内容** :
@@ -475,8 +478,4 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
 *   **範囲外の残存**：E-6の対象は手順4の`prepareSwitch()`のみ。削除後の`#openFirstLoadable`の`deserialize`など`#enterCanvas`に入る前の例外では`#isSwitching`が真のまま残り、`replaceAllShapes`の例外では`#isSwitching`は`finally`で偽へ戻るが手順6へ進まず開いているキャンバスが一覧に無いまま残る。どちらも通常は例外を投げない。
 *   **保存済みの弧の`points[3]`/`[4]`**：描画に使わないため古い位置のまま残り、ハンドル操作（`move`を除く）で正準位置へ変わる。`toJSON`の往復は一致する。
 *   **[タスク1実装時]** クラスJSDocの「■ 切り替え処理」「■ 自動保存」「■ 新規キャンバス…」「■ 開く（ファイル）」等は、保留・未保存・確認の小窓・`#settleAndEnter`の新設と食い違う記述が残っている（タスク8で修正）。`#prepareLeave`（手順1〜2）は変更せず残し、`#settleAndEnter`の確定手順は読み込み後の再確定として追加した。`#askOpenUnsaved`は`confirmOpenUnsaved() === true`のときのみ「はい」とする。目視確認推奨：put失敗下での新規作成（いいえ／はい）・開く（ファイル）・再読み込み時の`beforeunload`。
-
-## 開発資料の更新予定
-*   [タスク3] `WindowManager`はwindowの`blur`と`mousemove`の`buttons === 0`でもドラッグを解除する（`_doc/arch/11_WindowManager.md`の「制約」。既に予定欄に記載済みの内容どおり）。
-*   [タスク2] `CanvasManager.resize()`はstyleのpx固定をしなくなった（`_doc/arch/04_CanvasManager.md`の「既知の不具合」削除・表示サイズはCSS任せへ。既に予定欄に記載済みの内容どおり）。
-*   [タスク1] `CanvasLibrary`のコンストラクタ注入に`confirmOpenUnsaved`が増え、公開メソッド`hasUnsavedChanges()`が追加、`flushPendingSave()`の判定が保留（`#pendingSaveCanvasId`）基準に変更、`CanvasPalette`に公開メソッド`confirmOpenUnsaved()`が追加、`main.js`に`beforeunload`の配線が追加された。
+*   **[タスク4実装時]** `#enterCanvas`の`!isRecordWritten`での`'writeFailed'`の再設定は、`#setIssue`が`'unavailable'`を上書きしないため`'unavailable'`中は影響しない。`#enterCanvas`の手順4の`prepareSwitch()`の捕捉は、`#settleAndEnter`内（例外は中止）と挙動が異なる点に注意。目視確認推奨：put失敗下での新規作成「はい」の後、切り替え前のキャンバスに保留があった場合でも`⚠`と文言が残ること。

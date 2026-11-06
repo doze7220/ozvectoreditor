@@ -696,6 +696,7 @@ export class CanvasLibrary {
      * 保留（`#pendingSaveCanvasId`）はこの開始時に解除する。完了時は`#isCurrentWrite`が真の場合のみ状態へ反映する：
      * 書き込み成功で未保存を偽にし`'writeFailed'`を解除して通知、失敗で`console.warn`＋保留を設定し直す（タイマーは張らない。
      * 再試行の契機は次の編集・切り替え・ページ非表示時）＋未保存を真＋`'writeFailed'`＋通知（`console.warn`は常に出す）。rejectしない。
+     * 記録の組み立て（`getShapes`・`serialize`）で例外が起きた場合も`putRecord`の失敗と同じ扱いにする（同期で例外を投げない）。
      * 書き込みを開始したときに、その完了を表す`Promise`を`#inFlightSave`へ設定し、完了時（成功・失敗とも）に`#inFlightSave`が
      * それ自身である場合のみ`null`へ戻す（`flushPendingSave()`が書き込み中の保存の完了を待てるようにするため）。
      * 書くべきものが無く破棄した場合は`#inFlightSave`に触れない。
@@ -717,14 +718,14 @@ export class CanvasLibrary {
         }
 
         const updatedAt = Date.now();
-        const record = {
-            id: canvasId,
-            name: summary.name,
-            updatedAt,
-            document: DocumentSerializer.serialize(this.#model.getShapes())
-        };
         let writing;
         try {
+            const record = {
+                id: canvasId,
+                name: summary.name,
+                updatedAt,
+                document: DocumentSerializer.serialize(this.#model.getShapes())
+            };
             writing = this.#storage.putRecord(record);
         } catch (error) {
             writing = Promise.reject(error);
@@ -892,13 +893,15 @@ export class CanvasLibrary {
 
     /**
      * 切り替え処理の手順4〜6（`await`を挟まない同期区間）。
-     * 手順4：もう一度`prepareSwitch()`を呼び、`#isSwitching = true`として図形一式を入れ替える（切り替え前の保存の確定は
+     * 手順4：もう一度`prepareSwitch()`を呼び（例外は`console.warn`して続行する。削除の後は戻る先が無いため）、
+     * `#isSwitching = true`として図形一式を入れ替える（切り替え前の保存の確定は
      * 呼び出し側の`#settleAndEnter`が済ませている。起動時の復元・削除後の切り替えは確定すべき保留が無い）。
      * 手順5：履歴のリセット → ビュー変換の初期化 → `#isSwitching = false`。
      * 手順6：開いているキャンバスを更新し、残っていた自動保存のタイマーを解除し、保留・未保存を更新する
      * （記録を書けずに開いた場合は保留（タイマー無し）・未保存とし、それ以外は保留なし・未保存でない）。
      * 最後に開いていたキャンバスの識別子を書き込み（`'unavailable'`では書かない。完了は待たない）、
-     * `'loadFailed'`/`'partialLoad'`を解除したうえで`loadIssue`があれば設定し、変更通知する。
+     * `'loadFailed'`/`'partialLoad'`を解除したうえで`loadIssue`があれば設定し、記録を書けずに開いた場合は最後に`'writeFailed'`を設定し直し
+     * （確定手順での保存成功による解除を打ち消す）、変更通知する。
      * @param {CanvasSummary} summary 開くキャンバスの要約（キャンバス一覧に登録済みであること）
      * @param {Array<Object>} shapes 開くキャンバスの図形インスタンス（`deserialize`の結果。新規作成なら空配列、開く（ファイル）ならファイルから読めた図形）
      * @param {CanvasIssue} [loadIssue=null] 開いた後に残す読み込みの問題（`'loadFailed'`/`'partialLoad'`。無ければ`null`）
@@ -907,7 +910,11 @@ export class CanvasLibrary {
      */
     #enterCanvas(summary, shapes, loadIssue = null, isRecordWritten = true) {
         // 手順4
-        this.#prepareSwitch();
+        try {
+            this.#prepareSwitch();
+        } catch (error) {
+            console.warn('CanvasLibrary: 切り替え時の入力操作の中断で例外が発生しました。', error);
+        }
         this.#isSwitching = true;
         try {
             this.#model.replaceAllShapes(shapes);
@@ -944,6 +951,10 @@ export class CanvasLibrary {
         }
         if (loadIssue !== null) {
             this.#setIssue(loadIssue);
+        }
+        if (!isRecordWritten) {
+            // 確定手順で切り替え前のキャンバスの保存が成功すると'writeFailed'が解除されるため、未保存で開いたここで設定し直す
+            this.#setIssue('writeFailed');
         }
         this.#notifyChange();
     }
@@ -1109,12 +1120,16 @@ export class CanvasLibrary {
     }
 
     /**
-     * 登録されたすべてのリスナーに変更を通知する。
+     * 登録されたすべてのリスナーに変更を通知する。リスナーごとに例外を捕捉して`console.warn`し、残りのリスナーへの通知を続ける。
      * @returns {void}
      */
     #notifyChange() {
         for (const listener of this.#listeners) {
-            listener();
+            try {
+                listener();
+            } catch (error) {
+                console.warn('CanvasLibrary: 変更通知のリスナーで例外が発生しました。', error);
+            }
         }
     }
 
