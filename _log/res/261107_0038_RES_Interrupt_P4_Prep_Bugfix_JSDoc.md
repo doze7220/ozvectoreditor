@@ -358,7 +358,7 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
         *   `main.js`：注入と`beforeunload`の配線、コメント。
         *   本タスクで追加・本体を変更したメソッド・フィールドのJSDocをここで修正後の動作に合わせる（`#pendingSaveTimer`・`#pendingSaveCanvasId`・`#inFlightSave`、コンストラクタの`@param`/`@throws`、`openCanvas`、`createCanvasFromShapes`、`flushPendingSave`、`#scheduleSave`、`#saveOpenCanvasNow`、`#deleteOpenCanvas`、`#prepareLeave`、`#enterCanvas`、`#createAndEnter`、`#openFirstLoadable`の記述に矛盾があれば）。クラスJSDocはタスク8で直すので触らない。
         *   要件5（E-6）の変更（`#notifyChange`・`serialize`の`try`・手順4の`prepareSwitch()`の捕捉）は本タスクで行わない。
-*   [ ] タスク2: E-1 キャンバスがウィンドウに追従する（要件3）
+*   [x] タスク2: E-1 キャンバスがウィンドウに追従する（要件3）
     *   **対象ファイル** :
         *   `./js/core/CanvasManager.js` : 更新
     *   **作業内容** :
@@ -424,7 +424,7 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
 
 ### タスク2: E-1 キャンバスがウィンドウに追従する（要件3）
 *   **作業内容** :
-    *   (タスク実行時に記入)
+    *   `CanvasManager.js`の`resize()`から`style.width`/`style.height`のpx固定の2行と説明コメントを削除。`resize()`のJSDocに「表示サイズはCSSに任せて固定せず、呼ばれた時点の`clientWidth/Height`へ内部バッファを同期する」を追記。`node --check`成功。ブラウザ確認は未実施（現場設計AI）。
 
 ### タスク3: E-4 ウィンドウのドラッグの追従の残留（要件4）
 *   **作業内容** :
@@ -477,4 +477,5 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
 *   **[タスク1実装時]** クラスJSDocの「■ 切り替え処理」「■ 自動保存」「■ 新規キャンバス…」「■ 開く（ファイル）」等は、保留・未保存・確認の小窓・`#settleAndEnter`の新設と食い違う記述が残っている（タスク8で修正）。`#prepareLeave`（手順1〜2）は変更せず残し、`#settleAndEnter`の確定手順は読み込み後の再確定として追加した。`#askOpenUnsaved`は`confirmOpenUnsaved() === true`のときのみ「はい」とする。目視確認推奨：put失敗下での新規作成（いいえ／はい）・開く（ファイル）・再読み込み時の`beforeunload`。
 
 ## 開発資料の更新予定
+*   [タスク2] `CanvasManager.resize()`はstyleのpx固定をしなくなった（`_doc/arch/04_CanvasManager.md`の「既知の不具合」削除・表示サイズはCSS任せへ。既に予定欄に記載済みの内容どおり）。
 *   [タスク1] `CanvasLibrary`のコンストラクタ注入に`confirmOpenUnsaved`が増え、公開メソッド`hasUnsavedChanges()`が追加、`flushPendingSave()`の判定が保留（`#pendingSaveCanvasId`）基準に変更、`CanvasPalette`に公開メソッド`confirmOpenUnsaved()`が追加、`main.js`に`beforeunload`の配線が追加された。

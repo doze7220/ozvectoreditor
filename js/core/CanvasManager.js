@@ -116,6 +116,7 @@ export class CanvasManager {
     /**
      * 高DPIディスプレイ対応のため、dprの算出とキャンバスの内部バッファサイズの同期のみを行う。
      * 描画変換（dpr × ビュー変換）の適用は`render()`が毎フレーム行う。
+     * 表示サイズはCSSに任せて固定せず、呼ばれた時点の`clientWidth/Height`へ内部バッファを同期する。
      * コンストラクタからの初期化と、ウィンドウリサイズ時の再同期（呼び出し元は`main.js`）の
      * 両方から呼ばれる公開メソッドである。
      * shapes/Modelへの参照は持たず、render()の呼び出しも行わない（純粋なレンダラーの責務維持）。
@@ -129,10 +130,6 @@ export class CanvasManager {
         // 現在のレイアウト上の表示サイズ（スクリーン座標のCSSピクセル）を取得
         const cssWidth = this.canvas.clientWidth;
         const cssHeight = this.canvas.clientHeight;
-
-        // CSS上の表示サイズを明示的に固定（内部バッファ変更によるレイアウト崩れ防止）
-        this.canvas.style.width = `${cssWidth}px`;
-        this.canvas.style.height = `${cssHeight}px`;
 
         // 内部バッファのサイズをdpr倍にして鮮明化する
         this.canvas.width = cssWidth * dpr;
