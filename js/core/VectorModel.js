@@ -52,7 +52,7 @@ export class VectorModel {
      * （draw/setVertex等の共通インターフェースを持つ図形オブジェクト。ShapeFactory経由で生成される）
      * @private
      */
-    #draftLine;
+    #draftShape;
 
     /**
      * @type {{x1: number, y1: number, x2: number, y2: number}|null}
@@ -80,7 +80,7 @@ export class VectorModel {
         this.#listeners = [];
         this.#selectedIds = new Set();
         this.#hoveredId = null;
-        this.#draftLine = null;
+        this.#draftShape = null;
         this.#selectionRect = null;
         this.#nextId = 1;
     }
@@ -211,7 +211,7 @@ export class VectorModel {
      * @param {string} [type=SHAPE_TYPES[0]] 生成する図形の種別（SHAPE_TYPESのいずれか。ShapeFactory.createへ渡される）
      */
     startDraft(x, y, type = SHAPE_TYPES[0]) {
-        this.#draftLine = ShapeFactory.create(type, x, y, x, y);
+        this.#draftShape = ShapeFactory.create(type, x, y, x, y);
         this.#notifyChange();
     }
 
@@ -222,10 +222,10 @@ export class VectorModel {
      * @param {number} y 終点のY座標（ワールド座標）
      */
     updateDraft(x, y) {
-        if (!this.#draftLine) {
+        if (!this.#draftShape) {
             return;
         }
-        this.#draftLine.updateDraftEnd(x, y);
+        this.#draftShape.updateDraftEnd(x, y);
         this.#notifyChange();
     }
 
@@ -234,12 +234,12 @@ export class VectorModel {
      * 作成中の図形が存在しない場合は何もしない。
      */
     commitDraft() {
-        if (!this.#draftLine) {
+        if (!this.#draftShape) {
             return;
         }
-        this.#draftLine.id = this.#issueId();
-        this.#shapes.push(this.#draftLine);
-        this.#draftLine = null;
+        this.#draftShape.id = this.#issueId();
+        this.#shapes.push(this.#draftShape);
+        this.#draftShape = null;
         this.#notifyChange();
     }
 
@@ -247,10 +247,10 @@ export class VectorModel {
      * 作成中の図形を確定せずに破棄する（作成中断用）。作成中の図形が存在しない場合は何もしない。
      */
     cancelDraft() {
-        if (!this.#draftLine) {
+        if (!this.#draftShape) {
             return;
         }
-        this.#draftLine = null;
+        this.#draftShape = null;
         this.#notifyChange();
     }
 
@@ -258,8 +258,8 @@ export class VectorModel {
      * 作成中（未コミット）の図形オブジェクトを取得する。
      * @returns {Object|null} 作成中の図形オブジェクト（存在しない場合はnull）
      */
-    getDraftLine() {
-        return this.#draftLine;
+    getDraftShape() {
+        return this.#draftShape;
     }
 
     /**
@@ -379,7 +379,7 @@ export class VectorModel {
         this.#shapes = nextShapes;
         this.#selectedIds.clear();
         this.#hoveredId = null;
-        this.#draftLine = null;
+        this.#draftShape = null;
         this.#selectionRect = null;
 
         this.#notifyChange();

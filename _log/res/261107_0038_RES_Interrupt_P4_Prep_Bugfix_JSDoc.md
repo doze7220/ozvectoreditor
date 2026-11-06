@@ -384,7 +384,7 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
         *   `./js/shapes/Ellipse.js` : 更新
     *   **作業内容** :
         *   角度・`points[3]`/`[4]`（コンストラクタ・`#updatePointsFromRadii`）、`hitTest`の角度の判定、縮退時の判定と`#distanceToOutline`の新設。要件7の「JSDoc」に挙げた箇所を修正後の動作に合わせる。`intersectsRect`・`fromJSON`のコードは変更しない。
-*   [ ] タスク7: 改名 `draftLine` → `draftShape`（要件8）
+*   [x] タスク7: 改名 `draftLine` → `draftShape`（要件8）
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js` : 更新
         *   `./js/core/CanvasManager.js` : 更新
@@ -448,7 +448,7 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
 
 ### タスク7: 改名 `draftLine` → `draftShape`（要件8）
 *   **作業内容** :
-    *   (タスク実行時に記入)
+    *   `VectorModel.js`（`#draftShape`・`getDraftShape()`と呼び出し）、`CanvasManager.js`（`render()`の分割代入・本文・JSDocの`state.draftShape`）、`main.js`（`renderCurrentState`の`draftShape: model.getDraftShape()`・JSDoc・`syncHistoryButtonState`）の`draftLine`/`DraftLine`を一括で`draftShape`/`DraftShape`へ改名。改名以外は未変更。`js/`と`index.html`で大文字小文字無視のGrepが0件。3ファイルとも`node --check`成功。ブラウザ確認は未実施（現場設計AI）。
 
 ### タスク8: JSDoc修正 `CanvasLibrary`（要件8）
 *   **作業内容** :

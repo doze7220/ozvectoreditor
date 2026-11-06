@@ -140,7 +140,7 @@ export class CanvasManager {
 
     /**
      * 画面をクリアし、背景グリッド・原点表示と指定された図形リストを全て描画する。
-     * 状態の判定は一切行わず、渡された引数（hoveredId / selectedIds / draftLine / selectionRect / view）を
+     * 状態の判定は一切行わず、渡された引数（hoveredId / selectedIds / draftShape / selectionRect / view）を
      * そのまま描画に反映するだけの純粋なレンダラーとして振る舞う。
      * 描画変換は毎フレーム`setTransform`で「dpr × ビュー変換」を明示設定する（累積させない）。
      * 図形・選択矩形はワールド座標で描画される。
@@ -153,14 +153,14 @@ export class CanvasManager {
      * @param {string|null} [state.hoveredId] - ホバー中の図形id（単一）。一致する図形の drawHover(ctx, viewScale) を追加で呼び出す
      * @param {Array<string>} [state.selectedIds] - 選択集合（選択中の図形idの配列。0個以上）。
      *     含まれる図形の drawHandles(ctx, viewScale) を全図形の描画後に呼び出す。省略時は空配列
-     * @param {Object|null} [state.draftLine] - 作成中の未確定図形。draw(ctx) メソッドを持つ場合、全図形・ハンドルの後に重ねて描画する
+     * @param {Object|null} [state.draftShape] - 作成中の未確定図形。draw(ctx) メソッドを持つ場合、全図形・ハンドルの後に重ねて描画する
      * @param {{x1: number, y1: number, x2: number, y2: number}|null} [state.selectionRect] - 範囲選択中の選択矩形。
      *     ワールド座標の対角2点（正規化不要。幅・高さが負でもよい）。非nullの場合、最前面に描画する
      * @param {{scale: number, offsetX: number, offsetY: number}} [state.view] - ビュー変換値
      *     （`スクリーン = ワールド × scale ＋ offset`。offsetX/offsetYはスクリーン座標のCSSピクセル）。
      *     省略時は倍率1.0・オフセット(0,0)
      */
-    render(shapes, { hoveredId = null, selectedIds = [], draftLine = null, selectionRect = null, view = DEFAULT_VIEW } = {}) {
+    render(shapes, { hoveredId = null, selectedIds = [], draftShape = null, selectionRect = null, view = DEFAULT_VIEW } = {}) {
         const dpr = this.#pixelRatio;
 
         // 1. 変換の影響を受けずに内部バッファ全体をクリアする
@@ -200,8 +200,8 @@ export class CanvasManager {
         }
 
         // 6. 作成中のドラフト図形があれば、図形・ハンドルの上に重ねて描画する
-        if (draftLine) {
-            draftLine.draw(this.ctx);
+        if (draftShape) {
+            draftShape.draw(this.ctx);
         }
 
         // 7. 範囲選択中の選択矩形があれば、最前面に描画する

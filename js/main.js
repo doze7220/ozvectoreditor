@@ -105,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputTracker = new InputTracker(canvas, model, viewTransform, historyManager);
 
     /**
-     * Modelの現在の状態（shapes/selectedIds/hoveredId/draftLine/selectionRect）とビュー変換の現在の状態
+     * Modelの現在の状態（shapes/selectedIds/hoveredId/draftShape/selectionRect）とビュー変換の現在の状態
      * （`viewTransform.getState()`による倍率・オフセットのスナップショット）をCanvasManagerへ渡し、
      * 再描画を要求するローカル関数。model.onChange・viewTransform.onChangeのコールバックと
      * resizeハンドラの3経路から同一の引数構成で呼び出すことで、再描画トリガーの重複定義を避ける。
@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
         canvasManager.render(model.getShapes(), {
             selectedIds: model.getSelectedIds(),
             hoveredId: model.getHoveredId(),
-            draftLine: model.getDraftLine(),
+            draftShape: model.getDraftShape(),
             selectionRect: model.getSelectionRect(),
             view: viewTransform.getState()
         });
@@ -207,7 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * HistoryManager・VectorModel・InputTrackerはDOMに触れない。
      */
     function syncHistoryButtonState() {
-        historyUndoBtn.disabled = !(historyManager.canUndo() || model.getDraftLine() !== null);
+        historyUndoBtn.disabled = !(historyManager.canUndo() || model.getDraftShape() !== null);
         historyRedoBtn.disabled = !historyManager.canRedo();
     }
 
