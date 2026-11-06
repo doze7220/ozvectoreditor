@@ -222,6 +222,12 @@ export class CanvasLibrary {
     #resetView;
 
     /**
+     * 新しいキャンバスの記録を書けなかったとき、保存しないまま開くかを利用者に確認する注入関数（実体はmain.jsの`canvasPalette.confirmOpenUnsaved()`）。
+     * @type {() => boolean}
+     */
+    #confirmOpenUnsaved;
+
+    /**
      * キャンバス一覧（メモリ上の要約。作業データは保持しない）。キーはキャンバスの識別子。
      * @type {Map<string, CanvasSummary>}
      */
@@ -264,21 +270,32 @@ export class CanvasLibrary {
     #issue = null;
 
     /**
-     * 保留中の自動保存のタイマーid（保留が無ければ`null`）。
+     * 保留中の自動保存のタイマーid（タイマー待ちでなければ`null`。保留があってもタイマーが無い場合がある：失敗後の再試行待ち・
+     * 記録を書けずに開いたキャンバス）。
      * @type {ReturnType<typeof setTimeout>|null}
      */
     #pendingSaveTimer = null;
 
     /**
-     * 保留中の自動保存を予約した時点の、開いているキャンバスの識別子（保留が無ければ`null`）。
+     * 保留中（まだ確定していない保存がある）の自動保存の対象キャンバスの識別子（保留が無ければ`null`）。
+     * `#scheduleSave`が設定し、`#saveOpenCanvasNow`の開始で解除する（最新の書き込みが失敗すれば設定し直す）。
+     * `#enterCanvas`の手順6で更新し（記録を書けずに開いたときのみ非`null`）、開いているキャンバスの削除の開始で破棄する。
      * @type {string|null}
      */
     #pendingSaveCanvasId = null;
 
     /**
+     * ページを離れると失われる変更があるか（`hasUnsavedChanges()`が返す）。
+     * 真：最新の書き込みの失敗・記録を書けずに開いた・`'unavailable'`で編集があった。
+     * 偽：有効な書き込みの成功・`#enterCanvas`の手順6（記録を書けずに開いた場合を除く）・開いているキャンバスの削除の開始。
+     * @type {boolean}
+     */
+    #hasUnsaved = false;
+
+    /**
      * 書き込み中（`putRecord`の完了待ち）の自動保存の`Promise`（書き込み中でなければ`null`）。
      * `#saveOpenCanvasNow()`が書き込みを開始したときに設定し、完了時（成功・失敗とも）に、それが自分自身である場合のみ`null`へ戻す
-     * （後から開始した保存で上書きされていれば戻さない）。`flushPendingSave()`が、保留中のタイマーが無いときにその完了を待つために使う。
+     * （後から開始した保存で上書きされていれば戻さない）。`flushPendingSave()`が、保留が無いときにその完了を待つために使う。
      * @type {Promise<boolean>|null}
      */
     #inFlightSave = null;
@@ -296,12 +313,15 @@ export class CanvasLibrary {
      * @param {import('../core/HistoryManager.js').HistoryManager} deps.historyManager - 編集操作の履歴（自動保存の契機・切り替え時のリセット）
      * @param {() => void} deps.prepareSwitch - 進行中の入力操作を中断して選択モードへ切り替える関数
      * @param {() => void} deps.resetView - ビュー変換を初期表示へ戻す関数
-     * @throws {Error} prepareSwitchまたはresetViewが関数でない場合
+     * @param {() => boolean} deps.confirmOpenUnsaved - 新しいキャンバスの記録を書けないとき、保存しないまま開くかを確認する関数（開くなら`true`）
+     * @throws {Error} prepareSwitch・resetView・confirmOpenUnsavedのいずれかが関数でない場合
      */
-    constructor({ storage, model, historyManager, prepareSwitch, resetView }) {
-        if (typeof prepareSwitch !== 'function' || typeof resetView !== 'function') {
-            throw new Error('CanvasLibrary: prepareSwitch と resetView には関数を指定してください。');
+    constructor({ storage, model, historyManager, prepareSwitch, resetView, confirmOpenUnsaved }) {
+        if (typeof prepareSwitch !== 'function' || typeof resetView !== 'function'
+            || typeof confirmOpenUnsaved !== 'function') {
+            throw new Error('CanvasLibrary: prepareSwitch・resetView・confirmOpenUnsaved には関数を指定してください。');
         }
+        this.#confirmOpenUnsaved = confirmOpenUnsaved;
         this.#storage = storage;
         this.#model = model;
         this.#historyManager = historyManager;
@@ -376,7 +396,7 @@ export class CanvasLibrary {
     /**
      * キャンバス一覧から指定したキャンバスを開く（切り替え処理の手順1〜6）。
      * 受理条件：読み込み中・処理中・`'unavailable'`でない、`id`が一覧にある、開いているキャンバス自身でない。
-     * 受理しなければ何もせず`false`。切り替え前のキャンバスの保存に失敗した（`'writeFailed'`）・記録が無い・
+     * 受理しなければ何もせず`false`。切り替え前のキャンバスの保存（手順2・読み込み後の確定手順`#settleAndEnter`）に失敗した（`'writeFailed'`）・記録が無い・
      * 全体として読み込めない（`'loadFailed'`）場合は中止し、開いているキャンバスのまま`false`。rejectしない。
      * @param {string} id 開くキャンバスの識別子
      * @returns {Promise<boolean>} 開いたか
@@ -417,8 +437,7 @@ export class CanvasLibrary {
             if (result.skipped.length > 0) {
                 console.warn('CanvasLibrary: 一部の図形を読み込めませんでした。', id, result.skipped);
             }
-            this.#enterCanvas(summary, result.shapes, result.skipped.length > 0 ? 'partialLoad' : null);
-            return true;
+            return await this.#settleAndEnter(summary, result.shapes, result.skipped.length > 0 ? 'partialLoad' : null);
         } catch (error) {
             console.warn('CanvasLibrary: キャンバスを開く処理で予期しないエラーが発生しました。', error);
             return false;
@@ -441,7 +460,9 @@ export class CanvasLibrary {
      * 指定の名前・図形で新しいキャンバスを作成して開く（切り替え処理の手順1〜6。クラスJSDocの「開く（ファイル）」参照）。
      * 受理条件：読み込み中・処理中・`'unavailable'`でない。受理しなければ何もせず`false`。
      * 手順2（切り替え前のキャンバスの保存）に失敗した場合は中止して`false`（`#summaries`へ登録する前なので一覧に載らない。`'writeFailed'`）。
-     * 新しい記録の書き込みに失敗しても中止せず`'writeFailed'`として開く（次の自動保存で記録が作られる）。
+     * 新しい記録の書き込みに失敗した場合は`confirmOpenUnsaved`で確認し、「いいえ」なら要約を一覧から除いて`false`（開いているキャンバスのまま）、
+     * 「はい」なら`'writeFailed'`・未保存として開く（保存できるまで別のキャンバスへは移れない）。
+     * 切り替え前の保存の確定（`#settleAndEnter`）に失敗した場合も中止して`false`。
      * 名前は`rawName`を正規化し、空なら「無題 n」（重複は許す）。記録の作業データは`shapes`を現行版で`serialize`したもの。
      * `'partialLoad'`は立てない（`loadIssue`は`null`）。rejectしない。
      * @param {*} rawName キャンバス名の候補（`null`・空なら「無題 n」）
@@ -458,8 +479,7 @@ export class CanvasLibrary {
             if (!(await this.#prepareLeave())) {
                 return false;
             }
-            await this.#createAndEnter(null, rawName, shapes);
-            return true;
+            return await this.#createAndEnter(null, rawName, shapes, true);
         } catch (error) {
             console.warn('CanvasLibrary: キャンバスの新規作成で予期しないエラーが発生しました。', error);
             return false;
@@ -550,23 +570,33 @@ export class CanvasLibrary {
     }
 
     /**
-     * 保留中の自動保存・書き込み中の自動保存を確定する（main.jsがページ非表示時に呼ぶ。切り替え処理の手順2でも使う）。
-     *   - 保留中のタイマーがあれば直ちに`#saveOpenCanvasNow()`で保存し、その結果を返す（作業データの取得と書き込みの呼び出しは
+     * 保留中の自動保存・書き込み中の自動保存を確定する（main.jsがページ非表示時に呼ぶ。切り替え処理の手順2・確定手順でも使う）。
+     *   - 保留（`#pendingSaveCanvasId`が非`null`。タイマー待ち、または失敗後の再試行待ち・記録を書けずに開いたキャンバス）があれば、
+     *     タイマーの有無によらず直ちに`#saveOpenCanvasNow()`で保存し、その結果を返す（作業データの取得と書き込みの呼び出しは
      *     本メソッド内で同期的に行われる。ページ非表示時の確定はこれに依存する）。
-     *   - タイマーが無く書き込み中の保存（`#inFlightSave`）があれば、その完了を待って成否を返す（タイマーが発火して書き込み中の
-     *     保存の失敗でも、切り替え処理の手順2が切り替えを中止できるようにするため）。
+     *   - 保留が無く書き込み中の保存（`#inFlightSave`）があれば、その完了を待って成否を返す（書き込み中の
+     *     保存の失敗でも、切り替え処理が切り替えを中止できるようにするため）。
      *   - どちらも無ければ`true`で解決する。
      * rejectしない。
      * @returns {Promise<boolean>} 保存が成功した（または保存すべきものが無かった）か
      */
     flushPendingSave() {
-        if (this.#pendingSaveTimer !== null) {
+        if (this.#pendingSaveCanvasId !== null) {
             return this.#saveOpenCanvasNow();
         }
         if (this.#inFlightSave !== null) {
             return this.#inFlightSave;
         }
         return Promise.resolve(true);
+    }
+
+    /**
+     * ページを離れると失われる変更があるか（保存に失敗した変更・記録を書けずに開いたキャンバス・`'unavailable'`での編集）。
+     * タイマー待ちの変更は`pagehide`の`flushPendingSave()`で書かれるため含めない。main.jsの`beforeunload`が使う。
+     * @returns {boolean}
+     */
+    hasUnsavedChanges() {
+        return this.#hasUnsaved;
     }
 
     /**
@@ -639,11 +669,15 @@ export class CanvasLibrary {
 
     /**
      * 自動保存を予約する（`historyManager.onChange`の通知ごとに呼ばれる）。保留中のタイマーを解除して張り直す。
-     * 予約しない条件：開いているキャンバスが無い／`'unavailable'`／`#isSwitching`が真。
+     * 予約しない条件：開いているキャンバスが無い／`#isSwitching`が真／`'unavailable'`（この場合は保存せず、未保存だけを真にする）。
      * @returns {void}
      */
     #scheduleSave() {
-        if (this.#openCanvasId === null || this.#issue === 'unavailable' || this.#isSwitching) {
+        if (this.#openCanvasId === null || this.#isSwitching) {
+            return;
+        }
+        if (this.#issue === 'unavailable') {
+            this.#hasUnsaved = true;
             return;
         }
         if (this.#pendingSaveTimer !== null) {
@@ -659,7 +693,9 @@ export class CanvasLibrary {
      * 保留中の自動保存を直ちに実行する。タイマーを解除し、予約時点のキャンバスidが開いているキャンバスと一致しなければ
      * 破棄して`true`（別のキャンバスの記録へ書かない防御）。一致すれば同期的に記録を組み立てて書き込みを呼び
      * （トランザクションはこの時点で生成される）、要約の最終更新日時を更新して通知する。
-     * 書き込み成功で`'writeFailed'`を解除して通知、失敗で`console.warn`＋`'writeFailed'`＋通知。rejectしない。
+     * 保留（`#pendingSaveCanvasId`）はこの開始時に解除する。完了時は`#isCurrentWrite`が真の場合のみ状態へ反映する：
+     * 書き込み成功で未保存を偽にし`'writeFailed'`を解除して通知、失敗で`console.warn`＋保留を設定し直す（タイマーは張らない。
+     * 再試行の契機は次の編集・切り替え・ページ非表示時）＋未保存を真＋`'writeFailed'`＋通知（`console.warn`は常に出す）。rejectしない。
      * 書き込みを開始したときに、その完了を表す`Promise`を`#inFlightSave`へ設定し、完了時（成功・失敗とも）に`#inFlightSave`が
      * それ自身である場合のみ`null`へ戻す（`flushPendingSave()`が書き込み中の保存の完了を待てるようにするため）。
      * 書くべきものが無く破棄した場合は`#inFlightSave`に触れない。
@@ -698,23 +734,44 @@ export class CanvasLibrary {
 
         const saving = writing.then(
             () => {
+                const isCurrent = this.#isCurrentWrite(saving, canvasId);
                 this.#finishInFlightSave(saving);
-                if (this.#issue === 'writeFailed') {
-                    this.#setIssue(null);
-                    this.#notifyChange();
+                if (isCurrent) {
+                    this.#hasUnsaved = false;
+                    if (this.#issue === 'writeFailed') {
+                        this.#setIssue(null);
+                        this.#notifyChange();
+                    }
                 }
                 return true;
             },
             (error) => {
+                const isCurrent = this.#isCurrentWrite(saving, canvasId);
                 this.#finishInFlightSave(saving);
                 console.warn('CanvasLibrary: キャンバスの自動保存に失敗しました。', canvasId, error);
-                this.#setIssue('writeFailed');
-                this.#notifyChange();
+                if (isCurrent) {
+                    this.#pendingSaveCanvasId = canvasId;
+                    this.#hasUnsaved = true;
+                    this.#setIssue('writeFailed');
+                    this.#notifyChange();
+                }
                 return false;
             }
         );
         this.#inFlightSave = saving;
         return saving;
+    }
+
+    /**
+     * 書き込みの完了結果を開いているキャンバスの状態へ反映してよいか（最新の書き込みで、開いているキャンバス宛てで、切り替え中でない）。
+     * 古い書き込みの結果で新しい結果を打ち消さない・削除の`await`中に保留を記録して削除した記録を復活させない・
+     * 別のキャンバス宛ての結果で状態を変えないための判定。`#finishInFlightSave`より前に評価すること（後だと常に偽になる）。
+     * @param {Promise<boolean>} saving 完了した書き込みの`Promise`
+     * @param {string} canvasId 書き込み先のキャンバスの識別子
+     * @returns {boolean} 反映してよいか
+     */
+    #isCurrentWrite(saving, canvasId) {
+        return this.#inFlightSave === saving && canvasId === this.#openCanvasId && !this.#isSwitching;
     }
 
     /**
@@ -751,9 +808,9 @@ export class CanvasLibrary {
 
     /**
      * 開いているキャンバスを削除し、残りのキャンバスへ切り替える（`deleteCanvas`の一部。`#isBusy`の設定・解除と最後の通知は呼び出し側）。
-     * 手順：(1)`prepareSwitch()` (2)保留中の保存を破棄（確定しない）(3)`#isSwitching = true`（削除後の切り替え処理の手順5の終わり
+     * 手順：(1)`prepareSwitch()` (2)保留中の保存と未保存（`#hasUnsaved`）を破棄（確定しない）(3)`#isSwitching = true`（削除後の切り替え処理の手順5の終わり
      * （`#enterCanvas`内）で`false`に戻る）(4)記録を削除。失敗したら`#isSwitching = false`へ戻して中止し、`'writeFailed'`とし、
-     * 破棄した保留分と`await`中の編集を保存するため`#scheduleSave()`で予約し直す (5)成功したら一覧から除き、残りを最終更新日時の
+     * 未保存を元へ戻し（キャンバスが開いたまま残るため）、破棄した保留分と`await`中の編集を保存するため`#scheduleSave()`で予約し直す (5)成功したら一覧から除き、残りを最終更新日時の
      * 新しい順に`#openFirstLoadable`で開く（作業データは保存先から取得。読めるものが無ければ新しい空のキャンバスを作成して開く）。
      * @param {string} id 削除するキャンバスの識別子（開いているキャンバスであること）
      * @returns {Promise<boolean>} 削除したか
@@ -762,11 +819,13 @@ export class CanvasLibrary {
         // (1)
         this.#prepareSwitch();
         // (2)
+        const hadUnsaved = this.#hasUnsaved;
         if (this.#pendingSaveTimer !== null) {
             clearTimeout(this.#pendingSaveTimer);
             this.#pendingSaveTimer = null;
         }
         this.#pendingSaveCanvasId = null;
+        this.#hasUnsaved = false;
         // (3)
         this.#isSwitching = true;
         // (4)
@@ -776,6 +835,7 @@ export class CanvasLibrary {
             this.#isSwitching = false;
             console.warn('CanvasLibrary: キャンバスの削除に失敗しました。', id, error);
             this.#setIssue('writeFailed');
+            this.#hasUnsaved = hadUnsaved;
             this.#scheduleSave();
             return false;
         }
@@ -800,22 +860,54 @@ export class CanvasLibrary {
     }
 
     /**
+     * 切り替え処理の手順3の完了後・手順4の直前の確定手順と、手順4〜6（`#enterCanvas`）をまとめて行う（開く・新規作成・開く（ファイル）が通る）。
+     * `prepareSwitch()`のうえ保留中の保存・書き込み中の保存が無くなるまで`flushPendingSave()`で確定し（保存の失敗、または確定手順内の
+     * 予期しない例外で中止して`false`。`'writeFailed'`は`#saveOpenCanvasNow()`が設定済み）、確定手順を抜けたら`await`を挟まずに
+     * `#enterCanvas`を呼ぶ（確定手順と手順4の間に`await`を挟むと、その間の編集が切り替え前のキャンバスへ書かれなくなるため、分けてはならない）。
+     * `#enterCanvas`の例外は捕捉せず呼び出し側へ渡す。
+     * @param {CanvasSummary} summary 開くキャンバスの要約（キャンバス一覧に登録済みであること）
+     * @param {Array<Object>} shapes 開く図形インスタンス
+     * @param {CanvasIssue} loadIssue 開いた後に残す読み込みの問題
+     * @param {boolean} [isRecordWritten=true] 開くキャンバスの記録が保存先に書き込み済みか
+     * @returns {Promise<boolean>} 開いたか（中止なら`false`）
+     */
+    async #settleAndEnter(summary, shapes, loadIssue, isRecordWritten = true) {
+        try {
+            for (;;) {
+                this.#prepareSwitch();
+                if (this.#pendingSaveCanvasId === null && this.#inFlightSave === null) {
+                    break;
+                }
+                if (!(await this.flushPendingSave())) {
+                    return false;
+                }
+            }
+        } catch (error) {
+            console.warn('CanvasLibrary: 切り替え前の保存の確定で予期しないエラーが発生しました。', error);
+            return false;
+        }
+        this.#enterCanvas(summary, shapes, loadIssue, isRecordWritten);
+        return true;
+    }
+
+    /**
      * 切り替え処理の手順4〜6（`await`を挟まない同期区間）。
-     * 手順4：もう一度`prepareSwitch()`を呼び、保留中の保存があれば切り替え前のキャンバスへ書き（完了は待たず、失敗しても続ける）、
-     * `#isSwitching = true`として図形一式を入れ替える。手順5：履歴のリセット → ビュー変換の初期化 → `#isSwitching = false`。
-     * 手順6：開いているキャンバスを更新し、最後に開いていたキャンバスの識別子を書き込み（`'unavailable'`では書かない。完了は待たない）、
+     * 手順4：もう一度`prepareSwitch()`を呼び、`#isSwitching = true`として図形一式を入れ替える（切り替え前の保存の確定は
+     * 呼び出し側の`#settleAndEnter`が済ませている。起動時の復元・削除後の切り替えは確定すべき保留が無い）。
+     * 手順5：履歴のリセット → ビュー変換の初期化 → `#isSwitching = false`。
+     * 手順6：開いているキャンバスを更新し、残っていた自動保存のタイマーを解除し、保留・未保存を更新する
+     * （記録を書けずに開いた場合は保留（タイマー無し）・未保存とし、それ以外は保留なし・未保存でない）。
+     * 最後に開いていたキャンバスの識別子を書き込み（`'unavailable'`では書かない。完了は待たない）、
      * `'loadFailed'`/`'partialLoad'`を解除したうえで`loadIssue`があれば設定し、変更通知する。
      * @param {CanvasSummary} summary 開くキャンバスの要約（キャンバス一覧に登録済みであること）
      * @param {Array<Object>} shapes 開くキャンバスの図形インスタンス（`deserialize`の結果。新規作成なら空配列、開く（ファイル）ならファイルから読めた図形）
      * @param {CanvasIssue} [loadIssue=null] 開いた後に残す読み込みの問題（`'loadFailed'`/`'partialLoad'`。無ければ`null`）
+     * @param {boolean} [isRecordWritten=true] 開くキャンバスの記録が保存先に書き込み済みか（偽なら保留・未保存として開く）
      * @returns {void}
      */
-    #enterCanvas(summary, shapes, loadIssue = null) {
+    #enterCanvas(summary, shapes, loadIssue = null, isRecordWritten = true) {
         // 手順4
         this.#prepareSwitch();
-        if (this.#pendingSaveTimer !== null) {
-            void this.#saveOpenCanvasNow();
-        }
         this.#isSwitching = true;
         try {
             this.#model.replaceAllShapes(shapes);
@@ -828,6 +920,12 @@ export class CanvasLibrary {
 
         // 手順6
         this.#openCanvasId = summary.id;
+        if (this.#pendingSaveTimer !== null) {
+            clearTimeout(this.#pendingSaveTimer);
+            this.#pendingSaveTimer = null;
+        }
+        this.#pendingSaveCanvasId = isRecordWritten ? null : summary.id;
+        this.#hasUnsaved = !isRecordWritten;
         if (this.#issue !== 'unavailable') {
             let writing;
             try {
@@ -899,19 +997,25 @@ export class CanvasLibrary {
     /**
      * 指定の名前・図形で新しいキャンバスを作成して開く（切り替え処理の手順3〜6）。記録を一覧へ加えて書き込み、`shapes`の図形一式で切り替える
      * （既定は空の図形一式＝新しい空のキャンバス）。
-     * 書き込みに失敗しても中止せず`'writeFailed'`として開く（このとき`loadIssue`より後に起きた問題として`'writeFailed'`を残す）。
+     * 書き込みに失敗した場合（`'writeFailed'`。このとき`loadIssue`より後に起きた問題として`'writeFailed'`を残す）：
+     *   - 利用者の操作（`isUserOperation`）：`confirmOpenUnsaved`で確認し、「いいえ」（例外を含む）なら要約を一覧から除いて`false`
+     *     （開いているキャンバス・図形一式・履歴はそのまま）。「はい」なら記録の無いまま開き、未保存として保持する。
+     *   - 起動時・削除後（`isUserOperation`が偽）：開く先が他に無いため確認せず、記録の無いまま開いて未保存として保持する。
+     * 利用者の操作では切り替え前の保存の確定（`#settleAndEnter`）に失敗すると中止し、要約を除き、書き込み済みの記録を削除して`false`。
      * @param {CanvasIssue} loadIssue 開いた後に残す読み込みの問題（無ければ`null`）
      * @param {*} [rawName=null] キャンバス名の候補（`#normalizeName`で正規化し、空なら「無題 n」。重複は許す）
      * @param {Array<*>} [shapes=[]] 開く図形の配列（不透明。`serialize`で記録の作業データにし、`replaceAllShapes`へ渡す）
-     * @returns {Promise<void>}
+     * @param {boolean} [isUserOperation=false] 利用者の操作（新規作成・開く（ファイル））か（起動時・削除後は偽）
+     * @returns {Promise<boolean>} 開いたか
      */
-    async #createAndEnter(loadIssue, rawName = null, shapes = []) {
+    async #createAndEnter(loadIssue, rawName = null, shapes = [], isUserOperation = false) {
         const summary = {
             id: this.#issueCanvasId(),
             name: CanvasLibrary.#normalizeName(rawName) || this.#nextUntitledName(),
             updatedAt: Date.now()
         };
         this.#summaries.set(summary.id, summary);
+        let isRecordWritten = true;
         let issueAfterEnter = loadIssue;
         try {
             await this.#storage.putRecord({
@@ -924,8 +1028,44 @@ export class CanvasLibrary {
             console.warn('CanvasLibrary: 新しいキャンバスの記録に失敗しました。', summary.id, error);
             this.#setIssue('writeFailed');
             issueAfterEnter = null;
+            isRecordWritten = false;
         }
-        this.#enterCanvas(summary, shapes, issueAfterEnter);
+        if (!isUserOperation) {
+            // 起動時・削除後：開く先が他に無いため確認せずに開き、未保存として保持する
+            this.#enterCanvas(summary, shapes, issueAfterEnter, isRecordWritten);
+            return true;
+        }
+        if (!isRecordWritten && !this.#askOpenUnsaved()) {
+            this.#summaries.delete(summary.id);
+            return false;
+        }
+        if (await this.#settleAndEnter(summary, shapes, issueAfterEnter, isRecordWritten)) {
+            return true;
+        }
+        // 確定手順で中止：登録した要約を除き、書き込み済みの新しい記録を削除する
+        this.#summaries.delete(summary.id);
+        if (isRecordWritten) {
+            try {
+                await this.#storage.deleteRecord(summary.id);
+            } catch (error) {
+                console.warn('CanvasLibrary: 中止したキャンバスの記録を削除できませんでした。', summary.id, error);
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 新しいキャンバスの記録を書けなかったとき、保存しないまま開くかを注入関数`confirmOpenUnsaved`で確認する。
+     * 例外は`console.warn`して`false`（「いいえ」と同じ）とする。
+     * @returns {boolean} 保存しないまま開くなら`true`
+     */
+    #askOpenUnsaved() {
+        try {
+            return this.#confirmOpenUnsaved() === true;
+        } catch (error) {
+            console.warn('CanvasLibrary: 保存しないまま開くかの確認で予期しないエラーが発生しました。', error);
+            return false;
+        }
     }
 
     /**

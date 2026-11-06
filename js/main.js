@@ -283,12 +283,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 切り替え処理の手順1（進行中の入力操作の中断と選択モードへの切り替え）はapplyModeの経路、
     // ビュー変換の初期化はviewTransform.reset()を注入する（再描画・UI同期は既存のonChange経路に任せる）
+    // confirmOpenUnsavedが使うcanvasPaletteは後でconst宣言されるが、呼ばれるのは起動後の利用者の操作のみ
+    // （起動時の#createAndEnterでは呼ばれない）
     const canvasLibrary = new CanvasLibrary({
         storage: new CanvasStorage(),
         model,
         historyManager,
         prepareSwitch: () => applyMode(OperationMode.SELECT),
-        resetView: () => viewTransform.reset()
+        resetView: () => viewTransform.reset(),
+        confirmOpenUnsaved: () => canvasPalette.confirmOpenUnsaved()
     });
 
     // ファイル操作（書き出し・開く（ファイル）・インポート）の組み立てはCanvasFileOperationsが持つ。
@@ -365,6 +368,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     window.addEventListener('pagehide', () => canvasLibrary.flushPendingSave());
+    // 保存に失敗した変更など、ページを離れると失われる変更があるときは再読み込み・タブを閉じる前に確認を出す
+    window.addEventListener('beforeunload', (event) => {
+        if (canvasLibrary.hasUnsavedChanges()) {
+            event.preventDefault();
+            event.returnValue = true;
+        }
+    });
 
     // 8. キーボードショートカット配線
     /**

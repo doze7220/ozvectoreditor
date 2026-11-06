@@ -10,7 +10,7 @@
  */
 const ISSUE_MESSAGES = Object.freeze({
     unavailable: 'このブラウザでは保存できません。再読み込みすると編集内容は失われます。',
-    writeFailed: '保存に失敗しました。最新の変更は保存されていない可能性があります。',
+    writeFailed: '保存に失敗しました。最新の変更は保存されていない可能性があります。「書き出し」でファイルに残せます。',
     loadFailed: 'キャンバスを読み込めませんでした。',
     partialLoad: '一部の図形を読み込めませんでした。編集すると、その図形は保存から失われます。'
 });
@@ -83,6 +83,8 @@ const LOADING_TEXT = '読み込み中…';
  *   - 名前の変更：`window.prompt('キャンバス名を入力してください', 現在の名前)`を表示し、キャンセル（`null`）なら何も呼ばない。
  *     それ以外の文字列は加工せず`onRename(id, text)`へ渡す（空文字・空白のみ・最大文字数の判定は`CanvasLibrary`側）。
  *   - 削除：`window.confirm('キャンバス「<名前>」を削除しますか？この操作は取り消せません。')`で「OK」の場合のみ`onDelete(id)`。
+ *   - 新しいキャンバスの記録を書けないとき（公開メソッド`confirmOpenUnsaved()`）：`window.confirm('新しいキャンバスを保存できませんでした。保存しないまま開きますか？')`を表示し、結果を返す
+ *     （`CanvasLibrary`の注入関数から呼ばれる。配線の有無によらず動く）。
  *   - 押されたボタンにフォーカスが残ると`Enter`で再度押されるため、操作の処理前に押されたボタンの`blur()`を呼ぶ。
  *   - 「書き出し」（`#canvas-export`）の`click`で`onExport()`。
  *   - 「開く」（`#canvas-open-file`）・「インポート」（`#canvas-import`）：ボタンの`click`で`blur()`のうえ、
@@ -207,6 +209,15 @@ export class CanvasPalette {
         this.#bindFilePicker(this.#importButton, importFileInput, (file) => this.#actions.onImportFile(file));
         this.#listElement.addEventListener('click', (event) => this.#handleListClick(event));
         this.#isWired = true;
+    }
+
+    /**
+     * 新しいキャンバスの記録を書けなかったとき、保存しないまま開くかを利用者に確認する（`window.confirm`）。
+     * 配線の有無（`#isWired`）によらず動く。
+     * @returns {boolean} 保存しないまま開くなら`true`
+     */
+    confirmOpenUnsaved() {
+        return window.confirm('新しいキャンバスを保存できませんでした。保存しないまま開きますか？');
     }
 
     /**

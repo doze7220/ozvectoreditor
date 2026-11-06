@@ -347,7 +347,7 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
 ## 3. タスクリスト
 **全タスク共通の作業**：(1)「2. アーキテクチャ設計」の該当要件と「参照する責務」に従う (2)`node --check`で変更した各ファイルの構文を確かめる（ブラウザでの確認は現場設計AIが行う）(3)コード修正完了後、追加・変更した要素のJSDocに記載漏れがないことを確認する (4)本RESの該当タスクを`[x]`にし、「4. 詳細作業内容」へ記載する (5)開発資料への影響は資料本体を修正せず「開発資料の更新予定」欄へ追記する。
 
-*   [ ] タスク1: E-2・E-3 保存に失敗した変更の保持と、新しい記録を書けないときの確認（要件1・要件2）
+*   [x] タスク1: E-2・E-3 保存に失敗した変更の保持と、新しい記録を書けないときの確認（要件1・要件2）
     *   **対象ファイル** :
         *   `./js/edit/CanvasLibrary.js` : 更新
         *   `./js/main.js` : 更新
@@ -417,7 +417,10 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
 
 ### タスク1: E-2・E-3 保存に失敗した変更の保持と、新しい記録を書けないときの確認（要件1・要件2）
 *   **作業内容** :
-    *   (タスク実行時に記入)
+    *   `CanvasLibrary.js`：`confirmOpenUnsaved`の注入・検査・`#confirmOpenUnsaved`、`#hasUnsaved`、`hasUnsavedChanges()`、`flushPendingSave()`の判定を`#pendingSaveCanvasId`へ変更、`#saveOpenCanvasNow`の完了処理（`#isCurrentWrite`新設・失敗時の保留再設定）、`#scheduleSave`の`'unavailable'`で未保存、`#settleAndEnter`新設と`openCanvas`からの呼び出し、`#enterCanvas`の手順4の保存の削除と手順6の状態更新（`isRecordWritten`引数）、`#createAndEnter`（`isUserOperation`・`Promise<boolean>`）と`#askOpenUnsaved`新設、`createCanvasFromShapes`の変更、`#deleteOpenCanvas`の未保存の破棄と失敗時の復元。関連JSDoc（各フィールド・コンストラクタ・`openCanvas`・`createCanvasFromShapes`・`flushPendingSave`・`#scheduleSave`・`#saveOpenCanvasNow`・`#deleteOpenCanvas`・`#enterCanvas`・`#createAndEnter`）を更新。クラスJSDocは触っていない（タスク8）。
+    *   `CanvasPalette.js`：`confirmOpenUnsaved()`追加、`ISSUE_MESSAGES.writeFailed`の文言、クラスJSDocの「■ 操作」に1項目。
+    *   `main.js`：`confirmOpenUnsaved`の注入（コメント付き）、`beforeunload`の配線。
+    *   `node --check`は3ファイルとも成功。
 
 ### タスク2: E-1 キャンバスがウィンドウに追従する（要件3）
 *   **作業内容** :
@@ -471,3 +474,7 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
 *   **`beforeunload`の確認**：ブラウザの仕様で、そのページで利用者の操作が一度も無いと確認が出ない場合がある。動作確認では先にページを操作しておくこと。
 *   **範囲外の残存**：E-6の対象は手順4の`prepareSwitch()`のみ。削除後の`#openFirstLoadable`の`deserialize`など`#enterCanvas`に入る前の例外では`#isSwitching`が真のまま残り、`replaceAllShapes`の例外では`#isSwitching`は`finally`で偽へ戻るが手順6へ進まず開いているキャンバスが一覧に無いまま残る。どちらも通常は例外を投げない。
 *   **保存済みの弧の`points[3]`/`[4]`**：描画に使わないため古い位置のまま残り、ハンドル操作（`move`を除く）で正準位置へ変わる。`toJSON`の往復は一致する。
+*   **[タスク1実装時]** クラスJSDocの「■ 切り替え処理」「■ 自動保存」「■ 新規キャンバス…」「■ 開く（ファイル）」等は、保留・未保存・確認の小窓・`#settleAndEnter`の新設と食い違う記述が残っている（タスク8で修正）。`#prepareLeave`（手順1〜2）は変更せず残し、`#settleAndEnter`の確定手順は読み込み後の再確定として追加した。`#askOpenUnsaved`は`confirmOpenUnsaved() === true`のときのみ「はい」とする。目視確認推奨：put失敗下での新規作成（いいえ／はい）・開く（ファイル）・再読み込み時の`beforeunload`。
+
+## 開発資料の更新予定
+*   [タスク1] `CanvasLibrary`のコンストラクタ注入に`confirmOpenUnsaved`が増え、公開メソッド`hasUnsavedChanges()`が追加、`flushPendingSave()`の判定が保留（`#pendingSaveCanvasId`）基準に変更、`CanvasPalette`に公開メソッド`confirmOpenUnsaved()`が追加、`main.js`に`beforeunload`の配線が追加された。
