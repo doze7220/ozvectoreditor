@@ -4,7 +4,7 @@
  */
 
 /**
- * 作業データファイルの拡張子（唯一の定義箇所）。
+ * 作業データファイルの拡張子。
  * @type {string}
  */
 const FILE_EXTENSION = '.json';

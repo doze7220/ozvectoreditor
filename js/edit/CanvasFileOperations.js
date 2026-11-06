@@ -91,6 +91,7 @@ import { DocumentSerializer } from '../io/DocumentSerializer.js';
  *
  * ■ 失敗で止めない
  *   - `openFile`・`importFile`は`Promise`をrejectしない（予期しない例外は`console.warn`＋通知`readFailed`）。`exportCanvas`は例外を投げない。
+ *     ただしこの保証は、`#notifyChange`経由で呼ばれるリスナー（表示同期）が例外を投げた場合を除く（リスナーの例外は捕捉しない）。
  *
  * ■ 依存の制約
  *   - importは`DocumentSerializer`のみ。`fileIO`・`canvasLibrary`・`inserter`・`model`・`prepareInsert`は注入で受け取る。
@@ -100,8 +101,8 @@ import { DocumentSerializer } from '../io/DocumentSerializer.js';
  */
 export class CanvasFileOperations {
     /**
-     * 作業データファイルの読み書き（`downloadText`・`readText`・`getFileName`・`toFileName`・`toCanvasName`）。
-     * @type {{downloadText: Function, readText: Function, getFileName: Function, toFileName: Function, toCanvasName: Function}}
+     * 作業データファイルの読み書き（`downloadText`・`readText`・`getFileName`・`toCanvasName`のみ使用）。
+     * @type {{downloadText: Function, readText: Function, getFileName: Function, toCanvasName: Function}}
      */
     #fileIO;
 
@@ -176,7 +177,7 @@ export class CanvasFileOperations {
     }
 
     /**
-     * 開いているキャンバスの図形一式を作業データファイルとしてダウンロードする（同期。例外は投げない）。
+     * 開いているキャンバスの図形一式を作業データファイルとしてダウンロードする（同期。例外は投げない。ただしリスナー（表示同期）の例外を除く）。
      * 受理条件を満たさなければ何も変えず`false`。受理時にファイル操作の通知を消す。
      * @returns {boolean} 書き出したか
      */
@@ -202,7 +203,7 @@ export class CanvasFileOperations {
     }
 
     /**
-     * ファイルを新しいキャンバスとして開く（キャンバス一覧へ登録して開いているキャンバスと入れ替える）。rejectしない。
+     * ファイルを新しいキャンバスとして開く（キャンバス一覧へ登録して開いているキャンバスと入れ替える）。rejectしない（リスナーの例外を除く）。
      * @param {File} file 開くファイル（不透明に扱い、`fileIO`へ渡すのみ）
      * @returns {Promise<boolean>} 新しいキャンバスとして開いたか
      */
@@ -235,7 +236,7 @@ export class CanvasFileOperations {
     }
 
     /**
-     * ファイルの図形を開いているキャンバスへ追加する（ファイル内の座標のまま）。rejectしない。
+     * ファイルの図形を開いているキャンバスへ追加する（ファイル内の座標のまま）。rejectしない（リスナーの例外を除く）。
      * @param {File} file インポートするファイル（不透明に扱い、`fileIO`へ渡すのみ）
      * @returns {Promise<boolean>} 図形を追加したか
      */
@@ -302,7 +303,7 @@ export class CanvasFileOperations {
 
     /**
      * 開く（ファイル）・インポートの共通の流れ。
-     * 受理判定 → 処理中にして通知を消す → 読み取り＋デシリアライズ → `apply` → 完了。rejectしない。
+     * 受理判定 → 処理中にして通知を消す → 読み取り＋デシリアライズ → `apply` → 完了。rejectしない（リスナーの例外を除く）。
      * @param {File} file 対象のファイル
      * @param {(state: CanvasFileOperationsState) => boolean} canAccept 操作固有の受理条件（共通の`loading`・`busy`の判定に加えて評価）
      * @param {(result: (Object|null), fileName: string) => Promise<boolean>} apply 読み取り結果（読み取り失敗は`null`）を受けて実行する処理
