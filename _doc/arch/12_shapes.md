@@ -24,13 +24,10 @@
     *   **Rect.js**：矩形。4頂点：`points[0]`=topLeft／`[1]`=topRight／`[2]`=bottomRight／`[3]`=bottomLeft。`hitTestHandle`の戻り値はこの4名か`null`。`move`ハンドルは持たない。
         *   コンストラクタは対角2点から4点を算出するのみで、矩形維持のための正規化は行わない（4隅の自由変形が可能）。`fromJSON`も4頂点を独立に採用する。
         *   `topLeft`等は論理名で、見た目の位置を保証しない（右下から左上へ作図すると`points[0]`は見た目の右下になる）。
-        *   `setVertex`は範囲外の`vertexIndex`を弾かない（`null >= 0`が真のため`points[null]`を作る。現在の到達経路は無い。`_doc/COWORK_STATUS.md`2章E-5）。
-    *   **Ellipse.js**：円・楕円・弧。5頂点：`points[0]`=中心／`[1]`=右端制御点／`[2]`=上端制御点／`[3]`=開始角制御点／`[4]`=終了角制御点。
+    *   **Ellipse.js**：円・楕円・弧。5頂点：`points[0]`=中心／`[1]`=右端制御点／`[2]`=上端制御点／`[3]`=開始角制御点／`[4]`=終了角制御点（位置はJSDoc）。
         *   ハンドルと頂点は別物。`hitTestHandle`の戻り値は`'move'|'right'|'up'|'left'|'down'|null`。`getVertexIndexForHandle`は`right`/`left`→1、`up`/`down`→2。0を返すことはない。
         *   `setVertex`が受けるのは0〜2のみで、3・4は何もしない。`setVertex(1)`はyを、`setVertex(2)`はxを無視する。
         *   `type`（`'circle'`|`'arc'`）で振る舞いも分岐する。開始角・終了角は`type`から決まる固定値のため図形データに保存しない（弧の角度編集を実装する際は保存対象へ加え、作業データ形式の版を上げる）。
-        *   弧は既定の時計回りで画面の下半分を描く（`hitTest`・`intersectsRect`も同じ）。`up`ハンドルは弧の線上にない。
-        *   `fromJSON`は`points[3]`/`[4]`も再計算せず保存値を採用する（描画・当たり判定は`points[0..2]`と角度のみに依存する）。保存値は`right`/`up`/`left`/`down`のハンドル操作で正準位置へ再計算され、`move`では平行移動されるだけ。
+        *   弧は画面の上半分を描く（`startAngle`=π、`endAngle`=2π。発注者の決定。ボタンの絵`◠`と揃えた）。`hitTest`・`intersectsRect`も同じ。`down`ハンドルは弧の線上にない。保存済みの弧の`points`は変換しないため、変更前に描いた弧も上半分に表示される（作業データ形式の版は変えていない）。
         *   回転は表現できない（回転角は0固定）。
-        *   `hitTest`は他3クラスと異なり`strokeWidth/2`を許容誤差に足す。`rx<1||ry<1`なら常に`false`を返すが、`intersectsRect`は縮退でも`true`になり得る（クリックでは選べず範囲選択では選べる図形が生じる。`_doc/COWORK_STATUS.md`2章E-8）。
-        *   扱う種別を増やす場合に揃える箇所：受理種別一覧（`ELLIPSE_TYPES`）・種別で分岐する全箇所（コンストラクタ、`draw`、`drawHover`、頂点の再計算処理、`hitTest`。`!== 'circle'`の分岐は弧として扱われる）・`ShapeFactory`の対応表・`index.html`のボタン。
+        *   `hitTest`は他3クラスと異なり`strokeWidth/2`を許容誤差に足す。

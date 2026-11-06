@@ -13,7 +13,7 @@
         *   **知らないこと**：パレットの中身・`WindowManager`。importを持たない。
         *   **呼び出し口の追加手順**：①`index.html`へ呼び出し口のボタン（コントロールパネル内）とパレットのDOM（`.float-window`。`hidden`で初期非表示。`.window-close-btn`を含むヘッダー）を静的に置く（`WindowManager`の検知のため）②`main.js`の対応表`paletteLaunchers`へ`{ button, palette }`の1エントリを追加する（`PaletteLauncher`の変更は不要）③パレットの中身の配線は、そのパレットのUI部品を`palette/`に新設して行う ④必要ならコントロールパネルの高さの変化に合わせて`#window-shape-palette`の`top`を再調整する。
     *   **CanvasPalette.js**：キャンバスパレット（一覧・新規作成・名前の変更・削除・ファイル操作の呼び出し・保存状態とファイル操作の通知の表示）。操作と表示の規則はクラスJSDocを正とする。
-        *   **公開メソッド**：`render`（引数は`CanvasFileOperations.getState()`の戻り値）。
+        *   **公開メソッド**：`render`（引数は`CanvasFileOperations.getState()`の戻り値）・`confirmOpenUnsaved`（新しい記録を書けないときの確認の小窓。`main.js`が`CanvasLibrary`へ注入する）。
         *   **知らないこと**：`CanvasLibrary`・`VectorModel`・図形データ・IndexedDB。importを持たない。`File`は不透明に渡し、中身・名前を読まない。読み込みの判定・空の名前等の受理判定を持たない（`CanvasFileOperations`・`CanvasLibrary`側）。
         *   **契約**：一覧の並びは`CanvasLibrary`が決め、パレットは受け取った順に表示する。文言の対応表`ISSUE_MESSAGES`・`FILE_NOTICE_MESSAGES`はこのファイルが唯一の定義箇所。名前は`textContent`のみで設定し`innerHTML`は使わない（利用者の入力をHTMLとして解釈しないため）。`'unavailable'`でも書き出し・インポートは押せる。
         *   **二重定義**：typedef`CanvasLibraryState`は`CanvasLibrary.js`と、`FileNotice`は`CanvasFileOperations.js`と同じ内容を持つ。形を変える場合は両方を揃える。

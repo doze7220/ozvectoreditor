@@ -3,8 +3,7 @@
     *   **export**：`InputState`・`OperationMode`・`SHAPE_TYPES`（正本は`ShapeFactory.js`。`KeyboardShortcuts.js`のimport元を変えないための再export）・`WHEEL_ZOOM_STEP`（キーボードの拡大・縮小と同値を共有）・`isTextInputElement`（スペースパンとショートカットの誤爆防止）。
     *   **知らないこと**：図形種別（if/switch分岐を一切行わず、`hitTest`/`hitTestHandle`/`intersectsRect`/`getVertexIndexForHandle`をポリモーフィックに呼ぶのみ。`vertexIndex`規約を`core/`層にハードコードしない）。`HistoryManager.js`をimportしない。ショートカットは解釈しない（`KeyboardShortcuts`の担当）。`main.js`の関数を呼ばない。
     *   **状態**：入力状態`InputState`（`IDLE`/`DRAWING`/`DRAGGING_HANDLE`/`MOVING_SELECTION`/`MARQUEE_SELECTING`）、操作モード（`'select'`/`'create'`/`'pan'`）、図形種別を独立に保持する。パン状態は`InputState`と直交する別フラグで、`DRAWING`を保持したまま行える。図形種別はモード切替でリセットされない。
-    *   **唯一の削除経路**：`deleteSelection()`は削除ボタン・`Delete`/`Backspace`（`KeyboardShortcuts`→`main.js`）・切り取り（`ClipboardController.cut()`へ`main.js`が注入）の唯一の経路。呼び出し側は受理条件を重複判定しない。
-    *   **`abortOngoingOperation()`**：`?dev`の復元と取り消し・やり直しの前処理として`main.js`が呼ぶ。戻り値（何かを中断したか）で`performUndo`が作成途中の図形の破棄を判定している。中断する対象を増やす場合は`performUndo`の判定を見直す。privateの中断処理本体はカーソルを再評価しないため、新たに直接呼ぶ場合は再評価を忘れない。
+    *   **`abortOngoingOperation()`**：`?dev`の復元と取り消し・やり直しの前処理として`main.js`が呼ぶ。privateの中断処理本体はカーソルを再評価しないため、新たに直接呼ぶ場合は再評価を忘れない。
     *   **全選択**：選択モード以外からの全選択は呼び出し側（`main.js`）が先にモードを切り替える。
     *   **編集操作の通知**：コンストラクタの第4引数`editRecorder`（実体は`main.js`が注入する`HistoryManager`。省略時は何もしない）へ開始・確定を伝える。左ドラッグの開始通知の時点で状態が遷移済みであることは「`DragTracker.begin()`が`onStart`を同期的に呼ばない」ことに依存する。`setMode`ではドラッグ中断の確定が選択集合のクリアより前に行われる。
     *   **本体ドラッグの移動量**：直前カーソル`lastCursor`との差分を積み上げる（押下点からの累積ではない。閾値分は閾値超過時の最初の更新でまとめて反映される）。

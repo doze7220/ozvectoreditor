@@ -5,7 +5,6 @@
     *   **ShapeInserter.js**：作業データの図形を平行移動したうえで新しいidで最前面へ追加し、追加した図形だけを選択する1件の編集操作（貼り付け・複製・インポートの共通処理）。
         *   **公開メソッド**：`insertDocument`。呼び出し元は`ClipboardController`・`CanvasFileOperations`。
         *   **契約**：履歴へは1件以上追加した場合のみ1件記録する。`documentData`を書き換えない。進行中の入力操作の中断・モード切り替えは行わない。
-        *   **二重定義**：typedef`EditRecorder`は`InputTracker.js`と同じ内容を持つ。形を変える場合は両方を揃える（コードに注記は無い）。
     *   **ClipboardController.js**：アプリ内部のクリップボードの保持と、コピー・切り取り・貼り付け・複製の手順。規則はクラスJSDoc。
         *   **公開メソッド**：`copy`・`cut`・`paste`・`duplicate`・`isEmpty`。呼び出し元は`main.js`の`KeyboardShortcuts`コールバック。
         *   **契約**：モデルへの依存は読み取りのみ。追加は`ShapeInserter`、削除は注入された`deleteSelection`（実体`inputTracker.deleteSelection()`）へ委譲する。`cut()`は削除の前に`serialize`する（削除後は選択集合が空になるため。順序を入れ替えない）。
@@ -15,13 +14,12 @@
         *   **契約**：進行中の入力操作の中断は呼び出し側の責務。
         *   **二重定義**：typedef`Snapshot`は`HistoryManager.js`と同じ内容を持つ。形を変える場合は両方を揃える。
     *   **CanvasLibrary.js**：キャンバス一覧の管理（起動時の復元・開く・新規作成・開く（ファイル）の受け口・名前の変更・削除・切り替え処理・自動保存・保存失敗の状態）。`main.js`が1つだけ生成する。流れと順序の保証は3章8.。細則の正本はクラスJSDoc（仕様を変える場合はクラスJSDocと該当メソッドのJSDocを併せて更新する）。
-        *   **公開メソッド**：`start`・`openCanvas`・`createCanvas`・`createCanvasFromShapes`・`renameCanvas`・`deleteCanvas`・`flushPendingSave`・`getState`・`onChange`。
+        *   **公開メソッド**：`start`・`openCanvas`・`createCanvas`・`createCanvasFromShapes`・`renameCanvas`・`deleteCanvas`・`flushPendingSave`・`hasUnsavedChanges`・`getState`・`onChange`。
         *   **依存**：`model`は`getShapes`・`replaceAllShapes`、`historyManager`は`onChange`・`clear`のみ使う。`CanvasStorage`も注入で受け取りimportしない。`setTimeout`/`clearTimeout`/`Date.now`/`Math.random`以外のブラウザAPI（`document`・`window`のイベント等）を使わない。
-        *   **分割しない理由**：自動保存の確定と切り替え処理の順序保証が同じprivate状態を同期区間内で読み書きする密結合のため、約1000行でも1クラスにまとめている（分割すると順序保証が崩れやすい）。
-        *   **`#isSwitching`**：真・偽にする箇所を増やさない（偽へ戻し損ねると自動保存が予約されなくなる。3章8.）。
+        *   **分割しない理由**：自動保存の確定と切り替え処理の順序保証が同じprivate状態を同期区間内で読み書きする密結合のため、約1200行でも1クラスにまとめている（分割すると順序保証が崩れやすい）。
+        *   **`#isSwitching`**：真・偽にする箇所を増やさない（偽へ戻し損ねると自動保存が予約されなくなる。区間はクラスJSDoc）。
         *   **注意**：
             *   キャンバス一覧はメモリ上に要約のみを保持し、作業データは保持しない。起動時に一覧作成のため全記録を一度読み出す（キャンバス数・図形数が極端に多い場合は起動時間を確認する）。
-            *   書き込み中の保存は宛先のキャンバスを区別しない。切り替え直後に再び切り替える場合、直前のキャンバスへの書き込みの失敗でも切り替えが中止される。
     *   **CanvasFileOperations.js**：ファイル操作（書き出し・開く（ファイル）・インポート）の組み立てと、キャンバスパレットの表示同期用の状態・変更通知の提供。`main.js`が1つだけ生成する。流れは3章9.。詳細の正本はクラスJSDoc。
         *   **公開メソッド**：`exportCanvas`・`openFile`・`importFile`・`getState`・`onChange`。
         *   **依存**：`Blob`・`File`は注入された`DocumentFileIO`に任せる。作業データは不透明に扱う。`model`は`getShapes`のみ使う。`canvasLibrary.onChange`へ登録し、開いているキャンバスの変化でファイル操作の通知を消して自身のリスナーへ転送する。
