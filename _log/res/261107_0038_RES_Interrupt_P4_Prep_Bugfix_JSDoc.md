@@ -374,7 +374,7 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
     *   **作業内容** :
         *   `#notifyChange`のリスナーごとの捕捉、`#saveOpenCanvasNow`の記録の組み立てを`try`へ、`#enterCanvas`の手順4の`prepareSwitch()`の捕捉。各メソッドのJSDocを修正後の動作に合わせる。
         *   （タスク1の監査の指摘への追加）`#enterCanvas`：`isRecordWritten`が偽のとき、手順6の最後（`loadIssue`の設定より後）で`#setIssue('writeFailed')`を設定する。`#createAndEnter`が設定した`'writeFailed'`は確定手順での切り替え前のキャンバスの保存成功で解除されるため、未保存のキャンバスで`⚠`と文言が消える経路を塞ぐ。
-*   [ ] タスク5: E-5 `Rect.setVertex`の範囲外（要件6）
+*   [x] タスク5: E-5 `Rect.setVertex`の範囲外（要件6）
     *   **対象ファイル** :
         *   `./js/shapes/Rect.js` : 更新
     *   **作業内容** :
@@ -439,7 +439,7 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
 
 ### タスク5: E-5 `Rect.setVertex`の範囲外（要件6）
 *   **作業内容** :
-    *   (タスク実行時に記入)
+    *   `Rect.js`の`setVertex`の条件を`Number.isInteger(vertexIndex) && vertexIndex >= 0 && vertexIndex <= 3`へ変更。JSDocに「0〜3の整数以外（null・文字列・小数・範囲外）は何もしない」を追記。`node --check`は成功。ブラウザ確認は未実施（現場設計AI）。
 
 ### タスク6: E-8・E-7 つぶれた円・弧の当たり判定と弧の向き（要件7）
 *   **作業内容** :

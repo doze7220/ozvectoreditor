@@ -210,13 +210,14 @@ export class Rect {
 
     /**
      * 指定した頂点インデックスの座標を絶対座標で更新する。
-     * vertexIndexが0〜3であれば対応するpoints要素を直接上書きする（矩形維持のための連動再計算は行わない）。
+     * vertexIndexが0〜3の整数であれば対応するpoints要素を直接上書きする（矩形維持のための連動再計算は行わない）。
+     * 0〜3の整数以外（null・文字列・小数・範囲外）は何もしない。
      * @param {number} vertexIndex - 更新する頂点のインデックス（0: topLeft, 1: topRight, 2: bottomRight, 3: bottomLeft）
      * @param {number} x - 更新後のX座標（論理座標系）
      * @param {number} y - 更新後のY座標（論理座標系）
      */
     setVertex(vertexIndex, x, y) {
-        if (vertexIndex >= 0 && vertexIndex <= 3) {
+        if (Number.isInteger(vertexIndex) && vertexIndex >= 0 && vertexIndex <= 3) {
             this.points[vertexIndex] = { x, y };
         }
     }
