@@ -1,1 +1,4 @@
-*   **ViewTransform.js** : キャンバスのビュー変換状態（倍率`scale`・オフセット`offsetX`/`offsetY`、`スクリーン = ワールド × 倍率 ＋ オフセット`）を保持する唯一のクラス。スクリーン⇔ワールドの変換式はここにのみ実装する（`screenToWorld`/`worldToScreen`/`screenLengthToWorld`）。`zoomAt(sx, sy, factor)`はカーソル位置中心のズーム（倍率は`MIN_SCALE`=0.1〜`MAX_SCALE`=10.0にクランプ、クランプ時もカーソル下のワールド点は不変）、`panBy(dx, dy)`はスクリーン座標での平行移動、`reset()`は倍率1.0・オフセット(0,0)への復帰。値が実際に変化した場合のみ`onChange`リスナーへ通知する。`getScale()`は現在の倍率を、`getState()`は描画用のプレーンオブジェクト`{scale, offsetX, offsetY}`を返す。図形データ・DOM・`VectorModel`・`CanvasManager`には依存しない。
+*   **ViewTransform.js**：キャンバスのビュー変換状態（倍率`scale`・オフセット`offsetX`/`offsetY`、`スクリーン = ワールド × 倍率 ＋ オフセット`）を保持する唯一のクラス。スクリーン⇔ワールドの変換式はここにのみ実装する。
+    *   **公開メソッド**：`getScale`・`getState`・`screenToWorld`・`worldToScreen`・`screenLengthToWorld`・`zoomAt`・`panBy`・`reset`・`onChange`。静的定数`MIN_SCALE`・`MAX_SCALE`。
+    *   **契約**：`zoomAt`はクランプ時もカーソル下のワールド点が不変。`panBy`はスクリーン座標。値が実際に変化した場合のみ`onChange`リスナーへ通知する。
+    *   **知らないこと**：図形データ・DOM・`VectorModel`・`CanvasManager`。
