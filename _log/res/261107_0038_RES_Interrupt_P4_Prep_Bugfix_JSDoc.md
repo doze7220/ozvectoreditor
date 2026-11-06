@@ -391,7 +391,7 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
         *   `./js/main.js` : 更新
     *   **作業内容** :
         *   要件8の「改名」のとおり3ファイルを同時に変更する。完了後に`DraftLine`・`draftLine`のGrepが`js/`と`index.html`で0件であることを確かめる。改名以外のJSDocの修正は行わない。
-*   [ ] タスク8: JSDoc修正 `CanvasLibrary`（要件8）
+*   [x] タスク8: JSDoc修正 `CanvasLibrary`（要件8）
     *   **対象ファイル** :
         *   `./js/edit/CanvasLibrary.js` : 更新
         *   `./js/palette/CanvasPalette.js` : 更新（typedefの`openCanvasName`の記述のみ）
@@ -452,7 +452,9 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
 
 ### タスク8: JSDoc修正 `CanvasLibrary`（要件8）
 *   **作業内容** :
-    *   (タスク実行時に記入)
+    *   `CanvasLibrary.js`のJSDocを実コードに合わせて修正：typedef`CanvasIssue`（`'unavailable'`に識別子の読み出し失敗、`'writeFailed'`に保留の再試行での解除）、`openCanvasName`（`CanvasPalette.js`のtypedefも同文）、クラスJSDocの「自動保存」（保留の定義・書き込み中の保存）、新節「保存に失敗した変更の保持」、「順序の保証」の2、「切り替え処理」の見出しと手順2〜6・確定手順（新設）、「`#isSwitching`」(a)、「起動時の復元」、「開く（ファイル）」、「削除」、「処理中の直列化」、「公開メソッドのPromise」（`#notifyChange`のリスナー例外の捕捉）、「依存の制約」（`confirmOpenUnsaved`）、`start()`・`#prepareLeave`（タスク1監査対応：再試行待ち・記録を書けずに開いたキャンバスの再書き込みを含む旨）のJSDoc。
+    *   実コードの変更は`renameCanvas`の`!summary`の除去のみ。`node --check`は両ファイルで成功。
+    *   **監査対応（JSDocのみ）** : 新節「保存に失敗した変更の保持」の守るべき動作をREQの文言に揃え（切り替えでは失わない・開いているキャンバスの削除の確認は明示的に捨てる操作で、削除の開始で保留と未保存を破棄し、失敗したら未保存を元へ戻して自動保存を予約し直す）、「未保存：`#hasUnsaved`が真」を追記。「順序の保証」の2の主語を「開く・新規作成・開く（ファイル）の切り替え処理は」に限定。切り替え処理の手順4の括弧に「起動時の復元・削除後の切り替えには確定すべき保留が無い」を追記。`node --check`成功。
 
 ### タスク9: JSDoc修正 `core/`（要件8）
 *   **作業内容** :
@@ -480,4 +482,5 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
 *   **保存済みの弧の`points[3]`/`[4]`**：描画に使わないため古い位置のまま残り、ハンドル操作（`move`を除く）で正準位置へ変わる。`toJSON`の往復は一致する。
 *   **[タスク1実装時]** クラスJSDocの「■ 切り替え処理」「■ 自動保存」「■ 新規キャンバス…」「■ 開く（ファイル）」等は、保留・未保存・確認の小窓・`#settleAndEnter`の新設と食い違う記述が残っている（タスク8で修正）。`#prepareLeave`（手順1〜2）は変更せず残し、`#settleAndEnter`の確定手順は読み込み後の再確定として追加した。`#askOpenUnsaved`は`confirmOpenUnsaved() === true`のときのみ「はい」とする。目視確認推奨：put失敗下での新規作成（いいえ／はい）・開く（ファイル）・再読み込み時の`beforeunload`。
 *   **[タスク6実装時]** `Ellipse.js`の`fromJSON`JSDoc・`draw`系のコメントのうち「弧は0〜π」を前提とする記述は見当たらなかった。`drawHandles`のJSDocの「左端・下端（ダミー）」は弧の下端が線上にない点を含め未修正（タスク11の範囲外のため）。目視確認推奨：弧の作図・保存済みの弧の表示（上下反転）、`up`ハンドルが頂上に重なること、右端・左端・頂上のクリック選択、`rx`/`ry`が1未満のクリック選択。
+*   **[タスク8実装時]** クラスJSDocの`#isSwitching`の記述は計画どおり(a)を「`replaceAllShapes`の直前から手順5の終わり」とした（実コードでは`#isSwitching = true`は`replaceAllShapes`の前の行）。「■ 開く（ファイル）」「■ 削除」は既に実コードに沿うよう書き直した。クラスJSDocの「■ 新規キャンバスの命名規則」「■ 壊れた作業データ」は変更していない。将来、確定手順・保留の扱いを変えるときは「■ 切り替え処理」「■ 保存に失敗した変更の保持」「`flushPendingSave`」「`#prepareLeave`」「`#settleAndEnter`」を揃えて直すこと。
 *   **[タスク4実装時]** `#enterCanvas`の`!isRecordWritten`での`'writeFailed'`の再設定は、`#setIssue`が`'unavailable'`を上書きしないため`'unavailable'`中は影響しない。`#enterCanvas`の手順4の`prepareSwitch()`の捕捉は、`#settleAndEnter`内（例外は中止）と挙動が異なる点に注意。目視確認推奨：put失敗下での新規作成「はい」の後、切り替え前のキャンバスに保留があった場合でも`⚠`と文言が残ること。

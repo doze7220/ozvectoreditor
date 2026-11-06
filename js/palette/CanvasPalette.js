@@ -39,7 +39,7 @@ const LOADING_TEXT = '読み込み中…';
  * @property {boolean} busy 開く・新規作成・開く（ファイル）・名前の変更・削除・起動時の復元の処理中か（処理中は新たな操作を受け付けない）
  * @property {boolean} canManage キャンバスの管理操作ができるか（`'unavailable'`でない）
  * @property {string|null} openCanvasId 開いているキャンバスの識別子（読み込み完了前は`null`）
- * @property {string|null} openCanvasName 開いているキャンバスの名前（読み込み完了前は`null`）
+ * @property {string|null} openCanvasName 開いているキャンバスの名前（読み込み完了前と、開いているキャンバスの記録の削除に成功してから切り替えが完了するまでは`null`）
  * @property {Array<{id: string, name: string, updatedAt: number, isOpen: boolean}>} canvases
  *     キャンバス一覧（最終更新日時の新しい順。本クラスはこの順のまま表示する）
  * @property {null|'unavailable'|'writeFailed'|'loadFailed'|'partialLoad'} issue 保存・読み込みの問題（無ければ`null`）
