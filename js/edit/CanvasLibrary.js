@@ -1,5 +1,5 @@
 /**
- * 責務：キャンバス一覧の管理（起動時の復元・開く・新規作成・名前の変更・削除・切り替え処理・開いているキャンバスの自動保存・保存失敗の状態）を担う。DOMに触れない。
+ * 責務：キャンバス一覧の管理（起動時の復元・開く・新規作成（ファイルの図形からの作成を含む）・名前の変更・削除・切り替え処理・開いているキャンバスの自動保存・保存失敗の状態）を担う。DOMに触れない。
  */
 import { DocumentSerializer } from '../io/DocumentSerializer.js';
 
@@ -49,7 +49,7 @@ const CANVAS_NAME_MAX_LENGTH = 100;
  * `getState()`の戻り値（毎回新しいオブジェクト）。CanvasPalette・main.jsの表示同期が読み取る。
  * @typedef {Object} CanvasLibraryState
  * @property {boolean} loading 起動時の読み込み中か（`start()`の完了まで真。`start()`の呼び出し前も真）
- * @property {boolean} busy 開く・新規作成・名前の変更・削除・起動時の復元の処理中か（処理中は新たな操作を受け付けない）
+ * @property {boolean} busy 開く・新規作成・開く（ファイル）・名前の変更・削除・起動時の復元の処理中か（処理中は新たな操作を受け付けない）
  * @property {boolean} canManage キャンバスの管理操作ができるか（`'unavailable'`でない）
  * @property {string|null} openCanvasId 開いているキャンバスの識別子（読み込み完了前は`null`）
  * @property {string|null} openCanvasName 開いているキャンバスの名前（読み込み完了前は`null`）
@@ -94,7 +94,7 @@ const CANVAS_NAME_MAX_LENGTH = 100;
  *   4. 例：Aの保留中の保存がBへ切り替えた後にBの内容でAを上書きすることはない（入れ替え前に確定済み、
  *      または`#pendingSaveCanvasId`の不一致で破棄）。Bの記録へAの内容を書くこともない（Aの作業データはAのidと組で同期的に取得）。
  *
- * ■ 切り替え処理（開く・新規作成・起動時の復元・開いているキャンバスの削除後の切り替えが共通して通る手順。
+ * ■ 切り替え処理（開く・新規作成・開く（ファイル）・起動時の復元・開いているキャンバスの削除後の切り替えが共通して通る手順。
  *   起動時の復元は手順4以降、削除後の切り替えは手順3以降を通る）
  *   1. `prepareSwitch()`（実体は選択モードへの切り替え。進行中の入力操作を中断し、作成途中の図形は破棄。
  *      本体ドラッグ・ハンドル操作で動かした分は1件の編集操作として記録され、自動保存が予約される）。
@@ -102,7 +102,8 @@ const CANVAS_NAME_MAX_LENGTH = 100;
  *      書き込み中の保存はその完了を待つ）。失敗したら切り替えを中止する
  *      （開いているキャンバスのまま。`'writeFailed'`。保存できていない変更を画面から消さないため）。
  *   3. 切り替え先の読み込み（開く：記録の取得→`deserialize`。記録が無い・全体失敗なら中止して`'loadFailed'`。
- *      新規作成：記録を作成して書き込む。失敗しても中止せず`'writeFailed'`として開く（次の自動保存で記録が作られる））。
+ *      新規作成・開く（ファイル）：記録を作成して書き込む。失敗しても中止せず`'writeFailed'`として開く（次の自動保存で記録が作られる。
+ *      開く（ファイル）の図形は呼び出し側が読み取り済みのものを使う））。
  *   4. 同期区間の開始（ここから手順6まで`await`を挟まない）：もう一度`prepareSwitch()`を呼び、保留中の保存があれば
  *      `#saveOpenCanvasNow()`で切り替え前のキャンバスへ書く（完了は待たない）。続けて`#isSwitching = true`とし、
  *      図形一式を`model.replaceAllShapes(shapes)`で入れ替える（図形のidは記録されたものを保持）。
@@ -141,6 +142,18 @@ const CANVAS_NAME_MAX_LENGTH = 100;
  * ■ 新規キャンバスの命名規則
  *   - 「無題 1」「無題 2」…のうち、キャンバス一覧の名前と一致しない最小の番号。`'unavailable'`時のメモリ上のキャンバスも同じ規則。
  *
+ * ■ 開く（ファイル）（`createCanvasFromShapes(rawName, shapes)`。`createCanvas()`は`createCanvasFromShapes(null, [])`への委譲）
+ *   - 呼び出し側（ファイル操作）が作業データファイルから読み取った図形を、新しいキャンバスとして一覧へ登録して開く。
+ *   - 受理条件：読み込み中・処理中・`'unavailable'`でない。受理しなければ何もせず`false`。
+ *   - 通る手順：切り替え処理の手順1〜6のすべて。手順2（切り替え前の保存）に失敗したら中止して`false`
+ *     （`#summaries`へ登録する前のため一覧に載らない。`'writeFailed'`）。手順3は新しい記録の書き込みで、失敗しても中止せず
+ *     `'writeFailed'`として開く。切り替えは編集操作として記録しない。
+ *   - 名前：`rawName`を名前の変更と同じ規則（前後の空白を除く・100文字へ切り詰め）で正規化し、空なら「無題 n」。重複は許す。
+ *   - 記録の作業データ：`shapes`を現行版で`serialize`したもの（読めなかった図形は含まれない）。
+ *   - `'partialLoad'`は立てない：それはブラウザ内の記録を開いた際に一部の図形が読めなかった旨の予告であり、
+ *     ファイル側の記録には読めた図形しか入らないため。読めない図形の通知は呼び出し側（ファイル操作の通知）が行う。
+ *     手順6の既存の働きにより、残っていた`'loadFailed'`/`'partialLoad'`は解除される。
+ *
  * ■ 名前の変更（`renameCanvas(id, rawName)`）
  *   - 対象は一覧の任意のキャンバス。受理条件：読み込み中・処理中・`'unavailable'`でない、`id`が一覧にある、
  *     `rawName`が文字列で、前後の空白を除いて空でない（キャンセルは呼び出し側で何も呼ばない）。
@@ -165,7 +178,7 @@ const CANVAS_NAME_MAX_LENGTH = 100;
  *     削除前に生成済みの書き込みは削除より先に実行される（生成順）。削除のために`#openCanvasId`を`null`にする処理は設けない。
  *
  * ■ 処理中の直列化
- *   - 開く・新規作成・名前の変更・削除・起動時の復元は`#isBusy`で直列化し、処理中・読み込み中・`'unavailable'`では
+ *   - 開く・新規作成・開く（ファイル）・名前の変更・削除・起動時の復元は`#isBusy`で直列化し、処理中・読み込み中・`'unavailable'`では
  *     新たな操作を受け付けない（`false`で解決）。処理中もキャンバスの編集は止めない（手順4で整合を取る）。
  *
  * ■ 公開メソッドのPromise
@@ -227,7 +240,7 @@ export class CanvasLibrary {
     #isLoading = true;
 
     /**
-     * 開く・新規作成・名前の変更・削除・起動時の復元の処理中か（直列化のため）。
+     * 開く・新規作成・開く（ファイル）・名前の変更・削除・起動時の復元の処理中か（直列化のため）。
      * @type {boolean}
      */
     #isBusy = false;
@@ -417,12 +430,25 @@ export class CanvasLibrary {
 
     /**
      * 新しい空のキャンバスを作成して開く（切り替え処理の手順1〜6）。名前は新規キャンバスの命名規則に従う。
-     * 受理条件：読み込み中・処理中・`'unavailable'`でない。受理しなければ何もせず`false`。
-     * 切り替え前のキャンバスの保存に失敗した場合は中止して`false`。新しい記録の書き込みに失敗しても中止せず
-     * `'writeFailed'`として開く（次の自動保存で記録が作られる）。rejectしない。
+     * `createCanvasFromShapes(null, [])`への委譲（受理条件・中止条件・rejectしない点は同メソッドに従う）。
      * @returns {Promise<boolean>} 作成して開いたか
      */
-    async createCanvas() {
+    createCanvas() {
+        return this.createCanvasFromShapes(null, []);
+    }
+
+    /**
+     * 指定の名前・図形で新しいキャンバスを作成して開く（切り替え処理の手順1〜6。クラスJSDocの「開く（ファイル）」参照）。
+     * 受理条件：読み込み中・処理中・`'unavailable'`でない。受理しなければ何もせず`false`。
+     * 手順2（切り替え前のキャンバスの保存）に失敗した場合は中止して`false`（`#summaries`へ登録する前なので一覧に載らない。`'writeFailed'`）。
+     * 新しい記録の書き込みに失敗しても中止せず`'writeFailed'`として開く（次の自動保存で記録が作られる）。
+     * 名前は`rawName`を正規化し、空なら「無題 n」（重複は許す）。記録の作業データは`shapes`を現行版で`serialize`したもの。
+     * `'partialLoad'`は立てない（`loadIssue`は`null`）。rejectしない。
+     * @param {*} rawName キャンバス名の候補（`null`・空なら「無題 n」）
+     * @param {Array<*>} shapes 開く図形の配列（不透明に扱う）
+     * @returns {Promise<boolean>} 作成して開いたか
+     */
+    async createCanvasFromShapes(rawName, shapes) {
         if (!this.#canAcceptOperation()) {
             return false;
         }
@@ -432,7 +458,7 @@ export class CanvasLibrary {
             if (!(await this.#prepareLeave())) {
                 return false;
             }
-            await this.#createAndEnter(null);
+            await this.#createAndEnter(null, rawName, shapes);
             return true;
         } catch (error) {
             console.warn('CanvasLibrary: キャンバスの新規作成で予期しないエラーが発生しました。', error);
@@ -458,11 +484,10 @@ export class CanvasLibrary {
         if (!this.#canAcceptOperation() || !this.#summaries.has(id) || typeof rawName !== 'string') {
             return false;
         }
-        const trimmed = rawName.trim();
-        if (trimmed === '') {
+        const name = CanvasLibrary.#normalizeName(rawName);
+        if (name === '') {
             return false;
         }
-        const name = Array.from(trimmed).slice(0, CANVAS_NAME_MAX_LENGTH).join('').trimEnd();
         const summary = this.#summaries.get(id);
         if (!summary || name === summary.name) {
             return false;
@@ -872,13 +897,20 @@ export class CanvasLibrary {
     }
 
     /**
-     * 新しい空のキャンバスを作成して開く（切り替え処理の手順3〜6）。記録を一覧へ加えて書き込み、空の図形一式で切り替える。
+     * 指定の名前・図形で新しいキャンバスを作成して開く（切り替え処理の手順3〜6）。記録を一覧へ加えて書き込み、`shapes`の図形一式で切り替える
+     * （既定は空の図形一式＝新しい空のキャンバス）。
      * 書き込みに失敗しても中止せず`'writeFailed'`として開く（このとき`loadIssue`より後に起きた問題として`'writeFailed'`を残す）。
      * @param {CanvasIssue} loadIssue 開いた後に残す読み込みの問題（無ければ`null`）
+     * @param {*} [rawName=null] キャンバス名の候補（`#normalizeName`で正規化し、空なら「無題 n」。重複は許す）
+     * @param {Array<*>} [shapes=[]] 開く図形の配列（不透明。`serialize`で記録の作業データにし、`replaceAllShapes`へ渡す）
      * @returns {Promise<void>}
      */
-    async #createAndEnter(loadIssue) {
-        const summary = { id: this.#issueCanvasId(), name: this.#nextUntitledName(), updatedAt: Date.now() };
+    async #createAndEnter(loadIssue, rawName = null, shapes = []) {
+        const summary = {
+            id: this.#issueCanvasId(),
+            name: CanvasLibrary.#normalizeName(rawName) || this.#nextUntitledName(),
+            updatedAt: Date.now()
+        };
         this.#summaries.set(summary.id, summary);
         let issueAfterEnter = loadIssue;
         try {
@@ -886,14 +918,28 @@ export class CanvasLibrary {
                 id: summary.id,
                 name: summary.name,
                 updatedAt: summary.updatedAt,
-                document: DocumentSerializer.serialize([])
+                document: DocumentSerializer.serialize(shapes)
             });
         } catch (error) {
             console.warn('CanvasLibrary: 新しいキャンバスの記録に失敗しました。', summary.id, error);
             this.#setIssue('writeFailed');
             issueAfterEnter = null;
         }
-        this.#enterCanvas(summary, [], issueAfterEnter);
+        this.#enterCanvas(summary, shapes, issueAfterEnter);
+    }
+
+    /**
+     * キャンバス名の正規化（名前の変更とファイルからの作成で共通の唯一の規則）。
+     * 前後の空白を除き、`CANVAS_NAME_MAX_LENGTH`を超える場合は先頭から切り詰め（`Array.from`でサロゲートペアを分断しない）、
+     * 切り詰めで末尾に残った空白も除く。
+     * @param {*} rawName 名前の候補
+     * @returns {string} 正規化した名前（文字列でない・空白のみなら空文字列）
+     */
+    static #normalizeName(rawName) {
+        if (typeof rawName !== 'string') {
+            return '';
+        }
+        return Array.from(rawName.trim()).slice(0, CANVAS_NAME_MAX_LENGTH).join('').trimEnd();
     }
 
     /**
