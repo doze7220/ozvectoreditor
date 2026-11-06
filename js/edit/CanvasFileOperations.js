@@ -49,7 +49,8 @@ import { DocumentSerializer } from '../io/DocumentSerializer.js';
  * ■ 開く（ファイル）（`openFile`）
  *   - 読み取り→`deserializeFromString`→判定→読み込めた場合のみ`canvasLibrary.createCanvasFromShapes(fileIO.toCanvasName(ファイル名), 図形)`。
  *   - 通る切り替え処理は`CanvasLibrary`の手順1〜6すべて（`CanvasLibrary`のJSDoc「■ 開く（ファイル）」を参照）。
- *     手順2（切り替え前の保存）の失敗で中止した場合はキャンバス一覧へ登録されない。
+ *     切り替え前の保存の失敗・確定手順の失敗・新しい記録を書けずに確認の小窓で「いいえ」のいずれで中止しても、
+ *     キャンバス一覧に残らない。
  *   - `createCanvasFromShapes`が`false`の場合：`issue`が`'writeFailed'`なら（パレットが表示するため）通知を出さない。
  *     それ以外（不受理・予期しない例外。UI上は到達しない防御）は通知`readFailed`を出す。
  *   - 一部が読めない旨は`issue`の`'partialLoad'`ではなく通知`partialRead`で示す（切り替えの完了後に設定するため消されずに残る）。
@@ -66,7 +67,7 @@ import { DocumentSerializer } from '../io/DocumentSerializer.js';
  *      新しいid・最前面への追加・追加した図形のみの選択・1件の編集操作の記録・自動保存は`insertDocument`の既存の働きに任せる。
  *      読めた図形だけを作業データへ戻して渡すことで、`insertDocument`内の再デシリアライズでスキップの`console.warn`が重複しない。
  *   6. スキップが1件以上なら通知`partialRead`（件数は判定時と`insertDocument`の合計）。
- *   - 手順4・5は`await`を挟まない同期区間。
+ *   - 手順3の同一性の確認から手順5までは`await`を挟まない同期区間。
  *
  * ■ 読み込みの判定の表（`#classifyRead`。`deserializeFromString`の結果`result`で判定し、作業データ自体の`shapes`は参照しない）
  *   - 「ファイルの`shapes`が1個以上か」は`result.shapes.length + result.skipped.length`で分かる。

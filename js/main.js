@@ -41,8 +41,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const viewTransform = new ViewTransform();
 
     // 3.5. 履歴（取り消し・やり直し）配線
-    // main.js内で唯一の履歴配線ブロック。スナップショットの取得・適用の実体はSnapshotAdapter（edit/）が持ち、
-    // ここでは生成とHistoryManagerへの注入のみを行う（core/からio/をimportしないため、DocumentSerializerを使う処理はedit/に置く）。
+    // スナップショットの取得・適用の実体はSnapshotAdapter（edit/。core/からio/をimportしないため、DocumentSerializerを使う処理はedit/に置く）が持ち、
+    // ここではその生成とHistoryManagerへの注入に加えて、取り消し・やり直しの操作関数performUndo/performRedoを置く。
+    // 取り消し・やり直しボタンの配線は「// 6.」、?devの復元の履歴への記録はonImportで行う。
     // HistoryManagerはInputTrackerのコンストラクタへ注入するため、InputTrackerより先に生成する。
     // shouldRestoreSelectionの実体：選択モードのときのみ記録時点の選択集合を復元する（選択モード以外では選択集合は空のまま）。
     // 本体で後に`const`宣言される`inputTracker`を参照するが、この関数が呼ばれるのは起動完了後の
@@ -321,7 +322,8 @@ document.addEventListener('DOMContentLoaded', () => {
     /**
      * 開いているキャンバスの名前の表示（`#canvas-name-display`）とページのタイトル（`document.title`）を、
      * `canvasLibrary.getState()`に同期する。
-     * 読み込み中は「読み込み中…」（タイトルは`OZ Vector Editor`）。それ以外は`<キャンバス名> - OZ Vector Editor`とし、
+     * 読み込み中は「読み込み中…」（タイトルは`OZ Vector Editor`）。`openCanvasName`が`null`のとき
+     * （起動時の読み込み中と、開いているキャンバスの記録の削除に成功してから切り替えが完了するまで）も同様に「読み込み中…」と表示する。それ以外は`<キャンバス名> - OZ Vector Editor`とし、
      * 保存の問題があるとき（`hasSaveProblem`）は表示の先頭に`⚠ `を付ける。長い名前は省略表示されるため、
      * 名前全体を`title`属性に設定する。canvasLibrary.onChangeのコールバックとして登録し、起動時にも明示的に1回呼び出す。
      * 表示要素が無ければ表示の更新は行わない（タイトルは更新する）。

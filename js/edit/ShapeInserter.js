@@ -7,6 +7,7 @@ import { DocumentSerializer } from '../io/DocumentSerializer.js';
 /**
  * 編集操作（図形一式を変化させる利用者の1回の操作）の開始・確定を受け取る記録先。
  * 実体はmain.jsが注入するHistoryManager（本ファイルはHistoryManager.jsをimportせず、この2メソッドのみを呼ぶ）。
+ * `core/InputTracker.js`に同じ内容の定義がある（二重定義。形を変える場合は両方を揃えること）。
  * @typedef {Object} EditRecorder
  * @property {() => void} beginEdit 編集操作の開始を宣言する（その時点の状態を「前の状態」として記録する）
  * @property {() => boolean} commitEdit 編集操作の確定を宣言する（前後で図形一式が変化していれば1件として記録しtrue）
@@ -82,7 +83,7 @@ export class ShapeInserter {
      * 全体の読み込み失敗・追加0件の場合はbeginEdit/commitEditを呼ばず、記録しない。
      *
      * 前提: 選択モードであること・ドラッグ中/作成途中の図形がないことは呼び出し側の責務（クラスJSDoc参照）。
-     * @param {*} documentData - 作業データ形式のオブジェクト（DocumentSerializer.serializeの戻り値や、ファイルをJSON.parseしたもの）
+     * @param {*} documentData - 作業データ形式のオブジェクト（DocumentSerializer.serializeの戻り値。インポートも読めた図形をserializeし直して渡す）
      * @param {number} [dx=0] - 追加する全図形に適用するx方向の平行移動量（ワールド座標。インポートで元の座標のまま追加する場合は0）
      * @param {number} [dy=0] - 追加する全図形に適用するy方向の平行移動量（ワールド座標。インポートで元の座標のまま追加する場合は0）
      * @returns {InsertResult} 結果オブジェクト

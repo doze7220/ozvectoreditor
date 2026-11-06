@@ -402,7 +402,7 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
         *   `./js/core/WindowManager.js`・`./js/core/VectorModel.js`・`./js/core/HistoryManager.js`・`./js/core/InputTracker.js`・`./js/core/DragTracker.js` : 更新（コメントのみ）
     *   **作業内容** :
         *   要件8の「`core/`」の表の全項目を修正する。実コードは変更しない。
-*   [ ] タスク10: JSDoc修正 `edit/`・`main.js`（要件8）
+*   [x] タスク10: JSDoc修正 `edit/`・`main.js`（要件8）
     *   **対象ファイル** :
         *   `./js/edit/CanvasFileOperations.js`・`./js/edit/ShapeInserter.js`・`./js/main.js` : 更新（コメントのみ）
     *   **作業内容** :
@@ -465,7 +465,11 @@ private`#distanceToOutline(x, y, xc, yc, rx, ry)`を新設する：`intersectsRe
 
 ### タスク10: JSDoc修正 `edit/`・`main.js`（要件8）
 *   **作業内容** :
-    *   (タスク実行時に記入)
+    *   要件8の「`edit/`・`main.js`」の表の全項目をコメントのみで修正（実コード未変更、3ファイルとも`node --check`成功）。
+    *   `CanvasFileOperations.js`：「■ インポート」を「手順3の同一性の確認から手順5までは`await`を挟まない同期区間」へ。「■ 開く（ファイル）」を、切り替え前の保存の失敗・確定手順の失敗・新しい記録を書けず「いいえ」のいずれで中止しても一覧に残らない旨へ（通知の判定の記述は不変）。
+    *   `ShapeInserter.js`：`insertDocument`の`documentData`の説明、typedef`EditRecorder`に`core/InputTracker.js`との二重定義の注記。
+    *   `main.js`：`// 3.5.`のコメント（「唯一の履歴配線ブロック」「生成と注入のみ」を削除し、`performUndo`/`performRedo`を置くこと・ボタンの配線は`// 6.`・復元の記録は`onImport`と記述）、`syncCanvasNameDisplay`のJSDocに`openCanvasName`が`null`のときの「読み込み中…」表示。
+    *   監査指摘の再修正（コメントのみ）：`CanvasFileOperations.js`の「登録されない」を削り「いずれで中止しても、キャンバス一覧に残らない」へ。`main.js`の`// 3.5.`で、edit/に置く理由の括弧をSnapshotAdapterの直後へ移動。2ファイルとも`node --check`成功。
 
 ### タスク11: JSDoc修正 `shapes/`（要件8）
 *   **作業内容** :
