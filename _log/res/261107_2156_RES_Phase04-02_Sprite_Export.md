@@ -272,7 +272,7 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
         *   責務定義の変更：4ファイルの先頭の責務JSDocを「…および図形データ・描画要素（スプライトの書き出し用）との変換を担う。」の趣旨へ改める（3行以内。`Line`は「相互変換」→「図形データとの相互変換と描画要素への変換」等、意味が通るように）。クラスJSDocの「共通メソッド契約（12メソッド：…・static fromJSON）」を「13メソッド：…・static fromJSON・toDrawElement」へ改める。`Rect.js`の`#distanceToSegment`のJSDocの「12メソッド契約には含まれない」を「13メソッド契約」へ改める。`Ellipse.js`の`ELLIPSE_TYPES`のJSDocの「種別で分岐する全箇所」へ`toDrawElement`を加える。
         *   完了時にプロジェクトのルートで`node --test`を実行し、全テストの成功と件数（`tests`・`pass`・`fail`）を本RESの4章へ記録する（既存の145件が通ること）。開発資料への影響が判明したら2章の更新予定欄へ追記し、判断に迷った点は5章へ記述する。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク2: スプライトデータの組み立て`SpriteSerializer`の新設とテスト
+*   [x] タスク2: スプライトデータの組み立て`SpriteSerializer`の新設とテスト
     *   **対象ファイル** :
         *   `./js/io/SpriteSerializer.js` :（新規）
         *   `./test/io/SpriteSerializer.test.js` :（新規）
@@ -380,7 +380,9 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
 
 ### タスク2: スプライトデータの組み立て`SpriteSerializer`の新設とテスト
 *   **作業内容** :
-    *   (未記入)
+    *   `js/io/SpriteSerializer.js`を新設した（importは`DocumentSerializer`のみ）。非公開定数`SPRITE_FORMAT`・`SPRITE_FORMAT_VERSION`、named export `DEFAULT_STROKE_WIDTH = 2`、`SpriteSerializer.serialize`・`stringify`、外枠は`kind`→形の範囲の対応表（`Object.freeze`。`polyline`・`quadratic`・`ellipse`）・線の太さの解決（モジュール内の非公開関数）・非公開静的メソッド`#computeBounds`。未知の`kind`は`Error`をthrow。typedef`SpriteData`・`DrawElement`・`SpriteBounds`・`ShapeRange`にJSDocを記述。
+    *   `test/io/SpriteSerializer.test.js`を新設した（18件。5種の描画要素・描画順・外枠（曲線・円・弧の指定の期待値を含む）・図形0個・`strokeWidth`が`undefined`・未知の`kind`・`source`の往復・`stringify`・独立性）。
+    *   `node --test`：tests 163・pass 163・fail 0。
 
 ### タスク3: スプライトJSのテキストの組み立て`CodeExporter`の新設とテスト
 *   **作業内容** :
@@ -438,3 +440,4 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
 12. 既存の図形の作成・選択・移動・変形・削除・取り消し/やり直し・コピー＆ペースト・キャンバスの切り替え・自動保存が変わらない。
 13. プロジェクトのルートで`node --test`が全件成功する（`fail 0`）。
 * 書き出したJSをブラウザで実際に`import`して描く確認は、Phase 04-03（確認用ページ）で行う（本サブフェイズでは自動テストまで）。
+* **（タスク2）** 外枠の計算関数（形の範囲の各関数）はクラスの外のモジュール内関数として置いた（非公開静的メソッドにするよりテーブル化しやすいため）。判断に迷う点・開発資料への新たな影響はなし。
