@@ -257,7 +257,7 @@
         *   ソースを変更しない。`globalThis`へ代入しない。
         *   完了時に`node --test`を実行し、全テスト（タスク1を含む）の成功と件数を4章へ記録する。失敗時の扱い・開発資料への影響・判断に迷った点の記録はタスク1と同じ。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク3: 読み込みの判定（`CanvasFileOperations`）のテストの新設
+*   [x] タスク3: 読み込みの判定（`CanvasFileOperations`）のテストの新設
     *   **対象ファイル** :
         *   `./test/edit/CanvasFileOperations.test.js` :（新規。`test/edit/`フォルダも新設）
     *   **作業内容** :
@@ -308,7 +308,9 @@
 
 ### タスク3: 読み込みの判定（`CanvasFileOperations`）のテストの新設
 *   **作業内容** :
-    *   (未実施)
+    *   `test/edit/CanvasFileOperations.test.js`を新設（`test/edit/`も新設）。補助関数`silenceWarn`・`createHarness`（偽物一式＋呼び出し順`calls`・`createCalls`・`insertCalls`の記録。偽物の各メソッド・局所の`prepareInsert`にもJSDoc）・`makeFile`・`makeUnreadableFile`・`makeShapes`・`makeBadShapeData`・`makeTextWithShapesData`・`notice`・`unreadableCases`（読み込み不可6ケースの表）をJSDoc付きで記述。
+    *   開く（ファイル）・インポートそれぞれで、読み込み不可6ケース（読み取り不可・JSON解析不可・format違い・版0・現行版より大きい版・図形がすべて読めない）、図形0個、一部読めない（正2＋不正1）、すべて読めた（5種）を実装。戻り値・依存の呼び出し（引数・順序）・`getState().fileNotice`を検証。警告回数は検証しない（抑止のみ）。
+    *   `node --test`の結果（タスク1・2を含む全体）：`tests 145`・`pass 145`・`fail 0`（suites 14）。ソース・`package.json`は変更・作成なし。
 
 ### タスク4: JSDocの確認とRESの完成
 *   **作業内容** :
