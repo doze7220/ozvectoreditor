@@ -235,7 +235,7 @@
 *   (各タスクの実行時に影響が判明した場合も、この欄へ追記する。資料本体への反映は最終タスクで行う)
 
 ## 3. タスクリスト
-*   [ ] タスク1: 5種の図形の往復テストの新設
+*   [x] タスク1: 5種の図形の往復テストの新設
     *   **対象ファイル** :
         *   `./test/io/DocumentSerializer.roundtrip.test.js` :（新規。`test/`・`test/io/`フォルダも新設）
     *   **作業内容** :
@@ -296,7 +296,9 @@
 
 ### タスク1: 5種の図形の往復テストの新設
 *   **作業内容** :
-    *   (未実施)
+    *   `test/io/DocumentSerializer.roundtrip.test.js`を新設（`test/`・`test/io/`も新設）。補助関数`silenceWarn`・`assertSameShape`・`assertRestored`・`roundTripByObject`・`roundTripByString`・`statesFor`（種別ごとの状態の表）をJSDoc付きで記述。
+    *   5種それぞれの「作る状態」を、オブジェクト層・文字列層の両方で往復（警告0回、動かした状態は生成直後との`notDeepStrictEqual`、色・太さは既定値でないことを確認、arc/circleは`startAngle`/`endAngle`比較）。混在（描画順・id）・図形0個・補足の検証（文字列層＝オブジェクト層、format/version/shapes、独立性2種）も実装。
+    *   `node --test`の結果：`tests 56`・`pass 56`・`fail 0`（suites 6）。ソース・`package.json`は変更・作成なし。
 
 ### タスク2: `DocumentSerializer`の失敗・スキップ・版の範囲・非破壊のテストの新設
 *   **作業内容** :
@@ -334,3 +336,4 @@
     5.  `index.html`をブラウザで（ダブルクリックで）開くと、これまでどおり起動し、5種の図形（直線・曲線・弧・矩形・円）の作成・頂点の変形・移動・取り消し/やり直し・コピー/貼り付けができる。
     6.  再読み込みしても図形が残る（自動保存）。キャンバスの新規作成・切り替えができる。
     7.  ファイルの書き出し → 開く（ファイル）・インポートで、書き出した図形がそのまま読み込める。
+* **タスク1の実装メモ**：状態の表は`statesFor(type)`にまとめ、`it`をループで生成している（テスト名は`<状態名>（<層名>）`、`describe`は種別ごと）。`arc`・`circle`は同じ状態表を共用。
