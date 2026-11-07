@@ -268,7 +268,7 @@
         *   ソースを変更しない。`globalThis`へ代入しない。
         *   完了時に`node --test`を実行し、全テスト（タスク1・2を含む）の成功と件数を4章へ記録する。失敗時の扱い・開発資料への影響・判断に迷った点の記録はタスク1と同じ。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク4: JSDocの確認とRESの完成
+*   [x] タスク4: JSDocの確認とRESの完成
     *   **対象ファイル** :
         *   `./test/io/DocumentSerializer.roundtrip.test.js`、`./test/io/DocumentSerializer.errors.test.js`、`./test/edit/CanvasFileOperations.test.js` :（確認・必要ならJSDoc・コメントのみ更新）
         *   `./_log/res/261107_2041_RES_Phase04-01_Automated_Tests.md` :（更新）
@@ -314,7 +314,10 @@
 
 ### タスク4: JSDocの確認とRESの完成
 *   **作業内容** :
-    *   (未実施)
+    *   3ファイルの先頭の単一責務JSDoc（各2行）が実態と一致し、関数・補助関数にJSDocがあることを確認。タスク1の差分監査の指摘（追加仕様）により、`roundtrip.test.js`の`statesFor`内の局所の補助関数`mk`・`moved`・`plain`へJSDoc（`@param`・`@returns`）を追記（テストの動作・件数は不変）。他2ファイルは局所の補助関数（`assertSkipped`、`createHarness`内の偽物の各メソッド・`prepareInsert`、`makeMixed`）にJSDocが既にあり、変更なし。ケース表内の無名のアロー関数（`build: () => …`・`make: () => …`）は補助関数ではなくデータ定義の一部のため、JSDocは付けていない。
+    *   確認結果：private項目（`#`・`_`始まり）・非公開の定数への参照なし。`globalThis`・`window`・`console`への直接代入なし（`console.warn`の抑止は`t.mock.method`のみ）。`test/`内はテスト3ファイルのみ。`package.json`等はルートに無く、`git status`の変更は`test/`のみ（`index.html`・`js/`は変更なし）。
+    *   `node --test`の結果：`tests 145`・`pass 145`・`fail 0`（suites 14）。警告の文言（`DocumentSerializer: …`等の警告・`ExperimentalWarning`等）は出力に流れていない。
+    *   開発資料への影響：新たな影響なし（2章の更新予定欄は変更していない）。
 
 ### タスク5: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
 *   **作業内容** :
@@ -341,4 +344,5 @@
     6.  再読み込みしても図形が残る（自動保存）。キャンバスの新規作成・切り替えができる。
     7.  ファイルの書き出し → 開く（ファイル）・インポートで、書き出した図形がそのまま読み込める。
 * **タスク1の実装メモ**：状態の表は`statesFor(type)`にまとめ、`it`をループで生成している（テスト名は`<状態名>（<層名>）`、`describe`は種別ごと）。`arc`・`circle`は同じ状態表を共用。
+* **タスク4での補足**：局所の補助関数のJSDoc追記のみ。ケース表内の無名のアロー関数にはJSDocを付けない運用とした（判断点）。新たな懸念事項はない。
 * **タスク2での補足**：`broken`は`makeValidData`から種別ごとの図形データを取り出して1項目だけ壊す。`assertSkipped`はテスト内の局所関数（describe内）。`undefined`・`NaN`はJSONで表せないためオブジェクト層のみで使用した。

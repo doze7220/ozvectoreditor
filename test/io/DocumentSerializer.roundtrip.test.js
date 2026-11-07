@@ -85,12 +85,28 @@ const ROUTES = [
  * @returns {{name: string, build: Function, baseline: (Function|null), styled: boolean}[]} 状態の配列
  */
 function statesFor(type) {
+    /**
+     * 対象の種別の図形を ShapeFactory で作る。
+     * @param {...number} args - ShapeFactory.create へ渡す座標引数
+     * @returns {object} 図形インスタンス
+     */
     const mk = (...args) => ShapeFactory.create(type, ...args);
+    /**
+     * 生成後に図形を動かす状態（build）と、動かす前の図形を作る関数（baseline）を持つ定義を作る。
+     * @param {number[]} args - 図形の生成引数
+     * @param {(shape: object) => void} fn - 生成した図形を動かす関数
+     * @returns {{build: Function, baseline: Function, styled: boolean}} 状態の定義（名前を除く）
+     */
     const moved = (args, fn) => ({
         build: () => { const s = mk(...args); fn(s); return s; },
         baseline: () => mk(...args),
         styled: false,
     });
+    /**
+     * 生成直後のまま（動かさない）状態の定義を作る。
+     * @param {number[]} args - 図形の生成引数
+     * @returns {{build: Function, baseline: null, styled: boolean}} 状態の定義（名前を除く）
+     */
     const plain = (args) => ({ build: () => mk(...args), baseline: null, styled: false });
     switch (type) {
         case 'line':
