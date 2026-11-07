@@ -21,13 +21,13 @@
  */
 
 /**
- * 開発者向け確認用ウィンドウの自己完結UI部品。「JSONへ変換」「JSONから復元」の2ボタンを配線し、
+ * 開発者向け確認用ウィンドウの自己完結UI部品。「JSONへ変換」「JSONから復元」の2ボタンと、×ボタンによる閉じ操作（ルート要素へ`hidden`を付与）を配線し、
  * 変換・復元の実体は注入されたコールバックへ委譲する。受け取るのは文字列と要約オブジェクトのみで、
  * 作業データの中身（図形数等）は解釈しない。
  */
 export class DevPanel {
     /**
-     * @type {HTMLElement} 確認用ウィンドウのルート要素（`#window-dev-panel`）。show時の`hidden`解除対象。
+     * @type {HTMLElement} 確認用ウィンドウのルート要素（`#window-dev-panel`）。show時の`hidden`解除対象、および×で閉じるときの`hidden`付与対象。
      * @private
      */
     #rootElement;
@@ -52,7 +52,9 @@ export class DevPanel {
 
     /**
      * ルート要素内の`#dev-export`・`#dev-import`・`#dev-json`・`#dev-result`を解決し、2ボタンのclickを配線する。
-     * いずれかの要素が見つからない場合は`console.warn`で報告し、ボタンの配線は行わない。
+     * いずれかの要素が見つからない場合は`console.warn`で報告し、2ボタンの配線は行わない。
+     * 見出しの×ボタン（`.window-close-btn`）のclickでルート要素を閉じる（`hidden`を付ける）配線も行う。
+     * ×ボタンが見つからなくても他の配線は行う（`console.warn`のみ）。開き直す手段は設けない。
      * @param {HTMLElement} rootElement 確認用ウィンドウのルート要素（`#window-dev-panel`）
      * @param {DevPanelActions} actions 変換・復元のコールバック群
      */
@@ -63,6 +65,15 @@ export class DevPanel {
         this.#resultElement = rootElement.querySelector('#dev-result');
         const exportBtn = rootElement.querySelector('#dev-export');
         const importBtn = rootElement.querySelector('#dev-import');
+
+        const closeBtn = rootElement.querySelector('.window-close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                this.#rootElement.hidden = true;
+            });
+        } else {
+            console.warn('DevPanel: 確認用ウィンドウの×ボタン（.window-close-btn）が見つかりません。');
+        }
 
         if (!this.#jsonTextArea || !this.#resultElement || !exportBtn || !importBtn) {
             console.warn('DevPanel: 確認用ウィンドウの要素（#dev-export / #dev-import / #dev-json / #dev-result）が見つかりません。配線しません。');

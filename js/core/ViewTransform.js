@@ -149,16 +149,27 @@ export class ViewTransform {
     }
 
     /**
-     * ビュー変換を初期状態（倍率1.0・オフセット(0,0)）へ戻す。
-     * 既に初期状態の場合は何もせず、通知もしない。
+     * ビュー変換を初期状態（倍率1.0・ワールド原点が指定したスクリーン座標に来るオフセット）へ戻す。
+     * 既に同じ状態の場合は何もせず、通知もしない。キャンバスの大きさは知らず、原点を置く位置は呼び出し側が渡す。
+     * 引数が有限の数でなければ`console.warn`して`0`として扱う。
+     * @param {number} [originX=0] ワールド原点を置くスクリーン座標のX（CSSピクセル）
+     * @param {number} [originY=0] ワールド原点を置くスクリーン座標のY（CSSピクセル）
      */
-    reset() {
-        if (this.#scale === 1 && this.#offsetX === 0 && this.#offsetY === 0) {
+    reset(originX = 0, originY = 0) {
+        if (!Number.isFinite(originX)) {
+            console.warn(`ViewTransform.reset: 不正な originX が指定されました: ${originX}`);
+            originX = 0;
+        }
+        if (!Number.isFinite(originY)) {
+            console.warn(`ViewTransform.reset: 不正な originY が指定されました: ${originY}`);
+            originY = 0;
+        }
+        if (this.#scale === 1 && this.#offsetX === originX && this.#offsetY === originY) {
             return;
         }
         this.#scale = 1;
-        this.#offsetX = 0;
-        this.#offsetY = 0;
+        this.#offsetX = originX;
+        this.#offsetY = originY;
         this.#notifyChange();
     }
 

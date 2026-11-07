@@ -174,9 +174,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // ビュー変換が変化したら倍率表示を更新する（再描画はrenderCurrentStateの登録で別途行われる）
     viewTransform.onChange(syncZoomDisplay);
 
-    // リセットボタン：ビュー変換を初期状態（倍率1.0・オフセット(0,0)）へ戻すのみ。
+    /**
+     * ビュー変換を初期表示（倍率1.0・ワールド原点がキャンバス要素全体の中心）へ戻す。
+     * キャンバス要素の大きさ（CSSピクセル）を使う計算はこの関数（とzoomAtCanvasCenter）に集める。
+     * フロートウィンドウに隠れる部分は考慮しない。ウィンドウの大きさ変更には追従しない（呼ばれた時点の大きさのみ使う）。
+     * リセットボタン・リセットのショートカット・CanvasLibraryへ注入するresetViewの共通経路。
+     * 再描画・倍率表示の更新はviewTransform.onChange経由で行われる。
+     */
+    function resetViewToCenter() {
+        viewTransform.reset(canvas.clientWidth / 2, canvas.clientHeight / 2);
+    }
+
+    // リセットボタン：ビュー変換を初期表示（倍率1.0・原点がキャンバス中央）へ戻すのみ。
     // 操作モード・選択集合には触れない（再描画・倍率表示の更新はviewTransform.onChange経由）
-    viewResetBtn.addEventListener('click', () => viewTransform.reset());
+    viewResetBtn.addEventListener('click', () => resetViewToCenter());
 
     /**
      * コントロールパネルの削除ボタン（`#selection-delete`）の押せる/押せない状態を、Modelの選択集合に
@@ -283,7 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
     new PaletteLauncher(paletteLaunchers);
 
     // 切り替え処理の手順1（進行中の入力操作の中断と選択モードへの切り替え）はapplyModeの経路、
-    // ビュー変換の初期化はviewTransform.reset()を注入する（再描画・UI同期は既存のonChange経路に任せる）
+    // ビュー変換の初期表示化はresetViewToCenter()（原点をキャンバス中央へ）を注入する（再描画・UI同期は既存のonChange経路に任せる）
     // confirmOpenUnsavedが使うcanvasPaletteは後でconst宣言されるが、呼ばれるのは起動後の利用者の操作のみ
     // （起動時の#createAndEnterでは呼ばれない）
     const canvasLibrary = new CanvasLibrary({
@@ -291,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
         model,
         historyManager,
         prepareSwitch: () => applyMode(OperationMode.SELECT),
-        resetView: () => viewTransform.reset(),
+        resetView: () => resetViewToCenter(),
         confirmOpenUnsaved: () => canvasPalette.confirmOpenUnsaved()
     });
 
@@ -414,9 +425,9 @@ document.addEventListener('DOMContentLoaded', () => {
             zoomAtCanvasCenter(direction);
             return true;
         },
-        // ビュー変換のリセット（リセットボタンと同一。操作モード・選択集合には触れない）
+        // ビュー変換のリセット（原点をキャンバス中央へ。リセットボタンと同一。操作モード・選択集合には触れない）
         resetView: () => {
-            viewTransform.reset();
+            resetViewToCenter();
             return true;
         },
         // 作成途中の図形の破棄／選択解除（何もしなかった場合はfalse）
@@ -520,7 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
     canvasPalette.render(canvasFileOperations.getState());
 
     // 最後に開いていたキャンバスを非同期に読み込む（awaitしない。start()はrejectしない）。
-    // 読み込み完了時に切り替え処理で図形一式が入り（倍率100%・選択モード・履歴は空）、
+    // 読み込み完了時に切り替え処理で図形一式が入り（倍率100%・原点はキャンバス中央・選択モード・履歴は空）、
     // onChange通知で覆い要素が非表示になってキャンバスを操作できるようになる
     canvasLibrary.start();
 });

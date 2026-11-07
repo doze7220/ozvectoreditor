@@ -133,7 +133,7 @@ const CANVAS_NAME_MAX_LENGTH = 100;
  *      この手順では保存を行わない（開く・新規作成・開く（ファイル）は確定手順が済んでいる。起動時の復元・削除後の切り替えには確定すべき保留が無い）。続けて`#isSwitching = true`とし、
  *      図形一式を`model.replaceAllShapes(shapes)`で入れ替える（図形のidは記録されたものを保持する。欠落・重複は`replaceAllShapes`が振り直す）。
  *   5. 履歴のリセット`historyManager.clear()`（切り替えは編集操作として記録しない。`beginEdit`/`commitEdit`を呼ばない）
- *      → ビュー変換を初期表示へ`resetView()` → `#isSwitching = false`。
+ *      → ビュー変換を初期表示（倍率100%・原点を表示領域の中央）へ`resetView()` → `#isSwitching = false`。
  *   6. 開いているキャンバスを更新し、保留・未保存の状態を消し（記録を書けずに開いたときは保留・未保存として保持する）、
  *      最後に開いていたキャンバスの識別子を書き込み（`'unavailable'`では書かない。完了は待たない）、`issue`を更新して変更通知する。
  *   - 再描画・ボタン同期は`replaceAllShapes`・`clear()`・`reset()`の既存の通知経路のみで行う（本クラスは描画しない）。
@@ -243,7 +243,7 @@ export class CanvasLibrary {
     #prepareSwitch;
 
     /**
-     * ビュー変換を初期表示へ戻す注入関数（実体はmain.jsの`viewTransform.reset()`）。
+     * ビュー変換を初期表示（倍率100%・原点を表示領域の中央）へ戻す注入関数（実体はmain.jsの`resetViewToCenter()`）。
      * @type {() => void}
      */
     #resetView;
@@ -339,7 +339,7 @@ export class CanvasLibrary {
      * @param {import('../core/VectorModel.js').VectorModel} deps.model - 開いているキャンバスの図形一式を保持するVectorModel
      * @param {import('../core/HistoryManager.js').HistoryManager} deps.historyManager - 編集操作の履歴（自動保存の契機・切り替え時のリセット）
      * @param {() => void} deps.prepareSwitch - 進行中の入力操作を中断して選択モードへ切り替える関数
-     * @param {() => void} deps.resetView - ビュー変換を初期表示へ戻す関数
+     * @param {() => void} deps.resetView - ビュー変換を初期表示（原点を表示領域の中央・倍率100%）へ戻す関数
      * @param {() => boolean} deps.confirmOpenUnsaved - 新しいキャンバスの記録を書けないとき、保存しないまま開くかを確認する関数（開くなら`true`）
      * @throws {Error} prepareSwitch・resetView・confirmOpenUnsavedのいずれかが関数でない場合
      */
