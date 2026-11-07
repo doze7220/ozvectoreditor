@@ -1,7 +1,7 @@
 *   **edit/**：`io/`・`core/`の機能を組み合わせて図形一式を扱う手順。流れは3章6.〜9.。
     *   **知らないこと（全クラス共通）**：DOM、図形種別の分岐、図形固有のプロパティ名、図形のid形式、操作モード。`InputTracker`に依存しない。
     *   **`ShapeInserter`と`ClipboardController`の`paste`・`duplicate`の前提（呼び出し側の責務）**：選択モードであること・ドラッグ中でないこと・作成途中の図形がないこと。呼び出し側は`main.js`。インポートでは`CanvasFileOperations`が`insertDocument`の前に`prepareInsert()`を呼んで満たす。選択モード以外で呼ぶと「選択集合は選択モード以外では空」の不変条件が崩れる。`SnapshotAdapter`は選択モード以外でも動き、`CanvasLibrary`は自分で`prepareSwitch()`を呼ぶ。
-    *   **依存**：importは`DocumentSerializer`のみ。他の依存（`VectorModel`・`HistoryManager`・`CanvasStorage`等）は注入で受け取る。操作モードに依存する判定・処理は`shouldRestoreSelection`・`prepareSwitch`・`prepareInsert`のような中立な注入関数で受け取る（実体は`main.js`が与える。注入の一覧は4章`main.js`）。
+    *   **依存**：importは`DocumentSerializer`のみ（`CanvasFileOperations`は例外で、`SpriteSerializer`・`CodeExporter`も加える）。他の依存（`VectorModel`・`HistoryManager`・`CanvasStorage`等）は注入で受け取る。操作モードに依存する判定・処理は`shouldRestoreSelection`・`prepareSwitch`・`prepareInsert`のような中立な注入関数で受け取る（実体は`main.js`が与える。注入の一覧は4章`main.js`）。
     *   **ShapeInserter.js**：作業データの図形を平行移動したうえで新しいidで最前面へ追加し、追加した図形だけを選択する1件の編集操作（貼り付け・複製・インポートの共通処理）。
         *   **公開メソッド**：`insertDocument`。呼び出し元は`ClipboardController`・`CanvasFileOperations`。
         *   **契約**：履歴へは1件以上追加した場合のみ1件記録する。`documentData`を書き換えない。進行中の入力操作の中断・モード切り替えは行わない。
@@ -20,7 +20,7 @@
         *   **`#isSwitching`**：真・偽にする箇所を増やさない（偽へ戻し損ねると自動保存が予約されなくなる。区間はクラスJSDoc）。
         *   **注意**：
             *   キャンバス一覧はメモリ上に要約のみを保持し、作業データは保持しない。起動時に一覧作成のため全記録を一度読み出す（キャンバス数・図形数が極端に多い場合は起動時間を確認する）。
-    *   **CanvasFileOperations.js**：ファイル操作（書き出し・開く（ファイル）・インポート）の組み立てと、キャンバスパレットの表示同期用の状態・変更通知の提供。`main.js`が1つだけ生成する。流れは3章9.。詳細の正本はクラスJSDoc。読み込みの判定の表と通知は`test/edit/CanvasFileOperations.test.js`で検証している（判定・通知を変えたらテストも直す）。
-        *   **公開メソッド**：`exportCanvas`・`openFile`・`importFile`・`getState`・`onChange`。
-        *   **依存**：`Blob`・`File`は注入された`DocumentFileIO`に任せる。作業データは不透明に扱う。`model`は`getShapes`のみ使う。`canvasLibrary.onChange`へ登録し、開いているキャンバスの変化でファイル操作の通知を消して自身のリスナーへ転送する。
+    *   **CanvasFileOperations.js**：ファイル操作（出力（作業ファイル）・出力（エンジン用）・開く（ファイル）・インポート）の組み立てと、キャンバスパレットの表示同期用の状態・変更通知の提供。`main.js`が1つだけ生成する。流れは3章9.。詳細の正本はクラスJSDoc。読み込みの判定の表と通知は`test/edit/CanvasFileOperations.test.js`で、出力の手順（受理条件・ダウンロードの順序と失敗時の扱い・通知）は`test/edit/CanvasFileOperations.export.test.js`で検証している（判定・通知・手順を変えたらテストも直す）。
+        *   **公開メソッド**：`exportCanvas`・`exportSprite`・`openFile`・`importFile`・`getState`・`onChange`。`exportSprite`の流れは3章9.。
+        *   **依存**：importは`DocumentSerializer`・`SpriteSerializer`・`CodeExporter`のみ。`Blob`・`File`は注入された`DocumentFileIO`に任せる。作業データは不透明に扱う。`model`は`getShapes`のみ使う。`canvasLibrary.onChange`へ登録し、開いているキャンバスの変化でファイル操作の通知を消して自身のリスナーへ転送する。
         *   **`busy`の合成**：`getState()`のみで行い、`canvasLibrary.getState()`の値は変えない。理由：インポートの同一性の確認は処理中の自身を除くため`canvasLibrary.getState()`の素の値で行うから。合成後の`busy`で判定してはならない（読み取り中は常に真となり、すべて失敗になる）。

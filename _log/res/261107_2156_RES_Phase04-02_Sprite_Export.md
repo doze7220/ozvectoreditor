@@ -351,7 +351,7 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
         *   プロジェクトのルートで`node --test`を実行し、全テストの成功と件数を4章のタスク8の欄へ記録する。
         *   本RESの仕上げとして、4章のタスク8の欄を記入し（タスク1〜7の欄はそれぞれのタスクで記入済みのため書き換えない）、開発資料への影響を2章の更新予定欄へ（資料本体は修正しない）、判断に迷った点・目視確認を推奨する箇所・将来修正する際の注意点を「5. 懸念事項・要確認ポイント」欄へ追記する。
         *   完了時に本タスクを [x] にする。
-*   [ ] タスク9: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
+*   [x] タスク9: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新）
         *   `./_doc/arch/15_io.md` :（更新）
@@ -428,7 +428,11 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
 
 ### タスク9: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
 *   **作業内容** :
-    *   (未記入)
+    *   `PROJECT_ARCHITECTURE.md`：1章（フォルダ構造の`io/`・`test/`、「存在しないもの」、フォルダ分割の方針）、2章（作業データファイルの拡張子、新設「スプライト（書き出し形式）」、新設「ファイル名の規則」）、3章（6.・8.・9.の用語と流れ、出力（エンジン用）の手順）を反映した。スプライトの形は2章の1箇所にまとめ、他の箇所は2章を参照する。
+    *   `_doc/arch/`：`15_io.md`（`DocumentFileIO`・`SpriteSerializer`・`CodeExporter`）、`12_shapes.md`（13メソッド契約・`toDrawElement`）、`10_ShapeFactory.md`（13メソッド契約）、`14_edit.md`（`exportSprite`・依存・テスト）、`13_palette.md`、`02_main.md`（注入の一覧・行数526→538）、`01_index_html.md`（ボタンの並び・`accept`）、`16_test.md`（新設4ファイル・テストできない箇所）を更新した。
+    *   実コードと照合した：公開メソッド名（`DocumentFileIO`の9メソッド、`SpriteSerializer.serialize`/`stringify`、`CodeExporter.toModuleText`）、`format`・`formatVersion`の値、`.ozve.json`・`/^[_\s]+/u`・`/(\.ozve)?\.json$/i`、通知`spriteExportFailed`、`main.js`が538行。
+    *   `node --test`：tests 219・pass 219・fail 0。
+    *   **diff監査の指摘への修正**：①`PROJECT_ARCHITECTURE.md`「2つの版」に作業データの版（`source.version`）を上げる条件（保存形式が変わったとき）を追記。②`16_test.md`「テストできない箇所」末尾を、開く（ファイル）・インポートの受理条件とキャンバスの同一性の確認・キャンバス切り替えによる通知の解除は未テスト（出力の受理時の通知の解除は`exportSprite`のみ）と具体化。③`16_test.md`の検証範囲に`CodeExporter`（未知のキーの無視・`draw`途中の例外での`restore`・`this`非依存）と`SpriteSerializer`（未知の`kind`でthrow）を追記。④`16_test.md`の改行コードを、他の`_doc/arch/`と同じCRLFに揃えた（内容は不変）。修正後の`node --test`：tests 219・pass 219・fail 0。
 
 ## 5. 懸念事項・要確認ポイント
 ### 計画時の判断と注意点
@@ -465,3 +469,5 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
 * **（タスク2）** 外枠の計算関数（形の範囲の各関数）はクラスの外のモジュール内関数として置いた（非公開静的メソッドにするよりテーブル化しやすいため）。判断に迷う点・開発資料への新たな影響はなし。
 * **（タスク4）** 開発資料への新たな影響・判断に迷った点はなし。`downloadText`の動作は従来どおりでファイル名のみ`.ozve.json`になる。ダウンロードのメソッドは`document`に依存するためテスト未実施（目視確認項目1・4に委ねる）。
 * **（タスク3）** 描画処理のテキストは`DRAW_SOURCE`（配列の行を`join`）として持ち、`draw`/`drawElement`のJSDocも書き出し先へ含めた。要素の`closed`は`=== true`のときだけ`closePath`する。`ellipse`の`radiusX`・`radiusY`の欠落（`undefined`）は不正として描かない。見た目の一致は描画命令の記録の比較であり、ピクセルの一致ではない。開発資料への新たな影響はなし。
+
+* **（タスク9）** 2章の「更新予定」の記述を、実コードで確認できた範囲で反映した。`16_test.md`の「テストできない箇所」の末尾は、監査後に`CanvasFileOperations.test.js`・`CanvasFileOperations.export.test.js`と照合し、未テストの範囲（開く・インポートの受理条件、キャンバスの同一性の確認、キャンバス切り替えによる通知の解除、`exportCanvas`の受理時の通知の解除）を具体的に書いた。`16_test.md`・`PROJECT_ARCHITECTURE.md`のテストファイル一覧・`02_main.md`の行数は、ファイルを増減・変更したときに追従が必要。

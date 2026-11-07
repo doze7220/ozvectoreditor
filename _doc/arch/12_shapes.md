@@ -1,13 +1,14 @@
 *   **shapes/**：図形種別ごとのデータ保持・描画・当たり判定・図形データとの相互変換を担う。図形クラスが扱う座標はすべてワールド座標で、オフセットは渡されない。内部実装は各ファイルのJSDocを参照。共通基底クラスは無い。
-    *   **12メソッド契約（公開メソッドの一覧）**：`draw(ctx, t)`、`drawHandles(ctx, viewScale = 1)`、`drawHover(ctx, viewScale = 1)`、`hitTest(x, y, tolerance)`、`hitTestHandle(x, y, tolerance)`、`setVertex(vertexIndex, x, y)`、`translate(dx, dy)`、`updateDraftEnd(x, y)`、`getVertexIndexForHandle(handleName)`、`intersectsRect(minX, minY, maxX, maxY)`、`toJSON()`、`static fromJSON(data)`。
-        *   `Line`/`Curve`/`Rect`/`Ellipse`はいずれもこの12メソッドを自律実装する。
+    *   **13メソッド契約（公開メソッドの一覧）**：`draw(ctx, t)`、`drawHandles(ctx, viewScale = 1)`、`drawHover(ctx, viewScale = 1)`、`hitTest(x, y, tolerance)`、`hitTestHandle(x, y, tolerance)`、`setVertex(vertexIndex, x, y)`、`translate(dx, dy)`、`updateDraftEnd(x, y)`、`getVertexIndexForHandle(handleName)`、`intersectsRect(minX, minY, maxX, maxY)`、`toDrawElement()`、`toJSON()`、`static fromJSON(data)`。
+        *   `Line`/`Curve`/`Rect`/`Ellipse`はいずれもこの13メソッドを自律実装する。
         *   `draw`のシグネチャの例外：`Line`は`t`を持たず`draw(ctx)`。他3クラスは`draw(ctx, t = 0)`だが`t`は未使用で、どの呼び出し元からも渡されない。
-        *   新規図形を追加する際はこの契約を満たすこと。満たせば`core/`層（`VectorModel`/`CanvasManager`/`InputTracker`）・`io/`を変更せずに作成・選択・範囲選択・再編集・作業データの変換/復元フローへ組み込める（`ShapeFactory`の対応表への登録とボタンは必要。4章`ShapeFactory.js`）。図形種別を追加したら`test/io/DocumentSerializer.roundtrip.test.js`へ往復のケースを足す。
+        *   新規図形を追加する際はこの契約を満たすこと。満たせば`core/`層（`VectorModel`/`CanvasManager`/`InputTracker`）・`io/`を変更せずに作成・選択・範囲選択・再編集・作業データの変換/復元フローへ組み込める（`ShapeFactory`の対応表への登録とボタンは必要。4章`ShapeFactory.js`）。ただしスプライトの出力は、`toDrawElement`の戻り値を既存の`kind`で表せない場合は`io/`の`SpriteSerializer`・`CodeExporter`も変更が要る。図形種別を追加したら`test/io/DocumentSerializer.roundtrip.test.js`へ往復のケースを、`test/io/SpriteSerializer.test.js`・`test/io/CodeExporter.test.js`へスプライトのケースを足す。
         *   各図形クラスのクラスJSDocは契約を列挙している。メソッドを増減する場合は4クラスのクラスJSDocも更新する。
     *   **ハンドル名の契約**（シグネチャだけでは満たせない）：
         *   移動ハンドルの名前は文字列`'move'`固定（`InputTracker`がこの名前で分岐する）。
         *   `'move'`以外のハンドル名は、`getVertexIndexForHandle`で有効な番号に解決できなければならない。解決できないと`null`のまま`setVertex`へ渡り、エラーなしでドラッグが無反応になる。
     *   **`intersectsRect`**：範囲選択用の交差判定。引数はワールド座標の正規化済み（min ≤ max）軸平行矩形（境界を含む）。描画されている輪郭線の中心線（`strokeWidth`は含めない）が一部でも掛かれば`true`。塗り内部は判定しない。`Line`・`Rect`は線分の厳密判定、`Curve`・`Ellipse`は輪郭を100分割した折れ線による近似判定。`Ellipse`の弧は描画されている弧部分のみが対象。
+    *   **`toDrawElement()`**：スプライト（書き出し形式。2章）の描画要素を返す。戻り値は2章「描画要素」（`polyline`・`quadratic`・`ellipse`。`Line`・`Rect`は`polyline`、`Curve`は`quadratic`、`Ellipse`は`ellipse`）。毎回新しいオブジェクト・頂点を作り、内部配列・頂点を共有しない。値は`draw`と同じ式で求める（`Ellipse`の`points`の約束・角度が`type`から決まること等の内部の約束を図形クラスの外へ出さないため）。呼び出し元は`SpriteSerializer`のみ（`core/`は呼ばない）。`Ellipse`の`closed: this.type === 'circle'`が種別による分岐の1箇所。`draw`の式を変えたら`toDrawElement`・`io/CodeExporter.js`の描画処理・`test/io/CodeExporter.test.js`を揃える。
     *   **`viewScale`**：`drawHandles`/`drawHover`の`viewScale`は表示倍率で、補助表示を画面上一定に保つため`÷ viewScale`で換算する。図形本体の`draw`は倍率を受け取らない（線幅は倍率に比例して表示される）。
     *   **`toJSON`/`fromJSON`**：
         *   どちらの方向でも内部配列・頂点オブジェクトを共有しない（`data`内の配列・オブジェクトも流用しない）。

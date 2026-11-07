@@ -1,6 +1,6 @@
 *   **main.js**：アプリケーションのエントリポイント。インスタンス化・依存の注入・イベントバインドと、既存モジュールのAPIを決められた順に呼ぶモジュール間の連携を担う。
     *   **持たないもの**：判定ロジック・作業データの中身の解釈。持たせる必要が生じたら別モジュールへ分離する（履歴のスナップショットは`edit/SnapshotAdapter`、キャンバス管理は`edit/CanvasLibrary`、ファイル操作は`edit/CanvasFileOperations`へ分離済み）。`core/`から`io/`をimportしないため、`DocumentSerializer`を使う処理は`main.js`と`edit/`が持つ。
-    *   **行数**：526行。配線を追加する場合は配線ブロック（`// 7.6.`。`applyMode`・`viewTransform`等への依存の受け渡しを伴う）の切り出しを検討する。
+    *   **行数**：538行。配線を追加する場合は配線ブロック（`// 7.6.`。`applyMode`・`viewTransform`等への依存の受け渡しを伴う）の切り出しを検討する。
     *   **主な関数**：`performUndo`・`performRedo`・`renderCurrentState`・`applyMode`・`applyShapeType`・`syncZoomDisplay`・`syncDeleteButtonState`・`syncHistoryButtonState`・`syncCanvasNameDisplay`・`syncLoadingCover`・`zoomAtCanvasCenter`。
     *   **配線ブロック**（コメント番号の順に置く）：
 
@@ -30,7 +30,7 @@
         | `PaletteLauncher` | `paletteLaunchers`（`main.js`が唯一の定義箇所） |
         | `CanvasLibrary` | `storage`＝`new CanvasStorage()`・`model`・`historyManager`・`prepareSwitch`＝`() => applyMode(OperationMode.SELECT)`・`resetView`＝`() => resetViewToCenter()`・`confirmOpenUnsaved`＝`() => canvasPalette.confirmOpenUnsaved()` |
         | `CanvasFileOperations` | `fileIO`＝`new DocumentFileIO()`・`canvasLibrary`・`inserter`＝`shapeInserter`・`model`・`prepareInsert`＝`() => applyMode(OperationMode.SELECT)` |
-        | `CanvasPalette` | `onOpen`/`onCreate`/`onRename`/`onDelete`→`canvasLibrary`の`openCanvas`/`createCanvas`/`renameCanvas`/`deleteCanvas`、`onExport`/`onOpenFile`/`onImportFile`→`canvasFileOperations`の`exportCanvas`/`openFile`/`importFile` |
+        | `CanvasPalette` | `onOpen`/`onCreate`/`onRename`/`onDelete`→`canvasLibrary`の`openCanvas`/`createCanvas`/`renameCanvas`/`deleteCanvas`、`onExport`/`onExportSprite`/`onOpenFile`/`onImportFile`→`canvasFileOperations`の`exportCanvas`/`exportSprite`/`openFile`/`importFile` |
         | `KeyboardShortcuts` | `isDragging`/`setMode`/`setShapeType`/`zoomStep`/`resetView`/`cancel`/`selectAll`/`deleteSelection`/`undo`/`redo`/`copy`/`cut`/`paste`/`duplicate`のコールバック |
         | `DevPanel` | `onExport`・`onImport` |
 
