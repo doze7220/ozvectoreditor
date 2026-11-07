@@ -246,7 +246,7 @@
         *   ソース（`index.html`・`js/`）を変更しない。`globalThis`へ代入しない。`package.json`を作らない。
         *   完了時にプロジェクトのルートで`node --test`を実行し、全テストの成功と表示された件数（`tests`・`pass`・`fail`）を本RESの4章へ記録する。失敗した場合、テストの誤りなら直し、既存コードの不具合と考えられる場合はソースを直さずに5章へ記録して報告する。開発資料への影響が判明したら2章の更新予定欄へ追記し、判断に迷った点は5章へ記述する。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク2: `DocumentSerializer`の失敗・スキップ・版の範囲・非破壊のテストの新設
+*   [x] タスク2: `DocumentSerializer`の失敗・スキップ・版の範囲・非破壊のテストの新設
     *   **対象ファイル** :
         *   `./test/io/DocumentSerializer.errors.test.js` :（新規）
     *   **作業内容** :
@@ -302,7 +302,9 @@
 
 ### タスク2: `DocumentSerializer`の失敗・スキップ・版の範囲・非破壊のテストの新設
 *   **作業内容** :
-    *   (未実施)
+    *   `test/io/DocumentSerializer.errors.test.js`を新設。補助関数`silenceWarn`・`currentVersion`・`makeValidShapes`・`makeValidData`・`makeDocument`・`assertWholeFailure`・`without`・`broken`・`skipCases`（ケース表）・テスト内の局所関数`assertSkipped`をJSDoc付きで記述。
+    *   全体の失敗（オブジェクト層25件・文字列層9件、各警告1回）、版の範囲、図形単位のスキップ（12ケース×両層＋複数混在）、余分なプロパティ（両層）、全図形のスキップ（両層）、引数を書き換えない（deserialize2件・serialize1件）を実装。
+    *   `node --test`の結果（タスク1を含む全体）：`tests 127`・`pass 127`・`fail 0`（suites 12）。ソース・`package.json`は変更・作成なし。
 
 ### タスク3: 読み込みの判定（`CanvasFileOperations`）のテストの新設
 *   **作業内容** :
@@ -337,3 +339,4 @@
     6.  再読み込みしても図形が残る（自動保存）。キャンバスの新規作成・切り替えができる。
     7.  ファイルの書き出し → 開く（ファイル）・インポートで、書き出した図形がそのまま読み込める。
 * **タスク1の実装メモ**：状態の表は`statesFor(type)`にまとめ、`it`をループで生成している（テスト名は`<状態名>（<層名>）`、`describe`は種別ごと）。`arc`・`circle`は同じ状態表を共用。
+* **タスク2での補足**：`broken`は`makeValidData`から種別ごとの図形データを取り出して1項目だけ壊す。`assertSkipped`はテスト内の局所関数（describe内）。`undefined`・`NaN`はJSONで表せないためオブジェクト層のみで使用した。
