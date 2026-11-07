@@ -28,14 +28,14 @@
         | `ShapeInserter` | `model`・`editRecorder`＝`historyManager` |
         | `ClipboardController` | `model`・`inserter`＝`shapeInserter`・`deleteSelection`＝`() => inputTracker.deleteSelection()` |
         | `PaletteLauncher` | `paletteLaunchers`（`main.js`が唯一の定義箇所） |
-        | `CanvasLibrary` | `storage`＝`new CanvasStorage()`・`model`・`historyManager`・`prepareSwitch`＝`() => applyMode(OperationMode.SELECT)`・`resetView`＝`() => viewTransform.reset()`・`confirmOpenUnsaved`＝`() => canvasPalette.confirmOpenUnsaved()` |
+        | `CanvasLibrary` | `storage`＝`new CanvasStorage()`・`model`・`historyManager`・`prepareSwitch`＝`() => applyMode(OperationMode.SELECT)`・`resetView`＝`() => resetViewToCenter()`・`confirmOpenUnsaved`＝`() => canvasPalette.confirmOpenUnsaved()` |
         | `CanvasFileOperations` | `fileIO`＝`new DocumentFileIO()`・`canvasLibrary`・`inserter`＝`shapeInserter`・`model`・`prepareInsert`＝`() => applyMode(OperationMode.SELECT)` |
         | `CanvasPalette` | `onOpen`/`onCreate`/`onRename`/`onDelete`→`canvasLibrary`の`openCanvas`/`createCanvas`/`renameCanvas`/`deleteCanvas`、`onExport`/`onOpenFile`/`onImportFile`→`canvasFileOperations`の`exportCanvas`/`openFile`/`importFile` |
         | `KeyboardShortcuts` | `isDragging`/`setMode`/`setShapeType`/`zoomStep`/`resetView`/`cancel`/`selectAll`/`deleteSelection`/`undo`/`redo`/`copy`/`cut`/`paste`/`duplicate`のコールバック |
         | `DevPanel` | `onExport`・`onImport` |
 
     *   **生成順の制約**：`HistoryManager`は`InputTracker`へ注入するため`InputTracker`より先に生成する。`shouldRestoreSelection`の実体・`performUndo`・`performRedo`は後で宣言される`inputTracker`を参照するが、呼ばれるのは起動完了後のみ（起動処理中に`undo()`/`redo()`を呼ぶ変更をする場合は注意）。`confirmOpenUnsaved`の実体も後で宣言される`canvasPalette`を参照するが、呼ばれるのは利用者の操作による新規作成・開く（ファイル）のみ（起動時の`start()`からは呼ばれない）。`CanvasFileOperations`は`canvasLibrary`の生成の直後、`CanvasPalette`の生成の前。
-    *   **同一経路の原則**：取り消し・やり直しのボタンとショートカットは`performUndo()`/`performRedo()`を呼ぶのみ（`historyManager.undo()`/`redo()`を直接呼ばない）。削除ボタンとショートカットは`inputTracker.deleteSelection()`を呼ぶのみ（`model.deleteShapes`を直接呼ばない。受理判定は`InputTracker`側）。ビューのリセットボタンは`viewTransform.reset()`のみ（操作モード・選択集合に触れない）。
+    *   **同一経路の原則**：取り消し・やり直しのボタンとショートカットは`performUndo()`/`performRedo()`を呼ぶのみ（`historyManager.undo()`/`redo()`を直接呼ばない）。削除ボタンとショートカットは`inputTracker.deleteSelection()`を呼ぶのみ（`model.deleteShapes`を直接呼ばない。受理判定は`InputTracker`側）。ビューのリセットボタン・リセットのショートカット・`CanvasLibrary`へ注入する`resetView`は`resetViewToCenter()`（`viewTransform.reset(canvas.clientWidth / 2, canvas.clientHeight / 2)`）のみ（操作モード・選択集合に触れない）。キャンバス要素の大きさを使う計算は`resetViewToCenter`と`zoomAtCanvasCenter`に集める。
     *   **押せる/押せない状態**：取り消しボタンは「履歴がなく作成途中の図形もない」とき`disabled`。作成途中の図形は取り消しで破棄できるため、`syncHistoryButtonState()`は`model.onChange`と`historyManager.onChange`の両方に登録する。
     *   **操作モード・図形種別の切替**：`applyMode(mode)`・`applyShapeType(type)`が一元管理する。切替後に`inputTracker.getMode()`／`getShapeType()`で実状態を読み返して表示を同期する。新規モードは`modeButtons`へのエントリ追加で対応する（`index.html`のDOM要素と`InputTracker`の`OperationMode`の値も追加が必要）。パレットの活性の判断は`main.js`が行い、`PaletteController`へ指示する。`SHAPE_TYPES`は正本の`ShapeFactory.js`から直接importする。
     *   **起動時の同期**：初回の描画・表示を`onChange`通知や`index.html`の初期記述に依存させないため、初期化の最後に`applyMode(OperationMode.SELECT)`と各表示の同期関数・パレットの`render`を明示的に1回ずつ呼ぶ。その後に`canvasLibrary.start()`を`await`せずに呼ぶ。`start()`前の`canvasLibrary.getState().loading`は真。
