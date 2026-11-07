@@ -284,7 +284,7 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
         *   `SpriteSerializer.test.js`：先頭行に単一責務JSDoc。2章要件9-2の`SpriteSerializer`の項目をすべて書く。図形は`ShapeFactory.create`または各図形クラスのコンストラクタで作り、`id`へ文字列を代入する。外枠の値は手計算の期待値と比べる（弧・円の両端を含む値は許容誤差1e-9で比べる補助関数をテストファイル内に置く）。少なくとも次の期待値を含める：曲線 始点(0,0)・制御点(50,100)・終点(100,0)・太さ2 → `{minX:-1, minY:-1, maxX:101, maxY:51}`（制御点の100を使わない）、円 中心(10,20)・半径(30,40)・太さ2 → `{-21, -21, 41, 61}`、弧（同じ値）→ `{-21, -21, 41, 21}`（`maxY`は許容誤差で比べる）。
         *   完了時に`node --test`を実行し、全テストの成功と件数を4章へ記録する。失敗した場合、テストの誤りなら直し、本タスク・タスク1の実装の誤りなら直す（それ以外の既存コードの不具合と考えられる場合は直さずに5章へ記録して報告する）。開発資料への影響・判断に迷った点の記録はタスク1と同じ。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク3: スプライトJSのテキストの組み立て`CodeExporter`の新設とテスト
+*   [x] タスク3: スプライトJSのテキストの組み立て`CodeExporter`の新設とテスト
     *   **対象ファイル** :
         *   `./js/io/CodeExporter.js` :（新規）
         *   `./test/io/CodeExporter.test.js` :（新規）
@@ -386,7 +386,9 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
 
 ### タスク3: スプライトJSのテキストの組み立て`CodeExporter`の新設とテスト
 *   **作業内容** :
-    *   (未記入)
+    *   `js/io/CodeExporter.js`を新設した（importは`SpriteSerializer`のみ）。`CodeExporter.toModuleText(spriteData)`が、固定の先頭コメント → `const spriteData = <stringify>;` → `const DEFAULT_STROKE_WIDTH = <JSON.stringify>;` → 描画処理（非公開定数`DRAW_SOURCE`：`draw`・`drawElement`・`export default { ...spriteData, draw };`）の順で組み立てる（末尾は改行。利用者の入力は埋め込まない）。
+    *   `test/io/CodeExporter.test.js`を新設した（20件）。動的`import`（`data:text/javascript,`）・既定のexportのみ・`import`文なし・`draw`を除いた内容がJSONと一致・`draw`の取り出し・見た目の一致（5種・混在・頂点を動かした図形。偽の`ctx`の記録を`deepStrictEqual`で比較）・図形0個・`strokeWidth`の既定2・未知の`kind`・`strokeColor`が文字列でない要素の線を描かないこと・形の項目不足・未知のキー・例外時の`restore`・`strokeColor`に特殊文字を含む場合を検証。
+    *   `node --test`：tests 183・pass 183・fail 0。
 
 ### タスク4: ファイル名の規則とスプライトのダウンロード（`DocumentFileIO`）とテスト
 *   **作業内容** :
@@ -441,3 +443,4 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
 13. プロジェクトのルートで`node --test`が全件成功する（`fail 0`）。
 * 書き出したJSをブラウザで実際に`import`して描く確認は、Phase 04-03（確認用ページ）で行う（本サブフェイズでは自動テストまで）。
 * **（タスク2）** 外枠の計算関数（形の範囲の各関数）はクラスの外のモジュール内関数として置いた（非公開静的メソッドにするよりテーブル化しやすいため）。判断に迷う点・開発資料への新たな影響はなし。
+* **（タスク3）** 描画処理のテキストは`DRAW_SOURCE`（配列の行を`join`）として持ち、`draw`/`drawElement`のJSDocも書き出し先へ含めた。要素の`closed`は`=== true`のときだけ`closePath`する。`ellipse`の`radiusX`・`radiusY`の欠落（`undefined`）は不正として描かない。見た目の一致は描画命令の記録の比較であり、ピクセルの一致ではない。開発資料への新たな影響はなし。
