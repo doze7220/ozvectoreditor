@@ -341,7 +341,7 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
         *   `main.js`：`CanvasPalette`へ渡すコールバックに`onExportSprite: () => canvasFileOperations.exportSprite()`を`onExport`の直後に追加する。配線ブロック`// 7.6.`のコメント2箇所の「書き出し」を2章要件1-2の表のとおり改める。それ以外は変えない（新しいimportは無い）。
         *   完了時に`node --test`を実行し、全テストの成功と件数を4章へ記録する。可能ならブラウザで`index.html`を開き、キャンバスパレットに2つの出力ボタンが並び、コンソールに`CanvasPalette`の警告が出ないことを確認して記録する（できない場合は5章の目視確認項目に委ねる旨を記録する）。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク8: JSDocの確認とRESの完成
+*   [x] タスク8: JSDocの確認とRESの完成
     *   **対象ファイル** :
         *   タスク1〜7で変更・新設したファイル :（確認・必要ならJSDoc・コメントのみ更新）
         *   `./_log/res/261107_2156_RES_Phase04-02_Sprite_Export.md` :（更新）
@@ -421,7 +421,10 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
 
 ### タスク8: JSDocの確認とRESの完成
 *   **作業内容** :
-    *   (未記入)
+    *   確認のみ（ソースの変更なし）。新設の`.js`6ファイル（`SpriteSerializer.js`・`CodeExporter.js`・テスト4ファイル）の先頭に単一責務のJSDoc（3行以内）があること、テストの補助関数・追加した関数・メソッド・定数にJSDocがあることを確かめた。
+    *   構造の確認：`io/`から`edit/`へのimportなし（`CodeExporter`→`SpriteSerializer`、`SpriteSerializer`→`DocumentSerializer`のみ）／`core/`に変更なし／`palette/`はimportを持たずスプライトデータを参照しない／`SpriteSerializer`・`CodeExporter`・`CanvasFileOperations`にDOM・`window`・`document`の使用なし（コメントでの言及のみ）／`window`・`globalThis`への代入なし（`CodeExporter.test.js`は`globalThis.__pwned`を読んで未定義を検証するのみ）／テストのためだけの`export`なし／`test/`に補助用`.js`なし／`package.json`等なし／`DEFAULT_STROKE_WIDTH`（`SpriteSerializer.js`）・`SPRITE_FORMAT`・`SPRITE_FORMAT_VERSION`・`.ozve.json`（`DocumentFileIO.js`）はそれぞれ1箇所の定義／typedef`FileNotice`は`CanvasFileOperations.js`と`CanvasPalette.js`で`'spriteExportFailed'`を含め揃っている／`index.html`・`CanvasPalette.js`に「書き出し」は残っていない。
+    *   `node --test`：tests 219・pass 219・fail 0。
+    *   開発資料への影響は2章の更新予定欄のとおりで、新たな追記事項はない。
 
 ### タスク9: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
 *   **作業内容** :
