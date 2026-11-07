@@ -255,7 +255,7 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
 *   (各タスクの実行時に影響が判明した場合も、この欄へ追記する。資料本体への反映は最終タスクで行う)
 
 ## 3. タスクリスト
-*   [ ] タスク1: 図形クラスへ描画要素への変換`toDrawElement()`を追加（共通契約の変更）
+*   [x] タスク1: 図形クラスへ描画要素への変換`toDrawElement()`を追加（共通契約の変更）
     *   **対象ファイル** :
         *   `./js/shapes/Line.js` :（更新）
         *   `./js/shapes/Curve.js` :（更新）
@@ -373,7 +373,10 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
 
 ### タスク1: 図形クラスへ描画要素への変換`toDrawElement()`を追加（共通契約の変更）
 *   **作業内容** :
-    *   (未記入)
+    *   `Line.js`・`Curve.js`・`Rect.js`・`Ellipse.js`の各`toJSON()`の直前に`toDrawElement()`を追加した（キー順は2章要件3の表のとおり。毎回新しいオブジェクト・頂点を作り、`id`・`strokeColor`・`strokeWidth`はそのまま入れる）。
+        *   `Line`：`polyline`・`closed: false`・`points`は`[{x1,y1},{x2,y2}]`。`Rect`：`polyline`・`closed: true`・`points`を並びのまま複製。`Curve`：`quadratic`・`points`3点を複製。`Ellipse`：`draw`と同じ式で`ellipse`（`radiusX`・`radiusY`は絶対値、`startAngle`・`endAngle`は自身のプロパティ、`closed: this.type === 'circle'`）。
+    *   既存メソッドは変更していない。4ファイルの先頭の責務JSDocへ「描画要素（スプライトの書き出し用）への変換」を追記し、クラスJSDocを「13メソッド…・toDrawElement」へ更新した。`Rect.js`の`#distanceToSegment`のJSDocを「13メソッド契約」へ、`Ellipse.js`の`ELLIPSE_TYPES`のJSDocの分岐箇所へ`toDrawElement`を追記した。
+    *   `node --test`：tests 145・pass 145・fail 0。
 
 ### タスク2: スプライトデータの組み立て`SpriteSerializer`の新設とテスト
 *   **作業内容** :
@@ -418,6 +421,7 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
 * **JSの埋め込みの前提**：スプライトデータをJSONのままJSの式として埋め込むため、JSONをJSの式として扱えるES2019以降の環境（現行の主要ブラウザ・Node.js）を前提とする。キーは本アプリが組み立てる固定のもののため、`__proto__`による`JSON.parse`との差は生じない（利用者の入力をキーにする変更をする場合は埋め込み方を見直すこと）。
 * **`source`の重複**：JS・JSONの両方に作業データ`source`が入り、描画データと合わせて図形の情報を2重に持つ（ファイルの大きさが約2倍）。薄い書き出しでは許容する。
 * **スプライトのJSONを「開く」**：Phase 04-03までは`format`の不一致で読み込み失敗の通知（`readFailed`）になる（停止しない）。
+* **（タスク1）** `Curve`・`Rect`の`toDrawElement`は`points.slice(0, n).map(...)`で複製した（`points`は常に3・4要素のため`toJSON`と同じ結果になる）。`Ellipse.toDrawElement`は`draw`と同じ式を再掲しており（式の共通化はしていない）、`draw`の式を変えたら本メソッドも揃えること。タスク1の時点では`toDrawElement`のテストは未作成（タスク2・3で`SpriteSerializer`・`CodeExporter`のテストが検証する）。
 
 ### 目視確認項目（テストプレイ）
 1. 「出力（エンジン用）」で、キャンバス名`ship`のとき`ship.js`・`ship.json`の2つがダウンロードされる。ブラウザが複数のダウンロードの許可を尋ねるか、尋ねた場合に許可すると2つとも落ちるかを確認する。

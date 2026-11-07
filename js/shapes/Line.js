@@ -1,5 +1,5 @@
 /**
- * 責務: 直線のデータ保持・Canvasへの描画処理・当たり判定、および図形データとの相互変換を担う。
+ * 責務: 直線のデータ保持・Canvasへの描画処理・当たり判定、および図形データとの相互変換と描画要素（スプライトの書き出し用）への変換を担う。
  */
 
 /**
@@ -10,8 +10,8 @@ const LINE_POINT_COUNT = 2;
 
 /**
  * 直線の図形クラス（図形種別`'line'`）。頂点は`x1, y1`＝始点、`x2, y2`＝終点として保持する。
- * 共通メソッド契約（12メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（13メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement）を自律実装する。座標はすべてワールド座標。
  */
 export class Line {
     /**
@@ -246,6 +246,27 @@ export class Line {
         ctx.strokeStyle = 'rgba(74, 144, 226, 0.4)';
         ctx.lineWidth = this.strokeWidth + 6 / viewScale;
         ctx.stroke();
+    }
+
+    /**
+     * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第13メソッド。呼び出し元は`SpriteSerializer`のみ）。
+     * 形（キー順もこの順）: `{ kind: 'polyline', id, points: [始点{x, y}, 終点{x, y}], closed: false, strokeColor, strokeWidth }`。
+     * `draw`と同じ式（始点→終点の線分）で求め、`id`・`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる。
+     * `points`は新規に組み立てるため、戻り値と自身は配列・頂点を共有しない。
+     * @returns {{kind: string, id: *, points: {x: number, y: number}[], closed: boolean, strokeColor: string, strokeWidth: number}} 新しい描画要素
+     */
+    toDrawElement() {
+        return {
+            kind: 'polyline',
+            id: this.id,
+            points: [
+                { x: this.x1, y: this.y1 },
+                { x: this.x2, y: this.y2 },
+            ],
+            closed: false,
+            strokeColor: this.strokeColor,
+            strokeWidth: this.strokeWidth,
+        };
     }
 
     /**

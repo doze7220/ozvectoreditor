@@ -1,6 +1,6 @@
 /**
  * 責務: 円・楕円・弧のデータ保持・Canvasへの描画処理・当たり判定、
- * および図形データとの相互変換を担う。
+ * および図形データとの相互変換と描画要素（スプライトの書き出し用）への変換を担う。
  */
 
 /**
@@ -18,7 +18,7 @@ const ELLIPSE_POINT_COUNT = 5;
 /**
  * 本クラスが扱う図形種別（`fromJSON`の`type`検証に用いる）。
  * 種別を増やす場合に揃える箇所：本一覧・種別で分岐する全箇所（コンストラクタ、`draw`、`drawHover`、`#updatePointsFromRadii`、
- * `hitTest`。`!== 'circle'`の分岐は弧として扱われる）・`ShapeFactory`の対応表・`index.html`のボタン。
+ * `hitTest`、`toDrawElement`。`!== 'circle'`の分岐は弧として扱われる）・`ShapeFactory`の対応表・`index.html`のボタン。
  * @type {ReadonlyArray<string>}
  */
 const ELLIPSE_TYPES = Object.freeze(['circle', 'arc']);
@@ -26,8 +26,8 @@ const ELLIPSE_TYPES = Object.freeze(['circle', 'arc']);
 /**
  * 円・弧の図形クラス（図形種別`'circle'`|`'arc'`。`type`で振る舞いを分岐する）。頂点は`points[0]`＝中心、`[1]`＝右端制御点、
  * `[2]`＝上端制御点、`[3]`＝開始角制御点、`[4]`＝終了角制御点。開始角・終了角は`type`から決まり、図形データには保存しない。
- * 共通メソッド契約（12メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（13メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement）を自律実装する。座標はすべてワールド座標。
  */
 export class Ellipse {
     /**
@@ -455,6 +455,35 @@ export class Ellipse {
             }
         }
         return true;
+    }
+
+    /**
+     * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第13メソッド。呼び出し元は`SpriteSerializer`のみ）。
+     * 形（キー順もこの順）: `{ kind: 'ellipse', id, x, y, radiusX, radiusY, startAngle, endAngle, closed, strokeColor, strokeWidth }`。
+     * `draw`と同じ式（`x`・`y`＝`points[0]`、`radiusX`＝`|points[1].x − x|`、`radiusY`＝`|points[2].y − y|`、
+     * `startAngle`・`endAngle`は自身の同名プロパティ、`closed`は`type === 'circle'`）で求める。回転は常に0のためキーを持たない。
+     * `id`・`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる。値はすべてプリミティブのため、戻り値と自身は状態を共有しない。
+     * @returns {{kind: string, id: *, x: number, y: number, radiusX: number, radiusY: number, startAngle: number, endAngle: number, closed: boolean, strokeColor: string, strokeWidth: number}} 新しい描画要素
+     */
+    toDrawElement() {
+        const xc = this.points[0].x;
+        const yc = this.points[0].y;
+        const rx = Math.abs(this.points[1].x - xc);
+        const ry = Math.abs(this.points[2].y - yc);
+
+        return {
+            kind: 'ellipse',
+            id: this.id,
+            x: xc,
+            y: yc,
+            radiusX: rx,
+            radiusY: ry,
+            startAngle: this.startAngle,
+            endAngle: this.endAngle,
+            closed: this.type === 'circle',
+            strokeColor: this.strokeColor,
+            strokeWidth: this.strokeWidth,
+        };
     }
 
     /**

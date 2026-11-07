@@ -1,6 +1,6 @@
 /**
  * 責務: 矩形（4頂点独立構造）のデータ保持・Canvasへの描画処理・当たり判定、
- * および図形データとの相互変換を担う。
+ * および図形データとの相互変換と描画要素（スプライトの書き出し用）への変換を担う。
  */
 
 /**
@@ -11,8 +11,8 @@ const RECT_POINT_COUNT = 4;
 
 /**
  * 矩形の図形クラス（図形種別`'rect'`）。頂点は`points[0]`＝topLeft、`[1]`＝topRight、`[2]`＝bottomRight、`[3]`＝bottomLeft（4頂点独立）。
- * 共通メソッド契約（12メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（13メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement）を自律実装する。座標はすべてワールド座標。
  */
 export class Rect {
     /**
@@ -81,7 +81,7 @@ export class Rect {
 
     /**
      * 点(px, py)と線分(ax, ay)-(bx, by)との最短距離を求める内部ヘルパー。
-     * hitTest内で4辺分ループして呼び出す実装詳細であり、12メソッド契約には含まれない。
+     * hitTest内で4辺分ループして呼び出す実装詳細であり、13メソッド契約には含まれない。
      * @param {number} px - 判定対象点のX座標
      * @param {number} py - 判定対象点のY座標
      * @param {number} ax - 線分始点のX座標
@@ -273,6 +273,24 @@ export class Rect {
         ctx.strokeStyle = 'rgba(74, 144, 226, 0.4)';
         ctx.lineWidth = this.strokeWidth + 6 / viewScale;
         ctx.stroke();
+    }
+
+    /**
+     * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第13メソッド。呼び出し元は`SpriteSerializer`のみ）。
+     * 形（キー順もこの順）: `{ kind: 'polyline', id, points: [topLeft, topRight, bottomRight, bottomLeft]（各{x, y}）, closed: true, strokeColor, strokeWidth }`。
+     * `draw`と同じ式（`points[0]`→`[1]`→`[2]`→`[3]`を結んで閉じる）で求め、`id`・`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる。
+     * `points`は並びのまま各頂点を新規オブジェクトとして複製するため、戻り値と自身は配列・頂点を共有しない。
+     * @returns {{kind: string, id: *, points: {x: number, y: number}[], closed: boolean, strokeColor: string, strokeWidth: number}} 新しい描画要素
+     */
+    toDrawElement() {
+        return {
+            kind: 'polyline',
+            id: this.id,
+            points: this.points.slice(0, 4).map((point) => ({ x: point.x, y: point.y })),
+            closed: true,
+            strokeColor: this.strokeColor,
+            strokeWidth: this.strokeWidth,
+        };
     }
 
     /**

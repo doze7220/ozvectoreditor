@@ -1,6 +1,6 @@
 /**
  * 責務: 2次ベジェ曲線（始点・制御点・終点）のデータ保持・Canvasへの描画処理・当たり判定、
- * および図形データとの相互変換を担う。
+ * および図形データとの相互変換と描画要素（スプライトの書き出し用）への変換を担う。
  */
 
 /**
@@ -18,8 +18,8 @@ const CURVE_POINT_COUNT = 3;
 
 /**
  * 2次ベジェ曲線の図形クラス（図形種別`'curve'`）。頂点は`points[0]`＝始点、`[1]`＝制御点、`[2]`＝終点。
- * 共通メソッド契約（12メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（13メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement）を自律実装する。座標はすべてワールド座標。
  */
 export class Curve {
     /**
@@ -303,6 +303,23 @@ export class Curve {
         ctx.strokeStyle = 'rgba(74, 144, 226, 0.4)';
         ctx.lineWidth = this.strokeWidth + 6 / viewScale;
         ctx.stroke();
+    }
+
+    /**
+     * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第13メソッド。呼び出し元は`SpriteSerializer`のみ）。
+     * 形（キー順もこの順）: `{ kind: 'quadratic', id, points: [始点{x, y}, 制御点{x, y}, 終点{x, y}], strokeColor, strokeWidth }`。
+     * `draw`と同じ式（`points[0]`から`points[1]`を制御点に`points[2]`への2次ベジェ）で求め、`id`・`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる。
+     * `points`は各頂点を新規オブジェクトとして複製するため、戻り値と自身は配列・頂点を共有しない。
+     * @returns {{kind: string, id: *, points: {x: number, y: number}[], strokeColor: string, strokeWidth: number}} 新しい描画要素
+     */
+    toDrawElement() {
+        return {
+            kind: 'quadratic',
+            id: this.id,
+            points: this.points.slice(0, 3).map((point) => ({ x: point.x, y: point.y })),
+            strokeColor: this.strokeColor,
+            strokeWidth: this.strokeWidth,
+        };
     }
 
     /**
