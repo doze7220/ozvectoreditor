@@ -174,8 +174,9 @@
             border-color: #6699ff;
             font-weight: bold;
         }
-        /* キャンバスパレットのファイル操作の行（書き出し・開く・インポートの3ボタンを横並び）。
-           パレットの内側は216px（幅240px−余白24px）。文字13px×(4+2+5)字＋余白・枠30px＋行間8pxで約181pxのため1行に収まる */
+        /* キャンバスパレットのファイル操作の行（開く・インポートの2ボタンを横並び）。
+           パレットの内側は216px（幅240px−余白24px）。文字13px×(2+5)字＋余白・枠20px＋間隔4pxで約115pxのため1行に収まる。
+           出力（作業ファイル）・出力（エンジン用）の2ボタンは、文字13px×(10+9)字＝約247px＞216pxで1行に収まらないため、この行には入れず1行に1つずつ置く */
         .canvas-file-row {
             display: flex;
             gap: 4px;
@@ -293,8 +294,9 @@
         </div>
         <div class="window-body">
             <button type="button" id="canvas-create" class="tool-btn">＋ 新規作成</button>
+            <button type="button" id="canvas-export" class="tool-btn" title="エディタで開き直すための作業データを、ファイル（.ozve.json）としてダウンロードします">出力（作業ファイル）</button>
+            <button type="button" id="canvas-export-sprite" class="tool-btn" title="ゲームで使うスプライトを、JS（.js）とJSON（.json）の2つのファイルとしてダウンロードします">出力（エンジン用）</button>
             <div class="canvas-file-row">
-                <button type="button" id="canvas-export" class="tool-btn" title="開いているキャンバスをファイル（.json）としてダウンロードします">書き出し</button>
                 <button type="button" id="canvas-open-file" class="tool-btn" title="ファイルを新しいキャンバスとして開きます">開く</button>
                 <button type="button" id="canvas-import" class="tool-btn" title="ファイルの図形を開いているキャンバスへ追加します">インポート</button>
             </div>

@@ -320,7 +320,7 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
         *   `CanvasFileOperations.export.test.js`：先頭行に単一責務JSDoc。2章要件9-2の項目をすべて書く。偽の`fileIO`は`downloadText`・`downloadSpriteModule`・`downloadSpriteJson`（呼び出しを順に記録。指定に応じて例外を投げる）と、通知を消すことの確認に使う`readText`・`getFileName`・`toCanvasName`を持つ。期待するテキストはテスト内で`SpriteSerializer.serialize`・`stringify`・`CodeExporter.toModuleText`から作って比べる。`model`の偽物は`getShapes`のみ持つ。組み立ての失敗は`getShapes`が`toDrawElement`を持たない要素（例`[{}]`）を返すことで起こす。既存の`test/edit/CanvasFileOperations.test.js`は変更しない。
         *   完了時に`node --test`を実行し、全テストの成功と件数を4章へ記録する。失敗時の扱い・開発資料への影響・判断に迷った点の記録はタスク2と同じ。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク6: キャンバスパレットのボタンの並べ方と文言（`index.html`）
+*   [x] タスク6: キャンバスパレットのボタンの並べ方と文言（`index.html`）
     *   **対象ファイル** :
         *   `./index.html` :（更新）
     *   **作業内容** :
@@ -408,7 +408,9 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
 
 ### タスク6: キャンバスパレットのボタンの並べ方と文言（`index.html`）
 *   **作業内容** :
-    *   (未記入)
+    *   `index.html`の`.window-body`を「＋ 新規作成」→`#canvas-export`（表示名「出力（作業ファイル）」・`title`は要件1-2の文）→`#canvas-export-sprite`（新設。`type="button"`・`class="tool-btn"`・表示名「出力（エンジン用）」・`title`は要件1の文）→`.canvas-file-row`（`#canvas-open-file`・`#canvas-import`のみ）の並びへ変更した。
+    *   `.canvas-file-row`のCSSコメントを実態（2ボタン・約115px・出力の2ボタンは約247px＞216pxで別の行）に合わせて直した。CSSの規則自体・`accept`・非表示の`input type="file"`・一覧・通知は変更していない。
+    *   `index.html`はテスト対象外だが、`node --test`で全件成功を確かめた：tests 219・pass 219・fail 0。`CanvasPalette`は`#canvas-export-sprite`をまだ参照しない（タスク7）。
 
 ### タスク7: キャンバスパレットの配線と文言（`CanvasPalette`・`main.js`）
 *   **作業内容** :
@@ -434,6 +436,8 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
 * **`source`の重複**：JS・JSONの両方に作業データ`source`が入り、描画データと合わせて図形の情報を2重に持つ（ファイルの大きさが約2倍）。薄い書き出しでは許容する。
 * **スプライトのJSONを「開く」**：Phase 04-03までは`format`の不一致で読み込み失敗の通知（`readFailed`）になる（停止しない）。
 * **（タスク1）** `Curve`・`Rect`の`toDrawElement`は`points.slice(0, n).map(...)`で複製した（`points`は常に3・4要素のため`toJSON`と同じ結果になる）。`Ellipse.toDrawElement`は`draw`と同じ式を再掲しており（式の共通化はしていない）、`draw`の式を変えたら本メソッドも揃えること。タスク1の時点では`toDrawElement`のテストは未作成（タスク2・3で`SpriteSerializer`・`CodeExporter`のテストが検証する）。
+
+* **（タスク6）** `#canvas-export-sprite`はタスク7で`CanvasPalette`が配線するまで押しても動かない。出力2ボタンが全幅で縦に並ぶ見た目（「＋ 新規作成」と同じ）をタスク7完了後に目視で確認すること。
 
 ### 目視確認項目（テストプレイ）
 1. 「出力（エンジン用）」で、キャンバス名`ship`のとき`ship.js`・`ship.json`の2つがダウンロードされる。ブラウザが複数のダウンロードの許可を尋ねるか、尋ねた場合に許可すると2つとも落ちるかを確認する。
