@@ -14,6 +14,7 @@
 * **Phase 1「ベクターエディタとしての最低限機能実装とパイプライン構築」：完了（2026-08-12）。** REQ/RES/DIRは各`closed/`。
 * **Phase 2「UI・操作充実」：完了（2026-11-01）。** REQ/RES/DIRは各`closed/`。
 * **Phase 3「編集基盤」：完了・クローズ済み（2026-11-07）。** `Phase03-01`〜`03-05`（シリアライズ契約・Undo/Redo・複製/コピー＆ペースト・ブラウザ内のキャンバス管理・ファイル入出力）と、期間中のInterrupt 3件（RES `261104_0943`・`261107_0038`・`261107_1357`）が完了。テストプレイは全サブフェイズ実施済み（03-05は2026-11-07に実施し問題なし）。REQ/RES/DIRは各`closed/`。棚卸しの結果は4章。
+* **Phase 4「薄い書き出し」：進行中。** DIR `_log/dir/261107_2028_DIR_Phase04-00_Thin_Export.md`。`Phase04-01`（自動テストの導入。RES `261107_2041`）完了・テストプレイ実施済み（2026-11-07、問題なし）。自動テストはプロジェクトのルートで`node --test`（規則は`_doc/arch/16_test.md`）。
 * **フェイズの番号**：P4＝薄い書き出し、P5＝着色、P6＝パス、P7＝アニメーションエディタモード（`_doc/PROJECT_MILESTONE.md`）。
 * **開発資料**：2026-11-06に整理し、Phase 3クローズ時に整合を確認した（記載基準は`PROJECT_ARCHITECTURE.md`冒頭）。
 * サブフェイズの進み具合はDIRの「サブフェイズ一覧」が正本。本ファイルでは重複管理しない。
@@ -45,7 +46,7 @@
 * **C. 条件付きで将来検討（該当する設計変更・機能追加のPhaseで拾う）**
   * **モーフィング**：`Curve`/`Rect`/`Ellipse`の`draw`の`t`引数は伏線で未使用（`Line.draw`は`t`を持たない）。モーフィング機能実装Phaseで対応。
   * **性能**：`Curve.hitTest`の100分割（現状は無視できる計算量。頂点数が数千を超えたらAABB等を検討）。選択・ホバー系APIの無条件`notifyChange()`（図形数増加で問題が出たら値変化チェックを検討）。`resize`のデバウンス未実装（現状は実害なし）。
-  * **当たり判定**：`Ellipse.hitTest`は平均半径`(rx+ry)/2`による近似（極端に細長い楕円で許容幅にブレ。通常操作はテストプレイで問題なし。低優先）。`Ellipse.intersectsRect`は角度固定が前提で、弧の角度編集を実装する際は`draw`（`ctx.ellipse`）の角度正規化と同じ規則を適用すること（Phase02-03）。
+  * **当たり判定**：`Ellipse.hitTest`は平均半径`(rx+ry)/2`による近似（極端に細長い楕円で許容幅にブレ。通常操作はテストプレイで問題なし。低優先）。`Ellipse.intersectsRect`は角度固定が前提で、弧の角度編集を実装する際は`draw`（`ctx.ellipse`）の角度正規化と同じ規則を適用すること（Phase02-03）。あわせて、角度は現在図形データに保存されない（`type`から決まる固定値）ため、角度を保存して作業データ形式の版を上げ、往復テスト（`test/io/DocumentSerializer.roundtrip.test.js`）に角度を変えた状態を足すこと（Phase04-01）。
   * **Canvas・ウィンドウの動的生成を入れるとき**：`removeEventListener`によるクリーンアップ未実装（現状は実害なし）。`WindowManager`の動的追加の再検知（`MutationObserver`等）・複数同時ドラッグ非対応。`.disabled`（`opacity:0.4`+`pointer-events:none`）の意味が他のウィンドウ種別に適切か（Phase01-04）。
   * **初期表示の暗黙の結合**：`index.html`の初期`.disabled`/`.active`と`InputTracker`の初期モード（Phase02-01で起動時の`applyMode`による同期を導入したが、JS読込前の初期表示用に静的記述も残している）。ボタンid命名規則・初期モードの変更時は`index.html`と`main.js`を揃えること（Phase01-04）。`PaletteController`はボタンが見つからなくてもエラー化しない（警告のみ）。
   * **キー割り当ての手動同期**：ボタンの`title`（例：`選択 (V)`）と`SHORTCUT_BINDINGS`（macOSでも`Ctrl+0`表記）。自動生成するなら`SHORTCUT_BINDINGS`のexportを検討（Phase02-04）。
