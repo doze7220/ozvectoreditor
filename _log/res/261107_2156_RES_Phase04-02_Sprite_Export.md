@@ -295,7 +295,7 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
         *   `CodeExporter.test.js`：先頭行に単一責務JSDoc。2章要件9-2の`CodeExporter`の項目をすべて書く。動的`import`は`await import('data:text/javascript,' + encodeURIComponent(text))`。描画命令を記録する偽の`ctx`を作る補助関数（JSDoc付き）をテストファイル内に置く。`globalThis`へ代入しない。
         *   完了時に`node --test`を実行し、全テストの成功と件数を4章へ記録する。見た目の一致を確かめられない点があれば理由を5章へ記録する。失敗時の扱い・開発資料への影響・判断に迷った点の記録はタスク2と同じ。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク4: ファイル名の規則とスプライトのダウンロード（`DocumentFileIO`）とテスト
+*   [x] タスク4: ファイル名の規則とスプライトのダウンロード（`DocumentFileIO`）とテスト
     *   **対象ファイル** :
         *   `./js/io/DocumentFileIO.js` :（更新）
         *   `./test/io/DocumentFileIO.test.js` :（新規）
@@ -392,7 +392,10 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
 
 ### タスク4: ファイル名の規則とスプライトのダウンロード（`DocumentFileIO`）とテスト
 *   **作業内容** :
-    *   (未記入)
+    *   `js/io/DocumentFileIO.js`を更新した。先頭の責務JSDocを作業データファイルとスプライトのファイルへ改め、拡張子`.ozve.json`・スプライトのJS（`.js`・`text/javascript`）・JSON（`.json`）の定数、先頭の`_`と空白の正規表現`/^[_\s]+/u`、`toCanvasName`の正規表現`/(\.ozve)?\.json$/i`を追加・変更した。
+    *   公開メソッド`downloadSpriteModule`・`downloadSpriteJson`・`toSpriteModuleFileName`・`toSpriteJsonFileName`を追加。ダウンロードの手順は非公開`#downloadBlob(text, fileName, mimeType)`、ファイル名の手順は非公開`#toBaseName(canvasName, stripLeadingUnderscores)`にまとめ、重複させていない。`toFileName`・`toCanvasName`のJSDocを`.ozve.json`と往復の例へ更新した。
+    *   `test/io/DocumentFileIO.test.js`を新設した（`toFileName`・`toSpriteModuleFileName`・`toSpriteJsonFileName`・`toCanvasName`・往復。ダウンロードのメソッドはテストしていない）。
+    *   `node --test`：tests 202・pass 202・fail 0。
 
 ### タスク5: 出力（エンジン用）の手順（`CanvasFileOperations.exportSprite`）とテスト
 *   **作業内容** :
@@ -443,4 +446,5 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
 13. プロジェクトのルートで`node --test`が全件成功する（`fail 0`）。
 * 書き出したJSをブラウザで実際に`import`して描く確認は、Phase 04-03（確認用ページ）で行う（本サブフェイズでは自動テストまで）。
 * **（タスク2）** 外枠の計算関数（形の範囲の各関数）はクラスの外のモジュール内関数として置いた（非公開静的メソッドにするよりテーブル化しやすいため）。判断に迷う点・開発資料への新たな影響はなし。
+* **（タスク4）** 開発資料への新たな影響・判断に迷った点はなし。`downloadText`の動作は従来どおりでファイル名のみ`.ozve.json`になる。ダウンロードのメソッドは`document`に依存するためテスト未実施（目視確認項目1・4に委ねる）。
 * **（タスク3）** 描画処理のテキストは`DRAW_SOURCE`（配列の行を`join`）として持ち、`draw`/`drawElement`のJSDocも書き出し先へ含めた。要素の`closed`は`=== true`のときだけ`closePath`する。`ellipse`の`radiusX`・`radiusY`の欠落（`undefined`）は不正として描かない。見た目の一致は描画命令の記録の比較であり、ピクセルの一致ではない。開発資料への新たな影響はなし。
