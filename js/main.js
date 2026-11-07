@@ -279,7 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 7.6. キャンバス管理（キャンバス一覧・自動保存・ファイル操作・キャンバスパレット・呼び出し口）配線
     // 処理本体（起動時の復元・開く・新規作成・名前の変更・削除・切り替え処理・自動保存）はCanvasLibrary（edit/）が、
-    // ファイル操作（書き出し・開く（ファイル）・インポート）の組み立てはCanvasFileOperations（edit/）が持ち、
+    // ファイル操作（出力（作業ファイル・エンジン用）・開く（ファイル）・インポート）の組み立てはCanvasFileOperations（edit/）が持ち、
     // ここは生成・注入コールバック・表示の同期・イベントの配線のみを行う。
     // applyMode・viewTransform・historyManagerの生成後であること（切り替え処理の前提）。
     /**
@@ -306,7 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
         confirmOpenUnsaved: () => canvasPalette.confirmOpenUnsaved()
     });
 
-    // ファイル操作（書き出し・開く（ファイル）・インポート）の組み立てはCanvasFileOperationsが持つ。
+    // ファイル操作（出力（作業ファイル・エンジン用）・開く（ファイル）・インポート）の組み立てはCanvasFileOperationsが持つ。
     // ファイルの読み書きはDocumentFileIOを注入し、インポートの前提（選択モード）はprepareInsertで満たす
     const canvasFileOperations = new CanvasFileOperations({
         fileIO: new DocumentFileIO(),
@@ -323,6 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
         onRename: (id, name) => canvasLibrary.renameCanvas(id, name),
         onDelete: (id) => canvasLibrary.deleteCanvas(id),
         onExport: () => canvasFileOperations.exportCanvas(),
+        onExportSprite: () => canvasFileOperations.exportSprite(),
         onOpenFile: (file) => canvasFileOperations.openFile(file),
         onImportFile: (file) => canvasFileOperations.importFile(file)
     });

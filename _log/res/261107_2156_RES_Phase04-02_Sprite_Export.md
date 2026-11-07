@@ -330,7 +330,7 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
         *   この時点では`#canvas-export-sprite`は配線されず押しても何も起きない（タスク7で配線する）。既存の書き出し・開く・インポートはこれまでどおり動くこと。
         *   完了時に`node --test`を実行し、全テストの成功と件数を4章へ記録する（`index.html`はテスト対象外だが、全件成功を確かめる）。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク7: キャンバスパレットの配線と文言（`CanvasPalette`・`main.js`）
+*   [x] タスク7: キャンバスパレットの配線と文言（`CanvasPalette`・`main.js`）
     *   **対象ファイル** :
         *   `./js/palette/CanvasPalette.js` :（更新）
         *   `./js/main.js` :（更新）
@@ -414,7 +414,10 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
 
 ### タスク7: キャンバスパレットの配線と文言（`CanvasPalette`・`main.js`）
 *   **作業内容** :
-    *   (未記入)
+    *   `CanvasPalette.js`：`#exportSpriteButton`（`#canvas-export-sprite`）を追加し、解決・必須要素の確認（警告文の要素一覧へ追加）・`click`で`#handleExportSprite()`（`blur()`のうえ`void onExportSprite()`）を配線。`onExportSprite`を必須コールバックにした（エラー文・`@throws`へ追加）。`render`で`#exportSpriteButton.disabled = isFileBusy`。
+    *   文言：`ISSUE_MESSAGES.writeFailed`・`FILE_NOTICE_MESSAGES.exportFailed`・`readFailed`を要件1-2の表のとおり改め、`spriteExportFailed`を追加。JSDoc（typedef`FileNotice`・`CanvasPaletteActions`・クラスJSDoc・`#exportButton`・`#handleExport`・コンストラクタ）を更新。`CanvasPalette.js`に「書き出し」は残っていない。
+    *   `main.js`：`onExport`の直後に`onExportSprite: () => canvasFileOperations.exportSprite()`を追加し、`// 7.6.`のコメント2箇所を改めた（DevPanelの`onExport`は別物のため変更なし）。
+    *   `node --test`：tests 219・pass 219・fail 0。ブラウザでの確認は行っていない（5章の目視確認項目に委ねる）。
 
 ### タスク8: JSDocの確認とRESの完成
 *   **作業内容** :
@@ -438,6 +441,8 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
 * **（タスク1）** `Curve`・`Rect`の`toDrawElement`は`points.slice(0, n).map(...)`で複製した（`points`は常に3・4要素のため`toJSON`と同じ結果になる）。`Ellipse.toDrawElement`は`draw`と同じ式を再掲しており（式の共通化はしていない）、`draw`の式を変えたら本メソッドも揃えること。タスク1の時点では`toDrawElement`のテストは未作成（タスク2・3で`SpriteSerializer`・`CodeExporter`のテストが検証する）。
 
 * **（タスク6）** `#canvas-export-sprite`はタスク7で`CanvasPalette`が配線するまで押しても動かない。出力2ボタンが全幅で縦に並ぶ見た目（「＋ 新規作成」と同じ）をタスク7完了後に目視で確認すること。
+
+* **（タスク7）** ブラウザでの起動確認は未実施。`index.html`を開いてコンソールに`CanvasPalette`の警告が出ないこと、「出力（エンジン用）」が押せて`'unavailable'`でもbusy/loading以外は押せることを目視で確認すること。`CanvasPalette`にはテストが無い（DOM依存）。
 
 ### 目視確認項目（テストプレイ）
 1. 「出力（エンジン用）」で、キャンバス名`ship`のとき`ship.js`・`ship.json`の2つがダウンロードされる。ブラウザが複数のダウンロードの許可を尋ねるか、尋ねた場合に許可すると2つとも落ちるかを確認する。

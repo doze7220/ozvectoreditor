@@ -10,7 +10,7 @@
  */
 const ISSUE_MESSAGES = Object.freeze({
     unavailable: 'このブラウザでは保存できません。再読み込みすると編集内容は失われます。',
-    writeFailed: '保存に失敗しました。最新の変更は保存されていない可能性があります。「書き出し」でファイルに残せます。',
+    writeFailed: '保存に失敗しました。最新の変更は保存されていない可能性があります。「出力（作業ファイル）」でファイルに残せます。',
     loadFailed: 'キャンバスを読み込めませんでした。',
     partialLoad: '一部の図形を読み込めませんでした。編集すると、その図形は保存から失われます。'
 });
@@ -21,10 +21,11 @@ const ISSUE_MESSAGES = Object.freeze({
  * @type {Readonly<Record<string, (notice: FileNotice) => string>>}
  */
 const FILE_NOTICE_MESSAGES = Object.freeze({
-    readFailed: (notice) => `${notice.fileName ?? ''} を読み込めませんでした。本アプリの作業データファイルか確認してください。`,
+    readFailed: (notice) => `${notice.fileName ?? ''} を読み込めませんでした。本アプリで出力した作業ファイルか確認してください。`,
     partialRead: (notice) => `${notice.fileName ?? ''} の一部の図形（${notice.skippedCount}個）を読み込めませんでした。`,
     noShapes: (notice) => `${notice.fileName ?? ''} に追加できる図形がありませんでした。`,
-    exportFailed: () => '書き出しに失敗しました。'
+    exportFailed: () => '作業ファイルの出力に失敗しました。',
+    spriteExportFailed: () => 'エンジン用の出力に失敗しました。JSとJSONの片方だけがダウンロードされた場合は、もう一度出力してください。'
 });
 
 /** 読み込み中に一覧の代わりに表示する文言。 */
@@ -49,8 +50,8 @@ const LOADING_TEXT = '読み込み中…';
 /**
  * ファイル操作の通知。`js/edit/CanvasFileOperations.js`のtypedef`FileNotice`と同じ内容であり、形を変える場合は両方を揃えること。
  * @typedef {Object} FileNotice
- * @property {'readFailed'|'partialRead'|'noShapes'|'exportFailed'} kind 通知の種類
- * @property {string|null} fileName 対象のファイル名（書き出しの失敗は`null`）
+ * @property {'readFailed'|'partialRead'|'noShapes'|'exportFailed'|'spriteExportFailed'} kind 通知の種類
+ * @property {string|null} fileName 対象のファイル名（出力の失敗は`null`）
  * @property {number} skippedCount 読めなかった図形の数（`partialRead`以外は0）
  */
 
@@ -67,7 +68,8 @@ const LOADING_TEXT = '読み込み中…';
  * @property {() => *} onCreate 「＋ 新規作成」が押されたとき、新しいキャンバスを作成して開く
  * @property {(id: string, name: string) => *} onRename 名前の変更の小窓で確定した文字列（未加工）を渡す
  * @property {(id: string) => *} onDelete 削除の確認の小窓で「OK」が押されたとき、そのキャンバスを削除する
- * @property {() => *} onExport 「書き出し」が押されたとき、開いているキャンバスを作業データファイルとして書き出す
+ * @property {() => *} onExport 「出力（作業ファイル）」が押されたとき、開いているキャンバスを作業データファイルとして出力する
+ * @property {() => *} onExportSprite 「出力（エンジン用）」が押されたとき、開いているキャンバスをスプライト（JSとJSON）として出力する
  * @property {(file: File) => *} onOpenFile 「開く」でファイルが選ばれたとき、新しいキャンバスとして開く（`file`は不透明に渡す）
  * @property {(file: File) => *} onImportFile 「インポート」でファイルが選ばれたとき、開いているキャンバスへ追加する（`file`は不透明に渡す）
  */
@@ -86,7 +88,8 @@ const LOADING_TEXT = '読み込み中…';
  *   - 新しいキャンバスの記録を書けないとき（公開メソッド`confirmOpenUnsaved()`）：`window.confirm('新しいキャンバスを保存できませんでした。保存しないまま開きますか？')`を表示し、結果を返す
  *     （`CanvasLibrary`の注入関数から呼ばれる。配線の有無によらず動く）。
  *   - 押されたボタンにフォーカスが残ると`Enter`で再度押されるため、操作の処理前に押されたボタンの`blur()`を呼ぶ。
- *   - 「書き出し」（`#canvas-export`）の`click`で`onExport()`。
+ *   - 「出力（作業ファイル）」（`#canvas-export`）の`click`で`onExport()`。
+ *   - 「出力（エンジン用）」（`#canvas-export-sprite`）の`click`で`onExportSprite()`。
  *   - 「開く」（`#canvas-open-file`）・「インポート」（`#canvas-import`）：ボタンの`click`で`blur()`のうえ、
  *     非表示の`input type="file"`（`#canvas-open-file-input`・`#canvas-import-file-input`）の`click()`を同期的に呼んで小窓を開く。
  *     `input`の`change`で選ばれたファイルを取り出し、`input.value`を空にして（同じファイルを続けて選んでも毎回`change`が起きるように）
@@ -97,7 +100,7 @@ const LOADING_TEXT = '読み込み中…';
  *   - `loading`：一覧の代わりに「読み込み中…」を表示する。
  *   - `busy || !canManage || loading`：新規作成・開く（ファイル）・各行のボタンを`disabled`属性で押せない状態にする
  *     （見た目は既存の`.tool-btn:disabled`。`.disabled`クラスは使わない）。
- *   - `busy || loading`：書き出し・インポートを`disabled`にする。`'unavailable'`（`!canManage`）でも押せる。
+ *   - `busy || loading`：出力（作業ファイル）・出力（エンジン用）・インポートを`disabled`にする。`'unavailable'`（`!canManage`）でも押せる。
  *   - 開いているキャンバス（`isOpen`）の行に`.current`を付ける。行の名前ボタンの`title`に名前全体を設定する。
  *   - 名前は`textContent`のみで設定し、`innerHTML`は使わない（利用者の入力した名前をHTMLとして解釈しないため）。
  *   - `issue`に応じた文言（`ISSUE_MESSAGES`）を`#canvas-notice`へ表示し、`null`（または未知の値）なら`hidden`にする。
@@ -124,10 +127,16 @@ export class CanvasPalette {
     #noticeElement = null;
 
     /**
-     * @type {HTMLButtonElement|null} 書き出しボタン（`#canvas-export`）。見つからなければnull。
+     * @type {HTMLButtonElement|null} 出力（作業ファイル）ボタン（`#canvas-export`）。見つからなければnull。
      * @private
      */
     #exportButton = null;
+
+    /**
+     * @type {HTMLButtonElement|null} 出力（エンジン用）ボタン（`#canvas-export-sprite`）。見つからなければnull。
+     * @private
+     */
+    #exportSpriteButton = null;
 
     /**
      * @type {HTMLButtonElement|null} 開く（ファイル）ボタン（`#canvas-open-file`）。見つからなければnull。
@@ -166,22 +175,22 @@ export class CanvasPalette {
     #namesById = new Map();
 
     /**
-     * ルート要素内の`#canvas-create`・`#canvas-list`・`#canvas-notice`・`#canvas-export`・`#canvas-open-file`・`#canvas-import`・
+     * ルート要素内の`#canvas-create`・`#canvas-list`・`#canvas-notice`・`#canvas-export`・`#canvas-export-sprite`・`#canvas-open-file`・`#canvas-import`・
      * `#canvas-open-file-input`・`#canvas-import-file-input`・`#canvas-file-notice`を解決し、各ボタンと一覧のクリックを配線する。
      * コールバックが関数でなければ`Error`を投げる。要素が1つでも欠ける場合は`console.warn`で報告し、配線しない。
      * @param {HTMLElement|null} rootElement キャンバスパレットのルート要素（`#window-canvas-palette`）
      * @param {CanvasPaletteActions} actions 操作コールバック群
-     * @throws {Error} `onOpen`・`onCreate`・`onRename`・`onDelete`・`onExport`・`onOpenFile`・`onImportFile`のいずれかが関数でない場合
+     * @throws {Error} `onOpen`・`onCreate`・`onRename`・`onDelete`・`onExport`・`onExportSprite`・`onOpenFile`・`onImportFile`のいずれかが関数でない場合
      */
     constructor(rootElement, actions) {
-        const { onOpen, onCreate, onRename, onDelete, onExport, onOpenFile, onImportFile } = actions || {};
+        const { onOpen, onCreate, onRename, onDelete, onExport, onExportSprite, onOpenFile, onImportFile } = actions || {};
         if (typeof onOpen !== 'function' || typeof onCreate !== 'function'
             || typeof onRename !== 'function' || typeof onDelete !== 'function'
-            || typeof onExport !== 'function' || typeof onOpenFile !== 'function'
-            || typeof onImportFile !== 'function') {
-            throw new Error('CanvasPalette: onOpen / onCreate / onRename / onDelete / onExport / onOpenFile / onImportFile には関数を指定してください。');
+            || typeof onExport !== 'function' || typeof onExportSprite !== 'function'
+            || typeof onOpenFile !== 'function' || typeof onImportFile !== 'function') {
+            throw new Error('CanvasPalette: onOpen / onCreate / onRename / onDelete / onExport / onExportSprite / onOpenFile / onImportFile には関数を指定してください。');
         }
-        this.#actions = { onOpen, onCreate, onRename, onDelete, onExport, onOpenFile, onImportFile };
+        this.#actions = { onOpen, onCreate, onRename, onDelete, onExport, onExportSprite, onOpenFile, onImportFile };
 
         let openFileInput = null;
         let importFileInput = null;
@@ -190,6 +199,7 @@ export class CanvasPalette {
             this.#listElement = rootElement.querySelector('#canvas-list');
             this.#noticeElement = rootElement.querySelector('#canvas-notice');
             this.#exportButton = rootElement.querySelector('#canvas-export');
+            this.#exportSpriteButton = rootElement.querySelector('#canvas-export-sprite');
             this.#openFileButton = rootElement.querySelector('#canvas-open-file');
             this.#importButton = rootElement.querySelector('#canvas-import');
             openFileInput = rootElement.querySelector('#canvas-open-file-input');
@@ -197,14 +207,15 @@ export class CanvasPalette {
             this.#fileNoticeElement = rootElement.querySelector('#canvas-file-notice');
         }
         if (!this.#createButton || !this.#listElement || !this.#noticeElement
-            || !this.#exportButton || !this.#openFileButton || !this.#importButton
+            || !this.#exportButton || !this.#exportSpriteButton || !this.#openFileButton || !this.#importButton
             || !openFileInput || !importFileInput || !this.#fileNoticeElement) {
-            console.warn('CanvasPalette: キャンバスパレットの要素（#canvas-create / #canvas-list / #canvas-notice / #canvas-export / #canvas-open-file / #canvas-import / #canvas-open-file-input / #canvas-import-file-input / #canvas-file-notice）が見つかりません。配線しません。');
+            console.warn('CanvasPalette: キャンバスパレットの要素（#canvas-create / #canvas-list / #canvas-notice / #canvas-export / #canvas-export-sprite / #canvas-open-file / #canvas-import / #canvas-open-file-input / #canvas-import-file-input / #canvas-file-notice）が見つかりません。配線しません。');
             return;
         }
 
         this.#createButton.addEventListener('click', () => this.#handleCreate());
         this.#exportButton.addEventListener('click', () => this.#handleExport());
+        this.#exportSpriteButton.addEventListener('click', () => this.#handleExportSprite());
         this.#bindFilePicker(this.#openFileButton, openFileInput, (file) => this.#actions.onOpenFile(file));
         this.#bindFilePicker(this.#importButton, importFileInput, (file) => this.#actions.onImportFile(file));
         this.#listElement.addEventListener('click', (event) => this.#handleListClick(event));
@@ -234,6 +245,7 @@ export class CanvasPalette {
         this.#openFileButton.disabled = isLocked;
         const isFileBusy = Boolean(state.busy || state.loading);
         this.#exportButton.disabled = isFileBusy;
+        this.#exportSpriteButton.disabled = isFileBusy;
         this.#importButton.disabled = isFileBusy;
 
         this.#namesById = new Map();
@@ -316,12 +328,21 @@ export class CanvasPalette {
     }
 
     /**
-     * 「書き出し」：押されたボタンのフォーカスを外してから`onExport()`を呼ぶ（戻り値は待たない）。
+     * 「出力（作業ファイル）」：押されたボタンのフォーカスを外してから`onExport()`を呼ぶ（戻り値は待たない）。
      * @private
      */
     #handleExport() {
         this.#exportButton.blur();
         void this.#actions.onExport();
+    }
+
+    /**
+     * 「出力（エンジン用）」：押されたボタンのフォーカスを外してから`onExportSprite()`を呼ぶ（戻り値は待たない）。
+     * @private
+     */
+    #handleExportSprite() {
+        this.#exportSpriteButton.blur();
+        void this.#actions.onExportSprite();
     }
 
     /**
