@@ -51,6 +51,12 @@
 │       ├── CanvasStorage.js
 │       ├── DocumentFileIO.js
 │       └── CodeExporter.js     # 未実装（P4の書き出しで追加予定。現在このファイルは存在しない）
+├── test/                       # 自動テスト（node --test でのみ実行。index.html・js/からは参照しない）。中はjs/の構成に合わせる
+│   ├── io/
+│   │   ├── DocumentSerializer.roundtrip.test.js
+│   │   └── DocumentSerializer.errors.test.js
+│   └── edit/
+│       └── CanvasFileOperations.test.js
 │
 ├── PROJECT_CONSTITUTION.md
 ├── PROJECT_ARCHITECTURE.md
@@ -66,13 +72,14 @@
         └── closed/    # フェイズ大番号移行時にアーカイブ済みRESの退避先
 ```
 
-**存在しないもの**：JS形式の入力（書き出し済みJSの再読み込み。`CodeImporter`は作らない。`_doc/PROJECT_MILESTONE.md`の将来の野望）、カラーピッカー、ツールバー、塗りつぶし、レイヤー、グループ化。
+**存在しないもの**：JS形式の入力（書き出し済みJSの再読み込み。`CodeImporter`は作らない。`_doc/PROJECT_MILESTONE.md`の将来の野望）、カラーピッカー、ツールバー、塗りつぶし、レイヤー、グループ化、`package.json`・`node_modules`・ビルド手順、テストの自動実行（保存時・コミット時のフック、CI）、画面の操作や描画のテスト。
 
 **フォルダ分割の方針**
 *   `core/`：横断的な処理（入力→状態→描画の複数層にまたがるもの）。
 *   `shapes/`：1種類の図形。`palette/`：1つのUI部品。
 *   `io/`：作業データ形式の変換（`DocumentSerializer`）、IndexedDBへの読み書き（`CanvasStorage`）、作業データファイルのブラウザ内での読み書き（`DocumentFileIO`）のみ。
 *   `edit/`：`io/`・`core/`の機能を組み合わせて図形一式を扱う手順（貼り付け・複製、履歴のスナップショットの取得・適用、キャンバス一覧の管理、ファイル操作の組み立て）。操作モードを知らない。操作モードに依存する判定・処理は`shouldRestoreSelection`・`prepareSwitch`・`prepareInsert`のような中立な注入関数で受け取る。
+*   `test/`：自動テスト。Node.jsはテストの実行（`node --test`）にのみ使い、エディタのビルド・配信には使わない。依存は`test/ → js/`の一方向で、`index.html`・`js/`は`test/`を参照しない。規則は4章`test/`。
 *   **依存方向**：`main.js → edit → io → core → shapes`の一方向。`core/`は`io/`をimportしない。`core/`・`io/`は`edit/`をimportしない。
 
 ---
@@ -215,3 +222,4 @@
 | `palette/` | `_doc/arch/13_palette.md` |
 | `edit/` | `_doc/arch/14_edit.md` |
 | `io/` | `_doc/arch/15_io.md` |
+| `test/`（自動テスト） | `_doc/arch/16_test.md` |

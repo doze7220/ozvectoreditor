@@ -1,0 +1,18 @@
+*   **test/**：自動テスト。Node.jsの`node:test`・`node:assert/strict`のみで書き、プロジェクトのルートの`node --test`で実行する。`index.html`・`js/`は`test/`を参照しない（依存は`test/ → js/`の一方向）。
+    *   **実行方法**：プロジェクトのルートで`node --test`（引数なし）。確認したNode.jsの版はv24.20.0。`package.json`は作らない（`package.json`がなくても`import`/`export`を含む`.js`がESモジュールとして読み込まれ、警告も出ないことを確認済み。古いNode.jsでは動かない可能性がある。その場合も`package.json`を足さずNode.jsの版を上げる）。Node.jsはテストの実行にのみ使う。結果は標準の出力の`tests`・`pass`・`fail`の件数で見る（`fail 0`であることを確かめる）。
+    *   **置き場所と命名**：`test/<js/からの相対フォルダ>/<対象モジュール名>[.<観点>].test.js`。`test/`以下の`.js`はすべてテストとして実行されるため、共有の補助モジュールを置かず、補助関数は各テストファイルの中に書く。テスト以外の`.js`を`test/`以下に置かない。プロジェクト内に`test.js`・`test-*.js`・`*_test.js`・`*-test.js`の名前のファイルを作らない（同じく実行対象になる）。
+    *   **書き方の決まり**：
+        *   先頭行に単一責務のJSDoc（3行以内）。補助関数にもJSDoc（`@param`・`@returns`）を書く。
+        *   `node:test`・`node:assert/strict`のみ使う（外部ライブラリ・DOMの模擬ライブラリを使わない）。
+        *   対象は相対パスで`import`し、公開API（`export`されたクラス・定数・publicメソッド・JSDocにある公開プロパティ）のみを通す。テストのためにソースへ`export`の追加・privateの公開・処理の切り出しをしない。
+        *   `globalThis`・`window`へ代入しない。
+        *   `console.warn`は各テストで`t.mock.method(console, 'warn', () => {})`により抑止する（テストの終了時に自動で戻る）。
+        *   注入される依存はテストファイル内の素のオブジェクトの偽物で置き換える。
+        *   図形の`id`は`VectorModel`を使わず、公開プロパティ`id`へ文字列を直接代入して設定する。
+    *   **既存のテストファイルと検証範囲**：
+        *   `test/io/DocumentSerializer.roundtrip.test.js`：5種の図形（`line`・`curve`・`arc`・`rect`・`circle`）が、オブジェクト層・文字列層の両方の往復で元と同じ図形に戻ること（生成直後・頂点を動かした・平行移動・線の色と太さを変えた状態、混在の描画順・`id`、図形0個、両層が同じ作業データを表すこと、独立性）。
+        *   `test/io/DocumentSerializer.errors.test.js`：`DocumentSerializer`のデシリアライズの契約。全体の読み込み失敗（両層・警告1回）、版の範囲、図形単位のスキップ（`index`・`type`・警告の回数）、余分なプロパティの無視、全図形のスキップ、引数を書き換えないこと。
+        *   `test/edit/CanvasFileOperations.test.js`：`CanvasFileOperations`の開く（ファイル）・インポートでの読み込み結果の分類（読み込み不可・空・一部・全部）と通知`fileNotice`。依存の偽物を注入し、戻り値・依存の呼び出し（引数・順序）で確かめる。
+    *   **版を上げるとき**：作業データ形式の版を上げる（`MIGRATIONS`へ関数を足す）ときは、`test/io/`へマイグレーションのテスト（旧版の作業データが現行版として読めること、マイグレーションが引数を書き換えないこと等）を追加する。現在は版1のみで`MIGRATIONS`が空・非公開のため、マイグレーションの経路（未定義・throw・オブジェクト以外を返す場合の全体失敗を含む）はテストしていない。
+    *   **テストできない箇所**（Node.js v24.20.0で確認）：`DocumentFileIO`の`downloadText`（`document`に依存するためNode.jsでそのまま動かない）、`CanvasStorage`（`indexedDB`に依存。Node.jsには無い）、図形の`draw`・`drawHandles`・`drawHover`（`CanvasRenderingContext2D`が要る。Node.jsには無い）。DOMからの切り離しは行っていない。`DocumentFileIO`の`readText`・`getFileName`・`toFileName`・`toCanvasName`はNode.jsでも動き得るが、テストしていない（`File`・`Blob`・`URL.createObjectURL`はNode.jsにも存在する）。`CanvasFileOperations`の書き出し・受理条件・通知の解除条件等も対象外。
+    *   **やらないと決めたこと**：`package.json`・npmパッケージ・ビルドツールの導入、テストの自動実行（フック・CI）、画面の操作・描画のテスト、ブラウザの自動操作。

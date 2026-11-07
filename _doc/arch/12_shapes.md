@@ -2,7 +2,7 @@
     *   **12メソッド契約（公開メソッドの一覧）**：`draw(ctx, t)`、`drawHandles(ctx, viewScale = 1)`、`drawHover(ctx, viewScale = 1)`、`hitTest(x, y, tolerance)`、`hitTestHandle(x, y, tolerance)`、`setVertex(vertexIndex, x, y)`、`translate(dx, dy)`、`updateDraftEnd(x, y)`、`getVertexIndexForHandle(handleName)`、`intersectsRect(minX, minY, maxX, maxY)`、`toJSON()`、`static fromJSON(data)`。
         *   `Line`/`Curve`/`Rect`/`Ellipse`はいずれもこの12メソッドを自律実装する。
         *   `draw`のシグネチャの例外：`Line`は`t`を持たず`draw(ctx)`。他3クラスは`draw(ctx, t = 0)`だが`t`は未使用で、どの呼び出し元からも渡されない。
-        *   新規図形を追加する際はこの契約を満たすこと。満たせば`core/`層（`VectorModel`/`CanvasManager`/`InputTracker`）・`io/`を変更せずに作成・選択・範囲選択・再編集・作業データの変換/復元フローへ組み込める（`ShapeFactory`の対応表への登録とボタンは必要。4章`ShapeFactory.js`）。
+        *   新規図形を追加する際はこの契約を満たすこと。満たせば`core/`層（`VectorModel`/`CanvasManager`/`InputTracker`）・`io/`を変更せずに作成・選択・範囲選択・再編集・作業データの変換/復元フローへ組み込める（`ShapeFactory`の対応表への登録とボタンは必要。4章`ShapeFactory.js`）。図形種別を追加したら`test/io/DocumentSerializer.roundtrip.test.js`へ往復のケースを足す。
         *   各図形クラスのクラスJSDocは契約を列挙している。メソッドを増減する場合は4クラスのクラスJSDocも更新する。
     *   **ハンドル名の契約**（シグネチャだけでは満たせない）：
         *   移動ハンドルの名前は文字列`'move'`固定（`InputTracker`がこの名前で分岐する）。
