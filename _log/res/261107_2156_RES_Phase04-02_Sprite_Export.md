@@ -308,7 +308,7 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
         *   `DocumentFileIO.test.js`：先頭行に単一責務JSDoc。2章要件9-2の`DocumentFileIO`の項目をすべて書く。`downloadText`・`downloadSpriteModule`・`downloadSpriteJson`はテストしない（`document`に依存するため。JSDocにも書かない）。
         *   完了時に`node --test`を実行し、全テストの成功と件数を4章へ記録する。失敗時の扱い・開発資料への影響・判断に迷った点の記録はタスク2と同じ。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク5: 出力（エンジン用）の手順（`CanvasFileOperations.exportSprite`）とテスト
+*   [x] タスク5: 出力（エンジン用）の手順（`CanvasFileOperations.exportSprite`）とテスト
     *   **対象ファイル** :
         *   `./js/edit/CanvasFileOperations.js` :（更新）
         *   `./test/edit/CanvasFileOperations.export.test.js` :（新規）
@@ -399,7 +399,12 @@ shapes/Line.js・Curve.js・Rect.js・Ellipse.js … 共通契約に toDrawEleme
 
 ### タスク5: 出力（エンジン用）の手順（`CanvasFileOperations.exportSprite`）とテスト
 *   **作業内容** :
-    *   (未記入)
+    *   `js/edit/CanvasFileOperations.js`を更新した。importへ`SpriteSerializer`・`CodeExporter`を追加。`exportSprite()`を`exportCanvas()`の直後に追加（受理判定→通知を消す→`serialize`→`stringify`・`toModuleText`で2つのテキストを先に組み立て→`downloadSpriteModule`→`downloadSpriteJson`。失敗時は`console.warn`＋通知`spriteExportFailed`で`false`）。`exportCanvas`・`openFile`・`importFile`の動作は変えていない（`exportCanvas`の`console.warn`の文言のみ「出力（作業ファイル）」へ）。
+    *   JSDoc：先頭の責務、typedef`FileNotice`（`'spriteExportFailed'`）、クラスJSDoc（操作と受理条件・出力（作業ファイル）・出力（エンジン用）の新設・通知の解除条件・失敗で止めない・依存の制約）、`#fileIO`の型、`deps.fileIO`、`exportCanvas`のJSDocを更新した。
+    *   `test/edit/CanvasFileOperations.export.test.js`を新設した（17件：`exportSprite`12件・`exportCanvas`5件。ダウンロードの順序・引数、受理条件、空のキャンバス、組み立て失敗でどちらも落とさない、JS失敗でJSONを呼ばない、JSON失敗で通知、通知の消去、`prepareInsert`等を呼ばないこと）。既存のテストは変更していない。
+    *   `node --test`：tests 219・pass 219・fail 0。
+    *   **監査指摘の修正** : テストの補助関数`makeShape`の`ShapeFactory.create`の呼び出しを正しいシグネチャ`create(type, 10, 20, 60, 80)`へ直した（色・太さは既定値のまま。テストは色・太さを必要としない）。
+    *   修正後の`node --test`：tests 219・pass 219・fail 0。
 
 ### タスク6: キャンバスパレットのボタンの並べ方と文言（`index.html`）
 *   **作業内容** :

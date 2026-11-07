@@ -1,16 +1,18 @@
 /**
- * 責務：作業データファイルの書き出し・開く・インポートの組み立て（ファイル読み取り→判定→CanvasLibrary／ShapeInserterの呼び出し→通知の状態の更新）と、
+ * 責務：作業データファイルの出力・開く・インポートと、スプライト（エンジン用）の出力の組み立て（読み取り→判定→CanvasLibrary／ShapeInserter／SpriteSerializer／CodeExporterの呼び出し→通知の状態の更新）と、
  * キャンバスパレットの表示同期用の状態（CanvasLibraryの状態＋busy・fileNoticeの合成）・変更通知の提供を担う。DOMに触れない。
  */
 
 import { DocumentSerializer } from '../io/DocumentSerializer.js';
+import { SpriteSerializer } from '../io/SpriteSerializer.js';
+import { CodeExporter } from '../io/CodeExporter.js';
 
 /**
  * ファイル操作の通知（`issue`とは別の状態）。キャンバスパレット内の文言の元になる。
  * `CanvasPalette.js`にも同じ形の定義がある（二重定義のため揃えること）。
  * @typedef {Object} FileNotice
- * @property {'readFailed'|'partialRead'|'noShapes'|'exportFailed'} kind 通知の種類
- * @property {string|null} fileName 対象のファイル名（書き出しの失敗はnull）
+ * @property {'readFailed'|'partialRead'|'noShapes'|'exportFailed'|'spriteExportFailed'} kind 通知の種類
+ * @property {string|null} fileName 対象のファイル名（出力の失敗はnull）
  * @property {number} skippedCount 読めなかった図形の数（partialRead以外は0）
  */
 
@@ -31,20 +33,31 @@ import { DocumentSerializer } from '../io/DocumentSerializer.js';
  */
 
 /**
- * ファイル操作（書き出し・開く（ファイル）・インポート）の組み立てクラス。main.jsが1つだけ生成する。
+ * ファイル操作（出力（作業ファイル・エンジン用）・開く（ファイル）・インポート）の組み立てクラス。main.jsが1つだけ生成する。
  * ファイルの読み書きは`DocumentFileIO`、キャンバスの登録と切り替えは`CanvasLibrary`、図形の追加は`ShapeInserter`に任せ、
  * 本クラスはそれらの呼び出し順と通知の状態だけを持つ。
  *
  * ■ 操作と受理条件（パレットの`disabled`を一次、本クラスの判定を二次とする。不受理なら通知を含め何も変えず`false`）
- *   - 書き出し：操作の開始時点（`#isProcessing`を真にする前）の`getState()`（合成後）の`loading`・`busy`が偽。
+ *   - 出力（作業ファイル）：操作の開始時点（`#isProcessing`を真にする前）の`getState()`（合成後）の`loading`・`busy`が偽。
+ *   - 出力（エンジン用）：同上（`'unavailable'`でも受理）。
  *   - インポート：同上。
  *   - 開く（ファイル）：上に加えて`canManage`（`issue`が`'unavailable'`でない）。
  *   - 受理条件は操作の開始時点の判定であり、自身の`#isProcessing`を真にした後の判定には使わない。
  *
- * ■ 書き出し（`exportCanvas`）
+ * ■ 出力（作業ファイル）（`exportCanvas`）
  *   - `DocumentSerializer.serializeToString(model.getShapes())`と開いているキャンバスの名前を`fileIO.downloadText`へ渡す。
  *   - 図形一式・選択集合・履歴・ビュー変換・操作モード・作成途中の図形に触れない（`applyMode`・`beginEdit`/`commitEdit`も呼ばない）。
  *   - 準備中の例外は捕捉して`console.warn`＋通知`exportFailed`（アプリを止めない）。
+ *
+ * ■ 出力（エンジン用）（`exportSprite`）
+ *   1. `SpriteSerializer.serialize(model.getShapes())`でスプライトデータを作り、`SpriteSerializer.stringify`でJSONのテキスト、
+ *      `CodeExporter.toModuleText`でJSのテキストを、両方とも先に組み立てる（ここで例外ならどちらもダウンロードしない）。
+ *   2. `fileIO.downloadSpriteModule(JSのテキスト, 名前)`（JSを先にする）。例外ならJSONはダウンロードしない。
+ *   3. `fileIO.downloadSpriteJson(JSONのテキスト, 名前)`。例外なら通知（JSは既に落ちており取り消せない）。
+ *   - 名前は開いているキャンバスの名前（`openCanvasName ?? ''`）。拡張子・MIMEタイプ・ファイル名の規則は`fileIO`が持つ。
+ *   - 2つのダウンロードは同じ処理の中で続けて行い、間隔を空けない。
+ *   - 図形一式・選択集合・履歴・ビュー変換・操作モード・作成途中の図形に触れない（`prepareInsert`・`beginEdit`/`commitEdit`も呼ばない。自動保存の契機にならない）。
+ *   - 失敗は`console.warn`＋通知`spriteExportFailed`（アプリを止めない）。成功時と図形0個のときは通知を出さない。
  *
  * ■ 開く（ファイル）（`openFile`）
  *   - 読み取り→`deserializeFromString`→判定→読み込めた場合のみ`canvasLibrary.createCanvasFromShapes(fileIO.toCanvasName(ファイル名), 図形)`。
@@ -82,7 +95,7 @@ import { DocumentSerializer } from '../io/DocumentSerializer.js';
  * ■ 通知の持ち方と解除条件
  *   - `CanvasLibrary`の`issue`とは別に、本クラスが`#notice`として保持する（`issue`は`'unavailable'`・`'writeFailed'`・`'partialLoad'`で
  *     解除条件が異なるため種類を足さない）。パレットは両方を独立に表示する。
- *   - 解除：(1)次のファイル操作の開始時（書き出しは受理時、開く・インポートはファイルが選ばれ受理された時点。小窓のキャンセルでは消えない）。
+ *   - 解除：(1)次のファイル操作の開始時（出力（2種）は受理時、開く・インポートはファイルが選ばれ受理された時点。小窓のキャンセルでは消えない）。
  *     (2)キャンバスの切り替えの成功時（`canvasLibrary.onChange`の中で`openCanvasId`の変化を検知して消す）。
  *   - 成功時（問題なく完了）には通知を出さない。
  *
@@ -91,19 +104,19 @@ import { DocumentSerializer } from '../io/DocumentSerializer.js';
  *     読み取りの間にキャンバスの切り替え等は始まらない）。図形の編集（キャンバスの操作・ショートカット）は止めない。
  *
  * ■ 失敗で止めない
- *   - `openFile`・`importFile`は`Promise`をrejectしない（予期しない例外は`console.warn`＋通知`readFailed`）。`exportCanvas`は例外を投げない。
+ *   - `openFile`・`importFile`は`Promise`をrejectしない（予期しない例外は`console.warn`＋通知`readFailed`）。`exportCanvas`・`exportSprite`は例外を投げない。
  *     ただしこの保証は、`#notifyChange`経由で呼ばれるリスナー（表示同期）が例外を投げた場合を除く（リスナーの例外は捕捉しない）。
  *
  * ■ 依存の制約
- *   - importは`DocumentSerializer`のみ。`fileIO`・`canvasLibrary`・`inserter`・`model`・`prepareInsert`は注入で受け取る。
+ *   - importは`DocumentSerializer`・`SpriteSerializer`・`CodeExporter`のみ。`fileIO`・`canvasLibrary`・`inserter`・`model`・`prepareInsert`は注入で受け取る。
  *   - DOMに触れない。操作モードを知らない（`prepareInsert`は中立な注入関数）。図形種別の分岐・図形固有のプロパティ名・図形のid形式・
  *     キャンバスの識別子の形式を持たない。作業データは不透明に扱う。`window`へ公開しない。
  *   - 履歴に記録するのはインポートのみ（`ShapeInserter`の経路で1件）。`HistoryManager`を直接呼ばない。
  */
 export class CanvasFileOperations {
     /**
-     * 作業データファイルの読み書き（`downloadText`・`readText`・`getFileName`・`toCanvasName`のみ使用）。
-     * @type {{downloadText: Function, readText: Function, getFileName: Function, toCanvasName: Function}}
+     * 作業データファイルとスプライトのファイルの読み書き（`downloadText`・`downloadSpriteModule`・`downloadSpriteJson`・`readText`・`getFileName`・`toCanvasName`のみ使用）。
+     * @type {{downloadText: Function, downloadSpriteModule: Function, downloadSpriteJson: Function, readText: Function, getFileName: Function, toCanvasName: Function}}
      */
     #fileIO;
 
@@ -157,7 +170,7 @@ export class CanvasFileOperations {
 
     /**
      * @param {Object} deps 依存
-     * @param {Object} deps.fileIO 作業データファイルの読み書き（`DocumentFileIO`）
+     * @param {Object} deps.fileIO 作業データファイル・スプライトのファイルの読み書き（`DocumentFileIO`）
      * @param {Object} deps.canvasLibrary キャンバス一覧の管理（`CanvasLibrary`）
      * @param {Object} deps.inserter 作業データの図形追加（`ShapeInserter`）
      * @param {Object} deps.model 図形一式の読み取り元（`VectorModel`。`getShapes`のみ使用）
@@ -178,9 +191,9 @@ export class CanvasFileOperations {
     }
 
     /**
-     * 開いているキャンバスの図形一式を作業データファイルとしてダウンロードする（同期。例外は投げない。ただしリスナー（表示同期）の例外を除く）。
+     * 出力（作業ファイル）：開いているキャンバスの図形一式を作業データファイルとしてダウンロードする（同期。例外は投げない。ただしリスナー（表示同期）の例外を除く）。
      * 受理条件を満たさなければ何も変えず`false`。受理時にファイル操作の通知を消す。
-     * @returns {boolean} 書き出したか
+     * @returns {boolean} 出力したか
      */
     exportCanvas() {
         const state = this.getState();
@@ -196,8 +209,40 @@ export class CanvasFileOperations {
             this.#fileIO.downloadText(text, state.openCanvasName ?? '');
             return true;
         } catch (error) {
-            console.warn('CanvasFileOperations: 書き出しに失敗しました', error);
+            console.warn('CanvasFileOperations: 出力（作業ファイル）に失敗しました', error);
             this.#notice = { kind: 'exportFailed', fileName: null, skippedCount: 0 };
+            this.#notifyChange();
+            return false;
+        }
+    }
+
+    /**
+     * 出力（エンジン用）：開いているキャンバスをスプライトのJS（`<名前>.js`）とJSON（`<名前>.json`）としてダウンロードする
+     * （同期。例外は投げない。ただしリスナー（表示同期）の例外を除く）。
+     * 受理条件を満たさなければ何も変えず`false`。受理時にファイル操作の通知を消す。
+     * 2つのテキストを先に組み立ててから、JS→JSONの順にダウンロードする（間隔は空けない）。失敗時は通知`spriteExportFailed`。
+     * @returns {boolean} 2つともダウンロードしたか
+     */
+    exportSprite() {
+        const state = this.getState();
+        if (state.loading || state.busy) {
+            return false;
+        }
+        if (this.#notice !== null) {
+            this.#notice = null;
+            this.#notifyChange();
+        }
+        try {
+            const spriteData = SpriteSerializer.serialize(this.#model.getShapes());
+            const jsonText = SpriteSerializer.stringify(spriteData);
+            const moduleText = CodeExporter.toModuleText(spriteData);
+            const canvasName = state.openCanvasName ?? '';
+            this.#fileIO.downloadSpriteModule(moduleText, canvasName);
+            this.#fileIO.downloadSpriteJson(jsonText, canvasName);
+            return true;
+        } catch (error) {
+            console.warn('CanvasFileOperations: 出力（エンジン用）に失敗しました', error);
+            this.#notice = { kind: 'spriteExportFailed', fileName: null, skippedCount: 0 };
             this.#notifyChange();
             return false;
         }
