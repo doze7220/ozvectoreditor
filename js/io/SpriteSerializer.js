@@ -1,5 +1,5 @@
 /**
- * 責務: スプライトデータ形式（書き出し形式）の定義と、図形一式からのスプライトデータ（描画要素・外枠・作業データsource）の組み立て・JSON文字列化を担う。
+ * 責務: スプライトデータ形式（書き出し形式）の定義と判別（識別子・版）、および図形一式からのスプライトデータ（描画要素・外枠・作業データsource）の組み立て・JSON文字列化を担う。
  * DOMに依存しない。
  */
 import { DocumentSerializer } from './DocumentSerializer.js';
@@ -164,9 +164,36 @@ function resolveStrokeWidth(strokeWidth) {
 }
 
 /**
- * スプライトデータ形式の組み立て・JSON文字列化を行う静的メソッド群。インスタンス状態を持たず、DOMにも依存しない。
+ * 識別子・版の判別結果。
+ * `'supported'`＝本アプリのスプライトデータで、版が1以上・現行版以下の整数／`'notSprite'`＝プレーンなオブジェクトでない、または`format`が識別子と一致しない／`'unsupportedVersion'`＝`format`は一致するが版が範囲外・整数でない・キーが無い。
+ * @typedef {'supported'|'notSprite'|'unsupportedVersion'} SpriteFormatCheck
+ */
+
+/**
+ * スプライトデータ形式の判別（識別子・版）・組み立て・JSON文字列化を行う静的メソッド群。インスタンス状態を持たず、DOMにも依存しない。
  */
 export class SpriteSerializer {
+    /**
+     * 値が本アプリのスプライトデータ（書き出し形式）かを、識別子`format`と版`formatVersion`だけで判別する。
+     * `bounds`・`elements`・`source`の形は見ない（必要な側が見る）。例外を投げず、警告も出さない。
+     * 呼び出し元: `FileContentReader`・確認用ページの`SpriteCheckInspector`。
+     * @param {*} value - 判別する値（JSON.parseの結果など。任意）
+     * @returns {SpriteFormatCheck} `'notSprite'`（プレーンなオブジェクトでない／`format`不一致）、`'unsupportedVersion'`（`format`一致だが`formatVersion`が整数でない・1未満・現行版より大きい・キーが無い）、`'supported'`（上記以外）
+     */
+    static checkFormat(value) {
+        if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+            return 'notSprite';
+        }
+        if (value.format !== SPRITE_FORMAT) {
+            return 'notSprite';
+        }
+        const version = value.formatVersion;
+        if (!Number.isInteger(version) || version < 1 || version > SPRITE_FORMAT_VERSION) {
+            return 'unsupportedVersion';
+        }
+        return 'supported';
+    }
+
     /**
      * 図形の配列をスプライトデータ（現行版）へ変換する。入力を検証しない（`toDrawElement`を持たない要素が混ざると例外）。
      * @param {Array<Object>} shapes - 図形インスタンスの配列（描画順）

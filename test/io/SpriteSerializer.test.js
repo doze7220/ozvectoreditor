@@ -218,3 +218,47 @@ describe('SpriteSerializer: source・JSON・独立性', () => {
         assert.deepEqual(shapes, [rect, line, curve]);
     });
 });
+
+describe('SpriteSerializer.checkFormat', () => {
+    /**
+     * checkFormatのテストで使う、IDつきの図形2個（矩形と線）を作る。
+     * @returns {Array<object>} 図形の配列
+     */
+    const sampleShapes = () => [withId(new Rect(0, 0, 10, 10), 'r1'), withId(new Line(0, 0, 5, 5), 'l1')];
+
+    it('serializeの戻り値とそのJSONのJSON.parseは supported（図形0個も）', () => {
+        for (const shapes of [sampleShapes(), []]) {
+            const data = SpriteSerializer.serialize(shapes);
+            assert.equal(SpriteSerializer.checkFormat(data), 'supported');
+            assert.equal(SpriteSerializer.checkFormat(JSON.parse(SpriteSerializer.stringify(data))), 'supported');
+        }
+    });
+
+    it('プレーンなオブジェクトでない値・作業データ・他のformatは notSprite', () => {
+        const work = DocumentSerializer.serialize(sampleShapes());
+        const cases = [null, undefined, [], [1, 2], 'text', 42, true, work, { format: 'other', formatVersion: 1 }, {}];
+        for (const value of cases) {
+            assert.equal(SpriteSerializer.checkFormat(value), 'notSprite');
+        }
+    });
+
+    it('formatVersionが範囲外・整数でない・キーが無い場合は unsupportedVersion', () => {
+        const base = SpriteSerializer.serialize([]);
+        const current = base.formatVersion;
+        for (const formatVersion of [0, current + 1, 1.5, '1', -1, null, NaN]) {
+            assert.equal(SpriteSerializer.checkFormat({ ...base, formatVersion }), 'unsupportedVersion');
+        }
+        const noVersion = { ...base };
+        delete noVersion.formatVersion;
+        assert.equal(SpriteSerializer.checkFormat(noVersion), 'unsupportedVersion');
+    });
+
+    it('bounds・elements・sourceの形は見ず、例外を投げない', () => {
+        const base = SpriteSerializer.serialize([]);
+        assert.equal(SpriteSerializer.checkFormat({ format: base.format, formatVersion: base.formatVersion }), 'supported');
+        const weird = [Object.create(null), () => {}, Symbol('x'), 10n];
+        for (const value of weird) {
+            assert.doesNotThrow(() => SpriteSerializer.checkFormat(value));
+        }
+    });
+});

@@ -174,7 +174,7 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
 *   (各タスクの実行時に影響が判明した場合も、この欄へ追記する。資料本体への反映は最終タスクで行う)
 
 ## 3. タスクリスト
-*   [ ] タスク1: 識別子・版の判別`SpriteSerializer.checkFormat`の追加とテスト
+*   [x] タスク1: 識別子・版の判別`SpriteSerializer.checkFormat`の追加とテスト
     *   **対象ファイル** :
         *   `./js/io/SpriteSerializer.js` :（更新）
         *   `./test/io/SpriteSerializer.test.js` :（更新）
@@ -311,7 +311,10 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
 
 ### タスク1: 識別子・版の判別`SpriteSerializer.checkFormat`の追加とテスト
 *   **作業内容** :
-    *   (未記入)
+    *   `js/io/SpriteSerializer.js`：`static checkFormat(value)`を追加（プレーンなオブジェクトでない／`format`不一致→`'notSprite'`、`formatVersion`が整数でない・1未満・現行版超・キー無し→`'unsupportedVersion'`、それ以外→`'supported'`）。既存の非公開定数を使い新規exportなし。typedef`SpriteFormatCheck`を追加。先頭の責務JSDoc・クラスJSDocへ「判別（識別子・版）」を追記。`serialize`・`stringify`・外枠計算は未変更。
+    *   `test/io/SpriteSerializer.test.js`：`describe('SpriteSerializer.checkFormat')`を追記（4件。supported／notSprite／unsupportedVersion／形を見ない・例外なし）。既存テストは未変更。
+    *   `node --test`：tests 223・pass 223・fail 0（既存219＋追加4）。
+    *   監査指摘の修正：テストの補助関数`sampleShapes`にJSDocを追加（再実行でも tests 223・pass 223・fail 0）。
 
 ### タスク2: JSのテキストからの取り出し`CodeExporter.extractSpriteDataText`の追加とテスト
 *   **作業内容** :
