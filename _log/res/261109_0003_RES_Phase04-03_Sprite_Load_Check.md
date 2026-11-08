@@ -207,7 +207,7 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
         *   この時点では`CanvasFileOperations`はまだ呼ばない（エディタの動作は変わらない）。
         *   完了時に`node --test`を実行し、全テストの成功と件数を4章へ記録する。失敗時の扱い・開発資料への影響・判断に迷った点の記録はタスク1と同じ。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク4: キャンバス名から`.js`も除く（`DocumentFileIO.toCanvasName`）とテスト
+*   [x] タスク4: キャンバス名から`.js`も除く（`DocumentFileIO.toCanvasName`）とテスト
     *   **対象ファイル** :
         *   `./js/io/DocumentFileIO.js` :（更新）
         *   `./test/io/DocumentFileIO.test.js` :（更新）
@@ -330,7 +330,9 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
 
 ### タスク4: キャンバス名から`.js`も除く（`DocumentFileIO.toCanvasName`）とテスト
 *   **作業内容** :
-    *   (未記入)
+    *   `js/io/DocumentFileIO.js`：`FILE_EXTENSION_PATTERN`を`/(?:\.ozve)?\.json$|\.js$/i`へ変更し、そのJSDoc・`toCanvasName`のJSDoc（`.js`を除く・1回だけ・例`ship.js`・`a.json.js`・`a.js.ozve.json`）・クラスJSDoc（開くときに除く拡張子も本クラスが定めること）を更新。他のメソッド・定数は未変更。
+    *   `test/io/DocumentFileIO.test.js`：`toCanvasName`の`describe`に`it`を2件追加（`ship.js`・`ship.JS`→`ship`／`a.json.js`→`a.json`・`a.js.ozve.json`→`a.js`・`a.js.js`→`a.js`）。往復のケース表へ`a.js`を加え、`toFileName('a.js')`が`a.js.ozve.json`になる確認を1行追加（既存のケースは未変更）。補助関数の追加なし。
+    *   `node --test`：tests 242・pass 242・fail 0（タスク3後の240＋追加2）。
 
 ### タスク5: エディタの読み込みの入口の差し替え（`CanvasFileOperations`）とテスト
 *   **作業内容** :
@@ -380,6 +382,9 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
 
 ### タスク3で追記
 *   判断に迷った点・開発資料への影響：なし（2章の更新予定どおり）。`#failure`のwarn文言は「FileContentReader: ファイルを読み込めませんでした: 理由」。
+
+### タスク4で追記
+*   判断に迷った点・開発資料への影響：なし（2章の更新予定どおり）。`a.js.js`→`a.js`のケースは計画の項目に加えた補足（1回だけ除くことの確認）。
 
 ### 目視確認項目（テストプレイ）
 *   `sprite-check.html`を、`index.html`と同じ開き方（同じフォルダのHTMLをブラウザで開く。普段ローカルサーバーを使っている場合はそれも）で開くと、注意書き・ファイル選択・情報欄・描画領域が表示され、コンソールにエラーが出ない。

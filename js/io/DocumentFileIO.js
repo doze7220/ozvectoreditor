@@ -66,11 +66,11 @@ const TRAILING_DOTS_AND_SPACES = /[.\s]+$/u;
 const LEADING_UNDERSCORES_AND_SPACES = /^[_\s]+/u;
 
 /**
- * ファイル名末尾の拡張子（`.ozve.json`または`.json`、大文字小文字を区別しない）の正規表現。
+ * ファイル名末尾の拡張子（`.ozve.json`・`.json`・`.js`のいずれか、大文字小文字を区別しない）の正規表現。
  * `.ozve.json`があれば`.ozve`ごと除く。
  * @type {RegExp}
  */
-const FILE_EXTENSION_PATTERN = /(\.ozve)?\.json$/i;
+const FILE_EXTENSION_PATTERN = /(?:\.ozve)?\.json$|\.js$/i;
 
 /**
  * 作業データファイルとスプライトのファイルの読み書きを担うクラス。
@@ -78,6 +78,7 @@ const FILE_EXTENSION_PATTERN = /(\.ozve)?\.json$/i;
  * 作業データファイルとは、作業データ形式のJSON文字列を内容とするファイル（既定の拡張子`.ozve.json`）である。
  * スプライトのファイルとは、スプライトのJS（`<名前>.js`）とJSON（`<名前>.json`）である。
  * ファイルの種類ごとの拡張子・MIMEタイプ・ファイル名の規則は本クラスが唯一の定義箇所である。
+ * ファイルを開くときにキャンバス名から除く拡張子（`.ozve.json`・`.json`・`.js`）も本クラスが定める。
  * 本クラスは作業データ・スプライトの形式・版・図形の知識を持たず、状態も持たない。
  * 例外・rejectは捕捉しない。呼び出し側で捕捉すること。
  */
@@ -181,8 +182,9 @@ export class DocumentFileIO {
     /**
      * ファイル名をキャンバス名の元になる文字列へ変換する。
      *
-     * 本メソッドは末尾の`.ozve.json`または`.json`（大文字小文字を区別しない）を1回だけ除く
-     * （`.ozve.json`があれば`.ozve`ごと除く。従来の`.json`の作業データファイルも読める）。
+     * 本メソッドは末尾の`.ozve.json`・`.json`・`.js`のいずれか（大文字小文字を区別しない）を1回だけ除く
+     * （`.ozve.json`があれば`.ozve`ごと除く。従来の`.json`の作業データファイルも、スプライトのJS・JSONも開ける）。
+     * 例：`ship.js` → `ship`、`a.json.js` → `a.json`、`a.js.ozve.json` → `a.js`。
      * 前後の空白の除去・文字数の切り詰め・空の場合の命名は`CanvasLibrary`が名前の変更と同じ規則で行う。
      *
      * @param {string} fileName ファイル名

@@ -96,6 +96,17 @@ describe('DocumentFileIO.toCanvasName', () => {
         assert.equal(createIO().toCanvasName('a.json.json'), 'a.json');
     });
 
+    it('スプライトの.jsを除く（大文字小文字を区別しない）', () => {
+        assert.equal(createIO().toCanvasName('ship.js'), 'ship');
+        assert.equal(createIO().toCanvasName('ship.JS'), 'ship');
+    });
+
+    it('.jsも1回だけ除き、末尾の拡張子だけを見る', () => {
+        assert.equal(createIO().toCanvasName('a.json.js'), 'a.json');
+        assert.equal(createIO().toCanvasName('a.js.ozve.json'), 'a.js');
+        assert.equal(createIO().toCanvasName('a.js.js'), 'a.js');
+    });
+
     it('拡張子が無ければそのまま・文字列以外は空', () => {
         assert.equal(createIO().toCanvasName('ship'), 'ship');
         assert.equal(createIO().toCanvasName(undefined), '');
@@ -105,11 +116,12 @@ describe('DocumentFileIO.toCanvasName', () => {
 describe('DocumentFileIO の往復（toFileName → toCanvasName）', () => {
     it('名前が変わらない', () => {
         const io = createIO();
-        for (const name of ['a', 'a.ozve', 'a.json', 'a.ozve.json']) {
+        for (const name of ['a', 'a.ozve', 'a.json', 'a.ozve.json', 'a.js']) {
             assert.equal(io.toCanvasName(io.toFileName(name)), name);
         }
         assert.equal(io.toFileName('a.ozve'), 'a.ozve.ozve.json');
         assert.equal(io.toFileName('a.json'), 'a.json.ozve.json');
+        assert.equal(io.toFileName('a.js'), 'a.js.ozve.json');
     });
 
     it('従来のship.jsonはshipとして読める', () => {
