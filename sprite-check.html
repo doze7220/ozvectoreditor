@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スプライトの確認 - OZ Vector Editor</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            font-family: sans-serif;
+            font-size: 14px;
+            color: #222;
+            background: #f4f4f4;
+        }
+        #check-header {
+            flex: 0 0 auto;
+            padding: 8px 12px;
+            border-bottom: 1px solid #ccc;
+            background: #fff;
+        }
+        #check-header h1 {
+            margin: 0 0 6px;
+            font-size: 18px;
+        }
+        #check-warning {
+            margin: 0 0 8px;
+            padding: 6px 8px;
+            color: #8a1c00;
+            background: #fff0e6;
+            border: 1px solid #e5533d;
+            font-weight: bold;
+        }
+        #check-info {
+            display: grid;
+            grid-template-columns: max-content 1fr;
+            gap: 2px 12px;
+            margin: 8px 0 0;
+        }
+        #check-info dt {
+            font-weight: bold;
+        }
+        #check-info dd {
+            margin: 0;
+            word-break: break-all;
+        }
+        #check-message {
+            min-height: 1.4em;
+            margin: 6px 0 0;
+        }
+        #check-canvas-area {
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        #check-canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="check-header">
+        <h1>スプライトの確認</h1>
+        <p id="check-warning">選んだJSファイルはこのページで実行されます。自分で出力したファイルだけを選んでください。</p>
+        <input type="file" id="check-file-input" accept=".js,.json,text/javascript,application/json">
+        <dl id="check-info">
+            <dt>ファイル名</dt><dd id="check-file-name">—</dd>
+            <dt>書き出し形式の版</dt><dd id="check-format-version">—</dd>
+            <dt>作業データの版</dt><dd id="check-source-version">—</dd>
+            <dt>描画要素の数</dt><dd id="check-element-count">—</dd>
+            <dt>外枠</dt><dd id="check-bounds">—</dd>
+        </dl>
+        <p id="check-message"></p>
+    </div>
+    <div id="check-canvas-area">
+        <canvas id="check-canvas"></canvas>
+    </div>
+    <script type="module" src="js/check/SpriteCheckPage.js"></script>
+</body>
+</html>

@@ -259,7 +259,7 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
         *   テスト：先頭行に単一責務JSDoc。2章要件4の`SpriteCheckInspector.test.js`の項目をすべて書く。スプライトデータは`SpriteSerializer.serialize`で作る（現行版+1は`formatVersion + 1`で求める）。
         *   完了時に`node --test`を実行し、全テストの成功と件数を4章へ記録する（`test/check/`の新しいテストも実行されていることを確かめる）。失敗時の扱い・開発資料への影響・判断に迷った点の記録はタスク1と同じ。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク9: 確認用ページ（`sprite-check.html`・`SpriteCheckCanvas`・`SpriteCheckPage`）
+*   [x] タスク9: 確認用ページ（`sprite-check.html`・`SpriteCheckCanvas`・`SpriteCheckPage`）
     *   **対象ファイル** :
         *   `./sprite-check.html` :（新規）
         *   `./js/check/SpriteCheckCanvas.js` :（新規）
@@ -361,7 +361,11 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
 
 ### タスク9: 確認用ページ（`sprite-check.html`・`SpriteCheckCanvas`・`SpriteCheckPage`）
 *   **作業内容** :
-    *   (未記入)
+    *   `sprite-check.html`（新規）：2章要件1の構成（注意書き`#check-warning`・`#check-file-input`・情報欄の`<dl>`（5つのid）・`#check-message`・`#check-canvas-area`内の`#check-canvas`）。`<style>`に内包、`body`は縦flex・`100vh`、描画領域は`flex: 1`・`min-height: 0`・`overflow: hidden`。スクリプトは`js/check/SpriteCheckPage.js`のみ。追加仕様どおり`index.html`へのリンクは置いていない。
+    *   `js/check/SpriteCheckCanvas.js`（新規）：先頭に責務JSDoc。importなし。非公開定数5件（色・破線・腕の長さ・線幅・背景）と typedef`CheckBounds`、`export class SpriteCheckCanvas`（`constructor(canvas, area)`・`resize()`・`clear()`・`render(sprite, bounds)`、非公開`#paintBackground`）。保持する状態は描画領域のCSSの幅・高さ・dprのみ。重ね順は背景→外枠（破線）→原点の印→`save`/`try { draw } finally { restore }`。`draw`の例外は捕捉しない。
+    *   `js/check/SpriteCheckPage.js`（新規）：先頭に責務JSDoc。importは`SpriteCheckInspector`・`SpriteCheckCanvas`・`../io/CodeExporter.js`のみ。文言の対応表`FAILURE_MESSAGES`（`Object.freeze`、5区分）、内部例外クラス`CheckFailure`、`SpriteCheckPage`（公開は`start`のみ。連番による競合破棄・Blob URLの動的`import`（`finally`で`revokeObjectURL`）・失敗時の表示消去・`resize`での描き直し・`textContent`のみで表示）、要素解決`resolveElements`（欠けたら`console.warn`して配線しない）、`DOMContentLoaded`で起動。`window`への代入なし。新設ファイルは3件。
+    *   `node --test`：tests 275・pass 275・fail 0（タスク8後と同数。`SpriteCheckPage`・`SpriteCheckCanvas`は自動テスト対象外）。`node --check`で両JSの構文は通った。
+    *   ブラウザでの表示確認（`file://`・ローカルサーバー）は行っていない。5章の目視確認項目に委ねる。Blob URLの動的`import`の可否も未確認。
 
 ### タスク10: JSDocの確認とRESの完成
 *   **作業内容** :
@@ -406,6 +410,12 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
 
 ### タスク8で追記
 *   判断に迷った点・開発資料への影響：なし（2章の更新予定どおり）。`inspectModuleExport`は`checkFormat`の結果を先に見て、`notSprite`・`unsupportedVersion`の後に`draw`を判定する（計画どおりの順）。`summarize`の`bounds`の`state: 'ok'`は4値が`typeof 'number'`かつ有限の場合のみ（配列・文字列等は`invalid`）。
+
+### タスク9で追記
+*   判断に迷った点：成功時の`#check-message`は「表示しました」とした（計画の「空（または『表示しました』）」のうち後者）。読み込み中に予期しない例外が出た場合（`CheckFailure`以外）は`importFailed`の文言で表示する。`#check-canvas-area`は`position: relative`を付けた（`canvas`が親の大きさを押し広げないよう、`resize`で`style`の幅・高さを親の`clientWidth/Height`に合わせるため）。外枠の線は`strokeRect(minX+0.5, minY+0.5, 幅, 高さ)`で描いた。原点の十字は中心ピクセル（0〜1）の中央に線が来るよう`0.5`を足している。
+*   目視確認の推奨：`file://`・`http://localhost`の両方で、`ship.js`・`ship.json`の表示、外枠と印の位置、ウィンドウのリサイズ、失敗時の表示。Blob URLの動的`import`が失敗する開き方があれば、`data:`への切り替えはせず、ここへ記録して報告する（現時点で失敗は未確認＝未検証）。
+*   将来の注意：`SpriteCheckCanvas`の外枠は`bounds`の値をそのまま使い再計算しない。理由の区分を足す場合は`SpriteCheckPage.FAILURE_MESSAGES`のみを直す。
+*   開発資料への影響：2章の更新予定どおり（`17_sprite_check.md`の記載対象が実装された）。資料本体は未修正。
 
 ### 目視確認項目（テストプレイ）
 *   `sprite-check.html`を、`index.html`と同じ開き方（同じフォルダのHTMLをブラウザで開く。普段ローカルサーバーを使っている場合はそれも）で開くと、注意書き・ファイル選択・情報欄・描画領域が表示され、コンソールにエラーが出ない。
