@@ -1,11 +1,12 @@
 /**
- * 責務：作業データファイルの出力・開く・インポートと、スプライト（エンジン用）の出力の組み立て（読み取り→判定→CanvasLibrary／ShapeInserter／SpriteSerializer／CodeExporterの呼び出し→通知の状態の更新）と、
+ * 責務：作業データファイルの出力と、作業データファイル・スプライトを開く・インポートする手順、スプライト（エンジン用）の出力の組み立て（読み取り→判定→CanvasLibrary／ShapeInserter／SpriteSerializer／CodeExporterの呼び出し→通知の状態の更新）と、
  * キャンバスパレットの表示同期用の状態（CanvasLibraryの状態＋busy・fileNoticeの合成）・変更通知の提供を担う。DOMに触れない。
  */
 
 import { DocumentSerializer } from '../io/DocumentSerializer.js';
 import { SpriteSerializer } from '../io/SpriteSerializer.js';
 import { CodeExporter } from '../io/CodeExporter.js';
+import { FileContentReader } from '../io/FileContentReader.js';
 
 /**
  * ファイル操作の通知（`issue`とは別の状態）。キャンバスパレット内の文言の元になる。
@@ -60,7 +61,7 @@ import { CodeExporter } from '../io/CodeExporter.js';
  *   - 失敗は`console.warn`＋通知`spriteExportFailed`（アプリを止めない）。成功時と図形0個のときは通知を出さない。
  *
  * ■ 開く（ファイル）（`openFile`）
- *   - 読み取り→`deserializeFromString`→判定→読み込めた場合のみ`canvasLibrary.createCanvasFromShapes(fileIO.toCanvasName(ファイル名), 図形)`。
+ *   - 読み取り→`FileContentReader.deserializeFromText`→判定→読み込めた場合のみ`canvasLibrary.createCanvasFromShapes(fileIO.toCanvasName(ファイル名), 図形)`。
  *   - 通る切り替え処理は`CanvasLibrary`の手順1〜6すべて（`CanvasLibrary`のJSDoc「■ 開く（ファイル）」を参照）。
  *     切り替え前の保存の失敗・確定手順の失敗・新しい記録を書けずに確認の小窓で「いいえ」のいずれで中止しても、
  *     キャンバス一覧に残らない。
@@ -70,7 +71,7 @@ import { CodeExporter } from '../io/CodeExporter.js';
  *
  * ■ インポート（`importFile`）
  *   1. 受理条件の確認。開始時点の`openCanvasId`を記憶する。
- *   2. 読み取り→`deserializeFromString`→判定。読み込み不可・図形0個なら通知を設定して終了
+ *   2. 読み取り→`FileContentReader.deserializeFromText`→判定。読み込み不可・図形0個なら通知を設定して終了
  *      （図形一式・選択集合・履歴・操作モード・作成途中の図形に一切触れない。`prepareInsert`より前のため作成途中の図形も残る）。
  *   3. キャンバスの同一性の確認：`canvasLibrary.getState()`の値で、`openCanvasId`が開始時点と同じ、かつ`loading`・`busy`でないこと。
  *      外れていれば何も追加せず`console.warn`＋通知`readFailed`。
@@ -82,15 +83,15 @@ import { CodeExporter } from '../io/CodeExporter.js';
  *   6. スキップが1件以上なら通知`partialRead`（件数は判定時と`insertDocument`の合計）。
  *   - 手順3の同一性の確認から手順5までは`await`を挟まない同期区間。
  *
- * ■ 読み込みの判定の表（`#classifyRead`。`deserializeFromString`の結果`result`で判定し、作業データ自体の`shapes`は参照しない）
+ * ■ 読み込みの判定の表（`#classifyRead`。`FileContentReader.deserializeFromText`の結果`result`で判定し、作業データ自体の`shapes`は参照しない）
  *   - 「ファイルの`shapes`が1個以上か」は`result.shapes.length + result.skipped.length`で分かる。
  *   | 場面 | 判定 | 分類 | 開く | インポート | 通知 |
- *   | ファイルを読み取れない・JSONとして解析できない・`ok: false`（形式違い・非対応の版を含む） | `result === null`または`!result.ok` | 読み込み不可 | 何も変えない | 何も変えない | readFailed |
+ *   | ファイルを読み取れない・JSONとして解析できない・本アプリのスプライトでない・書き出し形式の版が範囲外・`source`が無い・JSから取り出せない・`ok: false`（形式違い・非対応の版を含む） | `result === null`または`!result.ok` | 読み込み不可 | 何も変えない | 何も変えない | readFailed |
  *   | 図形がすべて読めない | `shapes`が0個かつ`skipped`が1件以上 | 読み込み不可 | 何も変えない（新しいキャンバスを作らない） | 何も変えない | readFailed |
  *   | 図形が0個の正しいファイル | `shapes`・`skipped`とも0件 | 空 | 空のキャンバスとして開く | 何も変えない | 開く：なし／インポート：noShapes |
  *   | 一部の図形が読めない | `shapes`が1個以上かつ`skipped`が1件以上 | 一部 | 読めた図形で開く | 読めた図形を追加する | partialRead |
  *   | すべて読めた | `shapes`が1個以上かつ`skipped`が0件 | 全部 | 開く | 追加する | なし |
- *   - `DocumentSerializer`の`error`の文字列は利用者向けの文言に出さない。JSONの解析は`deserializeFromString`に任せる。
+ *   - `DocumentSerializer`の`error`の文字列は利用者向けの文言に出さない。JSONの解析は`FileContentReader`に任せる（スプライトの判別・`source`の取り出しも。本クラスはスプライト形式を知らない）。
  *
  * ■ 通知の持ち方と解除条件
  *   - `CanvasLibrary`の`issue`とは別に、本クラスが`#notice`として保持する（`issue`は`'unavailable'`・`'writeFailed'`・`'partialLoad'`で
@@ -108,7 +109,7 @@ import { CodeExporter } from '../io/CodeExporter.js';
  *     ただしこの保証は、`#notifyChange`経由で呼ばれるリスナー（表示同期）が例外を投げた場合を除く（リスナーの例外は捕捉しない）。
  *
  * ■ 依存の制約
- *   - importは`DocumentSerializer`・`SpriteSerializer`・`CodeExporter`のみ。`fileIO`・`canvasLibrary`・`inserter`・`model`・`prepareInsert`は注入で受け取る。
+ *   - importは`DocumentSerializer`・`SpriteSerializer`・`CodeExporter`・`FileContentReader`のみ。`fileIO`・`canvasLibrary`・`inserter`・`model`・`prepareInsert`は注入で受け取る。
  *   - DOMに触れない。操作モードを知らない（`prepareInsert`は中立な注入関数）。図形種別の分岐・図形固有のプロパティ名・図形のid形式・
  *     キャンバスの識別子の形式を持たない。作業データは不透明に扱う。`window`へ公開しない。
  *   - 履歴に記録するのはインポートのみ（`ShapeInserter`の経路で1件）。`HistoryManager`を直接呼ばない。
@@ -369,7 +370,7 @@ export class CanvasFileOperations {
             let result = null;
             try {
                 const text = await this.#fileIO.readText(file);
-                result = DocumentSerializer.deserializeFromString(text);
+                result = FileContentReader.deserializeFromText(text);
             } catch (error) {
                 console.warn('CanvasFileOperations: ファイルを読み取れませんでした', error);
                 result = null;
@@ -387,7 +388,7 @@ export class CanvasFileOperations {
 
     /**
      * 読み込み結果を分類する（判定の表は本クラスのJSDocを参照）。作業データ自体の`shapes`は参照しない。
-     * @param {({ok: boolean, shapes: Array, skipped: Array}|null)} result `deserializeFromString`の結果（読み取り失敗は`null`）
+     * @param {({ok: boolean, shapes: Array, skipped: Array}|null)} result `FileContentReader.deserializeFromText`の結果（読み取り失敗は`null`）
      * @returns {ReadClassification}
      */
     static #classifyRead(result) {

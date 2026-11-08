@@ -216,7 +216,7 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
         *   テスト：2章要件4の`DocumentFileIO.test.js`の項目を追記する（既存のケースは変えない）。
         *   完了時に`node --test`を実行し、全テストの成功と件数を4章へ記録する。失敗時の扱い・開発資料への影響・判断に迷った点の記録はタスク1と同じ。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク5: エディタの読み込みの入口の差し替え（`CanvasFileOperations`）とテスト
+*   [x] タスク5: エディタの読み込みの入口の差し替え（`CanvasFileOperations`）とテスト
     *   **対象ファイル** :
         *   `./js/edit/CanvasFileOperations.js` :（更新）
         *   `./test/edit/CanvasFileOperations.test.js` :（更新）
@@ -336,7 +336,9 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
 
 ### タスク5: エディタの読み込みの入口の差し替え（`CanvasFileOperations`）とテスト
 *   **作業内容** :
-    *   (未記入)
+    *   `js/edit/CanvasFileOperations.js`：importへ`../io/FileContentReader.js`を追加し、`#runReadOperation`の`DocumentSerializer.deserializeFromString(text)`を`FileContentReader.deserializeFromText(text)`へ置換（他の処理は未変更）。先頭の責務JSDoc・クラスJSDoc（開く・インポート・判定の表の見出しと1行目の場面・「JSONの解析は`FileContentReader`に任せる」・依存の制約）・`#classifyRead`の`@param`を更新。
+    *   `test/edit/CanvasFileOperations.test.js`：import（`SpriteSerializer`・`CodeExporter`）と先頭の責務JSDocの追記、補助関数`makeSpriteDataWithSourceShapes`・`spriteFileCases`・`foreignJsCases`（JSDoc付き）、新しい`describe`2つ（開く（スプライトのJS・JSON）：11件、インポート（スプライトのJS・JSON）：11件。計22件）を追記。全部・一部・図形0個×（JSON・JS・CRLFのJS）を、同じ図形の作業データファイルを同じ手順で開いた・インポートした結果（図形の`toJSON()`・通知・呼び出しの記録）と比較。開くの名前は`fileIO.toCanvasName('ship.js')`。本アプリのものでないJS（任意のJS・`export default {};`）は開く・インポートとも`false`・何も呼ばない・`readFailed`。既存テストは未変更。
+    *   `node --test`：tests 264・pass 264・fail 0（タスク4後の242＋追加22）。
 
 ### タスク6: ファイル選択と文言（`index.html`の`accept`・`title`、`CanvasPalette`の`readFailed`）
 *   **作業内容** :
@@ -385,6 +387,9 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
 
 ### タスク4で追記
 *   判断に迷った点・開発資料への影響：なし（2章の更新予定どおり）。`a.js.js`→`a.js`のケースは計画の項目に加えた補足（1回だけ除くことの確認）。
+
+### タスク5で追記
+*   判断に迷った点・開発資料への影響：なし（2章の更新予定どおり）。インポートの期待値は`insertDocument`の引数の`shapes`・`dx`・`dy`と呼び出し順・通知で比較（偽物の`insertDocument`は`documentData.shapes`の件数に応じた結果を返す）。通知の`fileName`だけは作業データ側（`work.json`）とスプライト側（`ship.js`）で異なるため置き換えて比較した。
 
 ### 目視確認項目（テストプレイ）
 *   `sprite-check.html`を、`index.html`と同じ開き方（同じフォルダのHTMLをブラウザで開く。普段ローカルサーバーを使っている場合はそれも）で開くと、注意書き・ファイル選択・情報欄・描画領域が表示され、コンソールにエラーが出ない。
