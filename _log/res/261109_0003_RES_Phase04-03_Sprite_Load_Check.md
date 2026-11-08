@@ -226,7 +226,7 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
         *   テスト：2章要件4の`CanvasFileOperations.test.js`の項目を新しい`describe`として追記する（既存の偽物の注入の形・補助関数を使い、既存のテストは変えない）。期待値は同じ図形の作業データファイルを同じ手順で開いた・インポートした結果と比べる。スプライトのテキストは`SpriteSerializer.serialize`・`stringify`・`CodeExporter.toModuleText`で作る。
         *   完了時に`node --test`を実行し、全テストの成功と件数を4章へ記録する。失敗時の扱い・開発資料への影響・判断に迷った点の記録はタスク1と同じ。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク6: ファイル選択と文言（`index.html`の`accept`・`title`、`CanvasPalette`の`readFailed`）
+*   [x] タスク6: ファイル選択と文言（`index.html`の`accept`・`title`、`CanvasPalette`の`readFailed`）
     *   **対象ファイル** :
         *   `./index.html` :（更新。`accept`・`title`のみ）
         *   `./js/palette/CanvasPalette.js` :（更新。`FILE_NOTICE_MESSAGES.readFailed`の文言のみ）
@@ -342,7 +342,10 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
 
 ### タスク6: ファイル選択と文言（`index.html`の`accept`・`title`、`CanvasPalette`の`readFailed`）
 *   **作業内容** :
-    *   (未記入)
+    *   `index.html`：`#canvas-open-file-input`・`#canvas-import-file-input`の`accept`を`".json,.js,application/json,text/javascript"`へ（2か所）。`#canvas-open-file`・`#canvas-import`の`title`を2章要件2の文言へ（2か所）。他は未変更。
+    *   `js/palette/CanvasPalette.js`：`FILE_NOTICE_MESSAGES.readFailed`の文言のみを2章要件2の文言へ変更。他は未変更。
+    *   `node --test`：tests 264・pass 264・fail 0（タスク5後と同数）。
+    *   ブラウザでの確認（「開く」の小窓で`.js`が選べること）は行っていない。5章の目視確認項目に委ねる。
 
 ### タスク7: 組み立て用のJSが動くことの自動テスト
 *   **作業内容** :
@@ -390,6 +393,9 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
 
 ### タスク5で追記
 *   判断に迷った点・開発資料への影響：なし（2章の更新予定どおり）。インポートの期待値は`insertDocument`の引数の`shapes`・`dx`・`dy`と呼び出し順・通知で比較（偽物の`insertDocument`は`documentData.shapes`の件数に応じた結果を返す）。通知の`fileName`だけは作業データ側（`work.json`）とスプライト側（`ship.js`）で異なるため置き換えて比較した。
+
+### タスク6で追記
+*   判断に迷った点・開発資料への影響：なし（2章の更新予定どおり）。目視確認として、エディタの「開く」「インポート」の小窓で`.js`・`.json`・`.ozve.json`が選べること、ボタンのツールチップ（`title`）の文言を推奨。
 
 ### 目視確認項目（テストプレイ）
 *   `sprite-check.html`を、`index.html`と同じ開き方（同じフォルダのHTMLをブラウザで開く。普段ローカルサーバーを使っている場合はそれも）で開くと、注意書き・ファイル選択・情報欄・描画領域が表示され、コンソールにエラーが出ない。

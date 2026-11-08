@@ -21,7 +21,7 @@ const ISSUE_MESSAGES = Object.freeze({
  * @type {Readonly<Record<string, (notice: FileNotice) => string>>}
  */
 const FILE_NOTICE_MESSAGES = Object.freeze({
-    readFailed: (notice) => `${notice.fileName ?? ''} を読み込めませんでした。本アプリで出力した作業ファイルか確認してください。`,
+    readFailed: (notice) => `${notice.fileName ?? ''} を読み込めませんでした。本アプリで出力した作業ファイル、またはエンジン用のファイル（.js・.json）か確認してください。`,
     partialRead: (notice) => `${notice.fileName ?? ''} の一部の図形（${notice.skippedCount}個）を読み込めませんでした。`,
     noShapes: (notice) => `${notice.fileName ?? ''} に追加できる図形がありませんでした。`,
     exportFailed: () => '作業ファイルの出力に失敗しました。',
