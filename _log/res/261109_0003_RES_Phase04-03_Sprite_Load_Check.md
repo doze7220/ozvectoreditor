@@ -195,7 +195,7 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
         *   テスト：2章要件4の`CodeExporter.test.js`の項目を新しい`describe`として追記する（既存のテストは変えない）。
         *   完了時に`node --test`を実行し、全テストの成功と件数を4章へ記録する。失敗時の扱い・開発資料への影響・判断に迷った点の記録はタスク1と同じ。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク3: 読み込みの入口`FileContentReader`の新設とテスト
+*   [x] タスク3: 読み込みの入口`FileContentReader`の新設とテスト
     *   **対象ファイル** :
         *   `./js/io/FileContentReader.js` :（新規）
         *   `./test/io/FileContentReader.test.js` :（新規）
@@ -324,7 +324,9 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
 
 ### タスク3: 読み込みの入口`FileContentReader`の新設とテスト
 *   **作業内容** :
-    *   (未記入)
+    *   `js/io/FileContentReader.js`（新規）：先頭に責務JSDoc。importは`DocumentSerializer`・`SpriteSerializer`・`CodeExporter`のみ。`export class FileContentReader`に`static deserializeFromText(text)`（JSON.parse→失敗なら`CodeExporter.extractSpriteDataText`→`JSON.parse`→`SpriteSerializer.checkFormat`で判別。notSpriteはJSONなら`DocumentSerializer.deserialize(data)`、JSなら読み込み不可。unsupportedVersion・source無しは読み込み不可。supportedは`deserialize(data.source)`）。非公開`#failure(reason)`が`console.warn`を1回出し`{ ok: false, shapes: [], skipped: [], error }`を返す。`try/catch`は`JSON.parse`のみ。JSDocに判別の表・規則を記載。
+    *   `test/io/FileContentReader.test.js`（新規）：補助関数（`sampleShapesOfAllKinds`・`toJsonList`・`assertRestored`・`assertUnreadable`・`mutatedSprite`・`asJson`・`asModule`、JSDoc付き）と4つの`describe`（`it`12件。書き出したスプライト（5種・0個、JSON/JS/CRLF）、作業データ、source内の読めない図形（skipped1件）、読み込み不可（警告ちょうど1回）の各ケース）。
+    *   `node --test`：tests 240・pass 240・fail 0（タスク2後の228＋追加12）。`CanvasFileOperations`は未変更。
 
 ### タスク4: キャンバス名から`.js`も除く（`DocumentFileIO.toCanvasName`）とテスト
 *   **作業内容** :
@@ -375,6 +377,9 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
 
 ### タスク2で追記
 *   判断に迷った点・開発資料への影響：なし（2章の更新予定どおり）。テストの`CR`のみ改行のケースは計画の項目に加えた補足（手順が`/\r\n?/g`を扱うことの確認）。
+
+### タスク3で追記
+*   判断に迷った点・開発資料への影響：なし（2章の更新予定どおり）。`#failure`のwarn文言は「FileContentReader: ファイルを読み込めませんでした: 理由」。
 
 ### 目視確認項目（テストプレイ）
 *   `sprite-check.html`を、`index.html`と同じ開き方（同じフォルダのHTMLをブラウザで開く。普段ローカルサーバーを使っている場合はそれも）で開くと、注意書き・ファイル選択・情報欄・描画領域が表示され、コンソールにエラーが出ない。

@@ -1,0 +1,212 @@
+/**
+ * 責務: FileContentReaderが、作業データ・スプライトのJSON・スプライトのJSを中身で判別して図形を復元する入口として振る舞うことを検証する。
+ */
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { FileContentReader } from '../../js/io/FileContentReader.js';
+import { DocumentSerializer } from '../../js/io/DocumentSerializer.js';
+import { SpriteSerializer } from '../../js/io/SpriteSerializer.js';
+import { CodeExporter } from '../../js/io/CodeExporter.js';
+import { Line } from '../../js/shapes/Line.js';
+import { Curve } from '../../js/shapes/Curve.js';
+import { Rect } from '../../js/shapes/Rect.js';
+import { Ellipse } from '../../js/shapes/Ellipse.js';
+
+/**
+ * 5種の図形（line・curve・rect・circle・arc）を含む図形一式を作る（idは文字列を直接代入する）。
+ * @returns {Array<object>} 図形
+ */
+function sampleShapesOfAllKinds() {
+    const shapes = [
+        new Line(1, 2, 30, 40, '#ff0000', 5),
+        new Curve(0, 0, 100, 50, '#00ff00', 3),
+        new Rect(10, 20, 50, 80, '#0000ff', 4),
+        new Ellipse(10, 20, 40, 60, 'circle', '#123456', 4),
+        new Ellipse(10, 20, 40, 60, 'arc', '#abcdef', 1),
+    ];
+    shapes.forEach((shape, index) => {
+        shape.id = `shape-${index}`;
+    });
+    return shapes;
+}
+
+/**
+ * 図形配列を`toJSON()`の配列へ変換する。
+ * @param {Array<object>} shapes - 図形
+ * @returns {Array<object>} 図形データの配列
+ */
+function toJsonList(shapes) {
+    return shapes.map((shape) => shape.toJSON());
+}
+
+/**
+ * 読み込み成功（全図形・スキップなし）の結果が、元の図形と同じ並び・内容であることを確かめる。
+ * @param {import('../../js/io/DocumentSerializer.js').DeserializeResult} result - 読み込み結果
+ * @param {Array<object>} original - 元の図形
+ * @returns {void}
+ */
+function assertRestored(result, original) {
+    assert.equal(result.ok, true);
+    assert.equal(result.error, null);
+    assert.deepStrictEqual(result.skipped, []);
+    assert.deepStrictEqual(toJsonList(result.shapes), toJsonList(original));
+}
+
+/**
+ * 読み込み不可の結果であること（ok=false・shapes/skippedが空）と、`console.warn`がちょうど1回であることを確かめる。
+ * @param {import('node:test').TestContext} t - テストコンテキスト
+ * @param {string} text - 読み込むテキスト
+ * @returns {void}
+ */
+function assertUnreadable(t, text) {
+    const warn = t.mock.method(console, 'warn', () => {});
+    const result = FileContentReader.deserializeFromText(text);
+    assert.equal(result.ok, false);
+    assert.deepStrictEqual(result.shapes, []);
+    assert.deepStrictEqual(result.skipped, []);
+    assert.equal(typeof result.error, 'string');
+    assert.equal(warn.mock.callCount(), 1);
+}
+
+/**
+ * スプライトデータの`source`を差し替えたコピーを作る。
+ * @param {Array<object>} shapes - 元の図形
+ * @param {function(object): void} mutate - スプライトデータ（コピー）を書き換える関数
+ * @returns {object} 書き換えたスプライトデータ
+ */
+function mutatedSprite(shapes, mutate) {
+    const data = JSON.parse(SpriteSerializer.stringify(SpriteSerializer.serialize(shapes)));
+    mutate(data);
+    return data;
+}
+
+/**
+ * スプライトデータをJSONのテキストにする。
+ * @param {object} data - スプライトデータ
+ * @returns {string} JSONのテキスト
+ */
+function asJson(data) {
+    return SpriteSerializer.stringify(data);
+}
+
+/**
+ * スプライトデータをスプライトJSのテキストにする。
+ * @param {object} data - スプライトデータ
+ * @returns {string} JSのテキスト
+ */
+function asModule(data) {
+    return CodeExporter.toModuleText(data);
+}
+
+describe('FileContentReader.deserializeFromText: 書き出したスプライトの読み込み', () => {
+    it('スプライトのJSON・JS・CRLFのJSから元の図形が戻る（5種の図形）', (t) => {
+        t.mock.method(console, 'warn', () => {});
+        const shapes = sampleShapesOfAllKinds();
+        const data = SpriteSerializer.serialize(shapes);
+        assertRestored(FileContentReader.deserializeFromText(SpriteSerializer.stringify(data)), shapes);
+        assertRestored(FileContentReader.deserializeFromText(CodeExporter.toModuleText(data)), shapes);
+        assertRestored(FileContentReader.deserializeFromText(CodeExporter.toModuleText(data).replace(/\n/g, '\r\n')), shapes);
+    });
+
+    it('図形0個のスプライト（JSON・JS・CRLFのJS）はok: trueで図形0個', (t) => {
+        t.mock.method(console, 'warn', () => {});
+        const data = SpriteSerializer.serialize([]);
+        assertRestored(FileContentReader.deserializeFromText(SpriteSerializer.stringify(data)), []);
+        assertRestored(FileContentReader.deserializeFromText(CodeExporter.toModuleText(data)), []);
+        assertRestored(FileContentReader.deserializeFromText(CodeExporter.toModuleText(data).replace(/\n/g, '\r\n')), []);
+    });
+});
+
+describe('FileContentReader.deserializeFromText: 作業データファイル', () => {
+    it('従来どおり読め、deserializeFromStringと同じ結果になる', (t) => {
+        t.mock.method(console, 'warn', () => {});
+        const shapes = sampleShapesOfAllKinds();
+        const text = DocumentSerializer.serializeToString(shapes);
+        const viaReader = FileContentReader.deserializeFromText(text);
+        const viaSerializer = DocumentSerializer.deserializeFromString(text);
+        assertRestored(viaReader, shapes);
+        assert.deepStrictEqual(toJsonList(viaReader.shapes), toJsonList(viaSerializer.shapes));
+        assert.deepStrictEqual(viaReader.skipped, viaSerializer.skipped);
+        assert.equal(viaReader.ok, viaSerializer.ok);
+    });
+
+    it('図形0個の作業データも読める', (t) => {
+        t.mock.method(console, 'warn', () => {});
+        assertRestored(FileContentReader.deserializeFromText(DocumentSerializer.serializeToString([])), []);
+    });
+});
+
+describe('FileContentReader.deserializeFromText: 読めない図形を含むsource', () => {
+    it('スプライト（JSON・JS）も作業データと同じくok: trueでskipped1件', (t) => {
+        t.mock.method(console, 'warn', () => {});
+        const shapes = sampleShapesOfAllKinds();
+        const data = mutatedSprite(shapes, (d) => {
+            d.source.shapes.push({ type: 'unknown-kind' });
+        });
+        const workDoc = DocumentSerializer.serialize(shapes);
+        workDoc.shapes.push({ type: 'unknown-kind' });
+        const expected = DocumentSerializer.deserialize(workDoc);
+        assert.equal(expected.skipped.length, 1);
+
+        for (const text of [asJson(data), asModule(data)]) {
+            const result = FileContentReader.deserializeFromText(text);
+            assert.equal(result.ok, true);
+            assert.equal(result.skipped.length, 1);
+            assert.deepStrictEqual(result.skipped, expected.skipped);
+            assert.deepStrictEqual(toJsonList(result.shapes), toJsonList(shapes));
+        }
+    });
+});
+
+describe('FileContentReader.deserializeFromText: 読み込み不可（警告1回・例外なし）', () => {
+    it('本アプリのものではないJS・任意のテキスト・空文字列', (t) => {
+        assertUnreadable(t, 'export default {};\n');
+        assertUnreadable(t, 'hello world');
+        assertUnreadable(t, '');
+    });
+
+    it('他のformatのJSON・壊れたJSON', (t) => {
+        assertUnreadable(t, JSON.stringify({ format: 'other', version: 1, shapes: [] }));
+        assertUnreadable(t, '{"format": "oz-vector-editor-sprite", ');
+    });
+
+    it('sourceが無いスプライト（JSON・JS）', (t) => {
+        const data = mutatedSprite(sampleShapesOfAllKinds(), (d) => {
+            delete d.source;
+        });
+        assertUnreadable(t, asJson(data));
+        t.mock.restoreAll();
+        assertUnreadable(t, asModule(data));
+    });
+
+    it('書き出し形式の版が0・現行版+1・1.5のスプライト（JSON・JS）', (t) => {
+        const current = SpriteSerializer.serialize([]).formatVersion;
+        for (const version of [0, current + 1, 1.5]) {
+            const data = mutatedSprite(sampleShapesOfAllKinds(), (d) => {
+                d.formatVersion = version;
+            });
+            assertUnreadable(t, asJson(data));
+            t.mock.restoreAll();
+            assertUnreadable(t, asModule(data));
+            t.mock.restoreAll();
+        }
+    });
+
+    it('JSの宣言の中身がJSONでないもの（実行されない）', (t) => {
+        assertUnreadable(t, "const spriteData = (() => { throw new Error('x'); })();\nexport default {};\n");
+    });
+
+    it('JSに埋め込まれたのが作業データ（スプライトでない）', (t) => {
+        const work = DocumentSerializer.serialize(sampleShapesOfAllKinds());
+        assertUnreadable(t, 'const spriteData = ' + JSON.stringify(work, null, 2) + ';\nexport default {};\n');
+    });
+
+    it('sourceの版が範囲外（DocumentSerializerの全体失敗・警告1回）', (t) => {
+        const data = mutatedSprite(sampleShapesOfAllKinds(), (d) => {
+            d.source.version = 999;
+        });
+        assertUnreadable(t, asJson(data));
+        t.mock.restoreAll();
+        assertUnreadable(t, asModule(data));
+    });
+});
