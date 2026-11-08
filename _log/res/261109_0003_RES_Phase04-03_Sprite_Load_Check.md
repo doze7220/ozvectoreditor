@@ -235,7 +235,7 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
         *   `CanvasPalette.js`：`FILE_NOTICE_MESSAGES.readFailed`を2章要件2の文言へ。他の文言・処理・JSDocは変えない（先頭の責務JSDocは変えない）。
         *   完了時に`node --test`を実行し、全テストの成功と件数を4章へ記録する（両ファイルはテスト対象外だが全件成功を確かめる）。可能ならブラウザで`index.html`を開き、「開く」の小窓で`.js`が選べることを確認して記録する（できない場合は5章の目視確認項目に委ねる旨を記録する）。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク7: 組み立て用のJSが動くことの自動テスト
+*   [x] タスク7: 組み立て用のJSが動くことの自動テスト
     *   **対象ファイル** :
         *   `./test/io/CodeExporter.assembly.test.js` :（新規）
     *   **作業内容** :
@@ -349,7 +349,9 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
 
 ### タスク7: 組み立て用のJSが動くことの自動テスト
 *   **作業内容** :
-    *   (未記入)
+    *   `test/io/CodeExporter.assembly.test.js`（新規）：先頭に責務JSDoc。importは`node:test`・`node:assert/strict`・`node:fs`・`node:os`・`node:path`・`node:url`と`CodeExporter`・`SpriteSerializer`・`Line`・`Rect`・`Ellipse`のみ。固定の定数`HERO_SOURCE`（開発資料2章の例と同じ形の`_hero.js`）、補助関数（JSDoc付き。`createRecordingCtx`（`translate`も記録）・`recordEditorDraw`・`recordSpriteDraw`・`expectedExportLog`・`importFromDir`・`makeBodyShapes`・`makeHeadShapes`の7件）、`describe` 1件・`it` 1件。
+    *   `it`の内容：`mkdtempSync(join(tmpdir(), 'ozve-assembly-'))`の一時フォルダへ`body.js`（矩形と直線）・`head.js`（円）・`_hero.js`を書き、`pathToFileURL`で動的importする。`_hero`の記録が「`body`単体 → `['save']` → `['translate', 0, -40]` → `head`単体 → `['restore']`」と一致、`body`・`head`単体の記録がエディタの`draw`の記録（前置き・後置き付き）と一致、`body`と`head`の記録・`elements`が異なり、それぞれ`SpriteSerializer.serialize`の`elements`と一致することを確かめる。一時フォルダは`t.after`で`rmSync(..., { recursive: true, force: true })`により削除。
+    *   `node --test`：tests 265・pass 265・fail 0（タスク6後の264＋追加1）。一時フォルダでのESモジュールの読み込みに問題は出なかった。プロジェクトの中にファイルは作られていない（`git status`で新規はテストファイル1件のみ）。
 
 ### タスク8: 確認用ページの判定部分`SpriteCheckInspector`の新設とテスト
 *   **作業内容** :
@@ -396,6 +398,9 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
 
 ### タスク6で追記
 *   判断に迷った点・開発資料への影響：なし（2章の更新予定どおり）。目視確認として、エディタの「開く」「インポート」の小窓で`.js`・`.json`・`.ozve.json`が選べること、ボタンのツールチップ（`title`）の文言を推奨。
+
+### タスク7で追記
+*   判断に迷った点・開発資料への影響：なし（2章の更新予定どおり。`16_test.md`の例外はタスク11で反映）。一時フォルダの`.js`はこの環境で問題なくESモジュールとして読めた。
 
 ### 目視確認項目（テストプレイ）
 *   `sprite-check.html`を、`index.html`と同じ開き方（同じフォルダのHTMLをブラウザで開く。普段ローカルサーバーを使っている場合はそれも）で開くと、注意書き・ファイル選択・情報欄・描画領域が表示され、コンソールにエラーが出ない。
