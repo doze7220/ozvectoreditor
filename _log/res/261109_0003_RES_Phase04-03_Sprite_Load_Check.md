@@ -292,7 +292,7 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
         *   プロジェクトのルートで`node --test`を実行し、全テストの成功と件数を4章のタスク10の欄へ記録する。
         *   本RESの仕上げとして、4章のタスク10の欄を記入し（タスク1〜9の欄はそれぞれのタスクで記入済みのため書き換えない）、開発資料への影響を2章の更新予定欄へ（資料本体は修正しない）、判断に迷った点・目視確認を推奨する箇所・将来修正する際の注意点を「5. 懸念事項・要確認ポイント」欄へ追記する。
         *   完了時に本タスクを [x] にする。
-*   [ ] タスク11: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
+*   [x] タスク11: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新）
         *   `./_doc/arch/17_sprite_check.md` :（新規）
@@ -369,7 +369,6 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
 
 ### タスク10: JSDocの確認とRESの完成
 *   **作業内容** :
-    *   **作業内容** :
     *   監査の指摘による修正：4章タスク9の「非公開定数5件」を実コードの6件（`BACKGROUND_COLOR`・`BOUNDS_COLOR`・`BOUNDS_DASH`・`ORIGIN_COLOR`・`ORIGIN_ARM`・`GUIDE_LINE_WIDTH`）へ訂正。5章タスク9の`position: relative`の理由の記述を実態に合わせて訂正（`sprite-check.html`は変更していない）。
     *   JSDocの確認（ソースは変更していない。変更したファイル：本RESのみ）：新設の`.js`7件（`js/io/FileContentReader.js`・`js/check/`の3件・テスト3件`FileContentReader.test.js`・`CodeExporter.assembly.test.js`・`check/SpriteCheckInspector.test.js`）の先頭に3行以内の責務JSDocがあること、変更した4件（`SpriteSerializer.js`・`CodeExporter.js`・`DocumentFileIO.js`・`CanvasFileOperations.js`）の先頭の責務が実態と一致すること、`js/check/`・`FileContentReader.js`のクラス・メソッド・関数・定数にJSDocが付いていること（スクリプトで直前が`*/`か確認）を確認。修正が必要な箇所は無かった。
     *   構成の確認（grep・`git diff`）：`DocumentSerializer.js`・`js/main.js`・`js/core/`・`js/shapes/`に変更なし（`git diff HEAD~9`）／`io/`のimportは`FileContentReader → DocumentSerializer・SpriteSerializer・CodeExporter`、`CodeExporter → SpriteSerializer`、`SpriteSerializer → DocumentSerializer`、`DocumentSerializer → core/ShapeFactory`で循環なし、`io/`から`edit/`へのimportなし／`js/check/`のimportは`check/`内と`io/`の`SpriteSerializer`・`CodeExporter`のみ、`js/`の他のモジュール・`index.html`は`check/`をimportしない／`js/io/`・`js/edit/`に`import(`の呼び出し・`eval`・`Function(`なし（`import('…')`は型注釈のJSDocのみ。`CodeExporter`の`DRAW_SOURCE`の説明文に`import`の語）／`window`への代入なし（`js/check/`の`window`は`devicePixelRatio`の読み取りと`resize`の購読のみ）／`document`は`DocumentFileIO.js`（既存のダウンロード処理）と`js/check/`のDOM側のみ／テストに`globalThis`・`window`への代入なし（`CodeExporter.test.js`の既存の`globalThis.__pwned`は読み取りの確認）／テストのためだけの`export`なし／`test/`に補助用の`.js`なし／`node:fs`等を使うテストは`CodeExporter.assembly.test.js`のみ／`package.json`は作られていない／`js/check/`の描画処理は`SpriteCheckCanvas`の原点の印の十字（`moveTo`・`lineTo`）のみで、スプライトの描き方は書き起こしていない／`palette/`の変更は`readFailed`の文言のみ。
@@ -378,7 +377,12 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
 
 ### タスク11: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
 *   **作業内容** :
-    *   (未記入)
+    *   変更したファイル：`PROJECT_ARCHITECTURE.md`・`_doc/arch/01_index_html.md`・`_doc/arch/14_edit.md`・`_doc/arch/15_io.md`・`_doc/arch/16_test.md`（更新5件）、`_doc/arch/17_sprite_check.md`（新規1件）、本RES（タスク11の欄・タスク10の欄の書式修正）。ソース・テスト・`_doc/arch/`以外の`_doc/`は変更していない。
+    *   `PROJECT_ARCHITECTURE.md`：1章（フォルダ構造に`sprite-check.html`・`js/check/`3件・`io/FileContentReader.js`・テスト3件を追加／「存在しないもの」を実態に整理／フォルダ分割の方針に`io/`の追記と`check/`を新設／依存方向に`check/ → io`）、2章（「スプライト（書き出し形式）」の「識別子」の項を`checkFormat`による判別へ改め、その下に「エディタで開くときの規則」を新設。「ファイル名の規則」に`.js`を追記。スプライトの形・開くときの規則は2章の1箇所にまとめ、3章・各分冊からは参照のみ）、3章（9.に`FileContentReader`を加え「開く」「インポート」「旧版のファイル」「ファイル名とキャンバス名の変換」を更新／10.「確認用ページ」を新設）、4章の一覧に`17_sprite_check.md`を1行追加。
+    *   `_doc/arch/15_io.md`：冒頭・`DocumentSerializer`の呼び出し元・`DocumentFileIO.toCanvasName`・`SpriteSerializer.checkFormat`と呼び出し元・`CodeExporter.extractSpriteDataText`（手順と正しい理由・`HEADER_COMMENT`の注意・共有する定数）と呼び出し元を更新し、`FileContentReader`の項を新設。`14_edit.md`：`CanvasFileOperations`のimportに`FileContentReader`。`01_index_html.md`：`accept`と`title`。`16_test.md`：`node:fs`等の例外・新設3テストファイルと既存テストの検証範囲・テストできない箇所（`SpriteCheckPage`・`SpriteCheckCanvas`）。`17_sprite_check.md`：`sprite-check.html`・`SpriteCheckPage`・`SpriteCheckCanvas`・`SpriteCheckInspector`・`io/`から使うもの・やらないこと。
+    *   ソースとの照合：ファイル名・公開メソッド名（`deserializeFromText`・`checkFormat`・`extractSpriteDataText`・`SpriteCheckCanvas`の`resize`/`clear`/`render`・`SpriteCheckInspector`の`parseText`/`inspectSpriteData`/`inspectModuleExport`/`summarize`）・定数（`SPRITE_DATA_DECLARATION_START`/`END`・`FILE_EXTENSION_PATTERN`の`/(?:\.ozve)?\.json$|\.js$/i`）・`sprite-check.html`の要素id9件・`index.html`の`accept`2件を`Grep`・`Read`で確認した。実コードのファイル数：`js/check/` 3件、`test/check/` 1件。
+    *   `node --test`（プロジェクトのルート）：tests 275・pass 275・fail 0（タスク10後と同数）。
+    *   追加仕様（要件1）：タスク10の欄の重複した見出し行（`*   **作業内容** :`の下の同じ見出しの1行）だけを取り除いた（内容は変えていない）。
 
 ## 5. 懸念事項・要確認ポイント
 ### 計画時の判断と注意点

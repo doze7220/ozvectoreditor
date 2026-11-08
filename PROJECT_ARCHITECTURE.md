@@ -18,6 +18,7 @@
 ```text
 /oz-vector-editor/
 ├── index.html                  # スタイルはCSSファイル分割せず<style>タグに内包。フロートウィンドウも静的に置く
+├── sprite-check.html           # 確認用ページ。index.htmlとは別に開く。スタイルは<style>に内包
 ├── js/
 │   ├── main.js
 │   ├── core/
@@ -46,22 +47,31 @@
 │   │   ├── SnapshotAdapter.js
 │   │   ├── CanvasLibrary.js
 │   │   └── CanvasFileOperations.js
-│   └── io/
-│       ├── DocumentSerializer.js
-│       ├── CanvasStorage.js
-│       ├── DocumentFileIO.js
-│       ├── SpriteSerializer.js
-│       └── CodeExporter.js
+│   ├── io/
+│   │   ├── DocumentSerializer.js
+│   │   ├── CanvasStorage.js
+│   │   ├── DocumentFileIO.js
+│   │   ├── SpriteSerializer.js
+│   │   ├── CodeExporter.js
+│   │   └── FileContentReader.js
+│   └── check/
+│       ├── SpriteCheckPage.js
+│       ├── SpriteCheckCanvas.js
+│       └── SpriteCheckInspector.js
 ├── test/                       # 自動テスト（node --test でのみ実行。index.html・js/からは参照しない）。中はjs/の構成に合わせる
 │   ├── io/
 │   │   ├── DocumentSerializer.roundtrip.test.js
 │   │   ├── DocumentSerializer.errors.test.js
 │   │   ├── SpriteSerializer.test.js
 │   │   ├── CodeExporter.test.js
+│   │   ├── CodeExporter.assembly.test.js
+│   │   ├── FileContentReader.test.js
 │   │   └── DocumentFileIO.test.js
-│   └── edit/
-│       ├── CanvasFileOperations.test.js
-│       └── CanvasFileOperations.export.test.js
+│   ├── edit/
+│   │   ├── CanvasFileOperations.test.js
+│   │   └── CanvasFileOperations.export.test.js
+│   └── check/
+│       └── SpriteCheckInspector.test.js
 │
 ├── PROJECT_CONSTITUTION.md
 ├── PROJECT_ARCHITECTURE.md
@@ -77,15 +87,16 @@
         └── closed/    # フェイズ大番号移行時にアーカイブ済みRESの退避先
 ```
 
-**存在しないもの**：JS形式の入力（書き出し済みJSの再読み込み。`CodeImporter`は作らない。`_doc/PROJECT_MILESTONE.md`の将来の野望）、スプライト（JS・JSON）の読み込み（確認用ページ、「開く」「インポート」でのスプライトの読み込み。Phase 04-03で予定）、組み立て用のJSの書き出し（P7）、複数キャンバスの一括出力、PNG・SVG等の形式、カラーピッカー、ツールバー、塗りつぶし、レイヤー、グループ化、`package.json`・`node_modules`・ビルド手順、テストの自動実行（保存時・コミット時のフック、CI）、画面の操作や描画のテスト。
+**存在しないもの**：エディタでのJSの実行（スプライトのJSはテキストから取り出すだけ）、本アプリが書き出した形以外のJSの読み込み・スプライトの`elements`からの図形の作り直し（`CodeImporter`は作らない。`_doc/PROJECT_MILESTONE.md`の将来の野望）、確認用ページでの拡大縮小・移動・編集・複数ファイルの同時表示・組み立て用のJSの表示、エディタから確認用ページへのリンク、組み立て用のJSの書き出し（P7）、複数キャンバスの一括出力、PNG・SVG等の形式、カラーピッカー、ツールバー、塗りつぶし、レイヤー、グループ化、`package.json`・`node_modules`・ビルド手順、テストの自動実行（保存時・コミット時のフック、CI）、画面の操作や描画のテスト。
 
 **フォルダ分割の方針**
 *   `core/`：横断的な処理（入力→状態→描画の複数層にまたがるもの）。
 *   `shapes/`：1種類の図形。`palette/`：1つのUI部品。
-*   `io/`：作業データ形式の変換（`DocumentSerializer`）、IndexedDBへの読み書き（`CanvasStorage`）、作業データファイル・スプライトのファイルのブラウザ内での読み書き（`DocumentFileIO`）、スプライト（書き出し形式）の組み立て（`SpriteSerializer`）とスプライトJSのテキストの組み立て（`CodeExporter`）のみ。
+*   `io/`：作業データ形式の変換（`DocumentSerializer`）、IndexedDBへの読み書き（`CanvasStorage`）、作業データファイル・スプライトのファイルのブラウザ内での読み書き（`DocumentFileIO`）、スプライト（書き出し形式）の組み立て（`SpriteSerializer`）とスプライトJSのテキストの組み立てと実行しない取り出し（`CodeExporter`）、開く・インポートで選ばれたファイルの中身の判別と作業データの取り出し（`FileContentReader`）のみ。
+*   `check/`：確認用ページ（`sprite-check.html`）専用。DOM・選んだJSの実行・描画を含む。importは`check/`内と`io/`の`SpriteSerializer`・`CodeExporter`のみ。`main.js`・`edit/`・`palette/`・`core/`の状態を持つモジュールをimportせず、`js/`の他のモジュール・`index.html`は`check/`をimportしない。
 *   `edit/`：`io/`・`core/`の機能を組み合わせて図形一式を扱う手順（貼り付け・複製、履歴のスナップショットの取得・適用、キャンバス一覧の管理、ファイル操作の組み立て）。操作モードを知らない。操作モードに依存する判定・処理は`shouldRestoreSelection`・`prepareSwitch`・`prepareInsert`のような中立な注入関数で受け取る。
 *   `test/`：自動テスト。Node.jsはテストの実行（`node --test`）にのみ使い、エディタのビルド・配信には使わない。依存は`test/ → js/`の一方向で、`index.html`・`js/`は`test/`を参照しない。規則は4章`test/`。
-*   **依存方向**：`main.js → edit → io → core → shapes`の一方向。`core/`は`io/`をimportしない。`core/`・`io/`は`edit/`をimportしない。
+*   **依存方向**：`main.js → edit → io → core → shapes`の一方向。`core/`は`io/`をimportしない。`core/`・`io/`は`edit/`をimportしない。`check/ → io`（確認用ページ専用。エディタ本体の依存の列とは独立）。
 
 ---
 
@@ -119,7 +130,14 @@
         *   `strokeColor`が文字列でない要素は**線を描かない**（線のパスと`strokeStyle`・`lineWidth`・`stroke()`を呼ばない）。これは線についての規則であり、要素を捨てる規則ではない。版1は線のみのため結果として何も呼ばれない。P5で塗り等を足すときの塗りの扱いはこの規則に縛られず、足す項目の側で決める。
         *   形の項目が足りない要素は描かない：`polyline`は`points`が2点以上、`quadratic`は3点以上、`ellipse`は`radiusX`・`radiusY`が0以上の数値（`NaN`不可）。
     *   **2つの版**：書き出し形式の版は`formatVersion`（唯一の定義箇所は`SpriteSerializer.js`）、作業データの版は`source.version`（`DocumentSerializer`）。最上位に`version`キーは置かない。書き出し形式の版は、エンジンが読む部分（`format`・`formatVersion`・`bounds`・`elements`の形と意味、JSのexportの形）が変わったとき（項目の追加で、古い読み手が未知の項目として無視すると正しく描けなくなる場合を含む）に上げる。作業データの版（`source.version`）は、作業データの保存形式が変わったとき（`DocumentSerializer`の`MIGRATIONS`へ関数を足すとき）に上げる。作業データだけ版が上がっても書き出し形式の版は上げなくてよい。
-    *   **識別子**：`format: "oz-vector-editor-sprite"`（作業データの`"oz-vector-editor"`とは別の値。Phase 04-03で本アプリが書き出したものかを見分ける手がかり）。スプライトのJSONを現行の「開く」「インポート」で選ぶと`format`不一致で`DocumentSerializer`の全体失敗となり通知`readFailed`になる（停止しない）。
+    *   **識別子**：`format: "oz-vector-editor-sprite"`（作業データの`"oz-vector-editor"`とは別の値）。本アプリが書き出したものかを見分ける手がかり（エディタの「開く」「インポート」・確認用ページ）。判別は`SpriteSerializer.checkFormat`（`'supported'`・`'notSprite'`・`'unsupportedVersion'`）が唯一の入口。
+    *   **エディタで開くときの規則**（入口は`io/FileContentReader.deserializeFromText`。エディタの「開く」「インポート」の読み込みはすべてここを通る）：
+        *   中身で判定する（拡張子に頼らない）。`JSON.parse`できればJSON、できなければ本アプリのJSの形からスプライトデータのJSONを取り出す。
+        *   `format`が`"oz-vector-editor-sprite"`なら`source`だけを使い、作業データファイルと同じ`DocumentSerializer.deserialize`へ渡す（旧版の変換・図形単位のスキップ・`CanvasFileOperations`の判定の表も同じ。`elements`・`bounds`は使わない）。
+        *   JSは実行しない。`CodeExporter.extractSpriteDataText`がテキストから取り出す（取り出しの知識は組み立てと同じ`CodeExporter`。`CRLF`も可）。
+        *   受け付ける書き出し形式の版は1以上・現行版以下の整数。
+        *   読み込み不可（通知`readFailed`）：`format`が違うJSに埋め込まれたデータ・`source`が無い・版が範囲外・取り出しや解析の失敗。JSONの`format`が違う（`oz-vector-editor-sprite`以外）場合は従来どおり作業データとして`DocumentSerializer`が判定する。
+        *   本アプリが書き出した形から外れたJS（手で整形し直したもの等）は取り出せず読み込み不可になる（許容）。
     *   **外枠`bounds`**：ワールド座標の最小・最大（`minX ≤ maxX`・`minY ≤ maxY`。幅・高さは読む側で引き算する）。図形0個のとき`null`（0×0の原点の点にするとP7で外枠の和を取るとき原点が誤って含まれるため）。読む側は`null`を確かめること。外枠は書き出し時にエディタが計算した値であり、読む側は再計算しない。
         *   求め方：描画要素ごとの形の範囲（中心線の外接矩形）を線の太さの半分（太さが不正なら2pxの半分）だけ四方へ広げ、全要素の和を取る。`polyline`は全頂点、`quadratic`は端点と各軸の極値（制御点は含めない）、`ellipse`は弧の両端と軸上の端点（`closed`の弦は影響しない）。未知の`kind`は`Error`をthrowする。
         *   近似：鋭い角の継ぎ目（`miter`）の尖りは考慮しない（はみ出すことがある）。線の端・長さ0の線も太さの半分を広げるため実際より大きくなることがある（保守的な値）。弧の両端は三角関数の誤差（1e-15程度）を含む。
@@ -145,7 +163,7 @@
             ```
 *   **ファイル名の規則**（唯一の定義箇所は`io/DocumentFileIO`。`CanvasFileOperations`はキャンバス名を渡すだけで拡張子・MIMEタイプを知らない）：
     *   共通の手順：使えない文字（`\ / : * ? " < > |`と制御文字）を`_`へ置換 → 前後の空白を除く → 末尾のピリオドと空白を除く → 空なら`無題`。
-    *   作業データファイル：`<名前>.ozve.json`（先頭の`_`は除かない）。開くときは末尾の`.ozve.json`または`.json`を**1回だけ**除く（大文字小文字を区別しない）ため、キャンバス名がどのような拡張子らしい文字列で終わっても往復で変わらない（`a.json` → `a.json.ozve.json` → `a.json`）。従来の`ship.json`も読め、名前は`ship`になる。末尾のピリオド・使えない文字を含む名前は従来どおり往復で変わる。
+    *   作業データファイル：`<名前>.ozve.json`（先頭の`_`は除かない）。開くときは末尾の`.ozve.json`・`.json`・`.js`のいずれかを**1回だけ**除く（大文字小文字を区別しない。`ship.js` → `ship`、`a.js.ozve.json` → `a.js`、`a.json.js` → `a.json`）ため、キャンバス名がどのような拡張子らしい文字列で終わっても作業データファイルの往復で変わらない（`a.json` → `a.json.ozve.json` → `a.json`。`.ozve.json`が末尾にあるため`.js`の分岐は当たらない）。従来の`ship.json`も読め、名前は`ship`になる。末尾のピリオド・使えない文字を含む名前は従来どおり往復で変わる。
     *   スプライト：`<名前>.js`・`<名前>.json`。共通の手順に加え、使えない文字の置換の後に先頭の`_`と空白をすべて除く（`_hero` → `hero`、`___` → `無題`）。DIRの組み立て用のJSは名前の頭に`_`を付け、パーツのJSは付けないため。
 *   **キャンバス**：名前を持ち、ブラウザ内に保存される1つの作品の単位。画面に開くキャンバスは常に1枚。
 *   **キャンバス記録**（キャンバスの保存単位）：`{ id, name, updatedAt, document }`（typedef`CanvasRecord`は`io/CanvasStorage.js`）。
@@ -239,16 +257,21 @@
         *   記録の削除に成功してから切り替えが完了するまでは、`openCanvasName`が`null`で、`openCanvasId`は一覧に無いidを指す。
     *   **処理中の直列化**：ファイルの読み取り中は`CanvasFileOperations`の処理中によりパレットの全操作が押せなくなる。処理中もキャンバスの編集は止めない（確定手順で整合を取る）。
     *   **保存・読み込みの問題（`issue`）**：アプリは停止せず、最後に起きた問題を1つだけ保持する。種類と解除条件はtypedef`CanvasIssue`。キャンバスパレットの文言（`CanvasPalette`の`ISSUE_MESSAGES`）と、保存の問題（`'unavailable'`・`'writeFailed'`）ではコントロールパネルのキャンバス名の先頭の`⚠ `で示す。`'unavailable'`でも出力（作業ファイル・エンジン用）・インポートは使える（インポートは履歴に記録されるが保存されない）。
-9.  **ファイル入出力（出力（作業ファイル）・出力（エンジン用）・開く（ファイル）・インポート） (`CanvasPalette.js` → `main.js` → `CanvasFileOperations.js` → `DocumentFileIO.js`・`DocumentSerializer.js`・`SpriteSerializer.js`・`CodeExporter.js`・`CanvasLibrary.js`・`ShapeInserter.js`・`VectorModel.js`)**：`CanvasFileOperations`（DOMに触れない）が手順の組み立てと通知の状態を担う。ブラウザAPI（`Blob`・`File`）は`DocumentFileIO`（`CanvasFileOperations`へ注入。作業データの中身は解釈しない）に閉じる。読み込みの判定の表・通知の解除条件の正本は`CanvasFileOperations`のクラスJSDoc。
+9.  **ファイル入出力（出力（作業ファイル）・出力（エンジン用）・開く（ファイル）・インポート） (`CanvasPalette.js` → `main.js` → `CanvasFileOperations.js` → `DocumentFileIO.js`・`FileContentReader.js`・`DocumentSerializer.js`・`SpriteSerializer.js`・`CodeExporter.js`・`CanvasLibrary.js`・`ShapeInserter.js`・`VectorModel.js`)**：`CanvasFileOperations`（DOMに触れない）が手順の組み立てと通知の状態を担う。ブラウザAPI（`Blob`・`File`）は`DocumentFileIO`（`CanvasFileOperations`へ注入。作業データの中身は解釈しない）に閉じる。読み込みの判定の表・通知の解除条件の正本は`CanvasFileOperations`のクラスJSDoc。
     *   **用語**：**出力（作業ファイル）**（コード上は`exportCanvas`）＝開いているキャンバスを作業データファイルとしてダウンロードする。**出力（エンジン用）**（`exportSprite`）＝開いているキャンバスをスプライトのJSとJSONとしてダウンロードする。**開く（ファイル）**＝ファイルを新しいキャンバスとして一覧へ登録し、開いているキャンバスと入れ替える（一覧の行を押す`openCanvas`とは別）。**インポート**＝ファイルの図形を開いているキャンバスへ追加する。
     *   **出力（作業ファイル）**：`serializeToString(model.getShapes())`を`DocumentFileIO.downloadText`へ渡す。図形・選択集合・履歴・ビュー変換・操作モードに触れず、`beginEdit`/`commitEdit`も呼ばないため自動保存の契機にならない。
     *   **出力（エンジン用）**：形式を選ぶ小窓は出さない。受理条件・通知の消去は出力（作業ファイル）と同じ。`SpriteSerializer.serialize(model.getShapes())` → `SpriteSerializer.stringify`・`CodeExporter.toModuleText`で2つのテキストを先にそろえる → `DocumentFileIO.downloadSpriteModule`（JS）→ `downloadSpriteJson`（JSON）の順。組み立ての失敗ではどちらも落とさず、1つ目の失敗で2つ目を呼ばない。失敗は通知`spriteExportFailed`（2つ目だけ失敗するとJSだけが落ちているため、文言で出し直しを促す）。2つのダウンロードは同じクリックの中で間隔を空けずに続けて行う（ブラウザが複数ダウンロードの許可を尋ねる場合がある。2つ目が落ちないブラウザがあれば間隔の追加を検討する）。図形・選択集合・履歴・ビュー変換・操作モードに触れず、`beginEdit`/`commitEdit`も呼ばないため自動保存の契機にならない。成功時は通知を出さない。スプライトの形は2章「スプライト（書き出し形式）」。
-    *   **開く（ファイル）**：読み取り → `deserializeFromString` → 判定 → 読めた場合のみ`CanvasLibrary.createCanvasFromShapes(toCanvasName(ファイル名), 読めた図形)`（切り替え処理をすべて通る。編集操作として記録しない）。`issue`は`'partialLoad'`にせず、一部が読めない旨は通知`partialRead`で示す。
-    *   **インポート**：読み取り → `deserializeFromString` → 判定 → キャンバスの同一性の確認（読み取り中に開いているキャンバスが変わっていない・読み込み中でない・処理中でない。`canvasLibrary.getState()`の値で判定する）→ `prepareInsert()`（実体`applyMode(OperationMode.SELECT)`）→ `ShapeInserter.insertDocument(serialize(読めた図形), 0, 0)`。読めた図形を`serialize`し直して渡すのは、`insertDocument`内の再`deserialize`でスキップの`console.warn`が重複しないため。失敗・図形0個では図形一式・選択集合・履歴・操作モード・作成途中の図形に一切触れない。
+    *   **開く（ファイル）**：読み取り → `FileContentReader.deserializeFromText`（作業データファイル・スプライトのJS・JSON。規則は2章「エディタで開くときの規則」）→ 判定 → 読めた場合のみ`CanvasLibrary.createCanvasFromShapes(toCanvasName(ファイル名), 読めた図形)`（切り替え処理をすべて通る。編集操作として記録しない）。`issue`は`'partialLoad'`にせず、一部が読めない旨は通知`partialRead`で示す。
+    *   **インポート**：読み取り → `FileContentReader.deserializeFromText` → 判定 → キャンバスの同一性の確認（読み取り中に開いているキャンバスが変わっていない・読み込み中でない・処理中でない。`canvasLibrary.getState()`の値で判定する）→ `prepareInsert()`（実体`applyMode(OperationMode.SELECT)`）→ `ShapeInserter.insertDocument(serialize(読めた図形), 0, 0)`。読めた図形を`serialize`し直して渡すのは、`insertDocument`内の再`deserialize`でスキップの`console.warn`が重複しないため。失敗・図形0個では図形一式・選択集合・履歴・操作モード・作成途中の図形に一切触れない。
     *   **ファイル操作の通知**：`fileNotice`は`CanvasFileOperations`が1つだけ保持し、`getState()`でパレットへ渡す。`CanvasLibrary`の`issue`には種類を足さない（解除条件が異なるため）。互いに隠さず別々に表示する。
     *   **読み取り中**：`getState().busy`が真になり、パレットの全操作が押せなくなる。図形の編集（キャンバス操作・ショートカット）は止めない。
-    *   **ファイル名とキャンバス名の変換**：`DocumentFileIO`が拡張子（作業データファイル`.ozve.json`・スプライト`.js`/`.json`）と使えない文字・スプライトの先頭の`_`を扱う（規則は2章「ファイル名の規則」）。長さの切り詰め・空の場合の「無題 n」は`CanvasLibrary`が名前の変更と同じ規則で行う。
-    *   **旧版のファイル**：読み込みは必ず`DocumentSerializer.deserializeFromString`を通す。`DocumentFileIO`・`CanvasFileOperations`・`CanvasLibrary`・`CanvasPalette`は版の知識を持たない。
+    *   **ファイル名とキャンバス名の変換**：`DocumentFileIO`が拡張子（作業データファイル`.ozve.json`・スプライト`.js`/`.json`）と使えない文字・スプライトの先頭の`_`を扱う（規則は2章「ファイル名の規則」。開くときはスプライトの`.js`も除く）。長さの切り詰め・空の場合の「無題 n」は`CanvasLibrary`が名前の変更と同じ規則で行う。
+    *   **旧版のファイル**：読み込みは必ず`FileContentReader.deserializeFromText`を通し、作業データ（スプライトの`source`を含む）は`DocumentSerializer.deserialize`で読む。`DocumentFileIO`・`CanvasFileOperations`・`CanvasLibrary`・`CanvasPalette`は版の知識もスプライト形式の知識も持たない。
+10. **確認用ページ（`sprite-check.html`） (`SpriteCheckPage.js` → `SpriteCheckInspector.js`・`SpriteCheckCanvas.js`・`io/CodeExporter.js`・`io/SpriteSerializer.js`)**：書き出したスプライトを、エディタの状態とは無関係に「読み込み→描画」で確かめる別ページ。`index.html`・`main.js`・`edit/`とは状態を共有しない。ページの役割・要素・注意点は`_doc/arch/17_sprite_check.md`。
+    *   **流れ**：ファイル選択（1ファイル。選択直後に`input`の値を空に戻す）→ `File.text()` → `SpriteCheckInspector.parseText`でJSONかを中身で判定 → JSON：`inspectSpriteData`（`SpriteSerializer.checkFormat`）で判定 → `CodeExporter.toModuleText`でJSのテキストにする／JS：テキストのまま → Blob URL（`type: 'text/javascript'`）の動的`import`（成否にかかわらず`finally`でURLを解放）→ 既定のexportを`inspectModuleExport`で判定 → `summarize`で要約 → 描画（背景 → 外枠 → 原点の印 → `draw`）と情報欄の表示。JSONを選んでも描画処理は書き出したJSと同じ（`CodeExporter`の描画処理を通る。確認用ページに描き方を書き起こさない）。
+    *   **選び直しの競合**：読み込みごとに連番を振り、`await`の後で連番が最新でなければ結果を捨てる（遅れて終わった前のファイルの結果で新しい表示を上書きしない）。
+    *   **失敗時**：ページは止めず、前の表示（絵・外枠・情報欄）を消してファイル名と「読み込めませんでした：」＋理由を出す。理由の区分は`readFailed`・`notSprite`・`unsupportedVersion`・`importFailed`・`drawFailed`（文言の唯一の定義箇所は`SpriteCheckPage`）。詳細は`console.warn`。
+    *   **ウィンドウの大きさの変化**：`window`の`resize`で描画領域の大きさを合わせ、表示中のスプライトがあれば`draw`をもう一度呼んで描き直す（`draw`が例外を投げたら`drawFailed`として表示を消す）。
 
 ---
 
@@ -273,3 +296,4 @@
 | `edit/` | `_doc/arch/14_edit.md` |
 | `io/` | `_doc/arch/15_io.md` |
 | `test/`（自動テスト） | `_doc/arch/16_test.md` |
+| `sprite-check.html`・`check/`（確認用ページ） | `_doc/arch/17_sprite_check.md` |
