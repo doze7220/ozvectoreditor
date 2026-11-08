@@ -244,7 +244,7 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
         *   一時フォルダは`mkdtempSync(join(tmpdir(), 'ozve-assembly-'))`で作り、`t.after`等で`rmSync(..., { recursive: true, force: true })`により必ず削除する。`test/`の中・プロジェクトの中にファイルを作らない。`globalThis`へ代入しない。
         *   完了時に`node --test`を実行し、全テストの成功と件数を4章へ記録する。一時フォルダでの`.js`のESモジュールとしての読み込みで問題が出た場合（一時フォルダの上位に`package.json`がある等）は、ソースを変えずに原因を5章へ記録して報告する。開発資料への影響（`16_test.md`の例外）は2章の更新予定欄に記載済み。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク8: 確認用ページの判定部分`SpriteCheckInspector`の新設とテスト
+*   [x] タスク8: 確認用ページの判定部分`SpriteCheckInspector`の新設とテスト
     *   **対象ファイル** :
         *   `./js/check/SpriteCheckInspector.js` :（新規。フォルダ`js/check/`も新設）
         *   `./test/check/SpriteCheckInspector.test.js` :（新規。フォルダ`test/check/`も新設）
@@ -355,7 +355,9 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
 
 ### タスク8: 確認用ページの判定部分`SpriteCheckInspector`の新設とテスト
 *   **作業内容** :
-    *   (未記入)
+    *   `js/check/SpriteCheckInspector.js`（新規。フォルダ`js/check/`も新設）：先頭に責務JSDoc。importは`../io/SpriteSerializer.js`のみ。typedef4件（`ParsedText`・`InspectResult`・`BoundsSummary`・`SpriteSummary`）、非公開関数`isPlainObject`、`export class SpriteCheckInspector`に静的メソッド`parseText`・`inspectSpriteData`・`inspectModuleExport`・`summarize`と非公開`#summarizeBounds`（JSDoc付き）。識別子・版の定数は持たず`checkFormat`のみ使用。
+    *   `test/check/SpriteCheckInspector.test.js`（新規。フォルダ`test/check/`も新設）：先頭に責務JSDoc。補助関数`makeSpriteData`・`mutated`（JSDoc付き）、`describe` 4件・`it` 10件（parseText 1、inspectSpriteData 3、inspectModuleExport 3、summarize 3）。
+    *   `node --test`：tests 275・pass 275・fail 0（タスク7後の265＋追加10。`test/check/`のテストも実行されている）。
 
 ### タスク9: 確認用ページ（`sprite-check.html`・`SpriteCheckCanvas`・`SpriteCheckPage`）
 *   **作業内容** :
@@ -401,6 +403,9 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
 
 ### タスク7で追記
 *   判断に迷った点・開発資料への影響：なし（2章の更新予定どおり。`16_test.md`の例外はタスク11で反映）。一時フォルダの`.js`はこの環境で問題なくESモジュールとして読めた。
+
+### タスク8で追記
+*   判断に迷った点・開発資料への影響：なし（2章の更新予定どおり）。`inspectModuleExport`は`checkFormat`の結果を先に見て、`notSprite`・`unsupportedVersion`の後に`draw`を判定する（計画どおりの順）。`summarize`の`bounds`の`state: 'ok'`は4値が`typeof 'number'`かつ有限の場合のみ（配列・文字列等は`invalid`）。
 
 ### 目視確認項目（テストプレイ）
 *   `sprite-check.html`を、`index.html`と同じ開き方（同じフォルダのHTMLをブラウザで開く。普段ローカルサーバーを使っている場合はそれも）で開くと、注意書き・ファイル選択・情報欄・描画領域が表示され、コンソールにエラーが出ない。
