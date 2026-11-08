@@ -281,3 +281,68 @@ describe('CodeExporter.toModuleText: 利用者の入力の埋め込み', () => {
         assert.deepEqual(strokeStyles, [['set:strokeStyle', nasty]]);
     });
 });
+
+/**
+ * 5種の図形（line・curve・rect・circle・arc）を含む図形一式を作る。
+ * @returns {Array<object>} 図形
+ */
+function sampleShapesOfAllKinds() {
+    return [
+        new Line(1, 2, 30, 40, '#ff0000', 5),
+        new Curve(0, 0, 100, 50, '#00ff00', 3),
+        new Rect(10, 20, 50, 80, '#0000ff', 4),
+        new Ellipse(10, 20, 40, 60, 'circle', '#123456', 4),
+        new Ellipse(10, 20, 40, 60, 'arc', '#abcdef', 1),
+    ];
+}
+
+/**
+ * スプライトデータについて、`toModuleText`の出力（または変換後のテキスト）から取り出した値が`stringify`のJSONの値と一致することを確かめる。
+ * @param {object} data - スプライトデータ
+ * @param {function(string): string} [transform] - 出力テキストへ加える変換（省略時はそのまま）
+ * @returns {void}
+ */
+function assertExtractsSameValue(data, transform = (text) => text) {
+    const extracted = CodeExporter.extractSpriteDataText(transform(CodeExporter.toModuleText(data)));
+    assert.equal(typeof extracted, 'string');
+    assert.deepStrictEqual(JSON.parse(extracted), JSON.parse(SpriteSerializer.stringify(data)));
+}
+
+describe('CodeExporter.extractSpriteDataText', () => {
+    it('toModuleTextの出力から取り出したJSONが、stringifyのJSONと同じ値になる（5種の図形・図形0個）', () => {
+        assertExtractsSameValue(SpriteSerializer.serialize(sampleShapesOfAllKinds()));
+        assertExtractsSameValue(SpriteSerializer.serialize([]));
+    });
+
+    it('CRLFへ変えた出力からも同じ値が取り出せる', () => {
+        const crlf = (text) => text.replace(/\n/g, '\r\n');
+        assertExtractsSameValue(SpriteSerializer.serialize(sampleShapesOfAllKinds()), crlf);
+        assertExtractsSameValue(SpriteSerializer.serialize([]), crlf);
+    });
+
+    it('CRのみの改行へ変えた出力からも同じ値が取り出せる', () => {
+        assertExtractsSameValue(SpriteSerializer.serialize(sampleShapesOfAllKinds()), (text) => text.replace(/\n/g, '\r'));
+    });
+
+    it('strokeColorに;・};・改行・const spriteData = ・U+2028等を含めても同じ値が戻る', () => {
+        const nasty = ';\n};\r\nconst spriteData = ;\n  "\'`${1}\;\n';
+        const data = SpriteSerializer.serialize([new Line(0, 0, 10, 10, nasty, 2), new Rect(0, 0, 5, 5, 'a;\nb', 1)]);
+        assertExtractsSameValue(data);
+        assertExtractsSameValue(data, (text) => text.replace(/\n/g, '\r\n'));
+        const extracted = CodeExporter.extractSpriteDataText(CodeExporter.toModuleText(data));
+        assert.equal(JSON.parse(extracted).elements[0].strokeColor, nasty);
+    });
+
+    it('取り出せないテキストはnullを返し、例外を投げない', () => {
+        assert.equal(CodeExporter.extractSpriteDataText('export default {};\n'), null);
+        assert.equal(CodeExporter.extractSpriteDataText('任意のテキスト'), null);
+        assert.equal(CodeExporter.extractSpriteDataText(''), null);
+        assert.equal(CodeExporter.extractSpriteDataText('const spriteData = {"a": 1}'), null);
+        assert.equal(CodeExporter.extractSpriteDataText('// c\nconst spriteData = {"a": 1};'), null);
+        assert.equal(CodeExporter.extractSpriteDataText('x const spriteData = {};\n'), null);
+        assert.equal(CodeExporter.extractSpriteDataText(undefined), null);
+        assert.equal(CodeExporter.extractSpriteDataText(null), null);
+        assert.equal(CodeExporter.extractSpriteDataText(123), null);
+        assert.equal(CodeExporter.extractSpriteDataText({}), null);
+    });
+});

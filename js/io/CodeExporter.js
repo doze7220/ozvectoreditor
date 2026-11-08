@@ -1,11 +1,26 @@
 /**
- * 責務: スプライトJS（ESモジュール）のテキストの組み立て（スプライトデータの埋め込みと、データを読む共通の描画処理の埋め込み）を担う。
- * DOMに依存しない。
+ * 責務: スプライトJS（ESモジュール）のテキストの形を担う：組み立て（スプライトデータと共通の描画処理の埋め込み）と、
+ * 実行せずにテキストから埋め込んだスプライトデータ（JSONのテキスト）を取り出すこと。DOMに依存しない。
  */
 import { SpriteSerializer, DEFAULT_STROKE_WIDTH } from './SpriteSerializer.js';
 
 /**
+ * スプライトデータの宣言の開始（行頭から、JSONのテキストの直前まで）。
+ * 組み立て（`toModuleText`）と取り出し（`extractSpriteDataText`）の両方が使う。
+ * @type {string}
+ */
+const SPRITE_DATA_DECLARATION_START = 'const spriteData = ';
+
+/**
+ * スプライトデータの宣言の終わり（JSONのテキストの直後）。取り出しでは、これに改行が続く位置を終わりとする。
+ * 組み立て（`toModuleText`）と取り出し（`extractSpriteDataText`）の両方が使う。
+ * @type {string}
+ */
+const SPRITE_DATA_DECLARATION_END = ';';
+
+/**
  * 書き出すJSの先頭に置く固定の説明コメント（キャンバス名等の利用者の入力は含めない）。
+ * 注意: `const spriteData = `で始まる行を置かないこと（`extractSpriteDataText`が宣言の開始を探す目印のため）。
  * @type {string}
  */
 const HEADER_COMMENT = [
@@ -106,8 +121,8 @@ const DRAW_SOURCE = [
 ].join('\n');
 
 /**
- * スプライトJS（ESモジュール）のテキストを組み立てる静的メソッド群。インスタンス状態を持たず、DOMにも依存しない。
- * 図形・図形種別・キャンバス名を知らない（引数はスプライトデータのみ）。
+ * スプライトJS（ESモジュール）のテキストの組み立てと、テキストからのスプライトデータの取り出し（実行しない）を行う静的メソッド群。
+ * インスタンス状態を持たず、DOMにも依存しない。図形・図形種別・キャンバス名を知らない（引数はスプライトデータまたはJSのテキストのみ）。
  */
 export class CodeExporter {
     /**
@@ -119,12 +134,51 @@ export class CodeExporter {
     static toModuleText(spriteData) {
         return [
             HEADER_COMMENT,
-            `const spriteData = ${SpriteSerializer.stringify(spriteData)};`,
+            SPRITE_DATA_DECLARATION_START + SpriteSerializer.stringify(spriteData) + SPRITE_DATA_DECLARATION_END,
             '',
             `const DEFAULT_STROKE_WIDTH = ${JSON.stringify(DEFAULT_STROKE_WIDTH)};`,
             '',
             DRAW_SOURCE,
             '',
         ].join('\n');
+    }
+
+    /**
+     * `toModuleText`が書き出したJSのテキストから、埋め込まれたスプライトデータのJSONのテキストを取り出す。
+     * JSを実行せず（`import`・`eval`・`Function`を使わない）、`JSON.parse`もしない（呼び出し側が行う）。例外を投げない。
+     *
+     * 手順: 文字列でなければ`null` → 改行コードを`\n`へそろえる（`CRLF`・`CR`のJSも可）
+     * → 行頭の`const spriteData = `（テキストの先頭、または`\n`の直後の最初の出現）を探す。無ければ`null`
+     * → その直後から、最初の`;`＋改行までをJSONのテキストとして返す。見つからなければ`null`。
+     *
+     * この手順が正しい理由: `SpriteSerializer.stringify`（`JSON.stringify`）の出力は、文字列の値の中に改行を生のまま含まず
+     * （`\n`等へエスケープされる）、`;`は文字列の値の中にしか現れない。そのため宣言の開始の後の最初の「`;`＋改行」が宣言の終わりである。
+     * 先頭の説明コメント（`HEADER_COMMENT`）には`const spriteData = `で始まる行を置かないこと。
+     *
+     * 本アプリが書き出した形から外れたJS（手で整形し直したもの等）は`null`になり得る。
+     * 呼び出し元: `FileContentReader`（エディタの「開く」「インポート」）。
+     * @param {*} moduleText - JSのテキスト（文字列以外は`null`を返す）
+     * @returns {string|null} スプライトデータのJSONのテキスト。取り出せなければ`null`
+     */
+    static extractSpriteDataText(moduleText) {
+        if (typeof moduleText !== 'string') {
+            return null;
+        }
+        const text = moduleText.replace(/\r\n?/g, '\n');
+        let start;
+        if (text.startsWith(SPRITE_DATA_DECLARATION_START)) {
+            start = SPRITE_DATA_DECLARATION_START.length;
+        } else {
+            const found = text.indexOf('\n' + SPRITE_DATA_DECLARATION_START);
+            if (found === -1) {
+                return null;
+            }
+            start = found + 1 + SPRITE_DATA_DECLARATION_START.length;
+        }
+        const end = text.indexOf(SPRITE_DATA_DECLARATION_END + '\n', start);
+        if (end === -1) {
+            return null;
+        }
+        return text.slice(start, end);
     }
 }

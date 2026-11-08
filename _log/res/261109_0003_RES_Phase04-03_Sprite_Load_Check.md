@@ -184,7 +184,7 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
         *   テスト：2章要件4の`SpriteSerializer.test.js`の項目を新しい`describe`として追記する（既存のテストは変えない）。
         *   完了時にプロジェクトのルートで`node --test`を実行し、全テストの成功と件数（`tests`・`pass`・`fail`）を4章へ記録する（既存の219件が通ること）。失敗した場合、テストの誤りなら直し、本タスクの実装の誤りなら直す（それ以外の既存コードの不具合と考えられる場合は直さずに5章へ記録して報告する）。開発資料への影響が判明したら2章の更新予定欄へ追記し、判断に迷った点・目視確認を推奨する箇所・将来の修正時の注意点は5章へ記述する。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク2: JSのテキストからの取り出し`CodeExporter.extractSpriteDataText`の追加とテスト
+*   [x] タスク2: JSのテキストからの取り出し`CodeExporter.extractSpriteDataText`の追加とテスト
     *   **対象ファイル** :
         *   `./js/io/CodeExporter.js` :（更新）
         *   `./test/io/CodeExporter.test.js` :（更新）
@@ -318,7 +318,9 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
 
 ### タスク2: JSのテキストからの取り出し`CodeExporter.extractSpriteDataText`の追加とテスト
 *   **作業内容** :
-    *   (未記入)
+    *   `js/io/CodeExporter.js`：非公開定数`SPRITE_DATA_DECLARATION_START`・`SPRITE_DATA_DECLARATION_END`を追加し、`toModuleText`の宣言の行をこの2つで組み立てるよう変更（出力は不変）。`static extractSpriteDataText(moduleText)`を追加（文字列以外→`null`、`/\r\n?/g`を`\n`へ、行頭の開始を探し、直後から最初の`;`＋改行までを返す。実行・`JSON.parse`なし）。JSDocに手順・正しい理由・`CRLF`/`CR`・`null`になり得る場合・呼び出し元を記載。`HEADER_COMMENT`のJSDocへ注意を追記。先頭の責務JSDoc・クラスJSDocを更新。
+    *   `test/io/CodeExporter.test.js`：補助関数`sampleShapesOfAllKinds`・`assertExtractsSameValue`（JSDoc付き）と`describe('CodeExporter.extractSpriteDataText')`（5件）を追記。既存テストは未変更。
+    *   `node --test`：tests 228・pass 228・fail 0（タスク1後の223＋追加5）。
 
 ### タスク3: 読み込みの入口`FileContentReader`の新設とテスト
 *   **作業内容** :
@@ -370,6 +372,9 @@ js/check/SpriteCheckPage.js（新設。DOM・流れ・Blobのimport）
 *   **`file://`で開いた場合の動的`import`（要調査・目視確認）**：計画時にブラウザでの実地確認はできていない。一般に、Chrome・Edgeは`file://`で開いたHTMLからESモジュール（`<script type="module" src>`）を読み込めない（エディタ本体の`index.html`も同じ条件のため、確認用ページだけが動かないことはない）。Firefoxは`file://`でも同じフォルダ以下のモジュールを読める。Blob URLの動的`import`は、ローカルサーバー経由（`http://localhost`）ではChrome・Edge・Firefoxとも使える。`file://`で開いたページ（オリジンが不透明）からのBlob URLの`import`の可否はブラウザにより異なる可能性があるため、テストプレイで確かめる。失敗した場合は「JSONとして読めず、JSとしても読み込めませんでした」と表示されページは止まらない（コンソールに詳細）。その場合の代替（`data:text/javascript,`のURL。`test/io/CodeExporter.test.js`と同じ方法）への切り替えは、テストプレイの結果を見て判断する。
 *   **`accept`への`.js`の追加**：「開く」「インポート」で`.js`を選べるようになるが、エディタはJSを実行しない（テキストとして読むだけ）。本アプリのものでないJSは`readFailed`。
 *   **作業データファイルの読み込みの経路の変更**：開く・インポートの入口が`DocumentSerializer.deserializeFromString`から`FileContentReader.deserializeFromText`に変わる。作業データファイルの分類・通知・図形は変わらない（タスク5の既存テストで確かめる）。JSONとして解析できないファイルの`console.warn`の出し手が`DocumentSerializer`から`FileContentReader`へ変わる。
+
+### タスク2で追記
+*   判断に迷った点・開発資料への影響：なし（2章の更新予定どおり）。テストの`CR`のみ改行のケースは計画の項目に加えた補足（手順が`/\r\n?/g`を扱うことの確認）。
 
 ### 目視確認項目（テストプレイ）
 *   `sprite-check.html`を、`index.html`と同じ開き方（同じフォルダのHTMLをブラウザで開く。普段ローカルサーバーを使っている場合はそれも）で開くと、注意書き・ファイル選択・情報欄・描画領域が表示され、コンソールにエラーが出ない。
