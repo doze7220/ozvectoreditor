@@ -292,7 +292,7 @@
 *   （各タスクの実行時に影響が判明した場合は、この欄へ追記する。資料本体への反映はタスク12で行う。）
 
 ## 3. タスクリスト
-*   [ ] タスク1: `Line`の当たり判定と`fromJSON`のエラー文のテストの新設
+*   [x] タスク1: `Line`の当たり判定と`fromJSON`のエラー文のテストの新設
     *   **対象ファイル** :
         *   `./test/shapes/Line.test.js` :（新規。`test/shapes/`フォルダも新設）
     *   **作業内容** :
@@ -413,7 +413,10 @@
 
 ### タスク1: `Line`の当たり判定と`fromJSON`のエラー文のテストの新設
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `test/shapes/Line.test.js`を新規作成（`test/shapes/`も新設）。`describe`3つ（`Line.hitTest`・`Line.intersectsRect`・`Line.fromJSON のエラー文`）。1-2の表（頂点移動後・平行移動後・長さ0を含む）と1-6のケース（N=2・種別`'line'`）をすべて記述。補助関数`makeValidData()`・`assertFromJSONError()`にJSDoc付き。`import`は`node:test`・`node:assert/strict`・`Line`のみ。`js/`は変更なし。
+    *   観点の追加：正常データの`fromJSON`が`toJSON()`と一致する往復の確認。
+    *   `node --test`の結果：`tests 294`・`pass 294`・`fail 0`（計画時270から+24）。失敗なし。
+    *   開発資料への影響：なし。判断に迷った点：なし。
 
 ### タスク2: `Curve`の当たり判定と`fromJSON`のエラー文のテストの新設
 *   **作業内容** :
