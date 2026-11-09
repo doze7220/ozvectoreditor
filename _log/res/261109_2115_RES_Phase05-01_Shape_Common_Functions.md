@@ -310,7 +310,7 @@
         *   `import`は`node:test`・`node:assert/strict`・`../../js/shapes/Curve.js`のみ。ソースを変更しない。
         *   完了時に`node --test`を実行し、全テスト（タスク1を含む）の成功と件数を4章へ記録する。失敗時の扱い・開発資料への影響・判断に迷った点の記録はタスク1と同じ。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク3: `Rect`の当たり判定と`fromJSON`のエラー文のテストの新設
+*   [x] タスク3: `Rect`の当たり判定と`fromJSON`のエラー文のテストの新設
     *   **対象ファイル** :
         *   `./test/shapes/Rect.test.js` :（新規）
     *   **作業内容** :
@@ -426,7 +426,9 @@
 
 ### タスク3: `Rect`の当たり判定と`fromJSON`のエラー文のテストの新設
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `test/shapes/Rect.test.js`を新規作成。`describe`3つ（`Rect.hitTest`・`Rect.intersectsRect`・`Rect.fromJSON のエラー文`）。1-4の表（頂点移動後・平行移動後・縮退を含む）と1-6のケース（N=4・種別`'rect'`）をすべて記述。補助関数`makeValidData()`・`assertFromJSONError()`・標準の矩形を作る`makeRect()`にJSDoc付き。`import`は`node:test`・`node:assert/strict`・`Rect`のみ。`js/`は変更なし。
+    *   `node --test`の結果：`tests 345`・`pass 345`・`fail 0`（タスク2完了時320から+25）。失敗なし。
+    *   開発資料への影響：なし。判断に迷った点：なし。
 
 ### タスク4: `Ellipse`（円・弧）の当たり判定と`fromJSON`のエラー文のテストの新設
 *   **作業内容** :
