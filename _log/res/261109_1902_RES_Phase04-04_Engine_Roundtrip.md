@@ -209,7 +209,7 @@ OZ Engineは「出力（エンジン用）」で書き出したJS（`<名前>.js
         *   `sprite-check.html`：`accept=".js,text/javascript"`にする。注意書き`#check-warning`・他の要素は変えない。
         *   テスト：`SpriteCheckInspector.inspectSpriteData`の`describe`を削除。`parseText`・`inspectModuleExport`・`summarize`は残す。先頭の責務JSDocから「JSONの値の判定」を外す。不要になったimport・補助関数を整理する（`SpriteSerializer.stringify`等が他で使われていなければ）。
         *   完了作業：`node --test`の全件成功と件数を4章に記録／4章の詳細作業内容を記入し本タスクを[x]／開発資料への影響は2章「更新予定」へ追記（資料本体は変えない）／ブラウザでの目視確認が要る点（JSON・作業ファイルを選んだときの表示、続けてJSを選べること）を5章へ。
-*   [ ] タスク5: パレットの通知とボタンの説明の文言を、スプライト＝JSだけに合わせる
+*   [x] タスク5: パレットの通知とボタンの説明の文言を、スプライト＝JSだけに合わせる
     *   **対象ファイル** :
         *   `./js/palette/CanvasPalette.js` :（更新。文言とJSDocのみ）
         *   `./index.html` :（更新。`#canvas-export-sprite`・`#canvas-open-file`・`#canvas-import`の`title`のみ。`accept`は変えない）
@@ -284,7 +284,11 @@ OZ Engineは「出力（エンジン用）」で書き出したJS（`<名前>.js
 
 ### タスク5: パレットの通知とボタンの説明の文言を、スプライト＝JSだけに合わせる
 *   **作業内容** :
-    *   (タスク実行時に記入)
+    *   `js/palette/CanvasPalette.js`：`FILE_NOTICE_MESSAGES`の`readFailed`・`spriteExportFailed`を計画の文言にし、`onExportSprite`のJSDocを「スプライトのJS（.js）として出力する」に直した。他は変更なし。
+    *   `index.html`：`#canvas-export-sprite`・`#canvas-open-file`・`#canvas-import`の`title`を計画の文言にした（`accept`は不変）。
+    *   `node --test`：tests 270・pass 270・fail 0。
+    *   開発資料への影響：`_doc/arch/`のパレット／index.htmlの記述に、通知文言・ボタンの`title`にJSONへの言及があれば、タスク7で直す。
+    *   目視確認推奨：ボタンのツールチップ、読み込み失敗・出力失敗の通知文言。
 
 ### タスク6: JSDoc・コメントの記載漏れと、削除したメソッド・定数・ダウンロードへの言及の残存を確認する
 *   **作業内容** :

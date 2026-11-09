@@ -21,11 +21,11 @@ const ISSUE_MESSAGES = Object.freeze({
  * @type {Readonly<Record<string, (notice: FileNotice) => string>>}
  */
 const FILE_NOTICE_MESSAGES = Object.freeze({
-    readFailed: (notice) => `${notice.fileName ?? ''} を読み込めませんでした。本アプリで出力した作業ファイル、またはエンジン用のファイル（.js・.json）か確認してください。`,
+    readFailed: (notice) => `${notice.fileName ?? ''} を読み込めませんでした。本アプリで出力した作業ファイル（.ozve.json）、またはエンジン用のファイル（.js）か確認してください。`,
     partialRead: (notice) => `${notice.fileName ?? ''} の一部の図形（${notice.skippedCount}個）を読み込めませんでした。`,
     noShapes: (notice) => `${notice.fileName ?? ''} に追加できる図形がありませんでした。`,
     exportFailed: () => '作業ファイルの出力に失敗しました。',
-    spriteExportFailed: () => 'エンジン用の出力に失敗しました。JSとJSONの片方だけがダウンロードされた場合は、もう一度出力してください。'
+    spriteExportFailed: () => 'エンジン用のファイル（.js）の出力に失敗しました。'
 });
 
 /** 読み込み中に一覧の代わりに表示する文言。 */
@@ -69,7 +69,7 @@ const LOADING_TEXT = '読み込み中…';
  * @property {(id: string, name: string) => *} onRename 名前の変更の小窓で確定した文字列（未加工）を渡す
  * @property {(id: string) => *} onDelete 削除の確認の小窓で「OK」が押されたとき、そのキャンバスを削除する
  * @property {() => *} onExport 「出力（作業ファイル）」が押されたとき、開いているキャンバスを作業データファイルとして出力する
- * @property {() => *} onExportSprite 「出力（エンジン用）」が押されたとき、開いているキャンバスをスプライト（JSとJSON）として出力する
+ * @property {() => *} onExportSprite 「出力（エンジン用）」が押されたとき、開いているキャンバスをスプライトのJS（.js）として出力する
  * @property {(file: File) => *} onOpenFile 「開く」でファイルが選ばれたとき、新しいキャンバスとして開く（`file`は不透明に渡す）
  * @property {(file: File) => *} onImportFile 「インポート」でファイルが選ばれたとき、開いているキャンバスへ追加する（`file`は不透明に渡す）
  */
