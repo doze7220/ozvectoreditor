@@ -489,3 +489,16 @@
 * エンジンとの約束（エンジンは既定のexportの`draw(ctx)`だけを読む、版やexportの形を変えるときは連絡票を出す等）を`PROJECT_ARCHITECTURE.md`2章「スプライト（書き出し形式）」へ書き足した。エンジンからの返信`_doc/BRIDGE_FROM_ENGINE.md`は削除した（要点は2章へ移した）。
 * 解消した懸念：「出力（エンジン用）」の2ファイル連続ダウンロードによる複数ダウンロードの許可（Phase04-02由来）、確認用ページでJSONを描くときの描画処理の食い違いの可能性（Phase04-03由来）。
 * 完了処理で、`_doc/arch/14_edit.md`の`CanvasFileOperations`の依存の一覧に`FileContentReader`が抜けていた記載漏れを直した（発注者了承）。
+
+### Phase 4「薄い書き出し」フェイズ大番号クローズ（クローズ日：2026-11-09）
+* 棚卸しの対象：Phase 4期間のRES 4本（`261107_2041`・`261107_2156`・`261109_0003`・`261109_1902`。Interruptなし）の5章と「開発資料の更新予定」。各サブフェイズの完了処理で開発資料へ反映済みのため、調査（Survey）は行っていない。発注者の指示（「問題がなければクローズまで」、2026-11-09）により、Phase 3の扱い（使っていて気になったらInterruptで対応する）にならって親セッションが仕分けた。
+* 【解決】`PROJECT_ARCHITECTURE.md`2章「エディタで開くときの規則」の「読み込み不可」の項に、JSON全体の判定規則が重なっていた件（RES `261109_1902`）：Phaseクローズで清書した。
+* 【解決】スプライトのJSONの2ファイル連続ダウンロード・確認用ページでJSONを描くときの描画処理の食い違い（RES `261107_2156`・`261109_0003`）：Phase04-04でスプライトのJSONをやめて解消（上の「Phase04-04」章）。
+* 【破棄】低優先の項目（参照用に要点を残す）
+  * `sprite-check.html`の`#check-canvas-area`の`position: relative`は効果のない指定（RES `261109_0003` 5章）。
+  * `CanvasFileOperations`の`#runReadOperation`のJSDocが「読み取り＋デシリアライズ」のままで、入口が`FileContentReader.deserializeFromText`であることを明記していない（実態との食い違いはない。RES `261109_0003`）。
+  * 確認用ページでJSONを選んだ場合と、JSだが既定のexportがスプライトでない場合は同じ区分`notSprite`・同じ文言になる。`SpriteCheckInspector.parseText`の`value`は使われなくなったが戻り値の形は変えていない（RES `261109_1902` 5章）。
+  * エディタでスプライトのJSONを選んだときの`console.warn`は`DocumentSerializer`の「作業データ形式が一致しません」になる（通知は`readFailed`。`DocumentSerializer`にスプライトの識別子を持ち込まない制約は開発資料2章にある。RES `261109_1902` 5章）。
+* 【2章から外した・開発資料が正本】確認用ページで無限ループするJSを選ぶとページが固まる件（`_doc/arch/17_sprite_check.md`）。
+* 2章Cに残したもの：線の太さが無い図形を2pxとして読み込む（Phase 4の後のInterrupt候補）、書き出したJSの描画処理と各図形の`draw`の手での同期、既定のexportの浅いコピー、スプライトのJSの取り出しが書き出した形に頼ること。
+* RES 5章のその他の設計上の注意（`package.json`を置かないこと・Node.jsの版、テストの補助モジュール、マイグレーションのテストの追加時期、外枠の近似、ES2019以降の前提、`file://`での開き方等）は開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/16_test.md`・`17_sprite_check.md`等）に載っているため棚卸しの対象外とした。
