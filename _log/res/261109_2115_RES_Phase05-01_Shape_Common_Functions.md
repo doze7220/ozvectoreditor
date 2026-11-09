@@ -301,7 +301,7 @@
         *   `import`は`node:test`・`node:assert/strict`・`../../js/shapes/Line.js`のみ。ソース（`js/`）を変更しない。
         *   完了時にプロジェクトのルートで`node --test`を実行し、全テストの成功と件数（`tests`・`pass`・`fail`）を4章の本タスクの欄へ記録する。失敗した場合、テストの誤り（表の転記・図形の作り方）なら直し、ソースの不具合と考えられる場合はソースを直さずに5章へ記録して報告する。開発資料への影響が判明したら2章の更新予定欄へ追記し、判断に迷った点は5章へ記述する。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク2: `Curve`の当たり判定と`fromJSON`のエラー文のテストの新設
+*   [x] タスク2: `Curve`の当たり判定と`fromJSON`のエラー文のテストの新設
     *   **対象ファイル** :
         *   `./test/shapes/Curve.test.js` :（新規）
     *   **作業内容** :
@@ -420,7 +420,9 @@
 
 ### タスク2: `Curve`の当たり判定と`fromJSON`のエラー文のテストの新設
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `test/shapes/Curve.test.js`を新規作成。`describe`3つ（`Curve.hitTest`・`Curve.intersectsRect`・`Curve.fromJSON のエラー文`）。1-3の表（図形A・B、平行移動後、縮退）と1-6のケース（N=3・種別`'curve'`）をすべて記述。補助関数`makeValidData()`・`assertFromJSONError()`・図形A/Bを作る`curveA()`・`curveB()`にJSDoc付き。`import`は`node:test`・`node:assert/strict`・`Curve`のみ。`js/`は変更なし。
+    *   `node --test`の結果：`tests 320`・`pass 320`・`fail 0`（タスク1完了時294から+26）。失敗なし。
+    *   開発資料への影響：なし。判断に迷った点：なし。
 
 ### タスク3: `Rect`の当たり判定と`fromJSON`のエラー文のテストの新設
 *   **作業内容** :
