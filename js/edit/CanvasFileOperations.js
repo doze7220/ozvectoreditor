@@ -84,7 +84,7 @@ import { FileContentReader } from '../io/FileContentReader.js';
  * ■ 読み込みの判定の表（`#classifyRead`。`FileContentReader.deserializeFromText`の結果`result`で判定し、作業データ自体の`shapes`は参照しない）
  *   - 「ファイルの`shapes`が1個以上か」は`result.shapes.length + result.skipped.length`で分かる。
  *   | 場面 | 判定 | 分類 | 開く | インポート | 通知 |
- *   | ファイルを読み取れない・JSONとして解析できない・本アプリのスプライトでない・書き出し形式の版が範囲外・`source`が無い・JSから取り出せない・`ok: false`（形式違い・非対応の版を含む） | `result === null`または`!result.ok` | 読み込み不可 | 何も変えない | 何も変えない | readFailed |
+ *   | ファイルを読み取れない・JSONとして解析できない・本アプリのスプライトでない・書き出し形式の版が範囲外・`source`が無い・JSから取り出せない・スプライトのJSON（作業データ形式の違いとして`DocumentSerializer`が落とす）・`ok: false`（形式違い・非対応の版を含む） | `result === null`または`!result.ok` | 読み込み不可 | 何も変えない | 何も変えない | readFailed |
  *   | 図形がすべて読めない | `shapes`が0個かつ`skipped`が1件以上 | 読み込み不可 | 何も変えない（新しいキャンバスを作らない） | 何も変えない | readFailed |
  *   | 図形が0個の正しいファイル | `shapes`・`skipped`とも0件 | 空 | 空のキャンバスとして開く | 何も変えない | 開く：なし／インポート：noShapes |
  *   | 一部の図形が読めない | `shapes`が1個以上かつ`skipped`が1件以上 | 一部 | 読めた図形で開く | 読めた図形を追加する | partialRead |

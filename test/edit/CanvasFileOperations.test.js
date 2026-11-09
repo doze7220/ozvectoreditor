@@ -1,5 +1,5 @@
 /**
- * 責務: CanvasFileOperationsの開く（ファイル）・インポートでの読み込み結果の分類（作業データファイル・スプライトのJS/JSON）（読み込み不可・空・一部・全部）と通知を、
+ * 責務: CanvasFileOperationsの開く（ファイル）・インポートでの読み込み結果の分類（作業データファイル・スプライトのJS。スプライトのJSONは読み込み不可）（読み込み不可・空・一部・全部）と通知を、
  * 注入する依存の偽物と公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
@@ -309,14 +309,13 @@ function makeSpriteDataWithSourceShapes(shapes, shapesData) {
 }
 
 /**
- * スプライトのファイルの偽物のケース表を作る（JSON・JS・CRLFのJS）。
+ * スプライトのファイルの偽物のケース表を作る（JS・CRLFのJS）。
  * @param {object} spriteData - スプライトデータ
  * @returns {Array<{label: string, make: (name: string) => object}>} ケース（ファイルの偽物を作る関数つき）
  */
 function spriteFileCases(spriteData) {
     const moduleText = CodeExporter.toModuleText(spriteData);
     return [
-        { label: 'JSON', make: (name) => makeFile(name, SpriteSerializer.stringify(spriteData)) },
         { label: 'JS', make: (name) => makeFile(name, moduleText) },
         { label: 'CRLFのJS', make: (name) => makeFile(name, moduleText.replace(/\n/g, '\r\n')) },
     ];
@@ -333,7 +332,7 @@ function foreignJsCases() {
     ];
 }
 
-describe('CanvasFileOperations: 開く（スプライトのJS・JSON）', () => {
+describe('CanvasFileOperations: 開く（スプライトのJS）', () => {
     const cases = [
         { label: '全部', shapes: makeShapes(), shapesData: null, kind: 'all' },
         { label: '一部', shapes: makeShapes().slice(0, 2), shapesData: 'partial', kind: 'partial' },
@@ -381,9 +380,20 @@ describe('CanvasFileOperations: 開く（スプライトのJS・JSON）', () => 
             assert.deepStrictEqual(h.ops.getState().fileNotice, notice('readFailed', 'foreign.js', 0));
         });
     }
+
+    for (const [label, shapes] of [['5種の図形', makeShapes()], ['図形0個', []]]) {
+        it(`スプライトのJSON（ship.json、sourceあり・${label}）: false・キャンバスを作らない・readFailed`, async (t) => {
+            silenceWarn(t);
+            const h = createHarness();
+            const result = await h.ops.openFile(makeFile('ship.json', SpriteSerializer.stringify(SpriteSerializer.serialize(shapes))));
+            assert.equal(result, false);
+            assert.equal(h.createCalls.length, 0);
+            assert.deepStrictEqual(h.ops.getState().fileNotice, notice('readFailed', 'ship.json', 0));
+        });
+    }
 });
 
-describe('CanvasFileOperations: インポート（スプライトのJS・JSON）', () => {
+describe('CanvasFileOperations: インポート（スプライトのJS）', () => {
     const cases = [
         { label: '全部', shapes: makeShapes(), spriteData: SpriteSerializer.serialize(makeShapes()), workShapesData: makeShapes().map((s) => s.toJSON()) },
         { label: '一部', shapes: makeShapes().slice(0, 2), spriteData: makeSpriteDataWithSourceShapes(makeShapes().slice(0, 2), [makeShapes()[0].toJSON(), makeBadShapeData(), makeShapes()[1].toJSON()]), workShapesData: 'partial' },
@@ -423,6 +433,17 @@ describe('CanvasFileOperations: インポート（スプライトのJS・JSON）
             assert.equal(result, false);
             assert.deepStrictEqual(h.calls, []);
             assert.deepStrictEqual(h.ops.getState().fileNotice, notice('readFailed', 'foreign.js', 0));
+        });
+    }
+
+    for (const [label, shapes] of [['5種の図形', makeShapes()], ['図形0個', []]]) {
+        it(`スプライトのJSON（ship.json、sourceあり・${label}）: false・何も呼ばない・readFailed`, async (t) => {
+            silenceWarn(t);
+            const h = createHarness();
+            const result = await h.ops.importFile(makeFile('ship.json', SpriteSerializer.stringify(SpriteSerializer.serialize(shapes))));
+            assert.equal(result, false);
+            assert.deepStrictEqual(h.calls, []);
+            assert.deepStrictEqual(h.ops.getState().fileNotice, notice('readFailed', 'ship.json', 0));
         });
     }
 });

@@ -184,7 +184,7 @@ OZ Engineは「出力（エンジン用）」で書き出したJS（`<名前>.js
         *   JSDocを直す：先頭の責務JSDoc（「スプライトのファイル（JS・JSON）」→「スプライトのJS」の趣旨。3行以内・範囲を広げない）、クラスJSDoc（「スプライトのファイルとは、スプライトのJS（`<名前>.js`）である」等）、`toCanvasName`（「従来の`.json`の作業データファイルも、スプライトのJSも開ける」）、`#downloadBlob`（「3つのダウンロード」→「2つのダウンロード（作業データファイル・スプライトのJS）」）、`FILE_MIME_TYPE`等の定数JSDocにJSONのスプライトへの言及があれば外す。
         *   テスト：`describe`名を`DocumentFileIO.toSpriteModuleFileName`にし、`toSpriteJsonFileName`の確認行を削除する。同じ入力で`toSpriteModuleFileName`の確認が無いもの（`'__ a'`→`'a.js'`、`'_ _'`・`''`→`'無題.js'`、`'a/b'`→`'a_b.js'`、`42`→`'無題.js'`）は`toSpriteModuleFileName`の確認へ置き換える。`it`名の「.js・.json」等を直す。`toFileName`・`toCanvasName`・往復のテストは変えない。
         *   完了作業：`node --test`の全件成功と件数を4章に記録／4章の詳細作業内容を記入し本タスクを[x]／開発資料への影響は2章「更新予定」へ追記（資料本体は変えない）／迷った点は5章へ。
-*   [ ] タスク3: エディタの「開く」「インポート」の読み込みからスプライトのJSONを外す（`FileContentReader`）とそのテスト
+*   [x] タスク3: エディタの「開く」「インポート」の読み込みからスプライトのJSONを外す（`FileContentReader`）とそのテスト
     *   **対象ファイル** :
         *   `./js/io/FileContentReader.js` :（更新）
         *   `./js/edit/CanvasFileOperations.js` :（更新。クラスJSDocの判定の表の1行のみ。処理は変えない）
@@ -268,7 +268,11 @@ OZ Engineは「出力（エンジン用）」で書き出したJS（`<名前>.js
 
 ### タスク3: エディタの「開く」「インポート」の読み込みからスプライトのJSONを外す（`FileContentReader`）とそのテスト
 *   **作業内容** :
-    *   (タスク実行時に記入)
+    *   `js/io/FileContentReader.js`：`deserializeFromText`を、`JSON.parse`成功なら`checkFormat`を通さず`DocumentSerializer.deserialize(parsed)`を返し、失敗なら非公開の`#deserializeFromModule(text)`（`extractSpriteDataText` → `JSON.parse` → `checkFormat`。`fromModule`は削除）へ進む形にした（JSON解析の`try`にdeserializeを含めないため分離）。`#failure`の理由はJSの経路のみの文言。責務JSDoc・クラスJSDoc・`@param`を直した。
+    *   `js/edit/CanvasFileOperations.js`：クラスJSDocの判定表の読み込み不可の行に「スプライトのJSON（作業データ形式の違いとして`DocumentSerializer`が落とす）」を加えただけ（処理は不変）。
+    *   `test/io/FileContentReader.test.js`：スプライトのJSONの復元確認を削除（JS・CRLFのJSは残す）、読めない図形のsourceをJSのみに。「読み込み不可」にスプライトのJSON（5種・CRLF・図形0個）のケースを追加。`source`なし・版範囲外のケース名にJSONは作業データの形式違いで落ちる旨を追記（ケースは残した）。
+    *   `test/edit/CanvasFileOperations.test.js`：`spriteFileCases`からJSONを除き、「開く」「インポート」にスプライトのJSON（`ship.json`、5種の図形／図形0個）のケース（false・呼ばない・`readFailed`）を追加。describe名・JSDocを直した。
+    *   `node --test`：tests 273・pass 273・fail 0。
 
 ### タスク4: 確認用ページをJSだけにする（`SpriteCheckPage`・`SpriteCheckInspector`・`sprite-check.html`）とそのテスト
 *   **作業内容** :
@@ -305,3 +309,4 @@ OZ Engineは「出力（エンジン用）」で書き出したJS（`<名前>.js
     *   「出力（エンジン用）」「開く」「インポート」のボタンにマウスを乗せたときの説明と、読み込み失敗・エンジン用の出力失敗の通知の文言に、スプライトの`.json`の記述が残っていない。
     *   既存の作成・保存（自動保存・再読み込み後の復元）・出力（作業ファイル）・Undo/Redo・コピー＆ペースト・複製が変わらない。
     *   `node --test`が全件成功する。
+*   **タスク3**：`FileContentReader`に非公開メソッド`#deserializeFromModule`を足した（計画は`deserializeFromText`内で完結する想定だったが、JSON解析の`try`と`DocumentSerializer.deserialize`を分けるため）。目視確認の要点はなし（自動テストで確認）。開発資料への影響は2章「更新予定」の記載どおりで追加なし。
