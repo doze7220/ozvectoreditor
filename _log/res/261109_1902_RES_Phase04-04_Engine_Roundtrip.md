@@ -161,10 +161,11 @@ OZ Engineは「出力（エンジン用）」で書き出したJS（`<名前>.js
     *   `SpriteCheckPage.js`「直接使うもの」：JSONを`CodeExporter.toModuleText`でJSにする記述を削除し、「JSONかJSかは中身で見分け、JSONは`import`を試みずに`notSprite`」に。
     *   `SpriteCheckInspector.js`：「本アプリのスプライトかの判定（JSONの値・JSの既定のexport）」→「JSの既定のexportの判定」。公開メソッドから`inspectSpriteData`を外す（`parseText`・`inspectModuleExport`・`summarize`）。「判定の条件」から「JSONは…」を外す。
     *   「io/から使うもの」：`SpriteSerializer.checkFormat`（判定）のみ。
+*   **`_doc/arch/14_edit.md`（タスク1での追記）**：`CanvasFileOperations`の`exportSprite`の記述（JS・JSONの2つのダウンロード、`downloadSpriteJson`の使用）があれば、JS 1つのダウンロードに直す（資料本体は未確認・未変更。最終タスクで確認）。
 *   **`_doc/BRIDGE_FROM_ENGINE.md`**：削除する（要件6）。
 
 ## 3. タスクリスト
-*   [ ] タスク1: 「出力（エンジン用）」をJS 1つのダウンロードにする（`CanvasFileOperations`）とそのテスト
+*   [x] タスク1: 「出力（エンジン用）」をJS 1つのダウンロードにする（`CanvasFileOperations`）とそのテスト
     *   **対象ファイル** :
         *   `./js/edit/CanvasFileOperations.js` :（更新）
         *   `./test/edit/CanvasFileOperations.export.test.js` :（更新）
@@ -254,7 +255,9 @@ OZ Engineは「出力（エンジン用）」で書き出したJS（`<名前>.js
 
 ### タスク1: 「出力（エンジン用）」をJS 1つのダウンロードにする（`CanvasFileOperations`）とそのテスト
 *   **作業内容** :
-    *   (タスク実行時に記入)
+    *   `js/edit/CanvasFileOperations.js`：`exportSprite()`から`SpriteSerializer.stringify`と`downloadSpriteJson`の呼び出しを削除し、`serialize` → `toModuleText` → `downloadSpriteModule`の1回にした。メソッドJSDoc・クラスJSDoc「■ 出力（エンジン用）」（2つ目・間隔・取り消せない等の記述を削除）・`#fileIO`のJSDoc（`downloadSpriteJson`を外す）を直した。先頭の責務JSDocは変更なし。`SpriteSerializer`のimportは`serialize`のため残した。
+    *   `test/edit/CanvasFileOperations.export.test.js`：偽の`fileIO`から`downloadSpriteJson`を削除。「JSだけを1回…」（記録1件・`toModuleText(serialize(shapes))`と一致）、`openCanvasName`が`null`のケースを`['']`、`'unavailable'`のケースを`calls.length, 1`、図形0個のケースを「JSを1回」＋`CodeExporter.extractSpriteDataText`経由の`bounds === null`確認に変更。「JSのダウンロードが失敗したら通知…false」に直し、「JSONのダウンロードが失敗したら…」を削除。組み立て失敗のケース名を「ダウンロードせず」に直した。先頭JSDocの「順序」を「回数」に変更。`SpriteSerializer`・`CodeExporter`のimportは引き続き使用。
+    *   `node --test`：tests 274・pass 274・fail 0（計画時275から、JSONの失敗ケース1件削除で-1）。
 
 ### タスク2: `DocumentFileIO`からスプライトのJSON専用のメソッド・定数を削除する とそのテスト
 *   **作業内容** :

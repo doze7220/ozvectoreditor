@@ -1,5 +1,5 @@
 /**
- * 責務: CanvasFileOperationsの出力（作業ファイル：exportCanvas／エンジン用：exportSprite）の手順（受理条件・ダウンロードの順序と引数・失敗時の通知）を、
+ * 責務: CanvasFileOperationsの出力（作業ファイル：exportCanvas／エンジン用：exportSprite）の手順（受理条件・ダウンロードの回数と引数・失敗時の通知）を、
  * 注入する依存の偽物と公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
@@ -75,7 +75,6 @@ function createHarness({ shapes = [], libraryState = {}, failOn = null } = {}) {
     const fileIO = {
         downloadText: makeDownload('downloadText'),
         downloadSpriteModule: makeDownload('downloadSpriteModule'),
-        downloadSpriteJson: makeDownload('downloadSpriteJson'),
         /**
          * @param {{name: string}} file - ファイルの偽物
          * @returns {string} ファイル名
@@ -137,14 +136,13 @@ function createHarness({ shapes = [], libraryState = {}, failOn = null } = {}) {
 }
 
 describe('CanvasFileOperations.exportSprite', () => {
-    it('JS→JSONの順に、キャンバス名とともにダウンロードし、true を返す', () => {
+    it('JSだけを1回、キャンバス名とともにダウンロードし、true を返す', () => {
         const shapes = [makeShape('line', 'a'), makeShape('circle', 'b')];
         const { ops, calls } = createHarness({ shapes });
         assert.equal(ops.exportSprite(), true);
         const spriteData = SpriteSerializer.serialize(shapes);
         assert.deepEqual(calls, [
             { method: 'downloadSpriteModule', text: CodeExporter.toModuleText(spriteData), name: 'ship' },
-            { method: 'downloadSpriteJson', text: SpriteSerializer.stringify(spriteData), name: 'ship' },
         ]);
         assert.equal(ops.getState().fileNotice, null);
     });
@@ -152,7 +150,7 @@ describe('CanvasFileOperations.exportSprite', () => {
     it('openCanvasName が null のときは空文字列を渡す', () => {
         const { ops, calls } = createHarness({ libraryState: { openCanvasName: null } });
         assert.equal(ops.exportSprite(), true);
-        assert.deepEqual(calls.map((c) => c.name), ['', '']);
+        assert.deepEqual(calls.map((c) => c.name), ['']);
     });
 
     it('loading のとき不受理で、何も呼ばず通知も変えない', () => {
@@ -171,18 +169,18 @@ describe('CanvasFileOperations.exportSprite', () => {
     it("issue が 'unavailable'（canManage が偽）でも受理する", () => {
         const { ops, calls } = createHarness({ libraryState: { canManage: false, issue: 'unavailable' } });
         assert.equal(ops.exportSprite(), true);
-        assert.equal(calls.length, 2);
+        assert.equal(calls.length, 1);
     });
 
-    it('図形が0個でも2つともダウンロードし、通知を出さない', () => {
+    it('図形が0個でもJSを1回ダウンロードし、通知を出さない', () => {
         const { ops, calls } = createHarness({ shapes: [] });
         assert.equal(ops.exportSprite(), true);
-        assert.deepEqual(calls.map((c) => c.method), ['downloadSpriteModule', 'downloadSpriteJson']);
+        assert.deepEqual(calls.map((c) => c.method), ['downloadSpriteModule']);
         assert.equal(ops.getState().fileNotice, null);
-        assert.equal(JSON.parse(calls[1].text).bounds, null);
+        assert.equal(JSON.parse(CodeExporter.extractSpriteDataText(calls[0].text)).bounds, null);
     });
 
-    it('組み立ての失敗ではどちらもダウンロードせず、通知 spriteExportFailed を出す', (t) => {
+    it('組み立ての失敗ではダウンロードせず、通知 spriteExportFailed を出す', (t) => {
         const warn = silenceWarn(t);
         const { ops, calls } = createHarness({ shapes: [{}] });
         assert.equal(ops.exportSprite(), false);
@@ -191,19 +189,11 @@ describe('CanvasFileOperations.exportSprite', () => {
         assert.equal(warn.mock.callCount(), 1);
     });
 
-    it('JSのダウンロードが失敗したらJSONは呼ばず、通知を出す', (t) => {
+    it('JSのダウンロードが失敗したら通知 spriteExportFailed を出し、false を返す', (t) => {
         silenceWarn(t);
         const { ops, calls } = createHarness({ shapes: [makeShape('rect', 'a')], failOn: 'downloadSpriteModule' });
         assert.equal(ops.exportSprite(), false);
         assert.deepEqual(calls.map((c) => c.method), ['downloadSpriteModule']);
-        assert.equal(ops.getState().fileNotice.kind, 'spriteExportFailed');
-    });
-
-    it('JSONのダウンロードが失敗したら通知を出す（JSは既に呼ばれている）', (t) => {
-        silenceWarn(t);
-        const { ops, calls } = createHarness({ shapes: [makeShape('rect', 'a')], failOn: 'downloadSpriteJson' });
-        assert.equal(ops.exportSprite(), false);
-        assert.deepEqual(calls.map((c) => c.method), ['downloadSpriteModule', 'downloadSpriteJson']);
         assert.deepEqual(ops.getState().fileNotice, { kind: 'spriteExportFailed', fileName: null, skippedCount: 0 });
     });
 

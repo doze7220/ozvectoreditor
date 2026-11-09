@@ -51,12 +51,10 @@ import { FileContentReader } from '../io/FileContentReader.js';
  *   - 準備中の例外は捕捉して`console.warn`＋通知`exportFailed`（アプリを止めない）。
  *
  * ■ 出力（エンジン用）（`exportSprite`）
- *   1. `SpriteSerializer.serialize(model.getShapes())`でスプライトデータを作り、`SpriteSerializer.stringify`でJSONのテキスト、
- *      `CodeExporter.toModuleText`でJSのテキストを、両方とも先に組み立てる（ここで例外ならどちらもダウンロードしない）。
- *   2. `fileIO.downloadSpriteModule(JSのテキスト, 名前)`（JSを先にする）。例外ならJSONはダウンロードしない。
- *   3. `fileIO.downloadSpriteJson(JSONのテキスト, 名前)`。例外なら通知（JSは既に落ちており取り消せない）。
+ *   1. `SpriteSerializer.serialize(model.getShapes())`でスプライトデータを作り、`CodeExporter.toModuleText`でJSのテキストを組み立てる
+ *      （ここで例外ならダウンロードしない）。
+ *   2. `fileIO.downloadSpriteModule(JSのテキスト, 名前)`を1回だけ呼ぶ。例外なら通知。
  *   - 名前は開いているキャンバスの名前（`openCanvasName ?? ''`）。拡張子・MIMEタイプ・ファイル名の規則は`fileIO`が持つ。
- *   - 2つのダウンロードは同じ処理の中で続けて行い、間隔を空けない。
  *   - 図形一式・選択集合・履歴・ビュー変換・操作モード・作成途中の図形に触れない（`prepareInsert`・`beginEdit`/`commitEdit`も呼ばない。自動保存の契機にならない）。
  *   - 失敗は`console.warn`＋通知`spriteExportFailed`（アプリを止めない）。成功時と図形0個のときは通知を出さない。
  *
@@ -116,8 +114,8 @@ import { FileContentReader } from '../io/FileContentReader.js';
  */
 export class CanvasFileOperations {
     /**
-     * 作業データファイルとスプライトのファイルの読み書き（`downloadText`・`downloadSpriteModule`・`downloadSpriteJson`・`readText`・`getFileName`・`toCanvasName`のみ使用）。
-     * @type {{downloadText: Function, downloadSpriteModule: Function, downloadSpriteJson: Function, readText: Function, getFileName: Function, toCanvasName: Function}}
+     * 作業データファイルとスプライトのファイルの読み書き（`downloadText`・`downloadSpriteModule`・`readText`・`getFileName`・`toCanvasName`のみ使用）。
+     * @type {{downloadText: Function, downloadSpriteModule: Function, readText: Function, getFileName: Function, toCanvasName: Function}}
      */
     #fileIO;
 
@@ -218,11 +216,11 @@ export class CanvasFileOperations {
     }
 
     /**
-     * 出力（エンジン用）：開いているキャンバスをスプライトのJS（`<名前>.js`）とJSON（`<名前>.json`）としてダウンロードする
+     * 出力（エンジン用）：開いているキャンバスをスプライトのJS（`<名前>.js`）としてダウンロードする
      * （同期。例外は投げない。ただしリスナー（表示同期）の例外を除く）。
      * 受理条件を満たさなければ何も変えず`false`。受理時にファイル操作の通知を消す。
-     * 2つのテキストを先に組み立ててから、JS→JSONの順にダウンロードする（間隔は空けない）。失敗時は通知`spriteExportFailed`。
-     * @returns {boolean} 2つともダウンロードしたか
+     * JSのテキストを組み立ててからダウンロードする。失敗時は通知`spriteExportFailed`。
+     * @returns {boolean} JSをダウンロードしたか
      */
     exportSprite() {
         const state = this.getState();
@@ -235,11 +233,9 @@ export class CanvasFileOperations {
         }
         try {
             const spriteData = SpriteSerializer.serialize(this.#model.getShapes());
-            const jsonText = SpriteSerializer.stringify(spriteData);
             const moduleText = CodeExporter.toModuleText(spriteData);
             const canvasName = state.openCanvasName ?? '';
             this.#fileIO.downloadSpriteModule(moduleText, canvasName);
-            this.#fileIO.downloadSpriteJson(jsonText, canvasName);
             return true;
         } catch (error) {
             console.warn('CanvasFileOperations: 出力（エンジン用）に失敗しました', error);
