@@ -232,7 +232,7 @@ OZ Engineは「出力（エンジン用）」で書き出したJS（`<名前>.js
         *   タスク1〜5で触れたクラス・メソッド・定数・テストの補助関数にJSDocがあること、各`.js`の先頭行の単一責務のJSDocが3行以内で実態に合うことを確かめる。
         *   検索結果（該当なし／直した箇所）を4章に記録する。
         *   完了作業：`node --test`の全件成功と件数を4章に記録／4章の詳細作業内容を記入し本タスクを[x]／開発資料への影響は2章「更新予定」へ追記／気づいた点は5章へ。
-*   [ ] タスク7（固定）: 開発資料への反映と、エンジンからの返信の削除
+*   [x] タスク7（固定）: 開発資料への反映と、エンジンからの返信の削除
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新）
         *   `./_doc/arch/01_index_html.md` :（更新）
@@ -299,7 +299,11 @@ OZ Engineは「出力（エンジン用）」で書き出したJS（`<名前>.js
 
 ### タスク7（固定）: 開発資料への反映と、エンジンからの返信の削除
 *   **作業内容** :
-    *   (タスク実行時に記入)
+    *   `PROJECT_ARCHITECTURE.md`：1章「存在しないもの」にスプライトのJSON（出力・読み込み・確認用ページでの表示）を追加、`io/`・`check/`の説明（`check/`のimportは`SpriteSerializer`のみ）、2章スプライト項（JSだけ・エンジンとの約束(a)〜(c)・`source`の2重・識別子・エディタで開くときの規則・読み込み不可・「JSに埋め込むデータの文字列の形」・図形0個・ファイル名の規則）、3章9.（用語・出力（エンジン用）をJS 1回・開く・ファイル名変換）、3章10.（見出しの依存・流れ・失敗時）を反映。
+    *   `_doc/arch/`：`01_index_html.md`（`accept`の文・ボタンの`title`）、`14_edit.md`（出力の手順の検証内容を1回だけに）、`15_io.md`（`DocumentFileIO`の公開メソッド・拡張子とMIMEタイプ・`.json`は作業データの従来の拡張子、`SpriteSerializer`のstringifyはJS埋め込み用、`CodeExporter`の呼び出し元、`FileContentReader`）、`16_test.md`（各テストの記述、`toSpriteJsonFileName`・`downloadSpriteJson`を削除）、`17_sprite_check.md`（冒頭・依存・`accept`・`importFailed`の文言・直接使うもの・`SpriteCheckInspector`の公開メソッドと判定条件・io/から使うもの）を反映。
+    *   検索：開発資料を`downloadSpriteJson`・`toSpriteJsonFileName`・`inspectSpriteData`・`JSとJSON`・`JS・JSON`・`.js・.json`・`<名前>.json`・`.js/.json`で検索し、「スプライトのJSONはやめた／読み込み不可」と述べる箇所以外に残存なし。`BRIDGE_FROM_ENGINE`への参照も開発資料・`CLAUDE.md`になし。
+    *   `_doc/BRIDGE_FROM_ENGINE.md`の削除：実行環境で`rm`が拒否されたため**未実施**（ファイルは残っている）。要点（エンジンは`import … from`の既定のimportで受け取り位置・回転を`ctx`に設定してから`draw(ctx)`だけを呼ぶ／`format`・`formatVersion`・`bounds`・`elements`・`source`は読んでいない／エンジンの2.1章がエディタの2章「スプライト（書き出し形式）」を唯一の定義として参照する／版・exportの形・`draw`の約束を変えるときは連絡票）は2章「エンジン（OZ Engine）との約束」へ移した。ファイルの削除はオーケストレータ（または発注者）が行うこと。
+    *   `node --test`：tests 270・pass 270・fail 0。
 
 ## 5. 懸念事項・要確認ポイント
 *   **計画時点の`node --test`**：tests 275・pass 275・fail 0（Node.js、計画作成時に実行）。各タスクでテストの追加・削除により件数は変わる。
@@ -310,6 +314,7 @@ OZ Engineは「出力（エンジン用）」で書き出したJS（`<名前>.js
 *   **開発資料と実コードの相違（計画時に気づいたもの）**：`_doc/arch/14_edit.md`の`CanvasFileOperations`の「依存：importは`DocumentSerializer`・`SpriteSerializer`・`CodeExporter`のみ」に`FileContentReader`が無い（同ファイルの冒頭の「依存」と実コードには`FileContentReader`がある）。本REQの範囲外のため計画には入れていない。最終タスクで直すかは発注者の判断（直す場合は`14_edit.md`を対象ファイルに加える）。
 *   **タスク4の目視確認**：確認用ページ（`SpriteCheckPage`は自動テスト対象外）で、JSON・`.ozve.json`を「すべてのファイル」で選んだときに`notSprite`の新文言が出てページが止まらないこと、続けてJSを選ぶと表示されることを下の目視確認項目で確かめる。`parseText`の`value`は未使用になったが形は変えていない。
 *   **開発資料への影響（タスク4）**：`17_sprite_check.md`・3章10.の`FAILURE_MESSAGES`の文言（`notSprite`・`importFailed`）、確認用ページがJSONを表示しない旨（JSONは`notSprite`）、`SpriteCheckInspector`から`inspectSpriteData`削除、`check/`のimportが`check/`内と`io/SpriteSerializer`のみ（`CodeExporter`への依存なし）、`sprite-check.html`の`accept`が`.js`のみ。
+*   **タスク7の申し送り**：`_doc/BRIDGE_FROM_ENGINE.md`の削除が環境の権限で拒否され未実施。オーケストレータが削除すること。`14_edit.md`の「依存」（`FileContentReader`の記載漏れ、25行付近）は本REQの範囲外として直していない。
 *   **目視確認項目（テストプレイ）**：
     *   「出力（エンジン用）」を押すと`<名前>.js`だけがダウンロードされ、`<名前>.json`は落ちない。複数ダウンロードの許可を尋ねる表示も出ない。
     *   図形0個のキャンバスで「出力（エンジン用）」を押すと、通知なしで`<名前>.js`が1つ落ちる。

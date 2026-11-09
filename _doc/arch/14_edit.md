@@ -20,7 +20,7 @@
         *   **`#isSwitching`**：真・偽にする箇所を増やさない（偽へ戻し損ねると自動保存が予約されなくなる。区間はクラスJSDoc）。
         *   **注意**：
             *   キャンバス一覧はメモリ上に要約のみを保持し、作業データは保持しない。起動時に一覧作成のため全記録を一度読み出す（キャンバス数・図形数が極端に多い場合は起動時間を確認する）。
-    *   **CanvasFileOperations.js**：ファイル操作（出力（作業ファイル）・出力（エンジン用）・開く（ファイル）・インポート）の組み立てと、キャンバスパレットの表示同期用の状態・変更通知の提供。`main.js`が1つだけ生成する。流れは3章9.。詳細の正本はクラスJSDoc。読み込みの判定の表と通知は`test/edit/CanvasFileOperations.test.js`で、出力の手順（受理条件・ダウンロードの順序と失敗時の扱い・通知）は`test/edit/CanvasFileOperations.export.test.js`で検証している（判定・通知・手順を変えたらテストも直す）。
+    *   **CanvasFileOperations.js**：ファイル操作（出力（作業ファイル）・出力（エンジン用）・開く（ファイル）・インポート）の組み立てと、キャンバスパレットの表示同期用の状態・変更通知の提供。`main.js`が1つだけ生成する。流れは3章9.。詳細の正本はクラスJSDoc。読み込みの判定の表と通知は`test/edit/CanvasFileOperations.test.js`で、出力の手順（受理条件・JSのダウンロードが1回だけであること・失敗時の扱い・通知）は`test/edit/CanvasFileOperations.export.test.js`で検証している（判定・通知・手順を変えたらテストも直す）。
         *   **公開メソッド**：`exportCanvas`・`exportSprite`・`openFile`・`importFile`・`getState`・`onChange`。`exportSprite`の流れは3章9.。
         *   **依存**：importは`DocumentSerializer`・`SpriteSerializer`・`CodeExporter`のみ。`Blob`・`File`は注入された`DocumentFileIO`に任せる。作業データは不透明に扱う。`model`は`getShapes`のみ使う。`canvasLibrary.onChange`へ登録し、開いているキャンバスの変化でファイル操作の通知を消して自身のリスナーへ転送する。
         *   **`busy`の合成**：`getState()`のみで行い、`canvasLibrary.getState()`の値は変えない。理由：インポートの同一性の確認は処理中の自身を除くため`canvasLibrary.getState()`の素の値で行うから。合成後の`busy`で判定してはならない（読み取り中は常に真となり、すべて失敗になる）。
