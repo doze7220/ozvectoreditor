@@ -337,7 +337,7 @@
         *   本タスクでは図形クラスを変更しない（3関数は未使用のままでよい）。
         *   完了時に`node --test`を実行し、全テストの成功と件数（タスク4の完了時と同じ件数）を4章へ記録する。開発資料への影響・判断に迷った点の記録はタスク1と同じ。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク6: 図形データの検証の共通モジュール`ShapeDataValidation.js`の新設
+*   [x] タスク6: 図形データの検証の共通モジュール`ShapeDataValidation.js`の新設
     *   **対象ファイル** :
         *   `./js/shapes/ShapeDataValidation.js` :（新規）
     *   **作業内容** :
@@ -445,7 +445,9 @@
 
 ### タスク6: 図形データの検証の共通モジュール`ShapeDataValidation.js`の新設
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/shapes/ShapeDataValidation.js`を新規作成。`export function validateShapeData(data, className, acceptedTypes, pointCount)`と非公開の`isPlainObject`・`describeAcceptedTypes`。検査順序・文言は`Line.#validateData`と同じ（種別は`acceptedTypes.includes`と`describeAcceptedTypes`で生成、頂点は`forEach`）。先頭行に責務JSDoc、各関数にJSDoc（`validateShapeData`は`@throws`・`strokeWidth`の理由・`id`非検証を記載）。`import`・`try/catch`なし。図形クラスは未変更（未使用）。
+    *   `node --test`の結果：`tests 385`・`pass 385`・`fail 0`（タスク5完了時と同じ）。
+    *   開発資料への影響：なし。判断に迷った点：なし。
 
 ### タスク7: `Line`の共通モジュールへの置き換え
 *   **作業内容** :
