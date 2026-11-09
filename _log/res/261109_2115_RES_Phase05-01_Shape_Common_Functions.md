@@ -367,7 +367,7 @@
         *   JSDoc：13メソッドの契約は変えない。`hitTest`の「B(t) = …を100分割し」等の説明は実態どおりのため残す。削除したヘルパーを前提とする記述が残っていないことを確かめる。それ以外に触れない。
         *   完了時に`node --test`を実行し、全テストの成功と件数を4章へ記録する。失敗時の扱い等はタスク7と同じ。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク9: `Rect`の共通モジュールへの置き換え
+*   [x] タスク9: `Rect`の共通モジュールへの置き換え
     *   **対象ファイル** :
         *   `./js/shapes/Rect.js` :（更新）
     *   **作業内容** :
@@ -463,7 +463,9 @@
 
 ### タスク9: `Rect`の共通モジュールへの置き換え
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/shapes/Rect.js`を更新。責務JSDocの直後に`distanceToSegment`・`segmentIntersectsRect`（`ShapeGeometry.js`）と`validateShapeData`（`ShapeDataValidation.js`）の`import`を追加。`hitTest`の`this.#distanceToSegment(...)`を`distanceToSegment(...)`に、`intersectsRect`の`this.#segmentIntersectsRect(...)`を`segmentIntersectsRect(...)`に置き換え（辺の組・`some`は変更なし）、`#distanceToSegment`・`#segmentIntersectsRect`を削除。`fromJSON`を`validateShapeData(data, 'Rect', ['rect'], RECT_POINT_COUNT)`に置き換え、`static #validateData`を削除。13メソッドのJSDoc・責務JSDocは変更なし。「個別に持つ」等の記述はファイル内に残っていない（grepで確認）。
+    *   `node --test`の結果：`tests 385`・`pass 385`・`fail 0`。
+    *   開発資料への影響：なし。判断に迷った点：なし。
 
 ### タスク10: `Ellipse`の共通モジュールへの置き換え
 *   **作業内容** :
