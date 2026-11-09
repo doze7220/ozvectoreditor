@@ -328,7 +328,7 @@
         *   `import`は`node:test`・`node:assert/strict`・`../../js/shapes/Ellipse.js`のみ。ソースを変更しない。
         *   完了時に`node --test`を実行し、全テスト（タスク1〜3を含む）の成功と件数を4章へ記録する。失敗時の扱い等はタスク1と同じ。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク5: 幾何の計算の共通モジュール`ShapeGeometry.js`の新設
+*   [x] タスク5: 幾何の計算の共通モジュール`ShapeGeometry.js`の新設
     *   **対象ファイル** :
         *   `./js/shapes/ShapeGeometry.js` :（新規）
     *   **作業内容** :
@@ -439,7 +439,9 @@
 
 ### タスク5: 幾何の計算の共通モジュール`ShapeGeometry.js`の新設
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/shapes/ShapeGeometry.js`を新規作成。`export function`3つ（`segmentIntersectsRect`・`distanceToSegment`・`quadraticBezierPoint`）。本体は`Line.#segmentIntersectsRect`・`Rect.#distanceToSegment`・`Curve.hitTest`の`oneMinusT`/`bx`/`by`の式を演算の順序を変えず写した（`this.`なし）。`quadraticBezierPoint`は`{x, y}`の新しいオブジェクトを返す。先頭行に責務JSDoc、各関数にJSDoc（`@param`・`@returns`、例外なし）。`import`・クラス・定数・状態なし。図形クラスは未変更（3関数は未使用）。
+    *   `node --test`の結果：`tests 385`・`pass 385`・`fail 0`（タスク4完了時と同じ）。
+    *   開発資料への影響：なし。判断に迷った点：なし。
 
 ### タスク6: 図形データの検証の共通モジュール`ShapeDataValidation.js`の新設
 *   **作業内容** :
