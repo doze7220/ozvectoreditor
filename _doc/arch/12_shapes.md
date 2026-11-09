@@ -1,8 +1,13 @@
-*   **shapes/**：図形種別ごとのデータ保持・描画・当たり判定・図形データとの相互変換を担う。図形クラスが扱う座標はすべてワールド座標で、オフセットは渡されない。内部実装は各ファイルのJSDocを参照。共通基底クラスは無い。
+*   **shapes/**：図形種別ごとのデータ保持・描画・当たり判定・図形データとの相互変換を担う。図形クラスが扱う座標はすべてワールド座標で、オフセットは渡されない。内部実装は各ファイルのJSDocを参照。共通基底クラスは無い。図形クラスの間で共通の幾何の計算と図形データの検証は、共通モジュールの関数を呼ぶ（継承ではなく関数の切り出し。2026-11-09 発注者の決定）。
+    *   **共通モジュール**（`ShapeGeometry.js`・`ShapeDataValidation.js`）：状態を持たない`export`した関数のみで、クラスにしない。
+        *   `ShapeGeometry.js`：`distanceToSegment`（点と線分の距離）・`segmentIntersectsRect`（線分と矩形の交差）・`quadraticBezierPoint`（2次ベジェの点）。`ShapeDataValidation.js`：`validateShapeData`（`fromJSON`の共通項目の検証）。
+        *   `import`するのは`shapes/`の図形クラスのみ（`core/`・`io/`等からは使わない）。共通モジュールは`shapes/`の外および互いを`import`しない。
+        *   式を変えると複数の図形の当たり判定・検証が同時に変わるため、変えるときは`test/shapes/`の全テストを確かめる。
+        *   置き換えなかった重複（やらないと決めたこと）：`Ellipse.#distanceToOutline`は`Math.hypot`版の点と線分の距離を自前で持つ（`distanceToSegment`と式が異なり、統一すると値が変わり得るため）。`Curve`の分割数・サンプリングのループ・早期棄却は`Curve`側にある（`hitTest`の分割数`100`の直書きと`CURVE_INTERSECT_SEGMENTS`の違いも残っている）。
     *   **13メソッド契約（公開メソッドの一覧）**：`draw(ctx, t)`、`drawHandles(ctx, viewScale = 1)`、`drawHover(ctx, viewScale = 1)`、`hitTest(x, y, tolerance)`、`hitTestHandle(x, y, tolerance)`、`setVertex(vertexIndex, x, y)`、`translate(dx, dy)`、`updateDraftEnd(x, y)`、`getVertexIndexForHandle(handleName)`、`intersectsRect(minX, minY, maxX, maxY)`、`toDrawElement()`、`toJSON()`、`static fromJSON(data)`。
         *   `Line`/`Curve`/`Rect`/`Ellipse`はいずれもこの13メソッドを自律実装する。
         *   `draw`のシグネチャの例外：`Line`は`t`を持たず`draw(ctx)`。他3クラスは`draw(ctx, t = 0)`だが`t`は未使用で、どの呼び出し元からも渡されない。
-        *   新規図形を追加する際はこの契約を満たすこと。満たせば`core/`層（`VectorModel`/`CanvasManager`/`InputTracker`）・`io/`を変更せずに作成・選択・範囲選択・再編集・作業データの変換/復元フローへ組み込める（`ShapeFactory`の対応表への登録とボタンは必要。4章`ShapeFactory.js`）。ただしスプライトの出力は、`toDrawElement`の戻り値を既存の`kind`で表せない場合は`io/`の`SpriteSerializer`・`CodeExporter`も変更が要る。図形種別を追加したら`test/io/DocumentSerializer.roundtrip.test.js`へ往復のケースを、`test/io/SpriteSerializer.test.js`・`test/io/CodeExporter.test.js`へスプライトのケースを足す。
+        *   新規図形を追加する際はこの契約を満たすこと。満たせば`core/`層（`VectorModel`/`CanvasManager`/`InputTracker`）・`io/`を変更せずに作成・選択・範囲選択・再編集・作業データの変換/復元フローへ組み込める（`ShapeFactory`の対応表への登録とボタンは必要。4章`ShapeFactory.js`）。ただしスプライトの出力は、`toDrawElement`の戻り値を既存の`kind`で表せない場合は`io/`の`SpriteSerializer`・`CodeExporter`も変更が要る。新しい図形クラスは、幾何の計算（点と線分の距離・線分と矩形の交差・2次ベジェの点）と`fromJSON`の共通項目の検証に共通モジュールの関数を使い、図形クラスへ複製しない。図形種別を追加したら`test/shapes/<クラス名>.test.js`へ当たり判定と`fromJSON`のエラー文のテストを、`test/io/DocumentSerializer.roundtrip.test.js`へ往復のケースを、`test/io/SpriteSerializer.test.js`・`test/io/CodeExporter.test.js`へスプライトのケースを足す。
         *   各図形クラスのクラスJSDocは契約を列挙している。メソッドを増減する場合は4クラスのクラスJSDocも更新する。
     *   **ハンドル名の契約**（シグネチャだけでは満たせない）：
         *   移動ハンドルの名前は文字列`'move'`固定（`InputTracker`がこの名前で分岐する）。
@@ -17,7 +22,7 @@
         *   各図形クラス・`ShapeFactory`は`try/catch`を持たない（捕捉は`DocumentSerializer`）。
         *   往復（`toJSON`→`fromJSON`）で図形データの内容と描画・当たり判定の結果は一致する。
     *   **変換の変更時の注意**：
-        *   検証ロジックは各図形クラスのprivate staticヘルパーとして個別に持つ（共通モジュールはない）。図形データの共通項目の規則を変える場合は4クラスすべてを追従させる。
+        *   `fromJSON`の共通項目の検証は`ShapeDataValidation.validateShapeData`が行う（エラー文のクラス名・受理する種別・頂点数を各図形クラスが引数で渡す。種別の文言は受理する種別の並びから作る）。共通項目の規則を変える場合はこの関数を変え、`test/shapes/`の4クラスのエラー文のテストを確かめる。
         *   `Curve`・`Rect`・`Ellipse`の`fromJSON`はコンストラクタで仮生成した後に頂点を`data`の値で設定し直す（`Line`は最初から`data`の値で生成する）。将来コンストラクタに派生値の初期化等を加える場合は、頂点の差し替え後に整合が崩れないか確認する。
         *   図形データの形を変える場合は`DocumentSerializer`の版の追加手順（`MIGRATIONS`のJSDoc）に従う。
     *   **Line.js**：直線。`points`配列は持たず`x1, y1`=始点／`x2, y2`=終点で保持する。図形データでは`points`2点[始点, 終点]へ変換する。`hitTestHandle`の戻り値は`'start'|'end'|'move'|null`（`move`は中点）。

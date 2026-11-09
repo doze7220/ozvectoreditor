@@ -10,6 +10,7 @@
         *   注入される依存はテストファイル内の素のオブジェクトの偽物で置き換える。
         *   図形の`id`は`VectorModel`を使わず、公開プロパティ`id`へ文字列を直接代入して設定する。
     *   **既存のテストファイルと検証範囲**：
+        *   `test/shapes/Line.test.js`・`Curve.test.js`・`Rect.test.js`・`Ellipse.test.js`：`hitTest`・`intersectsRect`の当たる／当たらない・許容誤差の境界付近・端点と延長上・範囲選択の矩形が掛かる／含む／内部だけ／外れる／境界に接する・頂点の移動と平行移動の後・縮退（`Ellipse`の縮退の分岐を含む）・弧は上半分だけ・`Ellipse`の`strokeWidth / 2`、`fromJSON`の不正な図形データのエラー文の全文と検査の順序。`Ellipse`の比率の式は境界ちょうどで浮動小数の誤差が出るため、境界付近は余裕を持たせた値で確かめている。共通モジュール（`ShapeGeometry`・`ShapeDataValidation`）の関数そのもののテストは無く、図形クラスのテストを通して確かめている。
         *   `test/io/DocumentSerializer.roundtrip.test.js`：5種の図形（`line`・`curve`・`arc`・`rect`・`circle`）が、オブジェクト層・文字列層の両方の往復で元と同じ図形に戻ること（生成直後・頂点を動かした・平行移動・線の色と太さを変えた状態、混在の描画順・`id`、図形0個、両層が同じ作業データを表すこと、独立性）。
         *   `test/io/DocumentSerializer.errors.test.js`：`DocumentSerializer`のデシリアライズの契約。全体の読み込み失敗（両層・警告1回）、版の範囲、図形単位のスキップ（`index`・`type`・警告の回数）、余分なプロパティの無視、全図形のスキップ、引数を書き換えないこと。
         *   `test/io/SpriteSerializer.test.js`：スプライトデータの組み立て。5種の描画要素の中身・描画順、外枠（線の太さ・曲線の極値・弧・円・複数の和）、図形0個（`elements: []`・`bounds: null`）、`strokeWidth`が`undefined`の要素の外枠（2px）、`source`の往復、`format`・`formatVersion`と`source.version`が別のキーであること、`stringify`、`checkFormat`（`supported`・`notSprite`・`unsupportedVersion`の分類と例外を投げないこと）、戻り値の独立性、未知の`kind`の描画要素は`Error`をthrowすること。

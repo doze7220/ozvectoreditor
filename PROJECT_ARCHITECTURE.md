@@ -35,7 +35,9 @@
 │   │   ├── Line.js
 │   │   ├── Curve.js
 │   │   ├── Rect.js
-│   │   └── Ellipse.js          # 図形クラスは種別ごとに1ファイル
+│   │   ├── Ellipse.js          # 図形クラスは種別ごとに1ファイル
+│   │   ├── ShapeGeometry.js    # 以下2つは図形クラスではない。図形クラスだけが使う共通の関数
+│   │   └── ShapeDataValidation.js
 │   ├── palette/
 │   │   ├── PaletteController.js
 │   │   ├── DevPanel.js
@@ -59,6 +61,11 @@
 │       ├── SpriteCheckCanvas.js
 │       └── SpriteCheckInspector.js
 ├── test/                       # 自動テスト（node --test でのみ実行。index.html・js/からは参照しない）。中はjs/の構成に合わせる
+│   ├── shapes/
+│   │   ├── Line.test.js
+│   │   ├── Curve.test.js
+│   │   ├── Rect.test.js
+│   │   └── Ellipse.test.js
 │   ├── io/
 │   │   ├── DocumentSerializer.roundtrip.test.js
 │   │   ├── DocumentSerializer.errors.test.js
@@ -91,7 +98,7 @@
 
 **フォルダ分割の方針**
 *   `core/`：横断的な処理（入力→状態→描画の複数層にまたがるもの）。
-*   `shapes/`：1種類の図形。`palette/`：1つのUI部品。
+*   `shapes/`：1種類の図形（図形クラス。種別ごとに1ファイル）と、図形クラスだけが使う共通の関数（幾何の計算・図形データの検証。継承ではなく関数の切り出し。詳細は4章`shapes/`）。`palette/`：1つのUI部品。
 *   `io/`：作業データ形式の変換（`DocumentSerializer`）、IndexedDBへの読み書き（`CanvasStorage`）、作業データファイル・スプライトのJSのブラウザ内での読み書き（`DocumentFileIO`）、スプライト（書き出し形式）の組み立て（`SpriteSerializer`）とスプライトJSのテキストの組み立てと実行しない取り出し（`CodeExporter`）、開く・インポートで選ばれたファイルの中身の判別と作業データの取り出し（`FileContentReader`）のみ。
 *   `check/`：確認用ページ（`sprite-check.html`）専用。DOM・選んだJSの実行・描画を含む。importは`check/`内と`io/`の`SpriteSerializer`のみ。`main.js`・`edit/`・`palette/`・`core/`の状態を持つモジュールをimportせず、`js/`の他のモジュール・`index.html`は`check/`をimportしない。
 *   `edit/`：`io/`・`core/`の機能を組み合わせて図形一式を扱う手順（貼り付け・複製、履歴のスナップショットの取得・適用、キャンバス一覧の管理、ファイル操作の組み立て）。操作モードを知らない。操作モードに依存する判定・処理は`shouldRestoreSelection`・`prepareSwitch`・`prepareInsert`のような中立な注入関数で受け取る。
