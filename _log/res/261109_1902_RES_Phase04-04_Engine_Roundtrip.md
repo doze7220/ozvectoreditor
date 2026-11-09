@@ -315,6 +315,7 @@ OZ Engineは「出力（エンジン用）」で書き出したJS（`<名前>.js
 *   **タスク4の目視確認**：確認用ページ（`SpriteCheckPage`は自動テスト対象外）で、JSON・`.ozve.json`を「すべてのファイル」で選んだときに`notSprite`の新文言が出てページが止まらないこと、続けてJSを選ぶと表示されることを下の目視確認項目で確かめる。`parseText`の`value`は未使用になったが形は変えていない。
 *   **開発資料への影響（タスク4）**：`17_sprite_check.md`・3章10.の`FAILURE_MESSAGES`の文言（`notSprite`・`importFailed`）、確認用ページがJSONを表示しない旨（JSONは`notSprite`）、`SpriteCheckInspector`から`inspectSpriteData`削除、`check/`のimportが`check/`内と`io/SpriteSerializer`のみ（`CodeExporter`への依存なし）、`sprite-check.html`の`accept`が`.js`のみ。
 *   **タスク7の申し送り**：`_doc/BRIDGE_FROM_ENGINE.md`の削除が環境の権限で拒否され未実施。オーケストレータが削除すること。`14_edit.md`の「依存」（`FileContentReader`の記載漏れ、25行付近）は本REQの範囲外として直していない。
+    *   **完了処理での対応（現場設計AI、2026-11-09）**：テストプレイ後、発注者の了承を得て`_doc/BRIDGE_FROM_ENGINE.md`を削除した（要点は`PROJECT_ARCHITECTURE.md`2章「スプライト（書き出し形式）」のエンジンとの約束へ移済み）。`_doc/arch/14_edit.md`の依存の記載漏れ（`FileContentReader`）も発注者の了承を得て直した。
 *   **目視確認項目（テストプレイ）**：
     *   「出力（エンジン用）」を押すと`<名前>.js`だけがダウンロードされ、`<名前>.json`は落ちない。複数ダウンロードの許可を尋ねる表示も出ない。
     *   図形0個のキャンバスで「出力（エンジン用）」を押すと、通知なしで`<名前>.js`が1つ落ちる。
