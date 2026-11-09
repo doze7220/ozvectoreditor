@@ -2,6 +2,9 @@
  * 責務: 直線のデータ保持・Canvasへの描画処理・当たり判定、および図形データとの相互変換と描画要素（スプライトの書き出し用）への変換を担う。
  */
 
+import { distanceToSegment, segmentIntersectsRect } from './ShapeGeometry.js';
+import { validateShapeData } from './ShapeDataValidation.js';
+
 /**
  * 直線の図形データ（1図形のJSON表現・バージョン1）が持つ頂点数。
  * @type {number}
@@ -43,21 +46,7 @@ export class Line {
      * @returns {boolean} 線分との距離がtolerance以内であればtrue
      */
     hitTest(x, y, tolerance) {
-        const dx = this.x2 - this.x1;
-        const dy = this.y2 - this.y1;
-        const lengthSquared = dx * dx + dy * dy;
-
-        let t = lengthSquared === 0
-            ? 0
-            : ((x - this.x1) * dx + (y - this.y1) * dy) / lengthSquared;
-        t = Math.max(0, Math.min(1, t));
-
-        const closestX = this.x1 + t * dx;
-        const closestY = this.y1 + t * dy;
-        const distX = x - closestX;
-        const distY = y - closestY;
-
-        return Math.sqrt(distX * distX + distY * distY) <= tolerance;
+        return distanceToSegment(x, y, this.x1, this.y1, this.x2, this.y2) <= tolerance;
     }
 
     /**
@@ -92,50 +81,7 @@ export class Line {
      * @returns {boolean} 輪郭線の一部でも矩形に掛かればtrue
      */
     intersectsRect(minX, minY, maxX, maxY) {
-        return this.#segmentIntersectsRect(this.x1, this.y1, this.x2, this.y2, minX, minY, maxX, maxY);
-    }
-
-    /**
-     * 線分（ワールド座標）と軸平行矩形（ワールド座標・正規化済み・境界含む）の交差判定（Liang–Barsky法）。
-     * 長さ0の線分は点の内包判定となる（全組でp === 0となり除算しないため0除算は起きない）。
-     * 契約メソッドではない内部ヘルパー（同一ロジックをshapes/の各図形クラスが個別に持つ）。
-     * @param {number} ax - 線分始点のX座標（ワールド座標）
-     * @param {number} ay - 線分始点のY座標（ワールド座標）
-     * @param {number} bx - 線分終点のX座標（ワールド座標）
-     * @param {number} by - 線分終点のY座標（ワールド座標）
-     * @param {number} minX - 矩形の左端X座標（ワールド座標）
-     * @param {number} minY - 矩形の上端Y座標（ワールド座標）
-     * @param {number} maxX - 矩形の右端X座標（ワールド座標）
-     * @param {number} maxY - 矩形の下端Y座標（ワールド座標）
-     * @returns {boolean} 線分の一部でも矩形（境界含む）内にあればtrue
-     */
-    #segmentIntersectsRect(ax, ay, bx, by, minX, minY, maxX, maxY) {
-        const dx = bx - ax;
-        const dy = by - ay;
-        let t0 = 0;
-        let t1 = 1;
-        const pairs = [
-            [-dx, ax - minX],
-            [dx, maxX - ax],
-            [-dy, ay - minY],
-            [dy, maxY - ay],
-        ];
-
-        for (const [p, q] of pairs) {
-            if (p === 0) {
-                if (q < 0) return false; // 平行かつ外側
-                continue; // 除算しない
-            }
-            const r = q / p;
-            if (p < 0) {
-                if (r > t1) return false;
-                if (r > t0) t0 = r;
-            } else {
-                if (r < t0) return false;
-                if (r < t1) t1 = r;
-            }
-        }
-        return true;
+        return segmentIntersectsRect(this.x1, this.y1, this.x2, this.y2, minX, minY, maxX, maxY);
     }
 
     /**
@@ -305,40 +251,10 @@ export class Line {
      *     `strokeWidth`が有限の数値でないか0以下の場合
      */
     static fromJSON(data) {
-        Line.#validateData(data);
+        validateShapeData(data, 'Line', ['line'], LINE_POINT_COUNT);
         const [start, end] = data.points;
         const line = new Line(start.x, start.y, end.x, end.y, data.strokeColor, data.strokeWidth);
         line.id = data.id;
         return line;
-    }
-
-    /**
-     * `fromJSON`の入力検証を行う。違反があれば「`Line.fromJSON: 理由`」形式のメッセージで`Error`をthrowする。
-     * `strokeWidth`の0以下を不正とするのは、Canvasが0以下の`lineWidth`代入を無視して直前の値が残り、
-     * 描画結果が前に描いた図形に依存してしまうため。
-     * 契約メソッドではない内部ヘルパー（同等のロジックをshapes/の各図形クラスが個別に持つ）。
-     * @param {*} data - 検証対象の図形データ
-     * @throws {Error} 図形データとして不正な場合（条件は`fromJSON`を参照）
-     */
-    static #validateData(data) {
-        const fail = (reason) => {
-            throw new Error(`Line.fromJSON: ${reason}`);
-        };
-        const isPlainObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
-
-        if (!isPlainObject(data)) fail('図形データがオブジェクトではありません');
-        if (data.type !== 'line') fail(`図形種別が'line'ではありません（${String(data.type)}）`);
-        if (!Array.isArray(data.points) || data.points.length !== LINE_POINT_COUNT) {
-            fail(`pointsが${LINE_POINT_COUNT}要素の配列ではありません`);
-        }
-        data.points.forEach((point, index) => {
-            if (!isPlainObject(point) || !Number.isFinite(point.x) || !Number.isFinite(point.y)) {
-                fail(`points[${index}]のx・yが有限の数値ではありません`);
-            }
-        });
-        if (typeof data.strokeColor !== 'string') fail('strokeColorが文字列ではありません');
-        if (!Number.isFinite(data.strokeWidth) || data.strokeWidth <= 0) {
-            fail('strokeWidthが正の有限の数値ではありません');
-        }
     }
 }

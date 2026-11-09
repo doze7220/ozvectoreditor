@@ -346,7 +346,7 @@
         *   本タスクでは図形クラスを変更しない（未使用のままでよい）。
         *   完了時に`node --test`を実行し、全テストの成功と件数（タスク5と同じ件数）を4章へ記録する。開発資料への影響・判断に迷った点の記録はタスク1と同じ。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク7: `Line`の共通モジュールへの置き換え
+*   [x] タスク7: `Line`の共通モジュールへの置き換え
     *   **対象ファイル** :
         *   `./js/shapes/Line.js` :（更新）
     *   **作業内容** :
@@ -451,7 +451,9 @@
 
 ### タスク7: `Line`の共通モジュールへの置き換え
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/shapes/Line.js`を更新。責務JSDocの直後に`distanceToSegment`・`segmentIntersectsRect`（`ShapeGeometry.js`）と`validateShapeData`（`ShapeDataValidation.js`）の`import`を追加。`hitTest`を`distanceToSegment(x, y, this.x1, this.y1, this.x2, this.y2) <= tolerance`に、`intersectsRect`を`segmentIntersectsRect(...)`に置き換え、`#segmentIntersectsRect`を削除。`fromJSON`を`validateShapeData(data, 'Line', ['line'], LINE_POINT_COUNT)`に置き換え、`static #validateData`を削除。13メソッドのJSDoc・責務JSDocは変更なし。「個別に持つ」等の記述はファイル内に残っていない（grepで確認）。
+    *   `node --test`の結果：`tests 385`・`pass 385`・`fail 0`（タスク4完了時と同じ）。
+    *   開発資料への影響：なし。判断に迷った点：なし。
 
 ### タスク8: `Curve`の共通モジュールへの置き換え
 *   **作業内容** :
