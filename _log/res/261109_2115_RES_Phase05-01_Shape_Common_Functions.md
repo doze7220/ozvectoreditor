@@ -387,7 +387,7 @@
         *   JSDoc：13メソッドの契約は変えない。削除したヘルパーを前提とする記述が残っていないことを確かめる。それ以外に触れない。
         *   完了時に`node --test`を実行し、全テストの成功と件数を4章へ記録する。失敗時の扱い等はタスク7と同じ。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク11: JSDocの確認とRESの完成
+*   [x] タスク11: JSDocの確認とRESの完成
     *   **対象ファイル** :
         *   `./js/shapes/ShapeGeometry.js`、`./js/shapes/ShapeDataValidation.js`、`./js/shapes/Line.js`、`./js/shapes/Curve.js`、`./js/shapes/Rect.js`、`./js/shapes/Ellipse.js`、`./test/shapes/`の4ファイル :（確認・必要ならJSDoc・コメントのみ更新）
         *   `./_log/res/261109_2115_RES_Phase05-01_Shape_Common_Functions.md` :（更新）
@@ -475,7 +475,10 @@
 
 ### タスク11: JSDocの確認とRESの完成
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   新設2ファイルの先頭行の責務JSDoc（3行以内）、全関数（非公開の`isPlainObject`・`describeAcceptedTypes`を含む）のJSDocを確認。4つのテストファイルの先頭行JSDoc・補助関数のJSDocを確認。`Ellipse.test.js`の定数`TYPE_REASON_HEAD`にJSDocが無かったため、1行のJSDocを追記した（テストファイルのコメントのみの変更）。
+    *   4つの図形クラスに`#segmentIntersectsRect`・`#distanceToSegment`・`#validateData`と「個別に持つ」等の記述が残っていないことをgrepで確認。共通モジュールに`import`文が無いことを確認。`js/shapes/`以外の`js/`・`index.html`・既存のテストファイルに変更が無いことを`git status`で確認（未追跡は`.vscode/`のみ）。
+    *   `node --test`の結果：`tests 385`・`pass 385`・`fail 0`。
+    *   開発資料への影響：新規の追加なし（2章の更新予定欄のとおり。反映はタスク12）。判断に迷った点：なし。
 
 ### タスク12: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
 *   **作業内容** :
@@ -496,4 +499,5 @@
 *   **Phase 05-02で拡張する**：`validateShapeData`の`pointCount`は固定の頂点数のみを受ける。パスの図形（頂点数が固定でない見込み）のための引数・分岐は本作業では足さない。
 *   **`Ellipse`の境界ちょうどの浮動小数の誤差**：`Ellipse.hitTest`の比率の式は許容幅ちょうどの点で`false`になる場合がある（例：半径50の円で`hitTest(55, 0, 4)`）。既存の振る舞いであり変えない。テストは境界付近を余裕を持たせた値で確かめる（2章1-1）。
 *   **性能**：`quadraticBezierPoint`は呼び出しごとに新しいオブジェクトを返すため、`Curve.hitTest`・`intersectsRect`の1回の呼び出しで最大101個のオブジェクトが割り当てられる。値は変わらない。図形の数が非常に多いキャンバスでのホバーの体感が変わらないかをテストプレイで見る（変わった場合は報告する。式を変えない範囲での対処はPhase 05-02以降で検討する）。
+*   **タスク11の確認結果**：`TYPE_REASON_HEAD`（`Ellipse.test.js`）のみJSDocが欠けており追記した。それ以外の追加の懸念はない。今後`test/shapes/`に定数を足す場合も1行のJSDocを付けること。
 *   **Node.jsの版**：計画時の実行環境はNode.js v24.15.0（`_doc/arch/16_test.md`の「確認したNode.jsの版はv24.20.0」と異なる）。v24.15.0でも既存の270件は全件成功した。

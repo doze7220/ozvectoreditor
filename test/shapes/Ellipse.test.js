@@ -42,6 +42,7 @@ function makeArc() {
     return new Ellipse(0, 0, 50, 50, 'arc');
 }
 
+/** `fromJSON`が種別不正のときに返すエラー理由の先頭部分（期待値）。 */
 const TYPE_REASON_HEAD = "図形種別が'circle'・'arc'のいずれでもありません";
 
 describe('Ellipse.hitTest', () => {
