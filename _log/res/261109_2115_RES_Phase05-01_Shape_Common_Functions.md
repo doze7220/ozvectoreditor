@@ -319,7 +319,7 @@
         *   `import`は`node:test`・`node:assert/strict`・`../../js/shapes/Rect.js`のみ。ソースを変更しない。
         *   完了時に`node --test`を実行し、全テスト（タスク1〜2を含む）の成功と件数を4章へ記録する。失敗時の扱い等はタスク1と同じ。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク4: `Ellipse`（円・弧）の当たり判定と`fromJSON`のエラー文のテストの新設
+*   [x] タスク4: `Ellipse`（円・弧）の当たり判定と`fromJSON`のエラー文のテストの新設
     *   **対象ファイル** :
         *   `./test/shapes/Ellipse.test.js` :（新規）
     *   **作業内容** :
@@ -432,7 +432,10 @@
 
 ### タスク4: `Ellipse`（円・弧）の当たり判定と`fromJSON`のエラー文のテストの新設
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `test/shapes/Ellipse.test.js`を新規作成。`describe`3つ（`Ellipse.hitTest`・`Ellipse.intersectsRect`・`Ellipse.fromJSON のエラー文`）。1-5の表（円C・太さ10のC'・弧D・頂点移動後・楕円・平行移動後・縮退4種）と1-6のケース（N=5・種別`'circle'`・`'arc'`。種別の文言は`'circle'・'arc'のいずれでもありません`）をすべて記述。境界ちょうどの値は使わず、0.5程度の余裕を持たせた値のみ。補助関数`makeValidData(type)`・`assertFromJSONError()`・`makeCircle()`・`makeArc()`にJSDoc付き。`import`は`node:test`・`node:assert/strict`・`Ellipse`のみ。`js/`は変更なし。
+    *   観点の追加：正常データの`fromJSON`が`toJSON()`と一致する往復の確認（circle・arc両方）。
+    *   `node --test`の結果：`tests 385`・`pass 385`・`fail 0`（タスク3完了時345から+40）。失敗なし。
+    *   開発資料への影響：なし。判断に迷った点：なし。
 
 ### タスク5: 幾何の計算の共通モジュール`ShapeGeometry.js`の新設
 *   **作業内容** :
