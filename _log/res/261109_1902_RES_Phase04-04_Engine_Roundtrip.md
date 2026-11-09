@@ -197,7 +197,7 @@ OZ Engineは「出力（エンジン用）」で書き出したJS（`<名前>.js
         *   `FileContentReader.test.js`：「書き出したスプライトの読み込み」からスプライトのJSONの確認を削除（JS・`CRLF`のJSは残す）、「読めない図形を含むsource」をJSのみに。「読み込み不可」に「スプライトのJSON（`source`あり。5種の図形・図形0個・`CRLF`に改行を変えたJSON）は読み込み不可・例外なし・警告1回」を加える（`assertUnreadable`を使う）。`source`なし・版が範囲外・`source`の版が範囲外のJSONのケースは残してよい。`describe`/`it`名・先頭の責務JSDocの「スプライトのJSON」を実態に合わせる。不要になった補助関数・importを整理する（`asJson`を使い続けるなら残す）。
         *   `CanvasFileOperations.test.js`：`spriteFileCases`からJSONのケースを除く（JS・`CRLF`のJS）。「開く（スプライトのJS…）」に「スプライトのJSON（`ship.json`、`source`あり・5種の図形）: false・キャンバスを作らない（`createCalls`が0件）・`readFailed`（ファイル名`ship.json`）」、「インポート（スプライトのJS…）」に「スプライトのJSON: false・何も呼ばない（`calls`が空）・`readFailed`」を加える。`describe`名・`spriteFileCases`のJSDoc・先頭の責務JSDocの「JS・JSON」を直す。本アプリのものでないJSのケースは残す。
         *   完了作業：`node --test`の全件成功と件数を4章に記録／4章の詳細作業内容を記入し本タスクを[x]／開発資料への影響は2章「更新予定」へ追記（資料本体は変えない）／迷った点は5章へ。
-*   [ ] タスク4: 確認用ページをJSだけにする（`SpriteCheckPage`・`SpriteCheckInspector`・`sprite-check.html`）とそのテスト
+*   [x] タスク4: 確認用ページをJSだけにする（`SpriteCheckPage`・`SpriteCheckInspector`・`sprite-check.html`）とそのテスト
     *   **対象ファイル** :
         *   `./js/check/SpriteCheckPage.js` :（更新）
         *   `./js/check/SpriteCheckInspector.js` :（更新・`inspectSpriteData`の削除）
@@ -276,7 +276,11 @@ OZ Engineは「出力（エンジン用）」で書き出したJS（`<名前>.js
 
 ### タスク4: 確認用ページをJSだけにする（`SpriteCheckPage`・`SpriteCheckInspector`・`sprite-check.html`）とそのテスト
 *   **作業内容** :
-    *   (タスク実行時に記入)
+    *   `js/check/SpriteCheckPage.js`：`#handleChange`で`parseText`が`'json'`なら`import`せず`CheckFailure('notSprite')`、`'module'`ならテキストのまま`#importModule(text)`。`moduleText`・`CodeExporter`のimport・`toModuleText`の呼び出しを削除（`check/`のimportは`check/`内のみ。`io/SpriteSerializer`は`SpriteCheckInspector`経由）。`FAILURE_MESSAGES`の`notSprite`・`importFailed`を計画の文言にした。先頭の責務JSDocは実態に合うため変更なし。
+    *   `js/check/SpriteCheckInspector.js`：`inspectSpriteData`を削除。先頭の責務JSDocに「JSの既定のexport」「JSONかの見分け」を反映。`InspectResult`・クラスJSDocはJSONの値の言及がないため変更なし。
+    *   `sprite-check.html`：`accept=".js,text/javascript"`にした。
+    *   `test/check/SpriteCheckInspector.test.js`：`inspectSpriteData`の`describe`を削除、先頭JSDocから「JSONの値の判定」を外し、不要になった`DocumentSerializer`のimportを削除（`SpriteSerializer`は`parseText`等のテストで使用中）。
+    *   `node --test`：tests 270・pass 270・fail 0（`inspectSpriteData`の3件削除）。
 
 ### タスク5: パレットの通知とボタンの説明の文言を、スプライト＝JSだけに合わせる
 *   **作業内容** :
@@ -297,6 +301,8 @@ OZ Engineは「出力（エンジン用）」で書き出したJS（`<名前>.js
 *   **`SpriteCheckInspector.parseText`の`value`**：JSONの値は使われなくなるが、戻り値の形を変えない判断をした（変更を最小にするため）。将来`parseText`を`isJson`のような真偽値に変える場合はテストも直す。
 *   **ファイル選択の`accept`**：確認用ページは`.js`だけにするが、ファイル選択の小窓で「すべてのファイル」を選べばJSONも選べる。その場合は中身で見分けて`notSprite`を表示する（タスク4の目視確認）。
 *   **開発資料と実コードの相違（計画時に気づいたもの）**：`_doc/arch/14_edit.md`の`CanvasFileOperations`の「依存：importは`DocumentSerializer`・`SpriteSerializer`・`CodeExporter`のみ」に`FileContentReader`が無い（同ファイルの冒頭の「依存」と実コードには`FileContentReader`がある）。本REQの範囲外のため計画には入れていない。最終タスクで直すかは発注者の判断（直す場合は`14_edit.md`を対象ファイルに加える）。
+*   **タスク4の目視確認**：確認用ページ（`SpriteCheckPage`は自動テスト対象外）で、JSON・`.ozve.json`を「すべてのファイル」で選んだときに`notSprite`の新文言が出てページが止まらないこと、続けてJSを選ぶと表示されることを下の目視確認項目で確かめる。`parseText`の`value`は未使用になったが形は変えていない。
+*   **開発資料への影響（タスク4）**：`17_sprite_check.md`・3章10.の`FAILURE_MESSAGES`の文言（`notSprite`・`importFailed`）、確認用ページがJSONを表示しない旨（JSONは`notSprite`）、`SpriteCheckInspector`から`inspectSpriteData`削除、`check/`のimportが`check/`内と`io/SpriteSerializer`のみ（`CodeExporter`への依存なし）、`sprite-check.html`の`accept`が`.js`のみ。
 *   **目視確認項目（テストプレイ）**：
     *   「出力（エンジン用）」を押すと`<名前>.js`だけがダウンロードされ、`<名前>.json`は落ちない。複数ダウンロードの許可を尋ねる表示も出ない。
     *   図形0個のキャンバスで「出力（エンジン用）」を押すと、通知なしで`<名前>.js`が1つ落ちる。

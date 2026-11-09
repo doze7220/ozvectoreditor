@@ -1,5 +1,5 @@
 /**
- * 責務: 確認用ページで、選んだファイルの中身が本アプリのスプライトかの判定（JSONの値・JSの既定のexport）と、情報欄に出す値の要約を担う。
+ * 責務: 確認用ページで、選んだファイルの中身が本アプリのスプライトかの判定（JSの既定のexport）と、JSONかの見分けと、情報欄に出す値の要約を担う。
  * DOMに依存しない。
  */
 import { SpriteSerializer } from '../io/SpriteSerializer.js';
@@ -55,19 +55,6 @@ export class SpriteCheckInspector {
         } catch {
             return { kind: 'module' };
         }
-    }
-
-    /**
-     * JSONの値が本アプリのスプライトデータか判定する（`SpriteSerializer.checkFormat`の結果を理由の区分へ写す）。
-     * @param {*} value - JSONを解析した値
-     * @returns {InspectResult} `'supported'`なら`{ ok: true }`、それ以外は`{ ok: false, reason }`
-     */
-    static inspectSpriteData(value) {
-        const check = SpriteSerializer.checkFormat(value);
-        if (check === 'supported') {
-            return { ok: true };
-        }
-        return { ok: false, reason: check };
     }
 
     /**

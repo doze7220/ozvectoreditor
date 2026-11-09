@@ -4,7 +4,6 @@
  */
 import { SpriteCheckInspector } from './SpriteCheckInspector.js';
 import { SpriteCheckCanvas } from './SpriteCheckCanvas.js';
-import { CodeExporter } from '../io/CodeExporter.js';
 
 /**
  * 理由の区分→画面に出す文言の対応表（このファイルが唯一の定義箇所）。
@@ -12,9 +11,9 @@ import { CodeExporter } from '../io/CodeExporter.js';
  */
 const FAILURE_MESSAGES = Object.freeze({
     readFailed: 'ファイルを読み取れませんでした。',
-    notSprite: '本アプリが出力したスプライトではありません（作業ファイルは確認できません）。',
+    notSprite: '本アプリが出力したスプライトのJSではありません（JSONのファイル・作業ファイルは表示しません。「出力（エンジン用）」で書き出した.jsを選んでください）。',
     unsupportedVersion: '対応していない書き出し形式の版です。',
-    importFailed: 'JSONとして読めず、JSとしても読み込めませんでした（壊れたファイル、またはJSの読み込み中のエラー）。',
+    importFailed: 'JSとして読み込めませんでした（壊れたファイル、またはJSの読み込み中のエラー）。',
     drawFailed: '描画中にエラーが起きました。',
 });
 
@@ -119,18 +118,13 @@ class SpriteCheckPage {
             }
 
             const parsed = SpriteCheckInspector.parseText(text);
-            let moduleText = text;
             if (parsed.kind === 'json') {
-                const result = SpriteCheckInspector.inspectSpriteData(parsed.value);
-                if (!result.ok) {
-                    throw new CheckFailure(result.reason);
-                }
-                moduleText = CodeExporter.toModuleText(parsed.value);
+                throw new CheckFailure('notSprite');
             }
 
             let exported;
             try {
-                exported = await this.#importModule(moduleText);
+                exported = await this.#importModule(text);
             } catch (error) {
                 throw new CheckFailure('importFailed', error);
             }

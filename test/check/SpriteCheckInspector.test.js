@@ -1,11 +1,10 @@
 /**
- * 責務: 確認用ページの判定・要約（SpriteCheckInspector）が、JSONの値・JSの既定のexportの判定、JSONかの見分け、情報欄の要約を正しく行うことを検証する。
+ * 責務: 確認用ページの判定・要約（SpriteCheckInspector）が、JSの既定のexportの判定、JSONかの見分け、情報欄の要約を正しく行うことを検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { SpriteCheckInspector } from '../../js/check/SpriteCheckInspector.js';
 import { SpriteSerializer } from '../../js/io/SpriteSerializer.js';
-import { DocumentSerializer } from '../../js/io/DocumentSerializer.js';
 import { Line } from '../../js/shapes/Line.js';
 import { Rect } from '../../js/shapes/Rect.js';
 
@@ -40,39 +39,6 @@ describe('SpriteCheckInspector.parseText', () => {
         assert.deepStrictEqual(SpriteCheckInspector.parseText('export default {};'), { kind: 'module' });
         assert.deepStrictEqual(SpriteCheckInspector.parseText('{ "a": '), { kind: 'module' });
         assert.deepStrictEqual(SpriteCheckInspector.parseText(''), { kind: 'module' });
-    });
-});
-
-describe('SpriteCheckInspector.inspectSpriteData', () => {
-    it('現行版のスプライトデータ（図形0個も）は ok、JSON往復後も ok', () => {
-        assert.deepStrictEqual(SpriteCheckInspector.inspectSpriteData(makeSpriteData()), { ok: true });
-        assert.deepStrictEqual(SpriteCheckInspector.inspectSpriteData(SpriteSerializer.serialize([])), { ok: true });
-        const roundTrip = JSON.parse(SpriteSerializer.stringify(makeSpriteData()));
-        assert.deepStrictEqual(SpriteCheckInspector.inspectSpriteData(roundTrip), { ok: true });
-    });
-
-    it('スプライトでない値（null・配列・文字列・数値・作業データ・他のformat）は notSprite', () => {
-        const notSprite = { ok: false, reason: 'notSprite' };
-        const work = DocumentSerializer.serialize([]);
-        for (const value of [null, [], 'text', 42, undefined, work, { format: 'other' }]) {
-            assert.deepStrictEqual(SpriteCheckInspector.inspectSpriteData(value), notSprite);
-        }
-    });
-
-    it('版が範囲外・整数でない・キーが無い場合は unsupportedVersion', () => {
-        const data = makeSpriteData();
-        const unsupported = { ok: false, reason: 'unsupportedVersion' };
-        const withoutVersion = { ...data };
-        delete withoutVersion.formatVersion;
-        for (const value of [
-            mutated(data, { formatVersion: 0 }),
-            mutated(data, { formatVersion: data.formatVersion + 1 }),
-            mutated(data, { formatVersion: 1.5 }),
-            mutated(data, { formatVersion: '1' }),
-            withoutVersion,
-        ]) {
-            assert.deepStrictEqual(SpriteCheckInspector.inspectSpriteData(value), unsupported);
-        }
     });
 });
 
