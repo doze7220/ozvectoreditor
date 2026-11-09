@@ -502,3 +502,6 @@
 * 【2章から外した・開発資料が正本】確認用ページで無限ループするJSを選ぶとページが固まる件（`_doc/arch/17_sprite_check.md`）。
 * 2章Cに残したもの：線の太さが無い図形を2pxとして読み込む（Phase 4の後のInterrupt候補）、書き出したJSの描画処理と各図形の`draw`の手での同期、既定のexportの浅いコピー、スプライトのJSの取り出しが書き出した形に頼ること。
 * RES 5章のその他の設計上の注意（`package.json`を置かないこと・Node.jsの版、テストの補助モジュール、マイグレーションのテストの追加時期、外枠の近似、ES2019以降の前提、`file://`での開き方等）は開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/16_test.md`・`17_sprite_check.md`等）に載っているため棚卸しの対象外とした。
+
+### Phase05-01「図形クラスの共通の関数の切り出し」（完了日：2026-11-09。テストプレイ実施済み、問題なし）
+* 【解決】図形クラスの重複（`#segmentIntersectsRect`・`#validateData`が`Line`/`Curve`/`Rect`/`Ellipse`の4ファイルに重複。Phase02-03由来）：共通モジュール`js/shapes/ShapeGeometry.js`（点と線分の距離・線分と矩形の交差・2次ベジェの点）と`js/shapes/ShapeDataValidation.js`（`fromJSON`の共通項目の検証）へ切り出した。継承ではなく関数の切り出し（発注者の決定）。式の異なる`Ellipse.#distanceToOutline`は置き換えていない。切り出しの前に`test/shapes/`へ4クラスの当たり判定と`fromJSON`のエラー文のテストを追加。REQ `261109_2107`・RES `261109_2115`。詳細は`_doc/arch/12_shapes.md`。
