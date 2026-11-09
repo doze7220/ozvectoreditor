@@ -174,7 +174,7 @@ OZ Engineは「出力（エンジン用）」で書き出したJS（`<名前>.js
         *   JSDocを直す：`exportSprite`のメソッドJSDoc（「JS（`<名前>.js`）としてダウンロードする」「JSのテキストを組み立ててからダウンロードする」「`@returns {boolean}` JSをダウンロードしたか」）、クラスJSDoc「■ 出力（エンジン用）」（1ファイルの手順に。2つ目・間隔・取り消せない等の記述を削除）、`#fileIO`のJSDocの使用メソッド一覧と型から`downloadSpriteJson`を外す。先頭の責務JSDocは範囲を広げない（変更不要なら変えない）。
         *   テスト：偽の`fileIO`から`downloadSpriteJson`を削除。「JS→JSONの順に…」を「JSだけを1回、キャンバス名とともにダウンロードし、true を返す」（記録が`downloadSpriteModule`の1件で、`text`が`CodeExporter.toModuleText(SpriteSerializer.serialize(shapes))`と一致）に、「図形が0個でも2つとも…」を「図形が0個でもJSを1回ダウンロードし、通知を出さない」に、「JSのダウンロードが失敗したらJSONは呼ばず…」を「JSのダウンロードが失敗したら通知 spriteExportFailed を出し false を返す」に直す。「JSONのダウンロードが失敗したら…」のケースを削除。組み立て失敗・受理条件・通知の消去・副作用なし・`exportCanvas`のケースは残す。`SpriteSerializer.stringify`を使わなくなったら不要なimportがないか確認する。
         *   完了作業：プロジェクトのルートで`node --test`を実行し、全件成功と件数（tests/pass/fail）を4章に記録する。4章の詳細作業内容を記入し、本タスクを[x]にする。開発資料への影響は2章「更新予定」へ追記する（資料本体は変えない）。迷った点・目視確認の推奨は5章へ。
-*   [ ] タスク2: `DocumentFileIO`からスプライトのJSON専用のメソッド・定数を削除する（呼び出し元はタスク1で外し済み）とそのテスト
+*   [x] タスク2: `DocumentFileIO`からスプライトのJSON専用のメソッド・定数を削除する（呼び出し元はタスク1で外し済み）とそのテスト
     *   **対象ファイル** :
         *   `./js/io/DocumentFileIO.js` :（更新・削除）
         *   `./test/io/DocumentFileIO.test.js` :（更新）
@@ -261,7 +261,10 @@ OZ Engineは「出力（エンジン用）」で書き出したJS（`<名前>.js
 
 ### タスク2: `DocumentFileIO`からスプライトのJSON専用のメソッド・定数を削除する とそのテスト
 *   **作業内容** :
-    *   (タスク実行時に記入)
+    *   着手前検索：`downloadSpriteJson`・`toSpriteJsonFileName`・`SPRITE_JSON_EXTENSION`の出現は`js/io/DocumentFileIO.js`自身と`test/io/DocumentFileIO.test.js`のみ（計画どおり）。
+    *   `js/io/DocumentFileIO.js`：`downloadSpriteJson`・`toSpriteJsonFileName`・`SPRITE_JSON_EXTENSION`を削除。先頭の責務JSDoc（「スプライトのJS」）・クラスJSDoc・`toCanvasName`のJSDoc・`#downloadBlob`のJSDoc（「2つのダウンロード（作業データファイル・スプライトのJS）」）を直した。`FILE_MIME_TYPE`等は残した（定数JSDocにJSON言及なし）。
+    *   `test/io/DocumentFileIO.test.js`：`describe`名を`toSpriteModuleFileName`にし、`toSpriteJsonFileName`の確認行を削除、`'__ a'`・`'_ _'`・`''`・`'a/b'`・`42`は`toSpriteModuleFileName`（`.js`）の確認へ置換。`it`名・先頭JSDocを直した。
+    *   `node --test`：tests 274・pass 274・fail 0（件数は変わらず）。
 
 ### タスク3: エディタの「開く」「インポート」の読み込みからスプライトのJSONを外す（`FileContentReader`）とそのテスト
 *   **作業内容** :

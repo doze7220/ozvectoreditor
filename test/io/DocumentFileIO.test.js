@@ -1,5 +1,5 @@
 /**
- * 責務: DocumentFileIOのファイル名とキャンバス名の変換規則（作業データファイル・スプライト）を検証する。
+ * 責務: DocumentFileIOのファイル名とキャンバス名の変換規則（作業データファイル・スプライトのJS）を検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -44,27 +44,26 @@ describe('DocumentFileIO.toFileName（作業データファイル）', () => {
     });
 });
 
-describe('DocumentFileIO.toSpriteModuleFileName・toSpriteJsonFileName', () => {
-    it('拡張子は.js・.jsonになる', () => {
+describe('DocumentFileIO.toSpriteModuleFileName', () => {
+    it('拡張子は.jsになる', () => {
         assert.equal(createIO().toSpriteModuleFileName('ship'), 'ship.js');
-        assert.equal(createIO().toSpriteJsonFileName('ship'), 'ship.json');
     });
 
     it('先頭の_と空白をすべて除く', () => {
         assert.equal(createIO().toSpriteModuleFileName('_hero'), 'hero.js');
-        assert.equal(createIO().toSpriteJsonFileName('__ a'), 'a.json');
+        assert.equal(createIO().toSpriteModuleFileName('__ a'), 'a.js');
         assert.equal(createIO().toSpriteModuleFileName('_ _a_b'), 'a_b.js');
     });
 
     it('除去で空になれば無題になる', () => {
         assert.equal(createIO().toSpriteModuleFileName('___'), '無題.js');
-        assert.equal(createIO().toSpriteJsonFileName('_ _'), '無題.json');
-        assert.equal(createIO().toSpriteJsonFileName(''), '無題.json');
+        assert.equal(createIO().toSpriteModuleFileName('_ _'), '無題.js');
+        assert.equal(createIO().toSpriteModuleFileName(''), '無題.js');
     });
 
     it('使えない文字の置換の後に先頭の_を除く', () => {
         assert.equal(createIO().toSpriteModuleFileName('/ship'), 'ship.js');
-        assert.equal(createIO().toSpriteJsonFileName('a/b'), 'a_b.json');
+        assert.equal(createIO().toSpriteModuleFileName('a/b'), 'a_b.js');
     });
 
     it('前後の空白・末尾のピリオドを除く', () => {
@@ -73,7 +72,7 @@ describe('DocumentFileIO.toSpriteModuleFileName・toSpriteJsonFileName', () => {
 
     it('文字列以外は無題として扱う', () => {
         assert.equal(createIO().toSpriteModuleFileName(undefined), '無題.js');
-        assert.equal(createIO().toSpriteJsonFileName(42), '無題.json');
+        assert.equal(createIO().toSpriteModuleFileName(42), '無題.js');
     });
 });
 

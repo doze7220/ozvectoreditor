@@ -1,5 +1,5 @@
 /**
- * 責務：作業データファイルとスプライトのファイル（JS・JSON）のブラウザ内での読み書き（Blobのダウンロード・Fileの読み取り・ファイル名とキャンバス名の変換）を担う。
+ * 責務：作業データファイルとスプライトのJSのブラウザ内での読み書き（Blobのダウンロード・Fileの読み取り・ファイル名とキャンバス名の変換）を担う。
  * 中身は解釈しない（文字列として受け渡す）。
  */
 
@@ -26,12 +26,6 @@ const SPRITE_MODULE_EXTENSION = '.js';
  * @type {string}
  */
 const SPRITE_MODULE_MIME_TYPE = 'text/javascript';
-
-/**
- * スプライトのJSONの拡張子（MIMEタイプは`FILE_MIME_TYPE`と同じ`application/json`を使う）。
- * @type {string}
- */
-const SPRITE_JSON_EXTENSION = '.json';
 
 /**
  * ファイル名の変換結果が空になった場合の既定のファイル名（拡張子を除く）。
@@ -76,7 +70,7 @@ const FILE_EXTENSION_PATTERN = /(?:\.ozve)?\.json$|\.js$/i;
  * 作業データファイルとスプライトのファイルの読み書きを担うクラス。
  *
  * 作業データファイルとは、作業データ形式のJSON文字列を内容とするファイル（既定の拡張子`.ozve.json`）である。
- * スプライトのファイルとは、スプライトのJS（`<名前>.js`）とJSON（`<名前>.json`）である。
+ * スプライトのファイルとは、スプライトのJS（`<名前>.js`）である。
  * ファイルの種類ごとの拡張子・MIMEタイプ・ファイル名の規則は本クラスが唯一の定義箇所である。
  * ファイルを開くときにキャンバス名から除く拡張子（`.ozve.json`・`.json`・`.js`）も本クラスが定める。
  * 本クラスは作業データ・スプライトの形式・版・図形の知識を持たず、状態も持たない。
@@ -103,17 +97,6 @@ export class DocumentFileIO {
      */
     downloadSpriteModule(text, canvasName) {
         this.#downloadBlob(text, this.toSpriteModuleFileName(canvasName), SPRITE_MODULE_MIME_TYPE);
-    }
-
-    /**
-     * テキストをスプライトのJSON（`<名前>.json`）としてダウンロードする。
-     *
-     * @param {string} text ファイルの内容（スプライトデータのJSON文字列。解釈しない）
-     * @param {string} canvasName キャンバス名（ファイル名へ`toSpriteJsonFileName`で変換する）
-     * @returns {void}
-     */
-    downloadSpriteJson(text, canvasName) {
-        this.#downloadBlob(text, this.toSpriteJsonFileName(canvasName), FILE_MIME_TYPE);
     }
 
     /**
@@ -169,21 +152,10 @@ export class DocumentFileIO {
     }
 
     /**
-     * キャンバス名をスプライトのJSONのファイル名（`<名前>.json`）へ変換する。
-     * 規則は`toSpriteModuleFileName`と同じ（拡張子のみ`.json`）。
-     *
-     * @param {string} canvasName キャンバス名
-     * @returns {string} ファイル名（拡張子`.json`を含む）
-     */
-    toSpriteJsonFileName(canvasName) {
-        return this.#toBaseName(canvasName, true) + SPRITE_JSON_EXTENSION;
-    }
-
-    /**
      * ファイル名をキャンバス名の元になる文字列へ変換する。
      *
      * 本メソッドは末尾の`.ozve.json`・`.json`・`.js`のいずれか（大文字小文字を区別しない）を1回だけ除く
-     * （`.ozve.json`があれば`.ozve`ごと除く。従来の`.json`の作業データファイルも、スプライトのJS・JSONも開ける）。
+     * （`.ozve.json`があれば`.ozve`ごと除く。従来の`.json`の作業データファイルも、スプライトのJSも開ける）。
      * 例：`ship.js` → `ship`、`a.json.js` → `a.json`、`a.js.ozve.json` → `a.js`。
      * 前後の空白の除去・文字数の切り詰め・空の場合の命名は`CanvasLibrary`が名前の変更と同じ規則で行う。
      *
@@ -196,7 +168,7 @@ export class DocumentFileIO {
     }
 
     /**
-     * Blobを作成して`<a download>`でダウンロードする（3つのダウンロードの共通の手順）。
+     * Blobを作成して`<a download>`でダウンロードする（2つのダウンロード（作業データファイル・スプライトのJS）の共通の手順）。
      *
      * 手順：Blobを作成しオブジェクトURLを得る → 非表示の`<a download>`を`document.body`へ追加して`click()` → 削除。
      * オブジェクトURLの解放は`try/finally`で必ず予約し、`OBJECT_URL_REVOKE_DELAY_MS`（10秒）後に行う。
