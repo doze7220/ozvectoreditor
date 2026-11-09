@@ -3,6 +3,9 @@
  * および図形データとの相互変換と描画要素（スプライトの書き出し用）への変換を担う。
  */
 
+import { quadraticBezierPoint, segmentIntersectsRect } from './ShapeGeometry.js';
+import { validateShapeData } from './ShapeDataValidation.js';
+
 /**
  * 範囲選択の交差判定（intersectsRect）で用いる輪郭サンプリングの分割数。
  * hitTestの100分割と同程度の計算量。
@@ -123,9 +126,7 @@ export class Curve {
 
         for (let i = 0; i <= segments; i++) {
             const t = i / segments;
-            const oneMinusT = 1 - t;
-            const bx = oneMinusT * oneMinusT * p0.x + 2 * oneMinusT * t * p1.x + t * t * p2.x;
-            const by = oneMinusT * oneMinusT * p0.y + 2 * oneMinusT * t * p1.y + t * t * p2.y;
+            const { x: bx, y: by } = quadraticBezierPoint(p0, p1, p2, t);
             const distance = Math.hypot(x - bx, y - by);
             if (distance < minDistance) {
                 minDistance = distance;
@@ -184,59 +185,14 @@ export class Curve {
         let prevY = p0.y;
         for (let i = 1; i <= segments; i++) {
             const t = i / segments;
-            const oneMinusT = 1 - t;
-            const bx = oneMinusT * oneMinusT * p0.x + 2 * oneMinusT * t * p1.x + t * t * p2.x;
-            const by = oneMinusT * oneMinusT * p0.y + 2 * oneMinusT * t * p1.y + t * t * p2.y;
-            if (this.#segmentIntersectsRect(prevX, prevY, bx, by, minX, minY, maxX, maxY)) {
+            const { x: bx, y: by } = quadraticBezierPoint(p0, p1, p2, t);
+            if (segmentIntersectsRect(prevX, prevY, bx, by, minX, minY, maxX, maxY)) {
                 return true;
             }
             prevX = bx;
             prevY = by;
         }
         return false;
-    }
-
-    /**
-     * 線分（ワールド座標）と軸平行矩形（ワールド座標・正規化済み・境界含む）の交差判定（Liang–Barsky法）。
-     * 長さ0の線分は点の内包判定となる（全組でp === 0となり除算しないため0除算は起きない）。
-     * 契約メソッドではない内部ヘルパー（同一ロジックをshapes/の各図形クラスが個別に持つ）。
-     * @param {number} ax - 線分始点のX座標（ワールド座標）
-     * @param {number} ay - 線分始点のY座標（ワールド座標）
-     * @param {number} bx - 線分終点のX座標（ワールド座標）
-     * @param {number} by - 線分終点のY座標（ワールド座標）
-     * @param {number} minX - 矩形の左端X座標（ワールド座標）
-     * @param {number} minY - 矩形の上端Y座標（ワールド座標）
-     * @param {number} maxX - 矩形の右端X座標（ワールド座標）
-     * @param {number} maxY - 矩形の下端Y座標（ワールド座標）
-     * @returns {boolean} 線分の一部でも矩形（境界含む）内にあればtrue
-     */
-    #segmentIntersectsRect(ax, ay, bx, by, minX, minY, maxX, maxY) {
-        const dx = bx - ax;
-        const dy = by - ay;
-        let t0 = 0;
-        let t1 = 1;
-        const pairs = [
-            [-dx, ax - minX],
-            [dx, maxX - ax],
-            [-dy, ay - minY],
-            [dy, maxY - ay],
-        ];
-
-        for (const [p, q] of pairs) {
-            if (p === 0) {
-                if (q < 0) return false; // 平行かつ外側
-                continue; // 除算しない
-            }
-            const r = q / p;
-            if (p < 0) {
-                if (r > t1) return false;
-                if (r > t0) t0 = r;
-            } else {
-                if (r < t0) return false;
-                if (r < t1) t1 = r;
-            }
-        }
-        return true;
     }
 
     /**
@@ -356,41 +312,11 @@ export class Curve {
      *     `strokeWidth`が有限の数値でないか0以下の場合
      */
     static fromJSON(data) {
-        Curve.#validateData(data);
+        validateShapeData(data, 'Curve', ['curve'], CURVE_POINT_COUNT);
         const [start, , end] = data.points;
         const curve = new Curve(start.x, start.y, end.x, end.y, data.strokeColor, data.strokeWidth);
         curve.points = data.points.map((point) => ({ x: point.x, y: point.y }));
         curve.id = data.id;
         return curve;
-    }
-
-    /**
-     * `fromJSON`の入力検証を行う。違反があれば「`Curve.fromJSON: 理由`」形式のメッセージで`Error`をthrowする。
-     * `strokeWidth`の0以下を不正とするのは、Canvasが0以下の`lineWidth`代入を無視して直前の値が残り、
-     * 描画結果が前に描いた図形に依存してしまうため。
-     * 契約メソッドではない内部ヘルパー（同等のロジックをshapes/の各図形クラスが個別に持つ）。
-     * @param {*} data - 検証対象の図形データ
-     * @throws {Error} 図形データとして不正な場合（条件は`fromJSON`を参照）
-     */
-    static #validateData(data) {
-        const fail = (reason) => {
-            throw new Error(`Curve.fromJSON: ${reason}`);
-        };
-        const isPlainObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
-
-        if (!isPlainObject(data)) fail('図形データがオブジェクトではありません');
-        if (data.type !== 'curve') fail(`図形種別が'curve'ではありません（${String(data.type)}）`);
-        if (!Array.isArray(data.points) || data.points.length !== CURVE_POINT_COUNT) {
-            fail(`pointsが${CURVE_POINT_COUNT}要素の配列ではありません`);
-        }
-        data.points.forEach((point, index) => {
-            if (!isPlainObject(point) || !Number.isFinite(point.x) || !Number.isFinite(point.y)) {
-                fail(`points[${index}]のx・yが有限の数値ではありません`);
-            }
-        });
-        if (typeof data.strokeColor !== 'string') fail('strokeColorが文字列ではありません');
-        if (!Number.isFinite(data.strokeWidth) || data.strokeWidth <= 0) {
-            fail('strokeWidthが正の有限の数値ではありません');
-        }
     }
 }

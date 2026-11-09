@@ -356,7 +356,7 @@
         *   JSDoc：13メソッドの`@param`・`@returns`・`@throws`は変えない。削除したヘルパーを前提とする記述（「個別に持つ」等）がファイル内に残っていないことを確かめる。必要なら`hitTest`・`intersectsRect`・`fromJSON`の本文に共通の関数を使う旨を1句足す。責務JSDoc（先頭行）は変えない。それ以外（描画・ハンドル・`toJSON`等）に触れない。
         *   完了時に`node --test`を実行し、全テストの成功と件数（タスク4と同じ件数）を4章へ記録する。失敗したらテストを直さず置き換えを見直す。開発資料への影響・判断に迷った点の記録はタスク1と同じ。
         *   完了時に本タスクを [x] にし、4章の本タスクの欄へ詳細を記入する。
-*   [ ] タスク8: `Curve`の共通モジュールへの置き換え
+*   [x] タスク8: `Curve`の共通モジュールへの置き換え
     *   **対象ファイル** :
         *   `./js/shapes/Curve.js` :（更新）
     *   **作業内容** :
@@ -457,7 +457,9 @@
 
 ### タスク8: `Curve`の共通モジュールへの置き換え
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/shapes/Curve.js`を更新。責務JSDocの直後に`quadraticBezierPoint`・`segmentIntersectsRect`（`ShapeGeometry.js`）と`validateShapeData`（`ShapeDataValidation.js`）の`import`を追加。`hitTest`・`intersectsRect`のループ内の`oneMinusT`・`bx`・`by`の計算を`const { x: bx, y: by } = quadraticBezierPoint(p0, p1, p2, t);`に置き換え（`t = i / segments`・分割数・ループ範囲・早期棄却・`Math.hypot`は変更なし）。`intersectsRect`を`segmentIntersectsRect(...)`に置き換え、`#segmentIntersectsRect`を削除。`fromJSON`を`validateShapeData(data, 'Curve', ['curve'], CURVE_POINT_COUNT)`に置き換え、`static #validateData`を削除。13メソッドのJSDoc・責務JSDocは変更なし。「個別に持つ」等の記述はファイル内に残っていない（grepで確認）。
+    *   `node --test`の結果：`tests 385`・`pass 385`・`fail 0`。
+    *   開発資料への影響：なし。判断に迷った点：なし。
 
 ### タスク9: `Rect`の共通モジュールへの置き換え
 *   **作業内容** :
