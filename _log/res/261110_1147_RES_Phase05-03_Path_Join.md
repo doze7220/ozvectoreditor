@@ -327,7 +327,7 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
         *   起動時の同期の`syncDeleteButtonState();`の直後に`syncJoinButtonState();`を足す（コメント：削除ボタンと同様に、`index.html`の初期`disabled`や通知に依存させない）。
         *   既存の配線・関数・コメントは変えない。`// 6.`の冒頭のコメントに結合を足す程度の最小の追記はよい。
         *   `node --test`を実行し、`fail 0`と件数を4章へ記録する（件数は変わらない）。完了時に本タスクを [x] にし、4章の本タスクの欄を記入する（開発資料への影響（`main.js`の行数を含む）は2章、迷った点は5章へ）。
-*   [ ] タスク7: `KeyboardShortcuts`の対応表へのキー`J`の追加
+*   [x] タスク7: `KeyboardShortcuts`の対応表へのキー`J`の追加
     *   **対象ファイル** :
         *   `./js/core/KeyboardShortcuts.js` :（更新。対応表への1件の追加とそのJSDocのみ）
     *   **作業内容** :
@@ -409,7 +409,9 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
 
 ### タスク7: `KeyboardShortcuts`の対応表へのキー`J`の追加
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/core/KeyboardShortcuts.js`の`SHORTCUT_BINDINGS`の`deleteSelection`の直後に、コメント付きで`{ codes: ['KeyJ'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'join' }`を追加。typedef`ShortcutActions`に`join`を追加。`#handleKeyDown`・`#findBinding`・他エントリは未変更。
+    *   `node --test`：tests 563 / pass 563 / fail 0（件数変化なし）。
+    *   開発資料への影響：`07_KeyboardShortcuts.md`の更新予定欄の記述で足りる（`Shift`+`J`は`ShiftRule.FORBIDDEN`のため`join`は実行されない。予約に含めるかは資料側で判断）。
 
 ### タスク8: JSDocの確認とRESの完成
 *   **作業内容** :
