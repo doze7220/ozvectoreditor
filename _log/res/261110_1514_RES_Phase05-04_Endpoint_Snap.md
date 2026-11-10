@@ -242,9 +242,10 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 *   **`_doc/arch/08_HistoryManager.md`**：`beginEdit`/`commitEdit`の呼び出し元に`EndpointSnapper`（描き足し・結合・閉じる。`EditRecorder`として注入）を足す。
 *   **`_doc/arch/16_test.md`**：「既存のテストファイルと検証範囲」に`test/shapes/EndpointSnapRules.test.js`・`test/core/VectorModel.snapPoint.test.js`・`test/edit/EndpointSnapper.test.js`を足し、`test/shapes/PathJoinRules.test.js`・`test/core/VectorModel.replaceShape.test.js`の範囲に追加分を足す。実物の組み合わせの例外に`test/edit/EndpointSnapper.test.js`を足す。テストプレイで確かめる部分（`InputTracker`の配線・吸い付きの表示の描画）を「テストできない箇所」に足す。
 *   （各タスクの実行時に影響が判明した場合は、この欄へ追記する。資料本体への反映はタスク11で行う。）
+*   （タスク1）追加の影響は上記の12_shapes.md・11.「結合」の項目に含まれる。追加の更新予定なし。
 
 ## 3. タスクリスト
-*   [ ] タスク1: 結合の規則`PathJoinRules`への入口・計画の追加とそのテスト
+*   [x] タスク1: 結合の規則`PathJoinRules`への入口・計画の追加とそのテスト
     *   **対象ファイル** :
         *   `./js/shapes/PathJoinRules.js` :（更新。追加と内部の整理のみ。既存の関数の振る舞いを変えない）
         *   `./test/shapes/PathJoinRules.test.js` :（更新。ケースの追加のみ）
@@ -353,7 +354,9 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 
 ### タスク1: 結合の規則`PathJoinRules`への入口・計画の追加とそのテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `js/shapes/PathJoinRules.js`：先頭の責務JSDocを更新。非公開定数`CLOSED_MIN_POINTS = 3`、typedef`EndpointRef`、`export`の`buildJoinedPathAt`・`buildExtendedPath`・`canCloseByMergingEnds`・`planDrawnLineJoin`・`planEndpointDragJoin`、非公開の`assembleOpenPath`・`indexOfShape`・`planJoinAt`・`planCloseOf`を追加。`buildJoinedPath`は候補選択を変えず末尾を`assembleOpenPath`呼び出しに、`classifyJoin`・`buildClosedPath`は下限を`CLOSED_MIN_POINTS`に置き換え（振る舞い不変）。`buildJoinedPath`のJSDocの「Phase 05-04が使い回す入口」を実装に合わせて改めた。importは`./Path.js`のみのまま。
+    *   `test/shapes/PathJoinRules.test.js`：import行に追加分を足し、末尾に8-1のケースを新しい`describe`で追加（補助関数`withId`・`ref`・`assertPathInvariant`にJSDoc付き）。既存のケース・補助関数は変更なし。
+    *   `node --test`：tests 595 / pass 595 / fail 0（計画時563、本タスクで+32）。
 
 ### タスク2: 吸い付きの規則`EndpointSnapRules`の新設とそのテスト
 *   **作業内容** :
@@ -435,3 +438,4 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 *   **スナップの対象を広げるとき**（精度のPhase：曲線・矩形・円・弧の点、整数px・グリッド）：現在の`SnapTarget`は「結合できる線の端点」専用で、`EndpointSnapper`の反映（描き足し・結合・閉じる）と1対1になっている。結合を伴わない吸い付きを足す場合は、照会の結果に「吸い付くだけで結合しない」種類を区別する項目を足し、`commitDrawnLine`・`joinDraggedEndpoint`が結合しない吸い付きを結合として扱わないようにすること。修飾キーによる一時無効は、照会の呼び出し側（`InputTracker`）でキーの状態を渡す形が候補。
 *   **規則の共有**：`PathJoinRules`の非公開の組み立て関数を`buildJoinedPath`・`buildJoinedPathAt`・`buildExtendedPath`が共有するため、頂点の並べ方・まとめ方を変えると3つが同時に変わる（`test/shapes/PathJoinRules.test.js`の全ケースで確かめる）。
 *   **`EndpointSnapRules.resolveEndpointHandle`の前提**：「頂点の番号`i`＝図形データの`points[i]`」に依る。新しい結合できる線の種類を足すときや、`Line`・`Path`の頂点の番号の約束を変えるときは見直す。
+*   （タスク1で追記）`planDrawnLineJoin`は`drawn`を、片側のみ吸い付いた場合にだけ`toJSON().points`で読む（両方null・両方吸い付きでは読まない）。`startSnap`/`endSnap`は`null`で渡す前提（`undefined`は未対応。`planEndpointDragJoin`の`snap`のみ`undefined`も`null`として扱う）。`planCloseOf`は同じ線を閉じる計画を`planDrawnLineJoin`と`planEndpointDragJoin`で共有する非公開関数（計画書に名前の無い追加）。
