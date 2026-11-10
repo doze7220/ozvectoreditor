@@ -283,7 +283,7 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
         *   テストが失敗した場合は、計画（要件1〜4）と`PathJoinRules.js`のどちらが誤りかを確かめ、テストを計画からずらして通さない（ソースの誤りならタスク1の範囲の誤りとして5章に記録したうえで直してよい）。
         *   先頭行に単一責務JSDoc（3行以内）、補助関数にJSDoc（`@param`・`@returns`）を書く。
         *   `node --test`を実行し、`fail 0`と件数を4章へ記録する。完了時に本タスクを [x] にし、4章の本タスクの欄を記入する（開発資料への影響は2章、迷った点は5章へ）。
-*   [ ] タスク3: `VectorModel`への公開操作`replaceShape`の追加とそのテスト
+*   [x] タスク3: `VectorModel`への公開操作`replaceShape`の追加とそのテスト
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js` :（更新。`replaceShape`の追加と`#issueId`・`#nextId`のJSDocの列挙のみ）
         *   `./test/core/VectorModel.replaceShape.test.js` :（新規）
@@ -372,8 +372,12 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
     *   開発資料への影響：新規テストファイル`test/shapes/PathJoinRules.test.js`の追加（2章の更新予定欄の`16_test.md`・フォルダ構成の記述に既に含まれる。追記なし）。
 
 ### タスク3: `VectorModel`への公開操作`replaceShape`の追加とそのテスト
+*   **対象ファイル** : `./js/core/VectorModel.js`（更新）、`./test/core/VectorModel.replaceShape.test.js`（新規）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `replaceShape(targetId, shape, { keepId = false, removeIds = [] } = {})`を要件7-3の手順(1)〜(6)どおり追加。targetId不在→null、既存インスタンス→console.warnのうえnull（どちらも`shape.id`を書き換えず、通知なし）。`#issueId`・`#nextId`のJSDocの採番する操作の列挙に`replaceShape`を追記。importは追加なし、既存メソッドは未変更。
+    *   `test/core/VectorModel.replaceShape.test.js`に9-2の観点（keepId偽/真・targetId不在・既存インスタンス・removeIdsにtargetId/存在しないid・ホバー解除/維持・選択矩形不変）を記述。
+    *   `node --test`：tests 551 / pass 551 / fail 0（542 + 新規9）。
+    *   開発資料への影響：更新予定欄の`03_VectorModel.md`・`16_test.md`の記述で足りる（追記なし）。
 
 ### タスク4: 結合の手順`PathJoiner`の新設とそのテスト
 *   **作業内容** :

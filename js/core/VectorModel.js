@@ -64,7 +64,7 @@ export class VectorModel {
 
     /**
      * @type {number} 図形id採番用の連番カウンタ（次に#issueId()が発行する連番）。
-     * #issueId()による採番（commitDraft・replaceAllShapes・addShapesWithNewIds）で1ずつ増える。
+     * #issueId()による採番（commitDraft・replaceAllShapes・addShapesWithNewIds・replaceShape）で1ずつ増える。
      * 単調増加し、減らさない。replaceAllShapesでは、保持したidのうち採番形式（`shape-<連番>`。
      * 連番がNumber.isSafeIntegerのもの）の最大連番をnとして max(現在値, n + 1) へ繰り上げる
      * （以後に発行するidが保持idと衝突しないため）。
@@ -429,6 +429,50 @@ export class VectorModel {
     }
 
     /**
+     * 指定idの図形の位置へ新しい図形を入れ、指定idの図形を除き、結果の図形だけを選択する（結合等の公開操作）。
+     * (1)`targetId`の図形の位置を#shapesから探す。無ければ何もせず（通知もせず）nullを返す。
+     * (2)`shape`のインスタンスが既に#shapesに含まれていれば、同じidの2要素を作らないためconsole.warnのうえ何もせずnullを返す。
+     * (3)`shape.id`を、`keepId`が真なら`targetId`、偽なら#issueId()で発行した新しいidにする。
+     * (4)`targetId`の位置の図形を`shape`に置き換え、`removeIds`に含まれるidの図形を除く
+     *    （`targetId`自身が含まれていても置き換えた位置は除かない。存在しないidは無視。他の図形の前後関係は変えない）。
+     * (5)選択集合を`shape.id`だけにする。ホバー中のidが現存しなくなればホバーを解除する。作成中の図形・選択矩形には触れない。
+     * (6)変更を通知する（1回）。
+     * 受け取ったインスタンスをそのまま保持して`id`を書き換えるため、呼び出し側は以後そのインスタンスを他の用途に流用しない。
+     * 図形インスタンスには`id`の代入以外で触れない（頂点・図形固有のプロパティ・図形種別を関知しない）。
+     * 前提：呼び出し側が選択モードであることを保証すること（選択集合は選択モード以外では常に空という不変条件を守るため）。
+     * @param {string} targetId 置き換える位置の図形のid
+     * @param {Object} shape 入れる図形（共通インターフェースを持つ図形インスタンス）
+     * @param {Object} [options] オプション
+     * @param {boolean} [options.keepId=false] 真なら`shape`が`targetId`を引き継ぐ。偽なら新しいidを採番する
+     * @param {Array<string>} [options.removeIds=[]] 除く図形のidの配列
+     * @returns {string|null} 入れた図形のid。置き換えなかった場合はnull
+     */
+    replaceShape(targetId, shape, { keepId = false, removeIds = [] } = {}) {
+        const targetIndex = this.#shapes.findIndex((s) => s.id === targetId);
+        if (targetIndex === -1) {
+            return null;
+        }
+        if (this.#shapes.includes(shape)) {
+            console.warn('VectorModel.replaceShape: 既に追加済みの図形インスタンスのため置き換えません。', shape);
+            return null;
+        }
+
+        shape.id = keepId ? targetId : this.#issueId();
+        const removeSet = new Set(removeIds);
+        const targetShape = this.#shapes[targetIndex];
+        this.#shapes = this.#shapes
+            .map((s) => (s === targetShape ? shape : s))
+            .filter((s) => s === shape || !removeSet.has(s.id));
+
+        this.#selectedIds = new Set([shape.id]);
+        if (this.#hoveredId !== null && !this.#shapes.some((s) => s.id === this.#hoveredId)) {
+            this.#hoveredId = null;
+        }
+        this.#notifyChange();
+        return shape.id;
+    }
+
+    /**
      * データ変更時に呼び出されるコールバック関数を登録する。
      * @param {Function} callback 登録するコールバック関数
      */
@@ -440,7 +484,7 @@ export class VectorModel {
 
     /**
      * 新しい図形idを1つ発行する（`shape-<連番>`。発行のたびに#nextIdを1増やす）。
-     * 図形idの採番はすべてこのメソッドを経由する（commitDraft・replaceAllShapes・addShapesWithNewIds）。
+     * 図形idの採番はすべてこのメソッドを経由する（commitDraft・replaceAllShapes・addShapesWithNewIds・replaceShape）。
      * @returns {string} 発行した図形id
      * @private
      */
