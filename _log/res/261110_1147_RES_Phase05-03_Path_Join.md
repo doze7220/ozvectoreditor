@@ -265,7 +265,7 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
 *   （各タスクの実行時に影響が判明した場合は、この欄へ追記する。資料本体への反映はタスク9で行う。）
 
 ## 3. タスクリスト
-*   [ ] タスク1: 結合の規則`PathJoinRules`の新設
+*   [x] タスク1: 結合の規則`PathJoinRules`の新設
     *   **対象ファイル** :
         *   `./js/shapes/PathJoinRules.js` :（新規）
     *   **作業内容** :
@@ -356,8 +356,12 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
 ※ 「3. タスクリスト」と同数の見出しを立て、タスク実行時にそれぞれ記入する。
 
 ### タスク1: 結合の規則`PathJoinRules`の新設
+*   **対象ファイル** : `./js/shapes/PathJoinRules.js`（新規）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `JOIN_TOLERANCE_SCREEN_PX`・`isJoinableLine`・`classifyJoin`・`buildClosedPath`・`buildJoinedPath`・`planJoin`とtypedef`JoinPlan`を、状態を持たない`export`の関数・定数として作成。importは`./Path.js`のみ。図形の読み取りは`type`と`toJSON()`のみ。
+    *   追加仕様：`classifyJoin`は図形の数（1または2）を先に判定し、合わなければ`toJSON()`を呼ばず`null`。2つの場合も`type`で`line`/`path`以外を先に除外してから`toJSON()`を呼ぶ。1つの場合は`type !== 'path'`なら`toJSON()`を呼ばない。理由をJSDocに記載。判定結果は計画の表のとおり。
+    *   `node --test`：tests 498 / pass 498 / fail 0。
+    *   開発資料への影響：新規ファイル`shapes/PathJoinRules.js`（第3の種類「図形をまたぐ規則」）の追加。資料本体は未修正（計画2章のとおりタスク9で反映）。
 
 ### タスク2: 結合の規則のテストの新設
 *   **作業内容** :
@@ -401,6 +405,7 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
 *   **閉じる操作でインスタンスを差し替えること**：`Path`を変更しない（区間を足すメソッドを持たない）ため、同じidの新しい`Path`で差し替える。履歴はスナップショット（図形データ）で比較・適用するため、インスタンスが変わっても影響しない。
 *   **`JOIN_TOLERANCE_SCREEN_PX`と`InputTracker.hitTolerance`**：どちらも5pxだが別の定義（`InputTracker`を変更しないため統一しない）。どちらかを変えても他方は変わらない。
 *   **`main.js`の行数**：538行に約30行足す。資料は「配線を追加する場合は配線ブロック（`// 7.6.`）の切り出しを検討」としているが、本作業は`// 6.`への小さな追加のため切り出さない（切り出しは別のREQで扱う）。
+*   **タスク1実装時の注意**：`isJoinableLine`は`type==='path'`のとき`toJSON()`を呼ぶ（`Line`は`toJSON()`なしで真）。`buildJoinedPath`の端点の組は距離が厳密に小さいときだけ更新（同距離は先の組を維持）。`buildClosedPath`は`planJoin`経由では`classifyJoin`の後に再度`toJSON()`を呼ぶ（選択操作時のみで負荷は小さいと判断）。Phase 05-04が使うときも`tolerance`はワールド座標の長さで渡すこと。
 *   **削除ボタンの見た目の変化**：削除ボタンは1行全体の左寄せから、行の半分の幅・中央寄せになる（要件5の「同じ行に並べる」による。属性・動作は変わらない）。
 
 ### Phase 05-04が結合の規則を使い回すときの注意
