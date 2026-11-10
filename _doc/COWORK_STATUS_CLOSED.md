@@ -508,3 +508,6 @@
 
 ### Phase05-02「パスの図形」（完了日：2026-11-10。テストプレイ実施済み、問題なし）
 * 【解決】`validateShapeData`の頂点数が固定の数しか受けない件（Phase05-01由来）：第4引数を`number | { min }`に拡張した（既存4クラスの呼び出し・エラー文は不変）。パスの図形`js/shapes/Path.js`（図形種別`'path'`。図形データに`closed`・`segments`を足す）を、`ShapeFactory`の読み込み専用のエントリ（`create: null`。`SHAPE_TYPES`は5種のまま）として追加。書き出しは版1の`polyline`で表し、`formatVersion`・作業データの版は上げていない。REQ `261110_1007`・RES `261110_1037`。詳細は`PROJECT_ARCHITECTURE.md`2章・`_doc/arch/12_shapes.md`・`10_ShapeFactory.md`。
+
+### Phase05-04「端点へのスナップと描き足し」（完了日：2026-11-10。テストプレイ実施済み、問題なし）
+* 【解決】Phase05-03由来の「結合の規則を05-04で使い回す」件と、発注者の宿題（2026-11-10。線を引くとき端点の近くでハンドルを表示し、その線の続きとして描けるようにする）、Phase05-02由来の「描き足し・閉じる処理でのパスの区間の要素数の不変条件」の注意：直線を描くとき・端点のハンドルをドラッグするときに、結合できる線（直線・開いたパス）の端点へ画面上8px以内で吸い付き、中を青で塗った正方形を表示するようにした。描き足しは元の線のidを保ち、2本をつなぐ場合は05-03の結合の規則（奥の線が基準・新しいid）、閉じる場合は05-03の閉じる規則に揃えた。規則は`js/shapes/PathJoinRules.js`（端点を指定してつなぐ入口・描き足しの入口を追加）と新設`js/shapes/EndpointSnapRules.js`、手順は新設`js/edit/EndpointSnapper.js`（`main.js`が生成して`InputTracker`へ注入）、表示の点は`VectorModel`、`replaceShape`に`select`引数を追加。REQ `261110_1430`・RES `261110_1514`。詳細は`PROJECT_ARCHITECTURE.md`3章11.・12.と`_doc/arch/12_shapes.md`・`14_edit.md`・`06_InputTracker.md`。
