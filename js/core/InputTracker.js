@@ -94,6 +94,45 @@ const NO_EDIT_RECORDER = Object.freeze({
 });
 
 /**
+ * 端点への吸い付きの照会と反映を委ねる補助（実体はmain.jsが注入するedit/EndpointSnapper。本ファイルはedit/をimportしない）。
+ * 吸い付き結果（SnapTarget）は`x`・`y`（ワールド座標）だけを読み、他のプロパティは解釈せずそのまま補助へ返す。
+ * @typedef {Object} EndpointSnapAssist
+ * @property {(shapeType: string, point: {x: number, y: number}) => ({x: number, y: number}|null)} findDrawSnap
+ *     描く図形種別とワールド座標で吸い付く端点を照会する（吸い付かない種別・範囲外はnull）
+ * @property {(shapeId: string, handleName: string) => ('start'|'end'|null)} resolveDragEndpoint
+ *     ハンドルが結合できる線の端点のハンドルなら'start'/'end'、それ以外はnull
+ * @property {(dragged: {shapeId: string, end: string}, point: {x: number, y: number}) => ({x: number, y: number}|null)} findDragSnap
+ *     端点のハンドルのドラッグ中に吸い付く端点を照会する
+ * @property {(startSnap: Object|null, endSnap: Object|null) => boolean} commitDrawnLine
+ *     描き終えを反映する（両方nullなら何もせずfalse。それ以外は作成途中の図形を破棄して反映しtrue）
+ * @property {(dragged: {shapeId: string, end: string}, snap: Object) => boolean} joinDraggedEndpoint
+ *     ドラッグした端点の結合・閉じるを反映する（開いている編集操作の中で行い、記録は呼び出し側）
+ */
+
+/**
+ * 吸い付きの補助が注入されなかった場合の既定値（吸い付かない）。InputTrackerのコンストラクタ第5引数の省略時に用いる。
+ * 照会は常にnull、commitDrawnLine・joinDraggedEndpointは常にfalse。
+ * @type {EndpointSnapAssist}
+ */
+const NO_SNAP_ASSIST = Object.freeze({
+    findDrawSnap() {
+        return null;
+    },
+    resolveDragEndpoint() {
+        return null;
+    },
+    findDragSnap() {
+        return null;
+    },
+    commitDrawnLine() {
+        return false;
+    },
+    joinDraggedEndpoint() {
+        return false;
+    },
+});
+
+/**
  * テキスト入力扱いとするinput要素のtype一覧（isTextInputElementの判定に用いる）。
  * 日付・時刻系（date/datetime-local/month/time/week）は数字キー・Backspaceによる直接入力を受け付けるため含める。
  * 含めないtypeの例：checkbox / radio / range / color / button / submit / reset / file / image / hidden。
@@ -140,6 +179,9 @@ export function isTextInputElement(element) {
  * 編集操作（図形の作成・一括削除・選択集合の平行移動・ハンドルによる変形）は、変更処理を注入された記録先（EditRecorder）の
  * beginEdit()／commitEdit()で挟んで開始・確定を伝える（履歴の保持・適用は行わない。記録先はコンストラクタ第4引数）。
  * 範囲選択・クリック選択・全選択・選択解除・ホバー・パン・ズーム・モード/図形種別の切り替えは編集操作として伝えない。
+ * 端点への吸い付きの照会と反映（直線を描くときの描き足し・結合・閉じる）は、注入された補助（EndpointSnapAssist。コンストラクタ第5引数）へ
+ * 委ね、本クラスは呼ぶ場面の配線と吸い付きの表示（model.setSnapPoint/clearSnapPoint）の設定・消去のみを行う。
+ * 吸い付きの規則（探索・距離・候補の選び方）・結果の組み立て・描く図形種別の判定は持たない。
  * 図形種別の分岐・図形固有のプロパティ名は持たない。
  * メソッドは区切りコメントで「公開API（モード・図形種別）」「公開API（状態依存の操作：削除・取消・全選択・中断）」「イベントハンドラ」「左ドラッグ」「パン」「当たり分類」
  * 「座標取得」「カーソル形状」の順に整理している。
@@ -188,16 +230,39 @@ export class InputTracker {
     #isEditOpen = false;
 
     /**
+     * 端点への吸い付きの照会と反映を委ねる補助（コンストラクタ第5引数。省略時はNO_SNAP_ASSIST＝吸い付かない）。
+     * @type {EndpointSnapAssist}
+     */
+    #snapAssist;
+
+    /**
+     * 直線を描き始めたときに吸い付いていた端点（handleClickのIDLE・図形作成モードで照会した結果。吸い付いていなければnull）。
+     * 描き終えのcommitDrawnLineへ渡す。#resetSnapState()でnullに戻す。
+     * @type {Object|null}
+     */
+    #drawStartSnap = null;
+
+    /**
+     * 直線を描いている途中の直前のmousemoveで吸い付いていた端点（吸い付いていなければnull）。
+     * 描き終えの端点として使う（クリック位置で取り直さない）。#resetSnapState()でnullに戻す。
+     * @type {Object|null}
+     */
+    #drawEndSnap = null;
+
+    /**
      * @param {HTMLCanvasElement} canvas - イベントをリッスンするキャンバス
      * @param {Object} model - 図形データを管理するVectorModelインスタンス
      * @param {ViewTransform} viewTransform - スクリーン⇔ワールド変換とズーム・パンを担うビュー変換
      * @param {EditRecorder} [editRecorder=NO_EDIT_RECORDER] - 編集操作の開始・確定を受け取る記録先（実体はmain.jsが注入する
      *     HistoryManager）。省略時は何も記録しない（既存の呼び出しは従来どおり動作する）
+     * @param {EndpointSnapAssist} [snapAssist=NO_SNAP_ASSIST] - 端点への吸い付きの照会と反映を委ねる補助（実体はmain.jsが注入する
+     *     EndpointSnapper）。省略時は吸い付かない（従来どおり動作する）
      */
-    constructor(canvas, model, viewTransform, editRecorder = NO_EDIT_RECORDER) {
+    constructor(canvas, model, viewTransform, editRecorder = NO_EDIT_RECORDER, snapAssist = NO_SNAP_ASSIST) {
         this.canvas = canvas;
         this.model = model;
         this.#editRecorder = editRecorder;
+        this.#snapAssist = snapAssist;
 
         /**
          * スクリーン⇔ワールド座標変換とズーム・パンを担うビュー変換（main.jsが生成・注入）。
@@ -320,7 +385,8 @@ export class InputTracker {
      * 図形作成モードで作成する図形種別を切り替える。
      * SHAPE_TYPESに含まれない値が渡された場合はconsole.warnを出して何もしない。
      * 有効な値の場合はcurrentShapeTypeを更新し、作成途中の図形（DRAWING状態）があれば
-     * cancelDraft()で破棄してIDLE状態へ戻す。
+     * cancelDraft()で破棄してIDLE状態へ戻す。最後に、描いていなくても常に#resetSnapState()で
+     * 吸い付きの状態と表示を消す（種別が変わると前の種別の照会結果が残るため）。
      * 操作モード・選択集合・ホバー状態・カーソル形状は変更しない（図形作成モード中に呼ばれても
      * モードは'create'のまま維持される）。
      * @param {string} type 切り替え先の図形種別（SHAPE_TYPESのいずれか）
@@ -337,6 +403,8 @@ export class InputTracker {
             this.model.cancelDraft();
             this.state = InputState.IDLE;
         }
+
+        this.#resetSnapState();
     }
 
     /**
@@ -396,7 +464,8 @@ export class InputTracker {
     /**
      * 作成途中の図形の破棄、または選択解除を行う。Escショートカットの実体。以下の順に判定する。
      * (1)ドラッグ中（パン・左ドラッグ。閾値以前を含む）なら何もしない。
-     * (2)DRAWING状態なら、cancelDraft()で作成途中の図形を破棄してIDLE状態へ戻す（変更通知はcancelDraftに従う）。
+     * (2)DRAWING状態なら、cancelDraft()で作成途中の図形を破棄してIDLE状態へ戻し、#resetSnapState()で吸い付きの状態と表示を消す
+     * （変更通知はcancelDraftに従う）。
      * (3)選択モード かつ IDLE状態 かつ 選択集合が空でなければ、clearSelection()で全解除する（変更通知1回）。
      * (4)それ以外は何もしない。
      * @returns {boolean} (2)(3)を実行したらtrue。falseの場合、呼び出し側はpreventDefault()しない
@@ -409,6 +478,7 @@ export class InputTracker {
         if (this.state === InputState.DRAWING) {
             this.model.cancelDraft();
             this.state = InputState.IDLE;
+            this.#resetSnapState();
             return true;
         }
 
@@ -469,6 +539,7 @@ export class InputTracker {
      * （onCancel経由で、パンは#finishPan()、左ドラッグは#onLeftDragCancel()によりIDLEへ戻る）。
      * (2)なおIDLE以外の状態（DRAWING。作成途中のままパンしていた場合を含む）であれば、cancelDraft()で作成途中の図形を
      * 破棄してIDLE状態へ戻す。
+     * (3)最後に、何も進行していなくても常に#resetSnapState()で吸い付きの状態と表示を消す（戻り値には影響させない）。
      * カーソル形状の再評価は呼び出し側で行う（setModeはモード更新後に1回だけ評価するため）。
      * @returns {boolean} 何かを中断したらtrue
      */
@@ -486,7 +557,31 @@ export class InputTracker {
             aborted = true;
         }
 
+        this.#resetSnapState();
+
         return aborted;
+    }
+
+    /**
+     * 吸い付きの結果を表示に反映する。snapがあればmodel.setSnapPoint(snap.x, snap.y)、なければmodel.clearSnapPoint()。
+     * SnapTargetはx・yだけを読み、他のプロパティは解釈しない。
+     * @param {{x: number, y: number}|null} snap 吸い付いた端点（吸い付いていなければnull）
+     */
+    #showSnap(snap) {
+        if (snap) {
+            this.model.setSnapPoint(snap.x, snap.y);
+        } else {
+            this.model.clearSnapPoint();
+        }
+    }
+
+    /**
+     * 吸い付きの作業用フィールド（#drawStartSnap・#drawEndSnap）をnullに戻し、表示もmodel.clearSnapPoint()で消す。
+     */
+    #resetSnapState() {
+        this.#drawStartSnap = null;
+        this.#drawEndSnap = null;
+        this.model.clearSnapPoint();
     }
 
     // ---- イベントハンドラ（キャンバス・document・windowの購読先） ----
@@ -496,7 +591,9 @@ export class InputTracker {
      * IDLE状態かつ選択モード中のみ、カーソル位置を#classifyPointで1回だけ当たり分類し、その結果を
      * ホバー更新（bodyIdがあればModelへホバー登録、なければホバー解除）とカーソル形状の更新で共用する
      * （選択モード以外のIDLE状態では何もしない）。
-     * DRAWING状態では、作成中の図形の終点をカーソル位置に追従させる。
+     * DRAWING状態では、カーソル位置で吸い付きを照会して#drawEndSnapに保持・表示し、作成中の図形の終点を
+     * 吸い付いていれば端点の座標、いなければカーソル位置に追従させる。
+     * IDLE状態かつ図形作成モード中は、描く図形種別で吸い付きを照会して表示だけを更新する（直線以外では常に表示されない）。
      * Modelへ渡す座標・当たり判定に用いる座標はすべてワールド座標（getWorldCoordinate由来）。
      * ドラッグセッション中（パン・左ドラッグ。閾値以前を含む）は何もしない。追従はDragTrackerのonMoveが担い
      * （パンは#beginPan、左ドラッグは#applyLeftDragUpdate）、ホバー判定・作成途中図形の更新は走らせない。
@@ -511,7 +608,15 @@ export class InputTracker {
 
         if (this.state === InputState.DRAWING) {
             const { x, y } = this.getWorldCoordinate(event);
-            this.model.updateDraft(x, y);
+            const snap = this.#snapAssist.findDrawSnap(this.currentShapeType, { x, y });
+            this.#drawEndSnap = snap;
+            this.#showSnap(snap);
+            this.model.updateDraft(snap ? snap.x : x, snap ? snap.y : y);
+            return;
+        }
+
+        if (this.state === InputState.IDLE && this.currentMode === OperationMode.CREATE) {
+            this.#showSnap(this.#snapAssist.findDrawSnap(this.currentShapeType, this.getWorldCoordinate(event)));
             return;
         }
 
@@ -600,8 +705,13 @@ export class InputTracker {
 
     /**
      * clickイベントのハンドラ。
-     * DRAWING状態では、作成中の図形を確定登録してIDLE状態へ遷移する。確定登録（commitDraft）の直前に記録先のbeginEdit()、
-     * 直後にcommitEdit()を呼び、図形の作成を1件の編集操作として伝える（作成の開始・作成途中の破棄は伝えない）。
+     * DRAWING状態では、まず注入された吸い付きの補助のcommitDrawnLine(#drawStartSnap, #drawEndSnap)を呼ぶ
+     * （描き終えの端点は、クリック位置で取り直さず直前のmousemoveで照会した#drawEndSnapを使う）。
+     * trueなら補助が反映済み（記録も補助側）。falseのときだけ従来どおり、作成中の図形を確定登録する。
+     * 確定登録（commitDraft）の直前に記録先のbeginEdit()、直後にcommitEdit()を呼び、図形の作成を1件の編集操作として伝える
+     * （作成の開始・作成途中の破棄は伝えない）。その後IDLE状態へ遷移し、#resetSnapState()で吸い付きの状態と表示を消す。
+     * IDLE状態かつ図形作成モード中の描き始めは、クリック位置で吸い付きを照会し（ホバー状態は参照しない）、
+     * 結果を#drawStartSnapに保持・表示し、吸い付いていれば端点の座標、いなければクリック位置でstartDraftする。
      * IDLE状態かつ選択モード中では、クリック位置を#classifyPointで当たり分類し（ホバー状態は参照しない）、
      * 選択集合の図形のハンドル上なら何もしない（選択集合を維持）、図形の本体上ならその図形のみの単一選択
      * （setSelection([bodyId])）、空白なら選択集合が空でなければ全解除（clearSelection()）する。
@@ -621,10 +731,13 @@ export class InputTracker {
         }
 
         if (this.state === InputState.DRAWING) {
-            this.#editRecorder.beginEdit();
-            this.model.commitDraft();
-            this.#editRecorder.commitEdit();
+            if (!this.#snapAssist.commitDrawnLine(this.#drawStartSnap, this.#drawEndSnap)) {
+                this.#editRecorder.beginEdit();
+                this.model.commitDraft();
+                this.#editRecorder.commitEdit();
+            }
             this.state = InputState.IDLE;
+            this.#resetSnapState();
             return;
         }
 
@@ -648,7 +761,10 @@ export class InputTracker {
         }
 
         if (this.currentMode === OperationMode.CREATE) {
-            this.model.startDraft(x, y, this.currentShapeType);
+            const snap = this.#snapAssist.findDrawSnap(this.currentShapeType, { x, y });
+            this.#drawStartSnap = snap;
+            this.#showSnap(snap);
+            this.model.startDraft(snap ? snap.x : x, snap ? snap.y : y, this.currentShapeType);
             this.state = InputState.DRAWING;
         }
     }
@@ -921,6 +1037,8 @@ export class InputTracker {
      * blur/setMode/abortOngoingOperationによる中断（onCancel）で#finishPan()する。
      * InputState（DRAWING状態）・作成途中図形には触れない。
      * DragTrackerがセッション中で開始できなかった場合は何もしない。
+     * 開始できたときは吸い付きの表示の点もmodel.clearSnapPoint()で消す（パン中は表示が古くなるため）。
+     * DRAWINGの#drawEndSnapは作成途中の図形の終点と対応させるため残す（表示だけを消す）。
      * @param {MouseEvent} event パンを開始したmousedownイベント
      */
     #beginPan(event) {
@@ -940,6 +1058,7 @@ export class InputTracker {
 
         this.#isPanning = true;
         this.model.clearHovered();
+        this.model.clearSnapPoint();
         this.#updateCursor();
     }
 

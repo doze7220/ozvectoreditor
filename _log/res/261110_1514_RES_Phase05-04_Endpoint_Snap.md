@@ -244,6 +244,7 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 *   （各タスクの実行時に影響が判明した場合は、この欄へ追記する。資料本体への反映はタスク11で行う。）
 *   （タスク1）追加の影響は上記の12_shapes.md・11.「結合」の項目に含まれる。追加の更新予定なし。
 *   （タスク2）`EndpointSnapRules`は上記の12_shapes.md・1章の項目どおり。追加の更新予定なし。
+*   （タスク8）`06_InputTracker.md`の行数は、タスク9完了後の実際の値で改める（タスク8時点で1265行）。それ以外は上記の項目どおり。
 
 ## 3. タスクリスト
 *   [x] タスク1: 結合の規則`PathJoinRules`への入口・計画の追加とそのテスト
@@ -312,7 +313,7 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
         *   `renderCurrentState()`の`canvasManager.render`の引数に`snapPoint: model.getSnapPoint()`を足し、JSDocの状態の列挙に吸い付きの表示の点を足す。
         *   既存の配線・関数・コメントは変えない。
         *   `node --test`を実行し、`fail 0`と件数を4章へ記録する（件数は変わらない）。完了時に本タスクを [x] にし、4章の本タスクの欄を記入する（開発資料への影響（`main.js`の行数を含む）は2章、迷った点は5章へ）。
-*   [ ] タスク8: `InputTracker`の直線を描く流れの配線
+*   [x] タスク8: `InputTracker`の直線を描く流れの配線
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` :（更新。要件6の最小限の配線のみ）
     *   **作業内容** :
@@ -395,7 +396,9 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 
 ### タスク8: `InputTracker`の直線を描く流れの配線
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/InputTracker.js`：typedef`EndpointSnapAssist`・既定値`NO_SNAP_ASSIST`（`Object.freeze`）、コンストラクタ第5引数`snapAssist`、privateフィールド`#snapAssist`・`#drawStartSnap`・`#drawEndSnap`、privateメソッド`#showSnap`・`#resetSnapState`を追加。配線：`handleMouseMove`（DRAWINGは照会→`#drawEndSnap`→表示→吸い付きの座標で`updateDraft`、IDLEかつ作成モードは照会→表示のみ）、`handleClick`（DRAWINGは`commitDrawnLine`が`false`のときだけ従来の確定、その後IDLE・`#resetSnapState()`。IDLE作成モードはクリック位置で照会→`#drawStartSnap`→表示→`startDraft`）、`setShapeType`（最後に`#resetSnapState()`）、`cancelDraftOrClearSelection`のDRAWING分岐、`#abortOngoingOperation`（戻り値前に`#resetSnapState()`、戻り値は不変）、`#beginPan`（開始できたとき`model.clearSnapPoint()`）。クラスJSDoc・コンストラクタ・上記メソッドのJSDocを追記。先頭行の責務JSDoc・import・選択モードの処理は不変。
+    *   `node --test`：tests 646 / pass 646 / fail 0（件数変わらず）。
+    *   行数：1146行 → 1265行（+119行。見積もり+90行よりJSDocが多め）。
 
 ### タスク9: `InputTracker`の端点のハンドルのドラッグの配線
 *   **作業内容** :
@@ -419,6 +422,11 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 *   **表示の枠の色・太さ**：枠`#1f4e8c`（濃い青）・画面上1.5px（計画時の決定。REQ要件2で委任）。テストプレイで見分けにくければ定数だけ変える。
 *   **キャンバス外へカーソルが出た場合**：何もしない（次のmousemoveで正しくなる。REQ要件2で委任）。
 *   **図形クラス・`ShapeFactory`・`io/`・`PathJoiner`は変更しない見込み**。`Path`の`updateDraftEnd`（現在は呼ばれない）も使わない（作成途中の図形は常に直線のため）。
+
+### タスク8での確認・注意
+*   `#abortOngoingOperation`はドラッグ中断(`#drag.cancel()`)の後で`#resetSnapState()`を呼ぶ。`cancel`経由の`#onLeftDragCancel`は現時点で吸い付きを触らない（タスク9で`#finishLeftDrag`に`#resetSnapState()`が入る）。
+*   図形作成モードのIDLEのmousemoveで、直線以外の種別でも毎回`clearSnapPoint()`が呼ばれる（表示が無ければ通知なし）。
+*   目視確認の推奨：5章テストプレイ項目1〜12（特に4・5・11）。`InputTracker`の配線は自動テスト対象外。
 
 ### テストプレイの確認項目（操作手順と期待する結果）
 テストプレイ用の作業データ（直線・頂点2つ／3つ／4つ以上の開いたパス・閉じたパス・曲線・矩形・円・弧を含むもの）は現場設計AIが用意する。
