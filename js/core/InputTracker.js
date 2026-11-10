@@ -250,6 +250,20 @@ export class InputTracker {
     #drawEndSnap = null;
 
     /**
+     * 端点のハンドルのドラッグ中の、ドラッグしている端点（{ shapeId, end }。#beginLeftDragのDRAGGING_HANDLE開始時に
+     * 注入された補助のresolveDragEndpointで解決した結果。端点のハンドルでなければnull）。#resetSnapState()でnullに戻す。
+     * @type {Object|null}
+     */
+    #dragEndpoint = null;
+
+    /**
+     * 端点のハンドルのドラッグ中の直前の更新で吸い付いていた端点（吸い付いていなければnull）。
+     * 離したときのjoinDraggedEndpointへ渡す。#resetSnapState()でnullに戻す。
+     * @type {Object|null}
+     */
+    #dragSnap = null;
+
+    /**
      * @param {HTMLCanvasElement} canvas - イベントをリッスンするキャンバス
      * @param {Object} model - 図形データを管理するVectorModelインスタンス
      * @param {ViewTransform} viewTransform - スクリーン⇔ワールド変換とズーム・パンを担うビュー変換
@@ -576,11 +590,14 @@ export class InputTracker {
     }
 
     /**
-     * 吸い付きの作業用フィールド（#drawStartSnap・#drawEndSnap）をnullに戻し、表示もmodel.clearSnapPoint()で消す。
+     * 吸い付きの作業用フィールド（#drawStartSnap・#drawEndSnap・#dragEndpoint・#dragSnap）をnullに戻し、
+     * 表示もmodel.clearSnapPoint()で消す。
      */
     #resetSnapState() {
         this.#drawStartSnap = null;
         this.#drawEndSnap = null;
+        this.#dragEndpoint = null;
+        this.#dragSnap = null;
         this.model.clearSnapPoint();
     }
 
@@ -866,6 +883,8 @@ export class InputTracker {
      * カーソル形状を更新する。閾値以内では図形・選択矩形は変化しない。
      * 追従（onMove）は#applyLeftDragUpdate、開始（onStart）は#onLeftDragStart、
      * 終了（onEnd：左ボタンの解放）は#onLeftDragEnd、中断（onCancel：blur・setMode・abortOngoingOperation）は#onLeftDragCancelが担う。
+     * DRAGGING_HANDLEで開始できたときは、注入された補助のresolveDragEndpoint(図形id, ハンドル名)で端点のハンドルかを解決し、
+     * 端点なら#dragEndpoint（{ shapeId, end }）に、そうでなければnullにする（頂点の番号の規約は補助側が持つ）。
      * @param {MouseEvent} event ドラッグを開始したmousedownイベント
      * @param {'DRAGGING_HANDLE'|'MOVING_SELECTION'|'MARQUEE_SELECTING'} nextState 遷移先の状態（InputStateの値）
      * @param {{x: number, y: number}} point 押下点（ワールド座標）
@@ -892,6 +911,12 @@ export class InputTracker {
         this.activeShapeId = target?.shapeId ?? null;
         this.lastCursor = isMarquee ? null : point;
         this.#marqueeAnchor = isMarquee ? point : null;
+        this.#dragEndpoint = null;
+        this.#dragSnap = null;
+        if (nextState === InputState.DRAGGING_HANDLE && target) {
+            const end = this.#snapAssist.resolveDragEndpoint(target.shapeId, target.handle);
+            this.#dragEndpoint = end ? { shapeId: target.shapeId, end } : null;
+        }
         this.state = nextState;
         this.#updateCursor();
     }
@@ -922,6 +947,8 @@ export class InputTracker {
      * 選択矩形をModelへ設定する（正規化しない。選択集合は確定時まで変更しない）。
      * DRAGGING_HANDLEならshape.getVertexIndexForHandle()で頂点インデックスを解決して現在のワールド座標をModelへ渡す
      * （その1図形のみ。選択集合は変更しない）。対象図形が存在しない場合は何もしない。
+     * 端点のハンドル（#dragEndpointあり）なら、頂点を渡す前に注入された補助のfindDragSnap(#dragEndpoint, カーソル位置)で
+     * 吸い付きを照会して#dragSnapに保持・表示し、吸い付いていればその端点の座標、いなければカーソル位置を頂点の座標にする。
      * @param {MouseEvent} event カーソル位置を持つイベント（window captureのmousemove、またはwheel）
      */
     #applyLeftDragUpdate(event) {
@@ -949,19 +976,35 @@ export class InputTracker {
             return;
         }
         const vertexIndex = shape.getVertexIndexForHandle(this.activeHandle);
-        this.model.updateVertex(this.activeShapeId, vertexIndex, x, y);
+        let target = { x, y };
+        if (this.#dragEndpoint) {
+            const snap = this.#snapAssist.findDragSnap(this.#dragEndpoint, target);
+            this.#dragSnap = snap;
+            this.#showSnap(snap);
+            if (snap) {
+                target = snap;
+            }
+        }
+        this.model.updateVertex(this.activeShapeId, vertexIndex, target.x, target.y);
     }
 
     /**
      * 左ドラッグの終了処理（DragTrackerのonEnd：開始ボタン（左）の解放、またはbuttonsによる解放の検知）。
      * MARQUEE_SELECTINGかつ閾値を超えて動かしていた場合のみ#commitMarqueeで範囲選択を確定し、その後#finishLeftDragで後始末する。
      * 閾値以内で離した範囲選択は何も確定しない（直後のclickが通常の空白クリック＝全解除として処理される）。
+     * DRAGGING_HANDLEで閾値を超えて動かし、#dragEndpointと#dragSnap（離す直前に吸い付いていた端点）がともにあるときは、
+     * #finishLeftDragの前に注入された補助のjoinDraggedEndpoint(#dragEndpoint, #dragSnap)を呼ぶ（結合・閉じる）。
+     * この反映は閾値超過時にbeginEdit()済みの編集操作の中で行われ、#finishLeftDragのcommitEdit()で頂点の移動とあわせて1件になる。
+     * 吸い付いていなければ従来どおり頂点を動かしただけで終わる（中断の#onLeftDragCancelでは結合しない）。
      * @param {MouseEvent} event 終了のきっかけとなったイベント（通常はmouseup。buttons検知時はmousemove）
      * @param {boolean} moved 閾値を超えて動かしたか
      */
     #onLeftDragEnd(event, moved) {
         if (this.state === InputState.MARQUEE_SELECTING && moved) {
             this.#commitMarquee(event);
+        }
+        if (this.state === InputState.DRAGGING_HANDLE && moved && this.#dragEndpoint && this.#dragSnap) {
+            this.#snapAssist.joinDraggedEndpoint(this.#dragEndpoint, this.#dragSnap);
         }
         this.#finishLeftDrag();
     }
@@ -1011,12 +1054,14 @@ export class InputTracker {
      * 範囲選択の確定・選択矩形の破棄は呼び出し前に済ませること。click抑止フラグの管理はDragTrackerが担う。
      * 冒頭で、#isEditOpenが立っていれば（閾値超過時にbeginEdit()済みの移動・変形）記録先のcommitEdit()を呼んで下ろす
      * （編集操作の終了・中断の共通の確定箇所。中断で残った変化も1件として記録される。結果が開始前と同一なら記録先が記録しない）。
+     * 確定の後、#resetSnapState()で吸い付きの作業用フィールド（#dragEndpoint・#dragSnapを含む）と表示を消す。
      */
     #finishLeftDrag() {
         if (this.#isEditOpen) {
             this.#editRecorder.commitEdit();
             this.#isEditOpen = false;
         }
+        this.#resetSnapState();
         this.state = InputState.IDLE;
         this.activeHandle = null;
         this.activeShapeId = null;

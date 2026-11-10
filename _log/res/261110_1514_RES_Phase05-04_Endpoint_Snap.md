@@ -323,7 +323,7 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
         *   JSDoc：typedef・既定値・フィールド・補助メソッドのJSDoc、コンストラクタの`@param snapAssist`（実体は`main.js`が注入する`EndpointSnapper`、省略時は吸い付かない）、クラスJSDoc（吸い付きの照会と反映を注入された記録先と同様に注入されたものへ委ねること）、変更した`handleMouseMove`・`handleClick`・`setShapeType`・`cancelDraftOrClearSelection`・`#abortOngoingOperation`・`#beginPan`の処理順の説明（描き終えの端点は直前のmousemoveの照会結果を使うこと、描き始めはクリック位置で照会すること、表示を消す箇所）。先頭行の責務JSDocは変えない。
         *   行数の増分を4章へ記録する（見積もり約+90行）。
         *   `node --test`を実行し、`fail 0`と件数を4章へ記録する（件数は変わらない）。完了時に本タスクを [x] にし、4章の本タスクの欄を記入する（開発資料への影響は2章、迷った点・目視確認を推奨する箇所は5章へ）。
-*   [ ] タスク9: `InputTracker`の端点のハンドルのドラッグの配線
+*   [x] タスク9: `InputTracker`の端点のハンドルのドラッグの配線
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` :（更新。要件6の最小限の配線のみ）
     *   **作業内容** :
@@ -402,7 +402,9 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 
 ### タスク9: `InputTracker`の端点のハンドルのドラッグの配線
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/InputTracker.js`：privateフィールド`#dragEndpoint`・`#dragSnap`を追加し、`#resetSnapState()`で両方`null`に。配線：`#beginLeftDrag`（開始できたとき両者を`null`にし、DRAGGING_HANDLEなら`resolveDragEndpoint`で`#dragEndpoint`を解決）、`#applyLeftDragUpdate`のDRAGGING_HANDLE（`#dragEndpoint`があれば`findDragSnap`→`#dragSnap`→`#showSnap`→吸い付きの座標で`updateVertex`）、`#onLeftDragEnd`（範囲選択の確定の後、DRAGGING_HANDLEかつ`moved`かつ両フィールドありなら`joinDraggedEndpoint`、その後`#finishLeftDrag()`）、`#finishLeftDrag`（`commitEdit`の後に`#resetSnapState()`）。`#onLeftDragCancel`・`#classifyPoint`・`#onLeftDragStart`は不変。関連JSDocを追記。
+    *   `node --test`：tests 646 / pass 646 / fail 0（件数変わらず）。
+    *   行数：1265行 → 1310行（+45行。見積もり+35行より多め）。
 
 ### タスク10: JSDocの確認とRESの完成
 *   **作業内容** :
@@ -427,6 +429,12 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 *   `#abortOngoingOperation`はドラッグ中断(`#drag.cancel()`)の後で`#resetSnapState()`を呼ぶ。`cancel`経由の`#onLeftDragCancel`は現時点で吸い付きを触らない（タスク9で`#finishLeftDrag`に`#resetSnapState()`が入る）。
 *   図形作成モードのIDLEのmousemoveで、直線以外の種別でも毎回`clearSnapPoint()`が呼ばれる（表示が無ければ通知なし）。
 *   目視確認の推奨：5章テストプレイ項目1〜12（特に4・5・11）。`InputTracker`の配線は自動テスト対象外。
+
+### タスク9での確認・注意
+*   `#finishLeftDrag`は`commitEdit`の後に`#resetSnapState()`を呼ぶ（MOVING_SELECTION・範囲選択の終了でも呼ばれるが、表示が無ければ通知なし）。
+*   `joinDraggedEndpoint`の戻り値は使っていない（`false`なら頂点を動かしただけで終わる）。
+*   `InputTracker`は1310行（タスク10・11で`06_InputTracker.md`の行数を1310へ改める）。
+*   目視確認の推奨：端点のハンドルを別の線の端点へドラッグして離す（結合）、同じパスのもう一方の端点へ離す（閉じる）、Escや別モードへの切り替えによる中断（結合されない）、Undo一回で元に戻ること。配線は自動テスト対象外。
 
 ### テストプレイの確認項目（操作手順と期待する結果）
 テストプレイ用の作業データ（直線・頂点2つ／3つ／4つ以上の開いたパス・閉じたパス・曲線・矩形・円・弧を含むもの）は現場設計AIが用意する。
