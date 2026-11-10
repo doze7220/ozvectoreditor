@@ -243,6 +243,7 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 *   **`_doc/arch/16_test.md`**：「既存のテストファイルと検証範囲」に`test/shapes/EndpointSnapRules.test.js`・`test/core/VectorModel.snapPoint.test.js`・`test/edit/EndpointSnapper.test.js`を足し、`test/shapes/PathJoinRules.test.js`・`test/core/VectorModel.replaceShape.test.js`の範囲に追加分を足す。実物の組み合わせの例外に`test/edit/EndpointSnapper.test.js`を足す。テストプレイで確かめる部分（`InputTracker`の配線・吸い付きの表示の描画）を「テストできない箇所」に足す。
 *   （各タスクの実行時に影響が判明した場合は、この欄へ追記する。資料本体への反映はタスク11で行う。）
 *   （タスク1）追加の影響は上記の12_shapes.md・11.「結合」の項目に含まれる。追加の更新予定なし。
+*   （タスク2）`EndpointSnapRules`は上記の12_shapes.md・1章の項目どおり。追加の更新予定なし。
 
 ## 3. タスクリスト
 *   [x] タスク1: 結合の規則`PathJoinRules`への入口・計画の追加とそのテスト
@@ -255,7 +256,7 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
         *   JSDoc：先頭行の責務JSDocを、端点を指定した結合・描き足し・吸い付いた端点での操作の計画を含む形に改める（3行以内）。追加した各関数・定数・typedef・非公開関数にJSDoc（`@param`・`@returns`。`null`を返す条件、`aEnd`/`bEnd`/`end`の意味、`tolerance`がワールド座標の長さであること、`shapes`が重なり順で奥が先であること、描き足しは元のidを保つ計画になること、重なる場合は何も起きないこと、`planDrawnLineJoin`は両方`null`なら`null`で呼び出し側が従来の確定を行うこと、`planEndpointDragJoin`はドラッグした頂点がもう一方の端点に置かれている前提で`buildClosedPath`がまとめること）。`buildJoinedPath`のJSDocの「Phase 05-04が使い回す入口」の記述は実装に合わせて改めてよい。
         *   `test/shapes/PathJoinRules.test.js`の末尾に2章要件8の8-1のケースを新しい`describe`として足す（既存のケース・補助関数は変えない。補助関数を足す場合はJSDoc付き）。テストが失敗したら計画とソースのどちらが誤りかを確かめ、テストを計画からずらして通さない。
         *   `node --test`を実行し、`fail 0`と件数を4章の本タスクの欄へ記録する。開発資料への影響は2章の更新予定欄へ追記し（資料本体は修正しない）、迷った点・注意は5章へ追記する。完了時に本タスクを [x] にし、4章の本タスクの欄を記入する。
-*   [ ] タスク2: 吸い付きの規則`EndpointSnapRules`の新設とそのテスト
+*   [x] タスク2: 吸い付きの規則`EndpointSnapRules`の新設とそのテスト
     *   **対象ファイル** :
         *   `./js/shapes/EndpointSnapRules.js` :（新規）
         *   `./test/shapes/EndpointSnapRules.test.js` :（新規）
@@ -360,7 +361,9 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 
 ### タスク2: 吸い付きの規則`EndpointSnapRules`の新設とそのテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `js/shapes/EndpointSnapRules.js`（新規）：先頭に責務JSDoc。`export`の`SNAP_TOLERANCE_SCREEN_PX = 8`・`isSnapDrawShapeType`・`resolveEndpointHandle`・`findSnapTarget`、typedef`SnapTarget`。importは`./PathJoinRules.js`の`isJoinableLine`・`canCloseByMergingEnds`のみ。状態なし・`try/catch`なし。`findSnapTarget`は末尾の図形から、始点→終点、`d <= tolerance`かつ厳密に小さいときだけ更新。`dragged`の図形は`dragged.end`の端点を除き、もう一方は`canCloseByMergingEnds`が真のときだけ対象。
+    *   `test/shapes/EndpointSnapRules.test.js`（新規）：8-2の観点（定数・`isSnapDrawShapeType`・`resolveEndpointHandle`・対象・距離の境界（3-4-5の直角三角形・軸方向）・候補の選び方・`dragged`の除外・図形0個・非破壊）。
+    *   `node --test`：tests 615 / pass 615 / fail 0（タスク1後595、本タスクで+20）。
 
 ### タスク3: `VectorModel.replaceShape`への引数`select`の追加とそのテスト
 *   **作業内容** :
