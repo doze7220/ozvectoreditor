@@ -219,7 +219,7 @@
 *   （各タスクの実行時に影響が判明した場合は、この欄へ追記する。資料本体への反映はタスク10で行う。）
 
 ## 3. タスクリスト
-*   [ ] タスク1: `validateShapeData`の頂点数の引数の拡張
+*   [x] タスク1: `validateShapeData`の頂点数の引数の拡張
     *   **対象ファイル** :
         *   `./js/shapes/ShapeDataValidation.js` :（更新）
     *   **作業内容** :
@@ -307,7 +307,9 @@
 
 ### タスク1: `validateShapeData`の頂点数の引数の拡張
 *   **作業内容** :
-    *   （未実施）
+    *   `js/shapes/ShapeDataValidation.js`の`validateShapeData`で、`typeof pointCount === 'number'`なら従来の判定・エラー文（`pointsが${pointCount}要素の配列ではありません`）をそのまま、それ以外（`{ min }`）なら`points.length < pointCount.min`で`pointsが${pointCount.min}要素以上の配列ではありません`を投げるようにした。検査の順序は不変。
+    *   JSDoc（関数の説明・`@param pointCount`の2つの形・`@throws`）を更新。先頭行の責務JSDocは不変。既存4クラス・既存テストは未変更。
+    *   `node --test`：`tests 385`・`pass 385`・`fail 0`。
 
 ### タスク2: `Path`クラスの新設
 *   **作業内容** :

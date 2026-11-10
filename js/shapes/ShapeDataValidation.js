@@ -26,6 +26,7 @@ function describeAcceptedTypes(acceptedTypes) {
 /**
  * 図形データの共通項目を検証する。違反があれば最初の1件だけを
  * 「`<className>.fromJSON: <理由>`」形式のメッセージで`Error`をthrowする。
+ * 頂点数は固定（数値）または下限のみ（`{ min }`）で指定できる。
  * 検査の順序：オブジェクトか → `type` → `points`の要素数 → 各頂点（番号の小さい順） → `strokeColor` → `strokeWidth`。
  * `strokeWidth`の0以下を不正とするのは、Canvasが0以下の`lineWidth`代入を無視して直前の値が残り、
  * 描画結果が前に描いた図形に依存してしまうため。
@@ -33,10 +34,11 @@ function describeAcceptedTypes(acceptedTypes) {
  * @param {*} data - 検証対象の図形データ
  * @param {string} className - エラー文の先頭に付けるクラス名（例：`'Line'`）
  * @param {string[]} acceptedTypes - 受理する`type`の配列（1つ以上）
- * @param {number} pointCount - 要求する頂点数
+ * @param {number | { min: number }} pointCount - 要求する頂点数。数値なら「ちょうどその要素数」、
+ *     `{ min }`なら「`min`要素以上」（頂点数が可変の図形用）。判定は引数の形（`typeof`）で見分ける
  * @returns {void}
  * @throws {Error} `data`がプレーンオブジェクトでない／`type`が`acceptedTypes`にない／
- *     `points`が`pointCount`要素の配列でない／頂点がオブジェクトでないか`x`・`y`が有限の数値でない／
+ *     `points`が`pointCount`要素の配列でない（`{ min }`のときは`min`要素未満）／頂点がオブジェクトでないか`x`・`y`が有限の数値でない／
  *     `strokeColor`が文字列でない／`strokeWidth`が有限の数値でないか0以下の場合
  */
 export function validateShapeData(data, className, acceptedTypes, pointCount) {
@@ -48,8 +50,12 @@ export function validateShapeData(data, className, acceptedTypes, pointCount) {
     if (!acceptedTypes.includes(data.type)) {
         fail(`図形種別が${describeAcceptedTypes(acceptedTypes)}（${String(data.type)}）`);
     }
-    if (!Array.isArray(data.points) || data.points.length !== pointCount) {
-        fail(`pointsが${pointCount}要素の配列ではありません`);
+    if (typeof pointCount === 'number') {
+        if (!Array.isArray(data.points) || data.points.length !== pointCount) {
+            fail(`pointsが${pointCount}要素の配列ではありません`);
+        }
+    } else if (!Array.isArray(data.points) || data.points.length < pointCount.min) {
+        fail(`pointsが${pointCount.min}要素以上の配列ではありません`);
     }
     data.points.forEach((point, index) => {
         if (!isPlainObject(point) || !Number.isFinite(point.x) || !Number.isFinite(point.y)) {
