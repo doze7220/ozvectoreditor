@@ -275,7 +275,7 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
         *   JSDoc：手順(5)と前提の記述（`select`が真のときは選択モードであることを呼び出し側が保証）を改め、`@param {boolean} [options.select=true]`を足す。先頭行の責務JSDocは変えない。
         *   `test/core/VectorModel.replaceShape.test.js`に2章要件8の8-3のケースを足す（既存のケース・補助関数は変えない）。
         *   `node --test`を実行し、`fail 0`と件数を4章へ記録する（既存の`test/edit/PathJoiner.test.js`も変わらず通ること）。完了時に本タスクを [x] にし、4章の本タスクの欄を記入する（開発資料への影響は2章、迷った点は5章へ）。
-*   [ ] タスク4: `VectorModel`への吸い付きの表示の点の追加とそのテスト
+*   [x] タスク4: `VectorModel`への吸い付きの表示の点の追加とそのテスト
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js` :（更新。`#snapPoint`・`setSnapPoint`・`clearSnapPoint`・`getSnapPoint`の追加と`replaceAllShapes`のクリア対象への追加のみ）
         *   `./test/core/VectorModel.snapPoint.test.js` :（新規）
@@ -373,7 +373,9 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 
 ### タスク4: `VectorModel`への吸い付きの表示の点の追加とそのテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/VectorModel.js`：`#snapPoint`（初期値`null`、コンストラクタで初期化）、`setSnapPoint(x, y)`（同座標なら通知なし）・`clearSnapPoint()`（表示中のみ通知）・`getSnapPoint()`（コピー）を追加。`replaceAllShapes`の(5)で`#snapPoint`も`null`にした（通知1回のまま）。先頭の責務JSDoc・クラスJSDoc・`replaceAllShapes`のJSDocの列挙に「吸い付きの表示の点」を追加。importの追加なし。
+    *   `test/core/VectorModel.snapPoint.test.js`（新規）：8-4の観点7件。
+    *   `node --test`：tests 626 / pass 626 / fail 0（タスク3後619、本タスクで+7）。
 
 ### タスク5: 吸い付きの照会と反映の手順`EndpointSnapper`の新設とそのテスト
 *   **作業内容** :

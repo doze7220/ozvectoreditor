@@ -1,5 +1,5 @@
 /**
- * 責務：図形データ・選択集合・ホバー・作成中図形・選択矩形の状態管理（SSOT：Single Source of Truth）と更新通知を担う。
+ * 責務：図形データ・選択集合・ホバー・作成中図形・選択矩形・吸い付きの表示の点の状態管理（SSOT：Single Source of Truth）と更新通知を担う。
  */
 import { ShapeFactory, SHAPE_TYPES } from './ShapeFactory.js';
 
@@ -18,7 +18,7 @@ const ID_PREFIX = 'shape-';
 const ID_PATTERN = new RegExp(`^${ID_PREFIX}(\\d+)$`);
 
 /**
- * 図形の配列（描画順）と、選択集合・ホバー・作成中の図形・選択矩形を保持する単一の真実（SSOT）。
+ * 図形の配列（描画順）と、選択集合・ホバー・作成中の図形・選択矩形・吸い付きの表示の点を保持する単一の真実（SSOT）。
  * 状態を変更するAPIは変更後にonChangeの登録リスナーへ通知する。図形idの採番（`shape-<連番>`）も本クラスが担う。
  * 図形の生成はShapeFactoryへ委譲する（復元は`DocumentSerializer`→`ShapeFactory.fromJSON`が行い、本クラスは復元済みの図形一式を受け取るのみ）。図形固有の頂点構造には依存しない（ポリモーフィック呼び出しのみ）。
  */
@@ -63,6 +63,14 @@ export class VectorModel {
     #selectionRect;
 
     /**
+     * @type {{x: number, y: number}|null}
+     * 吸い付きの表示の点（ワールド座標の1点）。表示専用で保存しない（表示していなければnull）。
+     * 設定と消去は`InputTracker`が行う。
+     * @private
+     */
+    #snapPoint;
+
+    /**
      * @type {number} 図形id採番用の連番カウンタ（次に#issueId()が発行する連番）。
      * #issueId()による採番（commitDraft・replaceAllShapes・addShapesWithNewIds・replaceShape）で1ずつ増える。
      * 単調増加し、減らさない。replaceAllShapesでは、保持したidのうち採番形式（`shape-<連番>`。
@@ -82,6 +90,7 @@ export class VectorModel {
         this.#hoveredId = null;
         this.#draftShape = null;
         this.#selectionRect = null;
+        this.#snapPoint = null;
         this.#nextId = 1;
     }
 
@@ -202,6 +211,39 @@ export class VectorModel {
      */
     getSelectionRect() {
         return this.#selectionRect ? { ...this.#selectionRect } : null;
+    }
+
+    /**
+     * 吸い付きの表示の点を設定し、値が変わったときだけ変更を通知する（1回）。
+     * 現在の点と同じ座標なら何もしない（mousemoveごとの無駄な再描画を避ける）。
+     * @param {number} x 点のX座標（ワールド座標）
+     * @param {number} y 点のY座標（ワールド座標）
+     */
+    setSnapPoint(x, y) {
+        if (this.#snapPoint !== null && this.#snapPoint.x === x && this.#snapPoint.y === y) {
+            return;
+        }
+        this.#snapPoint = { x, y };
+        this.#notifyChange();
+    }
+
+    /**
+     * 吸い付きの表示の点を消去する。表示中だった場合のみ変更を通知する（1回）。
+     */
+    clearSnapPoint() {
+        if (this.#snapPoint === null) {
+            return;
+        }
+        this.#snapPoint = null;
+        this.#notifyChange();
+    }
+
+    /**
+     * 吸い付きの表示の点を取得する。
+     * @returns {{x: number, y: number}|null} 点のコピー（ワールド座標）、表示していない場合はnull
+     */
+    getSnapPoint() {
+        return this.#snapPoint ? { ...this.#snapPoint } : null;
     }
 
     /**
@@ -343,7 +385,7 @@ export class VectorModel {
      * (3)保持idのうち採番形式（`shape-<連番>`。連番がNumber.isSafeIntegerのもの）の最大連番をnとし、
      *    #nextIdを max(現在値, n + 1) へ繰り上げる（減らさない）。
      * (4)振り直し対象に#issueId()で新しいidを採番する（(3)により保持idとは衝突しない）。
-     * (5)選択集合・ホバー状態・作成中の図形・選択矩形をクリアする。
+     * (5)選択集合・ホバー状態・作成中の図形・選択矩形・吸い付きの表示の点をクリアする。
      * (6)変更を通知する（1回のみ）。
      * 進行中の入力操作（ドラッグ・作成途中の図形）の中断は呼び出し側の責務（`InputTracker.abortOngoingOperation()`、または`CanvasLibrary`では`prepareSwitch()`経由の`setMode`）。
      * 受け取ったインスタンスの`id`を直接書き換える。idの重複判定は値で行うため、同一インスタンスを配列に重複して渡さない（既存インスタンスを渡す場合は呼び出し側で複製する）。
@@ -383,6 +425,7 @@ export class VectorModel {
         this.#hoveredId = null;
         this.#draftShape = null;
         this.#selectionRect = null;
+        this.#snapPoint = null;
 
         this.#notifyChange();
         return reassignTargets.length;
