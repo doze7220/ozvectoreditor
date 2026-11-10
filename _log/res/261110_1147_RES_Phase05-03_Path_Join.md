@@ -261,7 +261,9 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
 *   **`_doc/arch/07_KeyboardShortcuts.md`**：`KeyJ`→`join`（修飾キーなし・`Shift`不可・キーリピートでは実行しない・結合した場合のみ`true`）を足し、`Shift`+`J`も予約に含めるか判断して書く。
 *   **`_doc/arch/08_HistoryManager.md`**：`beginEdit`/`commitEdit`の呼び出し元に`PathJoiner`（結合。`EditRecorder`として注入され`HistoryManager.js`をimportしない）を足す。
 *   **`_doc/arch/01_index_html.md`**：コントロールパネルの「削除」「結合」を`.selection-button-row`で1行に横並びにしていること（コントロールパネルの高さを増やさないため）、結合ボタンの`title`のショートカット併記を足す。
-*   **`_doc/arch/16_test.md`**：「既存のテストファイルと検証範囲」に`test/shapes/PathJoinRules.test.js`（9-1の観点）・`test/core/VectorModel.replaceShape.test.js`（9-2）・`test/edit/PathJoiner.test.js`（9-3）を足す。ボタン・キー・Undo/Redoの実体はテストプレイで確かめることを「テストできない箇所」に足すか判断する。
+*   **`_doc/arch/16_test.md`**：「既存のテストファイルと検証範囲」に`test/shapes/PathJoinRules.test.js`（9-1の観点）・`test/core/VectorModel.replaceShape.test.js`（9-2）・`test/edit/PathJoiner.test.js`（9-3）を足す。ボタン・キー・描画・保存はテストプレイで確かめることを「テストできない箇所」に足すか判断する（Undo/Redoの実体は下記のとおり一部が自動テスト化されたため、「テストできない箇所」の記述をそれに合わせて調整する）。
+    *   （タスク4で判明）`test/edit/PathJoiner.test.js`の実物の組み合わせテスト（実物の`VectorModel`・`SnapshotAdapter`・`HistoryManager`・`PathJoiner`）で、結合のUndo/Redoの往復（履歴1件、`canUndo`/`canRedo`、`shouldRestoreSelection`の真偽による選択集合の復元）が自動テストで確かめられる。9-4の「Undo/Redoの実体は自動テストにしない」はその範囲で覆される。
+    *   （タスク4で判明）このテストは、`16_test.md`の規則「注入される依存はテストファイル内の素のオブジェクトの偽物で置き換える」の例外である。理由は、REQ要件9とタスク4の追加仕様で、履歴の手順をNodeで組み合わせて確かめるため。`HistoryManager`はimportを持たず、`SnapshotAdapter`のimportは`DocumentSerializer`のみでブラウザのAPIに依存しない。タスク9で、規則の記述にこの例外（実物の組み合わせテストを置くこと、その条件）を書く。
 *   （各タスクの実行時に影響が判明した場合は、この欄へ追記する。資料本体への反映はタスク9で行う。）
 
 ## 3. タスクリスト
@@ -292,7 +294,7 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
         *   JSDoc：`replaceShape`の説明（手順(1)〜(6)・前提・`console.warn`の条件・インスタンスの`id`を書き換えること）、`@param`（`options.keepId`・`options.removeIds`を含む）・`@returns`。`#issueId`・`#nextId`のJSDocの採番する操作の列挙に`replaceShape`を足す。先頭行の責務JSDocは変えない。
         *   `test/core/VectorModel.replaceShape.test.js`に9-2の観点を書く（先頭行に単一責務JSDoc、補助関数にJSDoc）。
         *   `node --test`を実行し、`fail 0`と件数を4章へ記録する。完了時に本タスクを [x] にし、4章の本タスクの欄を記入する（開発資料への影響は2章、迷った点は5章へ）。
-*   [ ] タスク4: 結合の手順`PathJoiner`の新設とそのテスト
+*   [x] タスク4: 結合の手順`PathJoiner`の新設とそのテスト
     *   **対象ファイル** :
         *   `./js/edit/PathJoiner.js` :（新規）
         *   `./test/edit/PathJoiner.test.js` :（新規）
@@ -380,8 +382,13 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
     *   開発資料への影響：更新予定欄の`03_VectorModel.md`・`16_test.md`の記述で足りる（追記なし）。
 
 ### タスク4: 結合の手順`PathJoiner`の新設とそのテスト
+*   **対象ファイル** : `./js/edit/PathJoiner.js`（新規）、`./test/edit/PathJoiner.test.js`（新規）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `PathJoiner`（`constructor({ model, editRecorder, screenLengthToWorld })`・`canJoin()`・`join()`）を要件7-2どおり作成。importは`../shapes/PathJoinRules.js`のみ。`editRecorder`の型は`import('./ShapeInserter.js').EditRecorder`で参照。
+    *   `test/edit/PathJoiner.test.js`に9-3の観点（偽のmodel・editRecorder）を書いた。追加仕様として、実物の`VectorModel`・`SnapshotAdapter`・`HistoryManager`・`PathJoiner`を組み合わせたケースを追加：2本の結合（間に別の図形）のundo/redo往復（履歴1件を`canUndo`/`canRedo`で確認）、開いたパス1本を閉じるundo/redo往復、`shouldRestoreSelection`の真偽による選択集合の復元結果、結合できない選択で履歴が増えないこと。ソース（`VectorModel`・`SnapshotAdapter`・`HistoryManager`）は未変更。
+    *   `node --test`：tests 563 / pass 563 / fail 0（551 + 新規12）。
+    *   開発資料への影響：更新予定欄の`14_edit.md`・`16_test.md`の記述で足りる。`16_test.md`の「テストできない箇所」は、Undo/Redoの実体の一部が自動テスト化されたため（`HistoryManager`と`SnapshotAdapter`の組み合わせ）、タスク9で記述を調整すること。資料本体は未修正。
+    *   監査指摘の修正：2章の`16_test.md`の項に、実物の組み合わせテストの内容と規則（注入される依存は偽物）の例外を追記。`test/edit/PathJoiner.test.js`を締め直し：`screenLengthToWorld`の呼び出しを`[5]`の厳密比較に（実装は計画前に必ず1回呼ぶため、受理しない選択でも1回）、`canJoin`が受理する選択（閉じる・2本）でも記録`calls`が空であることを確認。`node --test`：tests 563 / pass 563 / fail 0。
 
 ### タスク5: コントロールパネルへの「結合」ボタンの追加
 *   **作業内容** :
@@ -441,3 +448,4 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
 15. **コントロールパネルの見た目**：「削除」「結合」が1行に並び、コントロールパネルの高さが変わらず、図形選択パレットと重ならない。結合ボタンにマウスを載せると「選択中の線を結合 (J)」と出る。
 16. **既存の操作**：削除ボタン・`Delete`/`Backspace`、取り消し・やり直しのボタンとキー、`V`/`P`/`H`、数字キー、`Esc`、`Ctrl`+`A`/`C`/`X`/`V`/`D`、ズームとリセットがこれまでどおり動く。
 17. **（任意）中ボタンのパン中のボタン**：中ボタンでパンしながら結合ボタンを左クリック → 結合されない。
+*   **タスク4実装時の注意**：実物の組み合わせテストの`shouldRestoreSelection`は素の関数（`() => true/false`）で与え、選択集合の結果は与えた値から既存の仕組み（`restore`）で決まるものだけを確かめている。9-4の「Undo/Redoの実体は自動テストにしない」はこのテストで一部覆される（ボタン・キー・描画・保存は引き続きテストプレイ）。
