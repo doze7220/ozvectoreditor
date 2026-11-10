@@ -236,7 +236,7 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
 *   （`_doc/arch/03_VectorModel.md`）**VectorModel.js**：Shape配列と選択集合・ホバー・作成中図形・選択矩形のSSOT。知らないこと：図形固有の頂点構造・内部プロパティ名、図形データ・作業データ形式。図形idの採番（`shape-<連番>`）は1箇所に一本化し、id形式の知識は`VectorModel`内に閉じる。単一選択は`setSelection([id])`。（実コード）状態を変える操作は変更後に通知し、複数件の変更でも通知は1回。採番はすべて`#issueId()`を経由する。
 *   （`_doc/arch/07_KeyboardShortcuts.md`）**KeyboardShortcuts.js**：キー→操作の対応表（`SHORTCUT_BINDINGS`）と受理判定のみ。新しいショートカットは対応表へのエントリ追加（＋必要なら注入コールバックの追加）。Shift規則は必ず`ShiftRule`の値を指定する。コンストラクタで全action名の注入を検証し、欠落時は`Error`をthrowする（対応表に`join`を足す前に`main.js`が`join`を注入しておけば起動は壊れない）。ショートカット専用のUI同期・再描画は持たない。
 *   （`_doc/arch/08_HistoryManager.md`）**HistoryManager.js**：`beginEdit`/`commitEdit`の呼び出し元は`InputTracker`・`main.js`（`?dev`の復元）・`ShapeInserter`。`InputTracker`・`ShapeInserter`へは`EditRecorder`として注入され、`HistoryManager.js`をimportしない。
-*   （`_doc/arch/12_shapes.md`）**shapes/**：図形クラスが扱う座標はすべてワールド座標。共通基底クラスは無い。共通モジュール（`ShapeGeometry.js`・`ShapeDataValidation.js`）は状態を持たない`export`した関数のみで、`import`するのは`shapes/`の図形クラスのみ。各図形クラス・`ShapeFactory`は`try/catch`を持たない。**Path.js**：`ShapeFactory.create`では作られない（作る操作はPhase 05-03・05-04）。コンストラクタは引数を検証しない（頂点を複製し、区間を頂点数から作る）。区間の要素数の不変条件は、閉じる操作等を足すときに保つこと。`toJSON`/`fromJSON`はどちらの方向でも内部配列・頂点オブジェクトを共有しない。
+*   （`_doc/arch/12_shapes.md`）**shapes/**：図形クラスが扱う座標はすべてワールド座標。共通基底クラスは無い。共通モジュール（`ShapeGeometry.js`・`ShapeDataValidation.js`）は状態を持たない`export`した関数のみで、`import`するのは`shapes/`の図形クラスのみ。各図形クラス・`ShapeFactory`は`try/catch`を持たない。**Path.js**：`ShapeFactory.create`では作られない（作る操作はPhase 05-03・05-04）。コンストラクタは引数を検証しない（頂点を複製し、区間を頂点数から作る）（この記述の出典は`js/shapes/Path.js`のコンストラクタのJSDocとREQ。`12_shapes.md`の記述ではない）。区間の要素数の不変条件は、閉じる操作等を足すときに保つこと。`toJSON`/`fromJSON`はどちらの方向でも内部配列・頂点オブジェクトを共有しない。
 *   （`_doc/arch/10_ShapeFactory.md`）`shapes/`は`ShapeFactory`・`core/`をimportしない。
 *   （`_doc/arch/14_edit.md`）**edit/**：知らないこと（全クラス共通）：DOM、図形種別の分岐、図形固有のプロパティ名、図形のid形式、操作モード。`InputTracker`に依存しない。依存：importは`DocumentSerializer`のみ（`CanvasFileOperations`は例外）。他の依存は注入で受け取る。**ShapeInserter.js**：履歴へは1件以上追加した場合のみ1件記録する。進行中の入力操作の中断・モード切り替えは行わない（呼び出し側の責務）。
 *   （`_doc/arch/01_index_html.md`）**index.html**：ボタン単体の押せない状態はHTMLの`disabled`属性と`.tool-btn:disabled`で表す。各ボタンの`title`属性にショートカットキーを併記し、`SHORTCUT_BINDINGS`と手動で同期する。`#window-shape-palette`の`top`はコントロールパネルの下端との余白24px以上を確保するための固定値（コントロールパネルの高さを変える場合は手動で再調整）。
@@ -335,7 +335,7 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
         *   typedef`ShortcutActions`に`@property {() => boolean} join 選択中の線を結合する（開いたパス1本を閉じる・2本を1本の開いたパスにする）。結合した場合のみtrue（結合できない選択ではfalse）`を足す。
         *   `#handleKeyDown`・`#findBinding`・他のエントリ・判定の規則は変えない。
         *   `node --test`を実行し、`fail 0`と件数を4章へ記録する（件数は変わらない）。完了時に本タスクを [x] にし、4章の本タスクの欄を記入する（開発資料への影響は2章、迷った点は5章へ）。
-*   [ ] タスク8: JSDocの確認とRESの完成
+*   [x] タスク8: JSDocの確認とRESの完成
     *   **対象ファイル** :
         *   本作業で新設・変更したファイル（`./js/shapes/PathJoinRules.js`・`./js/edit/PathJoiner.js`・`./js/core/VectorModel.js`・`./js/main.js`・`./js/core/KeyboardShortcuts.js`・3つのテストファイル）:（JSDocの記載漏れがあった場合のみ修正）
         *   本RES :（更新）
@@ -387,7 +387,7 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
     *   `PathJoiner`（`constructor({ model, editRecorder, screenLengthToWorld })`・`canJoin()`・`join()`）を要件7-2どおり作成。importは`../shapes/PathJoinRules.js`のみ。`editRecorder`の型は`import('./ShapeInserter.js').EditRecorder`で参照。
     *   `test/edit/PathJoiner.test.js`に9-3の観点（偽のmodel・editRecorder）を書いた。追加仕様として、実物の`VectorModel`・`SnapshotAdapter`・`HistoryManager`・`PathJoiner`を組み合わせたケースを追加：2本の結合（間に別の図形）のundo/redo往復（履歴1件を`canUndo`/`canRedo`で確認）、開いたパス1本を閉じるundo/redo往復、`shouldRestoreSelection`の真偽による選択集合の復元結果、結合できない選択で履歴が増えないこと。ソース（`VectorModel`・`SnapshotAdapter`・`HistoryManager`）は未変更。
     *   `node --test`：tests 563 / pass 563 / fail 0（551 + 新規12）。
-    *   開発資料への影響：更新予定欄の`14_edit.md`・`16_test.md`の記述で足りる。`16_test.md`の「テストできない箇所」は、Undo/Redoの実体の一部が自動テスト化されたため（`HistoryManager`と`SnapshotAdapter`の組み合わせ）、タスク9で記述を調整すること。資料本体は未修正。
+    *   開発資料への影響：`14_edit.md`は更新予定欄の記述で足りる。`16_test.md`は2章の`16_test.md`の項に追記した（下記）。`16_test.md`の「テストできない箇所」は、Undo/Redoの実体の一部が自動テスト化されたため（`HistoryManager`と`SnapshotAdapter`の組み合わせ）、タスク9で記述を調整すること。資料本体は未修正。
     *   監査指摘の修正：2章の`16_test.md`の項に、実物の組み合わせテストの内容と規則（注入される依存は偽物）の例外を追記。`test/edit/PathJoiner.test.js`を締め直し：`screenLengthToWorld`の呼び出しを`[5]`の厳密比較に（実装は計画前に必ず1回呼ぶため、受理しない選択でも1回）、`canJoin`が受理する選択（閉じる・2本）でも記録`calls`が空であることを確認。`node --test`：tests 563 / pass 563 / fail 0。
 
 ### タスク5: コントロールパネルへの「結合」ボタンの追加
@@ -414,8 +414,13 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
     *   開発資料への影響：`07_KeyboardShortcuts.md`の更新予定欄の記述で足りる（`Shift`+`J`は`ShiftRule.FORBIDDEN`のため`join`は実行されない。予約に含めるかは資料側で判断）。
 
 ### タスク8: JSDocの確認とRESの完成
+*   **対象ファイル** : 本RESのみ（コードのJSDocに漏れはなく、コードは未変更）。
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   新設ファイル（`PathJoinRules.js`・`PathJoiner.js`）の先頭の単一責務JSDoc、`PathJoiner`のコンストラクタ・`canJoin`・`join`、`VectorModel.replaceShape`、`main.js`の`performJoin`・`syncJoinButtonState`、`KeyboardShortcuts`の`ShortcutActions`の`join`のJSDocを確認。漏れなし。
+    *   `index.html`のボタンの`title`（`(J)`）と`SHORTCUT_BINDINGS`の`KeyJ`が一致していることを確認。
+    *   `node --test`：tests 563 / pass 563 / fail 0。
+    *   RES整合の修正：4章タスク4欄の「開発資料への影響」の行を事実に合わせて改めた。2章「参照する責務」の`Path.js`の記述の出典を、`Path.js`のJSDocとREQであると明記した。2章の更新予定欄に`07_KeyboardShortcuts.md`への`KeyJ`追記と`Shift`+`J`の予約の判断が含まれていることを確認（追記不要）。5章末尾の「タスク4実装時の注意」を、テストプレイの確認項目の一覧とは別の小見出し「実装時の注意」へ移した。
+    *   開発資料への影響：新規なし（タスク9で2章の更新予定欄を反映）。
 
 ### タスク9: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
 *   **作業内容** :
@@ -459,4 +464,6 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
 15. **コントロールパネルの見た目**：「削除」「結合」が1行に並び、コントロールパネルの高さが変わらず、図形選択パレットと重ならない。結合ボタンにマウスを載せると「選択中の線を結合 (J)」と出る。
 16. **既存の操作**：削除ボタン・`Delete`/`Backspace`、取り消し・やり直しのボタンとキー、`V`/`P`/`H`、数字キー、`Esc`、`Ctrl`+`A`/`C`/`X`/`V`/`D`、ズームとリセットがこれまでどおり動く。
 17. **（任意）中ボタンのパン中のボタン**：中ボタンでパンしながら結合ボタンを左クリック → 結合されない。
+
+### 実装時の注意
 *   **タスク4実装時の注意**：実物の組み合わせテストの`shouldRestoreSelection`は素の関数（`() => true/false`）で与え、選択集合の結果は与えた値から既存の仕組み（`restore`）で決まるものだけを確かめている。9-4の「Undo/Redoの実体は自動テストにしない」はこのテストで一部覆される（ボタン・キー・描画・保存は引き続きテストプレイ）。
