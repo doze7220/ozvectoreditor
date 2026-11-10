@@ -262,7 +262,7 @@
     *   **作業内容** :
         *   2章要件5の5-3のとおり、パス用の補助関数（JSDoc付き）と`describe('path の往復')`・パスと既存の5種の混在の往復のケースを足す。既存のケース・補助関数（`assertSameShape`・`POINT_COUNTS`・`statesFor`・`makeMixed`等）は書き換えない。先頭行の責務JSDocはパスを含む記述へ改めてよい。
         *   `node --test`を実行し、`fail 0`と件数を4章へ記録する。完了時に本タスクを [x] にし、4章の本タスクの欄を記入する。
-*   [ ] タスク6: スプライトデータの組み立てのテストへのパスの追加
+*   [x] タスク6: スプライトデータの組み立てのテストへのパスの追加
     *   **対象ファイル** :
         *   `./test/io/SpriteSerializer.test.js` :（更新。ケースの追加のみ）
     *   **作業内容** :
@@ -344,7 +344,10 @@
 
 ### タスク6: スプライトデータの組み立てのテストへのパスの追加
 *   **作業内容** :
-    *   （未実施）
+    *   `test/io/SpriteSerializer.test.js`にケースを追加（既存のケース・補助関数は未変更。既存部分に触れたのは`import { Path }`の1行のみ）。補助関数`makeSquarePath`（JSDoc付き）を足した。
+    *   `describe('SpriteSerializer.serialize: パス')`：開いたパスの描画要素（キー順・`segments`なし）、閉じたパス（`closed: true`・頂点4個）、開いた・閉じたパスの外枠（線の太さの半分だけ広がる）、他の図形との混在の描画順と外枠の和、`source`を`DocumentSerializer.deserialize`で戻すと`closed`・`segments`を含めて元と同じ、の5件。
+    *   `node --test`：`tests 489`・`pass 489`・`fail 0`（タスク5時点の484から5件増）。
+    *   開発資料の更新予定欄への追記：なし。
 
 ### タスク7: スプライトJSのエディタの描画との一致テストへのパスの追加
 *   **作業内容** :

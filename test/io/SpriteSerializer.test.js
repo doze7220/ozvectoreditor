@@ -9,6 +9,7 @@ import { Line } from '../../js/shapes/Line.js';
 import { Curve } from '../../js/shapes/Curve.js';
 import { Rect } from '../../js/shapes/Rect.js';
 import { Ellipse } from '../../js/shapes/Ellipse.js';
+import { Path } from '../../js/shapes/Path.js';
 
 /**
  * 図形へ文字列のidを代入して返す。
@@ -260,5 +261,72 @@ describe('SpriteSerializer.checkFormat', () => {
         for (const value of weird) {
             assert.doesNotThrow(() => SpriteSerializer.checkFormat(value));
         }
+    });
+});
+
+/**
+ * 頂点(0,0)・(100,0)・(100,100)・(0,100)のパスを作り、idを代入して返す。
+ * @param {boolean} closed - 閉じたパスか
+ * @param {string} id - 代入するid
+ * @param {string} [strokeColor='#123456'] - 線の色
+ * @param {number} [strokeWidth=4] - 線の太さ
+ * @returns {Path} パス
+ */
+function makeSquarePath(closed, id, strokeColor = '#123456', strokeWidth = 4) {
+    const points = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }];
+    return withId(new Path(points, closed, strokeColor, strokeWidth), id);
+}
+
+describe('SpriteSerializer.serialize: パス', () => {
+    it('開いたパスはpolyline（closed: false・segmentsなし・キー順）', () => {
+        const [el] = SpriteSerializer.serialize([makeSquarePath(false, 'P1')]).elements;
+        assert.deepEqual(Object.keys(el), ['kind', 'id', 'points', 'closed', 'strokeColor', 'strokeWidth']);
+        assert.deepEqual(el, {
+            kind: 'polyline', id: 'P1',
+            points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }],
+            closed: false, strokeColor: '#123456', strokeWidth: 4,
+        });
+        assert.equal('segments' in el, false);
+    });
+
+    it('閉じたパスはclosed: true・頂点n個（始点を重複させない）', () => {
+        const [el] = SpriteSerializer.serialize([makeSquarePath(true, 'P2')]).elements;
+        assert.equal(el.kind, 'polyline');
+        assert.equal(el.closed, true);
+        assert.equal(el.points.length, 4);
+        assert.deepEqual(el.points[0], { x: 0, y: 0 });
+        assert.equal('segments' in el, false);
+    });
+
+    it('開いたパス・閉じたパスの外枠は全頂点の最小・最大を線の太さの半分だけ広げた値', () => {
+        const open = SpriteSerializer.serialize([makeSquarePath(false, 'a')]);
+        const closed = SpriteSerializer.serialize([makeSquarePath(true, 'b')]);
+        assertBoundsClose(open.bounds, { minX: -2, minY: -2, maxX: 102, maxY: 102 });
+        assertBoundsClose(closed.bounds, { minX: -2, minY: -2, maxX: 102, maxY: 102 });
+    });
+
+    it('パスと他の図形の混在は描画順を保ち、外枠は和を取る', () => {
+        const shapes = [
+            withId(new Line(-30, 10, -10, 20, '#000000', 2), 'L'),
+            makeSquarePath(true, 'P'),
+            withId(new Rect(50, 50, 200, 120, '#000000', 6), 'R'),
+        ];
+        const data = SpriteSerializer.serialize(shapes);
+        assert.deepEqual(data.elements.map((el) => el.id), ['L', 'P', 'R']);
+        assert.deepEqual(data.elements.map((el) => el.kind), ['polyline', 'polyline', 'polyline']);
+        assertBoundsClose(data.bounds, { minX: -31, minY: -2, maxX: 203, maxY: 123 });
+    });
+
+    it('sourceはDocumentSerializer.deserializeでclosed・segmentsを含めて元のパスに戻る', () => {
+        const shapes = [makeSquarePath(false, 's1'), makeSquarePath(true, 's2', '#abcdef', 7), withId(new Line(0, 0, 5, 5), 's3')];
+        const data = SpriteSerializer.serialize(shapes);
+        const result = DocumentSerializer.deserialize(data.source);
+        assert.equal(result.ok, true);
+        assert.deepEqual(result.shapes.map((s) => s.toJSON()), shapes.map((s) => s.toJSON()));
+        assert.ok(result.shapes[0] instanceof Path);
+        assert.equal(result.shapes[0].closed, false);
+        assert.equal(result.shapes[1].closed, true);
+        assert.deepEqual(result.shapes[0].segments, [{ kind: 'line' }, { kind: 'line' }, { kind: 'line' }]);
+        assert.deepEqual(result.shapes[1].segments.length, 4);
     });
 });
