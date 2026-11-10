@@ -295,7 +295,7 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
         *   `test/edit/EndpointSnapper.test.js`に2章要件8の8-5の観点を書く（先頭行に単一責務JSDoc、補助関数にJSDoc）。
         *   `main.js`・`InputTracker.js`は変更しない（本タスクの時点では`EndpointSnapper`はどこからも使われない）。
         *   `node --test`を実行し、`fail 0`と件数を4章へ記録する。完了時に本タスクを [x] にし、4章の本タスクの欄を記入する（開発資料への影響は2章、迷った点は5章へ）。
-*   [ ] タスク6: `CanvasManager`への吸い付きの表示の描画の追加
+*   [x] タスク6: `CanvasManager`への吸い付きの表示の描画の追加
     *   **対象ファイル** :
         *   `./js/core/CanvasManager.js` :（更新。吸い付きの表示の描画のみ）
     *   **作業内容** :
@@ -385,7 +385,8 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 
 ### タスク6: `CanvasManager`への吸い付きの表示の描画の追加
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/CanvasManager.js`：定数`SNAP_INDICATOR_SIZE = 8`・`SNAP_INDICATOR_FILL_COLOR = '#4a90e2'`・`SNAP_INDICATOR_STROKE_COLOR = '#1f4e8c'`・`SNAP_INDICATOR_LINE_WIDTH = 1.5`、privateメソッド`#drawSnapIndicator(point, scale)`（倍率が正の有限値でなければ描かない・`save`/`restore`・大きさと線幅を`÷ scale`・中心が点の正方形）を追加。`render`の引数に`snapPoint = null`（末尾）を足し、作成中の図形の後・選択矩形の前に非`null`なら描く。先頭の責務JSDocに「吸い付きの表示」を追加、`render`のJSDocに描画順と`@param state.snapPoint`を追記。他の描画・既定値は不変。`main.js`は未変更。
+    *   `node --test`：tests 646 / pass 646 / fail 0（件数変わらず）。
 
 ### タスク7: `main.js`の配線（`EndpointSnapper`の生成と注入・描画の引数）
 *   **作業内容** :

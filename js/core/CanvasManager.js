@@ -1,5 +1,5 @@
 /**
- * 責務：Canvas要素への純粋な描画処理（背景グリッド・原点表示・選択矩形を含む）のみを担う。
+ * 責務：Canvas要素への純粋な描画処理（背景グリッド・原点表示・選択矩形・吸い付きの表示を含む）のみを担う。
  * 描画変換は引数で受け取ったビュー変換値から毎フレーム設定し、状態は保持しない。
  */
 
@@ -91,6 +91,30 @@ const SELECTION_RECT_LINE_WIDTH = 1;
 const SELECTION_RECT_DASH = Object.freeze([4, 3]);
 
 /**
+ * 吸い付きの表示（正方形）の一辺（スクリーン座標のCSSピクセル）。描画時に`÷ view.scale`して画面上一定にする。
+ * @type {number}
+ */
+const SNAP_INDICATOR_SIZE = 8;
+
+/**
+ * 吸い付きの表示の塗りの色。
+ * @type {string}
+ */
+const SNAP_INDICATOR_FILL_COLOR = '#4a90e2';
+
+/**
+ * 吸い付きの表示の枠の色。
+ * @type {string}
+ */
+const SNAP_INDICATOR_STROKE_COLOR = '#1f4e8c';
+
+/**
+ * 吸い付きの表示の枠の太さ（スクリーン座標のCSSピクセル）。描画時に`÷ view.scale`して画面上一定にする。
+ * @type {number}
+ */
+const SNAP_INDICATOR_LINE_WIDTH = 1.5;
+
+/**
  * Canvasへの描画を行うクラス。render()の引数（図形の配列・表示状態・ビュー変換値）のみから毎回描画し、
  * 図形データ・選択状態などのアプリケーション状態は保持しない（保持するのはCanvas要素・2Dコンテキスト・dprのみ）。
  */
@@ -146,7 +170,7 @@ export class CanvasManager {
      * 図形・選択矩形はワールド座標で描画される。
      * 描画順：背景グリッド → 軸線・原点マーク → (1)全図形の draw（＋ホバー中図形の drawHover）
      * → (2)選択集合に含まれる図形の drawHandles（図形配列の順。後ろの図形ほど前面）
-     * → (3)作成中の図形 → (4)選択矩形。
+     * → (3)作成中の図形 → (3-2)吸い付きの表示 → (4)選択矩形。
      * ハンドルを全図形の描画後にまとめて描くのは、複数選択時に前面の図形が背面図形のハンドルを覆い隠さないためである。
      * @param {Array<Object>} shapes - draw(ctx) / drawHover(ctx, viewScale) / drawHandles(ctx, viewScale) メソッドを持つ図形オブジェクトの配列
      * @param {Object} [state] - 描画状態
@@ -159,8 +183,10 @@ export class CanvasManager {
      * @param {{scale: number, offsetX: number, offsetY: number}} [state.view] - ビュー変換値
      *     （`スクリーン = ワールド × scale ＋ offset`。offsetX/offsetYはスクリーン座標のCSSピクセル）。
      *     省略時は倍率1.0・オフセット(0,0)
+     * @param {{x: number, y: number}|null} [state.snapPoint] - 端点への吸い付きの表示の点（ワールド座標）。
+     *     非nullの場合、作成中の図形の後・選択矩形の前に、画面上一定の大きさの正方形で描画する
      */
-    render(shapes, { hoveredId = null, selectedIds = [], draftShape = null, selectionRect = null, view = DEFAULT_VIEW } = {}) {
+    render(shapes, { hoveredId = null, selectedIds = [], draftShape = null, selectionRect = null, view = DEFAULT_VIEW, snapPoint = null } = {}) {
         const dpr = this.#pixelRatio;
 
         // 1. 変換の影響を受けずに内部バッファ全体をクリアする
@@ -204,10 +230,41 @@ export class CanvasManager {
             draftShape.draw(this.ctx);
         }
 
+        // 6-2. 吸い付きの表示があれば、作成中の図形の上・選択矩形の下に描画する
+        if (snapPoint) {
+            this.#drawSnapIndicator(snapPoint, view.scale);
+        }
+
         // 7. 範囲選択中の選択矩形があれば、最前面に描画する
         if (selectionRect) {
             this.#drawSelectionRect(selectionRect, view.scale);
         }
+    }
+
+    /**
+     * 端点への吸い付きの表示（画面上一定の大きさの正方形。中心が渡された点）を描画する。
+     * 呼び出し時点でワールド座標の描画変換が設定済みであることを前提とする。
+     * - 大きさ・線幅は`÷ scale`し、画面上で一定（`SNAP_INDICATOR_SIZE`px・`SNAP_INDICATOR_LINE_WIDTH`px）にする。
+     * - 倍率が正の有限値でなければ描かない。
+     * - スタイルは`save()`/`restore()`で後続の描画へ残さない。
+     * @param {{x: number, y: number}} point - 表示する点（ワールド座標。正方形の中心）
+     * @param {number} scale - ビュー変換の倍率（ワールド長 → スクリーン長の係数）
+     */
+    #drawSnapIndicator(point, scale) {
+        if (!(scale > 0) || !Number.isFinite(scale)) {
+            return;
+        }
+        const size = SNAP_INDICATOR_SIZE / scale;
+
+        this.ctx.save();
+        this.ctx.lineWidth = SNAP_INDICATOR_LINE_WIDTH / scale;
+        this.ctx.fillStyle = SNAP_INDICATOR_FILL_COLOR;
+        this.ctx.strokeStyle = SNAP_INDICATOR_STROKE_COLOR;
+        this.ctx.beginPath();
+        this.ctx.rect(point.x - size / 2, point.y - size / 2, size, size);
+        this.ctx.fill();
+        this.ctx.stroke();
+        this.ctx.restore();
     }
 
     /**
