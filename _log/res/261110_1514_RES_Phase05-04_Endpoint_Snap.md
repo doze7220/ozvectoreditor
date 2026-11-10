@@ -244,7 +244,9 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 *   （各タスクの実行時に影響が判明した場合は、この欄へ追記する。資料本体への反映はタスク11で行う。）
 *   （タスク1）追加の影響は上記の12_shapes.md・11.「結合」の項目に含まれる。追加の更新予定なし。
 *   （タスク2）`EndpointSnapRules`は上記の12_shapes.md・1章の項目どおり。追加の更新予定なし。
+*   （タスク5）`14_edit.md`に`EndpointSnapper`の節を足す（5章の「`EndpointSnapper.commitDrawnLine`の判断（タスク5）」に詳細）。`edit/`が`shapes/`の規則をimportする例外が`PathJoiner`に加えて1つ増える（上記1章の項目に含まれるが、`14_edit.md`の依存の例外にも反映する）。
 *   （タスク8）`06_InputTracker.md`の行数は、タスク9完了後の実際の値で改める（タスク8時点で1265行）。それ以外は上記の項目どおり。
+*   （タスク10）`06_InputTracker.md`の行数は1310行、`02_main.md`の行数は593行に改める（タスク10時点の実測）。他の追加の更新予定なし。
 
 ## 3. タスクリスト
 *   [x] タスク1: 結合の規則`PathJoinRules`への入口・計画の追加とそのテスト
@@ -333,7 +335,7 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
         *   JSDoc：フィールドのJSDoc、変更した`#beginLeftDrag`・`#applyLeftDragUpdate`・`#onLeftDragEnd`・`#finishLeftDrag`の処理順の説明（結合・閉じるは開いている編集操作の中で行い、`#finishLeftDrag`の確定で頂点の移動とあわせて1件になること、中断では結合しないこと）。
         *   行数の増分を4章へ記録する（見積もり約+35行）。
         *   `node --test`を実行し、`fail 0`と件数を4章へ記録する（件数は変わらない）。完了時に本タスクを [x] にし、4章の本タスクの欄を記入する（開発資料への影響は2章、迷った点・目視確認を推奨する箇所は5章へ）。
-*   [ ] タスク10: JSDocの確認とRESの完成
+*   [x] タスク10: JSDocの確認とRESの完成
     *   **対象ファイル** :
         *   本作業で新設・変更したファイル（`./js/shapes/PathJoinRules.js`・`./js/shapes/EndpointSnapRules.js`・`./js/core/VectorModel.js`・`./js/edit/EndpointSnapper.js`・`./js/core/CanvasManager.js`・`./js/main.js`・`./js/core/InputTracker.js`・5つのテストファイル）:（JSDocの記載漏れがあった場合のみ修正）
         *   本RES :（更新）
@@ -381,7 +383,7 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 ### タスク5: 吸い付きの照会と反映の手順`EndpointSnapper`の新設とそのテスト
 *   **作業内容** :
     *   `js/edit/EndpointSnapper.js`（新規）：先頭に責務JSDoc。`EndpointSnapper`クラス（`findDrawSnap`・`resolveDragEndpoint`・`findDragSnap`・`commitDrawnLine`・`joinDraggedEndpoint`）。importは`../shapes/EndpointSnapRules.js`と`../shapes/PathJoinRules.js`のみ。`model`は`getShapes`・`getDraftShape`・`cancelDraft`・`replaceShape`のみ使用。`main.js`・`InputTracker.js`は未変更（どこからも未使用）。
-    *   `test/edit/EndpointSnapper.test.js`（新規）：偽物での手順13件（換算値・呼び出し順・`keepId`/`select`・何も起きない場合）と実物の組み合わせ6件（描き足し・結合・閉じる・何も起きない・ハンドルのドラッグでの結合／閉じる、Undo/Redo）。
+    *   `test/edit/EndpointSnapper.test.js`（新規）：偽物での手順14件（換算値・呼び出し順・`keepId`/`select`・何も起きない場合。実ファイルのテスト数を数え直して13件から訂正）と実物の組み合わせ6件（合計20件。描き足し・結合・閉じる・何も起きない・ハンドルのドラッグでの結合／閉じる、Undo/Redo）。
     *   `node --test`：tests 646 / pass 646 / fail 0（タスク4後626、本タスクで+20）。
 
 ### タスク6: `CanvasManager`への吸い付きの表示の描画の追加
@@ -391,7 +393,7 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 
 ### タスク7: `main.js`の配線（`EndpointSnapper`の生成と注入・描画の引数）
 *   **作業内容** :
-    *   `js/main.js`：`EndpointSnapper`をimport。`new InputTracker(...)`の直前で`EndpointSnapper`を生成（`model`・`editRecorder: historyManager`・`screenLengthToWorld`）し、第5引数に注入（コメント追記）。`renderCurrentState`の`canvasManager.render`に`snapPoint: model.getSnapPoint()`を追加し、JSDocの状態の列挙に`snapPoint`を追記。既存の配線は不変。`InputTracker`は未変更のため第5引数は現時点で無視される（タスク8で受け取る）。
+    *   `js/main.js`：`EndpointSnapper`をimport。`new InputTracker(...)`の直前で`EndpointSnapper`を生成（`model`・`editRecorder: historyManager`・`screenLengthToWorld`）し、第5引数に注入（コメント追記）。`renderCurrentState`の`canvasManager.render`に`snapPoint: model.getSnapPoint()`を追加し、JSDocの状態の列挙に`snapPoint`を追記。既存の配線は不変（ただし`new InputTracker`の直前の既存コメントは、第5引数（`endpointSnapper`）を含む説明に書き換えた）。`InputTracker`は未変更のため第5引数は現時点で無視される（タスク8で受け取る）。
     *   `node --test`：tests 646 / pass 646 / fail 0（件数変わらず）。`main.js`は約593行（+約11行）。開発資料への影響：`main.js`の行数と配線（`EndpointSnapper`の生成・注入）をタスク11で反映。
 
 ### タスク8: `InputTracker`の直線を描く流れの配線
@@ -408,7 +410,12 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 
 ### タスク10: JSDocの確認とRESの完成
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/VectorModel.js`：`replaceShape`のJSDoc冒頭の要約行に「（`select`が偽なら選択を作らない）」の但し書きを追記（処理は不変）。
+    *   `test/core/VectorModel.replaceShape.test.js`：先頭の責務JSDocを`select:false`（選択集合を作り直さず消えたidだけ外す）を含む検証範囲に改めた（テストケースは不変）。
+    *   RESの訂正：4章タスク5欄のテスト件数の内訳（偽物14件・実物6件・合計20件）、4章タスク7欄の補足、2章の更新予定欄に「（タスク5）」「（タスク10）」を追記、5章に計画時の判断2件とテストプレイ項目18-2を追記。
+    *   新設・変更ファイルのJSDoc（責務JSDoc・`@param`・`@returns`）は、上記以外に漏れの修正は行っていない（本タスクの確認範囲では追加修正なし）。
+    *   `node --test`：tests 646 / pass 646 / fail 0（件数変わらず）。
+    *   行数：`InputTracker.js` 1310行、`main.js` 593行（2章の更新予定欄に記録）。開発資料への影響：新たなものなし（2章の更新予定欄のとおりタスク11で反映）。
 
 ### タスク11: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
 *   **作業内容** :
@@ -423,6 +430,8 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 *   **描き終えの端点は直前のmousemoveの照会結果**：従来も作成途中の図形の終点は直前のmousemoveの位置で確定しており、クリック位置で取り直すと既存の振る舞い（吸い付きなしの直線の終点）を変えるため。描き始めは従来どおりクリック位置で決まるため、クリック位置で照会する。
 *   **表示の枠の色・太さ**：枠`#1f4e8c`（濃い青）・画面上1.5px（計画時の決定。REQ要件2で委任）。テストプレイで見分けにくければ定数だけ変える。
 *   **キャンバス外へカーソルが出た場合**：何もしない（次のmousemoveで正しくなる。REQ要件2で委任）。
+*   **`PathJoinRules`の既存関数の内部整理**：既存の`classifyJoin`・`buildClosedPath`・`buildJoinedPath`の中身を共有の組み立て関数・定数を使う形に書き換えた（振る舞いは変えず、05-03のテストで確認）。これはREQのスコープ「追加のみ」を「規則を二重に書かないための内部の整理は可」と解釈したものである。
+*   **実物の組み合わせのテストの例外の拡大**：`test/edit/EndpointSnapper.test.js`の実物の組み合わせのテストは、テスト規則（`_doc/arch/16_test.md`）で`PathJoiner.test.js`だけに許されていた例外を広げる判断である（2章の更新予定の`16_test.md`の項目に記載済み）。
 *   **図形クラス・`ShapeFactory`・`io/`・`PathJoiner`は変更しない見込み**。`Path`の`updateDraftEnd`（現在は呼ばれない）も使わない（作成途中の図形は常に直線のため）。
 
 ### タスク8での確認・注意
@@ -456,6 +465,7 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 16. **ドラッグの中断**：端点のハンドルを吸い付かせたままウィンドウのフォーカスを外す（別のウィンドウを押す等） → 結合・閉じるは起きず、頂点は中断した位置に残り、表示は消える。
 17. **表示倍率と距離**：拡大・縮小（例：25%・400%）して1・13を繰り返す → 吸い付く距離が画面上で約8pxのまま、表示の正方形の大きさも画面上で一定。
 18. **表示の消し忘れ**：表示が出ている状態で、モードの切り替え（選択・キャンバス移動）・図形種別の切り替え・描き終え・`Esc`・パンの開始（スペース＋ドラッグ・中ボタン）・取り消し/やり直し・キャンバスの切り替えや開く（ファイル）・インポートを行う → 古い表示が残らない。選択モードでカーソルを動かすだけでは表示は出ない。キャンバス外へカーソルを出した場合は、次にキャンバス上で動かしたときに正しい表示になる（計画時の決定）。
+18-2. **パン／ズームの後に動かさずに描き終える**：端点の近くで描き始め、中ボタンのパン（またはホイールのズーム）の後、カーソルを動かさずに描き終える → 表示が出ていないまま、直前の照会結果で描き足し・結合になり得る（計画時の決定。5章「実装時の注意・将来の注意」参照。違和感があれば指摘する）。
 19. **保存・書き出し**：描き足し・結合・閉じる操作で作ったパスを含むキャンバスを出力（作業ファイル）して開き直す → 同じ形・色・太さ・閉じているかで戻る。出力（エンジン用）したJSを`sprite-check.html`で開く → エディタと同じ見た目で描かれる。
 20. **既存の操作**：直線以外の図形の作成・クリック選択・範囲選択・移動・端点以外のハンドル操作・削除・複製/コピー＆ペースト・結合ボタンとキー`J`・取り消し/やり直しがこれまでどおり動く。
 

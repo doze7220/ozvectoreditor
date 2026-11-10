@@ -1,5 +1,5 @@
 /**
- * 責務: VectorModel.replaceShape（指定図形の位置での差し替え・指定図形の除去・結果だけの選択・通知1回）の振る舞いを検証する。
+ * 責務: VectorModel.replaceShape（指定図形の位置での差し替え・指定図形の除去・結果だけの選択（`select:false`では選択集合を作り直さず消えたidだけ外す）・通知1回）の振る舞いを検証する。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
