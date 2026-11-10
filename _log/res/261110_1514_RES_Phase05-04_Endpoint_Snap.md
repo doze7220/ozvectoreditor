@@ -266,7 +266,7 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
         *   JSDoc：先頭行に単一責務JSDoc（3行以内。例「責務: 端点への吸い付きの規則（吸い付く対象の端点・候補の選び方・吸い付く距離・描く図形種別と端点のハンドルの判定）を、状態を持たない関数と定数として提供する。表示倍率・モデルを知らず、ワールド座標の許容距離を引数で受け取る。」）。各定数・関数・typedefにJSDoc（`@param`・`@returns`。`SNAP_TOLERANCE_SCREEN_PX`が唯一の定義で`JOIN_TOLERANCE_SCREEN_PX`と別であること、換算は呼び出し側、候補の選び方、`dragged`の除外、`resolveEndpointHandle`が「頂点の番号`i`＝`points[i]`」に依ること）。
         *   `test/shapes/EndpointSnapRules.test.js`に2章要件8の8-2の観点を書く（先頭行に単一責務JSDoc、補助関数にJSDoc）。
         *   `node --test`を実行し、`fail 0`と件数を4章へ記録する。完了時に本タスクを [x] にし、4章の本タスクの欄を記入する（開発資料への影響は2章、迷った点は5章へ）。
-*   [ ] タスク3: `VectorModel.replaceShape`への引数`select`の追加とそのテスト
+*   [x] タスク3: `VectorModel.replaceShape`への引数`select`の追加とそのテスト
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js` :（更新。`replaceShape`の引数の追加とそのJSDocのみ）
         *   `./test/core/VectorModel.replaceShape.test.js` :（更新。ケースの追加のみ）
@@ -367,7 +367,9 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 
 ### タスク3: `VectorModel.replaceShape`への引数`select`の追加とそのテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/VectorModel.js`：`replaceShape`の引数に`select = true`を追加。偽のときは選択集合を作り直さず、現存しなくなったidだけを外す（真のときは従来どおり結果だけを選択）。手順(5)と前提のJSDocを改め、`@param {boolean} [options.select=true]`を追加。先頭の責務JSDocは不変。
+    *   `test/core/VectorModel.replaceShape.test.js`：末尾に8-3のケース4件を追加（`select:false`で空のまま／他の図形は残り消えたidは外れる／位置・keepId・除去・通知1回が同じ／省略で従来どおり）。既存のケース・補助関数は変更なし。
+    *   `node --test`：tests 619 / pass 619 / fail 0（タスク2後615、本タスクで+4）。`PathJoiner.test.js`も通過。
 
 ### タスク4: `VectorModel`への吸い付きの表示の点の追加とそのテスト
 *   **作業内容** :

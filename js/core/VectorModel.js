@@ -435,19 +435,23 @@ export class VectorModel {
      * (3)`shape.id`を、`keepId`が真なら`targetId`、偽なら#issueId()で発行した新しいidにする。
      * (4)`targetId`の位置の図形を`shape`に置き換え、`removeIds`に含まれるidの図形を除く
      *    （`targetId`自身が含まれていても置き換えた位置は除かない。存在しないidは無視。他の図形の前後関係は変えない）。
-     * (5)選択集合を`shape.id`だけにする。ホバー中のidが現存しなくなればホバーを解除する。作成中の図形・選択矩形には触れない。
+     * (5)`select`が真なら選択集合を`shape.id`だけにする。偽なら選択集合を新しく作らず、現存しなくなったid
+     *    （置き換えで消えた元のid・除いた図形のid）だけを選択集合から外す（作成モードでは空のまま）。
+     *    ホバー中のidが現存しなくなればホバーを解除する。作成中の図形・選択矩形には触れない。
      * (6)変更を通知する（1回）。
      * 受け取ったインスタンスをそのまま保持して`id`を書き換えるため、呼び出し側は以後そのインスタンスを他の用途に流用しない。
      * 図形インスタンスには`id`の代入以外で触れない（頂点・図形固有のプロパティ・図形種別を関知しない）。
-     * 前提：呼び出し側が選択モードであることを保証すること（選択集合は選択モード以外では常に空という不変条件を守るため）。
+     * 前提：`select`が真のときは、呼び出し側が選択モードであることを保証すること（選択集合は選択モード以外では常に空という不変条件を守るため）。
+     *       作成モードでは`select: false`で呼ぶ。
      * @param {string} targetId 置き換える位置の図形のid
      * @param {Object} shape 入れる図形（共通インターフェースを持つ図形インスタンス）
      * @param {Object} [options] オプション
      * @param {boolean} [options.keepId=false] 真なら`shape`が`targetId`を引き継ぐ。偽なら新しいidを採番する
      * @param {Array<string>} [options.removeIds=[]] 除く図形のidの配列
+     * @param {boolean} [options.select=true] 真なら結果の図形だけを選択する。偽なら選択集合を作り直さず、現存しないidだけ外す
      * @returns {string|null} 入れた図形のid。置き換えなかった場合はnull
      */
-    replaceShape(targetId, shape, { keepId = false, removeIds = [] } = {}) {
+    replaceShape(targetId, shape, { keepId = false, removeIds = [], select = true } = {}) {
         const targetIndex = this.#shapes.findIndex((s) => s.id === targetId);
         if (targetIndex === -1) {
             return null;
@@ -464,7 +468,12 @@ export class VectorModel {
             .map((s) => (s === targetShape ? shape : s))
             .filter((s) => s === shape || !removeSet.has(s.id));
 
-        this.#selectedIds = new Set([shape.id]);
+        if (select) {
+            this.#selectedIds = new Set([shape.id]);
+        } else {
+            const survivingIds = new Set(this.#shapes.map((s) => s.id));
+            this.#selectedIds = new Set([...this.#selectedIds].filter((id) => survivingIds.has(id)));
+        }
         if (this.#hoveredId !== null && !this.#shapes.some((s) => s.id === this.#hoveredId)) {
             this.#hoveredId = null;
         }

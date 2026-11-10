@@ -142,3 +142,52 @@ test('選択矩形に触れない', () => {
     assert.deepEqual(model.getSelectionRect(), rect);
     assert.notEqual(model.getSelectionRect(), null);
 });
+
+test('select:false: 選択集合が空のままで、結果は選択されない（通知1回）', () => {
+    const { model, notifyCount } = setup();
+    const path = makePath();
+    const result = model.replaceShape('a', path, { removeIds: ['b'], select: false });
+    assert.deepEqual(ids(model), [result, 'c', 'd']);
+    assert.deepEqual(model.getSelectedIds(), []);
+    assert.equal(notifyCount(), 1);
+});
+
+test('select:false: 選択集合の他の図形は残り、除いた図形・置き換えで消えた元のidは外れる', () => {
+    const { model } = setup();
+    model.setSelection(['a', 'b', 'd']);
+    const result = model.replaceShape('a', makePath(), { removeIds: ['b'], select: false });
+    assert.deepEqual(model.getSelectedIds(), ['d']);
+    assert.ok(!model.getSelectedIds().includes(result));
+
+    const m2 = setup().model;
+    m2.setSelection(['a', 'c']);
+    m2.replaceShape('a', makePath(), { keepId: true, select: false });
+    assert.deepEqual(m2.getSelectedIds().slice().sort(), ['a', 'c']);
+});
+
+test('select:false: 位置・keepId・除去・通知1回はselectの有無で同じ', () => {
+    for (const keepId of [true, false]) {
+        const withSel = setup();
+        const noSel = setup();
+        const p1 = makePath();
+        const p2 = makePath();
+        const r1 = withSel.model.replaceShape('b', p1, { keepId, removeIds: ['d'], select: true });
+        const r2 = noSel.model.replaceShape('b', p2, { keepId, removeIds: ['d'], select: false });
+        assert.equal(typeof r1, 'string');
+        assert.equal(typeof r2, 'string');
+        if (keepId) {
+            assert.equal(r1, 'b');
+            assert.equal(r2, 'b');
+        }
+        assert.deepEqual(ids(withSel.model).map((id) => (id === r1 ? 'R' : id)), ids(noSel.model).map((id) => (id === r2 ? 'R' : id)));
+        assert.equal(withSel.notifyCount(), 1);
+        assert.equal(noSel.notifyCount(), 1);
+    }
+});
+
+test('selectを省略すると従来どおり結果だけが選択される', () => {
+    const { model } = setup();
+    model.setSelection(['c', 'd']);
+    const result = model.replaceShape('a', makePath(), { removeIds: ['b'] });
+    assert.deepEqual(model.getSelectedIds(), [result]);
+});
