@@ -281,7 +281,7 @@
     *   **作業内容** :
         *   2章要件5の5-6のとおり、パスを含むキャンバスを書き出したJS（LF・CRLF）からパスが元どおりに戻るケースを足す。既存のケース・補助関数は書き換えない。
         *   `node --test`を実行し、`fail 0`と件数を4章へ記録する。完了時に本タスクを [x] にし、4章の本タスクの欄を記入する。
-*   [ ] タスク9: JSDocの確認とRESの完成
+*   [x] タスク9: JSDocの確認とRESの完成
     *   **対象ファイル** :
         *   `./js/shapes/Path.js`、`./js/shapes/ShapeDataValidation.js`、`./js/core/ShapeFactory.js`、`./test/shapes/Path.test.js`、`./test/core/ShapeFactory.test.js`、タスク5〜8で変更した`./test/io/`の4ファイル :（確認・必要ならJSDoc・コメントのみ更新）
         *   `./_log/res/261110_1037_RES_Phase05-02_Path_Shape.md` :（更新）
@@ -365,7 +365,11 @@
 
 ### タスク9: JSDocの確認とRESの完成
 *   **作業内容** :
-    *   （未実施）
+    *   確認のみで、ソース・テストの変更は無し。`Path.js`・`test/shapes/Path.test.js`・`test/core/ShapeFactory.test.js`の先頭行に3行以内の単一責務JSDocがあり、`Path`のクラスJSDocに13メソッド契約が列挙され、`ShapeDataValidation.js`・`ShapeFactory.js`のJSDocが実コードと一致していることを確認した。
+    *   `Path.js`の`import`は`ShapeGeometry.js`・`ShapeDataValidation.js`の2つのみ。`Path.js`・`ShapeFactory.js`に`try/catch`・`switch`なし。`SHAPE_TYPES`は`create !== null`から導出され5種・従来の並び。
+    *   `git diff --stat HEAD~8 HEAD`（計画コミット以降）で、`js/`の変更は`ShapeFactory.js`・`Path.js`（新規）・`ShapeDataValidation.js`のみ。`core/`のその他・`io/`・`edit/`・`palette/`・`check/`・`main.js`・`index.html`・既存4クラスは変更なし。`test/io/`の既存行の削除は`DocumentSerializer.roundtrip.test.js`の先頭JSDoc（責務の記述）2行のみで、既存のケースは書き換わっていない。作業ツリーの未追跡は`.vscode/`のみ（本作業と無関係）。
+    *   `node --test`：`tests 498`・`pass 498`・`fail 0`。
+    *   開発資料の更新予定欄への追記：なし（2章の予定のとおり）。
 
 ### タスク10: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
 *   **作業内容** :
@@ -403,3 +407,6 @@
 11. **書き出したJSを開き直す**：10で書き出したJSをエディタの「開く（ファイル）」と「インポート」で読む → パスが元どおりに戻る（「一部読めない」の通知が出ない）。
 12. **既存の5種の図形が従来どおり動く**：直線・曲線・弧・矩形・円をそれぞれ作成し、クリック選択・範囲選択・移動・ハンドル操作・削除・複製・Undo/Redo・保存と読み込み・書き出しがこれまでと同じに動く。
 13. **図形パレットと数字キーにパスが出ない**：図形パレットのボタンは従来の5つ（並びも同じ）で、パスのボタンが無い。起動時に`PaletteController`の警告がコンソールに出ない。数字キー`1`〜`5`は従来どおりの図形に対応し、`6`を押しても何も起きない。
+
+### タスク9での確認・判断
+*   JSDoc・コメントの修正が必要な箇所は見つからなかった。判断に迷った点なし。目視確認は上記「テストプレイの確認項目」のとおり。
