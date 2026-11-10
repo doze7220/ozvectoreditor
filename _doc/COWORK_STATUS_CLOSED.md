@@ -505,3 +505,6 @@
 
 ### Phase05-01「図形クラスの共通の関数の切り出し」（完了日：2026-11-09。テストプレイ実施済み、問題なし）
 * 【解決】図形クラスの重複（`#segmentIntersectsRect`・`#validateData`が`Line`/`Curve`/`Rect`/`Ellipse`の4ファイルに重複。Phase02-03由来）：共通モジュール`js/shapes/ShapeGeometry.js`（点と線分の距離・線分と矩形の交差・2次ベジェの点）と`js/shapes/ShapeDataValidation.js`（`fromJSON`の共通項目の検証）へ切り出した。継承ではなく関数の切り出し（発注者の決定）。式の異なる`Ellipse.#distanceToOutline`は置き換えていない。切り出しの前に`test/shapes/`へ4クラスの当たり判定と`fromJSON`のエラー文のテストを追加。REQ `261109_2107`・RES `261109_2115`。詳細は`_doc/arch/12_shapes.md`。
+
+### Phase05-02「パスの図形」（完了日：2026-11-10。テストプレイ実施済み、問題なし）
+* 【解決】`validateShapeData`の頂点数が固定の数しか受けない件（Phase05-01由来）：第4引数を`number | { min }`に拡張した（既存4クラスの呼び出し・エラー文は不変）。パスの図形`js/shapes/Path.js`（図形種別`'path'`。図形データに`closed`・`segments`を足す）を、`ShapeFactory`の読み込み専用のエントリ（`create: null`。`SHAPE_TYPES`は5種のまま）として追加。書き出しは版1の`polyline`で表し、`formatVersion`・作業データの版は上げていない。REQ `261110_1007`・RES `261110_1037`。詳細は`PROJECT_ARCHITECTURE.md`2章・`_doc/arch/12_shapes.md`・`10_ShapeFactory.md`。
