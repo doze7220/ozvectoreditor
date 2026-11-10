@@ -284,7 +284,7 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
         *   JSDoc：先頭行の責務JSDocの状態の列挙に「吸い付きの表示の点」を足す（3行以内）。クラスJSDocの保持する状態の列挙、`#snapPoint`（ワールド座標の1点・表示専用・保存しない・設定と消去は`InputTracker`）、各メソッド（`@param`・`@returns`、通知の条件）、`replaceAllShapes`の(5)の列挙に足す。
         *   `test/core/VectorModel.snapPoint.test.js`に2章要件8の8-4の観点を書く（先頭行に単一責務JSDoc、補助関数にJSDoc）。
         *   `node --test`を実行し、`fail 0`と件数を4章へ記録する。完了時に本タスクを [x] にし、4章の本タスクの欄を記入する（開発資料への影響は2章、迷った点は5章へ）。
-*   [ ] タスク5: 吸い付きの照会と反映の手順`EndpointSnapper`の新設とそのテスト
+*   [x] タスク5: 吸い付きの照会と反映の手順`EndpointSnapper`の新設とそのテスト
     *   **対象ファイル** :
         *   `./js/edit/EndpointSnapper.js` :（新規）
         *   `./test/edit/EndpointSnapper.test.js` :（新規）
@@ -379,7 +379,9 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 
 ### タスク5: 吸い付きの照会と反映の手順`EndpointSnapper`の新設とそのテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `js/edit/EndpointSnapper.js`（新規）：先頭に責務JSDoc。`EndpointSnapper`クラス（`findDrawSnap`・`resolveDragEndpoint`・`findDragSnap`・`commitDrawnLine`・`joinDraggedEndpoint`）。importは`../shapes/EndpointSnapRules.js`と`../shapes/PathJoinRules.js`のみ。`model`は`getShapes`・`getDraftShape`・`cancelDraft`・`replaceShape`のみ使用。`main.js`・`InputTracker.js`は未変更（どこからも未使用）。
+    *   `test/edit/EndpointSnapper.test.js`（新規）：偽物での手順13件（換算値・呼び出し順・`keepId`/`select`・何も起きない場合）と実物の組み合わせ6件（描き足し・結合・閉じる・何も起きない・ハンドルのドラッグでの結合／閉じる、Undo/Redo）。
+    *   `node --test`：tests 646 / pass 646 / fail 0（タスク4後626、本タスクで+20）。
 
 ### タスク6: `CanvasManager`への吸い付きの表示の描画の追加
 *   **作業内容** :
@@ -444,5 +446,6 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 *   **精度のPhaseで`InputTracker`を再分離するとき**：吸い付きの作業用フィールド（`#drawStartSnap`・`#drawEndSnap`・`#dragEndpoint`・`#dragSnap`）は入力状態（`DRAWING`・`DRAGGING_HANDLE`）と寿命が同じで、`#resetSnapState()`を呼ぶ箇所（描き終え・取り消し・図形種別の切り替え・中断・左ドラッグの後始末）が`InputState`の遷移と対応している。状態の所有者を分けるときは、この対応（遷移のたびに消すこと）を崩さないこと。表示の状態は`VectorModel`にあり、消す責任は`InputTracker`にある。
 *   **スナップの対象を広げるとき**（精度のPhase：曲線・矩形・円・弧の点、整数px・グリッド）：現在の`SnapTarget`は「結合できる線の端点」専用で、`EndpointSnapper`の反映（描き足し・結合・閉じる）と1対1になっている。結合を伴わない吸い付きを足す場合は、照会の結果に「吸い付くだけで結合しない」種類を区別する項目を足し、`commitDrawnLine`・`joinDraggedEndpoint`が結合しない吸い付きを結合として扱わないようにすること。修飾キーによる一時無効は、照会の呼び出し側（`InputTracker`）でキーの状態を渡す形が候補。
 *   **規則の共有**：`PathJoinRules`の非公開の組み立て関数を`buildJoinedPath`・`buildJoinedPathAt`・`buildExtendedPath`が共有するため、頂点の並べ方・まとめ方を変えると3つが同時に変わる（`test/shapes/PathJoinRules.test.js`の全ケースで確かめる）。
+*   **`EndpointSnapper.commitDrawnLine`の判断（タスク5）**：作成途中の図形が`null`/`undefined`のときは計画なしとして扱い（`planDrawnLineJoin`を呼ばない）、両方`null`でない限り`cancelDraft`の後`true`を返す。`resolveDragEndpoint`は図形が`getShapes()`に無ければ`null`（`resolveEndpointHandle`へ渡さない）。`replaceShape`の戻り値は見ずに`true`を返す（計画が有効なら`null`になり得ないため）。開発資料への影響：`14_edit.md`に`EndpointSnapper`の節（`edit/`が`shapes/EndpointSnapRules`・`PathJoinRules`をimportする例外が`PathJoiner`に加え1つ増えること、`main.js`が注入すること、`joinDraggedEndpoint`は記録を呼ばず呼び出し側が開いた編集操作の中で使うこと）を足す予定。
 *   **`EndpointSnapRules.resolveEndpointHandle`の前提**：「頂点の番号`i`＝図形データの`points[i]`」に依る。新しい結合できる線の種類を足すときや、`Line`・`Path`の頂点の番号の約束を変えるときは見直す。
 *   （タスク1で追記）`planDrawnLineJoin`は`drawn`を、片側のみ吸い付いた場合にだけ`toJSON().points`で読む（両方null・両方吸い付きでは読まない）。`startSnap`/`endSnap`は`null`で渡す前提（`undefined`は未対応。`planEndpointDragJoin`の`snap`のみ`undefined`も`null`として扱う）。`planCloseOf`は同じ線を閉じる計画を`planDrawnLineJoin`と`planEndpointDragJoin`で共有する非公開関数（計画書に名前の無い追加）。
