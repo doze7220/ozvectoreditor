@@ -11,6 +11,7 @@ import { Line } from '../../js/shapes/Line.js';
 import { Curve } from '../../js/shapes/Curve.js';
 import { Rect } from '../../js/shapes/Rect.js';
 import { Ellipse } from '../../js/shapes/Ellipse.js';
+import { Path } from '../../js/shapes/Path.js';
 
 /**
  * 5種の図形（line・curve・rect・circle・arc）を含む図形一式を作る（idは文字列を直接代入する）。
@@ -112,6 +113,69 @@ describe('FileContentReader.deserializeFromText: 書き出したスプライト�
         const data = SpriteSerializer.serialize([]);
         assertRestored(FileContentReader.deserializeFromText(CodeExporter.toModuleText(data)), []);
         assertRestored(FileContentReader.deserializeFromText(CodeExporter.toModuleText(data).replace(/\n/g, '\r\n')), []);
+    });
+});
+
+/**
+ * 開いたパス・閉じたパスと既存の5種を混在させた図形一式を作る（idは文字列を直接代入する）。
+ * @returns {Array<object>} 図形
+ */
+function sampleShapesWithPaths() {
+    const square = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }];
+    const shapes = [
+        new Rect(10, 20, 50, 80, '#0000ff', 4),
+        new Path(square, false, '#ff0000', 3),
+        new Line(1, 2, 30, 40, '#ff0000', 5),
+        new Path(square, true, '#00aa00', 6),
+        new Ellipse(10, 20, 40, 60, 'circle', '#123456', 4),
+        new Curve(0, 0, 100, 50, '#00ff00', 3),
+        new Ellipse(10, 20, 40, 60, 'arc', '#abcdef', 1),
+    ];
+    shapes.forEach((shape, index) => {
+        shape.id = `shape-${index}`;
+    });
+    return shapes;
+}
+
+/**
+ * 復元した図形のうちパスが`Path`のインスタンスで、`closed`・`segments`が元と一致することを確かめる。
+ * @param {Array<object>} restored - 復元した図形
+ * @param {Array<object>} original - 元の図形
+ * @returns {void}
+ */
+function assertPathsRestored(restored, original) {
+    assert.equal(restored.length, original.length);
+    original.forEach((shape, index) => {
+        if (shape.type !== 'path') {
+            return;
+        }
+        const actual = restored[index];
+        assert.ok(actual instanceof Path);
+        assert.notEqual(actual, shape);
+        assert.equal(actual.closed, shape.closed);
+        assert.deepStrictEqual(actual.segments, shape.segments);
+    });
+}
+
+describe('FileContentReader.deserializeFromText: パスを含むスプライト', () => {
+    it('開いたパス・閉じたパスと既存の5種を含むJS・CRLFのJSから全図形が元どおりに戻る', (t) => {
+        t.mock.method(console, 'warn', () => {});
+        const shapes = sampleShapesWithPaths();
+        const text = CodeExporter.toModuleText(SpriteSerializer.serialize(shapes));
+        for (const source of [text, text.replace(/\n/g, '\r\n')]) {
+            const result = FileContentReader.deserializeFromText(source);
+            assertRestored(result, shapes);
+            assertPathsRestored(result.shapes, shapes);
+        }
+    });
+
+    it('パスだけのスプライトのJSからも戻り、閉じたパスは閉じたまま・開いたパスは開いたまま', (t) => {
+        t.mock.method(console, 'warn', () => {});
+        const shapes = sampleShapesWithPaths().filter((shape) => shape.type === 'path');
+        assert.deepStrictEqual(shapes.map((shape) => shape.closed), [false, true]);
+        const result = FileContentReader.deserializeFromText(CodeExporter.toModuleText(SpriteSerializer.serialize(shapes)));
+        assertRestored(result, shapes);
+        assertPathsRestored(result.shapes, shapes);
     });
 });
 

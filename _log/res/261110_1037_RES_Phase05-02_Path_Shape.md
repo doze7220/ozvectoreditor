@@ -275,7 +275,7 @@
         *   2章要件5の5-5のとおり、既存の`assertSameAsEditor`で開いたパス・閉じたパス等の`draw`と書き出した`draw`の描画命令の記録が一致することを確かめるケースを足す。既存のケース・補助関数は書き換えない。
         *   一致しない場合は`io/`を直さず、`Path.draw`（2章要件4）を見直す。`io/`の変更・`formatVersion`の版上げが必要と判断した場合は作業を中断して5章に理由を書き、報告する（エンジンとの約束(c)により設計指針の変更提案に当たる）。
         *   `node --test`を実行し、`fail 0`と件数を4章へ記録する。完了時に本タスクを [x] にし、4章の本タスクの欄を記入する。
-*   [ ] タスク8: 書き出したJSの読み込みテストへのパスの追加
+*   [x] タスク8: 書き出したJSの読み込みテストへのパスの追加
     *   **対象ファイル** :
         *   `./test/io/FileContentReader.test.js` :（更新。ケースの追加のみ）
     *   **作業内容** :
@@ -358,7 +358,10 @@
 
 ### タスク8: 書き出したJSの読み込みテストへのパスの追加
 *   **作業内容** :
-    *   （未実施）
+    *   `test/io/FileContentReader.test.js`にケースを追加（既存のケース・補助関数は未変更。既存部分に触れたのは`import { Path }`の1行のみ）。補助関数`sampleShapesWithPaths`・`assertPathsRestored`（JSDoc付き）を足した。既存の`assertRestored`を使用。
+    *   `describe('FileContentReader.deserializeFromText: パスを含むスプライト')`：開いたパス・閉じたパスと既存の5種の混在をJS（LF・CRLF）に書き出して読み、`toJSON()`の並びと内容、`Path`のインスタンス、`closed`・`segments`が一致することを確認／パスだけのスプライトの読み込み、の2件。
+    *   `node --test`：`tests 498`・`pass 498`・`fail 0`（タスク7時点の496から2件増）。
+    *   開発資料の更新予定欄への追記：なし。
 
 ### タスク9: JSDocの確認とRESの完成
 *   **作業内容** :
