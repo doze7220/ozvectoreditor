@@ -312,7 +312,7 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
         *   `<style>`に`.selection-button-row`（`display: flex; gap: 8px;`）と`.selection-button-row .tool-btn`（`flex: 1; text-align: center; white-space: nowrap;`）を、`.history-button-row`の規則の直後に新しい規則として足す。CSSコメントで「削除・結合の2ボタンを1行に横並び（コントロールパネルの高さを増やさないため。取り消し・やり直しの行と同じ見た目）」を書く。既存の規則（`.history-button-row`・`#window-shape-palette`の`top`とそのコメント等）は変えない。
         *   本タスクの時点では`main.js`が配線しないため、ボタンは`disabled`のまま押せない（起動は壊れない）。
         *   `node --test`を実行し、`fail 0`と件数を4章へ記録する（件数は変わらない）。完了時に本タスクを [x] にし、4章の本タスクの欄を記入する（開発資料への影響は2章、迷った点は5章へ）。
-*   [ ] タスク6: `main.js`の配線（`PathJoiner`の生成・`performJoin`・ボタンと押せる状態の同期・`join`コールバックの注入）
+*   [x] タスク6: `main.js`の配線（`PathJoiner`の生成・`performJoin`・ボタンと押せる状態の同期・`join`コールバックの注入）
     *   **対象ファイル** :
         *   `./js/main.js` :（更新。配線のみ）
     *   **作業内容** :
@@ -400,8 +400,12 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
     *   開発資料への影響：更新予定欄の`01_index_html.md`の記述で足りる（追記なし）。目視確認推奨：削除・結合が1行に並び、`#window-shape-palette`との余白が保たれていること。
 
 ### タスク6: `main.js`の配線（`PathJoiner`の生成・`performJoin`・ボタンと押せる状態の同期・`join`コールバックの注入）
+*   **対象ファイル** : `./js/main.js`（更新。配線のみ）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `import { PathJoiner }`を追加。配線ブロック`// 6.`の削除ボタン配線の直後に、`pathJoiner`の生成（`model`・`editRecorder: historyManager`・`screenLengthToWorld`）、`joinSelectionBtn`、`performJoin()`（ドラッグ中は`false`、それ以外は`pathJoiner.join()`）、`syncJoinButtonState()`、`model.onChange(syncJoinButtonState)`、ボタンのclickを追加（JSDoc・コメント付き）。
+    *   `// 8.`の`KeyboardShortcuts`のコールバックに`join: performJoin`を`deleteSelection`の後へ追加。起動時の同期の`syncDeleteButtonState();`の直後に`syncJoinButtonState();`を追加。既存の配線・関数は未変更。
+    *   `node --test`：tests 563 / pass 563 / fail 0（件数変化なし）。
+    *   開発資料への影響：`main.js`の行数は538行→584行（`wc -l`）。更新予定欄の`02_main.md`の記述で足りる（行数は実測値584行に改める）。
 
 ### タスク7: `KeyboardShortcuts`の対応表へのキー`J`の追加
 *   **作業内容** :

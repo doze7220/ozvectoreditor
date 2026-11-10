@@ -14,6 +14,7 @@ import { SHAPE_TYPES } from './core/ShapeFactory.js';
 import { DocumentSerializer } from './io/DocumentSerializer.js';
 import { DevPanel } from './palette/DevPanel.js';
 import { ShapeInserter } from './edit/ShapeInserter.js';
+import { PathJoiner } from './edit/PathJoiner.js';
 import { ClipboardController } from './edit/ClipboardController.js';
 import { SnapshotAdapter } from './edit/SnapshotAdapter.js';
 import { CanvasStorage } from './io/CanvasStorage.js';
@@ -207,6 +208,45 @@ document.addEventListener('DOMContentLoaded', () => {
     // 削除ボタン：受理条件の判定と削除はinputTracker.deleteSelection()のみが担う
     // （Delete/Backspaceショートカットと同一経路。ここでmodel.deleteShapesを直接呼ばないこと）
     deleteSelectionBtn.addEventListener('click', () => inputTracker.deleteSelection());
+
+    // 結合（選択中の線の結合）。規則はshapes/PathJoinRules、手順はedit/PathJoinerが担い、ここは配線のみ。
+    // 端点の重なりの許容距離（画面上のpx）は、結合を行う時点の表示倍率でワールド座標の長さへ換算する
+    const pathJoiner = new PathJoiner({
+        model,
+        editRecorder: historyManager,
+        screenLengthToWorld: (length) => viewTransform.screenLengthToWorld(length),
+    });
+    // コントロールパネルの結合ボタン（modeButtonsには含めない：.activeの対象外）
+    const joinSelectionBtn = document.getElementById('selection-join');
+
+    /**
+     * 選択中の線を結合する。結合ボタンとキー`J`の共通経路（どちらもこの関数のみを呼ぶ）。
+     * (1) ドラッグ中（InputTracker.isDragging()が真）なら何もせずfalse（不受理）。ボタンはショートカット以外の
+     *     呼び出し元のため、中ボタンのパン中に左クリックで押される場合に備えてここで判定する。
+     * (2) それ以外はpathJoiner.join()の結果を返す。
+     * @returns {boolean} 結合した場合のみtrue（不受理・結合できない選択ではfalse）
+     */
+    function performJoin() {
+        if (inputTracker.isDragging()) {
+            return false;
+        }
+        return pathJoiner.join();
+    }
+
+    /**
+     * コントロールパネルの結合ボタン（`#selection-join`）の押せる/押せない状態を、現在の選択が結合できるか
+     * （pathJoiner.canJoin()）に同期する（HTMLの`disabled`属性）。canJoin()は表示倍率を見ない。
+     * model.onChangeのコールバックとして登録し、起動時にも明示的に1回呼び出す。ボタンのDOM更新はmain.jsが担う。
+     */
+    function syncJoinButtonState() {
+        joinSelectionBtn.disabled = !pathJoiner.canJoin();
+    }
+
+    // 選択集合・図形の変化に応じて結合ボタンの状態を更新する
+    model.onChange(syncJoinButtonState);
+
+    // 結合ボタン：受理条件の判定と結合はperformJoin→pathJoiner.join()のみが担う（キー`J`と同一経路）
+    joinSelectionBtn.addEventListener('click', () => performJoin());
 
     /**
      * コントロールパネルの取り消し・やり直しボタン（`#history-undo`／`#history-redo`）の押せる/押せない状態を
@@ -444,6 +484,8 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         // 選択集合の削除（削除ボタンと同一経路。受理条件はdeleteSelection()のみが判定する）
         deleteSelection: () => inputTracker.deleteSelection(),
+        // 選択中の線の結合（結合ボタンと同一経路。結合した場合のみtrue）
+        join: performJoin,
         // 取り消し・やり直し（取り消し・やり直しボタンと同一経路。受理条件はperformUndo/performRedoのみが判定する）
         undo: performUndo,
         redo: performRedo,
@@ -519,6 +561,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // 削除ボタンの押せる/押せない状態も同様に、index.htmlの初期disabled属性やonChange通知に
     // 依存させず、Modelの選択集合の実値で明示的に1回同期する
     syncDeleteButtonState();
+
+    // 結合ボタンの押せる/押せない状態も削除ボタンと同様に、index.htmlの初期disabled属性やonChange通知に
+    // 依存させず、Modelの選択集合の実値で明示的に1回同期する
+    syncJoinButtonState();
 
     // 取り消し・やり直しボタンの押せる/押せない状態も同様に、index.htmlの初期disabled属性やonChange通知に
     // 依存させず、履歴と作成途中の図形の実値で明示的に1回同期する
