@@ -216,6 +216,7 @@
     *   「既存のテストファイルと検証範囲」に`test/shapes/Path.test.js`（5-1の観点）と`test/core/ShapeFactory.test.js`（5-2の観点）を足す。
     *   `test/io/DocumentSerializer.roundtrip.test.js`・`test/io/SpriteSerializer.test.js`・`test/io/CodeExporter.test.js`・`test/io/FileContentReader.test.js`の記述に、パス（開いた・閉じた）のケースを足す（5種→5種とパス）。
     *   `ShapeDataValidation`の`{ min }`の形は`Path`のテストを通して確かめていることを足す（「共通モジュールの関数そのもののテストは無く、図形クラスのテストを通して確かめている」に含める）。
+*   **`_doc/arch/12_shapes.md`（監査指摘による追記）**：「メソッドを増減する場合は4クラスのクラスJSDocも更新する」を`Path`を含む5クラスに改める。「変換の変更時の注意」の`validateShapeData`の項の「`test/shapes/`の4クラスのエラー文のテストを確かめる」を`Path`の`test/shapes/Path.test.js`を含む記述に改める。
 *   （各タスクの実行時に影響が判明した場合は、この欄へ追記する。資料本体への反映はタスク10で行う。）
 
 ## 3. タスクリスト
@@ -291,7 +292,7 @@
         *   プロジェクトのルートで`node --test`を実行し、全テストの成功と件数を4章の本タスクの欄へ記録する。
         *   本RESの仕上げとして、4章の本タスクの欄を記入し（タスク1〜8の欄は書き換えない）、開発資料への影響を2章の更新予定欄へ（資料本体は修正しない）、判断に迷った点・目視確認を推奨する箇所・将来修正する際の注意点を5章へ追記する。
         *   完了時に本タスクを [x] にする。
-*   [ ] タスク10: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
+*   [x] タスク10: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新。1章のフォルダ構成、2章の「図形（Shape）」「図形データ」「描画要素」）
         *   `./_doc/arch/12_shapes.md` :（更新）
@@ -373,7 +374,16 @@
 
 ### タスク10: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
 *   **作業内容** :
-    *   （未実施）
+    *   2章「開発資料の更新予定」（監査指摘の追記を含む）のとおり、次の4ファイルへ反映した（コード・テストは未変更）。
+    *   `PROJECT_ARCHITECTURE.md`：1章のフォルダ構成（`Path.js`を`Ellipse.js`の次へ・「図形クラスは種別ごとに1ファイル」の注記を`Path.js`の行へ移動、`test/core/ShapeFactory.test.js`・`test/shapes/Path.test.js`）／2章「図形（Shape）」の頂点の保持形式／2章「図形データ」（共通項目と種別ごとの追加項目、`path`の項：キー順・`closed`・区間の約束・頂点数の下限・作業データの版を上げていないこと）／2章「描画要素」の`polyline`に`path`。
+    *   `_doc/arch/12_shapes.md`：自律実装するクラスの列挙・`draw`のシグネチャの記述に`Path`／新規図形追加の括弧書きに読み込み専用種別はボタン不要／`intersectsRect`・`toDrawElement()`に`Path`／「変換の変更時の注意」に`validateShapeData`の頂点数の2つの形・`Path.fromJSON`の生成方法とパス固有項目の検証／**Path.js**の節を新設。
+    *   追加仕様（監査指摘）：「メソッドを増減する場合は4クラス…」→`Path`を含む5クラス／「`test/shapes/`の4クラスのエラー文のテスト」→`Path.test.js`を含む全クラス。
+    *   追加仕様に基づき見つけた、ほかのずれの修正：`12_shapes.md`の`Ellipse.js`の節の「`hitTest`は他3クラスと異なり…」→「他4クラス（`Path`を含む）」。`16_test.md`の「5種の図形」「5種の描画要素」（`DocumentSerializer.roundtrip`・`SpriteSerializer`）を「5種…とパス」に改め（`CodeExporter`の`extractSpriteDataText`の「5種の図形・図形0個…」は実際のテストにパスが無いため改めていない）、`CodeExporter`の描画の一致に「パスを含む」、`FileContentReader`に「パスを含む」を追記。`PROJECT_ARCHITECTURE.md`の「`Curve`/`Rect`/`Ellipse`は`points`配列」（上記の更新予定の範囲）。
+    *   `_doc/arch/10_ShapeFactory.md`：対応関係に`path`→`Path`／「読めるが作れない種別」の項を新設／並び順の記述の対象（`create`が`null`でないエントリ）／図形種別の追加手順に読み込み専用種別は③不要。
+    *   `_doc/arch/16_test.md`：`test/shapes/Path.test.js`・`test/core/ShapeFactory.test.js`の項を新設／往復・スプライト・`CodeExporter`・`FileContentReader`の記述にパスを追記／`ShapeDataValidation`の`{ min }`の形は`Path`のテストを通して確かめていることを追記。
+    *   上記以外の`_doc/arch/`には食い違いを見つけなかった（`17_sprite_check.md`・`15_io.md`等は変更なし）。
+    *   `node --test`：`tests 498`・`pass 498`・`fail 0`（資料のみの変更のため件数は不変）。
+    *   監査指摘の修正：`_doc/arch/16_test.md`の`CodeExporter.test.js`の項の`extractSpriteDataText`の説明を「5種の図形・図形0個…」に戻した（実テストにパスは無いため。「描画の一致」の「パスを含む」は維持）。上の「ほかのずれの修正」の記述も実際の変更に合わせた。
 
 ## 5. 懸念事項・要確認ポイント
 
@@ -410,3 +420,8 @@
 
 ### タスク9での確認・判断
 *   JSDoc・コメントの修正が必要な箇所は見つからなかった。判断に迷った点なし。目視確認は上記「テストプレイの確認項目」のとおり。
+
+### タスク10（開発資料への反映）での判断・注意
+*   **`Path.hitTest`の許容誤差の記述**：`12_shapes.md`の`Ellipse.js`の節の「他3クラスと異なり`strokeWidth/2`を足す」は、`Path`が足さないため「他4クラス（`Path`を含む）」に改めた。
+*   **`10_ShapeFactory.md`の「並び順」**：`SHAPE_REGISTRY`の並び＝パレット順は`create`が`null`でないエントリについてのものとし、読み込み専用のエントリは末尾に置く前提を書いた。読み込み専用の種別を増やす場合もこの前提を保つこと。
+*   **`16_test.md`の件数・ケースの列挙**：テストの件数は書かず観点だけを書いた（件数は`node --test`で見る）。

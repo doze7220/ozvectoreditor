@@ -35,7 +35,8 @@
 │   │   ├── Line.js
 │   │   ├── Curve.js
 │   │   ├── Rect.js
-│   │   ├── Ellipse.js          # 図形クラスは種別ごとに1ファイル
+│   │   ├── Ellipse.js
+│   │   ├── Path.js             # 図形クラスは種別ごとに1ファイル
 │   │   ├── ShapeGeometry.js    # 以下2つは図形クラスではない。図形クラスだけが使う共通の関数
 │   │   └── ShapeDataValidation.js
 │   ├── palette/
@@ -61,11 +62,14 @@
 │       ├── SpriteCheckCanvas.js
 │       └── SpriteCheckInspector.js
 ├── test/                       # 自動テスト（node --test でのみ実行。index.html・js/からは参照しない）。中はjs/の構成に合わせる
+│   ├── core/
+│   │   └── ShapeFactory.test.js
 │   ├── shapes/
 │   │   ├── Line.test.js
 │   │   ├── Curve.test.js
 │   │   ├── Rect.test.js
-│   │   └── Ellipse.test.js
+│   │   ├── Ellipse.test.js
+│   │   └── Path.test.js
 │   ├── io/
 │   │   ├── DocumentSerializer.roundtrip.test.js
 │   │   ├── DocumentSerializer.errors.test.js
@@ -110,9 +114,13 @@
 ### 2. データ構造（Model）の概要
 *   **図形（Shape）**：`shapes/`の図形クラスのインスタンス。
     *   共通プロパティ：`type`（`ShapeFactory`が受理する文字列と一致）・`id`（`VectorModel`が採番）・`strokeColor`・`strokeWidth`。
-    *   頂点の保持形式は図形クラスごとに異なる（`Line`は`x1, y1, x2, y2`、`Curve`/`Rect`/`Ellipse`は`points`配列。4章`shapes/`）。
+    *   頂点の保持形式は図形クラスごとに異なる（`Line`は`x1, y1, x2, y2`、`Curve`/`Rect`/`Ellipse`/`Path`は`points`配列（`Path`は頂点数が可変で、`closed`・`segments`も持つ）。4章`shapes/`）。
     *   塗りつぶしの共通プロパティは未定義。
-*   **図形データ**（1図形のJSON表現）：全図形共通で`{ type, id, points: [{ x, y }, ...], strokeColor, strokeWidth }`。
+*   **図形データ**（1図形のJSON表現）：全図形共通で`{ type, id, points: [{ x, y }, ...], strokeColor, strokeWidth }`を共通の項目とし、種別により項目を足す（`path`）。
+    *   **`path`**：`{ type: 'path', id, points, closed, segments: [{ kind: 'line' }, ...], strokeColor, strokeWidth }`（キー順）。`closed`は真偽値のみ。
+        *   区間の約束：`segments[i]`＝`points[i]`→`points[i+1]`、閉じたパスの最後＝`points[n-1]`→`points[0]`。要素数は開いた`n - 1`・閉じた`n`。`kind`は現在`'line'`のみ。曲線の区間は`kind`の値と区間の要素のキーを足して拡張する。区間の要素の余分なキーは無視する。
+        *   頂点数の下限は開いた2・閉じた3、上限なし。長さ0の区間は可。
+        *   パスの追加では作業データの版を上げていない（古いエディタでは未知の図形種別として図形単位でスキップされる。発注者の決定）。
     *   各図形クラスの`toJSON()`/`static fromJSON(data)`で相互変換する。
     *   `Line`も`points`2点＝[始点, 終点]で表す。`points`の並びは各図形クラスの頂点の並びと同じ。
     *   `fromJSON`直後の`id`は未検証・未正規化（欠落なら`undefined`、任意の型を取り得る）。`VectorModel.replaceAllShapes`の正規化を経て初めて一意な文字列になる。
@@ -128,7 +136,7 @@
         *   含めないもの：スプライトごとの変わらないID、キャンバス名、作成日時（参照はファイル名で行う）。
         *   単位はpx、角度はラジアン。基準点はワールド座標の原点(0, 0)、y軸は下向き。エディタのワールド座標をそのまま使い、平行移動・拡大・丸めをしない。
     *   **描画要素**（`elements`の1要素＝図形1つ。描画順＝`model.getShapes()`の並び。`id`は図形の`id`そのまま、頂点は作業データの`points`の並び順のまま。回転のキーは持たない）。図形クラスの`toDrawElement()`が作る。共通のキーは`kind`・`id`・`strokeColor`・`strokeWidth`。
-        *   `"polyline"`（`line`・`rect`）：`kind, id, points: [{x, y}, ...], closed, strokeColor, strokeWidth`。`line`は`closed: false`・2点、`rect`は`closed: true`・4点。`beginPath` → `moveTo(points[0])` → `lineTo`（i=1…）→ `closed`なら`closePath`。
+        *   `"polyline"`（`line`・`rect`・`path`）：`kind, id, points: [{x, y}, ...], closed, strokeColor, strokeWidth`。`line`は`closed: false`・2点、`rect`は`closed: true`・4点、`path`は`closed`のとおり・全頂点（閉じたパスも始点を重複させない）。区間の種類は描画要素に出さない（区間がすべて直線の間のみ`polyline`で表せる）。`beginPath` → `moveTo(points[0])` → `lineTo`（i=1…）→ `closed`なら`closePath`。
         *   `"quadratic"`（`curve`）：`kind, id, points: [始点, 制御点, 終点], strokeColor, strokeWidth`。`beginPath` → `moveTo` → `quadraticCurveTo(制御点, 終点)`。
         *   `"ellipse"`（`circle`・`arc`）：`kind, id, x, y, radiusX, radiusY, startAngle, endAngle, closed, strokeColor, strokeWidth`。`ellipse(x, y, radiusX, radiusY, 0, startAngle, endAngle)`（回転は常に0）→ `closed`なら`closePath`。`circle`は`closed: true`・0〜2π、`arc`は`closed: false`・π〜2π。値は`Ellipse.draw`と同じ式（読む側は`Ellipse`の`points`の約束を知らなくてよい）。
         *   どの`kind`もパスの後に`strokeStyle` → `lineWidth` → `stroke()`（エディタの各図形の`draw`と同じ順・同じ命令）。
