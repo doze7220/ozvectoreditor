@@ -228,7 +228,7 @@
         *   既存の4クラス（`Line.js`・`Curve.js`・`Rect.js`・`Ellipse.js`）と既存のテストは変更しない。
         *   プロジェクトのルートで`node --test`を実行し、`fail 0`と件数を4章の本タスクの欄へ記録する（計画時点：`tests 385`・`pass 385`・`fail 0`。本タスクはテストを足さないため件数は変わらない）。
         *   開発資料への影響は2章の更新予定欄へ追記し（資料本体は修正しない）、迷った点は5章へ追記する。完了時に本タスクを [x] にし、4章の本タスクの欄を記入する。
-*   [ ] タスク2: `Path`クラスの新設
+*   [x] タスク2: `Path`クラスの新設
     *   **対象ファイル** :
         *   `./js/shapes/Path.js` :（新規）
     *   **作業内容** :
@@ -313,7 +313,10 @@
 
 ### タスク2: `Path`クラスの新設
 *   **作業内容** :
-    *   （未実施）
+    *   `js/shapes/Path.js`を新設。2-1〜2-3・1-3のとおり13メソッドを自律実装（`import`は`ShapeGeometry.js`・`ShapeDataValidation.js`のみ、`try/catch`なし）。非公開補助は`#tracePath(ctx)`（区間の種類による分岐の置き場所。JSDocに曲線追加時の注意を記載）と`#someSegment(predicate)`（`hitTest`・`intersectsRect`共有。区間`i`の両端は`points[i]`・`points[(i+1)%n]`）。
+    *   `fromJSON`は`validateShapeData(data, 'Path', ['path'], { min: 2 })`の後に1-3の7〜12を検査（エラー文は表の全文。12の`'line'`は`ACCEPTED_SEGMENT_KINDS`から生成）。`isPlainObject`は`Path.js`内に同条件で定義。
+    *   `ShapeFactory`・テストは未変更。`node --test`：`tests 385`・`pass 385`・`fail 0`。簡易動作確認（閉じた3点のtoJSON・要素数不一致のエラー文）も期待どおり。
+    *   開発資料の更新予定欄への追記：なし（計画済みの内容どおり）。
 
 ### タスク3: `Path`のテストの新設
 *   **作業内容** :
