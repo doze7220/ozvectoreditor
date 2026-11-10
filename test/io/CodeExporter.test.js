@@ -9,6 +9,7 @@ import { Line } from '../../js/shapes/Line.js';
 import { Curve } from '../../js/shapes/Curve.js';
 import { Rect } from '../../js/shapes/Rect.js';
 import { Ellipse } from '../../js/shapes/Ellipse.js';
+import { Path } from '../../js/shapes/Path.js';
 
 /**
  * スプライトデータからJSのテキストを組み立て、動的importして既定のexportを返す。
@@ -185,6 +186,57 @@ describe('CodeExporter.toModuleText: 見た目の一致（描画命令の記録�
         const arc = new Ellipse(10, 20, 40, 60, 'arc');
         arc.setVertex(2, 10, -50);
         await assertSameAsEditor([curve, rect, circle, arc]);
+    });
+});
+
+describe('CodeExporter.toModuleText: 見た目の一致（パス）', () => {
+    const square = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }];
+
+    it('開いたパス', async () => {
+        await assertSameAsEditor([new Path(square, false, '#ff0000', 5)]);
+    });
+
+    it('閉じたパス（closePathが入り、始点へのlineToは出ない）', async () => {
+        const path = new Path(square, true, '#00ff00', 3);
+        await assertSameAsEditor([path]);
+        const names = recordEditorDraw([path]).map((entry) => entry[0]);
+        assert.equal(names.filter((name) => name === 'closePath').length, 1);
+        assert.equal(names.filter((name) => name === 'lineTo').length, 3);
+    });
+
+    it('2点の開いたパス', async () => {
+        await assertSameAsEditor([new Path([{ x: 1, y: 2 }, { x: 30, y: 40 }], false, '#0000ff', 4)]);
+    });
+
+    it('3点の閉じたパス', async () => {
+        await assertSameAsEditor([new Path([{ x: 0, y: 0 }, { x: 50, y: 0 }, { x: 25, y: 40 }], true)]);
+    });
+
+    it('頂点を動かしたパス・平行移動したパス', async () => {
+        const moved = new Path(square, true, '#123456', 2);
+        moved.setVertex(2, 130, 70);
+        const translated = new Path(square, false, '#abcdef', 1);
+        translated.translate(15, -20);
+        await assertSameAsEditor([moved, translated]);
+    });
+
+    it('長さ0の区間を含むパス', async () => {
+        await assertSameAsEditor([
+            new Path([{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 100, y: 0 }], false),
+            new Path([{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 0 }], true),
+        ]);
+    });
+
+    it('既存の5種との混在（描画順を保つ）', async () => {
+        await assertSameAsEditor([
+            new Rect(0, 0, 5, 5, '#111111', 1),
+            new Path(square, false, '#222222', 6),
+            new Line(0, 0, 10, 10, '#333333', 7),
+            new Path(square, true, '#444444', 3),
+            new Ellipse(10, 20, 40, 60, 'circle'),
+            new Curve(0, 0, 30, 30),
+            new Ellipse(5, 5, 25, 15, 'arc', '#555555', 3),
+        ]);
     });
 });
 
