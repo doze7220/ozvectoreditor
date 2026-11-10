@@ -304,7 +304,7 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
         *   `test/edit/PathJoiner.test.js`に9-3の観点を書く（先頭行に単一責務JSDoc、補助関数にJSDoc）。
         *   `main.js`・`index.html`は変更しない（本タスクの時点では`PathJoiner`はどこからも使われない）。
         *   `node --test`を実行し、`fail 0`と件数を4章へ記録する。完了時に本タスクを [x] にし、4章の本タスクの欄を記入する（開発資料への影響は2章、迷った点は5章へ）。
-*   [ ] タスク5: コントロールパネルへの「結合」ボタンの追加
+*   [x] タスク5: コントロールパネルへの「結合」ボタンの追加
     *   **対象ファイル** :
         *   `./index.html` :（更新。結合ボタンとその行の見た目のみ）
     *   **作業内容** :
@@ -391,8 +391,13 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
     *   監査指摘の修正：2章の`16_test.md`の項に、実物の組み合わせテストの内容と規則（注入される依存は偽物）の例外を追記。`test/edit/PathJoiner.test.js`を締め直し：`screenLengthToWorld`の呼び出しを`[5]`の厳密比較に（実装は計画前に必ず1回呼ぶため、受理しない選択でも1回）、`canJoin`が受理する選択（閉じる・2本）でも記録`calls`が空であることを確認。`node --test`：tests 563 / pass 563 / fail 0。
 
 ### タスク5: コントロールパネルへの「結合」ボタンの追加
+*   **対象ファイル** : `./index.html`（更新）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `#selection-delete`を`<div class="selection-button-row">`で包み、その右に`<button type="button" id="selection-join" class="tool-btn" title="選択中の線を結合 (J)" disabled>🔗 結合</button>`を追加。削除ボタンの属性・表示文字列は未変更。
+    *   `<style>`の`.history-button-row .tool-btn`の規則の直後に`.selection-button-row`（`display: flex; gap: 8px;`）と`.selection-button-row .tool-btn`（`flex: 1; text-align: center; white-space: nowrap;`）を新規追加（CSSコメント付き）。既存の規則は未変更。
+    *   `main.js`が未配線のため結合ボタンは`disabled`のまま。
+    *   `node --test`：tests 563 / pass 563 / fail 0（件数変化なし）。
+    *   開発資料への影響：更新予定欄の`01_index_html.md`の記述で足りる（追記なし）。目視確認推奨：削除・結合が1行に並び、`#window-shape-palette`との余白が保たれていること。
 
 ### タスク6: `main.js`の配線（`PathJoiner`の生成・`performJoin`・ボタンと押せる状態の同期・`join`コールバックの注入）
 *   **作業内容** :

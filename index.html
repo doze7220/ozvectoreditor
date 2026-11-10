@@ -125,6 +125,17 @@
             text-align: center;
             white-space: nowrap;
         }
+        /* 削除・結合の2ボタンを1行に横並び（コントロールパネルの高さを増やさないため。
+           取り消し・やり直しの行と同じ見た目） */
+        .selection-button-row {
+            display: flex;
+            gap: 8px;
+        }
+        .selection-button-row .tool-btn {
+            flex: 1;
+            text-align: center;
+            white-space: nowrap;
+        }
         /* コントロールパネルの開いているキャンバスの名前の表示（呼び出し口の直上の1行。
            長い名前は省略表示し、名前全体はmain.jsがtitle属性に設定する） */
         .canvas-name-display {
@@ -262,7 +273,10 @@
             <button type="button" id="mode-select" class="tool-btn active" title="選択 (V)">🖱 選択</button>
             <button type="button" id="mode-create" class="tool-btn" title="図形作成 (P)">✏ 図形作成</button>
             <button type="button" id="mode-pan" class="tool-btn" title="キャンバス移動 (H)">✋ キャンバス移動</button>
-            <button type="button" id="selection-delete" class="tool-btn" title="選択中の図形を削除 (Delete / Backspace)" disabled>🗑 削除</button>
+            <div class="selection-button-row">
+                <button type="button" id="selection-delete" class="tool-btn" title="選択中の図形を削除 (Delete / Backspace)" disabled>🗑 削除</button>
+                <button type="button" id="selection-join" class="tool-btn" title="選択中の線を結合 (J)" disabled>🔗 結合</button>
+            </div>
             <div class="history-button-row">
                 <button type="button" id="history-undo" class="tool-btn" title="取り消し (Ctrl+Z)" disabled>↶ 取り消し</button>
                 <button type="button" id="history-redo" class="tool-btn" title="やり直し (Ctrl+Y / Ctrl+Shift+Z)" disabled>↷ やり直し</button>
