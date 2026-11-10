@@ -1,6 +1,6 @@
 *   **CanvasManager.js**：Canvasへの純粋な描画（レンダラーの責務）。
-    *   **公開メソッド**：`render(shapes, { hoveredId, selectedIds, draftShape, selectionRect, view } = {})`・`resize()`。呼び出し元は`main.js`。
+    *   **公開メソッド**：`render(shapes, { hoveredId, selectedIds, draftShape, selectionRect, view, snapPoint } = {})`・`resize()`。呼び出し元は`main.js`。
     *   **持たないもの**：図形データ・選択状態・ビュー変換状態（値は引数で受け取り、`ViewTransform`はimportしない）。保持するのはCanvas要素・2Dコンテキスト・dprのみ。
-    *   **描画順**：背景グリッド → 軸線・原点マーク → 全図形の`draw(ctx)`（＋ホバー図形の`drawHover(ctx, view.scale)`）→ 選択集合の図形の`drawHandles(ctx, view.scale)`（複数選択時に前面の図形が背面図形のハンドルを覆わないよう、全図形の描画後にまとめて描く2パス）→ `draftShape`の`draw(ctx)` → 選択矩形。補助描画はいずれもポリモーフィックに呼ぶ。`draw`に`t`は渡さない。
+    *   **描画順**：背景グリッド → 軸線・原点マーク → 全図形の`draw(ctx)`（＋ホバー図形の`drawHover(ctx, view.scale)`）→ 選択集合の図形の`drawHandles(ctx, view.scale)`（複数選択時に前面の図形が背面図形のハンドルを覆わないよう、全図形の描画後にまとめて描く2パス）→ `draftShape`の`draw(ctx)` → 吸い付きの表示（`snapPoint`が非`null`のとき。中を青で塗った正方形で、大きさ・線幅を`÷ view.scale`して画面上で一定にする。定数は`CanvasManager`内）→ 選択矩形。補助描画はいずれもポリモーフィックに呼ぶ。`draw`に`t`は渡さない。
     *   **`resize()`**：コンストラクタとウィンドウリサイズ時（`main.js`）から呼ばれる。`render()`を呼ばない（再描画トリガーは`main.js`側の責務）。
     *   **制約**：可視範囲の計算は対角2隅のみを写すため、回転・せん断を含まない描画変換を前提とする（ビューに回転を加える場合は四隅を写す実装へ変更が必要で、グリッド・原点表示の両方に影響する）。軸線はグリッド線と重なって描かれるため、色を変える場合は見分けやすさを再確認する。初期表示（開く・新規作成・開く（ファイル）・起動時の復元）とビューのリセット時は、原点がキャンバス要素全体の中央・倍率100%に位置する（`main.js`の`resetViewToCenter`。ウィンドウの大きさの変更には追従しない。インポートでは表示を変えない）。

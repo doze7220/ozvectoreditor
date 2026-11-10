@@ -10,4 +10,7 @@
     *   **当たり分類**：1つの分類処理の結果をホバー・押下・クリック・カーソルの4箇所で共用し、クリックの解釈にホバー状態を参照しない。ハンドルの優先順位（図形配列の後ろ＝前面優先）は`CanvasManager`のハンドル描画順と一致させる。範囲選択の矩形の正規化は確定処理の1箇所のみ。
     *   **座標系**：コンストラクタで`ViewTransform`を受け取る（`main.js`が注入。変換式は持たない）。`VectorModel`・当たり判定へ渡す座標はすべてワールド座標。当たり判定の許容誤差は画面上5px相当をワールド換算して渡す。
     *   **DragTrackerの所有**：コンストラクタで`DragTracker`を生成・所有する。ドラッグセッションは同時に1つのみ。click抑止フラグの所有者は`DragTracker`。キャンバスの`mouseup`は購読しない（終了検知は`DragTracker`へ一元化）。
-    *   **行数**：約1140行。再分離の候補は`_doc/COWORK_STATUS.md`2章A。
+    *   **端点への吸い付き**（3章12.）：コンストラクタの第5引数`snapAssist`（typedef`EndpointSnapAssist`。実体は`main.js`が注入する`EndpointSnapper`。省略時は何もしない既定値で、吸い付かない）。`InputTracker`は吸い付きの候補の探索・距離の判定・結果の組み立て・モデルへの反映（描き足し・結合・閉じる）を持たず、注入されたものを呼ぶ。描く図形種別（直線か）と端点のハンドルの判定も委ねる（図形種別・`vertexIndex`規約を知らないため）。`SnapTarget`は`x`・`y`だけを読む。持つのは呼ぶ場面の配線と、表示の点の設定・消去（`model.setSnapPoint`/`clearSnapPoint`）と、吸い付きの作業用フィールドのみ。
+        *   **配線の場面**：mousemove（`DRAWING`は照会・保持・表示・終点の追従、図形作成モードのIDLEは照会して表示のみ）、描き始め（クリック位置で照会）、描き終え（`commitDrawnLine`。描き終えの端点は直前のmousemoveの結果）、ハンドルのドラッグの開始（`resolveDragEndpoint`）・更新（`findDragSnap`・表示・吸い付いた座標で`updateVertex`）・終了（移動して離したとき`joinDraggedEndpoint`、その後`#finishLeftDrag`）。
+        *   **表示を消す箇所**：`#resetSnapState()`（描き終え、`cancelDraftOrClearSelection`のDRAWING分岐、`setShapeType`、`#abortOngoingOperation`、`#finishLeftDrag`）、`#beginPan`。作業用フィールドの寿命は入力状態（`DRAWING`・`DRAGGING_HANDLE`）と同じで、状態の所有者を分けるときは遷移のたびに消す対応を崩さない。
+    *   **行数**：1310行。再分離の候補は`_doc/COWORK_STATUS.md`2章A。

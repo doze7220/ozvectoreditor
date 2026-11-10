@@ -39,7 +39,8 @@
 │   │   ├── Path.js             # 図形クラスは種別ごとに1ファイル
 │   │   ├── ShapeGeometry.js    # 以下2つは図形クラスではない。図形クラスだけが使う共通の関数
 │   │   ├── ShapeDataValidation.js
-│   │   └── PathJoinRules.js    # 図形クラスではない。図形をまたぐ規則（結合）。shapes/の外から使う
+│   │   ├── PathJoinRules.js    # 図形クラスではない。図形をまたぐ規則（結合）。shapes/の外から使う
+│   │   └── EndpointSnapRules.js # 図形クラスではない。図形をまたぐ規則（端点への吸い付き）。shapes/の外から使う
 │   ├── palette/
 │   │   ├── PaletteController.js
 │   │   ├── DevPanel.js
@@ -48,6 +49,7 @@
 │   ├── edit/
 │   │   ├── ShapeInserter.js
 │   │   ├── PathJoiner.js
+│   │   ├── EndpointSnapper.js
 │   │   ├── ClipboardController.js
 │   │   ├── SnapshotAdapter.js
 │   │   ├── CanvasLibrary.js
@@ -66,14 +68,16 @@
 ├── test/                       # 自動テスト（node --test でのみ実行。index.html・js/からは参照しない）。中はjs/の構成に合わせる
 │   ├── core/
 │   │   ├── ShapeFactory.test.js
-│   │   └── VectorModel.replaceShape.test.js
+│   │   ├── VectorModel.replaceShape.test.js
+│   │   └── VectorModel.snapPoint.test.js
 │   ├── shapes/
 │   │   ├── Line.test.js
 │   │   ├── Curve.test.js
 │   │   ├── Rect.test.js
 │   │   ├── Ellipse.test.js
 │   │   ├── Path.test.js
-│   │   └── PathJoinRules.test.js
+│   │   ├── PathJoinRules.test.js
+│   │   └── EndpointSnapRules.test.js
 │   ├── io/
 │   │   ├── DocumentSerializer.roundtrip.test.js
 │   │   ├── DocumentSerializer.errors.test.js
@@ -85,7 +89,8 @@
 │   ├── edit/
 │   │   ├── CanvasFileOperations.test.js
 │   │   ├── CanvasFileOperations.export.test.js
-│   │   └── PathJoiner.test.js
+│   │   ├── PathJoiner.test.js
+│   │   └── EndpointSnapper.test.js
 │   └── check/
 │       └── SpriteCheckInspector.test.js
 │
@@ -107,12 +112,12 @@
 
 **フォルダ分割の方針**
 *   `core/`：横断的な処理（入力→状態→描画の複数層にまたがるもの）。
-*   `shapes/`：1種類の図形（図形クラス。種別ごとに1ファイル）と、図形クラスだけが使う共通の関数（幾何の計算・図形データの検証。継承ではなく関数の切り出し。詳細は4章`shapes/`）、図形をまたぐ規則（`PathJoinRules`。結合の規則。第3の種類で、`shapes/`の外から使う。3章11.）。`palette/`：1つのUI部品。
+*   `shapes/`：1種類の図形（図形クラス。種別ごとに1ファイル）と、図形クラスだけが使う共通の関数（幾何の計算・図形データの検証。継承ではなく関数の切り出し。詳細は4章`shapes/`）、図形をまたぐ規則（`PathJoinRules`（結合の規則）・`EndpointSnapRules`（端点への吸い付きの規則）。第3の種類で、`shapes/`の外から使う。3章11.・12.）。`palette/`：1つのUI部品。
 *   `io/`：作業データ形式の変換（`DocumentSerializer`）、IndexedDBへの読み書き（`CanvasStorage`）、作業データファイル・スプライトのJSのブラウザ内での読み書き（`DocumentFileIO`）、スプライト（書き出し形式）の組み立て（`SpriteSerializer`）とスプライトJSのテキストの組み立てと実行しない取り出し（`CodeExporter`）、開く・インポートで選ばれたファイルの中身の判別と作業データの取り出し（`FileContentReader`）のみ。
 *   `check/`：確認用ページ（`sprite-check.html`）専用。DOM・選んだJSの実行・描画を含む。importは`check/`内と`io/`の`SpriteSerializer`のみ。`main.js`・`edit/`・`palette/`・`core/`の状態を持つモジュールをimportせず、`js/`の他のモジュール・`index.html`は`check/`をimportしない。
-*   `edit/`：`io/`・`core/`の機能（結合の手順`PathJoiner`のみ`shapes/`の規則も）を組み合わせて図形一式を扱う手順（貼り付け・複製、履歴のスナップショットの取得・適用、キャンバス一覧の管理、ファイル操作の組み立て、パスの結合）。操作モードを知らない。操作モードに依存する判定・処理は`shouldRestoreSelection`・`prepareSwitch`・`prepareInsert`のような中立な注入関数で受け取る。
+*   `edit/`：`io/`・`core/`の機能（結合の手順`PathJoiner`と吸い付きの手順`EndpointSnapper`のみ`shapes/`の規則も）を組み合わせて図形一式を扱う手順（貼り付け・複製、履歴のスナップショットの取得・適用、キャンバス一覧の管理、ファイル操作の組み立て、パスの結合、端点への吸い付きと描き足し）。操作モードを知らない。操作モードに依存する判定・処理は`shouldRestoreSelection`・`prepareSwitch`・`prepareInsert`のような中立な注入関数で受け取る。
 *   `test/`：自動テスト。Node.jsはテストの実行（`node --test`）にのみ使い、エディタのビルド・配信には使わない。依存は`test/ → js/`の一方向で、`index.html`・`js/`は`test/`を参照しない。規則は4章`test/`。
-*   **依存方向**：`main.js → edit → io → core → shapes`の一方向。`core/`は`io/`をimportしない。`core/`・`io/`は`edit/`をimportしない。`edit/PathJoiner`は例外として`shapes/PathJoinRules`をimportする（下向き。`edit/`の他のクラスは`shapes/`をimportしない）。`check/ → io`（確認用ページ専用。エディタ本体の依存の列とは独立）。
+*   **依存方向**：`main.js → edit → io → core → shapes`の一方向。`core/`は`io/`をimportしない。`core/`・`io/`は`edit/`をimportしない。`edit/PathJoiner`は例外として`shapes/PathJoinRules`を、`edit/EndpointSnapper`は例外として`shapes/EndpointSnapRules`・`shapes/PathJoinRules`をimportする（下向き。`edit/`の他のクラスは`shapes/`をimportしない）。`shapes/EndpointSnapRules`は`shapes/PathJoinRules`をimportする（`shapes/`内。`PathJoinRules`は`Path`のみimportするため循環しない）。`core/InputTracker`は`edit/`をimportせず、`main.js`が注入した`EndpointSnapper`のメソッドを呼ぶだけ（`editRecorder`と同じ形）。`check/ → io`（確認用ページ専用。エディタ本体の依存の列とは独立）。
 
 ---
 
@@ -131,7 +136,7 @@
     *   `fromJSON`直後の`id`は未検証・未正規化（欠落なら`undefined`、任意の型を取り得る）。`VectorModel.replaceAllShapes`の正規化を経て初めて一意な文字列になる。
 *   **作業データ形式**（キャンバス全体の版番号付きJSON表現）：`{ format: "oz-vector-editor", version, shapes: [図形データ, ...] }`（`shapes`は描画順）。
     *   変換は`io/DocumentSerializer.js`が担う。
-    *   保存対象は図形データのみ。選択集合・ホバー・作成中の図形・選択矩形・ビュー変換は含めない。
+    *   保存対象は図形データのみ。選択集合・ホバー・作成中の図形・選択矩形・吸い付きの表示・ビュー変換は含めない。
     *   図形クラスは常に現行版の図形データのみを扱う。旧版の知識は`DocumentSerializer`のマイグレーション表に閉じる。
 *   **作業データファイル**：作業データ形式のJSON文字列を内容とするファイル（既定の拡張子`.ozve.json`。読み込みは従来の`.json`も可）。キャンバス名は内容に含まれない。ファイル名との変換は`io/DocumentFileIO`が担う（3章9.。規則は下記「ファイル名の規則」）。
 *   **スプライト（書き出し形式）**：開いているキャンバスをゲームが`import`して描けるようにしたもの。`<名前>.js`（ESモジュール）だけ（スプライトのJSONは出力も読み込みもしない。Phase 04-04でやめた）。既定のexportにスプライトデータの全キーと`draw(ctx)`を持つ。組み立ては`io/SpriteSerializer`（データ・JSに埋め込むJSON文字列）と`io/CodeExporter`（JSのテキスト）が担う。本項がスプライトの形の唯一の記載箇所（他の箇所はここを参照する）。
@@ -192,7 +197,7 @@
     *   `name`：前後の空白を除いた1〜100文字。重複は許す。
     *   `updatedAt`：`Date.now()`のミリ秒。名前の変更では更新しない。
     *   `document`：作業データ形式のオブジェクト（`DocumentSerializer.serialize`の戻り値）。保存処理・キャンバス一覧の管理とも中身を解釈しない。読み込みは`DocumentSerializer.deserialize`を通す。
-    *   保存しないもの：Undo/Redoの履歴・選択集合・ホバー・作成中の図形・選択矩形・ビュー変換・クリップボード・操作モード。
+    *   保存しないもの：Undo/Redoの履歴・選択集合・ホバー・作成中の図形・選択矩形・吸い付きの表示・ビュー変換・クリップボード・操作モード。
 *   **保存先**：IndexedDB。設定は`CanvasStorage.js`の`STORAGE_CONFIG`が唯一の定義箇所。ストアはキャンバス記録と、「最後に開いていたキャンバスの識別子」を保持するメタ情報の2つ。
     *   オリジン単位のため、`file://`で開いた場合とローカルサーバー経由で開いた場合、ポート番号が違う場合は別のキャンバス一覧になる。
     *   複数タブで同時に開いた場合の整合は扱わない（後から書き込んだ側が残る）。
@@ -200,6 +205,7 @@
 *   **選択状態**：`core/VectorModel.js`が保持する。
     *   **選択集合**：選択中の図形idの集合。0個以上で、常に現存図形のidのみを含む。選択モード以外では空（不変条件）。
     *   **選択矩形**：範囲選択中の表示用。ワールド座標の対角2点（押下点と現在のカーソル位置）。正規化しない。
+*   **吸い付きの表示の点**：`core/VectorModel.js`が保持するワールド座標の1点（`null`＝表示なし）。表示専用で、保存対象外・履歴の対象外。`InputTracker`が設定・消去する（3章12.）。
 
 ---
 
@@ -213,6 +219,7 @@
     *   **読み込み完了前の操作**：`index.html`で表示状態から始まる覆い要素`#canvas-loading-cover`がキャンバスへのマウス入力を遮る（読み込み完了時の切り替えで利用者の操作が消されたり別のキャンバスに保存されたりしないため）。キーボードショートカットとフロートウィンドウ上のボタンは働く。読み込み中は図形0個・クリップボード空・履歴空のため図形一式を変えない（結合も、図形0個・選択集合が空のため何もしない。専用の判定は無い）。唯一図形一式を変え得る`?dev`の「復元」は読み込み中は受理しない。`CanvasLibrary`も読み込み中の開く・新規作成等を受理しない。図形一式を変える操作を新しく足す場合は読み込み中の扱いが要る。
 2.  **描画サイクル (`CanvasManager.js`)**：常時ループ（rAF）は持たない。`VectorModel.onChange`・`ViewTransform.onChange`・ウィンドウリサイズの3経路から同一関数`renderCurrentState()`（`main.js`）で同期的に再描画する。描画順は4章`CanvasManager.js`。
 3.  **入力監視 (`InputTracker.js`・`KeyboardShortcuts.js` → `VectorModel.js`)**：状態が更新されると`VectorModel`が更新イベントを発火し、再描画を促す。
+    *   **端点への吸い付き**：直線を描くとき、および選択モードで線の端点のハンドルをドラッグするときの吸い付きは12.。
     *   **ドラッグのライフサイクル**：左ドラッグ（ハンドルドラッグ・本体ドラッグ・範囲選択）とパンの、押下から解放まで（開始ボタン・移動量閾値・追従/終了検知・中断・終了直後のclick抑止）は`DragTracker`が`window`へのcapture購読で一元管理する。ドラッグの意味の解釈（パン量・頂点変形・選択集合の平行移動・範囲選択）は`InputTracker`が行う。閾値判定のみスクリーン座標で行い、当たり判定・移動量・選択矩形はワールド座標で扱う。
     *   **範囲選択の流れ**：選択モードで空白を左ボタンで押下 → 閾値超過後、押下点と現在のカーソル位置で`VectorModel`の選択矩形を更新（描画は`CanvasManager`）→ 解放時に矩形を正規化し、各図形の`intersectsRect`をポリモーフィックに呼んで掛かった図形で選択集合を置き換え、選択矩形を破棄する（0件なら全解除）。中断（blur・モード切替）時は選択矩形を破棄するのみで確定しない。
     *   **キーボード操作**：`document`の`keydown`は、`Space`を`InputTracker`（スペースパン）、それ以外のキーを`KeyboardShortcuts`が排他的に担当する（同一キーを二重に解釈しない）。`keyup`は`Space`のみ`InputTracker`が購読する。操作の実体は`main.js`から注入されたコールバック（`applyMode`/`applyShapeType`/`viewTransform`/`InputTracker`の公開メソッド/`performUndo`・`performRedo`/`ClipboardController`の`copy`・`cut`・`paste`・`duplicate`/`performJoin`）で実行する。
@@ -227,9 +234,9 @@
 6.  **履歴（取り消し・やり直し） (`InputTracker.js`・`edit/ShapeInserter.js`・`main.js` → `HistoryManager.js`)**：編集操作（図形一式を変化させる利用者の1回の操作）の前後の図形一式を丸ごと記録するスナップショット方式。スナップショットは`{ document: 作業データ, selectedIds: 選択集合 }`。取得・適用の実体は`edit/SnapshotAdapter`（`HistoryManager`へ`capture`/`restore`として注入）。
     *   **記録の規則**：変更処理を`HistoryManager.beginEdit()`と`commitEdit()`で挟む。`model.onChange`ごとの記録はしない。後続の編集操作も挟むだけで履歴の対象になる。前後の作業データ部分の`JSON.stringify`が一致する場合（閾値以内のクリック・元の位置へ戻したドラッグ等）は記録せず、やり直しの履歴も破棄しない（選択集合は比較しない）。
     *   **記録する操作と時点**：
-        *   図形の作成：`InputTracker.handleClick`の`DRAWING`確定時、`model.commitDraft()`の前後。
+        *   図形の作成：`InputTracker.handleClick`の`DRAWING`確定時、`model.commitDraft()`の前後。直線の描き終えで吸い付いていた場合は`EndpointSnapper.commitDrawnLine`で、`model.replaceShape`の前後（何も起きない場合は記録しない。12.）。
         *   削除（削除ボタン・`Delete`/`Backspace`）と切り取り（`Ctrl`+`X`）：`InputTracker.deleteSelection()`の受理時、`model.deleteShapes(ids)`の前後。
-        *   本体ドラッグ・moveハンドルによる移動、ハンドルによる変形：閾値超過時に開始し、ドラッグの終了・中断の共通後始末で確定。中断（`blur`・モード切替・`abortOngoingOperation()`）で残った変化も1件として記録する（記録しないと次の編集操作の前の状態に混ざり、単独で取り消せなくなるため）。
+        *   本体ドラッグ・moveハンドルによる移動、ハンドルによる変形：閾値超過時に開始し、ドラッグの終了・中断の共通後始末で確定。中断（`blur`・モード切替・`abortOngoingOperation()`）で残った変化も1件として記録する（記録しないと次の編集操作の前の状態に混ざり、単独で取り消せなくなるため）。端点のハンドルを吸い付いた状態で離した場合の結合・閉じるは、同じ1件の中で`#finishLeftDrag`の確定の前に行う（12.）。
         *   `?dev`の「JSONから復元」：5.の順序。
         *   結合（結合ボタン・`J`）：`PathJoiner.join`で、`model.replaceShape`の前後。結合できない選択では記録しない（11.）。
         *   貼り付け・複製（`Ctrl`+`V`／`Ctrl`+`D`）・インポート：`ShapeInserter.insertDocument`で、`model.addShapesWithNewIds(shapes)`の前後。追加0件では記録しない。
@@ -304,7 +311,27 @@
         *   端点が重なっている＝画面上5px以内（ちょうどを含む）。結合を行う時点の表示倍率でワールドの長さへ換算する（`main.js`が`screenLengthToWorld`を注入）。重なる端点は1つにまとめ、離れていればそのまま区間でつなぐ。
         *   結合後は結果の図形だけを選択する。
     *   **やらないこと**：自動で閉じない（2本の結合の結果の両端が重なっていても閉じない）、3本以上の結合、曲線・矩形・円・弧・閉じたパスの結合、閉じたパスを開く。
-    *   **規則の詳細の正本**は`PathJoinRules.js`のJSDoc（端点の組の優先順・まとめ方の手順）。Phase 05-04（描き足しでの結合）は、`JOIN_TOLERANCE_SCREEN_PX`・`isJoinableLine`・`buildJoinedPath`・`buildClosedPath`を使い回して結果の扱いを揃えること。規則の関数は表示倍率を知らないため、`tolerance`は呼び出し側がワールドの長さへ換算して渡す。`InputTracker`の`hitTolerance`は同じ5pxだが別の定義。
+    *   **規則の詳細の正本**は`PathJoinRules.js`のJSDoc（端点の組の優先順・まとめ方の手順）。規則の関数は表示倍率を知らないため、`tolerance`は呼び出し側がワールドの長さへ換算して渡す。`InputTracker`の`hitTolerance`は同じ5pxだが別の定義。
+    *   **端点を指定する入口（Phase 05-04）**：公開の`buildJoinedPathAt`（つなぐ端点を指定して結合）・`buildExtendedPath`（描き足し）・`canCloseByMergingEnds`（もう一方の端点へ重ねて閉じられるか）・`planDrawnLineJoin`（直線の描き終えの計画）・`planEndpointDragJoin`（ハンドルのドラッグの計画）を、`JOIN_TOLERANCE_SCREEN_PX`・`isJoinableLine`・`buildJoinedPath`・`buildClosedPath`と同じ規則・同じ組み立て関数で実装している（規則を二重に書かない）。
+    *   **描き足しの規則**：元のid・色・太さ・重なり順の位置を保つ。元の線の向きを保つ（描いた線の向きは使わない）。足す頂点が端点と重なる（`tolerance`以内）場合は何も起きない。
+    *   **吸い付きでの結合**：つなぐ端点は吸い付いた端点であり、いちばん近い端点の組ではない（`planJoin`の優先順とは別）。結果の扱い（基準の線A・向き・色・太さ・idの扱い）は選択の結合と同じ。
+
+12. **端点への吸い付きと描き足し (`InputTracker.js` → `edit/EndpointSnapper.js` → `shapes/EndpointSnapRules.js`・`shapes/PathJoinRules.js`・`VectorModel.js`・`HistoryManager.js`、表示は`VectorModel`の吸い付きの表示の点 → `main.js`の`renderCurrentState` → `CanvasManager.js`)**：直線を描くとき、および選択モードで線の端点のハンドルをドラッグするとき、結合できる線の端点へ吸い付き、吸い付いた端点で描き足し・結合・閉じる操作を行う。吸い付いている端点には中を青で塗った正方形を表示する。
+    *   **モジュールの分担**：規則＝`EndpointSnapRules`（対象・距離・候補の選び方）と`PathJoinRules`（結果の組み立て・計画）。手順＝`edit/EndpointSnapper`（照会とモデルへの反映）。配線＝`InputTracker`（注入された`EndpointSnapper`を呼ぶだけ。候補の探索・距離の判定・結果の組み立てを持たず、描く図形種別と端点のハンドルの判定も`EndpointSnapper`に委ねる）。表示の状態＝`VectorModel`の吸い付きの表示の点。描画＝`CanvasManager`（`render`の`snapPoint`）。
+    *   **流れ（直線の描き始め）**：図形作成モード・IDLEのmousemoveで照会して表示 → クリックで描き始めるとき、クリック位置で照会した結果を保持して表示し、吸い付いていれば端点の座標から`startDraft`。
+    *   **流れ（描いている途中）**：mousemoveごとに照会 → 保持（描き終えの端点）・表示 → 作成途中の終点を吸い付いた端点の座標（なければカーソル位置）に追従。
+    *   **流れ（描き終え）**：`DRAWING`のクリックで`EndpointSnapper.commitDrawnLine(描き始めの結果, 描き終えの結果)`を呼ぶ。描き終えの端点は**直前のmousemoveの照会結果**を使う（クリック位置で取り直さない。従来も終点は直前のmousemoveの位置で確定しており、取り直すと吸い付きなしの直線の終点が変わるため）。両方`null`なら何もせず従来の確定（`commitDraft`）。それ以外は作成途中の直線を捨て、`beginEdit` → `model.replaceShape` → `commitEdit`（描き足し・結合・閉じる）。計画が何も起こさない場合（同じ端点・頂点2つの線の閉じる・足す頂点が端点と重なる）は記録せず作成途中の直線を捨てるだけ。
+    *   **流れ（端点のハンドルのドラッグ）**：ドラッグ開始時に`resolveDragEndpoint`でドラッグ中の端点を解決（端点のハンドルでなければ`null`で吸い付かない）。更新のたびに`findDragSnap`（ドラッグ中の端点を除く）→ 表示 → 頂点を吸い付いた端点の座標へ`updateVertex`。閾値超過で移動した状態で離したとき、`#finishLeftDrag`の確定の前に`joinDraggedEndpoint`が`model.replaceShape`（`select: true`）で結合・閉じる。記録は移動と同じ1件（`beginEdit`/`commitEdit`は呼び出し側の移動の開始・確定）。結果だけが選択される。
+    *   **発注者の決定**：
+        *   吸い付く距離＝画面上8px（ちょうどを含む）。`main.js`が注入する`screenLengthToWorld`で表示倍率に応じてワールドの長さへ換算する。
+        *   対象は結合できる線（直線・開いたパス）の端点だけ。候補の選び方は`findSnapTarget`のJSDocが正本。
+        *   表示＝中を青で塗った8pxの正方形（画面上で一定）。
+        *   ハンドルのドラッグで吸い付いて離すと結合・閉じる。閉じられない場合は自身のもう一方の端点に吸い付かない。頂点2つの線は閉じない。
+        *   選択集合：作成モードでは`replaceShape`の`select: false`により空のまま。ドラッグでは結果だけを選択する。
+    *   **表示を消す箇所**：`InputTracker`の`#resetSnapState()`（描き終え・`Esc`等の作成途中の破棄・図形種別の切り替え・中断（`abortOngoingOperation`。モードの切り替えを含む）・左ドラッグの後始末）、パンの開始、図形作成モードのIDLEで直線以外の図形種別のmousemove。`VectorModel.replaceAllShapes`も表示の点を消す（呼ばれるのは取り消し/やり直し・キャンバスの切り替え・`?dev`の「JSONから復元」）。インポートは`replaceAllShapes`を通らず、`prepareInsert`→`applyMode`→`#abortOngoingOperation`→`#resetSnapState()`で消える。表示を消す責任は`InputTracker`にあり、吸い付きの作業用フィールドは入力状態（`DRAWING`・`DRAGGING_HANDLE`）と寿命が同じ。状態の所有者を分けるときは遷移のたびに消す対応を崩さないこと。
+    *   **やらないこと**：曲線・矩形・円・弧・閉じたパスの点・途中の頂点への吸い付き、修飾キーでの一時無効、整数px・グリッドへの吸い付き、本体・moveハンドルのドラッグでの吸い付き、自動で閉じる。
+    *   **別の定義**：`SNAP_TOLERANCE_SCREEN_PX`（8px）・`JOIN_TOLERANCE_SCREEN_PX`（5px。端点が重なっているとみなす距離）・`InputTracker`の`hitTolerance`（5px）・表示の大きさ（`CanvasManager`の定数）は互いに別の定義で、どれを変えても他は変わらない。
+    *   **注意（パン／ズームの後）**：パンの開始で表示は消すが描き終えの端点の保持は残すため、パンの後にカーソルを動かさずに描き終えると、表示の無いまま直前の照会結果で結合・描き足しになり得る。ズーム（`handleWheel`）は表示を消さないので、ズームの後は表示が残る。
 
 ---
 

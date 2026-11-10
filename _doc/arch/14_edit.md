@@ -1,7 +1,7 @@
 *   **edit/**：`io/`・`core/`の機能を組み合わせて図形一式を扱う手順。流れは3章6.〜9.・11.。
     *   **知らないこと（全クラス共通）**：DOM、図形種別の分岐、図形固有のプロパティ名、図形のid形式、操作モード。`InputTracker`に依存しない。
     *   **`ShapeInserter`と`ClipboardController`の`paste`・`duplicate`の前提（呼び出し側の責務）**：選択モードであること・ドラッグ中でないこと・作成途中の図形がないこと。呼び出し側は`main.js`。インポートでは`CanvasFileOperations`が`insertDocument`の前に`prepareInsert()`を呼んで満たす。選択モード以外で呼ぶと「選択集合は選択モード以外では空」の不変条件が崩れる。`SnapshotAdapter`は選択モード以外でも動き、`CanvasLibrary`は自分で`prepareSwitch()`を呼ぶ。
-    *   **依存**：importは`DocumentSerializer`のみ（`CanvasFileOperations`は例外で、`SpriteSerializer`・`CodeExporter`・`FileContentReader`も加える。読み込みは`FileContentReader.deserializeFromText`を通し、スプライト形式を知らない）。他の依存（`VectorModel`・`HistoryManager`・`CanvasStorage`等）は注入で受け取る。操作モードに依存する判定・処理は`shouldRestoreSelection`・`prepareSwitch`・`prepareInsert`のような中立な注入関数で受け取る（実体は`main.js`が与える。注入の一覧は4章`main.js`）。`PathJoiner`も例外で、`shapes/PathJoinRules`のみをimportする（下向き。`edit/`の他のクラスは`shapes/`をimportしない）。
+    *   **依存**：importは`DocumentSerializer`のみ（`CanvasFileOperations`は例外で、`SpriteSerializer`・`CodeExporter`・`FileContentReader`も加える。読み込みは`FileContentReader.deserializeFromText`を通し、スプライト形式を知らない）。他の依存（`VectorModel`・`HistoryManager`・`CanvasStorage`等）は注入で受け取る。操作モードに依存する判定・処理は`shouldRestoreSelection`・`prepareSwitch`・`prepareInsert`のような中立な注入関数で受け取る（実体は`main.js`が与える。注入の一覧は4章`main.js`）。`PathJoiner`も例外で、`shapes/PathJoinRules`のみをimportする。`EndpointSnapper`も例外で、`shapes/EndpointSnapRules`・`shapes/PathJoinRules`のみをimportする（いずれも下向き。`edit/`の他のクラスは`shapes/`をimportしない）。
     *   **ShapeInserter.js**：作業データの図形を平行移動したうえで新しいidで最前面へ追加し、追加した図形だけを選択する1件の編集操作（貼り付け・複製・インポートの共通処理）。
         *   **公開メソッド**：`insertDocument`。呼び出し元は`ClipboardController`・`CanvasFileOperations`。
         *   **契約**：履歴へは1件以上追加した場合のみ1件記録する。`documentData`を書き換えない。進行中の入力操作の中断・モード切り替えは行わない。
@@ -9,6 +9,11 @@
         *   **公開メソッド**：`canJoin`・`join`。呼び出し元は`main.js`（`performJoin`・`syncJoinButtonState`）。
         *   **依存**：`model`は`getShapes`・`isSelected`・`replaceShape`のみ使う。`editRecorder`（実体`historyManager`）と`screenLengthToWorld`（表示倍率による画面上の長さのワールド換算）は注入で受け取る。
         *   **契約**：結合できない選択では何もせず記録しない。履歴へは1件記録する。ドラッグ中でないことは呼び出し側（`performJoin`）の責務。進行中の入力操作の中断・モード切り替えは行わない（選択モード以外では選択集合が空のため何もしない）。`canJoin`は表示倍率を見ない。
+    *   **EndpointSnapper.js**：端点への吸い付きの照会（直線を描くとき・端点のハンドルのドラッグ中）と、吸い付いた端点での描き足し・結合・閉じる操作のモデルへの反映（規則は`shapes/EndpointSnapRules`・`shapes/PathJoinRules`）。流れは3章12.。
+        *   **公開メソッド**：`findDrawSnap`・`resolveDragEndpoint`・`findDragSnap`・`commitDrawnLine`・`joinDraggedEndpoint`。呼び出し元は`InputTracker`のみ（`main.js`が生成して第5引数に注入。`core/`は`edit/`をimportしない）。
+        *   **依存**：`model`は`getShapes`・`getDraftShape`・`cancelDraft`・`replaceShape`のみ使う。`editRecorder`（実体`historyManager`）と`screenLengthToWorld`は注入で受け取る。`try/catch`を持たない。
+        *   **契約**：`commitDrawnLine`は描き始め・描き終えの結果が両方`null`なら何もしない（`false`を返し、従来の確定は呼び出し側）。それ以外は`cancelDraft`の後に計画を反映し、計画が何も起こさない場合は記録せず、起こす場合は`beginEdit` → `replaceShape`（`keepId`の指定・`select: false`）→ `commitEdit`の1件。`joinDraggedEndpoint`は記録しない（呼び出し側がドラッグの開始で開いた編集操作の中で呼ぶ。確定も呼び出し側）。作成モードでは選択しない（`select: false`）、ドラッグでは結果だけを選択する（`select: true`）。操作モード・図形種別の分岐・図形固有のプロパティ名を知らない（図形種別の判定は`EndpointSnapRules`、端点のハンドルの判定は`resolveDragEndpoint`経由）。
+        *   **注意**：`resolveDragEndpoint`は図形が`getShapes()`に無ければ`null`。`replaceShape`の戻り値は見ない（計画が有効なら`null`にならないため）。
     *   **ClipboardController.js**：アプリ内部のクリップボードの保持と、コピー・切り取り・貼り付け・複製の手順。規則はクラスJSDoc。
         *   **公開メソッド**：`copy`・`cut`・`paste`・`duplicate`・`isEmpty`。呼び出し元は`main.js`の`KeyboardShortcuts`コールバック。
         *   **契約**：モデルへの依存は読み取りのみ。追加は`ShapeInserter`、削除は注入された`deleteSelection`（実体`inputTracker.deleteSelection()`）へ委譲する。`cut()`は削除の前に`serialize`する（削除後は選択集合が空になるため。順序を入れ替えない）。

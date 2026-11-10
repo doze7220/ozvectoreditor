@@ -343,7 +343,7 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
         *   新設ファイルの先頭行の単一責務JSDoc（3行以内）、各関数・メソッド・クラス・typedef・定数のJSDoc（`@param`・`@returns`・該当すれば`@throws`）、変更した既存の関数・メソッドのJSDoc（特に`InputTracker`の`handleMouseMove`・`handleClick`・`#applyLeftDragUpdate`・`#onLeftDragEnd`・`#finishLeftDrag`の処理順の説明、`VectorModel.replaceShape`・`replaceAllShapes`、`CanvasManager.render`）に漏れがないことを確かめ、漏れがあればJSDocだけを直す（処理は変えない）。
         *   `node --test`を実行し、`fail 0`と件数を4章へ記録する。`InputTracker.js`・`main.js`の行数を4章と2章の更新予定欄へ記録する。
         *   4章の全タスクの欄が記入済みであること、2章の更新予定欄・5章が最新であることを確かめ、RESを完成させる。完了時に本タスクを [x] にする。
-*   [ ] タスク11: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
+*   [x] タスク11: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新）
         *   `./_doc/arch/02_main.md`・`./_doc/arch/03_VectorModel.md`・`./_doc/arch/04_CanvasManager.md`・`./_doc/arch/06_InputTracker.md`・`./_doc/arch/08_HistoryManager.md`・`./_doc/arch/12_shapes.md`・`./_doc/arch/14_edit.md`・`./_doc/arch/16_test.md` :（更新）
@@ -419,7 +419,19 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 
 ### タスク11: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
 *   **作業内容** :
-    *   （未記入）
+    *   `PROJECT_ARCHITECTURE.md`：1章（フォルダ構成に`EndpointSnapRules.js`・`EndpointSnapper.js`・新設テスト3件、フォルダ分割の方針、依存方向の例外）、2章（保存対象外・保存しないものに吸い付きの表示、「吸い付きの表示の点」の項目）、3章（3.に12.への参照、6.の記録する操作と時点に2点、11.に端点を指定する入口・描き足しの規則・吸い付きでの結合を追記し「Phase 05-04は…使い回して」の文を改めた、12.「端点への吸い付きと描き足し」を新設）を反映。
+    *   `_doc/arch/`：`02_main.md`（行数593、配線ブロック`// 4.`、注入の一覧、生成順の制約・`snapPoint`）、`03_VectorModel.md`（吸い付きの表示の点・公開メソッド・`replaceShape`の`select`）、`04_CanvasManager.md`（`render`の`snapPoint`・描画順）、`06_InputTracker.md`（吸い付きの節・配線の場面・表示を消す箇所・行数1310）、`08_HistoryManager.md`（呼び出し元に`EndpointSnapper`）、`12_shapes.md`（`PathJoinRules`の公開追加・使う側・注意、`EndpointSnapRules.js`の節、`Path.js`の記述）、`14_edit.md`（`EndpointSnapper.js`の節・依存の例外）、`16_test.md`（新設テストの検証範囲・実物の組み合わせの例外・テストできない箇所）を反映。
+    *   反映前に実コード（`EndpointSnapRules.js`・`PathJoinRules.js`のexport、`EndpointSnapper.js`、`InputTracker.js`の配線、`main.js`、`CanvasManager.js`、`VectorModel.js`）を確認し、更新予定欄と食い違う箇所は無かった（`commitDrawnLine`は両方`null`のとき`false`・それ以外は計画なしでも`true`）。コードは変更していない。
+    *   `node --test`：tests 646 / pass 646 / fail 0。
+*   **監査指摘による修正（1回目）**：
+    *   `PROJECT_ARCHITECTURE.md` 3章12.「表示を消す箇所」：`replaceAllShapes`の括弧内を「取り消し/やり直し・キャンバスの切り替え・`?dev`の「JSONから復元」」に直し、インポートは`replaceAllShapes`を通らず`prepareInsert`→`applyMode`→`#abortOngoingOperation`→`#resetSnapState()`で消えると明記。
+    *   同「注意」：表示の無いまま結合・描き足しになり得るのはパンの後だけとし、ズーム（`handleWheel`）は表示を消さないと書き分けた。`_doc/arch/06_InputTracker.md`・`03_VectorModel.md`に同種の誤記は無く変更なし。
+    *   `_doc/arch/16_test.md`：実物の組み合わせの例外の文を直し（`EndpointSnapper.test.js`は`PathJoiner`をimportしないことを明記）、「テストできない箇所」のUndo/Redoの往復の記述に`EndpointSnapper.test.js`の分を追記。
+    *   `node --test`：tests 646 / pass 646 / fail 0。
+*   **監査指摘による修正（2回目）**：
+    *   `_doc/arch/16_test.md`「既存のテストファイルと検証範囲」の`test/edit/EndpointSnapper.test.js`の項：実物の組み合わせのケースを実テストどおりに書き分けた。Undo/Redoの往復（履歴1件）は描き足し・結合・ハンドルのドラッグでの結合に限り、閉じる（描いて閉じる・ハンドルのドラッグで閉じる）はundoで開いたパスに戻ること（ドラッグで閉じる場合は頂点数も。redoと履歴1件は未確認）、何も起きない場合は図形一式が変わらず履歴が増えないこととした。
+    *   同「テストできない箇所」の括弧内：`EndpointSnapper.test.js`で往復を確かめているのを描き足し・結合・ハンドルのドラッグでの結合に限り、閉じる2ケースはundoで戻ることだけを確かめ、redoと履歴1件は確かめていないと明記。
+    *   `node --test`：tests 646 / pass 646 / fail 0。
 
 ## 5. 懸念事項・要確認ポイント
 
@@ -444,6 +456,11 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 *   `joinDraggedEndpoint`の戻り値は使っていない（`false`なら頂点を動かしただけで終わる）。
 *   `InputTracker`は1310行（タスク10・11で`06_InputTracker.md`の行数を1310へ改める）。
 *   目視確認の推奨：端点のハンドルを別の線の端点へドラッグして離す（結合）、同じパスのもう一方の端点へ離す（閉じる）、Escや別モードへの切り替えによる中断（結合されない）、Undo一回で元に戻ること。配線は自動テスト対象外。
+
+### タスク11での確認・注意
+*   `3章12.`の「表示を消す箇所」は`InputTracker`の`#resetSnapState()`の呼び出し箇所（描き終え・`cancelDraftOrClearSelection`のDRAWING分岐・`setShapeType`・`#abortOngoingOperation`・`#finishLeftDrag`）と`#beginPan`、およびIDLE作成モードで直線以外のmousemove（`clearSnapPoint`）を、RESの記述とJSDocから書いた。将来`InputTracker`を再分離するときは資料の記述と実コードの対応を確かめること。
+*   `14_edit.md`・`16_test.md`は、`EndpointSnapper.test.js`の実物の組み合わせを`PathJoiner.test.js`と並ぶ例外として書いた。
+*   `PROJECT_ARCHITECTURE.md` 4章の一覧は計画どおりフォルダ単位のため行を足していない。
 
 ### テストプレイの確認項目（操作手順と期待する結果）
 テストプレイ用の作業データ（直線・頂点2つ／3つ／4つ以上の開いたパス・閉じたパス・曲線・矩形・円・弧を含むもの）は現場設計AIが用意する。
