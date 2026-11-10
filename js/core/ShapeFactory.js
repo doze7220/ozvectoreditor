@@ -6,13 +6,15 @@ import { Line } from '../shapes/Line.js';
 import { Curve } from '../shapes/Curve.js';
 import { Rect } from '../shapes/Rect.js';
 import { Ellipse } from '../shapes/Ellipse.js';
+import { Path } from '../shapes/Path.js';
 
 /**
  * 図形種別の対応表の1エントリ。
  * @typedef {Object} ShapeRegistryEntry
  * @property {string} type 図形種別（各図形クラスのtypeプロパティ・図形データのtypeと一致）
- * @property {(x1: number, y1: number, x2: number, y2: number) => Object} create
- *     始点・終点（ワールド座標）から図形インスタンスを新規生成する
+ * @property {((x1: number, y1: number, x2: number, y2: number) => Object) | null} create
+ *     始点・終点（ワールド座標）から図形インスタンスを新規生成する。
+ *     nullは「作れない種別」（読み込み専用。図形パレット・数字キーに出さず、createもできない。fromJSONでのみ復元される）
  * @property {(data: Object) => Object} fromJSON
  *     図形データから図形インスタンスを復元する（各図形クラスのstatic fromJSONへ委譲。不正なデータではErrorをthrowする）
  */
@@ -20,7 +22,8 @@ import { Ellipse } from '../shapes/Ellipse.js';
 /**
  * 図形種別の対応表（図形種別一覧の正本）。
  * 並び順＝図形パレットのボタン順＝数字キー（1〜）の割り当て順（KeyboardShortcutsがこの並びを前提とする）。
- * 図形種別を追加する際は、ここへ1エントリを追加し、index.htmlに`#palette-${type}`のボタンを用意する。
+ * この並びの意味はcreateがnullでないエントリについてのもの。createがnullの読み込み専用のエントリ（path）は末尾に置き、パレットのボタンは不要。
+ * 作成できる図形種別を追加する際は、ここへ1エントリを追加し、index.htmlに`#palette-${type}`のボタンを用意する。
  * @type {ReadonlyArray<Readonly<ShapeRegistryEntry>>}
  */
 const SHAPE_REGISTRY = Object.freeze([
@@ -29,6 +32,7 @@ const SHAPE_REGISTRY = Object.freeze([
     Object.freeze({ type: 'arc',    create: (x1, y1, x2, y2) => new Ellipse(x1, y1, x2, y2, 'arc'),    fromJSON: (data) => Ellipse.fromJSON(data) }),
     Object.freeze({ type: 'rect',   create: (x1, y1, x2, y2) => new Rect(x1, y1, x2, y2),              fromJSON: (data) => Rect.fromJSON(data) }),
     Object.freeze({ type: 'circle', create: (x1, y1, x2, y2) => new Ellipse(x1, y1, x2, y2, 'circle'), fromJSON: (data) => Ellipse.fromJSON(data) }),
+    Object.freeze({ type: 'path',   create: null,                                                      fromJSON: (data) => Path.fromJSON(data) }),
 ]);
 
 /**
@@ -38,12 +42,15 @@ const SHAPE_REGISTRY = Object.freeze([
 const REGISTRY_BY_TYPE = new Map(SHAPE_REGISTRY.map((entry) => [entry.type, entry]));
 
 /**
- * 図形種別一覧（SHAPE_REGISTRYから導出。並び順も対応表と同一）。
+ * 作成できる図形種別一覧（SHAPE_REGISTRYのうちcreateがnullでないエントリから導出。並び順も対応表と同一）。
+ * createがnullの読み込み専用の種別（path）は含まない。
  * 図形種別の受理判定・パレットの配線・数字キーの割り当てはすべてこの値を用いる。
  * InputTracker.jsはこれを再exportしている（既存のimport元を変えないため）。
  * @type {ReadonlyArray<string>}
  */
-export const SHAPE_TYPES = Object.freeze(SHAPE_REGISTRY.map((entry) => entry.type));
+export const SHAPE_TYPES = Object.freeze(
+    SHAPE_REGISTRY.filter((entry) => entry.create !== null).map((entry) => entry.type)
+);
 
 /**
  * 図形種別に応じた図形インスタンスの生成（create）と、図形データからの復元の振り分け（fromJSON）を行う静的メソッド群。
@@ -52,17 +59,17 @@ export const SHAPE_TYPES = Object.freeze(SHAPE_REGISTRY.map((entry) => entry.typ
 export class ShapeFactory {
     /**
      * typeに応じた図形インスタンスを生成する。
-     * @param {string} type - 生成する図形の種別（SHAPE_TYPESのいずれか）
+     * @param {string} type - 生成する図形の種別（SHAPE_TYPESのいずれか。'path'は作れない）
      * @param {number} x1 - 始点のX座標
      * @param {number} y1 - 始点のY座標
      * @param {number} x2 - 終点のX座標
      * @param {number} y2 - 終点のY座標
      * @returns {Line|Curve|Rect|Ellipse} 生成された図形インスタンス
-     * @throws {Error} SHAPE_TYPESに含まれない未知のtypeが渡された場合
+     * @throws {Error} SHAPE_TYPESに含まれない未知のtype、またはcreateがnullの種別（'path'）が渡された場合
      */
     static create(type, x1, y1, x2, y2) {
         const entry = REGISTRY_BY_TYPE.get(type);
-        if (!entry) {
+        if (!entry || entry.create === null) {
             throw new Error(`ShapeFactory: unknown shape type "${type}"`);
         }
         return entry.create(x1, y1, x2, y2);
@@ -71,10 +78,10 @@ export class ShapeFactory {
     /**
      * 図形データ（1図形のJSON表現）のtypeに応じて、対応する図形クラスのstatic fromJSONへ復元を振り分ける。
      * 本メソッドは例外を捕捉しない（図形単位の捕捉はDocumentSerializer.deserializeの1箇所で行う）。
-     * @param {Object} data - 図形データ（{ type, id, points, strokeColor, strokeWidth }）
-     * @returns {Line|Curve|Rect|Ellipse} 復元された図形インスタンス
+     * @param {Object} data - 図形データ（{ type, id, points, strokeColor, strokeWidth }。pathは closed・segments も持つ）
+     * @returns {Line|Curve|Rect|Ellipse|Path} 復元された図形インスタンス
      * @throws {Error} dataがプレーンオブジェクト（null・配列以外のobject）でない場合、
-     *     data.typeがSHAPE_TYPESに含まれない（未知の図形種別）場合、
+     *     data.typeが対応表に無い（未知の図形種別）場合、
      *     または委譲先の図形クラスのfromJSONが図形データを不正と判定した場合
      */
     static fromJSON(data) {

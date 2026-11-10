@@ -246,7 +246,7 @@
         *   エラー文は1-3の表の全文と一致させる。テストが失敗した場合は、計画（1-3・2-3）と`Path.js`のどちらが誤りかを確かめ、テストを計画からずらして通さない（ソースの誤りならタスク2の範囲の誤りとして5章に記録したうえで`Path.js`を直してよい）。
         *   先頭行に単一責務JSDoc（3行以内。5-1の案）、補助関数にJSDoc（`@param`・`@returns`）を書く。
         *   `node --test`を実行し、`fail 0`と件数を4章へ記録する。完了時に本タスクを [x] にし、4章の本タスクの欄を記入する（開発資料への影響は2章、迷った点は5章へ）。
-*   [ ] タスク4: `ShapeFactory`への登録（読めるが作れない種別）とそのテスト
+*   [x] タスク4: `ShapeFactory`への登録（読めるが作れない種別）とそのテスト
     *   **対象ファイル** :
         *   `./js/core/ShapeFactory.js` :（更新）
         *   `./test/core/ShapeFactory.test.js` :（新規。`test/core/`フォルダも新設）
@@ -328,7 +328,10 @@
 
 ### タスク4: `ShapeFactory`への登録（読めるが作れない種別）とそのテスト
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/ShapeFactory.js`：`Path`を`import`し、`SHAPE_REGISTRY`末尾に`{ type: 'path', create: null, fromJSON }`を追加。`SHAPE_TYPES`は`create !== null`のエントリから導出（5種・従来の並び）。`create`は「エントリ無し、または`create === null`」で従来と同じ文言のErrorをthrow。`fromJSON`の処理・`REGISTRY_BY_TYPE`は不変。`switch`・種別による分岐・`try/catch`なし。JSDoc（`ShapeRegistryEntry.create`の型と`null`の意味、`SHAPE_REGISTRY`・`SHAPE_TYPES`の説明、`create`・`fromJSON`の`@param`/`@returns`/`@throws`）を更新。先頭行の責務JSDocは不変。
+    *   `test/core/ShapeFactory.test.js`を新設（`test/core/`も新設。5-2の観点：`SHAPE_TYPES`の5種・凍結、`create`の全種別と`'path'`のError、`fromJSON`のパス復元・Errorの伝播・従来のエラー文）。
+    *   `node --test`：`tests 468`・`pass 468`・`fail 0`（タスク3時点の460から8件増）。
+    *   開発資料の更新予定欄への追記：なし（計画済みの内容どおり）。
 
 ### タスク5: 作業データの往復テストへのパスの追加
 *   **作業内容** :
