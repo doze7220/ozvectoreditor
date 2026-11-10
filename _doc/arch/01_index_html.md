@@ -1,6 +1,7 @@
 *   **index.html**：スタイルはCSSファイル分割せず`<style>`タグに内包する。配置・見た目はマークアップとCSSコメントを正とする。
     *   **非活性の表現**：フロートウィンドウ全体の非活性化は`.disabled`クラス（`pointer-events: none`）、ボタン単体の押せない状態はHTMLの`disabled`属性と`.tool-btn:disabled`で表す。両者を混用しない。
-    *   **ショートカットの表記**：各ボタンの`title`属性にショートカットキーを併記している（図形パレットは`SHAPE_TYPES`の並びに対応する数字）。`KeyboardShortcuts.js`の`SHORTCUT_BINDINGS`と手動で同期する必要がある。
+    *   **ショートカットの表記**：各ボタンの`title`属性にショートカットキーを併記している（図形パレットは`SHAPE_TYPES`の並びに対応する数字）。`KeyboardShortcuts.js`の`SHORTCUT_BINDINGS`と手動で同期する必要がある。結合ボタン`#selection-join`の`title`は`(J)`を併記している。
+    *   **選択操作ボタンの行**：コントロールパネルの「削除」`#selection-delete`と「結合」`#selection-join`は`.selection-button-row`で1行に横並びにしている（コントロールパネルの高さを増やさないため。図形パレットとの余白は`#window-shape-palette`の項のとおり）。結合ボタンは`disabled`で始まり、`main.js`の`syncJoinButtonState`が同期する。
     *   **読み込み中の覆い要素**：`#canvas-loading-cover`は`hidden`を付けずに表示状態で始める（`main.js`の実行前からキャンバスへのマウス入力を遮るため）。`.canvas-loading-cover[hidden] { display: none; }`の指定は必須。`main.js`の初期化が途中で失敗すると覆いが消えない（その場合はコンソールのエラーを確認する）。
     *   **図形選択パレットの位置**：`#window-shape-palette`の`top`はコントロールパネルの下端との余白24px以上を確保するための固定値。自動配置はしない。コントロールパネルの高さを変える場合は手動で再調整する（ボタンの高さはフォント・絵文字の表示に依存する）。
     *   **図形選択パレットのボタン**：idは`palette-${type}`（`type`は`SHAPE_TYPES`の値）。`PaletteController`が起動時にこの規則で照合・配線する。アイコン・表示名・`title`は静的記述。パレット内では、図形種別ボタン以外の要素に`palette-`で始まるidを使わない（照合時に警告される）。

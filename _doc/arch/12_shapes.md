@@ -4,6 +4,12 @@
         *   `import`するのは`shapes/`の図形クラスのみ（`core/`・`io/`等からは使わない）。共通モジュールは`shapes/`の外および互いを`import`しない。
         *   式を変えると複数の図形の当たり判定・検証が同時に変わるため、変えるときは`test/shapes/`の全テストを確かめる。
         *   置き換えなかった重複（やらないと決めたこと）：`Ellipse.#distanceToOutline`は`Math.hypot`版の点と線分の距離を自前で持つ（`distanceToSegment`と式が異なり、統一すると値が変わり得るため）。`Curve`の分割数・サンプリングのループ・早期棄却は`Curve`側にある（`hitTest`の分割数`100`の直書きと`CURVE_INTERSECT_SEGMENTS`の違いも残っている）。
+    *   **PathJoinRules.js**：図形をまたぐ規則（結合）。図形クラスではなく、共通モジュールとも異なる第3の種類。状態を持たない`export`した関数と定数のみ。流れは3章11.、規則の詳細の正本はJSDoc。
+        *   **公開**：`JOIN_TOLERANCE_SCREEN_PX`・`isJoinableLine`・`classifyJoin`・`buildClosedPath`・`buildJoinedPath`・`planJoin`。
+        *   **読むもの**：図形の`type`・公開プロパティ`id`・`toJSON()`の図形データだけ。図形クラスの内部プロパティを読まない。importは`./Path.js`のみ（共通モジュールはimportしない。結果は`Path`のコンストラクタで作る）。
+        *   **使う側**：`shapes/`の外（`edit/PathJoiner`。Phase 05-04では`core/`からも可）。図形クラスは使わない。
+        *   **知らないこと**：表示倍率・`ViewTransform`・`VectorModel`・履歴・DOM・操作モード・idの形式（idは不透明な値として読み写すだけ）。許容距離はワールドの長さで引数に受け取る。`try/catch`を持たない。結果は元の図形と配列・頂点を共有しない。
+        *   **注意**：`JOIN_TOLERANCE_SCREEN_PX`と`InputTracker`の`hitTolerance`は同じ5pxだが別の定義（どちらを変えても他方は変わらない）。
     *   **13メソッド契約（公開メソッドの一覧）**：`draw(ctx, t)`、`drawHandles(ctx, viewScale = 1)`、`drawHover(ctx, viewScale = 1)`、`hitTest(x, y, tolerance)`、`hitTestHandle(x, y, tolerance)`、`setVertex(vertexIndex, x, y)`、`translate(dx, dy)`、`updateDraftEnd(x, y)`、`getVertexIndexForHandle(handleName)`、`intersectsRect(minX, minY, maxX, maxY)`、`toDrawElement()`、`toJSON()`、`static fromJSON(data)`。
         *   `Line`/`Curve`/`Rect`/`Ellipse`/`Path`はいずれもこの13メソッドを自律実装する。
         *   `draw`のシグネチャの例外：`Line`は`t`を持たず`draw(ctx)`。他4クラス（`Path`を含む）は`draw(ctx, t = 0)`だが`t`は未使用で、どの呼び出し元からも渡されない。
@@ -39,7 +45,7 @@
         *   弧は画面の上半分を描く（`startAngle`=π、`endAngle`=2π。発注者の決定。ボタンの絵`◠`と揃えた）。`hitTest`・`intersectsRect`も同じ。`down`ハンドルは弧の線上にない。保存済みの弧の`points`は変換しないため、変更前に描いた弧も上半分に表示される（作業データ形式の版は変えていない）。
         *   回転は表現できない（回転角は0固定）。
         *   `hitTest`は他4クラス（`Path`を含む）と異なり`strokeWidth/2`を許容誤差に足す。
-    *   **Path.js**：パス（折れ線）。頂点数可変の`points`・`closed`・`segments`で保持する（約束は2章「図形データ」）。`ShapeFactory.create`では作られない（読み込み専用。作る操作はPhase 05-03・05-04）。
+    *   **Path.js**：パス（折れ線）。頂点数可変の`points`・`closed`・`segments`で保持する（約束は2章「図形データ」）。`ShapeFactory.create`では作られない（読み込み専用。作る操作は結合（`PathJoinRules`がコンストラクタで作る。3章11.）とPhase 05-04）。
         *   `hitTestHandle`の戻り値は`'vertex-<i>'`（`<i>`は頂点の番号の10進表記・先頭の0なし）か`null`。番号の小さい順の先着1件。`move`ハンドルは持たない（本体のドラッグで移動）。`getVertexIndexForHandle`は`'vertex-<i>'`を範囲内の番号へ解決し、それ以外は`null`。`setVertex`は範囲外・整数でない番号では何もしない。`updateDraftEnd`は終点を動かす（現在は呼ばれない）。
         *   `hitTest`は`strokeWidth`を許容誤差に足さない。閉じたパスは終点→始点の区間も描画・当たり判定・範囲選択の対象。
         *   区間の要素数の不変条件は、頂点の追加・削除・閉じる/開く操作を足すときに保つこと。

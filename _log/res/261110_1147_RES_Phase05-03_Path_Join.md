@@ -344,7 +344,7 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
         *   `index.html`のボタンの`title`（`(J)`）と`SHORTCUT_BINDINGS`の`KeyJ`が一致していることを確かめる。
         *   `node --test`を実行し、`fail 0`と件数を4章へ記録する。
         *   4章の全タスクの欄が記入済みであること、2章の更新予定欄・5章が最新であることを確かめ、RESを完成させる。完了時に本タスクを [x] にする。
-*   [ ] タスク9: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
+*   [x] タスク9: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新）
         *   `./_doc/arch/01_index_html.md`・`./_doc/arch/02_main.md`・`./_doc/arch/03_VectorModel.md`・`./_doc/arch/07_KeyboardShortcuts.md`・`./_doc/arch/08_HistoryManager.md`・`./_doc/arch/12_shapes.md`・`./_doc/arch/14_edit.md`・`./_doc/arch/16_test.md` :（更新）
@@ -424,7 +424,12 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
 
 ### タスク9: 開発資料（`PROJECT_ARCHITECTURE.md`）への反映
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   実コード（`PathJoinRules.js`・`PathJoiner.js`・`VectorModel.replaceShape`・`main.js`・`index.html`）を読んで、更新予定欄の記述と食い違いがないことを確かめたうえで、次へ反映した。
+        *   `PROJECT_ARCHITECTURE.md`：1章（フォルダ構成に`PathJoinRules.js`・`PathJoiner.js`・テスト3ファイル、フォルダ分割の方針の第3の種類と依存方向の例外）、3章（3.の「キーボード操作」の注入コールバックに`performJoin`、1.の読み込み完了前の操作、6.の記録する操作に結合、新設の11.結合）。
+        *   `_doc/arch/`：`01_index_html.md`（選択操作ボタンの行・`title`の`(J)`）、`02_main.md`（行数584行・主な関数・`// 6.`・注入の一覧・同一経路の原則・押せる/押せない状態）、`03_VectorModel.md`（`replaceShape`）、`07_KeyboardShortcuts.md`（`J`）、`08_HistoryManager.md`（呼び出し元に`PathJoiner`）、`12_shapes.md`（`PathJoinRules.js`の節、`Path.js`の「作る操作」の記述）、`14_edit.md`（依存の例外・`PathJoiner.js`の節）、`16_test.md`（新設3テストの検証範囲、規則の例外、テストできない箇所）。
+    *   コードは未変更。`node --test`：tests 563 / pass 563 / fail 0。
+    *   監査指摘の修正：(1) `07_KeyboardShortcuts.md`の`Shift`+`J`を「`Shift`+`V`等と同じく将来のShift併用操作のために予約」に直した（コードのJSDocが`FORBIDDEN`のShift付きをまとめて予約とし、`KeyJ`も`FORBIDDEN`であるため。一般規則で足りる文を消すより、`J`の項で明示するほうを選んだ）。(2) `12_shapes.md`の`PathJoinRules`の「読むもの」に公開プロパティ`id`を追加。(3) `PROJECT_ARCHITECTURE.md`の`edit/`の行に結合（`PathJoiner`のみ`shapes/`の規則も使う）を追加、`14_edit.md`冒頭を「3章6.〜9.・11.」に修正。(4) 上記3章の変更場所を「3.の『キーボード操作』」に修正。5章の`Shift`+`J`の記述も事実に合わせた。修正後`node --test`：tests 563 / pass 563 / fail 0。
+    *   再監査指摘の修正：5章「タスク9実行時の判断・注意」の小見出し「3章冒頭」を実際の変更場所「3章3.の『キーボード操作』」に直した（他の「3章冒頭」「3章3.」の表記は`PROJECT_ARCHITECTURE.md`の見出しと照合し、2章「参照する責務」の「3章冒頭」**同期の経路**を含めて正しいことを確認）。
 
 ## 5. 懸念事項・要確認ポイント
 
@@ -467,3 +472,9 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
 
 ### 実装時の注意
 *   **タスク4実装時の注意**：実物の組み合わせテストの`shouldRestoreSelection`は素の関数（`() => true/false`）で与え、選択集合の結果は与えた値から既存の仕組み（`restore`）で決まるものだけを確かめている。9-4の「Undo/Redoの実体は自動テストにしない」はこのテストで一部覆される（ボタン・キー・描画・保存は引き続きテストプレイ）。
+
+### タスク9実行時の判断・注意
+*   **`Shift`+`J`**：`ShiftRule.FORBIDDEN`で`join`は実行されない。将来のShift併用操作のための予約に含める、と`07_KeyboardShortcuts.md`に書いた（コードのJSDocが`FORBIDDEN`のShift付きを予約とし、2章要件5も予約としているため。監査指摘で修正）。`Ctrl`+`J`は`ctrl: false`の対応表に当たらずブラウザの標準動作のまま。
+*   **`PROJECT_ARCHITECTURE.md` 3章3.の「キーボード操作」**：更新予定欄の「3.キーボード操作」は、本文の該当箇所（3章3.の「キーボード操作」）の列挙に`performJoin`を足した。
+*   **`16_test.md`の規則の例外**：「注入される依存は偽物」の行に、`PathJoiner.test.js`の組み合わせのケースを例外として足した（条件：DOM・ブラウザのAPIに依存しない実物の組み合わせ、公開APIのみ）。
+*   食い違いは無かった（実コードは更新予定欄の記述どおり）。目視確認の推奨：`PROJECT_ARCHITECTURE.md` 3章11.と`12_shapes.md`の`PathJoinRules.js`の節の内容が`PathJoinRules.js`のJSDocと矛盾しないこと。
