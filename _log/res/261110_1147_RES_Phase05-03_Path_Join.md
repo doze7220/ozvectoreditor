@@ -274,7 +274,7 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
         *   JSDoc：先頭行に単一責務JSDoc（3行以内。要件4の案）、各定数・関数・補助関数・typedefにJSDoc（`@param`・`@returns`。前提と`null`を返す条件、`shapes`が重なり順で奥が先であること、`tolerance`がワールド座標の長さであること、端点の組の優先順と並べ方、Phase 05-04が使い回す入口であること）。
         *   既存のファイルは変更しない。`node --test`を実行し、`fail 0`と件数を4章の本タスクの欄へ記録する（テストを足さないため件数は計画時点の498のまま）。
         *   開発資料への影響は2章の更新予定欄へ追記し（資料本体は修正しない）、迷った点・Phase 05-04が使い回すときの注意は5章へ追記する。完了時に本タスクを [x] にし、4章の本タスクの欄を記入する。
-*   [ ] タスク2: 結合の規則のテストの新設
+*   [x] タスク2: 結合の規則のテストの新設
     *   **対象ファイル** :
         *   `./test/shapes/PathJoinRules.test.js` :（新規）
         *   `./js/shapes/PathJoinRules.js` :（テストで誤りが見つかった場合のみ修正）
@@ -364,8 +364,12 @@ import：`node:test`・`node:assert/strict`・`../../js/shapes/PathJoinRules.js`
     *   開発資料への影響：新規ファイル`shapes/PathJoinRules.js`（第3の種類「図形をまたぐ規則」）の追加。資料本体は未修正（計画2章のとおりタスク9で反映）。
 
 ### タスク2: 結合の規則のテストの新設
+*   **対象ファイル** : `./test/shapes/PathJoinRules.test.js`（新規）。`PathJoinRules.js`は変更なし（テストで誤りは見つからなかった）。
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   要件9の9-1の観点をすべて書いた（`JOIN_TOLERANCE_SCREEN_PX`・`classifyJoin`・`isJoinableLine`・`buildClosedPath`・`buildJoinedPath`（(1)〜(4)・優先順3ケース・重なり（3-4-5の直角三角形で距離ちょうど5と4.9、Aの始点側(3)(4)も）・属性・直線/パスの組み合わせ・結合できない線・両端が重なっても閉じない）・`planJoin`（閉じる・2本・並び入れ替え・受理しない選択）・往復と独立性）。実コードを読んで、`JOIN_TOLERANCE_SCREEN_PX`が5であること、両端が重なっても閉じないことを足した。
+    *   先頭行に単一責務JSDoc、補助関数にJSDocを記述。公開APIのみ使用、`id`は公開プロパティへ文字列を直接代入。
+    *   `node --test`：tests 542 / pass 542 / fail 0（498 + 新規44）。
+    *   開発資料への影響：新規テストファイル`test/shapes/PathJoinRules.test.js`の追加（2章の更新予定欄の`16_test.md`・フォルダ構成の記述に既に含まれる。追記なし）。
 
 ### タスク3: `VectorModel`への公開操作`replaceShape`の追加とそのテスト
 *   **作業内容** :
