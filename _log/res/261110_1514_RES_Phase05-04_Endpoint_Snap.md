@@ -303,7 +303,7 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
         *   JSDoc：先頭行の責務JSDocの括弧内に「吸い付きの表示」を足す（3行以内）。`render`のJSDoc（描画順と`@param {{x: number, y: number}|null} [state.snapPoint]`）、各定数、`#drawSnapIndicator`（`@param`）。
         *   `main.js`は変更しない（`snapPoint`が渡されない間は描かれない）。
         *   `node --test`を実行し、`fail 0`と件数を4章へ記録する（件数は変わらない）。完了時に本タスクを [x] にし、4章の本タスクの欄を記入する（開発資料への影響は2章、迷った点は5章へ）。
-*   [ ] タスク7: `main.js`の配線（`EndpointSnapper`の生成と注入・描画の引数）
+*   [x] タスク7: `main.js`の配線（`EndpointSnapper`の生成と注入・描画の引数）
     *   **対象ファイル** :
         *   `./js/main.js` :（更新。配線のみ）
     *   **作業内容** :
@@ -390,7 +390,8 @@ main.js の renderCurrentState ── model.getSnapPoint() ──▶ CanvasManag
 
 ### タスク7: `main.js`の配線（`EndpointSnapper`の生成と注入・描画の引数）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/main.js`：`EndpointSnapper`をimport。`new InputTracker(...)`の直前で`EndpointSnapper`を生成（`model`・`editRecorder: historyManager`・`screenLengthToWorld`）し、第5引数に注入（コメント追記）。`renderCurrentState`の`canvasManager.render`に`snapPoint: model.getSnapPoint()`を追加し、JSDocの状態の列挙に`snapPoint`を追記。既存の配線は不変。`InputTracker`は未変更のため第5引数は現時点で無視される（タスク8で受け取る）。
+    *   `node --test`：tests 646 / pass 646 / fail 0（件数変わらず）。`main.js`は約593行（+約11行）。開発資料への影響：`main.js`の行数と配線（`EndpointSnapper`の生成・注入）をタスク11で反映。
 
 ### タスク8: `InputTracker`の直線を描く流れの配線
 *   **作業内容** :

@@ -15,6 +15,7 @@ import { DocumentSerializer } from './io/DocumentSerializer.js';
 import { DevPanel } from './palette/DevPanel.js';
 import { ShapeInserter } from './edit/ShapeInserter.js';
 import { PathJoiner } from './edit/PathJoiner.js';
+import { EndpointSnapper } from './edit/EndpointSnapper.js';
 import { ClipboardController } from './edit/ClipboardController.js';
 import { SnapshotAdapter } from './edit/SnapshotAdapter.js';
 import { CanvasStorage } from './io/CanvasStorage.js';
@@ -103,11 +104,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 4. Controller (入力管理)
-    // 編集操作の記録先（EditRecorder）としてhistoryManagerを注入する
-    const inputTracker = new InputTracker(canvas, model, viewTransform, historyManager);
+    // 端点への吸い付き。規則はshapes/EndpointSnapRules・shapes/PathJoinRules、手順はedit/EndpointSnapperが担い、
+    // InputTrackerは注入されたものを呼ぶだけ（core/はedit/をimportしないため、ここで生成して注入する）。
+    const endpointSnapper = new EndpointSnapper({
+        model,
+        editRecorder: historyManager,
+        screenLengthToWorld: (length) => viewTransform.screenLengthToWorld(length)
+    });
+    // 編集操作の記録先（EditRecorder）としてhistoryManagerを、吸い付きの照会と反映としてendpointSnapperを注入する
+    const inputTracker = new InputTracker(canvas, model, viewTransform, historyManager, endpointSnapper);
 
     /**
-     * Modelの現在の状態（shapes/selectedIds/hoveredId/draftShape/selectionRect）とビュー変換の現在の状態
+     * Modelの現在の状態（shapes/selectedIds/hoveredId/draftShape/selectionRect/snapPoint）とビュー変換の現在の状態
      * （`viewTransform.getState()`による倍率・オフセットのスナップショット）をCanvasManagerへ渡し、
      * 再描画を要求するローカル関数。model.onChange・viewTransform.onChangeのコールバックと
      * resizeハンドラの3経路から同一の引数構成で呼び出すことで、再描画トリガーの重複定義を避ける。
@@ -118,6 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
             hoveredId: model.getHoveredId(),
             draftShape: model.getDraftShape(),
             selectionRect: model.getSelectionRect(),
+            snapPoint: model.getSnapPoint(),
             view: viewTransform.getState()
         });
     }
