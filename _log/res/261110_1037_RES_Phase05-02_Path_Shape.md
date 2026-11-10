@@ -256,7 +256,7 @@
         *   `test/core/ShapeFactory.test.js`に2章要件5の5-2の観点を書く（先頭行に単一責務JSDoc。5-2の案）。
         *   `InputTracker`・`KeyboardShortcuts`・`PaletteController`・`VectorModel`・`main.js`・`index.html`は変更しない。
         *   `node --test`を実行し、`fail 0`と件数を4章へ記録する（既存の`DocumentSerializer.roundtrip`等が`SHAPE_TYPES`の5種のまま通ることを含む）。完了時に本タスクを [x] にし、4章の本タスクの欄を記入する（開発資料への影響は2章、迷った点は5章へ）。
-*   [ ] タスク5: 作業データの往復テストへのパスの追加
+*   [x] タスク5: 作業データの往復テストへのパスの追加
     *   **対象ファイル** :
         *   `./test/io/DocumentSerializer.roundtrip.test.js` :（更新。ケースの追加のみ）
     *   **作業内容** :
@@ -335,7 +335,12 @@
 
 ### タスク5: 作業データの往復テストへのパスの追加
 *   **作業内容** :
-    *   （未実施）
+    *   `test/io/DocumentSerializer.roundtrip.test.js`にケースを追加（既存のケース・補助関数は未変更。`import { Path }`と先頭行の責務JSDoc「5種の図形とパス」への改めのみ既存部分に触れた）。
+    *   新しい補助関数（JSDoc付き）：`assertSamePath`（別インスタンス・`constructor`が`Path`・`toJSON()`・`points`・`closed`・`segments`・`strokeColor`・`strokeWidth`の一致）、`assertRestoredWithPaths`（パスは`assertSamePath`、他は既存の`assertSameShape`）、`makePath`。定数`PATH_POINTS`・`PATH_STATES`。
+    *   `describe('path の往復')`：開いた4点・閉じた・2点の開いた・頂点を動かした・平行移動した・線の色と太さを変えた・長さ0の区間を含む、を両層（オブジェクト層・文字列層）で往復し`console.warn`0回。
+    *   `describe('パスと既存の5種の混在の往復')`：`rect`・開いたパス・`line`・閉じたパス・`circle`・`curve`・`arc`の混在で、`type`の並び・`id`・`closed`・各内容が保たれることを両層で確認。
+    *   `node --test`：`tests 484`・`pass 484`・`fail 0`（タスク4時点の468から16件増）。
+    *   開発資料の更新予定欄への追記：なし。
 
 ### タスク6: スプライトデータの組み立てのテストへのパスの追加
 *   **作業内容** :

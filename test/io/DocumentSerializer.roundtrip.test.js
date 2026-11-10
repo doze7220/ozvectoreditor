@@ -1,6 +1,6 @@
 /**
- * 責務: DocumentSerializerの往復（図形インスタンス→作業データ→図形インスタンス）で5種の図形が
- * 元と同じ図形に戻ることを、公開APIのみを通して検証する。
+ * 責務: DocumentSerializerの往復（図形インスタンス→作業データ→図形インスタンス）で5種の図形と
+ * パスが元と同じ図形に戻ることを、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,6 +10,7 @@ import { Line } from '../../js/shapes/Line.js';
 import { Curve } from '../../js/shapes/Curve.js';
 import { Rect } from '../../js/shapes/Rect.js';
 import { Ellipse } from '../../js/shapes/Ellipse.js';
+import { Path } from '../../js/shapes/Path.js';
 
 /** 種別ごとの頂点数（開発資料4章 shapes/）。 */
 const POINT_COUNTS = { line: 2, curve: 3, rect: 4, arc: 5, circle: 5 };
@@ -243,4 +244,144 @@ describe('混在・図形0個・補足の検証', () => {
         doc.shapes.forEach((data) => data.points.forEach((p) => { p.x += 1000; p.y += 1000; }));
         assert.deepStrictEqual(shapes.map((s) => s.toJSON()), before);
     });
+});
+
+/**
+ * 復元したパスが元のパスと同じ内容の別インスタンスであることを検証する。
+ * @param {object} actual - 復元後のパス
+ * @param {object} expected - 元のパス
+ * @returns {void}
+ */
+function assertSamePath(actual, expected) {
+    assert.notStrictEqual(actual, expected);
+    assert.equal(actual.constructor, expected.constructor);
+    assert.equal(actual.constructor, Path);
+    assert.deepStrictEqual(actual.toJSON(), expected.toJSON());
+    assert.deepStrictEqual(actual.points, expected.points);
+    assert.equal(actual.closed, expected.closed);
+    assert.deepStrictEqual(actual.segments, expected.segments);
+    assert.equal(actual.strokeColor, expected.strokeColor);
+    assert.equal(actual.strokeWidth, expected.strokeWidth);
+}
+
+/**
+ * 結果が成功・スキップなしであることと、パスと既存の5種が混在する各図形が元と一致することを検証する。
+ * @param {object} result - デシリアライズの結果
+ * @param {object[]} shapes - 元の図形の配列（パスを含んでよい）
+ * @returns {void}
+ */
+function assertRestoredWithPaths(result, shapes) {
+    assert.equal(result.ok, true);
+    assert.deepStrictEqual(result.skipped, []);
+    assert.equal(result.error, null);
+    assert.equal(result.shapes.length, shapes.length);
+    shapes.forEach((shape, i) => {
+        if (shape.type === 'path') {
+            assertSamePath(result.shapes[i], shape);
+        } else {
+            assertSameShape(result.shapes[i], shape);
+        }
+    });
+}
+
+/**
+ * パスを作る。
+ * @param {{x: number, y: number}[]} points - 頂点の並び
+ * @param {boolean} closed - 閉じているか
+ * @param {string} [strokeColor] - 線の色
+ * @param {number} [strokeWidth] - 線の太さ
+ * @returns {Path} パス
+ */
+function makePath(points, closed, strokeColor, strokeWidth) {
+    return new Path(points, closed, strokeColor, strokeWidth);
+}
+
+/** パスの頂点の例（4点）。 */
+const PATH_POINTS = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }];
+
+/** パスの状態の定義（名前・build・baseline・styled）。 */
+const PATH_STATES = [
+    { name: '開いたパス（4点）', build: () => makePath(PATH_POINTS, false), baseline: null, styled: false },
+    { name: '閉じたパス', build: () => makePath(PATH_POINTS, true), baseline: null, styled: false },
+    { name: '2点の開いたパス', build: () => makePath([{ x: 5, y: 6 }, { x: 70.5, y: -20 }], false), baseline: null, styled: false },
+    {
+        name: '頂点を動かした',
+        build: () => { const p = makePath(PATH_POINTS, true); p.setVertex(1, 130.25, -15.5); p.setVertex(3, -8, 90); return p; },
+        baseline: () => makePath(PATH_POINTS, true),
+        styled: false,
+    },
+    {
+        name: '平行移動した',
+        build: () => { const p = makePath(PATH_POINTS, false); p.translate(12.5, -7); return p; },
+        baseline: () => makePath(PATH_POINTS, false),
+        styled: false,
+    },
+    { name: '線の色・太さを変えた', build: () => makePath(PATH_POINTS, true, '#ff8800', 5.5), baseline: null, styled: true },
+    {
+        name: '長さ0の区間を含む',
+        build: () => makePath([{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 100, y: 0 }], false),
+        baseline: null,
+        styled: false,
+    },
+];
+
+describe('path の往復', () => {
+    for (const state of PATH_STATES) {
+        for (const route of ROUTES) {
+            it(`${state.name}（${route.name}）`, (t) => {
+                const warn = silenceWarn(t);
+                const path = state.build();
+                path.id = 'path-1';
+                if (state.baseline) {
+                    assert.notDeepStrictEqual(path.toJSON().points, state.baseline().toJSON().points);
+                }
+                if (state.styled) {
+                    assert.notEqual(path.toJSON().strokeColor, '#000000');
+                    assert.notEqual(path.toJSON().strokeWidth, 2);
+                }
+                assertRestoredWithPaths(route.run([path]), [path]);
+                assert.equal(warn.mock.callCount(), 0);
+            });
+        }
+    }
+});
+
+describe('パスと既存の5種の混在の往復', () => {
+    /**
+     * 既存の5種とパス（開いた・閉じた）が混在する図形を作る。
+     * @returns {object[]} 図形の配列（id は shape-1〜shape-7）
+     */
+    function makeMixedWithPaths() {
+        const rect = ShapeFactory.create('rect', 10, 10, 90, 60);
+        const openPath = makePath(PATH_POINTS, false, '#112233', 4);
+        openPath.setVertex(2, 150, 120);
+        const line = ShapeFactory.create('line', 10, 20, 110, 70);
+        const closedPath = makePath(PATH_POINTS, true);
+        closedPath.translate(30, -10);
+        const circle = ShapeFactory.create('circle', 50, 50, 80, 20);
+        const curve = ShapeFactory.create('curve', 0, 0, 100, 40);
+        const arc = ShapeFactory.create('arc', 50, 50, 80, 20);
+        const shapes = [rect, openPath, line, closedPath, circle, curve, arc];
+        shapes.forEach((s, i) => { s.id = `shape-${i + 1}`; });
+        return shapes;
+    }
+
+    for (const route of ROUTES) {
+        it(`描画順（type の並び）・id・各図形の内容が保たれる（${route.name}）`, (t) => {
+            const warn = silenceWarn(t);
+            const shapes = makeMixedWithPaths();
+            const result = route.run(shapes);
+            assertRestoredWithPaths(result, shapes);
+            assert.deepStrictEqual(
+                result.shapes.map((s) => s.type),
+                ['rect', 'path', 'line', 'path', 'circle', 'curve', 'arc'],
+            );
+            assert.deepStrictEqual(
+                result.shapes.map((s) => s.id),
+                ['shape-1', 'shape-2', 'shape-3', 'shape-4', 'shape-5', 'shape-6', 'shape-7'],
+            );
+            assert.deepStrictEqual(result.shapes.map((s) => s.closed), [undefined, false, undefined, true, undefined, undefined, undefined]);
+            assert.equal(warn.mock.callCount(), 0);
+        });
+    }
 });
