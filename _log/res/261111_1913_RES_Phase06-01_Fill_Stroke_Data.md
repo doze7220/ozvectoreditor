@@ -283,7 +283,7 @@
         *   2章 要件3のとおり、`buildClosedPath`と`assembleOpenPath`の`new Path(...)`に`fillColor`を渡す。`assembleOpenPath`の`dataA`の型の記述、`buildJoinedPath`・`buildJoinedPathAt`・`buildExtendedPath`・`buildClosedPath`のJSDocの「色と太さ」を「色・太さ・塗り」へ改める。関数の追加・規則の変更はしない。
         *   テスト（追加のみ）：`buildJoinedPath`（Aの`fillColor`を結果が持つ。Bだけが`fillColor`を持つ場合は結果が`null`。直線Aの`fillColor`も引き継ぐ）、`buildClosedPath`（元の`fillColor`を保ち、結果の`isFillable()`が`true`、`toDrawElement().fillColor`が元の値）、`buildJoinedPathAt`、`buildExtendedPath`（元の線の`fillColor`）、`planJoin`（`'close'`・`'join'`）、`planDrawnLineJoin`（描き足し・閉じる・結合）、`planEndpointDragJoin`（閉じる・結合）の結果の`fillColor`が基準の線A（元の線）のもの。
 
-*   [ ] タスク8: 作業データの版2と版1→版2の移行
+*   [x] タスク8: 作業データの版2と版1→版2の移行
     *   **対象ファイル** :
         *   `./js/io/DocumentSerializer.js` : 更新
         *   `./test/io/DocumentSerializer.migration.test.js` : 新規
@@ -415,7 +415,13 @@
 
 ### タスク8: 作業データの版2と版1→版2の移行
 *   **作業内容** :
-    *   (未着手)
+    *   `js/io/DocumentSerializer.js`：`CURRENT_DOCUMENT_VERSION = 2`。非公開関数`migrateVersion1To2`を`MIGRATIONS`の前に追加（JSDoc付き。プレーンオブジェクトの要素のみ`{ ...item, fillColor: null }`、それ以外の要素・配列でない`shapes`はそのまま、引数を書き換えない）。`MIGRATIONS = Object.freeze({ 1: migrateVersion1To2 })`。`MIGRATIONS`のJSDoc（「現時点では版1のみのため空」→現在の登録内容）・typedef`DocumentData`（「版1」→現行版2、図形データの形に`fillColor`・`strokeColor`のnull）を改めた。`deserialize`の処理は変更なし。
+    *   `test/io/DocumentSerializer.migration.test.js`（新規、7ケース）：オブジェクト層・文字列層の全図形`fillColor: null`と他項目の保持、版1の`fillColor`文字列が`null`になること、`strokeWidth`なし→2px、プレーンオブジェクトでない要素のスキップ（4件・警告4回）、`shapes`が配列でない場合の全体失敗（警告1回）、引数を書き換えないこと。
+    *   `test/io/SpriteSerializer.test.js`：`source.version`の期待値を1→2（2ケース）。
+    *   `node --test`：tests 748・pass 748・fail 0。
+*   **書き換えた既存ケース** :
+    *   `test/io/SpriteSerializer.test.js`「キーの順と識別子・版を持ち、最上位にversionを持たない」（`data.source.version`の期待値 1→2）
+    *   `test/io/SpriteSerializer.test.js`「図形0個は elements: []・bounds: null・sourceは図形0個の作業データ」（`source`の`version`の期待値 1→2）
 
 ### タスク9: 書き出し形式の版2と外枠
 *   **作業内容** :

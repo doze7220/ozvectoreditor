@@ -54,7 +54,7 @@ describe('SpriteSerializer.serialize: 描画要素', () => {
         assert.equal(data.format, 'oz-vector-editor-sprite');
         assert.equal(data.formatVersion, 1);
         assert.equal('version' in data, false);
-        assert.equal(data.source.version, 1);
+        assert.equal(data.source.version, 2);
         assert.equal(data.source.format, 'oz-vector-editor');
     });
 
@@ -131,7 +131,7 @@ describe('SpriteSerializer.serialize: 外枠', () => {
         const data = SpriteSerializer.serialize([]);
         assert.deepEqual(data.elements, []);
         assert.equal(data.bounds, null);
-        assert.deepEqual(data.source, { format: 'oz-vector-editor', version: 1, shapes: [] });
+        assert.deepEqual(data.source, { format: 'oz-vector-editor', version: 2, shapes: [] });
     });
 
     it('線は線の太さの半分だけ広がる', () => {

@@ -15,7 +15,28 @@ const DOCUMENT_FORMAT = 'oz-vector-editor';
  * シリアライズは常にこの版で出力し、デシリアライズは1〜この版までを受理する（旧版はMIGRATIONSで現行版へ変換する）。
  * @type {number}
  */
-const CURRENT_DOCUMENT_VERSION = 1;
+const CURRENT_DOCUMENT_VERSION = 2;
+
+/**
+ * 版1の作業データを版2へ変換する（全図形を塗りなしにする）。
+ * 版1に`fillColor`の意味はないため、`shapes`のプレーンオブジェクトの要素は`fillColor`を持っていても`null`にする。
+ * `strokeColor`・`strokeWidth`には触れない（`strokeWidth`が無い要素は図形クラスの検証で2pxになる）。
+ * プレーンオブジェクトでない要素はそのまま残す（後段の図形単位の検証でスキップされる）。
+ * `shapes`が配列でなければその値をそのまま入れる（後段の「shapesが配列ではありません」の全体失敗に任せる）。
+ * 引数（doc・doc.shapes・各要素）を書き換えない。throwしない。
+ * @param {Object} doc - 版1の作業データ（プレーンオブジェクト）
+ * @returns {Object} 版2の作業データ（新しいオブジェクト）
+ */
+function migrateVersion1To2(doc) {
+    const shapes = Array.isArray(doc.shapes)
+        ? doc.shapes.map((item) => (
+            typeof item === 'object' && item !== null && !Array.isArray(item)
+                ? { ...item, fillColor: null }
+                : item
+        ))
+        : doc.shapes;
+    return { ...doc, version: 2, shapes };
+}
 
 /**
  * 作業データ形式のマイグレーション表。
@@ -28,17 +49,19 @@ const CURRENT_DOCUMENT_VERSION = 1;
  *   3. 図形クラスのtoJSON/fromJSONを新版の図形データへ更新する
  *      （図形クラスは常に現行版のみを扱い、旧版の知識はこのMIGRATIONSに閉じる）
  *
- * 現時点では版1のみのため空。
+ * 現時点の登録: 版1→版2（migrateVersion1To2。全図形のfillColorをnullにする）。
  * @type {Readonly<Object<number, (doc: Object) => Object>>}
  */
-const MIGRATIONS = Object.freeze({});
+const MIGRATIONS = Object.freeze({ 1: migrateVersion1To2 });
 
 /**
- * 作業データ形式（版1）の最上位の形。
+ * 作業データ形式（現行版2）の最上位の形。
+ * 図形データの形は`{ type, id, points, strokeColor, strokeWidth, fillColor }`（pathは`closed`・`segments`が加わる）。
+ * strokeColorは色の文字列またはnull（線なし）、fillColorは色の文字列またはnull（塗りなし。キーが無ければnullとして読む）。
  * @typedef {Object} DocumentData
  * @property {string} format 作業データ形式の識別子（'oz-vector-editor'）
- * @property {number} version 作業データ形式の版番号（1以上の整数）
- * @property {Array<Object>} shapes 図形データ（{ type, id, points, strokeColor, strokeWidth }）の配列（描画順）
+ * @property {number} version 作業データ形式の版番号（1以上の整数。シリアライズは常に現行版の2）
+ * @property {Array<Object>} shapes 図形データ（{ type, id, points, strokeColor, strokeWidth, fillColor }）の配列（描画順）
  */
 
 /**
