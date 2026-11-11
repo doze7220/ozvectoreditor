@@ -1,6 +1,6 @@
 /**
  * 責務: DocumentSerializerの往復（図形インスタンス→作業データ→図形インスタンス）で5種の図形と
- * パスが元と同じ図形に戻ることを、公開APIのみを通して検証する。
+ * パス（塗り・線なしを含む）が元と同じ図形に戻ることを、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -384,4 +384,121 @@ describe('パスと既存の5種の混在の往復', () => {
             assert.equal(warn.mock.callCount(), 0);
         });
     }
+});
+
+describe('塗り・線なしの往復（作業データの版2）', () => {
+    /** 自分自身と交差する閉じたパス（五角形の星形）の頂点。 */
+    const STAR_POINTS = [
+        { x: 50, y: 0 }, { x: 80, y: 95 }, { x: 0, y: 36 }, { x: 100, y: 36 }, { x: 20, y: 95 },
+    ];
+
+    /**
+     * 塗り・線なしを含む図形を作る。
+     * @returns {object[]} 図形の配列（id は shape-1〜shape-9）
+     */
+    function makeFillStrokeShapes() {
+        const shapes = [
+            new Rect(10, 10, 90, 60, '#112233', 3, '#ff0000'),
+            new Ellipse(50, 50, 80, 20, 'circle', null, 2, '#00ff00'),
+            makeFilledPath(PATH_POINTS, true, null, 2, '#0000ff'),
+            makeFilledPath(STAR_POINTS, true, '#000000', 2, '#ffff00'),
+            new Line(0, 0, 50, 50, '#123456', 2, '#abcdef'),
+            new Curve(0, 0, 100, 40, '#654321', 4, '#fedcba'),
+            new Ellipse(50, 50, 80, 20, 'arc', '#778899', 2, '#112233'),
+            makeFilledPath(PATH_POINTS, false, '#445566', 2, '#778899'),
+            new Line(5, 5, 60, 80, null, 2, null),
+        ];
+        shapes.forEach((s, i) => { s.id = `shape-${i + 1}`; });
+        return shapes;
+    }
+
+    /**
+     * 塗りを指定してパスを作る。
+     * @param {{x: number, y: number}[]} points - 頂点の並び
+     * @param {boolean} closed - 閉じているか
+     * @param {(string|null)} strokeColor - 線の色（nullは線なし）
+     * @param {number} strokeWidth - 線の太さ
+     * @param {(string|null)} fillColor - 塗りの色（nullは塗りなし）
+     * @returns {Path} パス
+     */
+    function makeFilledPath(points, closed, strokeColor, strokeWidth, fillColor) {
+        return new Path(points, closed, strokeColor, strokeWidth, fillColor);
+    }
+
+    /**
+     * 復元した図形の fillColor・strokeColor・strokeWidth が元と同じであることを明示的に比べる。
+     * @param {object} result - デシリアライズの結果
+     * @param {object[]} shapes - 元の図形の配列
+     * @returns {void}
+     */
+    function assertStyles(result, shapes) {
+        assert.equal(result.shapes.length, shapes.length);
+        shapes.forEach((shape, i) => {
+            assert.equal(result.shapes[i].fillColor, shape.fillColor);
+            assert.equal(result.shapes[i].strokeColor, shape.strokeColor);
+            assert.equal(result.shapes[i].strokeWidth, shape.strokeWidth);
+            assert.equal(result.shapes[i].toJSON().fillColor, shape.fillColor);
+            assert.equal(result.shapes[i].toJSON().strokeColor, shape.strokeColor);
+        });
+    }
+
+    for (const route of ROUTES) {
+        it(`塗り・線なしを含む図形が元どおりに戻る（${route.name}）`, (t) => {
+            const warn = silenceWarn(t);
+            const shapes = makeFillStrokeShapes();
+            const result = route.run(shapes);
+            assertRestoredWithPaths(result, shapes);
+            assertStyles(result, shapes);
+            assert.deepStrictEqual(
+                result.shapes.map((s) => s.fillColor),
+                ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#abcdef', '#fedcba', '#112233', '#778899', null],
+            );
+            assert.deepStrictEqual(
+                result.shapes.map((s) => s.strokeColor),
+                ['#112233', null, null, '#000000', '#123456', '#654321', '#778899', '#445566', null],
+            );
+            assert.equal(warn.mock.callCount(), 0);
+        });
+
+        it(`塗れない形の fillColor も保持される（${route.name}）`, (t) => {
+            const warn = silenceWarn(t);
+            const shapes = makeFillStrokeShapes();
+            const result = route.run(shapes);
+            const unfillable = result.shapes.filter((s) => !s.isFillable());
+            assert.deepStrictEqual(unfillable.map((s) => s.type), ['line', 'curve', 'arc', 'path', 'line']);
+            assert.deepStrictEqual(
+                unfillable.map((s) => s.fillColor),
+                ['#abcdef', '#fedcba', '#112233', '#778899', null],
+            );
+            assert.equal(warn.mock.callCount(), 0);
+        });
+
+        it(`自分自身と交差する閉じたパスの塗りが保たれる（${route.name}）`, (t) => {
+            const warn = silenceWarn(t);
+            const star = makeFilledPath(STAR_POINTS, true, '#000000', 2, '#ffff00');
+            star.id = 'star-1';
+            const result = route.run([star]);
+            assertRestoredWithPaths(result, [star]);
+            assert.equal(result.shapes[0].fillColor, '#ffff00');
+            assert.equal(result.shapes[0].isFillable(), true);
+            assert.equal(warn.mock.callCount(), 0);
+        });
+
+        it(`線なしで塗りなしの直線も受理され元どおりに戻る（${route.name}）`, (t) => {
+            const warn = silenceWarn(t);
+            const line = new Line(5, 5, 60, 80, null, 2, null);
+            line.id = 'line-1';
+            const result = route.run([line]);
+            assertRestoredWithPaths(result, [line]);
+            assert.equal(result.shapes[0].strokeColor, null);
+            assert.equal(result.shapes[0].fillColor, null);
+            assert.equal(warn.mock.callCount(), 0);
+        });
+    }
+
+    it('serializeの version が 2 である', (t) => {
+        silenceWarn(t);
+        assert.equal(DocumentSerializer.serialize(makeFillStrokeShapes()).version, 2);
+        assert.equal(JSON.parse(DocumentSerializer.serializeToString(makeFillStrokeShapes())).version, 2);
+    });
 });

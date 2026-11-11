@@ -320,7 +320,7 @@
             *   追加（エディタの描画との一致。全6種＝5クラス）：塗りあり線あり（`rect`・`circle`・閉じたパス）、塗りのみ線なし（同）、塗りも線もなし（全6種。記録は前置きと`restore`のみ）、塗れない形に`fillColor`がある（`line`・`curve`・`arc`・開いたパス。線ありと線なし）、自分自身と交差する閉じたパスの塗り、塗り・線なしと従来の図形の混在（描画順）。
             *   追加（読む側の規則。手で組み立てた描画要素）：`fillColor`が文字列でない（数値・`null`・キーなし）要素は塗らない、`closed`が`true`でない（`false`・キーなし・`'true'`）`polyline`/`ellipse`は塗らない、`quadratic`は`fillColor`が文字列でも塗らない、線なしで塗りだけの`polyline`/`ellipse`は塗る（パス→`fillStyle`→`fill()`で`stroke`なし）、塗りも線もない要素は何も呼ばない、形の項目が足りない要素・未知の`kind`は`fillColor`があっても何も呼ばない。
 
-*   [ ] タスク11: 作業データの往復のテスト（塗り・線なし）
+*   [x] タスク11: 作業データの往復のテスト（塗り・線なし）
     *   **対象ファイル** :
         *   `./test/io/DocumentSerializer.roundtrip.test.js` : 更新
     *   **作業内容** :
@@ -441,7 +441,10 @@
 
 ### タスク11: 作業データの往復のテスト（塗り・線なし）
 *   **作業内容** :
-    *   (未着手)
+    *   `test/io/DocumentSerializer.roundtrip.test.js`：先頭の責務JSDocに「塗り・線なしを含む」を足した。末尾に新しいdescribe「塗り・線なしの往復（作業データの版2）」を追加（補助関数`makeFilledPath`・`assertStyles`をdescribe内に追加）。塗りあり線ありの矩形、塗りのみ線なしの円・閉じたパス、自己交差の星形の閉じたパス、`fillColor`を持つ直線・曲線・弧・開いたパス、線なし塗りなしの直線を、オブジェクト層・文字列層の両方で往復し、`fillColor`・`strokeColor`・`strokeWidth`を明示的に比較。`serialize`/`serializeToString`の`version`が2であること。
+    *   `node --test`：tests 776・pass 776・fail 0。
+*   **書き換えた既存ケース** :
+    *   なし（追加のみ。既存の補助関数・ケースは不変）。
 
 ### タスク12: スプライトJSの読み込みのテスト（塗り・線なし、版1のJS）
 *   **作業内容** :
