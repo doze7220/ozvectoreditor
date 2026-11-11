@@ -93,7 +93,7 @@ describe('SpriteSerializer.serialize: 描画要素', () => {
         const circle = withId(new Ellipse(10, 20, 40, 60, 'circle', '#123456', 4), 'E1');
         const [el] = SpriteSerializer.serialize([circle]).elements;
         assert.deepEqual(Object.keys(el), [
-            'kind', 'id', 'x', 'y', 'radiusX', 'radiusY', 'startAngle', 'endAngle', 'closed', 'strokeColor', 'strokeWidth',
+            'kind', 'id', 'x', 'y', 'radiusX', 'radiusY', 'startAngle', 'endAngle', 'closed', 'strokeColor', 'strokeWidth', 'fillColor',
         ]);
         assert.equal(el.kind, 'ellipse');
         assert.equal(el.x, 10);

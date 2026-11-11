@@ -254,7 +254,7 @@
         *   テスト（`Rect.test.js`。`beginPath`・`moveTo`・`lineTo`・`closePath`・`fill`・`stroke`の呼び出しと`fillStyle`・`strokeStyle`・`lineWidth`の代入を記録する偽の`ctx`の補助関数をファイル内に作る）：`isFillable`が`true`。`draw`の記録：塗りあり線あり（パス→`fillStyle`→`fill()`（引数なし）→`strokeStyle`→`lineWidth`→`stroke()`）、塗りあり線なし（パス→`fillStyle`→`fill()`のみ）、塗りなし線あり（従来と同じ）、塗りも線もなし（何も呼ばない）。`fromJSON`の`fillColor`の受理・不正（`Rect.fromJSON: fillColorが文字列またはnullではありません`）・順序・`strokeWidth`キーなし→2。`toJSON`のキー順、`toDrawElement`のキー順（`polyline`）と`fillColor`が図形の値であること。
         *   `test/io/SpriteSerializer.test.js`の`rect`のケースはキー順を見ていないため書き換えない。
 
-*   [ ] タスク5: `Ellipse`（円・弧）の塗り
+*   [x] タスク5: `Ellipse`（円・弧）の塗り
     *   **対象ファイル** :
         *   `./js/shapes/Ellipse.js` : 更新
         *   `./test/shapes/Ellipse.test.js` : 更新
@@ -389,7 +389,12 @@
 
 ### タスク5: `Ellipse`（円・弧）の塗り
 *   **作業内容** :
-    *   (未着手)
+    *   `js/shapes/Ellipse.js`：コンストラクタ末尾に`fillColor = null`とプロパティ（`strokeColor`の型を`string|null`へ）、`isFillable()`（`this.type === 'circle'`）、`draw`を共通の順序へ（`shouldFill`/`shouldStroke`、どちらも偽なら`return`、従来のパス（`beginPath`→`ellipse`→円なら`closePath`）→塗り→線）、`toJSON`末尾に`fillColor`、`toDrawElement`末尾に`fillColor: this.isFillable() ? this.fillColor : null`（`closed`は従来どおり）、`fromJSON`は`validateShapeData`の戻り値`style`を使用。クラスJSDocを14メソッドへ、`ELLIPSE_TYPES`のJSDocの分岐箇所に`isFillable`を追加、`ELLIPSE_POINT_COUNT`・`toJSON`の「バージョン1」を「現行版」へ、各JSDoc（`@param`・`@returns`・`@throws`）を改めた。
+    *   `test/shapes/Ellipse.test.js`：先頭の責務JSDocを改めた（3行以内）。`makeValidData`の`@returns`に`fillColor`を足した。偽の`ctx`の補助関数`makeRecordingCtx`をファイル内に追加（`ellipse`も記録）。`isFillable`（円true・弧false）・コンストラクタの既定値、`draw`（円の4パターン・弧の塗りなし線あり／fillColorあり線あり／fillColorあり線なし）、`fromJSON`の`fillColor`（受理・不正・検査の順序・`strokeWidth`キーなし→2）、`toJSON`/`toDrawElement`のキー順（12キー）と`fillColor`（円は図形の値・弧は`null`）を追加。
+    *   `node --test`：tests 715・pass 715・fail 0。
+    *   監査の指摘による修正（2件）：(1) `Ellipse.toDrawElement`のJSDocの「形（キー順もこの順）」の行に`fillColor`を足した（同ファイル内の他の形の記述は`toJSON`側が既に`fillColor`を含む）。(2) `test/shapes/Ellipse.test.js`の既存ケース「検査の順序：種別 → 頂点数 → …」に追記していた`widthAndFill`・`colorAndFill`を取り除いて元に戻し、新しいケース「検査の順序：strokeWidth・strokeColorの不正がfillColorの不正より先」として足した。修正後の`node --test`：tests 716・pass 716・fail 0。
+*   **書き換えた既存ケース** :
+    *   `test/io/SpriteSerializer.test.js`「circleはellipse（0〜2π・closed: true）」：キー順に`fillColor`を足した（理由：描画要素のキー追加）。
 
 ### タスク6: `Path`の塗り
 *   **作業内容** :

@@ -1,5 +1,6 @@
 /**
- * 責務: 円・弧（Ellipse）の当たり判定（hitTest・intersectsRect。縮退時の分岐を含む）とfromJSONの不正な図形データのエラー文を、公開APIのみを通して検証する。
+ * 責務: 円・弧（Ellipse）の当たり判定（縮退時の分岐を含む）・塗れる形か（isFillable）・偽のctxによる描画命令・図形データとの相互変換
+ * （fromJSONの受理と不正なデータのエラー文・toJSON・toDrawElement）を、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -8,7 +9,7 @@ import { Ellipse } from '../../js/shapes/Ellipse.js';
 /**
  * 正常な円・弧の図形データ（idを入れたtoJSON()の戻り値）を返す。呼ぶたびに新しいオブジェクトを返す。
  * @param {string} [type='circle'] - 図形種別（'circle'|'arc'）
- * @returns {{type: string, id: string, points: {x: number, y: number}[], strokeColor: string, strokeWidth: number}} 正常な図形データ
+ * @returns {{type: string, id: string, points: {x: number, y: number}[], strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 正常な図形データ
  */
 function makeValidData(type = 'circle') {
     const data = new Ellipse(0, 0, 50, 50, type).toJSON();
@@ -24,6 +25,26 @@ function makeValidData(type = 'circle') {
  */
 function assertFromJSONError(data, reason) {
     assert.throws(() => Ellipse.fromJSON(data), { name: 'Error', message: 'Ellipse.fromJSON: ' + reason });
+}
+
+/**
+ * 呼び出し・代入を順に記録する偽のctxを作る（beginPath・ellipse・closePath・fill・stroke の呼び出しと
+ * strokeStyle・lineWidth・fillStyle の代入）。
+ * @returns {{ctx: Object, log: Array}} 偽のctxと、記録の配列（呼び出しは`['name', ...args]`、代入は`['set:name', value]`）
+ */
+function makeRecordingCtx() {
+    const log = [];
+    const ctx = {};
+    for (const name of ['beginPath', 'ellipse', 'closePath', 'fill', 'stroke']) {
+        ctx[name] = (...args) => { log.push([name, ...args]); };
+    }
+    for (const name of ['strokeStyle', 'lineWidth', 'fillStyle']) {
+        Object.defineProperty(ctx, name, {
+            set(value) { log.push(['set:' + name, value]); },
+            get() { return undefined; },
+        });
+    }
+    return { ctx, log };
 }
 
 /**
@@ -44,6 +65,83 @@ function makeArc() {
 
 /** `fromJSON`が種別不正のときに返すエラー理由の先頭部分（期待値）。 */
 const TYPE_REASON_HEAD = "図形種別が'circle'・'arc'のいずれでもありません";
+
+describe('Ellipse.isFillable とコンストラクタ', () => {
+    it('円はtrue・弧はfalse', () => {
+        assert.equal(new Ellipse(0, 0, 5, 5, 'circle').isFillable(), true);
+        assert.equal(new Ellipse(0, 0, 5, 5, 'arc').isFillable(), false);
+        assert.equal(new Ellipse(0, 0, 5, 5, 'arc', '#000000', 2, '#ff0000').isFillable(), false);
+    });
+
+    it('既定のfillColorはnullで、既存の引数の位置・既定値は変わらない', () => {
+        const e = new Ellipse(1, 2, 3, 4);
+        assert.equal(e.type, 'circle');
+        assert.equal(e.fillColor, null);
+        assert.equal(e.strokeColor, '#000000');
+        assert.equal(e.strokeWidth, 2);
+        const styled = new Ellipse(1, 2, 3, 4, 'arc', '#ff0000', 5, '#00ff00');
+        assert.equal(styled.type, 'arc');
+        assert.equal(styled.strokeColor, '#ff0000');
+        assert.equal(styled.strokeWidth, 5);
+        assert.equal(styled.fillColor, '#00ff00');
+    });
+});
+
+describe('Ellipse.draw の描画命令', () => {
+    const circlePath = [['beginPath'], ['ellipse', 0, 0, 50, 50, 0, 0, Math.PI * 2], ['closePath']];
+    const arcPath = [['beginPath'], ['ellipse', 0, 0, 50, 50, 0, Math.PI, Math.PI * 2]];
+
+    it('円：塗りあり線ありはパス → fillStyle → fill() → strokeStyle → lineWidth → stroke()', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Ellipse(0, 0, 50, 50, 'circle', '#111111', 3, '#222222').draw(ctx);
+        assert.deepEqual(log, [
+            ...circlePath, ['set:fillStyle', '#222222'], ['fill'],
+            ['set:strokeStyle', '#111111'], ['set:lineWidth', 3], ['stroke'],
+        ]);
+    });
+
+    it('円：塗りあり線なしはパス → fillStyle → fill() のみ', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Ellipse(0, 0, 50, 50, 'circle', null, 3, '#222222').draw(ctx);
+        assert.deepEqual(log, [...circlePath, ['set:fillStyle', '#222222'], ['fill']]);
+    });
+
+    it('円：塗りなし線ありは従来と同じ命令列', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Ellipse(0, 0, 50, 50, 'circle', '#111111', 3).draw(ctx);
+        assert.deepEqual(log, [
+            ...circlePath, ['set:strokeStyle', '#111111'], ['set:lineWidth', 3], ['stroke'],
+        ]);
+    });
+
+    it('円：塗りも線もなしは何も呼ばない', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Ellipse(0, 0, 50, 50, 'circle', null, 3, null).draw(ctx);
+        assert.deepEqual(log, []);
+    });
+
+    it('弧：塗りなし線ありは従来と同じ命令列（closePathなし）', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Ellipse(0, 0, 50, 50, 'arc', '#111111', 3).draw(ctx);
+        assert.deepEqual(log, [
+            ...arcPath, ['set:strokeStyle', '#111111'], ['set:lineWidth', 3], ['stroke'],
+        ]);
+    });
+
+    it('弧：fillColorがあっても線ありなら塗らずに線だけ描く', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Ellipse(0, 0, 50, 50, 'arc', '#111111', 3, '#222222').draw(ctx);
+        assert.deepEqual(log, [
+            ...arcPath, ['set:strokeStyle', '#111111'], ['set:lineWidth', 3], ['stroke'],
+        ]);
+    });
+
+    it('弧：fillColorがあっても線なしなら何も呼ばない', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Ellipse(0, 0, 50, 50, 'arc', null, 3, '#222222').draw(ctx);
+        assert.deepEqual(log, []);
+    });
+});
 
 describe('Ellipse.hitTest', () => {
     it('円の輪郭線の上（右・上・下・左）は当たる', () => {
@@ -356,5 +454,83 @@ describe('Ellipse.fromJSON のエラー文', () => {
         colorAndWidth.strokeColor = 123;
         colorAndWidth.strokeWidth = 0;
         assertFromJSONError(colorAndWidth, 'strokeColorが文字列またはnullではありません');
+    });
+
+    it('検査の順序：strokeWidth・strokeColorの不正がfillColorの不正より先', () => {
+        const widthAndFill = makeValidData();
+        widthAndFill.strokeWidth = 0;
+        widthAndFill.fillColor = 123;
+        assertFromJSONError(widthAndFill, 'strokeWidthが正の有限の数値ではありません');
+
+        const colorAndFill = makeValidData();
+        colorAndFill.strokeColor = 123;
+        colorAndFill.fillColor = 123;
+        assertFromJSONError(colorAndFill, 'strokeColorが文字列またはnullではありません');
+    });
+
+    it('fillColorは文字列・null・キーなし（nullとして読む）を受理する（circle・arc）', () => {
+        for (const type of ['circle', 'arc']) {
+            const str = makeValidData(type);
+            str.fillColor = '#abcdef';
+            assert.equal(Ellipse.fromJSON(str).toJSON().fillColor, '#abcdef');
+            const isNull = makeValidData(type);
+            isNull.fillColor = null;
+            assert.equal(Ellipse.fromJSON(isNull).toJSON().fillColor, null);
+            const none = makeValidData(type);
+            delete none.fillColor;
+            assert.equal(Ellipse.fromJSON(none).toJSON().fillColor, null);
+        }
+    });
+
+    it('fillColorが文字列でもnullでもなければ拒否する（circle・arc）', () => {
+        for (const type of ['circle', 'arc']) {
+            for (const bad of [1, true, {}, []]) {
+                const data = makeValidData(type);
+                data.fillColor = bad;
+                assertFromJSONError(data, 'fillColorが文字列またはnullではありません');
+            }
+        }
+    });
+
+    it('strokeWidthのキーなしはfromJSONの戻り値を通して2pxになる（弧も）', () => {
+        const data = makeValidData('arc');
+        delete data.strokeWidth;
+        const ellipse = Ellipse.fromJSON(data);
+        assert.equal(ellipse.strokeWidth, 2);
+    });
+});
+
+describe('Ellipse.toJSON と toDrawElement', () => {
+    it('toJSONのキー順', () => {
+        assert.deepEqual(Object.keys(makeCircle().toJSON()), [
+            'type', 'id', 'points', 'strokeColor', 'strokeWidth', 'fillColor',
+        ]);
+    });
+
+    it('fillColorを持つ円・弧の往復でfillColorが保持される（弧は塗れなくても保持）', () => {
+        for (const type of ['circle', 'arc']) {
+            const data = makeValidData(type);
+            data.fillColor = '#123456';
+            const restored = Ellipse.fromJSON(data);
+            assert.equal(restored.fillColor, '#123456');
+            assert.deepEqual(restored.toJSON(), data);
+        }
+    });
+
+    it('toDrawElementのキー順（ellipseの12キー）', () => {
+        assert.deepEqual(Object.keys(makeCircle().toDrawElement()), [
+            'kind', 'id', 'x', 'y', 'radiusX', 'radiusY', 'startAngle', 'endAngle',
+            'closed', 'strokeColor', 'strokeWidth', 'fillColor',
+        ]);
+    });
+
+    it('toDrawElementのfillColor：円は図形の値、弧はfillColorを持っていてもnull', () => {
+        assert.equal(new Ellipse(0, 0, 5, 5, 'circle', '#000000', 2, '#ff0000').toDrawElement().fillColor, '#ff0000');
+        assert.equal(new Ellipse(0, 0, 5, 5, 'circle').toDrawElement().fillColor, null);
+        assert.equal(new Ellipse(0, 0, 5, 5, 'arc', '#000000', 2, '#ff0000').toDrawElement().fillColor, null);
+    });
+
+    it('toDrawElementのstrokeColor: nullはそのままnull', () => {
+        assert.equal(new Ellipse(0, 0, 5, 5, 'circle', null).toDrawElement().strokeColor, null);
     });
 });

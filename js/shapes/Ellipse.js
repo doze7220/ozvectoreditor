@@ -13,7 +13,7 @@ import { validateShapeData } from './ShapeDataValidation.js';
 const ELLIPSE_INTERSECT_SEGMENTS = 100;
 
 /**
- * 円・弧の図形データ（1図形のJSON表現・バージョン1）が持つ頂点数。
+ * 円・弧の図形データ（1図形のJSON表現・現行版）が持つ頂点数。
  * @type {number}
  */
 const ELLIPSE_POINT_COUNT = 5;
@@ -21,7 +21,7 @@ const ELLIPSE_POINT_COUNT = 5;
 /**
  * 本クラスが扱う図形種別（`fromJSON`の`type`検証に用いる）。
  * 種別を増やす場合に揃える箇所：本一覧・種別で分岐する全箇所（コンストラクタ、`draw`、`drawHover`、`#updatePointsFromRadii`、
- * `hitTest`、`toDrawElement`。`!== 'circle'`の分岐は弧として扱われる）・`ShapeFactory`の対応表・`index.html`のボタン。
+ * `hitTest`、`toDrawElement`、`isFillable`。`!== 'circle'`の分岐は弧として扱われる）・`ShapeFactory`の対応表・`index.html`のボタン。
  * @type {ReadonlyArray<string>}
  */
 const ELLIPSE_TYPES = Object.freeze(['circle', 'arc']);
@@ -29,8 +29,8 @@ const ELLIPSE_TYPES = Object.freeze(['circle', 'arc']);
 /**
  * 円・弧の図形クラス（図形種別`'circle'`|`'arc'`。`type`で振る舞いを分岐する）。頂点は`points[0]`＝中心、`[1]`＝右端制御点、
  * `[2]`＝上端制御点、`[3]`＝開始角制御点、`[4]`＝終了角制御点。開始角・終了角は`type`から決まり、図形データには保存しない。
- * 共通メソッド契約（13メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（14メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable）を自律実装する。座標はすべてワールド座標。
  */
 export class Ellipse {
     /**
@@ -39,10 +39,11 @@ export class Ellipse {
      * @param {number} x2 - 終点のX座標（ドラッグ位置）
      * @param {number} y2 - 終点のY座標（ドラッグ位置）
      * @param {string} [shapeType='circle'] - 図形種別（'circle'|'arc'）
-     * @param {string} [strokeColor='#000000'] - 線の色
+     * @param {string|null} [strokeColor='#000000'] - 線の色。`null`は線なし
      * @param {number} [strokeWidth=2] - 線の太さ
+     * @param {string|null} [fillColor=null] - 塗りの色。`null`は塗りなし
      */
-    constructor(x1, y1, x2, y2, shapeType = 'circle', strokeColor = '#000000', strokeWidth = 2) {
+    constructor(x1, y1, x2, y2, shapeType = 'circle', strokeColor = '#000000', strokeWidth = 2, fillColor = null) {
         /** @type {*} 図形の一意なID。作成中は`null`。`VectorModel`の採番・正規化の後は文字列。`fromJSON`直後は`data.id`のまま（欠落なら`undefined`、任意の型を取り得る）。 */
         this.id = null;
         
@@ -67,16 +68,35 @@ export class Ellipse {
             { x: x1 + rx, y: y1 }
         ];
 
+        /** @type {string|null} 線の色。nullは線なし */
         this.strokeColor = strokeColor;
         this.strokeWidth = strokeWidth;
+        /** @type {string|null} 塗りの色。nullは塗りなし。塗れない形（弧）でも保持する（描かないだけ） */
+        this.fillColor = fillColor;
+    }
+
+    /**
+     * 塗れる形かを返す（共通メソッド契約の第14メソッド）。円は塗れ、弧は塗れない（`type`で分岐）。データには保存しない。
+     * @returns {boolean} `type`が`'circle'`ならtrue、弧ならfalse
+     */
+    isFillable() {
+        return this.type === 'circle';
     }
 
     /**
      * Canvasに円または弧を描画する。
+     * 塗るのは`isFillable()`が真で`fillColor`が文字列のときだけ、線を描くのは`strokeColor`が文字列のときだけ。
+     * どちらも偽なら何も呼ばない。順序は`io/CodeExporter.js`の`DRAW_SOURCE`と同じ（パス → 塗り → 線）。
      * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
      * @param {number} [t=0] - 将来のモーフィング機能用の予約引数（本Phaseでは未使用）
      */
     draw(ctx, t = 0) {
+        const shouldFill = this.isFillable() && typeof this.fillColor === 'string';
+        const shouldStroke = typeof this.strokeColor === 'string';
+        if (!shouldFill && !shouldStroke) {
+            return;
+        }
+
         const xc = this.points[0].x;
         const yc = this.points[0].y;
         const rx = Math.abs(this.points[1].x - xc);
@@ -88,9 +108,15 @@ export class Ellipse {
             ctx.closePath();
         }
 
-        ctx.strokeStyle = this.strokeColor;
-        ctx.lineWidth = this.strokeWidth;
-        ctx.stroke();
+        if (shouldFill) {
+            ctx.fillStyle = this.fillColor;
+            ctx.fill();
+        }
+        if (shouldStroke) {
+            ctx.strokeStyle = this.strokeColor;
+            ctx.lineWidth = this.strokeWidth;
+            ctx.stroke();
+        }
     }
 
     /**
@@ -419,11 +445,12 @@ export class Ellipse {
 
     /**
      * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第13メソッド。呼び出し元は`SpriteSerializer`のみ）。
-     * 形（キー順もこの順）: `{ kind: 'ellipse', id, x, y, radiusX, radiusY, startAngle, endAngle, closed, strokeColor, strokeWidth }`。
+     * 形（キー順もこの順）: `{ kind: 'ellipse', id, x, y, radiusX, radiusY, startAngle, endAngle, closed, strokeColor, strokeWidth, fillColor }`。
      * `draw`と同じ式（`x`・`y`＝`points[0]`、`radiusX`＝`|points[1].x − x|`、`radiusY`＝`|points[2].y − y|`、
      * `startAngle`・`endAngle`は自身の同名プロパティ、`closed`は`type === 'circle'`）で求める。回転は常に0のためキーを持たない。
-     * `id`・`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる。値はすべてプリミティブのため、戻り値と自身は状態を共有しない。
-     * @returns {{kind: string, id: *, x: number, y: number, radiusX: number, radiusY: number, startAngle: number, endAngle: number, closed: boolean, strokeColor: string, strokeWidth: number}} 新しい描画要素
+     * `id`・`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる（`strokeColor`の`null`も）。
+     * `fillColor`は塗れる形（円）のときだけ図形の値、塗れない形（弧）は`null`。値はすべてプリミティブのため、戻り値と自身は状態を共有しない。
+     * @returns {{kind: string, id: *, x: number, y: number, radiusX: number, radiusY: number, startAngle: number, endAngle: number, closed: boolean, strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい描画要素
      */
     toDrawElement() {
         const xc = this.points[0].x;
@@ -443,18 +470,20 @@ export class Ellipse {
             closed: this.type === 'circle',
             strokeColor: this.strokeColor,
             strokeWidth: this.strokeWidth,
+            fillColor: this.isFillable() ? this.fillColor : null,
         };
     }
 
     /**
-     * 自身を図形データ（1図形のJSON表現・バージョン1）へ変換する（共通メソッド契約の第11メソッド）。
-     * 形（キー順もこの順）: `{ type: 'circle'|'arc', id, points: [中心{x, y}, 右端制御点{x, y}, 上端制御点{x, y}, 開始角制御点{x, y}, 終了角制御点{x, y}], strokeColor, strokeWidth }`。
+     * 自身を図形データ（1図形のJSON表現・現行版）へ変換する（共通メソッド契約の第11メソッド）。
+     * 形（キー順もこの順）: `{ type: 'circle'|'arc', id, points: [中心{x, y}, 右端制御点{x, y}, 上端制御点{x, y}, 開始角制御点{x, y}, 終了角制御点{x, y}], strokeColor, strokeWidth, fillColor }`。
+     * `fillColor`は塗れない形（弧）でも保持している値をそのまま出力する。
      * 座標はワールド座標。`points`は各頂点を新規オブジェクトとして複製するため、戻り値と自身は内部配列・頂点を共有しない。
      * `startAngle`/`endAngle`は出力しない（現状は`type`から一意に決まる固定値のため。
      * 弧の角度編集を実装する際に保存対象へ加え、作業データ形式の版番号を上げること）。
      * `id`が`null`（作成中の図形など）の場合もそのまま出力する。
      * `JSON.stringify(ellipse)`でも本メソッドの戻り値が出力される。
-     * @returns {{type: string, id: *, points: {x: number, y: number}[], strokeColor: string, strokeWidth: number}} 新しい図形データ
+     * @returns {{type: string, id: *, points: {x: number, y: number}[], strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい図形データ
      */
     toJSON() {
         return {
@@ -463,6 +492,7 @@ export class Ellipse {
             points: this.points.map((point) => ({ x: point.x, y: point.y })),
             strokeColor: this.strokeColor,
             strokeWidth: this.strokeWidth,
+            fillColor: this.fillColor,
         };
     }
 
@@ -483,12 +513,14 @@ export class Ellipse {
      * @returns {Ellipse} 復元した円・弧
      * @throws {Error} `data`がプレーンオブジェクトでない／`type`が`'circle'`・`'arc'`のいずれでもない／
      *     `points`が5要素の配列でない／頂点がオブジェクトでないか`x`・`y`が有限の数値でない／
-     *     `strokeColor`が文字列でない／`strokeWidth`が有限の数値でないか0以下の場合
+     *     `strokeColor`が文字列でも`null`でもない／`strokeWidth`が`undefined`以外で有限の数値でないか0以下／
+     *     `fillColor`が`undefined`・文字列・`null`以外の場合
+     *     （`strokeWidth`のキーなしは2px、`fillColor`のキーなしは`null`として読む）
      */
     static fromJSON(data) {
-        validateShapeData(data, 'Ellipse', ELLIPSE_TYPES, ELLIPSE_POINT_COUNT);
+        const style = validateShapeData(data, 'Ellipse', ELLIPSE_TYPES, ELLIPSE_POINT_COUNT);
         const center = data.points[0];
-        const ellipse = new Ellipse(center.x, center.y, center.x, center.y, data.type, data.strokeColor, data.strokeWidth);
+        const ellipse = new Ellipse(center.x, center.y, center.x, center.y, data.type, style.strokeColor, style.strokeWidth, style.fillColor);
         ellipse.points = data.points.map((point) => ({ x: point.x, y: point.y }));
         ellipse.id = data.id;
         return ellipse;
