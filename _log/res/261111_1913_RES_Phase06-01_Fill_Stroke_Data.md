@@ -340,7 +340,7 @@
         *   `ShapeFactory.fromJSON`の`@param`の図形データの形を`{ type, id, points, strokeColor, strokeWidth, fillColor }`（`path`は`closed`・`segments`も持つ）へ改める。コードは変えない。
         *   変更したメソッド・関数・定数のJSDoc（`@param`・`@returns`・`@throws`）、5クラスのクラスJSDocの契約の列挙（14メソッド・`isFillable`を含む）、図形データ・描画要素の形の記述（キー順・`fillColor`・`strokeColor`の`null`・版）が実コードと一致することを確かめる。「13メソッド」「バージョン1」「版1」等の古い記述が残っていないか`Grep`で確かめる（`js/`内。`check/`・`edit/`等の変更対象外のファイルに残る記述は直さず5章に記録する）。
 
-*   [ ] タスク14: 開発資料への反映（最終タスク）
+*   [x] タスク14: 開発資料への反映（最終タスク）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` : 更新（1章・2章・3章）
         *   `./_doc/arch/10_ShapeFactory.md` : 更新（「図形種別の追加手順」の①のみ）
@@ -461,7 +461,9 @@
 
 ### タスク14: 開発資料への反映
 *   **作業内容** :
-    *   (未着手)
+    *   `PROJECT_ARCHITECTURE.md`：1章（`test/io/`に`DocumentSerializer.migration.test.js`、「存在しないもの」の「塗りつぶし」を未実装の塗り関連の記述へ）、2章（図形：`fillColor`・塗れる形`isFillable()`・「塗れない形でも保持し描くのは塗れる形のとき」／図形データ：キー順・`strokeColor`のnull・`fillColor`・`strokeWidth`キーなし→2px・`DEFAULT_STROKE_WIDTH`の別定義／作業データ形式：現行版2・版1→版2の移行・古いエディタで断られること／スプライト：版2、描画要素の`fillColor`、描き方の順序、読む側の規則（塗り・線なしの文面を改めた）、外枠）、3章（11.・12.の塗りの引き継ぎ）。
+    *   `_doc/arch/10_ShapeFactory.md`：①を14メソッドへ。`_doc/arch/12_shapes.md`：14メソッド契約・`isFillable`・`draw`の共通順序と`DRAW_SOURCE`との一致・`toDrawElement`の`fillColor`・`validateShapeData`の戻り値と既定値・`fromJSON`の`strokeWidth`キーなし・`Ellipse`の分岐・`PathJoinRules`の塗り。`_doc/arch/15_io.md`：`DocumentSerializer`の版2・移行・プロパティ名の例外、`SpriteSerializer`の`strokeColor`と版2、`CodeExporter`の塗りの規則。`_doc/arch/16_test.md`：各テストの検証範囲、新設`DocumentSerializer.migration.test.js`、「版を上げるとき」。
+    *   確認：対象5ファイルを「13メソッド」「版1」「バージョン1」「塗りつぶし」「線のみ」等で検索し、残る「版1」はすべて意図した記述（移行元・旧版の説明、IndexedDBの版）であることを確かめた。
 
 ## 5. 懸念事項・要確認ポイント
 ### 計画時の判断・注意
@@ -476,6 +478,12 @@
 * **`DocumentSerializer`と図形のプロパティ名**：版1→版2の移行関数は`fillColor`の名前を知る（旧版の知識は`MIGRATIONS`に閉じる設計のとおり）。開発資料の「図形固有のプロパティ名を知らない」に例外を書く（更新予定に記載）。
 * **`_doc/COWORK_STATUS.md`**：DIRの持ち越し事項「完了時に同項目を2章から外す」は実装AIの作業範囲外（`_doc/`は資料の反映対象外）。現場設計AI側で行うこと。
 * **`test/io/CodeExporter.assembly.test.js`**：触らないため、責務コメントの「P7のキャラ合成」は直さない。
+
+### タスク14（開発資料への反映）で判断した点
+* 実コードと計画書の食い違いは無かった（`ShapeDataValidation`・`DocumentSerializer`・`SpriteSerializer`・`CodeExporter`を確認）。
+* `_doc/arch/16_test.md`の「テストできない箇所」の`draw`の記述は、既に「偽の`ctx`で書き出しの描画処理と比べている」とあり整合するため変更しなかった（4クラスの偽の`ctx`のテストは「既存のテストファイルと検証範囲」に記載）。
+* `_doc/arch/15_io.md`の「現状は版1のみ」はIndexedDB（`CanvasStorage`）の版の記述で、作業データの版ではないため変更していない。
+* `_doc/COWORK_STATUS.md`は指示どおり変更していない（現場設計AI側で更新）。
 
 ### テストプレイで確認すべき項目（操作手順 → 期待する結果）
 テストプレイ用の作業データファイルは現場設計AIが用意する（塗り・線なし・塗れない形の`fillColor`・自分自身と交差する閉じたパス・`strokeWidth`の無い図形・版1のファイルを含むもの）。

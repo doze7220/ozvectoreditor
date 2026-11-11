@@ -81,6 +81,7 @@
 │   ├── io/
 │   │   ├── DocumentSerializer.roundtrip.test.js
 │   │   ├── DocumentSerializer.errors.test.js
+│   │   ├── DocumentSerializer.migration.test.js
 │   │   ├── SpriteSerializer.test.js
 │   │   ├── CodeExporter.test.js
 │   │   ├── CodeExporter.assembly.test.js
@@ -108,7 +109,7 @@
         └── closed/    # フェイズ大番号移行時にアーカイブ済みRESの退避先
 ```
 
-**存在しないもの**：エディタでのJSの実行（スプライトのJSはテキストから取り出すだけ）、本アプリが書き出した形以外のJSの読み込み・スプライトの`elements`からの図形の作り直し（`CodeImporter`は作らない。`_doc/PROJECT_MILESTONE.md`の将来の野望）、確認用ページでの拡大縮小・移動・編集・複数ファイルの同時表示・組み立て用のJSの表示、エディタから確認用ページへのリンク、組み立て用のJSの書き出し（アニメーションエディタモードのPhase）、スプライトのJSON（`<名前>.json`）の出力・読み込み・確認用ページでのJSONの表示（Phase 04-04でやめた。スプライトはJSだけ。`.json`は作業データファイル）、複数キャンバスの一括出力、PNG・SVG等の形式、カラーピッカー、ツールバー、塗りつぶし、レイヤー、グループ化、`package.json`・`node_modules`・ビルド手順、テストの自動実行（保存時・コミット時のフック、CI）、画面の操作や描画のテスト。
+**存在しないもの**：エディタでのJSの実行（スプライトのJSはテキストから取り出すだけ）、本アプリが書き出した形以外のJSの読み込み・スプライトの`elements`からの図形の作り直し（`CodeImporter`は作らない。`_doc/PROJECT_MILESTONE.md`の将来の野望）、確認用ページでの拡大縮小・移動・編集・複数ファイルの同時表示・組み立て用のJSの表示、エディタから確認用ページへのリンク、組み立て用のJSの書き出し（アニメーションエディタモードのPhase）、スプライトのJSON（`<名前>.json`）の出力・読み込み・確認用ページでのJSONの表示（Phase 04-04でやめた。スプライトはJSだけ。`.json`は作業データファイル）、複数キャンバスの一括出力、PNG・SVG等の形式、カラーピッカー、画面から線・塗りを変える操作（プロパティパネル。Phase 06-02）、塗った内側のクリックでの選択（内側の当たり判定）、弧・曲線・直線・開いたパスの塗り（塗れるのは`rect`・`circle`・閉じた`path`のみ）、透明度・グラデーション、ツールバー、レイヤー、グループ化、`package.json`・`node_modules`・ビルド手順、テストの自動実行（保存時・コミット時のフック、CI）、画面の操作や描画のテスト。
 
 **フォルダ分割の方針**
 *   `core/`：横断的な処理（入力→状態→描画の複数層にまたがるもの）。
@@ -123,11 +124,13 @@
 
 ### 2. データ構造（Model）の概要
 *   **図形（Shape）**：`shapes/`の図形クラスのインスタンス。
-    *   共通プロパティ：`type`（`ShapeFactory`が受理する文字列と一致）・`id`（`VectorModel`が採番）・`strokeColor`・`strokeWidth`。
+    *   共通プロパティ：`type`（`ShapeFactory`が受理する文字列と一致）・`id`（`VectorModel`が採番）・`strokeColor`（色の文字列、または`null`＝線なし）・`strokeWidth`・`fillColor`（色の文字列、または`null`＝塗りなし）。
     *   頂点の保持形式は図形クラスごとに異なる（`Line`は`x1, y1, x2, y2`、`Curve`/`Rect`/`Ellipse`/`Path`は`points`配列（`Path`は頂点数が可変で、`closed`・`segments`も持つ）。4章`shapes/`）。
-    *   塗りつぶしの共通プロパティは未定義。
-*   **図形データ**（1図形のJSON表現）：全図形共通で`{ type, id, points: [{ x, y }, ...], strokeColor, strokeWidth }`を共通の項目とし、種別により項目を足す（`path`）。
-    *   **`path`**：`{ type: 'path', id, points, closed, segments: [{ kind: 'line' }, ...], strokeColor, strokeWidth }`（キー順）。`closed`は真偽値のみ。
+    *   **塗れる形**：`rect`・`circle`・閉じた`path`。公開メソッド`isFillable()`が返す（`Line`・`Curve`・弧は常に偽、`Rect`は常に真、`Ellipse`は`type === 'circle'`、`Path`は`closed === true`。データには保存しない。Phase 06-02の塗りの欄の無効表示・06-03の内側の当たり判定で外から使う予定）。
+    *   **`fillColor`は塗れない形でも保持し、塗れる形のときだけ描く**（DIR Phase 06の決定。後続のPhaseでパスを開く・閉じる等をしても塗りが壊れないため）。`toJSON`は保持している値をそのまま出力する。線なし（`strokeColor: null`）で塗れない形（または塗りなし）の図形は何も描かれないが、データとして受理し、従来どおり選べる。
+*   **図形データ**（1図形のJSON表現）：全図形共通で`{ type, id, points: [{ x, y }, ...], strokeColor, strokeWidth, fillColor }`を共通の項目とし（`fillColor`は最後のキー）、種別により項目を足す（`path`）。
+    *   **色・太さの読み込み**：`strokeColor`は文字列または`null`（線なし）。`fillColor`は文字列または`null`（塗りなし。キーが無ければ`null`として読む）。それ以外の型は不正。`strokeWidth`は正の有限の数値で、キーが無ければ（`undefined`）2pxとして読む（既定値の`shapes/`内の定義は`ShapeDataValidation.js`の`DEFAULT_STROKE_WIDTH`。`SpriteSerializer`の同名の定数と同じ値であるべき別の定義で、`shapes/`が`io/`をimportできないため。図形クラスのコンストラクタの`strokeWidth = 2`（新しく描く図形の太さ）とも別の定義）。色の文字列の中身はCSSの色として正しいかを検証しない。
+    *   **`path`**：`{ type: 'path', id, points, closed, segments: [{ kind: 'line' }, ...], strokeColor, strokeWidth, fillColor }`（キー順）。`closed`は真偽値のみ。
         *   区間の約束：`segments[i]`＝`points[i]`→`points[i+1]`、閉じたパスの最後＝`points[n-1]`→`points[0]`。要素数は開いた`n - 1`・閉じた`n`。`kind`は現在`'line'`のみ。曲線の区間は`kind`の値と区間の要素のキーを足して拡張する。区間の要素の余分なキーは無視する。
         *   頂点数の下限は開いた2・閉じた3、上限なし。長さ0の区間は可。
         *   パスの追加では作業データの版を上げていない（古いエディタでは未知の図形種別として図形単位でスキップされる。発注者の決定）。
@@ -138,23 +141,29 @@
     *   変換は`io/DocumentSerializer.js`が担う。
     *   保存対象は図形データのみ。選択集合・ホバー・作成中の図形・選択矩形・吸い付きの表示・ビュー変換は含めない。
     *   図形クラスは常に現行版の図形データのみを扱う。旧版の知識は`DocumentSerializer`のマイグレーション表に閉じる。
+    *   **現行版は2**。版1→版2の移行（`migrateVersion1To2`）は、全図形の`fillColor`を`null`にする（版1に塗りの意味はないため、`fillColor`を持っていても`null`）。`strokeColor`・`strokeWidth`には触れない。プレーンオブジェクトでない要素はそのまま残し、後の図形単位の検証でスキップされる。
+    *   **版2の作業データを古いエディタ（版1まで対応）で開くと「対応していない版」として全体が断られる**（DIRの決定。許容）。版を上げた理由：上げないと`strokeColor: null`の図形が古いエディタで黙って捨てられるため。
+    *   版1の作業データの`strokeColor: null`は版1では不正だったが、移行は`strokeColor`に触れないため版2の規則で線なしとして読まれる（エディタが書き出した版1のファイルには現れない値。許容）。
 *   **作業データファイル**：作業データ形式のJSON文字列を内容とするファイル（既定の拡張子`.ozve.json`。読み込みは従来の`.json`も可）。キャンバス名は内容に含まれない。ファイル名との変換は`io/DocumentFileIO`が担う（3章9.。規則は下記「ファイル名の規則」）。
 *   **スプライト（書き出し形式）**：開いているキャンバスをゲームが`import`して描けるようにしたもの。`<名前>.js`（ESモジュール）だけ（スプライトのJSONは出力も読み込みもしない。Phase 04-04でやめた）。既定のexportにスプライトデータの全キーと`draw(ctx)`を持つ。組み立ては`io/SpriteSerializer`（データ・JSに埋め込むJSON文字列）と`io/CodeExporter`（JSのテキスト）が担う。本項がスプライトの形の唯一の記載箇所（他の箇所はここを参照する）。
     *   **エンジン（OZ Engine、`D:\ozlab\ozengine-web`）との約束**：(a) エンジンの`PROJECT_ARCHITECTURE.md` 2.1章は、本項を書き出し形式の唯一の定義として参照している。(b) エンジンが読むのは既定のexportの`draw(ctx)`だけ（`format`・`formatVersion`・`bounds`・`elements`・`source`は現在エンジンでは読んでいない）。エンジンは`import sprite from '…'`と既定のimportで受け取り、位置・回転を`ctx`に設定してから`draw(ctx)`だけを呼ぶ。(c) 書き出し形式の版（`formatVersion`）を上げるとき、JSのexportの形や`draw`の約束を変えるときは、エンジンへ連絡票を出す。
-    *   **スプライトデータ（書き出し形式の版1）**：`{ format: "oz-vector-editor-sprite", formatVersion: 1, bounds: {minX, minY, maxX, maxY} | null, elements: [描画要素, ...], source: 作業データ }`。キーはこの順で出力するが、読む側はキーの順に依存しないこと。
+    *   **スプライトデータ（書き出し形式の版2）**：`{ format: "oz-vector-editor-sprite", formatVersion: 2, bounds: {minX, minY, maxX, maxY} | null, elements: [描画要素, ...], source: 作業データ }`。キーはこの順で出力するが、読む側はキーの順に依存しないこと。
         *   `source`：`DocumentSerializer.serialize`の戻り値そのもの（作業データ形式。`source.version`は作業データの版）。`DocumentSerializer.deserialize`で元の図形に戻せる。JSの中に`elements`と`source`の両方を持つため図形の情報を2重に持つ（薄い書き出しとして許容）。
         *   含めないもの：スプライトごとの変わらないID、キャンバス名、作成日時（参照はファイル名で行う）。
         *   単位はpx、角度はラジアン。基準点はワールド座標の原点(0, 0)、y軸は下向き。エディタのワールド座標をそのまま使い、平行移動・拡大・丸めをしない。
-    *   **描画要素**（`elements`の1要素＝図形1つ。描画順＝`model.getShapes()`の並び。`id`は図形の`id`そのまま、頂点は作業データの`points`の並び順のまま。回転のキーは持たない）。図形クラスの`toDrawElement()`が作る。共通のキーは`kind`・`id`・`strokeColor`・`strokeWidth`。
-        *   `"polyline"`（`line`・`rect`・`path`）：`kind, id, points: [{x, y}, ...], closed, strokeColor, strokeWidth`。`line`は`closed: false`・2点、`rect`は`closed: true`・4点、`path`は`closed`のとおり・全頂点（閉じたパスも始点を重複させない）。区間の種類は描画要素に出さない（区間がすべて直線の間のみ`polyline`で表せる）。`beginPath` → `moveTo(points[0])` → `lineTo`（i=1…）→ `closed`なら`closePath`。
-        *   `"quadratic"`（`curve`）：`kind, id, points: [始点, 制御点, 終点], strokeColor, strokeWidth`。`beginPath` → `moveTo` → `quadraticCurveTo(制御点, 終点)`。
-        *   `"ellipse"`（`circle`・`arc`）：`kind, id, x, y, radiusX, radiusY, startAngle, endAngle, closed, strokeColor, strokeWidth`。`ellipse(x, y, radiusX, radiusY, 0, startAngle, endAngle)`（回転は常に0）→ `closed`なら`closePath`。`circle`は`closed: true`・0〜2π、`arc`は`closed: false`・π〜2π。値は`Ellipse.draw`と同じ式（読む側は`Ellipse`の`points`の約束を知らなくてよい）。
-        *   どの`kind`もパスの後に`strokeStyle` → `lineWidth` → `stroke()`（エディタの各図形の`draw`と同じ順・同じ命令）。
+    *   **描画要素**（`elements`の1要素＝図形1つ。描画順＝`model.getShapes()`の並び。`id`は図形の`id`そのまま、頂点は作業データの`points`の並び順のまま。回転のキーは持たない）。図形クラスの`toDrawElement()`が作る。共通のキーは`kind`・`id`・`strokeColor`・`strokeWidth`・`fillColor`（各`kind`のキー列の最後）。`strokeColor`は文字列または`null`（線なし）。`fillColor`は、塗れる形（`isFillable()`が真）なら図形の`fillColor`、塗れない形なら`null`（図形に`fillColor`が残っていても出さない。`source`には元の値が残る）。
+        *   `"polyline"`（`line`・`rect`・`path`）：`kind, id, points: [{x, y}, ...], closed, strokeColor, strokeWidth, fillColor`。`line`は`closed: false`・2点、`rect`は`closed: true`・4点、`path`は`closed`のとおり・全頂点（閉じたパスも始点を重複させない）。区間の種類は描画要素に出さない（区間がすべて直線の間のみ`polyline`で表せる）。`beginPath` → `moveTo(points[0])` → `lineTo`（i=1…）→ `closed`なら`closePath`。
+        *   `"quadratic"`（`curve`）：`kind, id, points: [始点, 制御点, 終点], strokeColor, strokeWidth, fillColor`（`fillColor`は常に`null`）。`beginPath` → `moveTo` → `quadraticCurveTo(制御点, 終点)`。
+        *   `"ellipse"`（`circle`・`arc`）：`kind, id, x, y, radiusX, radiusY, startAngle, endAngle, closed, strokeColor, strokeWidth, fillColor`。`ellipse(x, y, radiusX, radiusY, 0, startAngle, endAngle)`（回転は常に0）→ `closed`なら`closePath`。`circle`は`closed: true`・0〜2π、`arc`は`closed: false`・π〜2π。値は`Ellipse.draw`と同じ式（読む側は`Ellipse`の`points`の約束を知らなくてよい）。
+        *   描き方の順序（エディタの各図形の`draw`と同じ順・同じ命令）：形のパス → 塗り（`fillStyle` → `fill()`。引数なし＝nonzero）→ 線（`strokeStyle` → `lineWidth` → `stroke()`）。塗りは線より先（線が塗りの上に重なる）。塗る/線を描くが両方偽の要素は、パスも組み立てない（`beginPath`も呼ばない）。
     *   **読む側の規則**（着色・パス等のPhaseで項目を足しても既存の項目の意味を変えないための規則。書き出したJSの`draw`もこれに従う）：
         *   未知のキー（最上位・描画要素とも）は無視する。未知の`kind`の要素は描かない。
         *   `strokeWidth`が正の有限の数値でない（キーが無い・`undefined`を含む）要素は線の太さ2pxとして扱う（描画・外枠とも。`DEFAULT_STROKE_WIDTH`の唯一の定義箇所は`SpriteSerializer.js`）。
-        *   `strokeColor`が文字列でない要素は**線を描かない**（線のパスと`strokeStyle`・`lineWidth`・`stroke()`を呼ばない）。これは線についての規則であり、要素を捨てる規則ではない。版1は線のみのため結果として何も呼ばれない。着色のPhaseで塗り等を足すときの塗りの扱いはこの規則に縛られず、足す項目の側で決める。
-        *   形の項目が足りない要素は描かない：`polyline`は`points`が2点以上、`quadratic`は3点以上、`ellipse`は`radiusX`・`radiusY`が0以上の数値（`NaN`不可）。
+        *   `strokeColor`が文字列でない要素は**線を描かない**（`strokeStyle`・`lineWidth`・`stroke()`を呼ばない）。これは線についての規則であり、要素を捨てる規則ではなく、塗りには影響しない。
+        *   **塗るのは**、`fillColor`が文字列で、かつ`kind`が`polyline`または`ellipse`で`closed === true`の要素だけ。`quadratic`・`closed`が`true`でない要素・`fillColor`が無い／文字列でない要素は塗らない（版1のJSは`fillColor`を持たないため塗らず、従来どおり描かれる。`checkFormat`は版1も`'supported'`）。
+        *   塗りも線も描かない要素はパスも組み立てない。
+        *   `draw(ctx)`の明示設定（下記）に塗りの分（`fillStyle`等）は足さない：塗る要素は描くたびに`fillStyle`を設定するため、ゲーム側の`ctx`の値に左右されない。
+        *   形の項目が足りない要素は塗りも線も描かない：`polyline`は`points`が2点以上、`quadratic`は3点以上、`ellipse`は`radiusX`・`radiusY`が0以上の数値（`NaN`不可）。
     *   **2つの版**：書き出し形式の版は`formatVersion`（唯一の定義箇所は`SpriteSerializer.js`）、作業データの版は`source.version`（`DocumentSerializer`）。最上位に`version`キーは置かない。書き出し形式の版は、エンジンが読む部分（`format`・`formatVersion`・`bounds`・`elements`の形と意味、JSのexportの形）が変わったとき（項目の追加で、古い読み手が未知の項目として無視すると正しく描けなくなる場合を含む）に上げる。作業データの版（`source.version`）は、作業データの保存形式が変わったとき（`DocumentSerializer`の`MIGRATIONS`へ関数を足すとき）に上げる。作業データだけ版が上がっても書き出し形式の版は上げなくてよい。
     *   **識別子**：`format: "oz-vector-editor-sprite"`（作業データの`"oz-vector-editor"`とは別の値）。本アプリが書き出したものかを見分ける手がかり（エディタの「開く」「インポート」ではJSに埋め込まれたデータ、確認用ページではJSの既定のexport）。判別は`SpriteSerializer.checkFormat`（`'supported'`・`'notSprite'`・`'unsupportedVersion'`）が唯一の入口。
     *   **エディタで開くときの規則**（入口は`io/FileContentReader.deserializeFromText`。エディタの「開く」「インポート」の読み込みはすべてここを通る）：
@@ -165,7 +174,7 @@
         *   読み込み不可（通知`readFailed`）：`format`が違うJSに埋め込まれたデータ・`source`が無い・版が範囲外・取り出しや解析の失敗・スプライトのJSON（上の規則により作業データとして判定され、`format`の不一致で`DocumentSerializer`が全体失敗にする）。
         *   本アプリが書き出した形から外れたJS（手で整形し直したもの等）は取り出せず読み込み不可になる（許容）。
     *   **外枠`bounds`**：ワールド座標の最小・最大（`minX ≤ maxX`・`minY ≤ maxY`。幅・高さは読む側で引き算する）。図形0個のとき`null`（0×0の原点の点にするとアニメーションエディタモードで外枠の和を取るとき原点が誤って含まれるため）。読む側は`null`を確かめること。外枠は書き出し時にエディタが計算した値であり、読む側は再計算しない。
-        *   求め方：描画要素ごとの形の範囲（中心線の外接矩形）を線の太さの半分（太さが不正なら2pxの半分）だけ四方へ広げ、全要素の和を取る。`polyline`は全頂点、`quadratic`は端点と各軸の極値（制御点は含めない）、`ellipse`は弧の両端と軸上の端点（`closed`の弦は影響しない）。未知の`kind`は`Error`をthrowする。
+        *   求め方：描画要素ごとの形の範囲（中心線の外接矩形）を、`strokeColor`が文字列の要素だけ線の太さの半分（太さが不正なら2pxの半分）だけ四方へ広げ（線を描かない要素は形の範囲のまま。線なしで塗れない要素の形の範囲も和に含める）、全要素の和を取る。`polyline`は全頂点、`quadratic`は端点と各軸の極値（制御点は含めない）、`ellipse`は弧の両端と軸上の端点（`closed`の弦は影響しない）。未知の`kind`は`Error`をthrowする。
         *   近似：鋭い角の継ぎ目（`miter`）の尖りは考慮しない（はみ出すことがある）。線の端・長さ0の線も太さの半分を広げるため実際より大きくなることがある（保守的な値）。弧の両端は三角関数の誤差（1e-15程度）を含む。
     *   **JSに埋め込むデータの文字列の形**：`JSON.stringify(data, null, 2)`（`SpriteSerializer.stringify`。JSの中の`const spriteData = <JSON>;`の`<JSON>`。字下げ2。最小化しない。関数は含まない）。
     *   **JSの形**（`CodeExporter.toModuleText`）：`import`文を含まず単体で`import`できる。固定の説明コメント → `const spriteData = <JSON>;` → `const DEFAULT_STROKE_WIDTH = 2;` → `function draw(ctx)`・`function drawElement(ctx, element)` → `export default { ...spriteData, draw };`。**既定のexportのみ**（名前付きexportなし。`import body from './body.js'`と`import`する側が名前を付けるため衝突しない）。値はスプライトデータの全キーと`draw`。`draw`は`this`を使わず、`const { draw } = body`と取り出しても動く。スプライトデータはJSONのまま式として埋め込む（ES2019以降が前提。キーは本アプリが組み立てる固定のもの。利用者の入力を含む値はJSONの文字列としてのみ埋め込まれ、コードとして解釈されない）。
@@ -306,15 +315,15 @@
     *   **流れ**：ボタン`#selection-join`／キー`J` → `main.js`の`performJoin()`（ドラッグ中は不受理。ボタンとキーは`performJoin()`を呼ぶのみで`pathJoiner.join()`を直接呼ばない）→ `PathJoiner.join()` → `PathJoinRules.planJoin(重なり順の選択図形, 画面上5pxのワールド換算)` → `HistoryManager.beginEdit` → `model.replaceShape` → `commitEdit`。結合できない選択では何もせず記録しない。結合は1件の編集操作で、Undo1回・Redo1回で往復する（6.）。
     *   **押せる/押せないの同期**：`model.onChange`に登録した`syncJoinButtonState`が`PathJoiner.canJoin()`でボタンの`disabled`を更新する。`canJoin`は表示倍率を見ない（受理する選択かの判定のみ）。
     *   **発注者の決定**：
-        *   基準の線A＝重なり順で奥の図形。結果の向き・色・太さはAのもの。
+        *   基準の線A＝重なり順で奥の図形。結果の向き・色・太さ・塗り（`fillColor`）はAのもの。開いたパスを結合で閉じると塗れる形になるため、持っていた塗りが現れる（直線の`fillColor`は描かれないが結果のパスに引き継がれる）。
         *   2本の結合は、Aの位置に新しいidで結果を置き、Bを除く。閉じるは元のidと位置を保つ。
         *   端点が重なっている＝画面上5px以内（ちょうどを含む）。結合を行う時点の表示倍率でワールドの長さへ換算する（`main.js`が`screenLengthToWorld`を注入）。重なる端点は1つにまとめ、離れていればそのまま区間でつなぐ。
         *   結合後は結果の図形だけを選択する。
     *   **やらないこと**：自動で閉じない（2本の結合の結果の両端が重なっていても閉じない）、3本以上の結合、曲線・矩形・円・弧・閉じたパスの結合、閉じたパスを開く。
     *   **規則の詳細の正本**は`PathJoinRules.js`のJSDoc（端点の組の優先順・まとめ方の手順）。規則の関数は表示倍率を知らないため、`tolerance`は呼び出し側がワールドの長さへ換算して渡す。`InputTracker`の`hitTolerance`は同じ5pxだが別の定義。
     *   **端点を指定する入口（Phase 05-04）**：公開の`buildJoinedPathAt`（つなぐ端点を指定して結合）・`buildExtendedPath`（描き足し）・`canCloseByMergingEnds`（もう一方の端点へ重ねて閉じられるか）・`planDrawnLineJoin`（直線の描き終えの計画）・`planEndpointDragJoin`（ハンドルのドラッグの計画）を、`JOIN_TOLERANCE_SCREEN_PX`・`isJoinableLine`・`buildJoinedPath`・`buildClosedPath`と同じ規則・同じ組み立て関数で実装している（規則を二重に書かない）。
-    *   **描き足しの規則**：元のid・色・太さ・重なり順の位置を保つ。元の線の向きを保つ（描いた線の向きは使わない）。足す頂点が端点と重なる（`tolerance`以内）場合は何も起きない。
-    *   **吸い付きでの結合**：つなぐ端点は吸い付いた端点であり、いちばん近い端点の組ではない（`planJoin`の優先順とは別）。結果の扱い（基準の線A・向き・色・太さ・idの扱い）は選択の結合と同じ。
+    *   **描き足しの規則**：元のid・色・太さ・塗り（`fillColor`）・重なり順の位置を保つ。元の線の向きを保つ（描いた線の向きは使わない）。足す頂点が端点と重なる（`tolerance`以内）場合は何も起きない。
+    *   **吸い付きでの結合**：つなぐ端点は吸い付いた端点であり、いちばん近い端点の組ではない（`planJoin`の優先順とは別）。結果の扱い（基準の線A・向き・色・太さ・塗り・idの扱い）は選択の結合と同じ。
 
 12. **端点への吸い付きと描き足し (`InputTracker.js` → `edit/EndpointSnapper.js` → `shapes/EndpointSnapRules.js`・`shapes/PathJoinRules.js`・`VectorModel.js`・`HistoryManager.js`、表示は`VectorModel`の吸い付きの表示の点 → `main.js`の`renderCurrentState` → `CanvasManager.js`)**：直線を描くとき、および選択モードで線の端点のハンドルをドラッグするとき、結合できる線の端点へ吸い付き、吸い付いた端点で描き足し・結合・閉じる操作を行う。吸い付いている端点には中を青で塗った正方形を表示する。
     *   **モジュールの分担**：規則＝`EndpointSnapRules`（対象・距離・候補の選び方）と`PathJoinRules`（結果の組み立て・計画）。手順＝`edit/EndpointSnapper`（照会とモデルへの反映）。配線＝`InputTracker`（注入された`EndpointSnapper`を呼ぶだけ。候補の探索・距離の判定・結果の組み立てを持たず、描く図形種別と端点のハンドルの判定も`EndpointSnapper`に委ねる）。表示の状態＝`VectorModel`の吸い付きの表示の点。描画＝`CanvasManager`（`render`の`snapPoint`）。
