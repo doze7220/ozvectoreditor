@@ -1,5 +1,6 @@
 /**
- * 責務: 矩形（Rect）の当たり判定（hitTest・intersectsRect）とfromJSONの不正な図形データのエラー文を、公開APIのみを通して検証する。
+ * 責務: 矩形（Rect）の当たり判定・塗れる形か（isFillable）・偽のctxによる描画命令・図形データとの相互変換
+ * （fromJSONの受理と不正なデータのエラー文・toJSON・toDrawElement）を、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -26,12 +27,90 @@ function assertFromJSONError(data, reason) {
 }
 
 /**
+ * 呼び出し・代入を順に記録する偽のctxを作る（beginPath・moveTo・lineTo・closePath・fill・stroke の呼び出しと
+ * strokeStyle・lineWidth・fillStyle の代入）。
+ * @returns {{ctx: Object, log: Array}} 偽のctxと、記録の配列（呼び出しは`['name', ...args]`、代入は`['set:name', value]`）
+ */
+function makeRecordingCtx() {
+    const log = [];
+    const ctx = {};
+    for (const name of ['beginPath', 'moveTo', 'lineTo', 'closePath', 'fill', 'stroke']) {
+        ctx[name] = (...args) => { log.push([name, ...args]); };
+    }
+    for (const name of ['strokeStyle', 'lineWidth', 'fillStyle']) {
+        Object.defineProperty(ctx, name, {
+            set(value) { log.push(['set:' + name, value]); },
+            get() { return undefined; },
+        });
+    }
+    return { ctx, log };
+}
+
+/**
  * 標準の矩形を作る。頂点は(0,0)・(100,0)・(100,50)・(0,50)。
  * @returns {Rect} 標準の矩形
  */
 function makeRect() {
     return new Rect(0, 0, 100, 50);
 }
+
+describe('Rect.isFillable とコンストラクタ', () => {
+    it('isFillable()は常にtrue', () => {
+        assert.equal(new Rect(0, 0, 1, 1).isFillable(), true);
+        assert.equal(new Rect(0, 0, 1, 1, null, 2, null).isFillable(), true);
+    });
+
+    it('既定のfillColorはnullで、既存の引数の位置・既定値は変わらない', () => {
+        const rect = new Rect(1, 2, 3, 4);
+        assert.equal(rect.fillColor, null);
+        assert.equal(rect.strokeColor, '#000000');
+        assert.equal(rect.strokeWidth, 2);
+        const styled = new Rect(1, 2, 3, 4, '#ff0000', 5, '#00ff00');
+        assert.equal(styled.strokeColor, '#ff0000');
+        assert.equal(styled.strokeWidth, 5);
+        assert.equal(styled.fillColor, '#00ff00');
+    });
+});
+
+describe('Rect.draw の描画命令', () => {
+    const expectedPath = [
+        ['beginPath'], ['moveTo', 1, 2], ['lineTo', 3, 2], ['lineTo', 3, 4], ['lineTo', 1, 4], ['closePath'],
+    ];
+
+    it('塗りあり線ありはパス → fillStyle → fill() → strokeStyle → lineWidth → stroke()', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Rect(1, 2, 3, 4, '#ff0000', 5, '#00ff00').draw(ctx);
+        assert.deepEqual(log, [
+            ...expectedPath,
+            ['set:fillStyle', '#00ff00'], ['fill'],
+            ['set:strokeStyle', '#ff0000'], ['set:lineWidth', 5], ['stroke'],
+        ]);
+    });
+
+    it('塗りあり線なしはパス → fillStyle → fill()のみ', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Rect(1, 2, 3, 4, null, 5, '#00ff00').draw(ctx);
+        assert.deepEqual(log, [
+            ...expectedPath,
+            ['set:fillStyle', '#00ff00'], ['fill'],
+        ]);
+    });
+
+    it('塗りなし線ありは従来と同じ命令列', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Rect(1, 2, 3, 4, '#ff0000', 5).draw(ctx);
+        assert.deepEqual(log, [
+            ...expectedPath,
+            ['set:strokeStyle', '#ff0000'], ['set:lineWidth', 5], ['stroke'],
+        ]);
+    });
+
+    it('塗りも線もなしは何も呼ばない', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Rect(1, 2, 3, 4, null, 5, null).draw(ctx);
+        assert.deepEqual(log, []);
+    });
+});
 
 describe('Rect.hitTest', () => {
     it('4辺の上は当たる', () => {
@@ -240,5 +319,75 @@ describe('Rect.fromJSON のエラー文', () => {
         colorAndWidth.strokeColor = 123;
         colorAndWidth.strokeWidth = 0;
         assertFromJSONError(colorAndWidth, 'strokeColorが文字列またはnullではありません');
+    });
+});
+
+describe('Rect.fromJSON の fillColor', () => {
+    it('文字列・nullを受理し、キーなしはnullとして読む', () => {
+        const str = makeValidData();
+        str.fillColor = '#ff0000';
+        assert.equal(Rect.fromJSON(str).toJSON().fillColor, '#ff0000');
+        const nul = makeValidData();
+        nul.fillColor = null;
+        assert.equal(Rect.fromJSON(nul).toJSON().fillColor, null);
+        const none = makeValidData();
+        delete none.fillColor;
+        assert.equal(Rect.fromJSON(none).toJSON().fillColor, null);
+    });
+
+    it('文字列・null以外は拒否する', () => {
+        for (const bad of [1, true, {}, []]) {
+            const data = makeValidData();
+            data.fillColor = bad;
+            assertFromJSONError(data, 'fillColorが文字列またはnullではありません');
+        }
+    });
+
+    it('検査の順序：strokeWidth・strokeColorの不正がfillColorの不正より先', () => {
+        const widthAndFill = makeValidData();
+        widthAndFill.strokeWidth = 0;
+        widthAndFill.fillColor = 1;
+        assertFromJSONError(widthAndFill, 'strokeWidthが正の有限の数値ではありません');
+        const colorAndFill = makeValidData();
+        colorAndFill.strokeColor = 123;
+        colorAndFill.fillColor = 1;
+        assertFromJSONError(colorAndFill, 'strokeColorが文字列またはnullではありません');
+    });
+
+    it('strokeWidthのキーなしはfromJSONの結果で2になる', () => {
+        const data = makeValidData();
+        delete data.strokeWidth;
+        const rect = Rect.fromJSON(data);
+        assert.equal(rect.strokeWidth, 2);
+        assert.equal(rect.toJSON().strokeWidth, 2);
+    });
+});
+
+describe('Rect.toJSON / toDrawElement の fillColor', () => {
+    it('toJSONのキー順', () => {
+        assert.deepEqual(Object.keys(new Rect(0, 0, 1, 1).toJSON()),
+            ['type', 'id', 'points', 'strokeColor', 'strokeWidth', 'fillColor']);
+    });
+
+    it('fillColorを持つ矩形の往復でfillColorが保持される', () => {
+        const rect = new Rect(1, 2, 3, 4, '#ff0000', 5, '#00ff00');
+        rect.id = 'R1';
+        const restored = Rect.fromJSON(rect.toJSON());
+        assert.deepEqual(restored.toJSON(), rect.toJSON());
+        assert.equal(restored.fillColor, '#00ff00');
+    });
+
+    it('toDrawElementのキー順（polyline）', () => {
+        assert.deepEqual(Object.keys(new Rect(0, 0, 1, 1).toDrawElement()),
+            ['kind', 'id', 'points', 'closed', 'strokeColor', 'strokeWidth', 'fillColor']);
+    });
+
+    it('toDrawElementのfillColorは図形の値（nullも）、strokeColor: nullはそのまま', () => {
+        assert.equal(new Rect(0, 0, 1, 1).toDrawElement().fillColor, null);
+        const filled = new Rect(0, 0, 1, 1, '#ff0000', 2, '#00ff00').toDrawElement();
+        assert.equal(filled.fillColor, '#00ff00');
+        const noStroke = new Rect(0, 0, 1, 1, null, 2, '#00ff00').toDrawElement();
+        assert.equal(noStroke.strokeColor, null);
+        assert.equal(noStroke.fillColor, '#00ff00');
     });
 });

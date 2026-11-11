@@ -7,15 +7,15 @@ import { distanceToSegment, segmentIntersectsRect } from './ShapeGeometry.js';
 import { validateShapeData } from './ShapeDataValidation.js';
 
 /**
- * 矩形の図形データ（1図形のJSON表現・バージョン1）が持つ頂点数。
+ * 矩形の図形データ（1図形のJSON表現・現行版）が持つ頂点数。
  * @type {number}
  */
 const RECT_POINT_COUNT = 4;
 
 /**
  * 矩形の図形クラス（図形種別`'rect'`）。頂点は`points[0]`＝topLeft、`[1]`＝topRight、`[2]`＝bottomRight、`[3]`＝bottomLeft（4頂点独立）。
- * 共通メソッド契約（13メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（14メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable）を自律実装する。座標はすべてワールド座標。
  */
 export class Rect {
     /**
@@ -23,10 +23,11 @@ export class Rect {
      * @param {number} y1 - 対角座標1のY座標
      * @param {number} x2 - 対角座標2のX座標
      * @param {number} y2 - 対角座標2のY座標
-     * @param {string} [strokeColor='#000000'] - 線の色
+     * @param {string|null} [strokeColor='#000000'] - 線の色。`null`は線なし
      * @param {number} [strokeWidth=2] - 線の太さ
+     * @param {string|null} [fillColor=null] - 塗りの色。`null`は塗りなし
      */
-    constructor(x1, y1, x2, y2, strokeColor = '#000000', strokeWidth = 2) {
+    constructor(x1, y1, x2, y2, strokeColor = '#000000', strokeWidth = 2, fillColor = null) {
         /** @type {string} 図形種別（`ShapeFactory`が受理する文字列と一致） */
         this.type = 'rect';
         /** @type {*} 図形の一意なID。作成中は`null`。`VectorModel`の採番・正規化の後は文字列。`fromJSON`直後は`data.id`のまま（欠落なら`undefined`、任意の型を取り得る）。 */
@@ -38,16 +39,35 @@ export class Rect {
             { x: x2, y: y2 },
             { x: x1, y: y2 },
         ];
+        /** @type {string|null} 線の色。`null`は線なし */
         this.strokeColor = strokeColor;
         this.strokeWidth = strokeWidth;
+        /** @type {string|null} 塗りの色。nullは塗りなし。塗れない形でも保持する（描かないだけ） */
+        this.fillColor = fillColor;
     }
 
     /**
-     * Canvasに矩形を描画する。points[0]→[1]→[2]→[3]の順に結び閉じたパスをstrokeする。
+     * 塗れる形かを返す（共通メソッド契約の第14メソッド）。矩形は常に塗れる。データには保存しない。
+     * @returns {boolean} 常に`true`
+     */
+    isFillable() {
+        return true;
+    }
+
+    /**
+     * Canvasに矩形を描画する。points[0]→[1]→[2]→[3]の順に結び閉じたパスを組み立てる。
+     * 塗るのは`isFillable()`が真で`fillColor`が文字列のときだけ、線を描くのは`strokeColor`が文字列のときだけ。
+     * どちらも偽なら何も呼ばない。順序は`io/CodeExporter.js`の`DRAW_SOURCE`と同じ（パス → 塗り → 線）。
      * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
      * @param {number} [t=0] - 将来のモーフィング機能用の予約引数（本Phaseでは未使用）
      */
     draw(ctx, t = 0) {
+        const shouldFill = this.isFillable() && typeof this.fillColor === 'string';
+        const shouldStroke = typeof this.strokeColor === 'string';
+        if (!shouldFill && !shouldStroke) {
+            return;
+        }
+
         ctx.beginPath();
         ctx.moveTo(this.points[0].x, this.points[0].y);
         ctx.lineTo(this.points[1].x, this.points[1].y);
@@ -55,9 +75,15 @@ export class Rect {
         ctx.lineTo(this.points[3].x, this.points[3].y);
         ctx.closePath();
 
-        ctx.strokeStyle = this.strokeColor;
-        ctx.lineWidth = this.strokeWidth;
-        ctx.stroke();
+        if (shouldFill) {
+            ctx.fillStyle = this.fillColor;
+            ctx.fill();
+        }
+        if (shouldStroke) {
+            ctx.strokeStyle = this.strokeColor;
+            ctx.lineWidth = this.strokeWidth;
+            ctx.stroke();
+        }
     }
 
     /**
@@ -208,10 +234,11 @@ export class Rect {
 
     /**
      * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第13メソッド。呼び出し元は`SpriteSerializer`のみ）。
-     * 形（キー順もこの順）: `{ kind: 'polyline', id, points: [topLeft, topRight, bottomRight, bottomLeft]（各{x, y}）, closed: true, strokeColor, strokeWidth }`。
-     * `draw`と同じ式（`points[0]`→`[1]`→`[2]`→`[3]`を結んで閉じる）で求め、`id`・`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる。
+     * 形（キー順もこの順）: `{ kind: 'polyline', id, points: [topLeft, topRight, bottomRight, bottomLeft]（各{x, y}）, closed: true, strokeColor, strokeWidth, fillColor }`。
+     * `draw`と同じ式（`points[0]`→`[1]`→`[2]`→`[3]`を結んで閉じる）で求め、`id`・`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる（`strokeColor`の`null`も）。
+     * `fillColor`は塗れる形のときだけ図形の値（矩形は常に図形の値）、塗れない形は`null`。
      * `points`は並びのまま各頂点を新規オブジェクトとして複製するため、戻り値と自身は配列・頂点を共有しない。
-     * @returns {{kind: string, id: *, points: {x: number, y: number}[], closed: boolean, strokeColor: string, strokeWidth: number}} 新しい描画要素
+     * @returns {{kind: string, id: *, points: {x: number, y: number}[], closed: boolean, strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい描画要素
      */
     toDrawElement() {
         return {
@@ -221,16 +248,18 @@ export class Rect {
             closed: true,
             strokeColor: this.strokeColor,
             strokeWidth: this.strokeWidth,
+            fillColor: this.isFillable() ? this.fillColor : null,
         };
     }
 
     /**
-     * 自身を図形データ（1図形のJSON表現・バージョン1）へ変換する（共通メソッド契約の第11メソッド）。
-     * 形（キー順もこの順）: `{ type: 'rect', id, points: [topLeft{x, y}, topRight{x, y}, bottomRight{x, y}, bottomLeft{x, y}], strokeColor, strokeWidth }`。
+     * 自身を図形データ（1図形のJSON表現・現行版）へ変換する（共通メソッド契約の第11メソッド）。
+     * 形（キー順もこの順）: `{ type: 'rect', id, points: [topLeft{x, y}, topRight{x, y}, bottomRight{x, y}, bottomLeft{x, y}], strokeColor, strokeWidth, fillColor }`。
+     * `fillColor`は塗れない形でも保持している値をそのまま出力する。
      * 座標はワールド座標。`points`は各頂点を新規オブジェクトとして複製するため、戻り値と自身は内部配列・頂点を共有しない。
      * `id`が`null`（作成中の図形など）の場合もそのまま出力する。
      * `JSON.stringify(rect)`でも本メソッドの戻り値が出力される。
-     * @returns {{type: string, id: *, points: {x: number, y: number}[], strokeColor: string, strokeWidth: number}} 新しい図形データ
+     * @returns {{type: string, id: *, points: {x: number, y: number}[], strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい図形データ
      */
     toJSON() {
         return {
@@ -239,6 +268,7 @@ export class Rect {
             points: this.points.map((point) => ({ x: point.x, y: point.y })),
             strokeColor: this.strokeColor,
             strokeWidth: this.strokeWidth,
+            fillColor: this.fillColor,
         };
     }
 
@@ -255,13 +285,14 @@ export class Rect {
      * @param {Object} data - 図形データ（プレーンオブジェクト）
      * @returns {Rect} 復元した矩形
      * @throws {Error} `data`がプレーンオブジェクトでない／`type`が`'rect'`でない／`points`が4要素の配列でない／
-     *     頂点がオブジェクトでないか`x`・`y`が有限の数値でない／`strokeColor`が文字列でない／
-     *     `strokeWidth`が有限の数値でないか0以下の場合
+     *     頂点がオブジェクトでないか`x`・`y`が有限の数値でない／`strokeColor`が文字列でも`null`でもない／
+     *     `strokeWidth`が`undefined`以外で有限の数値でないか0以下／`fillColor`が`undefined`・文字列・`null`以外の場合
+     *     （`strokeWidth`のキーなしは2px、`fillColor`のキーなしは`null`として読む）
      */
     static fromJSON(data) {
-        validateShapeData(data, 'Rect', ['rect'], RECT_POINT_COUNT);
+        const style = validateShapeData(data, 'Rect', ['rect'], RECT_POINT_COUNT);
         const [topLeft, , bottomRight] = data.points;
-        const rect = new Rect(topLeft.x, topLeft.y, bottomRight.x, bottomRight.y, data.strokeColor, data.strokeWidth);
+        const rect = new Rect(topLeft.x, topLeft.y, bottomRight.x, bottomRight.y, style.strokeColor, style.strokeWidth, style.fillColor);
         rect.points = data.points.map((point) => ({ x: point.x, y: point.y }));
         rect.id = data.id;
         return rect;

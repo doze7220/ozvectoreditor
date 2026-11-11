@@ -245,7 +245,7 @@
         *   テスト（`Curve.test.js`。偽の`ctx`は`quadraticCurveTo`も記録する）：タスク2と同じ観点（`isFillable`が`false`、`draw`の4パターン、`fromJSON`の`fillColor`の受理・不正・順序・`strokeWidth`キーなし→2、`toJSON`のキー順と`fillColor`の保持、`toDrawElement`のキー順`['kind', 'id', 'points', 'strokeColor', 'strokeWidth', 'fillColor']`と`fillColor: null`）。エラー文は`Curve.fromJSON: fillColorが文字列またはnullではありません`。
         *   書き換え（`test/io/SpriteSerializer.test.js`「curveはquadratic（3点）」）：キー順に`fillColor`を足す（理由：描画要素のキー追加）。
 
-*   [ ] タスク4: `Rect`の塗り
+*   [x] タスク4: `Rect`の塗り
     *   **対象ファイル** :
         *   `./js/shapes/Rect.js` : 更新
         *   `./test/shapes/Rect.test.js` : 更新
@@ -381,7 +381,11 @@
 
 ### タスク4: `Rect`の塗り
 *   **作業内容** :
-    *   (未着手)
+    *   `js/shapes/Rect.js`：コンストラクタ末尾に`fillColor = null`とプロパティ（`strokeColor`の型を`string|null`へ）、`isFillable()`（常に`true`）、`draw`を共通の順序へ（`shouldFill`/`shouldStroke`、どちらも偽なら`return`、従来のパス（`beginPath`→`moveTo`→`lineTo`×3→`closePath`）→塗り→線）、`toJSON`末尾に`fillColor`、`toDrawElement`末尾に`fillColor: this.isFillable() ? this.fillColor : null`、`fromJSON`は`validateShapeData`の戻り値`style`を使用。クラスJSDocを14メソッドへ、`RECT_POINT_COUNT`・`toJSON`の「バージョン1」を「現行版」へ、各JSDoc（`@param`・`@returns`・`@throws`）を改めた。
+    *   `test/shapes/Rect.test.js`：先頭の責務JSDocを改めた（当たり判定・`isFillable`・描画命令・図形データとの相互変換）。偽の`ctx`の補助関数`makeRecordingCtx`をファイル内に追加。`isFillable`・コンストラクタの既定値、`draw`の4パターン（塗りあり線あり・塗りあり線なし・塗りなし線あり・塗りも線もなし）、`fromJSON`の`fillColor`（受理・不正・検査の順序・`strokeWidth`キーなし→2）、`toJSON`/`toDrawElement`のキー順と`fillColor`（図形の値）を追加。
+    *   `node --test`：tests 698・pass 698・fail 0。
+*   **書き換えた既存ケース** :
+    *   なし（`test/io/SpriteSerializer.test.js`の`rect`のケースはキー順を見ていないため書き換えていない）。
 
 ### タスク5: `Ellipse`（円・弧）の塗り
 *   **作業内容** :
