@@ -206,7 +206,7 @@
 *   開発資料の記載に影響があれば、資料本体は直さず「開発資料の更新予定」へ追記する。迷った点・目視確認を推奨する点・将来の注意は「5. 懸念事項」へ追記する。
 *   完了後、本RESの該当タスクを`[x]`にし、「4. 詳細作業内容」を記入する。
 
-*   [ ] タスク1: 共通項目の検証の変更（`strokeColor: null`の受理・`strokeWidth`のキーなし→2・`fillColor`の検証と戻り値）
+*   [x] タスク1: 共通項目の検証の変更（`strokeColor: null`の受理・`strokeWidth`のキーなし→2・`fillColor`の検証と戻り値）
     *   **対象ファイル** :
         *   `./js/shapes/ShapeDataValidation.js` : 更新
         *   `./test/shapes/Line.test.js`・`Curve.test.js`・`Rect.test.js`・`Ellipse.test.js`・`Path.test.js` : 更新（共通項目の規則のケースのみ）
@@ -356,7 +356,12 @@
 
 ### タスク1: 共通項目の検証の変更
 *   **作業内容** :
-    *   (未着手)
+    *   `js/shapes/ShapeDataValidation.js`：`strokeColor`は文字列または`null`を受理（エラー文を「文字列またはnullではありません」へ）、`strokeWidth`は`undefined`なら非公開定数`DEFAULT_STROKE_WIDTH = 2`、`fillColor`の検査を最後に追加（`undefined`→`null`、文字列・`null`以外は不正）、戻り値`{ strokeColor, strokeWidth, fillColor }`（typedef`ShapeStyle`）を返す。`data`は書き換えない。先頭の責務定義・JSDocを改めた。図形クラスは未変更。
+    *   テスト：`Line`・`Curve`・`Rect`・`Ellipse`・`Path`の各テストに「`strokeColor: null`を受理」「`strokeWidth`キーなし→2」を追加。
+    *   `node --test`：tests 656・pass 656・fail 0。
+*   **書き換えた既存ケース** :
+    *   `Line/Curve/Rect/Ellipse.test.js`：「strokeColorが文字列でなければ拒否する」（エラー文を新文面へ）、「strokeWidthが正の有限の数値でなければ拒否する」（キーなし拒否の部分を外し、不正値に`null`を追加）、「検査の順序…」（strokeColorのエラー文を新文面へ）。
+    *   `Path.test.js`：「strokeColorが文字列でない」（エラー文）、「strokeWidthが0以下／有限でない」（`undefined`を外し`null`を追加）。
 
 ### タスク2: `Line`の塗り
 *   **作業内容** :

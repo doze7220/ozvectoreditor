@@ -175,21 +175,30 @@ describe('Line.fromJSON のエラー文', () => {
     it('strokeColorが文字列でなければ拒否する', () => {
         const num = makeValidData();
         num.strokeColor = 123;
-        assertFromJSONError(num, 'strokeColorが文字列ではありません');
+        assertFromJSONError(num, 'strokeColorが文字列またはnullではありません');
         const none = makeValidData();
         delete none.strokeColor;
-        assertFromJSONError(none, 'strokeColorが文字列ではありません');
+        assertFromJSONError(none, 'strokeColorが文字列またはnullではありません');
     });
 
     it('strokeWidthが正の有限の数値でなければ拒否する', () => {
-        for (const bad of [0, -1, NaN, Infinity, '2']) {
+        for (const bad of [0, -1, NaN, Infinity, '2', null]) {
             const data = makeValidData();
             data.strokeWidth = bad;
             assertFromJSONError(data, 'strokeWidthが正の有限の数値ではありません');
         }
-        const none = makeValidData();
-        delete none.strokeWidth;
-        assertFromJSONError(none, 'strokeWidthが正の有限の数値ではありません');
+    });
+
+    it('strokeColor: nullの図形データを受理する（線なし）', () => {
+        const data = makeValidData();
+        data.strokeColor = null;
+        assert.equal(Line.fromJSON(data).toJSON().strokeColor, null);
+    });
+
+    it('strokeWidthのキーが無い図形データを受理し、2pxとして読む', () => {
+        const data = makeValidData();
+        delete data.strokeWidth;
+        assert.equal(Line.fromJSON(data).toJSON().strokeWidth, 2);
     });
 
     it('検査の順序：種別 → 頂点数 → 頂点（小さい番号が先）→ strokeColor → strokeWidth', () => {
@@ -215,6 +224,6 @@ describe('Line.fromJSON のエラー文', () => {
         const colorAndWidth = makeValidData();
         colorAndWidth.strokeColor = 123;
         colorAndWidth.strokeWidth = 0;
-        assertFromJSONError(colorAndWidth, 'strokeColorが文字列ではありません');
+        assertFromJSONError(colorAndWidth, 'strokeColorが文字列またはnullではありません');
     });
 });

@@ -336,16 +336,29 @@ describe('Path.fromJSON のエラー文', () => {
         });
 
         it('strokeColorが文字列でない', () => {
-            assertFromJSONError({ ...makeValidData(false), strokeColor: 123 }, 'strokeColorが文字列ではありません');
+            assertFromJSONError({ ...makeValidData(false), strokeColor: 123 }, 'strokeColorが文字列またはnullではありません');
             const data = makeValidData(false);
             delete data.strokeColor;
-            assertFromJSONError(data, 'strokeColorが文字列ではありません');
+            assertFromJSONError(data, 'strokeColorが文字列またはnullではありません');
         });
 
         it('strokeWidthが0以下／有限でない', () => {
-            for (const bad of [0, -1, NaN, Infinity, '2', undefined]) {
+            for (const bad of [0, -1, NaN, Infinity, '2', null]) {
                 assertFromJSONError({ ...makeValidData(false), strokeWidth: bad }, 'strokeWidthが正の有限の数値ではありません');
             }
+        });
+    });
+
+    describe('共通項目の既定値と線なし', () => {
+        it('strokeColor: nullの図形データを受理する（線なし）', () => {
+            const data = { ...makeValidData(false), strokeColor: null };
+            assert.equal(Path.fromJSON(data).toJSON().strokeColor, null);
+        });
+
+        it('strokeWidthのキーが無い図形データを受理し、2pxとして読む', () => {
+            const data = makeValidData(false);
+            delete data.strokeWidth;
+            assert.equal(Path.fromJSON(data).toJSON().strokeWidth, 2);
         });
     });
 
