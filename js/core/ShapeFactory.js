@@ -78,7 +78,7 @@ export class ShapeFactory {
     /**
      * 図形データ（1図形のJSON表現）のtypeに応じて、対応する図形クラスのstatic fromJSONへ復元を振り分ける。
      * 本メソッドは例外を捕捉しない（図形単位の捕捉はDocumentSerializer.deserializeの1箇所で行う）。
-     * @param {Object} data - 図形データ（{ type, id, points, strokeColor, strokeWidth }。pathは closed・segments も持つ）
+     * @param {Object} data - 図形データ（{ type, id, points, strokeColor, strokeWidth, fillColor }。strokeColorはnull＝線なし、fillColorはnull＝塗りなし。pathは closed・segments も持つ）
      * @returns {Line|Curve|Rect|Ellipse|Path} 復元された図形インスタンス
      * @throws {Error} dataがプレーンオブジェクト（null・配列以外のobject）でない場合、
      *     data.typeが対応表に無い（未知の図形種別）場合、

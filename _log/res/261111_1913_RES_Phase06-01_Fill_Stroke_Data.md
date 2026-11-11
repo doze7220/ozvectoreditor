@@ -332,7 +332,7 @@
     *   **作業内容** :
         *   追加のみ：塗り・線なしを含むキャンバス（塗れない形の`fillColor`を含む）を`SpriteSerializer.serialize`→`CodeExporter.toModuleText`で書き出したJS（版2）を`deserializeFromText`で読み、`ok`・スキップなしで`fillColor`・`strokeColor`を含む`toJSON()`が元どおりに戻ること（`CRLF`のJSも）。版1の書き出し形式のJS（書き出したデータの`formatVersion`を`1`、`source.version`を`1`にし、`source.shapes`の各要素から`fillColor`を除いたもの、および`fillColor`を残したもの）が読め、全図形が`fillColor: null`になること。
 
-*   [ ] タスク13: JSDocの記載漏れの確認と`ShapeFactory`のJSDoc
+*   [x] タスク13: JSDocの記載漏れの確認と`ShapeFactory`のJSDoc
     *   **対象ファイル** :
         *   `./js/core/ShapeFactory.js` : 更新（JSDocのみ）
         *   タスク1〜12で変更したファイル : 確認（記載漏れがあれば該当ファイルのJSDocのみ修正）
@@ -455,7 +455,9 @@
 
 ### タスク13: JSDocの記載漏れの確認と`ShapeFactory`のJSDoc
 *   **作業内容** :
-    *   (未着手)
+    *   `js/core/ShapeFactory.js`：`fromJSON`の`@param data`に`fillColor`を足し、`strokeColor: null`＝線なし・`fillColor: null`＝塗りなしを明記（JSDocのみ）。
+    *   `test/shapes/Line.test.js`・`Curve.test.js`・`Rect.test.js`の`makeValidData`の`@returns`を`strokeColor: string|null, strokeWidth: number, fillColor: string|null`に修正（Ellipse・Pathと同形）。
+    *   確認：5クラスの共通メソッド契約（14メソッド、末尾`isFillable`）の列挙は一致。各メソッドの「第Nメソッド」（isFillable=14、toDrawElement=13、fromJSON=12、toJSON=11、intersectsRect=10）も食い違いなし。修正不要。処理・テストは未変更。
 
 ### タスク14: 開発資料への反映
 *   **作業内容** :

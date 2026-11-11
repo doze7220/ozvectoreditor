@@ -8,7 +8,7 @@ import { Rect } from '../../js/shapes/Rect.js';
 
 /**
  * 正常な矩形の図形データ（idを入れたtoJSON()の戻り値）を返す。呼ぶたびに新しいオブジェクトを返す。
- * @returns {{type: string, id: string, points: {x: number, y: number}[], strokeColor: string, strokeWidth: number}} 正常な図形データ
+ * @returns {{type: string, id: string, points: {x: number, y: number}[], strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 正常な図形データ
  */
 function makeValidData() {
     const data = new Rect(0, 0, 100, 50).toJSON();

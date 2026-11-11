@@ -8,7 +8,7 @@ import { Line } from '../../js/shapes/Line.js';
 
 /**
  * 正常な直線の図形データ（idを入れたtoJSON()の戻り値）を返す。呼ぶたびに新しいオブジェクトを返す。
- * @returns {{type: string, id: string, points: {x: number, y: number}[], strokeColor: string, strokeWidth: number}} 正常な図形データ
+ * @returns {{type: string, id: string, points: {x: number, y: number}[], strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 正常な図形データ
  */
 function makeValidData() {
     const data = new Line(0, 0, 100, 0).toJSON();
