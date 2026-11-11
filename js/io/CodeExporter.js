@@ -34,7 +34,7 @@ const HEADER_COMMENT = [
 /**
  * 書き出すJSへそのまま埋め込む共通の描画処理（`draw`・`drawElement`・`export default`の行）のテキスト。
  * スプライトデータ（`spriteData`）と`DEFAULT_STROKE_WIDTH`は、このテキストの前に別途埋め込まれる。
- * 保守上の注意: 内容はスプライトデータ形式の描画要素の表・描き方（RES 2章要件3・要件7）と、
+ * 保守上の注意: 内容は開発資料（`PROJECT_ARCHITECTURE.md` 2章「スプライト（書き出し形式）」）の描画要素の表・描き方（塗りの規則を含む）と、
  * `shapes/`の各図形の`draw`（描画命令・引数・順序）に揃えること。変更したら`test/io/CodeExporter.test.js`の見た目の一致のテストを確認する。
  * このテキストの中で`import`・テンプレート文字列・外部の名前（`window`等）を使わない。
  * @type {string}
@@ -60,13 +60,18 @@ const DRAW_SOURCE = [
     '}',
     '',
     '/**',
-    ' * 描画要素1つの線を描く。strokeColor が文字列でない場合は線を描かない（線のパスと stroke() を呼ばない）。',
-    ' * 形の項目が足りない要素・未知の kind の要素も描かない。',
+    ' * 描画要素1つの塗りと線を描く（パス → 塗り → 線の順）。',
+    ' * 塗るのは、fillColor が文字列で、かつ kind が polyline または ellipse で closed が true の要素だけ（fill() は引数なし）。',
+    ' * 線を描くのは strokeColor が文字列の要素だけ。どちらも描かない要素はパスも組み立てない。',
+    ' * 形の項目が足りない要素・未知の kind の要素は塗りも線も描かない。',
     ' * @param {CanvasRenderingContext2D} ctx - 描画先の2Dコンテキスト',
     ' * @param {Object} element - 描画要素',
     ' */',
     'function drawElement(ctx, element) {',
-    "    if (typeof element.strokeColor !== 'string') {",
+    "    const shouldStroke = typeof element.strokeColor === 'string';",
+    "    const shouldFill = typeof element.fillColor === 'string' && element.closed === true",
+    "        && (element.kind === 'polyline' || element.kind === 'ellipse');",
+    '    if (!shouldStroke && !shouldFill) {',
     '        return;',
     '    }',
     '    switch (element.kind) {',
@@ -110,11 +115,17 @@ const DRAW_SOURCE = [
     '        default:',
     '            return;',
     '    }',
-    '    ctx.strokeStyle = element.strokeColor;',
-    "    ctx.lineWidth = typeof element.strokeWidth === 'number' && Number.isFinite(element.strokeWidth) && element.strokeWidth > 0",
-    '        ? element.strokeWidth',
-    '        : DEFAULT_STROKE_WIDTH;',
-    '    ctx.stroke();',
+    '    if (shouldFill) {',
+    '        ctx.fillStyle = element.fillColor;',
+    '        ctx.fill();',
+    '    }',
+    '    if (shouldStroke) {',
+    '        ctx.strokeStyle = element.strokeColor;',
+    "        ctx.lineWidth = typeof element.strokeWidth === 'number' && Number.isFinite(element.strokeWidth) && element.strokeWidth > 0",
+    '            ? element.strokeWidth',
+    '            : DEFAULT_STROKE_WIDTH;',
+    '        ctx.stroke();',
+    '    }',
     '}',
     '',
     'export default { ...spriteData, draw };',

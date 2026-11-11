@@ -29,12 +29,12 @@ async function importSprite(spriteData) {
 function createRecordingCtx() {
     const log = [];
     const ctx = {};
-    for (const name of ['beginPath', 'moveTo', 'lineTo', 'quadraticCurveTo', 'ellipse', 'closePath', 'stroke', 'save', 'restore', 'setLineDash']) {
+    for (const name of ['beginPath', 'moveTo', 'lineTo', 'quadraticCurveTo', 'ellipse', 'closePath', 'fill', 'stroke', 'save', 'restore', 'setLineDash']) {
         ctx[name] = (...args) => {
             log.push([name, ...args]);
         };
     }
-    for (const name of ['strokeStyle', 'lineWidth', 'lineCap', 'lineJoin', 'miterLimit']) {
+    for (const name of ['fillStyle', 'strokeStyle', 'lineWidth', 'lineCap', 'lineJoin', 'miterLimit']) {
         Object.defineProperty(ctx, name, {
             set(value) {
                 log.push([`set:${name}`, value]);
@@ -237,6 +237,185 @@ describe('CodeExporter.toModuleText: 見た目の一致（パス）', () => {
             new Curve(0, 0, 30, 30),
             new Ellipse(5, 5, 25, 15, 'arc', '#555555', 3),
         ]);
+    });
+});
+
+describe('CodeExporter.toModuleText: 見た目の一致（塗り・線なし）', () => {
+    const square = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }];
+    const star = [0, 1, 2, 3, 4].map((i) => {
+        const angle = (Math.PI * 2 * i * 2) / 5 - Math.PI / 2;
+        return { x: 50 + 50 * Math.cos(angle), y: 50 + 50 * Math.sin(angle) };
+    });
+
+    /**
+     * 塗れる図形（矩形・円・閉じたパス）を、指定の色で1つずつ作る。
+     * @param {string|null} strokeColor - 線の色
+     * @param {string|null} fillColor - 塗りの色
+     * @returns {Array<object>} 図形3つ
+     */
+    function fillableShapes(strokeColor, fillColor) {
+        return [
+            new Rect(10, 20, 50, 80, strokeColor, 4, fillColor),
+            new Ellipse(10, 20, 40, 60, 'circle', strokeColor, 3, fillColor),
+            new Path(square, true, strokeColor, 2, fillColor),
+        ];
+    }
+
+    it('塗りあり線あり（rect・circle・閉じたパス）', async () => {
+        for (const shape of fillableShapes('#ff0000', '#00ff00')) {
+            await assertSameAsEditor([shape]);
+        }
+        const log = recordEditorDraw(fillableShapes('#ff0000', '#00ff00'));
+        assert.equal(log.filter((e) => e[0] === 'fill').length, 3);
+        assert.equal(log.filter((e) => e[0] === 'stroke').length, 3);
+    });
+
+    it('塗りのみ線なし（rect・circle・閉じたパス）', async () => {
+        for (const shape of fillableShapes(null, '#00ff00')) {
+            await assertSameAsEditor([shape]);
+        }
+        const log = recordEditorDraw(fillableShapes(null, '#00ff00'));
+        assert.equal(log.filter((e) => e[0] === 'fill').length, 3);
+        assert.equal(log.filter((e) => e[0] === 'stroke').length, 0);
+    });
+
+    it('塗りも線もなし（全6種。記録は前置きとrestoreのみ）', async () => {
+        const shapes = [
+            new Line(0, 0, 10, 10, null),
+            new Curve(0, 0, 100, 50, null),
+            new Rect(0, 0, 10, 10, null, 2, null),
+            new Ellipse(10, 20, 40, 60, 'circle', null, 2, null),
+            new Ellipse(10, 20, 40, 60, 'arc', null, 2, null),
+            new Path(square, false, null, 2, null),
+            new Path(square, true, null, 2, null),
+        ];
+        await assertSameAsEditor(shapes);
+        const sprite = await importSprite(SpriteSerializer.serialize(shapes));
+        assert.deepStrictEqual(recordExportedDraw(sprite), expectedExportLog([]));
+    });
+
+    it('塗れない形にfillColorがある（line・curve・arc・開いたパス。線ありと線なし）', async () => {
+        for (const strokeColor of ['#ff0000', null]) {
+            const shapes = [
+                new Line(0, 0, 10, 10, strokeColor, 2, '#00ff00'),
+                new Curve(0, 0, 100, 50, strokeColor, 2, '#00ff00'),
+                new Ellipse(10, 20, 40, 60, 'arc', strokeColor, 2, '#00ff00'),
+                new Path(square, false, strokeColor, 2, '#00ff00'),
+            ];
+            await assertSameAsEditor(shapes);
+            const sprite = await importSprite(SpriteSerializer.serialize(shapes));
+            assert.equal(recordExportedDraw(sprite).filter((e) => e[0] === 'fill').length, 0);
+        }
+    });
+
+    it('自分自身と交差する閉じたパスの塗り', async () => {
+        await assertSameAsEditor([new Path(star, true, '#000000', 2, '#ffcc00')]);
+        await assertSameAsEditor([new Path(star, true, null, 2, '#ffcc00')]);
+    });
+
+    it('塗り・線なしと従来の図形の混在（描画順を保つ）', async () => {
+        await assertSameAsEditor([
+            new Rect(0, 0, 5, 5, '#111111', 1, '#aaaaaa'),
+            new Line(0, 0, 10, 10, null),
+            new Ellipse(10, 20, 40, 60, 'circle', null, 2, '#bbbbbb'),
+            new Curve(0, 0, 30, 30),
+            new Path(square, true, '#444444', 3, '#cccccc'),
+            new Ellipse(5, 5, 25, 15, 'arc', '#555555', 3, '#dddddd'),
+            new Path(square, false, '#222222', 6),
+            new Rect(0, 0, 5, 5, null, 2, null),
+        ]);
+    });
+});
+
+describe('CodeExporter.toModuleText: 塗りの規則（手で組み立てた描画要素）', () => {
+    const points = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }];
+    const polylineBase = { kind: 'polyline', id: 'p', points, strokeColor: null, strokeWidth: 2 };
+    const ellipseBase = {
+        kind: 'ellipse', id: 'e', x: 0, y: 0, radiusX: 5, radiusY: 5, startAngle: 0, endAngle: 6, strokeColor: null, strokeWidth: 2,
+    };
+
+    /**
+     * 描画要素を書き出したJSの`draw`で描いた記録のうち、前置きとrestoreを除いた部分を返す。
+     * @param {Array<object>} elements - 描画要素
+     * @returns {Promise<Array<Array<*>>>} 記録
+     */
+    async function recordElements(elements) {
+        const sprite = await importSprite(dataWithElements(elements));
+        const log = recordExportedDraw(sprite);
+        return log.slice(5, log.length - 1);
+    }
+
+    it('fillColorが文字列でない（数値・null・キーなし）要素は塗らない', async () => {
+        const log = await recordElements([
+            { ...polylineBase, closed: true, fillColor: 5 },
+            { ...polylineBase, closed: true, fillColor: null },
+            { ...polylineBase, closed: true },
+            { ...ellipseBase, closed: true, fillColor: 5 },
+            { ...ellipseBase, closed: true, fillColor: null },
+            { ...ellipseBase, closed: true },
+        ]);
+        assert.deepStrictEqual(log, []);
+    });
+
+    it('closedがtrueでない（false・キーなし・"true"）polyline/ellipseは塗らない', async () => {
+        const log = await recordElements([
+            { ...polylineBase, closed: false, fillColor: '#00ff00' },
+            { ...polylineBase, fillColor: '#00ff00' },
+            { ...polylineBase, closed: 'true', fillColor: '#00ff00' },
+            { ...ellipseBase, closed: false, fillColor: '#00ff00' },
+            { ...ellipseBase, fillColor: '#00ff00' },
+            { ...ellipseBase, closed: 'true', fillColor: '#00ff00' },
+        ]);
+        assert.deepStrictEqual(log, []);
+    });
+
+    it('quadraticはfillColorが文字列でも塗らない（線ありなら線だけ）', async () => {
+        const base = { kind: 'quadratic', id: 'q', points, strokeWidth: 2, closed: true, fillColor: '#00ff00' };
+        assert.deepStrictEqual(await recordElements([{ ...base, strokeColor: null }]), []);
+        const log = await recordElements([{ ...base, strokeColor: '#ff0000' }]);
+        assert.equal(log.filter((e) => e[0] === 'fill').length, 0);
+        assert.equal(log.filter((e) => e[0] === 'set:fillStyle').length, 0);
+        assert.equal(log.filter((e) => e[0] === 'stroke').length, 1);
+    });
+
+    it('線なしで塗りだけのpolyline/ellipseは塗る（パス → fillStyle → fill()でstrokeなし）', async () => {
+        const log = await recordElements([
+            { ...polylineBase, closed: true, fillColor: '#00ff00' },
+            { ...ellipseBase, closed: true, fillColor: '#0000ff' },
+        ]);
+        assert.deepStrictEqual(log, [
+            ['beginPath'], ['moveTo', 0, 0], ['lineTo', 10, 0], ['lineTo', 10, 10], ['closePath'],
+            ['set:fillStyle', '#00ff00'], ['fill'],
+            ['beginPath'], ['ellipse', 0, 0, 5, 5, 0, 0, 6], ['closePath'],
+            ['set:fillStyle', '#0000ff'], ['fill'],
+        ]);
+    });
+
+    it('塗りと線の両方がある要素は塗り → 線の順', async () => {
+        const log = await recordElements([{ ...polylineBase, closed: true, strokeColor: '#ff0000', fillColor: '#00ff00' }]);
+        assert.deepStrictEqual(log.slice(5), [
+            ['set:fillStyle', '#00ff00'], ['fill'],
+            ['set:strokeStyle', '#ff0000'], ['set:lineWidth', 2], ['stroke'],
+        ]);
+    });
+
+    it('塗りも線もない要素は何も呼ばない', async () => {
+        const log = await recordElements([
+            { ...polylineBase, closed: true },
+            { ...polylineBase, closed: false, fillColor: '#00ff00' },
+        ]);
+        assert.deepStrictEqual(log, []);
+    });
+
+    it('形の項目が足りない要素・未知のkindはfillColorがあっても何も呼ばない', async () => {
+        const log = await recordElements([
+            { ...polylineBase, points: [{ x: 0, y: 0 }], closed: true, strokeColor: '#ff0000', fillColor: '#00ff00' },
+            { ...polylineBase, points: undefined, closed: true, fillColor: '#00ff00' },
+            { ...ellipseBase, radiusX: -1, closed: true, fillColor: '#00ff00' },
+            { ...ellipseBase, radiusY: undefined, closed: true, strokeColor: '#ff0000', fillColor: '#00ff00' },
+            { kind: 'unknown-kind', id: 'u', closed: true, strokeColor: '#ff0000', strokeWidth: 2, fillColor: '#00ff00' },
+        ]);
+        assert.deepStrictEqual(log, []);
     });
 });
 

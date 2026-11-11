@@ -309,7 +309,7 @@
         *   書き換え：「キーの順と識別子・版を持ち、最上位にversionを持たない」の`formatVersion`の期待値を`2`へ（理由：書き出し形式の版の変更）。
         *   追加：描画要素の`fillColor`（塗れる形：`rect`・`circle`・閉じたパスは図形の値／塗れない形：`line`・`curve`・`arc`・開いたパスは`fillColor`を持っていても`null`）と、`source`の図形データには塗れない形の`fillColor`も残ること。外枠：`strokeColor: null`の直線・矩形・円・曲線・弧・パスは形の範囲のまま（広げない）、線ありは従来どおり広げる、線なしと線ありの混在の和、線なしで塗れない要素も外枠に含まれること。`checkFormat`が`formatVersion: 1`を`supported`とすること（版1のJSを読める根拠）。
 
-*   [ ] タスク10: 書き出したJSの描画処理（`DRAW_SOURCE`）の塗り
+*   [x] タスク10: 書き出したJSの描画処理（`DRAW_SOURCE`）の塗り
     *   **対象ファイル** :
         *   `./js/io/CodeExporter.js` : 更新
         *   `./test/io/CodeExporter.test.js` : 更新
@@ -433,7 +433,11 @@
 
 ### タスク10: 書き出したJSの描画処理（`DRAW_SOURCE`）の塗り
 *   **作業内容** :
-    *   (未着手)
+    *   `js/io/CodeExporter.js`：`DRAW_SOURCE`の`drawElement`を要件4の形へ（`shouldStroke`/`shouldFill`、どちらも偽なら`return`、形の確認とパス組み立ては従来のまま、塗り`fillStyle`→`fill()`の後に線`strokeStyle`→`lineWidth`（従来の式）→`stroke()`）。埋め込み内の`drawElement`の説明コメントと、`DRAW_SOURCE`のJSDocの保守上の注意（RES節番号への参照を開発資料2章「スプライト（書き出し形式）」への参照に、塗りの規則を含む旨）を改めた。`draw`・`HEADER_COMMENT`・`toModuleText`・`extractSpriteDataText`は未変更。
+    *   `test/io/CodeExporter.test.js`：補助関数`createRecordingCtx`に`fill`・`fillStyle`の記録を追加。追加＝describe「見た目の一致（塗り・線なし）」（塗りあり線あり／塗りのみ線なし／塗りも線もなし（全6種）／塗れない形のfillColor（線あり・なし）／自己交差の閉じたパス／混在）、describe「塗りの規則（手で組み立てた描画要素）」（fillColorが文字列でない／closedがtrueでない／quadratic／線なし塗りのみの命令列／塗り→線の順／塗りも線もない／形の項目不足・未知のkind）。
+    *   `node --test`：tests 767・pass 767・fail 0。
+*   **書き換えた既存ケース** :
+    *   なし（補助関数`createRecordingCtx`に記録対象を足したのみ。既存ケースの期待値は不変）。
 
 ### タスク11: 作業データの往復のテスト（塗り・線なし）
 *   **作業内容** :
