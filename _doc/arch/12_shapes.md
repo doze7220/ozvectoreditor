@@ -29,11 +29,11 @@
         *   移動ハンドルの名前は文字列`'move'`固定（`InputTracker`がこの名前で分岐する）。
         *   `'move'`以外のハンドル名は、`getVertexIndexForHandle`で有効な番号に解決できなければならない。解決できないと`null`のまま`setVertex`へ渡り、エラーなしでドラッグが無反応になる。
     *   **`intersectsRect`**：範囲選択用の交差判定。引数はワールド座標の正規化済み（min ≤ max）軸平行矩形（境界を含む）。描画されている輪郭線の中心線（`strokeWidth`は含めない）が一部でも掛かれば`true`。塗り内部は判定しない。`Line`・`Rect`・`Path`は線分の厳密判定、`Curve`・`Ellipse`は輪郭を100分割した折れ線による近似判定。`Ellipse`の弧は描画されている弧部分のみが対象。
-    *   **`toDrawElement()`**：スプライト（書き出し形式。2章）の描画要素を返す。戻り値は2章「描画要素」（`polyline`・`quadratic`・`ellipse`。`Line`・`Rect`・`Path`は`polyline`、`Curve`は`quadratic`、`Ellipse`は`ellipse`）。毎回新しいオブジェクト・頂点を作り、内部配列・頂点を共有しない。値は`draw`と同じ式で求める（`Ellipse`の`points`の約束・角度が`type`から決まること等の内部の約束を図形クラスの外へ出さないため）。呼び出し元は`SpriteSerializer`のみ（`core/`は呼ばない）。`Ellipse`の`closed: this.type === 'circle'`が種別による分岐の1箇所。`draw`の式を変えたら`toDrawElement`・`io/CodeExporter.js`の描画処理・`test/io/CodeExporter.test.js`を揃える。
+    *   **`toDrawElement()`**：スプライト（書き出し形式。2章）の描画要素を返す。戻り値は2章「描画要素」（`polyline`・`quadratic`・`ellipse`。`Line`・`Rect`・`Path`は`polyline`、`Curve`は`quadratic`、`Ellipse`は`ellipse`）。毎回新しいオブジェクト・頂点を作り、内部配列・頂点を共有しない。値は`draw`と同じ式で求める（`Ellipse`の`points`の約束・角度が`type`から決まること等の内部の約束を図形クラスの外へ出さないため）。呼び出し元は`SpriteSerializer`のみ（`core/`は呼ばない）。`Ellipse`の種別による分岐は、`closed: this.type === 'circle'`と、`isFillable()`（`type`で決まる）を通した`fillColor`の2箇所。`draw`の式を変えたら`toDrawElement`・`io/CodeExporter.js`の描画処理・`test/io/CodeExporter.test.js`を揃える。
     *   **`viewScale`**：`drawHandles`/`drawHover`の`viewScale`は表示倍率で、補助表示を画面上一定に保つため`÷ viewScale`で換算する。図形本体の`draw`は倍率を受け取らない（線幅は倍率に比例して表示される）。
     *   **`toJSON`/`fromJSON`**：
         *   どちらの方向でも内部配列・頂点オブジェクトを共有しない（`data`内の配列・オブジェクトも流用しない）。
-        *   `fromJSON`は不正な入力で`Error`をthrowする（条件は各クラスの`@throws`。`strokeWidth`の0以下も不正：Canvasが0以下の線幅の代入を無視して直前の値を残すため。ただし`strokeWidth`のキーが無い（`undefined`）場合は不正ではなく2pxとして読む。`strokeColor`・`fillColor`は文字列または`null`のみ受理）。
+        *   `fromJSON`は不正な入力で`Error`をthrowする（条件は各クラスの`@throws`。`strokeWidth`の0以下も不正：Canvasが0以下の線幅の代入を無視して直前の値を残すため。ただし`strokeWidth`のキーが無い（`undefined`）場合は不正ではなく2pxとして読む。`strokeColor`・`fillColor`は文字列または`null`のみ受理。ただし`fillColor`のキーが無い（`undefined`）場合は不正ではなく`null`として読む。`strokeColor`のキーが無い場合は不正）。
         *   `id`は検証せずそのまま保持する（正規化は`VectorModel.replaceAllShapes`の責務）。余分なプロパティは無視する。
         *   各図形クラス・`ShapeFactory`は`try/catch`を持たない（捕捉は`DocumentSerializer`）。
         *   往復（`toJSON`→`fromJSON`）で図形データの内容と描画・当たり判定の結果は一致する。
