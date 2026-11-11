@@ -14,15 +14,15 @@ import { validateShapeData } from './ShapeDataValidation.js';
 const CURVE_INTERSECT_SEGMENTS = 100;
 
 /**
- * 曲線の図形データ（1図形のJSON表現・バージョン1）が持つ頂点数。
+ * 曲線の図形データ（1図形のJSON表現・現行版）が持つ頂点数。
  * @type {number}
  */
 const CURVE_POINT_COUNT = 3;
 
 /**
  * 2次ベジェ曲線の図形クラス（図形種別`'curve'`）。頂点は`points[0]`＝始点、`[1]`＝制御点、`[2]`＝終点。
- * 共通メソッド契約（13メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（14メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable）を自律実装する。座標はすべてワールド座標。
  */
 export class Curve {
     /**
@@ -30,10 +30,11 @@ export class Curve {
      * @param {number} y1 - 始点のY座標
      * @param {number} x2 - 終点のX座標
      * @param {number} y2 - 終点のY座標
-     * @param {string} [strokeColor='#000000'] - 線の色
+     * @param {string|null} [strokeColor='#000000'] - 線の色。`null`は線なし
      * @param {number} [strokeWidth=2] - 線の太さ
+     * @param {string|null} [fillColor=null] - 塗りの色。`null`は塗りなし（曲線は塗れない形のため描かれないが保持する）
      */
-    constructor(x1, y1, x2, y2, strokeColor = '#000000', strokeWidth = 2) {
+    constructor(x1, y1, x2, y2, strokeColor = '#000000', strokeWidth = 2, fillColor = null) {
         /** @type {string} 図形種別（`ShapeFactory`が受理する文字列と一致） */
         this.type = 'curve';
         /** @type {*} 図形の一意なID。作成中は`null`。`VectorModel`の採番・正規化の後は文字列。`fromJSON`直後は`data.id`のまま（欠落なら`undefined`、任意の型を取り得る）。 */
@@ -44,23 +45,48 @@ export class Curve {
             { x: (x1 + x2) / 2, y: (y1 + y2) / 2 },
             { x: x2, y: y2 },
         ];
+        /** @type {string|null} 線の色。`null`は線なし */
         this.strokeColor = strokeColor;
         this.strokeWidth = strokeWidth;
+        /** @type {string|null} 塗りの色。nullは塗りなし。塗れない形でも保持する（描かないだけ） */
+        this.fillColor = fillColor;
     }
 
     /**
-     * Canvasに2次ベジェ曲線を描画する。
+     * 塗れる形かを返す（共通メソッド契約の第14メソッド）。曲線は常に塗れない。データには保存しない。
+     * @returns {boolean} 常に`false`
+     */
+    isFillable() {
+        return false;
+    }
+
+    /**
+     * Canvasに2次ベジェ曲線を描画する。塗るのは`isFillable()`が真で`fillColor`が文字列のときだけ（曲線は塗らない）、
+     * 線を描くのは`strokeColor`が文字列のときだけ。どちらも偽なら何も呼ばない。
+     * 順序は`io/CodeExporter.js`の`DRAW_SOURCE`と同じ（パス → 塗り → 線）。
      * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
      * @param {number} [t=0] - 将来のモーフィング機能用の予約引数（本Phaseでは未使用）
      */
     draw(ctx, t = 0) {
+        const shouldFill = this.isFillable() && typeof this.fillColor === 'string';
+        const shouldStroke = typeof this.strokeColor === 'string';
+        if (!shouldFill && !shouldStroke) {
+            return;
+        }
+
         ctx.beginPath();
         ctx.moveTo(this.points[0].x, this.points[0].y);
         ctx.quadraticCurveTo(this.points[1].x, this.points[1].y, this.points[2].x, this.points[2].y);
 
-        ctx.strokeStyle = this.strokeColor;
-        ctx.lineWidth = this.strokeWidth;
-        ctx.stroke();
+        if (shouldFill) {
+            ctx.fillStyle = this.fillColor;
+            ctx.fill();
+        }
+        if (shouldStroke) {
+            ctx.strokeStyle = this.strokeColor;
+            ctx.lineWidth = this.strokeWidth;
+            ctx.stroke();
+        }
     }
 
     /**
@@ -263,10 +289,11 @@ export class Curve {
 
     /**
      * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第13メソッド。呼び出し元は`SpriteSerializer`のみ）。
-     * 形（キー順もこの順）: `{ kind: 'quadratic', id, points: [始点{x, y}, 制御点{x, y}, 終点{x, y}], strokeColor, strokeWidth }`。
-     * `draw`と同じ式（`points[0]`から`points[1]`を制御点に`points[2]`への2次ベジェ）で求め、`id`・`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる。
+     * 形（キー順もこの順）: `{ kind: 'quadratic', id, points: [始点{x, y}, 制御点{x, y}, 終点{x, y}], strokeColor, strokeWidth, fillColor }`。
+     * `draw`と同じ式（`points[0]`から`points[1]`を制御点に`points[2]`への2次ベジェ）で求め、`id`・`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる（`strokeColor`の`null`も）。
+     * `fillColor`は塗れる形のときだけ図形の値、塗れない形（曲線）は常に`null`。
      * `points`は各頂点を新規オブジェクトとして複製するため、戻り値と自身は配列・頂点を共有しない。
-     * @returns {{kind: string, id: *, points: {x: number, y: number}[], strokeColor: string, strokeWidth: number}} 新しい描画要素
+     * @returns {{kind: string, id: *, points: {x: number, y: number}[], strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい描画要素
      */
     toDrawElement() {
         return {
@@ -275,16 +302,18 @@ export class Curve {
             points: this.points.slice(0, 3).map((point) => ({ x: point.x, y: point.y })),
             strokeColor: this.strokeColor,
             strokeWidth: this.strokeWidth,
+            fillColor: this.isFillable() ? this.fillColor : null,
         };
     }
 
     /**
-     * 自身を図形データ（1図形のJSON表現・バージョン1）へ変換する（共通メソッド契約の第11メソッド）。
-     * 形（キー順もこの順）: `{ type: 'curve', id, points: [始点{x, y}, 制御点{x, y}, 終点{x, y}], strokeColor, strokeWidth }`。
+     * 自身を図形データ（1図形のJSON表現・現行版）へ変換する（共通メソッド契約の第11メソッド）。
+     * 形（キー順もこの順）: `{ type: 'curve', id, points: [始点{x, y}, 制御点{x, y}, 終点{x, y}], strokeColor, strokeWidth, fillColor }`。
+     * `fillColor`は塗れない形でも保持している値をそのまま出力する。
      * 座標はワールド座標。`points`は各頂点を新規オブジェクトとして複製するため、戻り値と自身は内部配列・頂点を共有しない。
      * `id`が`null`（作成中の図形など）の場合もそのまま出力する。
      * `JSON.stringify(curve)`でも本メソッドの戻り値が出力される。
-     * @returns {{type: string, id: *, points: {x: number, y: number}[], strokeColor: string, strokeWidth: number}} 新しい図形データ
+     * @returns {{type: string, id: *, points: {x: number, y: number}[], strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい図形データ
      */
     toJSON() {
         return {
@@ -293,6 +322,7 @@ export class Curve {
             points: this.points.map((point) => ({ x: point.x, y: point.y })),
             strokeColor: this.strokeColor,
             strokeWidth: this.strokeWidth,
+            fillColor: this.fillColor,
         };
     }
 
@@ -308,13 +338,14 @@ export class Curve {
      * @param {Object} data - 図形データ（プレーンオブジェクト）
      * @returns {Curve} 復元した曲線
      * @throws {Error} `data`がプレーンオブジェクトでない／`type`が`'curve'`でない／`points`が3要素の配列でない／
-     *     頂点がオブジェクトでないか`x`・`y`が有限の数値でない／`strokeColor`が文字列でない／
-     *     `strokeWidth`が有限の数値でないか0以下の場合
+     *     頂点がオブジェクトでないか`x`・`y`が有限の数値でない／`strokeColor`が文字列でも`null`でもない／
+     *     `strokeWidth`が`undefined`以外で有限の数値でないか0以下／`fillColor`が`undefined`・文字列・`null`以外の場合
+     *     （`strokeWidth`のキーなしは2px、`fillColor`のキーなしは`null`として読む）
      */
     static fromJSON(data) {
-        validateShapeData(data, 'Curve', ['curve'], CURVE_POINT_COUNT);
+        const style = validateShapeData(data, 'Curve', ['curve'], CURVE_POINT_COUNT);
         const [start, , end] = data.points;
-        const curve = new Curve(start.x, start.y, end.x, end.y, data.strokeColor, data.strokeWidth);
+        const curve = new Curve(start.x, start.y, end.x, end.y, style.strokeColor, style.strokeWidth, style.fillColor);
         curve.points = data.points.map((point) => ({ x: point.x, y: point.y }));
         curve.id = data.id;
         return curve;

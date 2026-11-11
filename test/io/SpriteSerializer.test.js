@@ -83,7 +83,7 @@ describe('SpriteSerializer.serialize: 描画要素', () => {
     it('curveはquadratic（3点）', () => {
         const curve = withId(makeCurve([{ x: 0, y: 0 }, { x: 50, y: 100 }, { x: 100, y: 0 }]), 'C1');
         const [el] = SpriteSerializer.serialize([curve]).elements;
-        assert.deepEqual(Object.keys(el), ['kind', 'id', 'points', 'strokeColor', 'strokeWidth']);
+        assert.deepEqual(Object.keys(el), ['kind', 'id', 'points', 'strokeColor', 'strokeWidth', 'fillColor']);
         assert.equal(el.kind, 'quadratic');
         assert.equal(el.id, 'C1');
         assert.deepEqual(el.points, [{ x: 0, y: 0 }, { x: 50, y: 100 }, { x: 100, y: 0 }]);

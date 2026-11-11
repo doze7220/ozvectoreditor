@@ -235,7 +235,7 @@
             *   `toJSON`のキー順（`['type', 'id', 'points', 'strokeColor', 'strokeWidth', 'fillColor']`）と、`fillColor`を持つ直線の往復で`fillColor`が保持されること。`toDrawElement`のキー順（`['kind', 'id', 'points', 'closed', 'strokeColor', 'strokeWidth', 'fillColor']`）と、`fillColor`を持っていても`null`、`strokeColor: null`はそのまま`null`。
         *   書き換え（`test/io/SpriteSerializer.test.js`「lineはpolyline（closed: false・2点）」）：キー順と期待するオブジェクトに`fillColor: null`を足す（理由：描画要素のキー追加）。
 
-*   [ ] タスク3: `Curve`の塗り
+*   [x] タスク3: `Curve`の塗り
     *   **対象ファイル** :
         *   `./js/shapes/Curve.js` : 更新
         *   `./test/shapes/Curve.test.js` : 更新
@@ -373,7 +373,11 @@
 
 ### タスク3: `Curve`の塗り
 *   **作業内容** :
-    *   (未着手)
+    *   `js/shapes/Curve.js`：コンストラクタ末尾に`fillColor = null`とプロパティ（`strokeColor`の型を`string|null`へ）、`isFillable()`（常に`false`）、`draw`を共通の順序へ（パスは従来の`beginPath`→`moveTo`→`quadraticCurveTo`）、`toJSON`末尾に`fillColor`、`toDrawElement`末尾に`fillColor: this.isFillable() ? this.fillColor : null`、`fromJSON`は`validateShapeData`の戻り値`style`を使用。クラスJSDocを14メソッドへ、`CURVE_POINT_COUNT`の「バージョン1」を「現行版」へ、各JSDoc（`@param`・`@returns`・`@throws`）を改めた。
+    *   `test/shapes/Curve.test.js`：先頭の責務JSDocを改めた（当たり判定・`isFillable`・描画命令・図形データとの相互変換）。偽の`ctx`の補助関数`makeRecordingCtx`をファイル内に追加（`quadraticCurveTo`も記録）。`isFillable`・コンストラクタの既定値、`draw`の4パターン、`fromJSON`の`fillColor`（受理・不正・検査の順序・`strokeWidth`キーなし→2）、`toJSON`/`toDrawElement`のキー順と`fillColor`を追加。
+    *   `node --test`：tests 684・pass 684・fail 0。
+*   **書き換えた既存ケース** :
+    *   `test/io/SpriteSerializer.test.js`「curveはquadratic（3点）」：キー順に`fillColor`を足した（理由：描画要素のキー追加）。
 
 ### タスク4: `Rect`の塗り
 *   **作業内容** :
