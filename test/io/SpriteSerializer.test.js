@@ -52,7 +52,7 @@ describe('SpriteSerializer.serialize: 描画要素', () => {
         const data = SpriteSerializer.serialize([withId(new Line(0, 0, 10, 10), 'a')]);
         assert.deepEqual(Object.keys(data), ['format', 'formatVersion', 'bounds', 'elements', 'source']);
         assert.equal(data.format, 'oz-vector-editor-sprite');
-        assert.equal(data.formatVersion, 1);
+        assert.equal(data.formatVersion, 2);
         assert.equal('version' in data, false);
         assert.equal(data.source.version, 2);
         assert.equal(data.source.format, 'oz-vector-editor');
@@ -328,5 +328,95 @@ describe('SpriteSerializer.serialize: パス', () => {
         assert.equal(result.shapes[1].closed, true);
         assert.deepEqual(result.shapes[0].segments, [{ kind: 'line' }, { kind: 'line' }, { kind: 'line' }]);
         assert.deepEqual(result.shapes[1].segments.length, 4);
+    });
+});
+
+/**
+ * 塗れる形・塗れない形を含む、fillColorを持つ図形の一覧を作る。
+ * @returns {Array<object>} 図形の配列（id: rect, circle, closedPath, line, curve, arc, openPath）
+ */
+function makeFilledShapes() {
+    const points = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }];
+    return [
+        withId(new Rect(0, 0, 10, 10, '#000000', 2, '#ff0000'), 'rect'),
+        withId(new Ellipse(0, 0, 10, 10, 'circle', '#000000', 2, '#00ff00'), 'circle'),
+        withId(new Path(points, true, '#000000', 2, '#0000ff'), 'closedPath'),
+        withId(new Line(0, 0, 10, 10, '#000000', 2, '#111111'), 'line'),
+        withId(new Curve(0, 0, 10, 10, '#000000', 2, '#222222'), 'curve'),
+        withId(new Ellipse(0, 0, 10, 10, 'arc', '#000000', 2, '#333333'), 'arc'),
+        withId(new Path(points, false, '#000000', 2, '#444444'), 'openPath'),
+    ];
+}
+
+describe('SpriteSerializer.serialize: 版2のfillColor', () => {
+    it('描画要素のfillColorは塗れる形が図形の値、塗れない形はnull（最後のキー）', () => {
+        const data = SpriteSerializer.serialize(makeFilledShapes());
+        const fills = Object.fromEntries(data.elements.map((el) => [el.id, el.fillColor]));
+        assert.deepEqual(fills, {
+            rect: '#ff0000', circle: '#00ff00', closedPath: '#0000ff',
+            line: null, curve: null, arc: null, openPath: null,
+        });
+        for (const el of data.elements) {
+            const keys = Object.keys(el);
+            assert.equal(keys[keys.length - 1], 'fillColor');
+        }
+    });
+
+    it('sourceの図形データには塗れない形のfillColorも残る', () => {
+        const data = SpriteSerializer.serialize(makeFilledShapes());
+        const fills = Object.fromEntries(data.source.shapes.map((s) => [s.id, s.fillColor]));
+        assert.deepEqual(fills, {
+            rect: '#ff0000', circle: '#00ff00', closedPath: '#0000ff',
+            line: '#111111', curve: '#222222', arc: '#333333', openPath: '#444444',
+        });
+    });
+
+    it('checkFormatは formatVersion: 1 を supported とする', () => {
+        const base = SpriteSerializer.serialize([]);
+        assert.equal(SpriteSerializer.checkFormat({ ...base, formatVersion: 1 }), 'supported');
+    });
+});
+
+describe('SpriteSerializer.serialize: 線なしの外枠', () => {
+    it('strokeColor: null の各図形は形の範囲のまま広げない', () => {
+        const points = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }];
+        const cases = [
+            [new Line(10, 20, 30, 5, null, 8), { minX: 10, minY: 5, maxX: 30, maxY: 20 }],
+            [new Rect(10, 20, 30, 50, null, 8, '#ff0000'), { minX: 10, minY: 20, maxX: 30, maxY: 50 }],
+            [new Path(points, true, null, 8, '#ff0000'), { minX: 0, minY: 0, maxX: 100, maxY: 100 }],
+            [new Path(points, false, null, 8), { minX: 0, minY: 0, maxX: 100, maxY: 100 }],
+        ];
+        for (const [shape, expected] of cases) {
+            assertBoundsClose(SpriteSerializer.serialize([shape]).bounds, expected);
+        }
+        const circleBounds = SpriteSerializer.serialize([new Ellipse(0, 0, 20, 10, 'circle', null, 8, '#ff0000')]).bounds;
+        const circleStroke = SpriteSerializer.serialize([new Ellipse(0, 0, 20, 10, 'circle', '#000000', 8, '#ff0000')]).bounds;
+        assertBoundsClose(circleBounds, {
+            minX: circleStroke.minX + 4, minY: circleStroke.minY + 4, maxX: circleStroke.maxX - 4, maxY: circleStroke.maxY - 4,
+        });
+        const curve = new Curve(0, 0, 100, 0, null, 8);
+        const curveBounds = SpriteSerializer.serialize([curve]).bounds;
+        const withStroke = SpriteSerializer.serialize([new Curve(0, 0, 100, 0, '#000000', 8)]).bounds;
+        assertBoundsClose(curveBounds, {
+            minX: withStroke.minX + 4, minY: withStroke.minY + 4, maxX: withStroke.maxX - 4, maxY: withStroke.maxY - 4,
+        });
+        const arcBounds = SpriteSerializer.serialize([new Ellipse(0, 0, 20, 10, 'arc', null, 8)]).bounds;
+        const arcStroke = SpriteSerializer.serialize([new Ellipse(0, 0, 20, 10, 'arc', '#000000', 8)]).bounds;
+        assertBoundsClose(arcBounds, {
+            minX: arcStroke.minX + 4, minY: arcStroke.minY + 4, maxX: arcStroke.maxX - 4, maxY: arcStroke.maxY - 4,
+        });
+    });
+
+    it('線ありは従来どおり広がる', () => {
+        const data = SpriteSerializer.serialize([new Rect(10, 20, 30, 50, '#000000', 8, '#ff0000')]);
+        assertBoundsClose(data.bounds, { minX: 6, minY: 16, maxX: 34, maxY: 54 });
+    });
+
+    it('線なしと線ありの混在は和を取り、線なしで塗れない要素も含める', () => {
+        const data = SpriteSerializer.serialize([
+            new Line(-50, -50, -40, -40, null, 10),
+            new Rect(0, 0, 10, 10, '#000000', 4, '#ff0000'),
+        ]);
+        assertBoundsClose(data.bounds, { minX: -50, minY: -50, maxX: 12, maxY: 12 });
     });
 });

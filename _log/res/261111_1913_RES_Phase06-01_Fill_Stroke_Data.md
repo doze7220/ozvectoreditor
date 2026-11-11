@@ -300,7 +300,7 @@
             *   現行版（版2）の作業データの`fillColor`（文字列）は移行されずそのまま読めること、`serialize`の`version`が`2`であること。
         *   書き換え（`test/io/SpriteSerializer.test.js`）：「キーの順と識別子・版を持ち、最上位にversionを持たない」の`data.source.version`の期待値を`2`へ、「図形0個は elements: []・bounds: null・sourceは図形0個の作業データ」の`source`の`version`を`2`へ（理由：作業データの版の変更）。
 
-*   [ ] タスク9: 書き出し形式の版2と外枠
+*   [x] タスク9: 書き出し形式の版2と外枠
     *   **対象ファイル** :
         *   `./js/io/SpriteSerializer.js` : 更新
         *   `./test/io/SpriteSerializer.test.js` : 更新
@@ -425,7 +425,11 @@
 
 ### タスク9: 書き出し形式の版2と外枠
 *   **作業内容** :
-    *   (未着手)
+    *   `js/io/SpriteSerializer.js`：`SPRITE_FORMAT_VERSION = 2`。typedef`DrawElement`（共通のキーに`fillColor`、各`kind`のキー列、`strokeColor: string|null`）・`SpriteData`（「版1」→「版2」、`formatVersion`の説明）を改めた。`#computeBounds`は`strokeColor`が文字列のときだけ`resolveStrokeWidth(...)/2`を広げ、それ以外は0（JSDoc改訂）。`checkFormat`は変更なし。
+    *   `test/io/SpriteSerializer.test.js`：追加＝描画要素の`fillColor`（塗れる形／塗れない形はnull・最後のキー）、`source`に塗れない形の`fillColor`が残ること、`checkFormat`が`formatVersion: 1`をsupportedとすること、線なしの外枠（直線・矩形・円・曲線・弧・閉じた/開いたパス）・線ありの従来どおりの拡張・混在の和。
+    *   `node --test`：tests 754・pass 754・fail 0。
+*   **書き換えた既存ケース** :
+    *   `test/io/SpriteSerializer.test.js`「キーの順と識別子・版を持ち、最上位にversionを持たない」（`formatVersion`の期待値 1→2）
 
 ### タスク10: 書き出したJSの描画処理（`DRAW_SOURCE`）の塗り
 *   **作業内容** :

@@ -14,7 +14,7 @@ const SPRITE_FORMAT = 'oz-vector-editor-sprite';
  * スプライトデータ形式（書き出し形式）の現行版番号（唯一の定義箇所）。作業データの版（`source.version`）とは別。
  * @type {number}
  */
-const SPRITE_FORMAT_VERSION = 1;
+const SPRITE_FORMAT_VERSION = 2;
 
 /**
  * 線の太さの既定値（px）。`strokeWidth`が正の有限の数値でない要素はこの値として扱う（唯一の定義箇所。`CodeExporter`が埋め込みに使う）。
@@ -32,20 +32,22 @@ export const DEFAULT_STROKE_WIDTH = 2;
  */
 
 /**
- * 描画要素（図形1つ分）。共通のキーは`kind`・`id`・`strokeColor`・`strokeWidth`。
+ * 描画要素（図形1つ分）。共通のキーは`kind`・`id`・`strokeColor`・`strokeWidth`・`fillColor`（`fillColor`は各`kind`のキー列の最後）。
  * `kind`ごとの追加のキー: `polyline`＝`points`・`closed`／`quadratic`＝`points`／`ellipse`＝`x`・`y`・`radiusX`・`radiusY`・`startAngle`・`endAngle`・`closed`。
+ * キー列: `polyline`＝`kind, id, points, closed, strokeColor, strokeWidth, fillColor`／`quadratic`＝`kind, id, points, strokeColor, strokeWidth, fillColor`（`fillColor`は常に`null`）／`ellipse`＝`kind, id, x, y, radiusX, radiusY, startAngle, endAngle, closed, strokeColor, strokeWidth, fillColor`。
  * @typedef {Object} DrawElement
  * @property {string} kind 描き方の種類（'polyline'|'quadratic'|'ellipse'）
  * @property {*} id 図形のID
- * @property {string} strokeColor 線の色
+ * @property {string|null} strokeColor 線の色（nullは線なし）
  * @property {number} strokeWidth 線の太さ
+ * @property {string|null} fillColor 塗りの色（nullは塗りなし。塗れない形の図形からはnullが入る）
  */
 
 /**
- * スプライトデータ（書き出し形式・版1）の最上位の形。
+ * スプライトデータ（書き出し形式・版2）の最上位の形。
  * @typedef {Object} SpriteData
  * @property {string} format 書き出し形式の識別子（'oz-vector-editor-sprite'）
- * @property {number} formatVersion 書き出し形式の版（1以上の整数）
+ * @property {number} formatVersion 書き出し形式の版（現行は2。1以上の整数）
  * @property {SpriteBounds|null} bounds 外枠（図形0個ならnull）
  * @property {Array<DrawElement>} elements 描画データ（描画順）
  * @property {Object} source 作業データ（`DocumentSerializer.serialize`の戻り値）
@@ -221,7 +223,7 @@ export class SpriteSerializer {
     }
 
     /**
-     * 描画要素の配列から外枠を求める（各要素の形の範囲を線の太さの半分だけ広げた和）。
+     * 描画要素の配列から外枠を求める（各要素の形の範囲の和。`strokeColor`が文字列の要素は形の範囲を線の太さの半分だけ広げ、線を描かない要素は形の範囲のまま。線なしで塗れない要素も和に含める）。
      * @param {Array<DrawElement>} elements - 描画要素の配列
      * @returns {SpriteBounds|null} 外枠（要素0個ならnull）
      * @throws {Error} 未知の`kind`の要素がある場合
@@ -242,7 +244,9 @@ export class SpriteSerializer {
                 throw new Error(`SpriteSerializer: 未知の描画要素のkindです: ${String(element.kind)}`);
             }
             const range = rangeOf(element);
-            const half = resolveStrokeWidth(element.strokeWidth) / 2;
+            const half = typeof element.strokeColor === 'string'
+                ? resolveStrokeWidth(element.strokeWidth) / 2
+                : 0;
             minX = Math.min(minX, range.minX - half);
             minY = Math.min(minY, range.minY - half);
             maxX = Math.max(maxX, range.maxX + half);
