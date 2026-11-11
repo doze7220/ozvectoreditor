@@ -70,7 +70,7 @@ export function classifyJoin(shapes) {
 
 /**
  * 頂点3つ以上の開いたパス1本を、閉じたパスにする。
- * 始点と終点の距離が`tolerance`以下なら最後の頂点を除く。残りが3つ未満ならnull。頂点の並び・向きは変えない。
+ * 始点と終点の距離が`tolerance`以下なら最後の頂点を除く。残りが3つ未満ならnull。頂点の並び・向きは変えない。色・太さ・塗りは元のパスのもの（開いたパスの塗りが閉じることで現れる）。
  * @param {Object} shape 図形
  * @param {number} tolerance ワールド座標の許容距離（長さ）
  * @returns {Path|null} 閉じたパス（idはnull）。頂点3つ以上の開いたパスでない場合、またはまとめると3つ未満になる場合はnull
@@ -86,7 +86,7 @@ export function buildClosedPath(shape, tolerance) {
         points.pop();
     }
     if (points.length < CLOSED_MIN_POINTS) return null;
-    return new Path(points, true, data.strokeColor, data.strokeWidth);
+    return new Path(points, true, data.strokeColor, data.strokeWidth, data.fillColor);
 }
 
 /**
@@ -95,7 +95,7 @@ export function buildClosedPath(shape, tolerance) {
  * (1) Aの終点とBの始点（A＋Bそのまま）、(2) Aの終点とBの終点（A＋Bを逆順）、
  * (3) Aの始点とBの終点（Bそのまま＋A）、(4) Aの始点とBの始点（Bを逆順＋A）。
  * 選んだ組の距離が`tolerance`以下なら、Bの側のつなぐ端点を除く（Aの端点の座標を残す）。
- * 結果は開いたパスで、色と太さはAのもの。
+ * 結果は開いたパスで、色・太さ・塗りはAのもの。
  * @param {Object} a 基準の線A（重なり順で奥）
  * @param {Object} b もう一方の線B
  * @param {number} tolerance ワールド座標の許容距離（長さ）
@@ -130,11 +130,11 @@ export function buildJoinedPath(a, b, tolerance) {
 /**
  * Aの頂点とBの頂点の列をつないで開いたパスを作る（非公開。`buildJoinedPath`・`buildJoinedPathAt`・`buildExtendedPath`が共有する）。
  * 頂点の並べ方の規則はここだけに置く。入力の配列は書き換えない。
- * @param {{points: Array<{x: number, y: number}>, strokeColor: *, strokeWidth: *}} dataA 基準の線Aの`toJSON()`（頂点・色・太さの元）
+ * @param {{points: Array<{x: number, y: number}>, strokeColor: *, strokeWidth: *, fillColor: *}} dataA 基準の線Aの`toJSON()`（頂点・色・太さ・塗りの元）
  * @param {Array<{x: number, y: number}>} bSeq 向きを合わせ済みのBの頂点の列
  * @param {boolean} aFirst trueならA＋bSeq、falseならbSeq＋A
  * @param {boolean} merge trueならBのつなぐ端点（Aが先なら`bSeq`の先頭、後なら末尾）を除く（Aの端点の座標を残す）
- * @returns {Path} 開いたパス（idはnull。色と太さはAのもの）
+ * @returns {Path} 開いたパス（idはnull。色・太さ・塗りはAのもの）
  */
 function assembleOpenPath(dataA, bSeq, aFirst, merge) {
     const seq = bSeq.slice();
@@ -143,15 +143,15 @@ function assembleOpenPath(dataA, bSeq, aFirst, merge) {
         else seq.pop();
     }
     const points = aFirst ? dataA.points.concat(seq) : seq.concat(dataA.points);
-    return new Path(points, false, dataA.strokeColor, dataA.strokeWidth);
+    return new Path(points, false, dataA.strokeColor, dataA.strokeWidth, dataA.fillColor);
 }
 
 /**
  * 結合できる線2本を、つなぐ端点を指定して1本の開いたパスにする（いちばん近い組は選ばない）。
  * 並べ方は`buildJoinedPath`と同じ：`aEnd`が'end'ならA＋Bの側の並び、'start'ならBの側の並び＋A。
  * Bは`aEnd`と`bEnd`が同じとき逆順になる。2つの端点の距離が`tolerance`以下ならBの側の端点を除く（Aの端点の座標を残す）。
- * 結果は常に開いたパス（両端が重なっても閉じない）で、色と太さはAのもの。
- * @param {Object} a 基準の線A（向き・色・太さの元。重なり順で奥）
+ * 結果は常に開いたパス（両端が重なっても閉じない）で、色・太さ・塗りはAのもの。
+ * @param {Object} a 基準の線A（向き・色・太さ・塗りの元。重なり順で奥）
  * @param {'start'|'end'} aEnd Aのつなぐ端点（'start'＝始点／'end'＝終点）
  * @param {Object} b もう一方の線B
  * @param {'start'|'end'} bEnd Bのつなぐ端点
@@ -171,7 +171,7 @@ export function buildJoinedPathAt(a, aEnd, b, bEnd, tolerance) {
 
 /**
  * 結合できる線の指定した端点に、頂点を1つ描き足した開いたパスを作る（元の線の向きを保つ）。
- * `end`が'end'なら末尾、'start'なら先頭に`point`を加える。色と太さは元の線のもの。
+ * `end`が'end'なら末尾、'start'なら先頭に`point`を加える。色・太さ・塗りは元の線のもの。
  * `point`と指定した端点の距離が`tolerance`以下（重なる）なら何も起きない（null）。
  * @param {Object} shape 元の線
  * @param {'start'|'end'} end 描き足す端点

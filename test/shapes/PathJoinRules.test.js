@@ -781,3 +781,105 @@ describe('PathJoinRules 端点を指定した結合・描き足し・吸い付�
         });
     });
 });
+
+/**
+ * 塗りを指定したパスを作る。
+ * @param {number[][]} coords - [x, y] の並び
+ * @param {boolean} closed - 閉じたパスか
+ * @param {string|null} fill - 塗りの色（nullは塗りなし）
+ * @returns {Path} パス
+ */
+function makeFilledPath(coords, closed, fill) {
+    return new Path(pts(coords), closed, '#112233', 3, fill);
+}
+
+/**
+ * 塗りを指定した直線を作る。
+ * @param {number} x1 - 始点x
+ * @param {number} y1 - 始点y
+ * @param {number} x2 - 終点x
+ * @param {number} y2 - 終点y
+ * @param {string|null} fill - 塗りの色（nullは塗りなし）
+ * @returns {Line} 直線
+ */
+function makeFilledLine(x1, y1, x2, y2, fill) {
+    return new Line(x1, y1, x2, y2, '#112233', 3, fill);
+}
+
+describe('PathJoinRules 塗り（fillColor）の引き継ぎ（Phase 06-01）', () => {
+    it('buildJoinedPath：結果はAのfillColorを持つ（BのfillColorは使わない）', () => {
+        const a = makeFilledPath([[0, 0], [10, 0], [20, 0]], false, '#ff0000');
+        const b = makeFilledPath([[20, 0], [30, 0]], false, '#00ff00');
+        assert.equal(buildJoinedPath(a, b, 1).toJSON().fillColor, '#ff0000');
+    });
+
+    it('buildJoinedPath：BだけがfillColorを持つ場合、結果はnull', () => {
+        const a = makeFilledPath([[0, 0], [10, 0], [20, 0]], false, null);
+        const b = makeFilledPath([[20, 0], [30, 0]], false, '#00ff00');
+        assert.equal(buildJoinedPath(a, b, 1).toJSON().fillColor, null);
+    });
+
+    it('buildJoinedPath：直線AのfillColorも結果のパスに引き継ぐ', () => {
+        const a = makeFilledLine(0, 0, 10, 0, '#ff0000');
+        const b = makeFilledLine(10, 0, 20, 0, '#00ff00');
+        assert.equal(buildJoinedPath(a, b, 1).toJSON().fillColor, '#ff0000');
+    });
+
+    it('buildClosedPath：元のfillColorを保ち、結果は塗れる形で、描画要素のfillColorが元の値', () => {
+        const source = makeFilledPath([[0, 0], [100, 0], [100, 100]], false, '#abcdef');
+        const result = buildClosedPath(source, 1);
+        assert.equal(result.toJSON().fillColor, '#abcdef');
+        assert.equal(result.isFillable(), true);
+        assert.equal(result.toDrawElement().fillColor, '#abcdef');
+    });
+
+    it('buildClosedPath：元が塗りなしなら結果もnull', () => {
+        const source = makeFilledPath([[0, 0], [100, 0], [100, 100]], false, null);
+        assert.equal(buildClosedPath(source, 1).toJSON().fillColor, null);
+    });
+
+    it('buildJoinedPathAt：AのfillColorを持つ（BのfillColorは使わない）', () => {
+        const a = makeFilledPath([[0, 0], [10, 0]], false, '#ff0000');
+        const b = makeFilledPath([[10, 0], [20, 0]], false, '#00ff00');
+        assert.equal(buildJoinedPathAt(a, 'end', b, 'start', 1).toJSON().fillColor, '#ff0000');
+        assert.equal(buildJoinedPathAt(a, 'start', b, 'end', 1).toJSON().fillColor, '#ff0000');
+    });
+
+    it('buildExtendedPath：元の線のfillColorを持つ（直線・パス）', () => {
+        const path = makeFilledPath([[0, 0], [10, 0]], false, '#ff0000');
+        const line = makeFilledLine(0, 0, 10, 0, '#00ff00');
+        assert.equal(buildExtendedPath(path, 'end', { x: 20, y: 0 }, 1).toJSON().fillColor, '#ff0000');
+        assert.equal(buildExtendedPath(line, 'start', { x: -10, y: 0 }, 1).toJSON().fillColor, '#00ff00');
+    });
+
+    it('planJoin：閉じるは元のfillColor、結合は基準の線AのfillColor', () => {
+        const source = makeFilledPath([[0, 0], [100, 0], [100, 100]], false, '#abcdef');
+        assert.equal(planJoin([source], 1).path.toJSON().fillColor, '#abcdef');
+        const a = makeFilledPath([[0, 0], [10, 0]], false, '#ff0000');
+        const b = makeFilledPath([[10, 0], [20, 0]], false, '#00ff00');
+        assert.equal(planJoin([a, b], 1).path.toJSON().fillColor, '#ff0000');
+    });
+
+    it('planDrawnLineJoin：描き足しは元の線・閉じるは元のパス・結合は奥の線のfillColor', () => {
+        const L = withId(makeFilledPath([[0, 0], [10, 0], [10, 10], [0, 10]], false, '#ff0000'), 'L');
+        const M = withId(makeFilledLine(0, 20, 10, 20, '#00ff00'), 'M');
+        const drawn = makeLine(0, 10, 0, 0);
+        const extended = planDrawnLineJoin([L, M], drawn, ref('L', 'end'), null, 1);
+        assert.equal(extended.path.toJSON().fillColor, '#ff0000');
+        const closed = planDrawnLineJoin([L, M], drawn, ref('L', 'end'), ref('L', 'start'), 1);
+        assert.equal(closed.path.toJSON().fillColor, '#ff0000');
+        const joined = planDrawnLineJoin([L, M], drawn, ref('L', 'end'), ref('M', 'start'), 1);
+        assert.equal(joined.path.toJSON().fillColor, '#ff0000');
+        const joinedReversed = planDrawnLineJoin([L, M], drawn, ref('M', 'start'), ref('L', 'end'), 1);
+        assert.equal(joinedReversed.path.toJSON().fillColor, '#ff0000');
+    });
+
+    it('planEndpointDragJoin：閉じるは元のパス・結合は奥の線のfillColor', () => {
+        const L = withId(makeFilledPath([[0, 0], [10, 0], [10, 10], [0, 10]], false, '#ff0000'), 'L');
+        const M = withId(makeFilledLine(0, 20, 10, 20, '#00ff00'), 'M');
+        const closed = planEndpointDragJoin([L, M], ref('L', 'end'), ref('L', 'start'), 1);
+        assert.equal(closed.path.toJSON().fillColor, '#ff0000');
+        const joined = planEndpointDragJoin([L, M], ref('M', 'start'), ref('L', 'end'), 1);
+        assert.equal(joined.path.toJSON().fillColor, '#ff0000');
+    });
+});

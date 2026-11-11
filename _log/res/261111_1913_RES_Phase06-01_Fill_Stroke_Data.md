@@ -275,7 +275,7 @@
         *   書き換え（`Path.test.js`）：「toJSONのキー順と中身（開いたパス）」（キー順と期待するオブジェクトに`fillColor: null`を足す）、「toDrawElementの中身とキー順（開いたパス）」（同）。理由：図形データ・描画要素のキー追加。「コンストラクタの既定値とidの初期値」は書き換えず、既定の`fillColor`が`null`であること・既存の引数の位置と既定値が変わらないことは新しいケースで確かめる。
         *   書き換え（`test/io/SpriteSerializer.test.js`「開いたパスはpolyline（closed: false・segmentsなし・キー順）」）：キー順と期待するオブジェクトに`fillColor: null`を足す（理由：描画要素のキー追加）。
 
-*   [ ] タスク7: 結合・描き足し・閉じるの塗りの引き継ぎ
+*   [x] タスク7: 結合・描き足し・閉じるの塗りの引き継ぎ
     *   **対象ファイル** :
         *   `./js/shapes/PathJoinRules.js` : 更新
         *   `./test/shapes/PathJoinRules.test.js` : 更新
@@ -407,7 +407,11 @@
 
 ### タスク7: 結合・描き足し・閉じるの塗りの引き継ぎ
 *   **作業内容** :
-    *   (未着手)
+    *   `js/shapes/PathJoinRules.js`：`buildClosedPath`の`new Path`に`data.fillColor`、`assembleOpenPath`の`new Path`に`dataA.fillColor`を渡した。`assembleOpenPath`の`dataA`の型に`fillColor`を足し、JSDocの「色と太さ」を「色・太さ・塗り」へ改めた（`buildClosedPath`・`buildJoinedPath`・`assembleOpenPath`・`buildJoinedPathAt`・`buildExtendedPath`）。関数の追加・規則の変更なし。
+    *   `test/shapes/PathJoinRules.test.js`：末尾に新しいdescribe「塗り（fillColor）の引き継ぎ」を追加（補助関数`makeFilledPath`・`makeFilledLine`をファイル内に追加）。`buildJoinedPath`（A・Bだけが持つ場合・直線A）、`buildClosedPath`（`isFillable()`・`toDrawElement().fillColor`）、`buildJoinedPathAt`、`buildExtendedPath`、`planJoin`、`planDrawnLineJoin`、`planEndpointDragJoin`。
+    *   `node --test`：tests 741・pass 741・fail 0。
+*   **書き換えた既存ケース** :
+    *   なし（追加のみ）。
 
 ### タスク8: 作業データの版2と版1→版2の移行
 *   **作業内容** :
