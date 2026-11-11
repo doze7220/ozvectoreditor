@@ -220,7 +220,7 @@
             *   追加（5ファイルとも）：`strokeColor: null`の図形データを受理し、`fromJSON`の結果の`toJSON().strokeColor`が`null`であること。`strokeWidth`のキーが無い図形データを受理し、`toJSON().strokeWidth`が`2`であること。
             *   `fillColor`のテストはタスク2〜6で足す。
 
-*   [ ] タスク2: `Line`の塗り（`fillColor`・`isFillable`・`draw`・`toJSON`・`toDrawElement`・`fromJSON`）
+*   [x] タスク2: `Line`の塗り（`fillColor`・`isFillable`・`draw`・`toJSON`・`toDrawElement`・`fromJSON`）
     *   **対象ファイル** :
         *   `./js/shapes/Line.js` : 更新
         *   `./test/shapes/Line.test.js` : 更新
@@ -365,7 +365,11 @@
 
 ### タスク2: `Line`の塗り
 *   **作業内容** :
-    *   (未着手)
+    *   `js/shapes/Line.js`：コンストラクタ末尾に`fillColor = null`とプロパティ、`isFillable()`（常に`false`）、`draw`を共通の順序へ（`shouldFill`/`shouldStroke`の2行、どちらも偽なら`return`、パス→塗り→線）、`toJSON`末尾に`fillColor`、`toDrawElement`末尾に`fillColor: this.isFillable() ? this.fillColor : null`、`fromJSON`は`validateShapeData`の戻り値`style`を使用。クラスJSDocを14メソッドへ、`LINE_POINT_COUNT`の「バージョン1」を「現行版」へ、各JSDoc（`@param`・`@returns`・`@throws`・`strokeColor`の`string|null`）を改めた。
+    *   `test/shapes/Line.test.js`：先頭の責務JSDocを改めた（当たり判定・`isFillable`・描画命令・図形データとの相互変換）。偽の`ctx`の補助関数`makeRecordingCtx`を追加。`isFillable`・コンストラクタの既定値、`draw`の4パターン、`fromJSON`の`fillColor`（受理・不正・検査の順序・`strokeWidth`キーなし→2）、`toJSON`/`toDrawElement`のキー順と`fillColor`を追加。
+    *   `node --test`：tests 670・pass 670・fail 0。
+*   **書き換えた既存ケース** :
+    *   `test/io/SpriteSerializer.test.js`「lineはpolyline（closed: false・2点）」：キー順と期待するオブジェクトに`fillColor: null`を足した（理由：描画要素のキー追加）。
 
 ### タスク3: `Curve`の塗り
 *   **作業内容** :

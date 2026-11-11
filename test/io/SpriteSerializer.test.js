@@ -61,10 +61,10 @@ describe('SpriteSerializer.serialize: 描画要素', () => {
     it('lineはpolyline（closed: false・2点）', () => {
         const line = withId(new Line(1, 2, 3, 4, '#ff0000', 5), 'L1');
         const [el] = SpriteSerializer.serialize([line]).elements;
-        assert.deepEqual(Object.keys(el), ['kind', 'id', 'points', 'closed', 'strokeColor', 'strokeWidth']);
+        assert.deepEqual(Object.keys(el), ['kind', 'id', 'points', 'closed', 'strokeColor', 'strokeWidth', 'fillColor']);
         assert.deepEqual(el, {
             kind: 'polyline', id: 'L1', points: [{ x: 1, y: 2 }, { x: 3, y: 4 }],
-            closed: false, strokeColor: '#ff0000', strokeWidth: 5,
+            closed: false, strokeColor: '#ff0000', strokeWidth: 5, fillColor: null,
         });
     });
 

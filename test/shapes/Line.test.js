@@ -1,5 +1,6 @@
 /**
- * 責務: 直線（Line）の当たり判定（hitTest・intersectsRect）とfromJSONの不正な図形データのエラー文を、公開APIのみを通して検証する。
+ * 責務: 直線（Line）の当たり判定・塗れる形か（isFillable）・偽のctxによる描画命令・図形データとの相互変換
+ * （fromJSONの受理と不正なデータのエラー文・toJSON・toDrawElement）を、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -24,6 +25,76 @@ function makeValidData() {
 function assertFromJSONError(data, reason) {
     assert.throws(() => Line.fromJSON(data), { name: 'Error', message: 'Line.fromJSON: ' + reason });
 }
+
+/**
+ * 呼び出し・代入を順に記録する偽のctxを作る（beginPath・moveTo・lineTo・closePath・fill・stroke の呼び出しと
+ * strokeStyle・lineWidth・fillStyle の代入）。
+ * @returns {{ctx: Object, log: Array}} 偽のctxと、記録の配列（呼び出しは`['name', ...args]`、代入は`['set:name', value]`）
+ */
+function makeRecordingCtx() {
+    const log = [];
+    const ctx = {};
+    for (const name of ['beginPath', 'moveTo', 'lineTo', 'closePath', 'fill', 'stroke']) {
+        ctx[name] = (...args) => { log.push([name, ...args]); };
+    }
+    for (const name of ['strokeStyle', 'lineWidth', 'fillStyle']) {
+        Object.defineProperty(ctx, name, {
+            set(value) { log.push(['set:' + name, value]); },
+            get() { return undefined; },
+        });
+    }
+    return { ctx, log };
+}
+
+describe('Line.isFillable とコンストラクタ', () => {
+    it('isFillable()は常にfalse', () => {
+        assert.equal(new Line(0, 0, 1, 1).isFillable(), false);
+        assert.equal(new Line(0, 0, 1, 1, '#000', 2, '#ff0000').isFillable(), false);
+    });
+
+    it('既定のfillColorはnullで、既存の引数の位置・既定値は変わらない', () => {
+        const line = new Line(1, 2, 3, 4);
+        assert.equal(line.fillColor, null);
+        assert.equal(line.strokeColor, '#000000');
+        assert.equal(line.strokeWidth, 2);
+        const styled = new Line(1, 2, 3, 4, '#ff0000', 5, '#00ff00');
+        assert.equal(styled.strokeColor, '#ff0000');
+        assert.equal(styled.strokeWidth, 5);
+        assert.equal(styled.fillColor, '#00ff00');
+    });
+});
+
+describe('Line.draw の描画命令', () => {
+    it('塗りなし線ありは従来と同じ命令列', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Line(1, 2, 3, 4, '#ff0000', 5).draw(ctx);
+        assert.deepEqual(log, [
+            ['beginPath'], ['moveTo', 1, 2], ['lineTo', 3, 4],
+            ['set:strokeStyle', '#ff0000'], ['set:lineWidth', 5], ['stroke'],
+        ]);
+    });
+
+    it('fillColorがある線ありでも塗らない（fillStyle・fillが出ない）', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Line(1, 2, 3, 4, '#ff0000', 5, '#00ff00').draw(ctx);
+        assert.deepEqual(log, [
+            ['beginPath'], ['moveTo', 1, 2], ['lineTo', 3, 4],
+            ['set:strokeStyle', '#ff0000'], ['set:lineWidth', 5], ['stroke'],
+        ]);
+    });
+
+    it('fillColorがある線なしは何も呼ばない', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Line(1, 2, 3, 4, null, 5, '#00ff00').draw(ctx);
+        assert.deepEqual(log, []);
+    });
+
+    it('塗りも線もなしは何も呼ばない', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Line(1, 2, 3, 4, null, 5, null).draw(ctx);
+        assert.deepEqual(log, []);
+    });
+});
 
 describe('Line.hitTest', () => {
     const line = () => new Line(0, 0, 100, 0);
@@ -225,5 +296,74 @@ describe('Line.fromJSON のエラー文', () => {
         colorAndWidth.strokeColor = 123;
         colorAndWidth.strokeWidth = 0;
         assertFromJSONError(colorAndWidth, 'strokeColorが文字列またはnullではありません');
+    });
+});
+
+describe('Line.fromJSON の fillColor', () => {
+    it('文字列・nullを受理し、キーなしはnullとして読む', () => {
+        const str = makeValidData();
+        str.fillColor = '#ff0000';
+        assert.equal(Line.fromJSON(str).toJSON().fillColor, '#ff0000');
+        const nul = makeValidData();
+        nul.fillColor = null;
+        assert.equal(Line.fromJSON(nul).toJSON().fillColor, null);
+        const none = makeValidData();
+        delete none.fillColor;
+        assert.equal(Line.fromJSON(none).toJSON().fillColor, null);
+    });
+
+    it('文字列・null以外は拒否する', () => {
+        for (const bad of [1, true, {}, []]) {
+            const data = makeValidData();
+            data.fillColor = bad;
+            assertFromJSONError(data, 'fillColorが文字列またはnullではありません');
+        }
+    });
+
+    it('検査の順序：strokeWidth・strokeColorの不正がfillColorの不正より先', () => {
+        const widthAndFill = makeValidData();
+        widthAndFill.strokeWidth = 0;
+        widthAndFill.fillColor = 1;
+        assertFromJSONError(widthAndFill, 'strokeWidthが正の有限の数値ではありません');
+        const colorAndFill = makeValidData();
+        colorAndFill.strokeColor = 123;
+        colorAndFill.fillColor = 1;
+        assertFromJSONError(colorAndFill, 'strokeColorが文字列またはnullではありません');
+    });
+
+    it('strokeWidthのキーなしはfromJSONの結果で2になる', () => {
+        const data = makeValidData();
+        delete data.strokeWidth;
+        const line = Line.fromJSON(data);
+        assert.equal(line.strokeWidth, 2);
+        assert.equal(line.toJSON().strokeWidth, 2);
+    });
+});
+
+describe('Line.toJSON / toDrawElement の fillColor', () => {
+    it('toJSONのキー順', () => {
+        assert.deepEqual(Object.keys(new Line(0, 0, 1, 1).toJSON()),
+            ['type', 'id', 'points', 'strokeColor', 'strokeWidth', 'fillColor']);
+    });
+
+    it('fillColorを持つ直線の往復でfillColorが保持される', () => {
+        const line = new Line(1, 2, 3, 4, '#ff0000', 5, '#00ff00');
+        line.id = 'L1';
+        const restored = Line.fromJSON(line.toJSON());
+        assert.deepEqual(restored.toJSON(), line.toJSON());
+        assert.equal(restored.fillColor, '#00ff00');
+    });
+
+    it('toDrawElementのキー順', () => {
+        assert.deepEqual(Object.keys(new Line(0, 0, 1, 1).toDrawElement()),
+            ['kind', 'id', 'points', 'closed', 'strokeColor', 'strokeWidth', 'fillColor']);
+    });
+
+    it('toDrawElementのfillColorはfillColorを持っていてもnull、strokeColor: nullはそのまま', () => {
+        const filled = new Line(0, 0, 1, 1, '#ff0000', 2, '#00ff00').toDrawElement();
+        assert.equal(filled.fillColor, null);
+        const noStroke = new Line(0, 0, 1, 1, null, 2, '#00ff00').toDrawElement();
+        assert.equal(noStroke.strokeColor, null);
+        assert.equal(noStroke.fillColor, null);
     });
 });

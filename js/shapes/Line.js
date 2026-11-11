@@ -6,15 +6,15 @@ import { distanceToSegment, segmentIntersectsRect } from './ShapeGeometry.js';
 import { validateShapeData } from './ShapeDataValidation.js';
 
 /**
- * 直線の図形データ（1図形のJSON表現・バージョン1）が持つ頂点数。
+ * 直線の図形データ（1図形のJSON表現・現行版）が持つ頂点数。
  * @type {number}
  */
 const LINE_POINT_COUNT = 2;
 
 /**
  * 直線の図形クラス（図形種別`'line'`）。頂点は`x1, y1`＝始点、`x2, y2`＝終点として保持する。
- * 共通メソッド契約（13メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（14メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable）を自律実装する。座標はすべてワールド座標。
  */
 export class Line {
     /**
@@ -22,10 +22,11 @@ export class Line {
      * @param {number} y1 - 始点のY座標
      * @param {number} x2 - 終点のX座標
      * @param {number} y2 - 終点のY座標
-     * @param {string} [strokeColor='#000000'] - 線の色
+     * @param {string|null} [strokeColor='#000000'] - 線の色。`null`は線なし
      * @param {number} [strokeWidth=2] - 線の太さ
+     * @param {string|null} [fillColor=null] - 塗りの色。`null`は塗りなし（直線は塗れない形のため描かれないが保持する）
      */
-    constructor(x1, y1, x2, y2, strokeColor = '#000000', strokeWidth = 2) {
+    constructor(x1, y1, x2, y2, strokeColor = '#000000', strokeWidth = 2, fillColor = null) {
         /** @type {string} 図形種別（`ShapeFactory`が受理する文字列と一致） */
         this.type = 'line';
         /** @type {*} 図形の一意なID。作成中は`null`。`VectorModel`の採番・正規化の後は文字列。`fromJSON`直後は`data.id`のまま（欠落なら`undefined`、任意の型を取り得る）。 */
@@ -34,8 +35,19 @@ export class Line {
         this.y1 = y1;
         this.x2 = x2;
         this.y2 = y2;
+        /** @type {string|null} 線の色。`null`は線なし */
         this.strokeColor = strokeColor;
         this.strokeWidth = strokeWidth;
+        /** @type {string|null} 塗りの色。nullは塗りなし。塗れない形でも保持する（描かないだけ） */
+        this.fillColor = fillColor;
+    }
+
+    /**
+     * 塗れる形かを返す（共通メソッド契約の第14メソッド）。直線は常に塗れない。データには保存しない。
+     * @returns {boolean} 常に`false`
+     */
+    isFillable() {
+        return false;
     }
 
     /**
@@ -133,18 +145,32 @@ export class Line {
     }
 
     /**
-     * Canvasに直線を描画する
+     * Canvasに直線を描画する。塗るのは`isFillable()`が真で`fillColor`が文字列のときだけ（直線は塗らない）、
+     * 線を描くのは`strokeColor`が文字列のときだけ。どちらも偽なら何も呼ばない。
+     * 順序は`io/CodeExporter.js`の`DRAW_SOURCE`と同じ（パス → 塗り → 線）。
      * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
      */
     draw(ctx) {
+        const shouldFill = this.isFillable() && typeof this.fillColor === 'string';
+        const shouldStroke = typeof this.strokeColor === 'string';
+        if (!shouldFill && !shouldStroke) {
+            return;
+        }
+
         ctx.beginPath();
         ctx.moveTo(this.x1, this.y1);
         ctx.lineTo(this.x2, this.y2);
 
+        if (shouldFill) {
+            ctx.fillStyle = this.fillColor;
+            ctx.fill();
+        }
         // 自身のプロパティとして保持するスタイルを適用
-        ctx.strokeStyle = this.strokeColor;
-        ctx.lineWidth = this.strokeWidth;
-        ctx.stroke();
+        if (shouldStroke) {
+            ctx.strokeStyle = this.strokeColor;
+            ctx.lineWidth = this.strokeWidth;
+            ctx.stroke();
+        }
     }
 
     /**
@@ -196,10 +222,11 @@ export class Line {
 
     /**
      * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第13メソッド。呼び出し元は`SpriteSerializer`のみ）。
-     * 形（キー順もこの順）: `{ kind: 'polyline', id, points: [始点{x, y}, 終点{x, y}], closed: false, strokeColor, strokeWidth }`。
-     * `draw`と同じ式（始点→終点の線分）で求め、`id`・`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる。
+     * 形（キー順もこの順）: `{ kind: 'polyline', id, points: [始点{x, y}, 終点{x, y}], closed: false, strokeColor, strokeWidth, fillColor }`。
+     * `draw`と同じ式（始点→終点の線分）で求め、`id`・`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる（`strokeColor`の`null`も）。
+     * `fillColor`は塗れる形のときだけ図形の値、塗れない形（直線）は常に`null`。
      * `points`は新規に組み立てるため、戻り値と自身は配列・頂点を共有しない。
-     * @returns {{kind: string, id: *, points: {x: number, y: number}[], closed: boolean, strokeColor: string, strokeWidth: number}} 新しい描画要素
+     * @returns {{kind: string, id: *, points: {x: number, y: number}[], closed: boolean, strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい描画要素
      */
     toDrawElement() {
         return {
@@ -212,16 +239,18 @@ export class Line {
             closed: false,
             strokeColor: this.strokeColor,
             strokeWidth: this.strokeWidth,
+            fillColor: this.isFillable() ? this.fillColor : null,
         };
     }
 
     /**
-     * 自身を図形データ（1図形のJSON表現・バージョン1）へ変換する（共通メソッド契約の第11メソッド）。
-     * 形（キー順もこの順）: `{ type: 'line', id, points: [始点{x, y}, 終点{x, y}], strokeColor, strokeWidth }`。
+     * 自身を図形データ（1図形のJSON表現・現行版）へ変換する（共通メソッド契約の第11メソッド）。
+     * 形（キー順もこの順）: `{ type: 'line', id, points: [始点{x, y}, 終点{x, y}], strokeColor, strokeWidth, fillColor }`。
+     * `fillColor`は塗れない形でも保持している値をそのまま出力する。
      * 座標はワールド座標。`points`は内部表現（x1, y1, x2, y2）から新規に組み立てるため、戻り値と自身は状態を共有しない。
      * `id`が`null`（作成中の図形など）の場合もそのまま出力する。
      * `JSON.stringify(line)`でも本メソッドの戻り値が出力される。
-     * @returns {{type: string, id: *, points: {x: number, y: number}[], strokeColor: string, strokeWidth: number}} 新しい図形データ
+     * @returns {{type: string, id: *, points: {x: number, y: number}[], strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい図形データ
      */
     toJSON() {
         return {
@@ -233,6 +262,7 @@ export class Line {
             ],
             strokeColor: this.strokeColor,
             strokeWidth: this.strokeWidth,
+            fillColor: this.fillColor,
         };
     }
 
@@ -247,13 +277,14 @@ export class Line {
      * @param {Object} data - 図形データ（プレーンオブジェクト）
      * @returns {Line} 復元した直線
      * @throws {Error} `data`がプレーンオブジェクトでない／`type`が`'line'`でない／`points`が2要素の配列でない／
-     *     頂点がオブジェクトでないか`x`・`y`が有限の数値でない／`strokeColor`が文字列でない／
-     *     `strokeWidth`が有限の数値でないか0以下の場合
+     *     頂点がオブジェクトでないか`x`・`y`が有限の数値でない／`strokeColor`が文字列でも`null`でもない／
+     *     `strokeWidth`が`undefined`以外で有限の数値でないか0以下／`fillColor`が`undefined`・文字列・`null`以外の場合
+     *     （`strokeWidth`のキーなしは2px、`fillColor`のキーなしは`null`として読む）
      */
     static fromJSON(data) {
-        validateShapeData(data, 'Line', ['line'], LINE_POINT_COUNT);
+        const style = validateShapeData(data, 'Line', ['line'], LINE_POINT_COUNT);
         const [start, end] = data.points;
-        const line = new Line(start.x, start.y, end.x, end.y, data.strokeColor, data.strokeWidth);
+        const line = new Line(start.x, start.y, end.x, end.y, style.strokeColor, style.strokeWidth, style.fillColor);
         line.id = data.id;
         return line;
     }
