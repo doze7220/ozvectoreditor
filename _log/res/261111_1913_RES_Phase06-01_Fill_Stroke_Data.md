@@ -326,7 +326,7 @@
     *   **作業内容** :
         *   追加のみ（既存のケース・補助関数は変えない）：塗り・線なしを含む図形（塗りあり線ありの矩形、塗りのみ線なしの円・閉じたパス、自分自身と交差する閉じたパスの塗り、`fillColor`を持つ直線・曲線・弧・開いたパス（塗れない形）、線なしで塗りなしの直線）が、オブジェクト層・文字列層の両方の往復で`fillColor`・`strokeColor`まで元どおりに戻ること（既存の`assertRestoredWithPaths`に加え、各図形の`fillColor`・`strokeColor`を明示的に比べる）。`serialize`の`version`が`2`であること。
 
-*   [ ] タスク12: スプライトJSの読み込みのテスト（塗り・線なし、版1のJS）
+*   [x] タスク12: スプライトJSの読み込みのテスト（塗り・線なし、版1のJS）
     *   **対象ファイル** :
         *   `./test/io/FileContentReader.test.js` : 更新
     *   **作業内容** :
@@ -448,7 +448,10 @@
 
 ### タスク12: スプライトJSの読み込みのテスト（塗り・線なし、版1のJS）
 *   **作業内容** :
-    *   (未着手)
+    *   `test/io/FileContentReader.test.js`：末尾に新しいdescribe「塗り・線なしを含むスプライト（書き出し形式の版2）と版1のJS」を追加（補助関数`sampleFilledShapes`・`assertStyles`・`makeVersion1Sprite`をdescribe内に追加。先頭の責務JSDocは範囲内のため変更なし）。4ケース：版2のJS・CRLFのJSから`fillColor`・`strokeColor`含め元どおり戻る（塗りあり線あり矩形・線なし円・線なし閉じたパス・自己交差の閉じたパス・塗れない形に`fillColor`・線なし塗りなしの直線）／塗れない形の`fillColor`保持／版1のJS（`fillColor`を除いたsource、CRLFも）で全図形`fillColor: null`／版1のJS（`fillColor`を残したsource）で全図形`fillColor: null`。
+    *   `node --test`：tests 780・pass 780・fail 0。
+*   **書き換えた既存ケース** :
+    *   なし（追加のみ）。
 
 ### タスク13: JSDocの記載漏れの確認と`ShapeFactory`のJSDoc
 *   **作業内容** :

@@ -281,3 +281,111 @@ describe('FileContentReader.deserializeFromText: 読み込み不可（警告1回
         assertUnreadable(t, asModule(data));
     });
 });
+
+describe('FileContentReader.deserializeFromText: 塗り・線なしを含むスプライト（書き出し形式の版2）と版1のJS', () => {
+    /**
+     * 塗り・線なしを含む図形一式を作る（塗れない形の`fillColor`・線なし・塗りなしを含む。idは文字列を直接代入する）。
+     * @returns {Array<object>} 図形
+     */
+    function sampleFilledShapes() {
+        const square = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }];
+        const star = [{ x: 50, y: 0 }, { x: 80, y: 100 }, { x: 0, y: 40 }, { x: 100, y: 40 }, { x: 20, y: 100 }];
+        const shapes = [
+            new Rect(10, 20, 50, 80, '#0000ff', 4, '#ffcc00'),
+            new Ellipse(10, 20, 40, 60, 'circle', null, 2, '#00ff00'),
+            new Path(square, true, null, 3, '#ff00ff'),
+            new Path(star, true, '#111111', 2, '#22aa22'),
+            new Line(1, 2, 30, 40, '#ff0000', 5, '#abcdef'),
+            new Curve(0, 0, 100, 50, '#00ff00', 3, '#fedcba'),
+            new Ellipse(10, 20, 40, 60, 'arc', '#abcdef', 1, '#123456'),
+            new Path(square, false, '#00aa00', 6, '#654321'),
+            new Line(5, 6, 70, 80, null, 2, null),
+        ];
+        shapes.forEach((shape, index) => {
+            shape.id = `shape-${index}`;
+        });
+        return shapes;
+    }
+
+    /**
+     * 復元した図形の`fillColor`・`strokeColor`が元と一致することを明示的に確かめる。
+     * @param {Array<object>} restored - 復元した図形
+     * @param {Array<object>} original - 元の図形
+     * @returns {void}
+     */
+    function assertStyles(restored, original) {
+        assert.equal(restored.length, original.length);
+        original.forEach((shape, index) => {
+            assert.equal(restored[index].fillColor, shape.fillColor);
+            assert.equal(restored[index].strokeColor, shape.strokeColor);
+        });
+    }
+
+    /**
+     * 版1の書き出し形式のスプライトデータを作る（`formatVersion`・`source.version`を1にし、`source.shapes`の`fillColor`を除く／残す）。
+     * @param {Array<object>} shapes - 元の図形
+     * @param {boolean} keepFillColor - `fillColor`を残すか
+     * @returns {object} 版1のスプライトデータ
+     */
+    function makeVersion1Sprite(shapes, keepFillColor) {
+        return mutatedSprite(shapes, (d) => {
+            d.formatVersion = 1;
+            d.source.version = 1;
+            if (!keepFillColor) {
+                d.source.shapes.forEach((item) => {
+                    delete item.fillColor;
+                });
+            }
+        });
+    }
+
+    it('版2のJS・CRLFのJSから、fillColor・strokeColorを含め元の図形が戻る', (t) => {
+        t.mock.method(console, 'warn', () => {});
+        const shapes = sampleFilledShapes();
+        const text = CodeExporter.toModuleText(SpriteSerializer.serialize(shapes));
+        for (const source of [text, text.replace(/\n/g, '\r\n')]) {
+            const result = FileContentReader.deserializeFromText(source);
+            assertRestored(result, shapes);
+            assertStyles(result.shapes, shapes);
+            assertPathsRestored(result.shapes, shapes);
+        }
+    });
+
+    it('塗れない形（直線・曲線・弧・開いたパス）のfillColorも保持して戻る', (t) => {
+        t.mock.method(console, 'warn', () => {});
+        const shapes = sampleFilledShapes();
+        const result = FileContentReader.deserializeFromText(CodeExporter.toModuleText(SpriteSerializer.serialize(shapes)));
+        assert.equal(result.ok, true);
+        for (const index of [4, 5, 6, 7]) {
+            assert.equal(result.shapes[index].isFillable(), false);
+            assert.equal(result.shapes[index].fillColor, shapes[index].fillColor);
+            assert.notEqual(result.shapes[index].fillColor, null);
+        }
+    });
+
+    it('版1のJS（fillColorを除いたsource）が読め、全図形がfillColor: nullになる', (t) => {
+        t.mock.method(console, 'warn', () => {});
+        const shapes = sampleFilledShapes();
+        const expected = shapes.map((shape) => ({ ...shape.toJSON(), fillColor: null }));
+        const text = asModule(makeVersion1Sprite(shapes, false));
+        for (const source of [text, text.replace(/\n/g, '\r\n')]) {
+            const result = FileContentReader.deserializeFromText(source);
+            assert.equal(result.ok, true);
+            assert.equal(result.error, null);
+            assert.deepStrictEqual(result.skipped, []);
+            assert.deepStrictEqual(toJsonList(result.shapes), expected);
+            result.shapes.forEach((shape) => assert.equal(shape.fillColor, null));
+        }
+    });
+
+    it('版1のJS（fillColorを残したsource）も、全図形がfillColor: nullになる', (t) => {
+        t.mock.method(console, 'warn', () => {});
+        const shapes = sampleFilledShapes();
+        const expected = shapes.map((shape) => ({ ...shape.toJSON(), fillColor: null }));
+        const result = FileContentReader.deserializeFromText(asModule(makeVersion1Sprite(shapes, true)));
+        assert.equal(result.ok, true);
+        assert.deepStrictEqual(result.skipped, []);
+        assert.deepStrictEqual(toJsonList(result.shapes), expected);
+        result.shapes.forEach((shape) => assert.equal(shape.fillColor, null));
+    });
+});
