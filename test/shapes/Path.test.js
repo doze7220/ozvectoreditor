@@ -1,5 +1,5 @@
 /**
- * 責務: パス（Path）の当たり判定（hitTest・intersectsRect）・頂点のハンドル（hitTestHandle・getVertexIndexForHandle・setVertex）・
+ * 責務: パス（Path）の当たり判定・頂点のハンドル・塗れる形（isFillable）・描画命令（塗り・線なし）・
  * fromJSONの不正な図形データのエラー文・図形データと描画要素への変換を、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
@@ -31,7 +31,7 @@ function makePath(closed) {
 /**
  * 正常な図形データ（idを入れたtoJSON()の戻り値）を返す。呼ぶたびに新しいオブジェクトを返す。
  * @param {boolean} closed - 閉じたパスの図形データにするか
- * @returns {{type: string, id: string, points: {x: number, y: number}[], closed: boolean, segments: {kind: string}[], strokeColor: string, strokeWidth: number}} 正常な図形データ
+ * @returns {{type: string, id: string, points: {x: number, y: number}[], closed: boolean, segments: {kind: string}[], strokeColor: string, strokeWidth: number, fillColor: string|null}} 正常な図形データ
  */
 function makeValidData(closed) {
     const data = makePath(closed).toJSON();
@@ -362,6 +362,22 @@ describe('Path.fromJSON のエラー文', () => {
         });
     });
 
+    describe('fillColor', () => {
+        it('文字列・null・キーなしを受理する（キーなしはnull）', () => {
+            assert.equal(Path.fromJSON({ ...makeValidData(true), fillColor: '#ff0000' }).toJSON().fillColor, '#ff0000');
+            assert.equal(Path.fromJSON({ ...makeValidData(true), fillColor: null }).toJSON().fillColor, null);
+            const data = makeValidData(true);
+            delete data.fillColor;
+            assert.equal(Path.fromJSON(data).toJSON().fillColor, null);
+        });
+
+        it('文字列でもnullでもない値は拒否する', () => {
+            for (const bad of [1, true, {}, [], NaN]) {
+                assertFromJSONError({ ...makeValidData(false), fillColor: bad }, 'fillColorが文字列またはnullではありません');
+            }
+        });
+    });
+
     describe('パス固有の項目', () => {
         it('closedが真偽値でない（キーなし・1・\'true\'・null）', () => {
             for (const bad of [1, 'true', null, 0]) {
@@ -433,6 +449,15 @@ describe('Path.fromJSON のエラー文', () => {
             assertFromJSONError({ ...makeValidData(false), strokeWidth: 0, closed: 'x' }, 'strokeWidthが正の有限の数値ではありません');
         });
 
+        it('fillColorの不正とclosedの不正 → fillColor', () => {
+            assertFromJSONError({ ...makeValidData(false), fillColor: 1, closed: 'x' }, 'fillColorが文字列またはnullではありません');
+        });
+
+        it('strokeWidth・strokeColorの不正とfillColorの不正 → strokeWidth・strokeColor', () => {
+            assertFromJSONError({ ...makeValidData(false), strokeWidth: 0, fillColor: 1 }, 'strokeWidthが正の有限の数値ではありません');
+            assertFromJSONError({ ...makeValidData(false), strokeColor: 1, fillColor: 1 }, 'strokeColorが文字列またはnullではありません');
+        });
+
         it('closedの不正とsegmentsの不正 → closed', () => {
             assertFromJSONError({ ...makeValidData(false), closed: 'x', segments: 'y' }, 'closedが真偽値ではありません');
         });
@@ -485,7 +510,7 @@ describe('Path の toJSON・fromJSON・toDrawElement', () => {
         const p = new Path(makePoints(), false, '#123456', 3);
         p.id = 'p1';
         const json = p.toJSON();
-        assert.deepEqual(Object.keys(json), ['type', 'id', 'points', 'closed', 'segments', 'strokeColor', 'strokeWidth']);
+        assert.deepEqual(Object.keys(json), ['type', 'id', 'points', 'closed', 'segments', 'strokeColor', 'strokeWidth', 'fillColor']);
         assert.deepEqual(json, {
             type: 'path',
             id: 'p1',
@@ -494,6 +519,7 @@ describe('Path の toJSON・fromJSON・toDrawElement', () => {
             segments: [{ kind: 'line' }, { kind: 'line' }, { kind: 'line' }],
             strokeColor: '#123456',
             strokeWidth: 3,
+            fillColor: null,
         });
     });
 
@@ -515,6 +541,32 @@ describe('Path の toJSON・fromJSON・toDrawElement', () => {
         assert.equal(p.closed, false);
         assert.equal(p.strokeColor, '#000000');
         assert.equal(p.strokeWidth, 2);
+    });
+
+    it('コンストラクタの既定のfillColorはnullで、既存の引数の位置と既定値は変わらない', () => {
+        const p = new Path(makePoints());
+        assert.equal(p.fillColor, null);
+        const q = new Path(makePoints(), true, '#111111', 7, '#222222');
+        assert.equal(q.closed, true);
+        assert.equal(q.strokeColor, '#111111');
+        assert.equal(q.strokeWidth, 7);
+        assert.equal(q.fillColor, '#222222');
+    });
+
+    it('toJSONは塗れない形（開いたパス）でもfillColorを保持して出力し、往復で保たれる', () => {
+        const p = new Path(makePoints(), false, '#000000', 2, '#abcdef');
+        assert.equal(p.toJSON().fillColor, '#abcdef');
+        assert.equal(Path.fromJSON(p.toJSON()).toJSON().fillColor, '#abcdef');
+    });
+
+    it('toDrawElementのfillColor（閉じたパスは図形の値・開いたパスはnull）', () => {
+        assert.equal(new Path(makePoints(), true, '#000000', 2, '#abcdef').toDrawElement().fillColor, '#abcdef');
+        assert.equal(new Path(makePoints(), true).toDrawElement().fillColor, null);
+        assert.equal(new Path(makePoints(), false, '#000000', 2, '#abcdef').toDrawElement().fillColor, null);
+    });
+
+    it('toDrawElementのstrokeColorはnull（線なし）もそのまま入れる', () => {
+        assert.equal(new Path(makePoints(), true, null, 2, '#abcdef').toDrawElement().strokeColor, null);
     });
 
     it('往復でtoJSON()・hitTest・intersectsRectの結果が一致する', () => {
@@ -572,7 +624,7 @@ describe('Path の toJSON・fromJSON・toDrawElement', () => {
         const p = new Path(makePoints(), false, '#abcdef', 5);
         p.id = 'd1';
         const element = p.toDrawElement();
-        assert.deepEqual(Object.keys(element), ['kind', 'id', 'points', 'closed', 'strokeColor', 'strokeWidth']);
+        assert.deepEqual(Object.keys(element), ['kind', 'id', 'points', 'closed', 'strokeColor', 'strokeWidth', 'fillColor']);
         assert.deepEqual(element, {
             kind: 'polyline',
             id: 'd1',
@@ -580,6 +632,7 @@ describe('Path の toJSON・fromJSON・toDrawElement', () => {
             closed: false,
             strokeColor: '#abcdef',
             strokeWidth: 5,
+            fillColor: null,
         });
         assert.equal('segments' in element, false);
     });
@@ -632,6 +685,90 @@ describe('Path の描画命令', () => {
             ['set', 'lineWidth', 2],
             ['stroke'],
         ]);
+    });
+
+    it('isFillable: 閉じたパスはtrue・開いたパスはfalse', () => {
+        assert.equal(makePath(true).isFillable(), true);
+        assert.equal(makePath(false).isFillable(), false);
+    });
+
+    it('draw: 閉じたパス・塗りあり線あり → パス、fillStyle、fill()（引数なし）、線の順', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Path(makePoints(), true, '#112233', 4, '#ff0000').draw(ctx);
+        assert.deepEqual(log, [
+            ['beginPath'],
+            ['moveTo', 0, 0],
+            ['lineTo', 100, 0],
+            ['lineTo', 100, 100],
+            ['lineTo', 0, 100],
+            ['closePath'],
+            ['set', 'fillStyle', '#ff0000'],
+            ['fill'],
+            ['set', 'strokeStyle', '#112233'],
+            ['set', 'lineWidth', 4],
+            ['stroke'],
+        ]);
+    });
+
+    it('draw: 閉じたパス・塗りあり線なし → 塗りだけ', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Path(makePoints(), true, null, 4, '#ff0000').draw(ctx);
+        assert.deepEqual(log, [
+            ['beginPath'],
+            ['moveTo', 0, 0],
+            ['lineTo', 100, 0],
+            ['lineTo', 100, 100],
+            ['lineTo', 0, 100],
+            ['closePath'],
+            ['set', 'fillStyle', '#ff0000'],
+            ['fill'],
+        ]);
+    });
+
+    it('draw: 閉じたパス・塗りなし線あり → 従来と同じ（線だけ）', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Path(makePoints(), true, '#112233', 4, null).draw(ctx);
+        assert.deepEqual(log.map(([name]) => name), ['beginPath', 'moveTo', 'lineTo', 'lineTo', 'lineTo', 'closePath', 'set', 'set', 'stroke']);
+    });
+
+    it('draw: 閉じたパス・塗りも線もなし → 何も呼ばない（beginPathも呼ばない）', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Path(makePoints(), true, null, 4, null).draw(ctx);
+        assert.deepEqual(log, []);
+    });
+
+    it('draw: 自分自身と交差する閉じたパスも同じ命令列でfill()を引数なしで呼ぶ', () => {
+        const { ctx, log } = makeRecordingCtx();
+        const points = [{ x: 0, y: 0 }, { x: 100, y: 100 }, { x: 100, y: 0 }, { x: 0, y: 100 }];
+        new Path(points, true, '#112233', 2, '#00ff00').draw(ctx);
+        assert.deepEqual(log, [
+            ['beginPath'],
+            ['moveTo', 0, 0],
+            ['lineTo', 100, 100],
+            ['lineTo', 100, 0],
+            ['lineTo', 0, 100],
+            ['closePath'],
+            ['set', 'fillStyle', '#00ff00'],
+            ['fill'],
+            ['set', 'strokeStyle', '#112233'],
+            ['set', 'lineWidth', 2],
+            ['stroke'],
+        ]);
+    });
+
+    it('draw: 開いたパスにfillColorがあっても塗らない（線ありなら線だけ・線なしなら何も呼ばない）', () => {
+        const withStroke = makeRecordingCtx();
+        new Path(makePoints(), false, '#112233', 4, '#ff0000').draw(withStroke.ctx);
+        assert.equal(withStroke.log.some(([name]) => name === 'fill'), false);
+        assert.equal(withStroke.log.some(([name, key]) => name === 'set' && key === 'fillStyle'), false);
+        assert.deepEqual(withStroke.log.slice(-3), [
+            ['set', 'strokeStyle', '#112233'],
+            ['set', 'lineWidth', 4],
+            ['stroke'],
+        ]);
+        const noStroke = makeRecordingCtx();
+        new Path(makePoints(), false, null, 4, '#ff0000').draw(noStroke.ctx);
+        assert.deepEqual(noStroke.log, []);
     });
 
     it('drawHover: 強調の線幅はstrokeWidth + 6 / viewScaleで、閉じたパスだけclosePathが入る', () => {

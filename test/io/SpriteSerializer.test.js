@@ -280,11 +280,11 @@ function makeSquarePath(closed, id, strokeColor = '#123456', strokeWidth = 4) {
 describe('SpriteSerializer.serialize: パス', () => {
     it('開いたパスはpolyline（closed: false・segmentsなし・キー順）', () => {
         const [el] = SpriteSerializer.serialize([makeSquarePath(false, 'P1')]).elements;
-        assert.deepEqual(Object.keys(el), ['kind', 'id', 'points', 'closed', 'strokeColor', 'strokeWidth']);
+        assert.deepEqual(Object.keys(el), ['kind', 'id', 'points', 'closed', 'strokeColor', 'strokeWidth', 'fillColor']);
         assert.deepEqual(el, {
             kind: 'polyline', id: 'P1',
             points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }],
-            closed: false, strokeColor: '#123456', strokeWidth: 4,
+            closed: false, strokeColor: '#123456', strokeWidth: 4, fillColor: null,
         });
         assert.equal('segments' in el, false);
     });

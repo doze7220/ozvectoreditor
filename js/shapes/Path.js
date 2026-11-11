@@ -55,8 +55,8 @@ function isPlainObject(value) {
  * パスの図形クラス（図形種別`'path'`）。頂点の並び`points`（開いたパス2点以上・閉じたパス3点以上）、
  * 閉じているかを表す`closed`、区間の並び`segments`を持つ。`segments[i]`は`points[i]`→`points[i+1]`の区間で、
  * 閉じたパスの最後の要素は`points[n-1]`→`points[0]`の区間（要素数は開いたパス`n - 1`、閉じたパス`n`）。区間の要素は`{ kind }`で、`kind`は現在`'line'`のみ。
- * 共通メソッド契約（13メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（14メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable）を自律実装する。座標はすべてワールド座標。
  * パスは`ShapeFactory.create`では作られない（読み込み専用。作る操作はPhase 05-03・05-04）。
  */
 export class Path {
@@ -65,10 +65,11 @@ export class Path {
      * `points`の各頂点は新しい`{ x, y }`として複製して保持し、`segments`は区間の数だけ`{ kind: 'line' }`を新しく作る。
      * @param {{x: number, y: number}[]} points - 頂点の並び（始点→終点）
      * @param {boolean} [closed=false] - 閉じているか
-     * @param {string} [strokeColor='#000000'] - 線の色
+     * @param {string|null} [strokeColor='#000000'] - 線の色。nullは線なし
      * @param {number} [strokeWidth=2] - 線の太さ
+     * @param {string|null} [fillColor=null] - 塗りの色。nullは塗りなし
      */
-    constructor(points, closed = false, strokeColor = '#000000', strokeWidth = 2) {
+    constructor(points, closed = false, strokeColor = '#000000', strokeWidth = 2, fillColor = null) {
         /** @type {string} 図形種別（`ShapeFactory`が受理する文字列と一致） */
         this.type = 'path';
         /** @type {*} 図形の一意なID。作成中は`null`。`VectorModel`の採番・正規化の後は文字列。`fromJSON`直後は`data.id`のまま（欠落なら`undefined`、任意の型を取り得る）。 */
@@ -82,10 +83,20 @@ export class Path {
             { length: closed ? this.points.length : this.points.length - 1 },
             () => ({ kind: SEGMENT_KIND_LINE }),
         );
-        /** @type {string} 線の色 */
+        /** @type {string|null} 線の色。nullは線なし */
         this.strokeColor = strokeColor;
         /** @type {number} 線の太さ */
         this.strokeWidth = strokeWidth;
+        /** @type {string|null} 塗りの色。nullは塗りなし。塗れない形でも保持する（描かないだけ） */
+        this.fillColor = fillColor;
+    }
+
+    /**
+     * 塗れる形か（共通メソッド契約の第14メソッド）。閉じたパスのみ`true`。データには保存しない。
+     * @returns {boolean} 閉じたパスなら`true`
+     */
+    isFillable() {
+        return this.closed === true;
     }
 
     /**
@@ -127,15 +138,29 @@ export class Path {
 
     /**
      * Canvasにパスを描画する。`closed`なら終点→始点を`closePath`で結ぶ。
+     * 塗る（`isFillable()`かつ`fillColor`が文字列）・線を描く（`strokeColor`が文字列）のどちらも偽なら何も呼ばない。
+     * 順序は パス → 塗り（`fillStyle`→`fill()`引数なし） → 線（`strokeStyle`→`lineWidth`→`stroke()`）。
      * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
      * @param {number} [t=0] - 将来のモーフィング機能用の予約引数（未使用）
      */
     draw(ctx, t = 0) {
+        const shouldFill = this.isFillable() && typeof this.fillColor === 'string';
+        const shouldStroke = typeof this.strokeColor === 'string';
+        if (!shouldFill && !shouldStroke) {
+            return;
+        }
+
         this.#tracePath(ctx);
 
-        ctx.strokeStyle = this.strokeColor;
-        ctx.lineWidth = this.strokeWidth;
-        ctx.stroke();
+        if (shouldFill) {
+            ctx.fillStyle = this.fillColor;
+            ctx.fill();
+        }
+        if (shouldStroke) {
+            ctx.strokeStyle = this.strokeColor;
+            ctx.lineWidth = this.strokeWidth;
+            ctx.stroke();
+        }
     }
 
     /**
@@ -269,10 +294,10 @@ export class Path {
 
     /**
      * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第13メソッド。呼び出し元は`SpriteSerializer`のみ）。
-     * 形（キー順もこの順）: `{ kind: 'polyline', id, points: 各頂点{x, y}, closed, strokeColor, strokeWidth }`。
+     * 形（キー順もこの順）: `{ kind: 'polyline', id, points: 各頂点{x, y}, closed, strokeColor, strokeWidth, fillColor }`。
      * 閉じたパスでも頂点は`n`個で始点を重複させない。区間の種類は出さない（区間がすべて直線の間のみ`polyline`で表せる）。
-     * `id`・`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる。戻り値と自身は配列・頂点を共有しない。
-     * @returns {{kind: string, id: *, points: {x: number, y: number}[], closed: boolean, strokeColor: string, strokeWidth: number}} 新しい描画要素
+     * `id`・`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる。`fillColor`は塗れる形（閉じたパス）なら図形の値、塗れない形（開いたパス）なら`null`。戻り値と自身は配列・頂点を共有しない。
+     * @returns {{kind: string, id: *, points: {x: number, y: number}[], closed: boolean, strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい描画要素
      */
     toDrawElement() {
         return {
@@ -282,15 +307,17 @@ export class Path {
             closed: this.closed,
             strokeColor: this.strokeColor,
             strokeWidth: this.strokeWidth,
+            fillColor: this.isFillable() ? this.fillColor : null,
         };
     }
 
     /**
      * 自身を図形データへ変換する（共通メソッド契約の第11メソッド）。
-     * 形（キー順もこの順）: `{ type: 'path', id, points: [{x, y}, ...], closed, segments: [{ kind }, ...], strokeColor, strokeWidth }`。
+     * 形（キー順もこの順）: `{ type: 'path', id, points: [{x, y}, ...], closed, segments: [{ kind }, ...], strokeColor, strokeWidth, fillColor }`。
+     * `fillColor`は塗れない形でも保持している値をそのまま出力する。
      * 戻り値と自身は配列・頂点・区間の要素を共有しない。`id`が`null`の場合もそのまま出力する。
      * `JSON.stringify(path)`でも本メソッドの戻り値が出力される。
-     * @returns {{type: string, id: *, points: {x: number, y: number}[], closed: boolean, segments: {kind: string}[], strokeColor: string, strokeWidth: number}} 新しい図形データ
+     * @returns {{type: string, id: *, points: {x: number, y: number}[], closed: boolean, segments: {kind: string}[], strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい図形データ
      */
     toJSON() {
         return {
@@ -301,12 +328,13 @@ export class Path {
             segments: this.segments.map((segment) => ({ kind: segment.kind })),
             strokeColor: this.strokeColor,
             strokeWidth: this.strokeWidth,
+            fillColor: this.fillColor,
         };
     }
 
     /**
      * 図形データ（`toJSON()`の形）からパスを復元する（共通メソッド契約の第12メソッド）。
-     * 共通項目は`validateShapeData`（頂点数は`{ min: 2 }`）で検証し、その後にパス固有の項目（`closed`・閉じたパスの頂点数・`segments`）を検証する。
+     * 共通項目は`validateShapeData`（頂点数は`{ min: 2 }`。戻り値は既定値を解決した`{ strokeColor, strokeWidth, fillColor }`）で検証し、その後にパス固有の項目（`closed`・閉じたパスの頂点数・`segments`）を検証する。
      * コンストラクタが`data`の頂点を複製して生成し、`segments`は`data.segments`の`kind`から作り直す。`data`内の配列・オブジェクトは流用しない。
      * `id`は検証せず`data.id`をそのまま保持する。余分なプロパティ（最上位・区間の要素とも）は無視する。
      * 例外の捕捉は行わない（呼び出し側の`DocumentSerializer`が図形単位で捕捉する）。
@@ -314,13 +342,13 @@ export class Path {
      * @param {Object} data - 図形データ（プレーンオブジェクト）
      * @returns {Path} 復元したパス
      * @throws {Error} `data`がプレーンオブジェクトでない／`type`が`'path'`でない／`points`が2要素以上の配列でない／
-     *     頂点がオブジェクトでないか`x`・`y`が有限の数値でない／`strokeColor`が文字列でない／`strokeWidth`が有限の数値でないか0以下／
-     *     `closed`が真偽値でない／閉じたパスで`points`が3要素未満／`segments`が配列でない／
+     *     頂点がオブジェクトでないか`x`・`y`が有限の数値でない／`strokeColor`が文字列でもnullでもない／`strokeWidth`が`undefined`以外で有限の数値でないか0以下／
+     *     `fillColor`が`undefined`以外で文字列でもnullでもない／`closed`が真偽値でない／閉じたパスで`points`が3要素未満／`segments`が配列でない／
      *     `segments`の要素数が期待値（開いたパス`n - 1`、閉じたパス`n`）と違う／`segments[i]`がオブジェクトでない／
      *     `segments[i].kind`が受理する種類（`'line'`）でない場合
      */
     static fromJSON(data) {
-        validateShapeData(data, 'Path', ['path'], { min: OPEN_MIN_POINT_COUNT });
+        const style = validateShapeData(data, 'Path', ['path'], { min: OPEN_MIN_POINT_COUNT });
         const fail = (reason) => {
             throw new Error(`Path.fromJSON: ${reason}`);
         };
@@ -342,7 +370,7 @@ export class Path {
             }
         });
 
-        const path = new Path(data.points, data.closed, data.strokeColor, data.strokeWidth);
+        const path = new Path(data.points, data.closed, style.strokeColor, style.strokeWidth, style.fillColor);
         path.segments = data.segments.map((segment) => ({ kind: segment.kind }));
         path.id = data.id;
         return path;

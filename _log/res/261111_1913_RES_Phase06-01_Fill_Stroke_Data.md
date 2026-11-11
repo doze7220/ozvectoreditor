@@ -264,7 +264,7 @@
         *   テスト（`Ellipse.test.js`。偽の`ctx`は`ellipse`も記録する）：円は`isFillable`が`true`・弧は`false`。円の`draw`の4パターン（タスク4と同じ）、弧に`fillColor`がある場合（線ありなら塗らずに線だけ、線なしなら何も呼ばない）。`fromJSON`（円・弧）の`fillColor`の受理・不正（`Ellipse.fromJSON: fillColorが文字列またはnullではありません`）・順序・`strokeWidth`キーなし→2。`toJSON`のキー順、`toDrawElement`のキー順（`ellipse`の12キー）と`fillColor`（円は図形の値・弧は`null`）。
         *   書き換え（`test/io/SpriteSerializer.test.js`「circleはellipse（0〜2π・closed: true）」）：キー順に`fillColor`を足す（理由：描画要素のキー追加）。
 
-*   [ ] タスク6: `Path`の塗り
+*   [x] タスク6: `Path`の塗り
     *   **対象ファイル** :
         *   `./js/shapes/Path.js` : 更新
         *   `./test/shapes/Path.test.js` : 更新
@@ -398,7 +398,12 @@
 
 ### タスク6: `Path`の塗り
 *   **作業内容** :
-    *   (未着手)
+    *   `js/shapes/Path.js`：コンストラクタ末尾に`fillColor = null`とプロパティ（`strokeColor`の型を`string|null`へ）、`isFillable()`（`this.closed === true`）、`draw`を共通の順序へ（`shouldFill`/`shouldStroke`、どちらも偽なら`return`、`#tracePath`→塗り→線。`drawHover`は未変更）、`toJSON`末尾に`fillColor`、`toDrawElement`末尾に`fillColor: this.isFillable() ? this.fillColor : null`、`fromJSON`は`validateShapeData`の戻り値`style`を使用。クラスJSDocを14メソッドへ、`toJSON`・`toDrawElement`のJSDocの「形（キー順もこの順）」と`@returns`に`fillColor`を足し、`fromJSON`の`@throws`を改めた。
+    *   `test/shapes/Path.test.js`：先頭の責務JSDocを改めた（3行以内）。`makeValidData`の`@returns`に`fillColor`を足した。`isFillable`、コンストラクタの既定の`fillColor`、`draw`（閉じたパスの4パターン・自己交差・開いたパスにfillColorがある場合）、`fromJSON`の`fillColor`（受理・不正）、検査の順序は新しいケース（fillColorとclosed、strokeWidth/strokeColorとfillColor）として追加、`toJSON`/`toDrawElement`の`fillColor`を追加。`strokeWidth`キーなし→2はタスク1で追加済み。
+    *   `node --test`：tests 731・pass 731・fail 0。
+*   **書き換えた既存ケース** :
+    *   `test/shapes/Path.test.js`「toJSONのキー順と中身（開いたパス）」「toDrawElementの中身とキー順（開いたパス）」：キー順と期待するオブジェクトに`fillColor: null`を足した（理由：図形データ・描画要素のキー追加）。
+    *   `test/io/SpriteSerializer.test.js`「開いたパスはpolyline（closed: false・segmentsなし・キー順）」：キー順と期待するオブジェクトに`fillColor: null`を足した（理由：描画要素のキー追加）。
 
 ### タスク7: 結合・描き足し・閉じるの塗りの引き継ぎ
 *   **作業内容** :
