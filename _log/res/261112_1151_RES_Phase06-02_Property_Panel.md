@@ -257,7 +257,7 @@
         *   JSDoc：ファイル先頭の責務定義に「新しく描く図形のスタイル（直前に使った値）」を足す（3行以内）。クラスJSDocに、直前に使った値を保持すること・共通プロパティのスタイル3つだけを書くこと（図形固有のプロパティ名は知らない）を足す。`startDraft`（スタイルを当てる）・`replaceAllShapes`（新しく描く図形のスタイルには触れない）・コンストラクタ（初期状態）のJSDocを改める。`updateNewShapeStyle`・`updateShapeStyles`のJSDocに、値を検証しないこと（呼び出し側の責務）・通知の条件・触れない状態を書く。
         *   テスト（新設。先頭行に責務のJSDoc）：2章 要件7の`test/core/VectorModel.style.test.js`の観点。`SHAPE_TYPES`は`../../js/core/ShapeFactory.js`からimportする。作成途中の図形は`getDraftShape()`、確定した図形は`commitDraft()`後の`getShapes()`で、`strokeColor`・`strokeWidth`・`fillColor`を確かめる（既定のまま：`'#000000'`・`2`・`null`。変えた後の例：`strokeEnabled: false`・`strokeWidth: 5`・`fillEnabled: true`・`fillColor: '#ff0000'`で`null`・`5`・`'#ff0000'`（直線・曲線・弧も`'#ff0000'`））。
 
-*   [ ] タスク2: パネルに出す値の算出の規則（`edit/StylePanelRules.js`）
+*   [x] タスク2: パネルに出す値の算出の規則（`edit/StylePanelRules.js`）
     *   **対象ファイル** :
         *   `./js/edit/StylePanelRules.js` : 新規
         *   `./test/edit/StylePanelRules.test.js` : 新規
@@ -363,7 +363,10 @@
 
 ### タスク2: パネルに出す値の算出の規則（`edit/StylePanelRules.js`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/edit/StylePanelRules.js`：新規。`STROKE_WIDTH_MIN`(1)・`STROKE_WIDTH_MAX`(100)、`toColorInputValue`・`parseStrokeWidthInput`・`buildStylePanelView`をexport。線と塗りの有無・色・補足の決め方は非公開関数`resolveColorView(shapes, key, remembered)`に共有、選択なしの表示は非公開`newShapeColorView`。typedef`StylePanelView`・`StylePanelColorView`・`ColorNote`・`RememberedColors`・`PanelNewShapeStyle`。importなし・DOMなし・図形種別分岐なし（塗れるかは`isFillable()`）。
+    *   `test/edit/StylePanelRules.test.js`：新規（20ケース）。
+    *   既存テストの書き換え：なし。
+    *   `node --test`：tests 818・pass 818・fail 0（着手前798＋新規20）。
 
 ### タスク3: スタイルの変更の手順（`edit/ShapeStyleEditor.js`）
 *   **作業内容** :
