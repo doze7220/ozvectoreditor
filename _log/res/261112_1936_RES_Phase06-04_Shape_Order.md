@@ -240,7 +240,7 @@
         *   2章2-2のとおり、先頭行の責務（3行以内。例「責務: 選択中の図形の重なり順の変更を、並べ替えの規則（`./ShapeOrderRules.js`）で求めた並びに従ってモデルへ反映する1件の編集操作と、各操作で並びが変わるかの照会を担う。DOMに触れない。」）、typedef`ShapeOrderAvailability`（`palette/PropertyOrderSection.js`と同じ内容の二重定義である旨を明記）、クラス`ShapeOrderEditor`（コンストラクタ・`apply`・`getAvailability`）を作る。importは`./ShapeOrderRules.js`のみ。クラスJSDocに依存の制約（`model`は`getShapes`・`isSelected`・`reorderShapes`のみ、`InputTracker`に依存しない、DOMなし、`try/catch`なし、図形種別・図形固有のプロパティ名・id形式・操作モードを知らない（読むのは共通プロパティ`id`のみ））と前提（ドラッグ中でないことは呼び出し側、選択モード以外・読み込み中は選択集合が空のため何もしない、進行中の入力操作の中断・モード切り替えを行わない）を書く。各メソッドにJSDoc（処理順・`@param`・`@returns`・`@throws`）。
         *   テスト：2章要件6の`test/edit/ShapeOrderEditor.test.js`の観点をすべて入れる（偽物の手順・実物の組み合わせ・保存の往復）。`PathJoiner.test.js`の形を参考にする。
         *   `node --test`の`fail 0`と件数を記録し、詳細作業内容を記入して`[x]`にする。開発資料に影響があれば更新予定欄へ追記する。
-*   [ ] タスク4: 「重なり順」の段のUI部品（`palette/PropertyOrderSection.js`）
+*   [x] タスク4: 「重なり順」の段のUI部品（`palette/PropertyOrderSection.js`）
     *   **対象ファイル** :
         *   `./js/palette/PropertyOrderSection.js` : 新規
     *   **作業内容** :
@@ -317,7 +317,11 @@
 
 ### タスク4: 「重なり順」の段のUI部品（`palette/PropertyOrderSection.js`）
 *   **作業内容** :
-    *   （未記入）
+    *   対象ファイル：`./js/palette/PropertyOrderSection.js`（新規）。importなし。
+    *   先頭に責務、typedef`ShapeOrderAvailability`（`edit/ShapeOrderEditor.js`と同内容の二重定義の旨を明記）・`PropertyOrderSectionActions`、ボタンの対応表`ORDER_BUTTONS`（key・id・actionの1表）、クラス`PropertyOrderSection`（コンストラクタ・`render`）を実装。コールバックが関数でなければ`Error`（文言は`PropertyShapeSection`と同形）、ボタンが1つでも欠ければ`console.warn`して配線せず、`render`は何もしない。`render`は各ボタンの`disabled`を`view[key] !== true`にする。
+    *   `main.js`からはまだ使われない（画面は変わらない）。
+    *   `node --test`（プロジェクトルート）：tests 975 / pass 975 / fail 0。
+    *   開発資料への影響：既存の更新予定欄（タスク9）のとおりで追加の影響なし。
 
 ### タスク5: `index.html`に「重なり順」の段を足す
 *   **作業内容** :
