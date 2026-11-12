@@ -14,9 +14,11 @@ import { Rect } from '../../js/shapes/Rect.js';
 import { Ellipse } from '../../js/shapes/Ellipse.js';
 import { Path } from '../../js/shapes/Path.js';
 
+/** 次に描く図形のスタイルの例（線あり・黒・太さ2・塗りなし）。 */
 const NEW_STYLE = Object.freeze({
     strokeEnabled: true, strokeColor: '#000000', strokeWidth: 2, fillEnabled: false, fillColor: '#ffffff',
 });
+/** パネルが覚えている色の例（線・塗り）。 */
 const REMEMBERED = Object.freeze({ stroke: '#123456', fill: '#abcdef' });
 
 /**

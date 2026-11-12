@@ -46,8 +46,17 @@ const COLOR_NOTE_TEXT = Object.freeze({
     unsupported: '表示できない色'
 });
 
-/** 表示の対象の文言（唯一の定義箇所）。 */
+/** 次に描く図形のときの表示の対象の文言。 */
 const SOURCE_NEW_SHAPE_TEXT = '次に描く図形';
+
+/**
+ * 選択中の図形を表示しているときの表示の対象の文言を組み立てる。
+ * @param {number} count 選択中の図形の数
+ * @returns {string} 表示文字列（例：`選択中：3個`）
+ */
+function sourceSelectionText(count) {
+    return `選択中：${count}個`;
+}
 
 /** 太さが混在のときの`placeholder`の文言（唯一の定義箇所）。 */
 const STROKE_WIDTH_MIXED_PLACEHOLDER = '混在';
@@ -143,7 +152,7 @@ export class PropertyShapeSection {
         this.#lastView = view;
 
         this.#sourceElement.textContent = view.source === 'selection'
-            ? `選択中：${view.selectedCount}個`
+            ? sourceSelectionText(view.selectedCount)
             : SOURCE_NEW_SHAPE_TEXT;
 
         PropertyShapeSection.#renderToggle(this.#strokeEnabled, view.stroke);

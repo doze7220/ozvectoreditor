@@ -274,7 +274,21 @@ test('ピッカー操作中に図形が入れ替わる（replaceAllShapes）と�
     assert.equal(warn.mock.calls.length, 0);
 });
 
-test('ピッカー操作中に他の操作（beginEdit/commitEdit・undo）が起きても対が崩れない。console.warnは出ない', (t) => {
+test('ピッカー操作中に外部のbeginEdit/commitEdit（図形インスタンスはそのまま）が挟まっても、後の確定は1件として記録される。console.warnは出ない', (t) => {
+    const warn = t.mock.method(console, 'warn', () => {});
+    const { model, history, editor } = setup([makeRect('a', '#112233', 3)], ['a']);
+    editor.previewColor('stroke', '#aa0000');
+    history.beginEdit();
+    model.getShapes()[0].strokeWidth = 8;
+    history.commitEdit();
+    editor.finishColorPreview();
+    assert.equal(model.getShapes()[0].strokeColor, '#aa0000');
+    assert.equal(model.getShapes()[0].strokeWidth, 8);
+    assert.equal(countUndo(history), 2);
+    assert.equal(warn.mock.calls.length, 0);
+});
+
+test('ピッカー操作中にundoが起きても対が崩れない。console.warnは出ない', (t) => {
     const warn = t.mock.method(console, 'warn', () => {});
     const { model, history, editor } = setup([makeRect('a', '#112233', 3)], ['a']);
     editor.setStrokeWidth('8');

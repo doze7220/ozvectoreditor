@@ -326,7 +326,7 @@
         *   JSDoc：`syncPropertyShapeSection`（何を何に同期するか・登録先・起動時にも1回呼ぶこと）。
         *   完了後、`node --test`が成功することを確かめる。
 
-*   [ ] タスク9: JSDocの記載漏れの確認
+*   [x] タスク9: JSDocの記載漏れの確認
     *   **対象ファイル** :
         *   タスク1〜8で新設・変更したファイル : 確認（記載漏れがあれば該当ファイルのJSDocのみ修正）
     *   **作業内容** :
@@ -377,7 +377,7 @@
 
 ### タスク4: 入力欄の判定関数とスペースパン（`InputTracker`）
 *   **作業内容** :
-    *   `js/core/InputTracker.js`：非公開定数`SPACE_OPERATED_INPUT_TYPES`（`checkbox`・`color`）と`export function isSpaceOperatedInputElement(element)`を`isTextInputElement`の直後に追加。`#handleSpaceKeyDown`は`isTextInputElement || isSpaceOperatedInputElement`なら何もせず戻る。`handleKeyUp`は両方偽のときだけ`preventDefault()`（押下状態の解除・カーソル再評価は従来どおり常時）。`isTextInputElement`のJSDocに別扱いの注記、`#handleSpaceKeyDown`・`handleKeyUp`のJSDocを更新。
+    *   `js/core/InputTracker.js`：非公開定数`SPACE_OPERATED_INPUT_TYPES`（`checkbox`・`color`）と`export function isSpaceOperatedInputElement(element)`を`isTextInputElement`の直後に追加。`#handleSpaceKeyDown`は`isTextInputElement || isSpaceOperatedInputElement`なら何もせず戻る。`handleKeyUp`は両方偽のときだけ`preventDefault()`（押下状態の解除・カーソル再評価は従来どおり常時）。定数`TEXT_INPUT_TYPES`のJSDocに別扱いの注記、`#handleSpaceKeyDown`・`handleKeyUp`のJSDocを更新。
     *   自動テストは追加せず（計画どおり）。`node --test`：tests 840・pass 840・fail 0。
 
 ### タスク5: チェックボックス・色の欄の操作中の`Ctrl`なしのショートカット（`KeyboardShortcuts`）
@@ -405,7 +405,16 @@
 
 ### タスク9: JSDocの記載漏れの確認
 *   **作業内容** :
-    *   （未実施）
+    *   確認：新設・変更ファイルのJSDoc、`KeyboardShortcuts.js`の手順番号（`Grep`で手順4〜7にそろっていること）、図形クラスは未変更。`js/`の「新しく描く図形の太さ」は`VectorModel.js:31`（新しい位置づけの記述）と`ShapeDataValidation.js:18`（5章に記録済み）のみ。
+    *   監査の軽微な指摘の反映（振る舞いは不変）：
+        *   要件1：`test/edit/StylePanelRules.test.js`の`NEW_STYLE`・`REMEMBERED`に1行JSDocを付与。
+        *   要件2：`test/edit/ShapeStyleEditor.test.js`の該当テストの名前を「ピッカー操作中にundoが起きても…」へ改め、(b)として外部の`beginEdit()`→図形の太さ変更（同一インスタンス）→`commitEdit()`を挟んでも後の確定が1件で記録され`console.warn`が出ないケースを追加（テスト+1件）。既存ケースの検証は不変。
+        *   要件3：`PropertyShapeSection.js`に非公開関数`sourceSelectionText(count)`を追加し、`render`はそれを呼ぶ（表示文字列は同じ）。
+        *   要件4：`ShapeStyleEditor.js`のJSDocの「詳細はRES 5章」を、理由の要約に置換。`js/`を`RES`でGrepした他の該当は無関係の語（`DRAG_START_THRESHOLD`・`LEADING_UNDERSCORES_AND_SPACES`）のみ。
+        *   要件5：`index.html`の位置の根拠のCSSコメントに、パネル自身が1280×800に収まる見積もりを追記（CSSの値は不変）。
+        *   要件6：タスク4の記録を「定数`TEXT_INPUT_TYPES`のJSDocに別扱いの注記」へ修正。
+    *   diff監査の指摘の反映（振る舞いは不変）：`PropertyShapeSection.js`の`SOURCE_NEW_SHAPE_TEXT`のJSDocを「次に描く図形のときの表示の対象の文言。」へ戻した（「選択中：n個」の定義は`sourceSelectionText`）。`StylePanelRules.test.js`の`NEW_STYLE`・`REMEMBERED`の宣言で`=`の後の空白を復元。
+    *   `node --test`：tests 841・pass 841・fail 0（着手前840＋追加1。指摘の反映後も件数は変わらず）。
 
 ### タスク10: 開発資料への反映
 *   **作業内容** :
