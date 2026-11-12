@@ -277,7 +277,7 @@
         *   JSDoc：先頭行の責務（例：「プロパティパネルの変更を、選択中の図形（塗りは塗れる形だけ）と直前に使った値へ反映する編集操作と、色の欄のピッカー操作中の記録の確定、パネルが覚えている色の保持を担う。DOMに触れない」）。クラスJSDocに依存の制約（importは`./StylePanelRules.js`のみ・注入で受け取るもの・知らないこと：DOM・図形種別の分岐・操作モード・`InputTracker`。共通プロパティのスタイル3つは読む）、前提（ドラッグ中を判定しない理由は2章 要件3）、ピッカー操作中の記録の方式（開いたままの編集操作を持たないこと）、`getPanelView`は表示の同期と本クラスの内部からだけ呼ぶこと。各メソッドの`@param`・`@returns`（受理したか）。
         *   テスト（新設）：2章 要件7の`test/edit/ShapeStyleEditor.test.js`の観点。補助関数で実物の`VectorModel`（`replaceAllShapes`で図形を入れ、`setSelection`で選ぶ）・`SnapshotAdapter`（`shouldRestoreSelection: () => true`）・`HistoryManager`・`ShapeStyleEditor`を組み合わせ、`model.onChange(() => editor.getPanelView())`を登録する。履歴は`canUndo`・`undo`・`redo`と図形の`toJSON()`で確かめ、件数は`undo()`を繰り返して確かめる。`console.warn`は`t.mock.method`で置き換え、確定前に別の操作が起きるケースで呼ばれないこと（`mock.calls.length === 0`）を確かめる。直前に使った値の観点として、次の2点を必ず含める：(1) 選択中にパネルで変えたとき、変えた項目だけが直前に使った値に入ること（例：`setStrokeEnabled(true)`は色を変えない、太さは`strokeWidth`だけ、色を選ぶと色と有無。変えていないキーは`getNewShapeStyle()`で前の値のまま）。(2) 選ぶだけ（`setSelection`）・`getPanelView()`だけでは直前に使った値が変わらないこと（要件4「図形を選んだだけでは変わらない」）。
 
-*   [ ] タスク4: 入力欄の判定関数とスペースパン（`InputTracker`）
+*   [x] タスク4: 入力欄の判定関数とスペースパン（`InputTracker`）
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` : 更新
     *   **作業内容** :
@@ -377,7 +377,8 @@
 
 ### タスク4: 入力欄の判定関数とスペースパン（`InputTracker`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/InputTracker.js`：非公開定数`SPACE_OPERATED_INPUT_TYPES`（`checkbox`・`color`）と`export function isSpaceOperatedInputElement(element)`を`isTextInputElement`の直後に追加。`#handleSpaceKeyDown`は`isTextInputElement || isSpaceOperatedInputElement`なら何もせず戻る。`handleKeyUp`は両方偽のときだけ`preventDefault()`（押下状態の解除・カーソル再評価は従来どおり常時）。`isTextInputElement`のJSDocに別扱いの注記、`#handleSpaceKeyDown`・`handleKeyUp`のJSDocを更新。
+    *   自動テストは追加せず（計画どおり）。`node --test`：tests 840・pass 840・fail 0。
 
 ### タスク5: チェックボックス・色の欄の操作中の`Ctrl`なしのショートカット（`KeyboardShortcuts`）
 *   **作業内容** :

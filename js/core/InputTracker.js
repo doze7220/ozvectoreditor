@@ -136,6 +136,7 @@ const NO_SNAP_ASSIST = Object.freeze({
  * テキスト入力扱いとするinput要素のtype一覧（isTextInputElementの判定に用いる）。
  * 日付・時刻系（date/datetime-local/month/time/week）は数字キー・Backspaceによる直接入力を受け付けるため含める。
  * 含めないtypeの例：checkbox / radio / range / color / button / submit / reset / file / image / hidden。
+ * （checkbox・colorはisSpaceOperatedInputElementで別に扱う。）
  * HTMLInputElement.typeプロパティは小文字に正規化され、type属性なし・未知の値の場合は'text'を返すため、
  * それらもテキスト入力扱いになる。
  * @type {ReadonlyArray<string>}
@@ -161,6 +162,26 @@ export function isTextInputElement(element) {
         return true;
     }
     return element instanceof HTMLElement && element.isContentEditable;
+}
+
+/**
+ * スペースキーで操作するinput要素のtype一覧（isSpaceOperatedInputElementの判定に用いる）。
+ * checkbox（Spaceで切り替え）とcolor（Spaceでピッカーを開く）は、スペースパン・ショートカットと
+ * Spaceの奪い合いになるため含める。
+ * 含めないtypeの例：radio / range / button / submit / reset / file / image / hidden。
+ * 現在、これらのtypeのinput要素はプロパティパネル以外に存在しない。
+ * @type {ReadonlyArray<string>}
+ */
+const SPACE_OPERATED_INPUT_TYPES = Object.freeze(['checkbox', 'color']);
+
+/**
+ * 要素がスペースキーで操作するinput要素（checkbox・color）かを判定する。
+ * スペースパンとショートカット（KeyboardShortcuts）の誤爆防止に用いる（isTextInputElementとは別に扱う）。
+ * @param {Element|null} element 判定対象（通常は document.activeElement）
+ * @returns {boolean} type が checkbox または color の input 要素ならtrue
+ */
+export function isSpaceOperatedInputElement(element) {
+    return element instanceof HTMLInputElement && SPACE_OPERATED_INPUT_TYPES.includes(element.type);
 }
 
 /**
@@ -803,8 +824,9 @@ export class InputTracker {
     /**
      * keyupイベントのハンドラ。documentへ購読する。
      * Spaceキーの解放時のみ、スペース押下状態を解除してカーソル形状を再評価する。
-     * テキスト入力中（isTextInputElement）でなければpreventDefault()する（フォーカス中のボタンの
-     * スペース解放による誤クリックの抑止）。テキスト入力中でも押下状態の解除は行う（残留防止）。
+     * テキスト入力中（isTextInputElement）でもスペースで操作する入力欄（isSpaceOperatedInputElement）でもなければ
+     * preventDefault()する（フォーカス中のボタンのスペース解放による誤クリックの抑止。欄の操作は妨げない）。
+     * 欄にフォーカスがあっても押下状態の解除・カーソルの再評価は常に行う（残留防止）。
      * 解放時点でパンのドラッグ中だった場合、そのドラッグはマウスボタンを離すまで継続する
      * （ドラッグ途中で選択・作成の挙動に切り替わる不整合を避けるため）。
      * @param {KeyboardEvent} event
@@ -814,7 +836,7 @@ export class InputTracker {
             return;
         }
 
-        if (!isTextInputElement(document.activeElement)) {
+        if (!isTextInputElement(document.activeElement) && !isSpaceOperatedInputElement(document.activeElement)) {
             event.preventDefault();
         }
 
@@ -1118,13 +1140,14 @@ export class InputTracker {
 
     /**
      * handleKeyDownから委譲されるSpaceキー押下の処理。
-     * テキスト入力中（isTextInputElement）なら文字入力を妨げないため何もしない（preventDefaultもしない）。
+     * テキスト入力中（isTextInputElement）、またはスペースで操作する入力欄（isSpaceOperatedInputElement。
+     * checkbox・color）にフォーカスがあるなら、文字入力・欄の操作を妨げないため何もしない（preventDefaultもしない）。
      * それ以外はpreventDefault()（ページスクロール、およびフォーカス中のボタンのスペース押下による誤クリックの抑止）し、
      * 初回押下時のみスペース押下状態にしてカーソル形状を再評価する（キーリピートでは状態を二重に変えない）。
      * @param {KeyboardEvent} event
      */
     #handleSpaceKeyDown(event) {
-        if (isTextInputElement(document.activeElement)) {
+        if (isTextInputElement(document.activeElement) || isSpaceOperatedInputElement(document.activeElement)) {
             return;
         }
 
