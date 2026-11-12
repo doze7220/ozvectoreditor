@@ -1,5 +1,5 @@
 /**
- * 責務: 矩形（Rect）の当たり判定・塗れる形か（isFillable）・偽のctxによる描画命令・図形データとの相互変換
+ * 責務: 矩形（Rect）の当たり判定（輪郭・内側）・塗れる形か（isFillable）・偽のctxによる描画命令・図形データとの相互変換
  * （fromJSONの受理と不正なデータのエラー文・toJSON・toDrawElement）を、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
@@ -165,6 +165,108 @@ describe('Rect.hitTest', () => {
         const r = new Rect(10, 10, 10, 10);
         assert.equal(r.hitTest(13, 14, 5), true);
         assert.equal(r.hitTest(10, 16, 5), false);
+    });
+});
+
+describe('Rect.hitTestFill', () => {
+    /**
+     * 塗られた標準の矩形（頂点(0,0)・(100,0)・(100,50)・(0,50)）を作る。
+     * @returns {Rect} 塗り色`#ff0000`の矩形
+     */
+    function makeFilledRect() {
+        return new Rect(0, 0, 100, 50, '#000000', 2, '#ff0000');
+    }
+
+    it('塗られた矩形の内側で真・外側で偽', () => {
+        const r = makeFilledRect();
+        assert.equal(r.hitTestFill(50, 25), true);
+        assert.equal(r.hitTestFill(1, 1), true);
+        assert.equal(r.hitTestFill(-1, 25), false);
+        assert.equal(r.hitTestFill(101, 25), false);
+        assert.equal(r.hitTestFill(50, 51), false);
+        assert.equal(r.hitTestFill(50, -1), false);
+    });
+
+    it('辺の上と頂点の上は偽（輪郭の当たりが受け持つ）', () => {
+        const r = makeFilledRect();
+        assert.equal(r.hitTestFill(50, 0), false);
+        assert.equal(r.hitTestFill(100, 25), false);
+        assert.equal(r.hitTestFill(50, 50), false);
+        assert.equal(r.hitTestFill(0, 25), false);
+        assert.equal(r.hitTestFill(0, 0), false);
+        assert.equal(r.hitTestFill(100, 50), false);
+        assert.equal(r.hitTest(50, 0, 5), true);
+    });
+
+    it('fillColorがnullなら内側でも偽', () => {
+        assert.equal(makeRect().hitTestFill(50, 25), false);
+    });
+
+    it('strokeColorがnullでも塗られていれば真', () => {
+        const r = new Rect(0, 0, 100, 50, null, 2, '#00ff00');
+        assert.equal(r.hitTestFill(50, 25), true);
+    });
+
+    it('許容誤差を受け取らず、外側は輪郭の近くでも偽', () => {
+        const r = makeFilledRect();
+        assert.equal(r.hitTestFill(103, 25), false);
+        assert.equal(r.hitTest(103, 25, 5), true);
+    });
+
+    it('頂点を動かした矩形：菱形は軸平行でなくても形の内側で判定する', () => {
+        const r = makeFilledRect();
+        r.setVertex(0, 50, 0);
+        r.setVertex(1, 100, 25);
+        r.setVertex(2, 50, 50);
+        r.setVertex(3, 0, 25);
+        assert.equal(r.hitTestFill(50, 25), true);
+        assert.equal(r.hitTestFill(5, 2), false);
+        assert.equal(r.hitTestFill(95, 48), false);
+    });
+
+    it('頂点を動かした矩形：凹の形のくぼみは偽', () => {
+        const r = new Rect(0, 0, 100, 100, '#000000', 2, '#ff0000');
+        r.setVertex(2, 20, 20);
+        assert.equal(r.hitTestFill(50, 10), true);
+        assert.equal(r.hitTestFill(10, 50), true);
+        assert.equal(r.hitTestFill(60, 60), false);
+    });
+
+    it('頂点を動かした矩形：自己交差（蝶ネクタイ形）の2つの三角形の内側は真で左右のすき間は偽', () => {
+        const r = new Rect(0, 0, 100, 100, '#000000', 2, '#ff0000');
+        r.setVertex(2, 0, 100);
+        r.setVertex(3, 100, 100);
+        assert.deepEqual(r.points, [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 0, y: 100 }, { x: 100, y: 100 }]);
+        assert.equal(r.hitTestFill(50, 20), true);
+        assert.equal(r.hitTestFill(50, 80), true);
+        assert.equal(r.hitTestFill(10, 50), false);
+        assert.equal(r.hitTestFill(90, 50), false);
+    });
+
+    it('translate後は移動先で真・元の位置で偽', () => {
+        const r = makeFilledRect();
+        r.translate(200, 100);
+        assert.equal(r.hitTestFill(250, 125), true);
+        assert.equal(r.hitTestFill(50, 25), false);
+    });
+
+    it('toJSON→fromJSONの往復後も同じ結果', () => {
+        const r = makeFilledRect();
+        r.setVertex(2, 80, 40);
+        const restored = Rect.fromJSON(r.toJSON());
+        for (const [x, y] of [[50, 25], [90, 45], [-5, 25], [50, 0], [10, 40]]) {
+            assert.equal(restored.hitTestFill(x, y), r.hitTestFill(x, y));
+        }
+        assert.equal(restored.hitTestFill(50, 25), true);
+    });
+
+    it('塗られている条件がtoDrawElement()の塗る条件と一致する', () => {
+        for (const fillColor of ['#ff0000', null]) {
+            const r = new Rect(0, 0, 100, 50, '#000000', 2, fillColor);
+            const el = r.toDrawElement();
+            const exporterFills = typeof el.fillColor === 'string' && el.kind === 'polyline' && el.closed === true;
+            assert.equal(r.hitTestFill(50, 25), exporterFills);
+        }
     });
 });
 

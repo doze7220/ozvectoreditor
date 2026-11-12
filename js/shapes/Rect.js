@@ -3,7 +3,7 @@
  * および図形データとの相互変換と描画要素（スプライトの書き出し用）への変換を担う。
  */
 
-import { distanceToSegment, segmentIntersectsRect } from './ShapeGeometry.js';
+import { distanceToSegment, segmentIntersectsRect, isPointInPolygonNonzero } from './ShapeGeometry.js';
 import { validateShapeData } from './ShapeDataValidation.js';
 
 /**
@@ -14,8 +14,8 @@ const RECT_POINT_COUNT = 4;
 
 /**
  * 矩形の図形クラス（図形種別`'rect'`）。頂点は`points[0]`＝topLeft、`[1]`＝topRight、`[2]`＝bottomRight、`[3]`＝bottomLeft（4頂点独立）。
- * 共通メソッド契約（14メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（15メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill）を自律実装する。座標はすべてワールド座標。
  */
 export class Rect {
     /**
@@ -124,6 +124,23 @@ export class Rect {
             const pb = this.points[b];
             return distanceToSegment(x, y, pa.x, pa.y, pb.x, pb.y) <= tolerance;
         });
+    }
+
+    /**
+     * 点(x, y)が塗られた矩形の内側にあるかを判定する内側の当たり判定（共通メソッド契約の第15メソッド）。
+     * 塗られている（`draw`が塗りを描く条件と同じ`isFillable()`が真で`fillColor`が文字列）ときだけ判定し、塗られていなければ常に`false`。
+     * 許容誤差は使わない。境界（辺の上・頂点の上）は内側に含めない（輪郭の`hitTest`が受け持つ）。
+     * `points[0]`→`[1]`→`[2]`→`[3]`（閉じる辺`[3]`→`[0]`を含む）の4頂点の多角形としてnonzeroで判定し、
+     * `setVertex`で頂点を動かせるため軸に平行・凸・自己交差なしを前提にしない。
+     * @param {number} x - 判定対象点のX座標（ワールド座標）
+     * @param {number} y - 判定対象点のY座標（ワールド座標）
+     * @returns {boolean} 塗られた矩形の内側（境界を除く）であれば`true`
+     */
+    hitTestFill(x, y) {
+        if (!this.isFillable() || typeof this.fillColor !== 'string') {
+            return false;
+        }
+        return isPointInPolygonNonzero(x, y, this.points);
     }
 
     /**

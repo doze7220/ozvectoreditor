@@ -197,7 +197,7 @@
         *   2章1-1のとおり`isPointInPolygonNonzero(px, py, points)`を足す。JSDoc（`@param`・`@returns`、nonzeroの規則、閉じた多角形として扱うこと、境界を含まないこと、頂点3未満・面積0は偽、浮動小数の注意、例外を投げないこと、引数を書き換えないこと）を書く。先頭の責務の記述に多角形の内側の判定（nonzero）を足す（3行以内）。既存の3関数は変えない。
         *   テスト：凸（正方形・三角形）・凹（`ship.js`の機体のような4頂点の矢じり形。例`(20,0)`,`(-10,-10)`,`(-4,0)`,`(-10,10)`でくぼみ`(-7,0)`が外）の内側／外側、境界上（辺の上・頂点の上は偽）、五芒星（正五角形の頂点を1つおきに結ぶ）の中心が真・星の先端の三角形の内側が真、巻き数0の穴（外側を一方向・内側を逆方向に回り、橋の辺でつないだ1つの多角形。穴の中は偽・外側の帯は真）、頂点0・1・2個で偽、面積0（3点が一直線・すべて同じ点）で辺の上も外も偽で例外を投げない、頂点の向き（時計回り・反時計回り）によらず同じ結果、引数の配列・頂点を書き換えないこと。
         *   プロジェクトのルートで`node --test`を実行し、`fail 0`と件数を詳細作業内容に記録する。詳細作業内容を記入し、本タスクを`[x]`にする。開発資料に影響があれば更新予定欄へ追記する。
-*   [ ] タスク2: `Rect.hitTestFill`とそのテスト
+*   [x] タスク2: `Rect.hitTestFill`とそのテスト
     *   **対象ファイル** :
         *   `./js/shapes/Rect.js` : 更新
         *   `./test/shapes/Rect.test.js` : 更新（`describe('Rect.hitTestFill')`の追加）
@@ -295,7 +295,9 @@
 
 ### タスク2: `Rect.hitTestFill`とそのテスト
 *   **作業内容** :
-    *   (未実施)
+    *   `js/shapes/Rect.js`：`ShapeGeometry.js`のimportに`isPointInPolygonNonzero`を追加。`hitTest`の直後（`intersectsRect`の直前）に`hitTestFill(x, y)`を追加（先頭の判定`!isFillable() || typeof fillColor !== 'string'`で偽 → `isPointInPolygonNonzero(x, y, this.points)`）。JSDoc（第15メソッド・塗られている条件・許容誤差なし・境界を含まない・4頂点の多角形nonzero・軸平行/凸/自己交差なしを前提にしない）を記載。クラスJSDocの契約の列挙を15メソッド（末尾`hitTestFill`）へ。他のメソッドは未変更。
+    *   `test/shapes/Rect.test.js`：`describe('Rect.hitTestFill')`を追加（11ケース：内側/外側、辺・頂点の上、fillColor null、strokeColor null、許容誤差を使わない、菱形、凹、蝶ネクタイ、translate、往復、toDrawElementの塗る条件との一致）。先頭の責務の記述に「（輪郭・内側）」を追記。既存ケースの書き換えなし。
+    *   `node --test`：tests 862・pass 862・fail 0。
 
 ### タスク3: `Path.hitTestFill`とそのテスト
 *   **作業内容** :
