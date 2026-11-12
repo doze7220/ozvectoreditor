@@ -24,16 +24,16 @@
 ---
 
 ### 2. 現在進行中のタスク・懸念事項
-区分：A（精度・パスの編集のPhaseで拾う候補）／B（テストプレイ・操作感の確認待ち）／C（条件付きで将来検討）／D（着色のPhaseの後続サブフェイズで拾う）。
+区分：A（精度・パスの編集のPhaseで拾う候補）／B（テストプレイ・操作感の確認待ち）／C（条件付きで将来検討）。
 
 * **A. 精度・パスの編集のPhaseで拾う候補**
   * `hitTestHandle`の優先順位（Phase01-06由来）：図形を`setVertex`で極端に小さく潰すと、複数の頂点が同一`tolerance`範囲内に密集して常に先着の1ハンドルが選ばれる（不具合ではない。極端な変形を行うUIが必要なら最小サイズ制約等を検討）。
   * `Curve`への制御点の追加・削除、moveハンドル（平行移動）の追加（Phase01-05 DIR6章の設計決定）。
   * 【発注者の宿題（2026-11-10、Phase05-03のテストプレイ時）・パスの編集のPhaseで検討】曲線の結合（DIRの「やらないこと」で05-03・05-04の対象外）。多角形（パス）の特定の区間の削除（区間単独の選択の方法は別途考える。頂点の選択・パスの分割と合わせて検討）。
   * 【Phase05-04由来・精度のPhaseで拾う】端点への吸い付きの対象を広げるとき（曲線・矩形・円・弧の点、整数px・グリッド）：今の吸い付き（`js/shapes/EndpointSnapRules.js`の`SnapTarget`）は「結合できる線の端点」専用で、`js/edit/EndpointSnapper.js`の反映（描き足し・結合・閉じる）と1対1になっている。結合を伴わない吸い付きを足す場合は、照会の結果に「吸い付くだけで結合しない」種類を区別する項目を足し、`commitDrawnLine`・`joinDraggedEndpoint`が結合として扱わないようにすること。修飾キーによる一時無効は、照会の呼び出し側（`InputTracker`）でキーの状態を渡す形が候補（RES `261110_1514` 5章）。
-  * 【Phase05-02由来・パスの編集のPhaseで拾う】曲線の区間を足すと、パスは現在の書き出し形式（版2）の`polyline`で表せなくなる。新しい`kind`の追加と`formatVersion`の版上げ（エンジンへの連絡票）が要る見込み。`Path`の描画・当たり判定（内側の当たり判定`hitTestFill`を含む。Phase06-03）・`toDrawElement`・`fromJSON`の受理する`kind`、`SpriteSerializer`の外枠、`CodeExporter`の`DRAW_SOURCE`を揃えること。あわせて、`Path.fromJSON`の区間の要素の判定（`ShapeDataValidation.js`の非公開関数`isPlainObject`と同じ条件を`Path.js`に書いている）を、区間の検証が増えるときに共通モジュールへ移すかを見直す（RES `261110_1037` 5章）。
+  * 【Phase05-02由来・パスの編集のPhaseで拾う】曲線の区間を足すと、パスは現在の書き出し形式（版2）の`polyline`で表せなくなる。新しい`kind`の追加と`formatVersion`の版上げ（エンジンへの連絡票）が要る見込み。`Path`の描画・当たり判定・`toDrawElement`・`fromJSON`の受理する`kind`、`SpriteSerializer`の外枠、`CodeExporter`の`DRAW_SOURCE`を揃えること。あわせて、`Path.fromJSON`の区間の要素の判定（`ShapeDataValidation.js`の非公開関数`isPlainObject`と同じ条件を`Path.js`に書いている）を、区間の検証が増えるときに共通モジュールへ移すかを見直す（RES `261110_1037` 5章）。
   * 【発注者案（2026-11-12、Phase06-02のREQ作成時）・精度のPhaseで検討】プロパティパネルに大きさ・座標の数値の欄を足すときは、複数選択でも選択中の図形の比率を保ったまま変化させるのがよい（可能かどうかは要相談）。プロパティパネルは段ごとに部品と配線を分ける作りで、「頂点」の段を足す前提になっている（`PROJECT_ARCHITECTURE.md`3章13.「2段構成（段の足し方）」）。
-  * `InputTracker.js`は約1310行（Phase05-04の吸い付きの配線で約1140行から増加）。再分離の候補は「選択モードのジェスチャー解釈（押下時分岐・クリック解釈・範囲選択の確定）」だが、`InputState`の所有者が分散するため状態の所有者設計を先に行うこと（Phase02-03由来）。Phase05-04で足した吸い付きの作業用フィールド（`#drawStartSnap`・`#drawEndSnap`・`#dragEndpoint`・`#dragSnap`）は入力状態（`DRAWING`・`DRAGGING_HANDLE`）と寿命が同じで、`#resetSnapState()`を呼ぶ箇所が`InputState`の遷移と対応している。状態の所有者を分けるときはこの対応を崩さないこと（表示の点は`VectorModel`が持ち、消す責任は`InputTracker`にある。RES `261110_1514` 5章）。
+  * `InputTracker.js`は約1305行（Phase05-04の吸い付きの配線で約1140行から増加。Phase06-03で当たり分類を`core/PointHitRules.js`へ切り出し）。再分離の候補は「選択モードのジェスチャー解釈（押下時分岐・クリック解釈・範囲選択の確定）」だが、`InputState`の所有者が分散するため状態の所有者設計を先に行うこと（Phase02-03由来）。Phase05-04で足した吸い付きの作業用フィールド（`#drawStartSnap`・`#drawEndSnap`・`#dragEndpoint`・`#dragSnap`）は入力状態（`DRAWING`・`DRAGGING_HANDLE`）と寿命が同じで、`#resetSnapState()`を呼ぶ箇所が`InputState`の遷移と対応している。状態の所有者を分けるときはこの対応を崩さないこと（表示の点は`VectorModel`が持ち、消す責任は`InputTracker`にある。RES `261110_1514` 5章）。
 
 * **B. テストプレイ・操作感の確認待ち（違和感が出たらInterruptで対応）**
   * 【Phase02-04】実装AIの確認は合成イベントのみで、画面描画の目視、実キー入力でのブラウザズーム（`Ctrl`+`=`/`-`/`0`）・ページ全選択の抑止、IME変換中の挙動、macOSの⌘系、削除ボタン押下直後の`Space`/`Enter`（`disabled`化後もフォーカスがボタンに残ることを確認済み）は未確認（RES `261031_2121` 5章）。
@@ -44,30 +44,25 @@
   * 【Phase02-03・操作感確認待ち】本体判定に`hitTest`の許容誤差（画面上5px）が含まれるため、図形の輪郭から5px以内での押下は範囲選択にならない（何も開始せず、clickでその図形を選択）。選択集合の図形のハンドルが別図形の本体と重なる位置ではハンドル操作が優先され別図形をクリック選択できない。密集した図形の近くで使いにくければ対処を検討。
   * 【Phase02-03・仕様】選択集合外の図形を「押してそのまま」ドラッグ移動はできない（1回クリックで選択してからドラッグ。REQで決定）。変える場合は押下時に`setSelection([bodyId])`してから`MOVING_SELECTION`を開始し、閾値以内で離した場合のclick結果と矛盾しないこと（RES `261018_0222` タスク8追記）。
   * 【Phase02-03・環境依存】`DragTracker`と`WindowManager`（RES `261107_0038`で追加）は`mouseup`の取りこぼし保険として`mousemove`の`buttons`を見て解放を検知する。押下中に`buttons`が0のmousemoveを送る環境ではドラッグが途中で切れる。途中切れが出たら見直す。
-  * 【Phase06-02・REQからの逸脱】プロパティパネルの変更はドラッグ中も受け付ける（閾値以前を含むため、太さを打ってEnterを押さずにキャンバスを押した場合の値を失わないため）。閾値を超えた左ドラッグ中に`Tab`でパネルへフォーカスを移して値を変えると、`console.warn`が出てドラッグの移動の一部が履歴に残らない（アプリは停止しない。通常のマウス操作では起こりにくい）。困ったら「編集操作を開いているか」の照会を`InputTracker`に足して`ShapeStyleEditor`へ注入する案がある（RES `261112_1151` 5章）。
   * 【Phase02-04・低優先】キーボードの拡大・縮小はキャンバス全体の中心基準（フロートウィンドウに隠れた領域を除いた中心ではない）。刻み幅は`WHEEL_ZOOM_STEP`を共有し、名称が「ホイール」のまま。修飾キーなしのテンキー`+`/`-`は受け付けない（必要なら対応表へのエントリ追加で対応可能）。
 
 * **C. 条件付きで将来検討（該当する設計変更・機能追加のPhaseで拾う）**
   * **モーフィング**：`Curve`/`Rect`/`Ellipse`の`draw`の`t`引数は伏線で未使用（`Line.draw`は`t`を持たない）。モーフィング機能実装Phaseで対応。
-  * **性能**：`Curve.hitTest`の100分割（現状は無視できる計算量。頂点数が数千を超えたらAABB等を検討）。選択・ホバー系APIの無条件`notifyChange()`（図形数増加で問題が出たら値変化チェックを検討）。`resize`のデバウンス未実装（現状は実害なし）。端点への吸い付きの照会（`EndpointSnapRules.findSnapTarget`）は、直線を描くとき・端点のハンドルのドラッグ中のカーソル移動のたびに全図形の`toJSON()`を呼ぶ（パスは2回。Phase05-04由来。図形が多くて重くなったら端点の取り出しの軽量化を検討）。重なり順のボタンの押せる/押せないの同期（`main.js`の`syncPropertyOrderSection`）は`model.onChange`ごと（ホバー・ドラッグの途中経過を含む）に4操作分の規則を計算する（図形数に比例。Phase06-04由来。結合ボタンの同期と同じ形。図形が極端に多くてドラッグが重くなったら見直す）。
-  * **図形の一覧のPhaseで並べ替えを使うとき（Phase06-04由来）**：`VectorModel.reorderShapes(orderedIds)`は並び全体（全図形のidを1回ずつ）を受け取り、操作の種類を知らないため一覧のドラッグにも使える。使うときは (1) 履歴の`beginEdit`/`commitEdit`を呼び出し側で挟む、(2) キャンバスのドラッグ中（`inputTracker.isDragging()`）の扱いを決める、(3) 並びが変わらなければ`false`で通知しない、(4) 選択集合を変えない、に注意。並べ替えの規則を足すときは`js/edit/ShapeOrderRules.js`へ足し、押せる/押せないの判定（`canReorderSelected`）と1か所に保つ（RES `261112_1936` 5章）。
-  * **当たり判定**：`Ellipse.hitTest`は平均半径`(rx+ry)/2`による近似（極端に細長い楕円で許容幅にブレ。通常操作はテストプレイで問題なし。低優先。Phase06-03で内側の当たり判定`hitTestFill`は楕円の式で厳密にしたが、輪郭の近似は見直していない。`hitTest`の式を変えるときは内側との間に隙間ができないか確かめること）。弧の塗り・`Ellipse`の回転を入れるときは`Ellipse.hitTestFill`の式と`isFillable()`も見直すこと（RES `261112_1513` 5章）。`Ellipse.intersectsRect`は角度固定が前提で、弧の角度編集を実装する際は`draw`（`ctx.ellipse`）の角度正規化と同じ規則を適用すること（Phase02-03）。あわせて、角度は現在図形データに保存されない（`type`から決まる固定値）ため、角度を保存して作業データ形式の版を上げ、往復テスト（`test/io/DocumentSerializer.roundtrip.test.js`）に角度を変えた状態を足すこと（Phase04-01）。
+  * **性能**：`Curve.hitTest`の100分割（現状は無視できる計算量。頂点数が数千を超えたらAABB等を検討）。選択・ホバー系APIの無条件`notifyChange()`（図形数増加で問題が出たら値変化チェックを検討）。`resize`のデバウンス未実装（現状は実害なし）。端点への吸い付きの照会（`EndpointSnapRules.findSnapTarget`）は、直線を描くとき・端点のハンドルのドラッグ中のカーソル移動のたびに全図形の`toJSON()`を呼ぶ（パスは2回。Phase05-04由来。図形が多くて重くなったら端点の取り出しの軽量化を検討）。重なり順のボタンの押せる/押せないの同期（`main.js`の`syncPropertyOrderSection`）は`model.onChange`ごと（ホバー・ドラッグの途中経過を含む）に4操作分の規則を計算する（図形数に比例。Phase06-04由来。結合ボタンの同期と同じ形。図形が極端に多くてドラッグが重くなったら見直す）。プロパティパネルの「図形」の段の表示の同期（`main.js`の`syncPropertyShapeSection`）も`model.onChange`ごとに`shapeStyleEditor.getPanelView()`と`render`を行う（Phase06-02由来。図形が極端に多くて重くなったら値変化チェック等を検討）。
+  * **当たり判定**：`Ellipse.hitTest`は平均半径`(rx+ry)/2`による近似（極端に細長い楕円で許容幅にブレ。通常操作はテストプレイで問題なし。低優先。式を変えるとき・弧の塗りや回転を入れるときの内側の当たり判定`hitTestFill`との関係は`_doc/arch/12_shapes.md`）。`Ellipse.intersectsRect`は角度固定が前提で、弧の角度編集を実装する際は`draw`（`ctx.ellipse`）の角度正規化と同じ規則を適用すること（Phase02-03）。あわせて、角度は現在図形データに保存されない（`type`から決まる固定値）ため、角度を保存して作業データ形式の版を上げ、往復テスト（`test/io/DocumentSerializer.roundtrip.test.js`）に角度を変えた状態を足すこと（Phase04-01）。
   * **Canvas・ウィンドウの動的生成を入れるとき**：`removeEventListener`によるクリーンアップ未実装（現状は実害なし）。`WindowManager`の動的追加の再検知（`MutationObserver`等）・複数同時ドラッグ非対応。`.disabled`（`opacity:0.4`+`pointer-events:none`）の意味が他のウィンドウ種別に適切か（Phase01-04）。
   * **初期表示の暗黙の結合**：`index.html`の初期`.disabled`/`.active`と`InputTracker`の初期モード（Phase02-01で起動時の`applyMode`による同期を導入したが、JS読込前の初期表示用に静的記述も残している）。ボタンid命名規則・初期モードの変更時は`index.html`と`main.js`を揃えること（Phase01-04）。`PaletteController`はボタンが見つからなくてもエラー化しない（警告のみ）。
   * **キー割り当ての手動同期**：ボタンの`title`（例：`選択 (V)`）と`SHORTCUT_BINDINGS`（macOSでも`Ctrl+0`表記）。自動生成するなら`SHORTCUT_BINDINGS`のexportを検討（Phase02-04）。
-  * **入力欄を追加するとき**：`isTextInputElement`は`input`を`type`別に判定する。`checkbox`・`color`はPhase06-02で対応済み（`InputTracker.js`の`isSpaceOperatedInputElement`。フォーカス中は`Space`でパンせず`Ctrl`なしのショートカットを止める）。`range`等その他の`type`にフォーカス中はショートカットが効き、`Space`はパン側で`preventDefault()`される。`select`もテキスト入力扱いせず選択肢のキー移動と競合しうる。テキスト入力欄にフォーカス中は`Ctrl`+`+`/`-`/`0`がブラウザのページズームになる（想定どおり）。中ボタンでパンしても入力欄のフォーカスが外れず、パン後もショートカットが無効のまま（左クリックで解消）。確認項目はRES `261031_2121` 5章（Phase03-01の`?dev`入力欄はRES `261102_0003` 5章B-1〜B-11で確認済み）。
+  * **入力欄を追加するとき**：`isTextInputElement`は`input`を`type`別に判定する。`checkbox`・`color`は対応済み（`InputTracker.js`の`isSpaceOperatedInputElement`）。`range`等その他の`type`にフォーカス中はショートカットが効き、`Space`はパン側で`preventDefault()`される。`select`もテキスト入力扱いせず選択肢のキー移動と競合しうる。テキスト入力欄にフォーカス中は`Ctrl`+`+`/`-`/`0`がブラウザのページズームになる（想定どおり）。中ボタンでパンしても入力欄のフォーカスが外れず、パン後もショートカットが無効のまま（左クリックで解消）。確認項目はRES `261031_2121` 5章（Phase03-01の`?dev`入力欄はRES `261102_0003` 5章B-1〜B-11で確認済み）。
   * **コントロールパネルの高さ**：ボタン・行をさらに追加すると図形パレットと重なる（余白は計算上約29px。`top`は`440px`）。追加時に`#window-shape-palette`の`top`調整または自動配置を検討。
   * **`KeyboardShortcuts`の有効/無効**：インスタンスを保持せず有効/無効APIもないため、モーダル表示等でショートカットを止めるならインスタンス保持とAPI追加が要る（Phase02-04）。
   * **スプライトの書き出し（Phase04-02由来）**：
-    * 書き出したJSの描画処理（`CodeExporter`の`DRAW_SOURCE`）は各図形の`draw`と手で揃えている。図形の描き方を変える・図形クラスを足すとき（パスの曲線の区間等。着色の塗りはPhase06-01で対応済み）は両方を直し、`test/io/CodeExporter.test.js`の一致テストを通すこと。
+    * 書き出したJSの描画処理（`CodeExporter`の`DRAW_SOURCE`）は各図形の`draw`と手で揃えている。図形の描き方を変える・図形クラスを足すとき（パスの曲線の区間等）は両方を直し、`test/io/CodeExporter.test.js`の一致テストを通すこと。
     * 書き出したJSの既定のexportは浅いコピーで、`elements`の配列をモジュール内のデータと共有する。ゲーム側が中身を書き換えると`draw`の結果も変わる（現要件の範囲外。必要になったら深いコピー等を検討）。
   * **スプライトの読み込み（Phase04-03由来）**：
     * エディタでスプライトのJSを開くときは、本アプリが書き出した形（`const spriteData = `の行と直後の`;`＋改行）に頼って取り出す。書き出したJSを手で整形し直す（整形ツール等）と読み込み不可になる。JSの形を変えるときは`CodeExporter`の宣言の開始・終わりの定数（組み立てと取り出しの共通）と`test/io/CodeExporter.test.js`・`test/io/FileContentReader.test.js`を揃えること。
   * **コメントに残る古いPhase番号**（2026-11-09の並べ替え由来）：`test/io/CodeExporter.assembly.test.js`の責務コメントの「P7のキャラ合成」は、アニメーションエディタモードのPhaseのこと（現在の番号はP9）。コードのため資料整理では直していない。次にこのファイルを触るREQで、番号ではなく名前に直すこと。
   * **`InputTracker`の肥大化防止**：状態依存の公開操作（`deleteSelection`/`cancelDraftOrClearSelection`/`selectAll`）を持つ。状態に依存しない操作をショートカット用に足す場合は`InputTracker`へ入れず、`main.js`の注入コールバック側か別クラスへ置くこと（Phase02-04）。
-
-* **D. 着色のPhaseの後続サブフェイズで拾う**
-  * 現在なし（Phase06-01〜06-03由来の項目は06-03で解決。CLOSEDのPhase06-03章）。
 
 ---
 
