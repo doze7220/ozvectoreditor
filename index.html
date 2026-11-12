@@ -231,6 +231,74 @@
         .canvas-loading-cover[hidden] {
             display: none;
         }
+        /* プロパティパネル（静的に置き常に表示。×なし。.disabledは使わない）。
+           開いた状態のキャンバスパレットの左隣に置く（right: キャンバスパレットのright 252px＋幅240px＋間隔16px＝508px）。
+           コントロールパネル・図形選択パレット（右端から16〜236px）・開いた状態のキャンバスパレット（右端から252〜492px）とは
+           横方向で離れているため、各ウィンドウの高さによらず重ならない。
+           ?devの確認用ウィンドウ（left: 16px・幅360px＝左端から376px）とは、画面幅が508＋220＋376＝1104px以上なら重ならない */
+        #window-property-panel {
+            top: 16px;
+            right: 508px;
+            width: 220px;
+        }
+        /* プロパティパネルの段（段ごとに1つの<section>。縦並び） */
+        .property-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        /* 段の間の区切り（上の罫線と余白）。今は1段のため効かない */
+        .property-section + .property-section {
+            border-top: 1px solid #ddd;
+            padding-top: 12px;
+            margin-top: 4px;
+        }
+        .property-section-title {
+            margin: 0;
+            font-size: 13px;
+            color: #333;
+        }
+        /* 表示の対象（「選択中：n個」／「次に描く図形」） */
+        .property-source {
+            font-size: 12px;
+            color: #666;
+        }
+        .property-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #333;
+        }
+        .property-toggle {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            min-width: 52px;
+            cursor: pointer;
+        }
+        .property-label {
+            min-width: 52px;
+        }
+        .property-note {
+            font-size: 11px;
+            color: #888;
+        }
+        .property-unit {
+            font-size: 12px;
+            color: #666;
+        }
+        /* 太さの欄（.float-windowのuser-select: noneは変えず、この欄に限り文字の選択を許可する） */
+        #property-stroke-width {
+            width: 56px;
+            box-sizing: border-box;
+            user-select: text;
+        }
+        .property-row input[type="color"] {
+            width: 36px;
+            height: 24px;
+            padding: 0;
+        }
         /* 開発者向け確認用ウィンドウ（?dev時のみ表示。右側のコントロールパネル・図形パレットと重ならない左上に置く） */
         #window-dev-panel {
             top: 16px;
@@ -319,6 +387,32 @@
             <div id="canvas-list" class="canvas-list"></div>
             <p id="canvas-notice" class="canvas-notice" hidden></p>
             <p id="canvas-file-notice" class="canvas-notice" hidden></p>
+        </div>
+    </div>
+    <div id="window-property-panel" class="float-window">
+        <div class="window-header">
+            <span class="window-title">プロパティ</span>
+        </div>
+        <div class="window-body">
+            <section id="property-shape-section" class="property-section">
+                <h3 class="property-section-title">図形</h3>
+                <div id="property-shape-source" class="property-source"></div>
+                <div class="property-row">
+                    <label class="property-toggle"><input type="checkbox" id="property-stroke-enabled"> 線</label>
+                    <input type="color" id="property-stroke-color" title="線の色">
+                    <span id="property-stroke-color-note" class="property-note"></span>
+                </div>
+                <div class="property-row">
+                    <label for="property-stroke-width" class="property-label">太さ</label>
+                    <input type="number" id="property-stroke-width" min="1" max="100" step="1" title="線の太さ（1〜100の整数）">
+                    <span class="property-unit">px</span>
+                </div>
+                <div class="property-row">
+                    <label class="property-toggle"><input type="checkbox" id="property-fill-enabled"> 塗り</label>
+                    <input type="color" id="property-fill-color" title="塗りの色">
+                    <span id="property-fill-color-note" class="property-note"></span>
+                </div>
+            </section>
         </div>
     </div>
     <div id="window-dev-panel" class="float-window" hidden>

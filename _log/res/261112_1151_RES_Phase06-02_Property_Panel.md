@@ -309,7 +309,7 @@
         *   JSDoc：先頭行の責務（例：「プロパティパネルの『図形』の段（`#property-shape-section`）の表示と、利用者の操作（線・塗りの有無、太さ、色）のコールバックへの通知を担う。図形データ・選択状態には関与しない」）。typedef`StylePanelView`（`edit/StylePanelRules.js`と同じ内容。二重定義である旨）・`PropertyShapeSectionActions`（各コールバックの引数・呼ばれる契機・`onStrokeWidthChange`の戻り値`false`で書き戻すこと）。クラスJSDocに段の構成（段ごとに1部品、ルート要素は自分の`<section>`、後から段を足しても本クラスを変えないこと）。
         *   本タスクの時点では`index.html`・`main.js`から使われない（画面は変わらない）。`node --test`が従来どおり成功することを確かめる。
 
-*   [ ] タスク7: プロパティパネルのウィンドウ（`index.html`）
+*   [x] タスク7: プロパティパネルのウィンドウ（`index.html`）
     *   **対象ファイル** :
         *   `./index.html` : 更新
     *   **作業内容** :
@@ -393,7 +393,9 @@
 
 ### タスク7: プロパティパネルのウィンドウ（`index.html`）
 *   **作業内容** :
-    *   （未実施）
+    *   `index.html`：`#window-canvas-palette`の後・`#window-dev-panel`の前に`#window-property-panel`（見出し「プロパティ」・`×`なし・`hidden`/`.disabled`なし）と`<section id="property-shape-section" class="property-section">`（見出し「図形」、表示の対象・線の行・太さの行・塗りの行。初期値なし）を追加。
+    *   CSS：`#window-property-panel`（`top: 16px; right: 508px; width: 220px;`と位置の根拠コメント）、`.property-section`・`.property-section + .property-section`・`.property-section-title`・`.property-source`・`.property-row`・`.property-toggle`・`.property-label`・`.property-note`・`.property-unit`・`#property-stroke-width`（幅56px・`user-select: text`）・`.property-row input[type="color"]`（36×24px）を`#window-dev-panel`の直前に追加。既存CSSは未変更。
+    *   未配線（操作しても何も起きない）。`node --test`：tests 840・pass 840・fail 0。ブラウザでの目視確認は未実施。
 
 ### タスク8: プロパティパネルの配線（`main.js`）
 *   **作業内容** :
@@ -445,6 +447,10 @@
 *   **`ShapeStyleEditor`の細部の判断**：`previewColor`は受け取った色を`toColorInputValue`の変換結果（小文字`#rrggbb`）で図形・直前に使った値へ入れる（`<input type="color">`の値は常にこの形）。ピッカー操作中の記録と今の対象（項目・図形インスタンスの並び）が違うときだけ先に確定する。選択なし・塗れる形なしの`false`の分岐でも、記録との不一致があれば先に確定してから返す。`setFillEnabled`が`false`を返す（選択中に塗れる形が無い）場合も冒頭の`#finishPreview()`は行う。
 *   **`getPanelView()`の副作用の利用**：`setStrokeEnabled(true)`・`setFillEnabled(true)`が表示中の色を得るために内部で`getPanelView()`を呼ぶ（覚えている色を更新するが、同じ状態なら結果は同じ）。
 *   **将来の注意**：`COLOR_ITEMS`の`shapeKey`は直前に使った値（`NewShapeStyle`）の色のキー名と同じ前提。項目を足す（透明度等）ときは表へ足すが、`NewShapeStyle`のキーも揃える必要がある。
+
+### タスク7での実装時の注意
+*   パネルの各行の幅（`.property-toggle`・`.property-label`の`min-width: 52px`、色の欄36×24px、太さの欄56px）と文字の大きさは、本文に数値の指定が無いため実装時に決めた見た目の値。幅220px（内側196px）に1行で収まる見積もりだが、ブラウザでの目視確認が必要（特に補足「表示できない色」が折り返さないか）。
+*   開発資料の更新予定：2章の記載（`_doc/arch/01_index_html.md`）のとおりで追加なし。
 
 ### テストプレイで確認すべき項目（操作手順 → 期待する結果）
 **A. パネルの置き場所・構成**
