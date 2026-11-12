@@ -1,9 +1,10 @@
 /**
  * 責務：キーボードショートカットのキー→操作の対応表と、keydownの受理判定（IME変換中・テキスト入力中・修飾キー・
- * ドラッグ中・キーリピート・preventDefaultの要否）のみを担う。操作の実体はmain.jsから注入されたコールバックへ委譲する。
+ * Spaceで操作する入力部品（チェックボックス・色の欄）の操作中・ドラッグ中・キーリピート・preventDefaultの要否）のみを担う。
+ * 操作の実体はmain.jsから注入されたコールバックへ委譲する。
  */
 
-import { OperationMode, SHAPE_TYPES, isTextInputElement } from './InputTracker.js';
+import { OperationMode, SHAPE_TYPES, isTextInputElement, isSpaceOperatedInputElement } from './InputTracker.js';
 
 /**
  * 対応表エントリのShift規則（3値）。本ファイル内でのみ用いる（exportしない）。
@@ -56,7 +57,7 @@ const ShiftRule = Object.freeze({
  *     （選択集合が空・削除の非受理ならfalse）
  * @property {() => boolean} paste クリップボードの図形を貼り付ける。クリップボードが空なら何もしない（操作モードも切り替えない）。
  *     選択モード以外では選択モードへ切り替えてから貼り付ける。クリップボードが空でも常にtrue（ブラウザ標準の貼り付けを起こさないため。
- *     ドラッグ中は受理判定（#handleKeyDownの手順4）によりそもそも呼ばれない）
+ *     ドラッグ中は受理判定（#handleKeyDownの手順5）によりそもそも呼ばれない）
  * @property {() => boolean} duplicate 選択集合の図形をその場で複製する。ブラウザ標準のブックマーク追加を抑止するため常にtrue
  */
 
@@ -137,15 +138,17 @@ export class KeyboardShortcuts {
      * 1. IME変換中（event.isComposing）なら何もしない。
      * 2. テキスト入力中（isTextInputElement(document.activeElement)）なら何もしない。
      * 3. 対応表から一致エントリを探す（#findBinding）。一致なしなら何もしない。
-     * 4. ドラッグ中（isDragging()が真）なら実行しない。
-     * 5. キーリピート（event.repeat）かつrepeatable: falseのエントリなら実行しない。
-     * 6. 注入コールバックactions[binding.action](binding.arg)を呼び、trueが返った場合のみpreventDefault()する。
+     * 4. ctrl: falseのエントリで、Spaceで操作する入力部品（isSpaceOperatedInputElement(document.activeElement)。
+     *    チェックボックス・色の欄）にフォーカスがあるなら何もしない（Ctrl付きのエントリは対象外）。
+     * 5. ドラッグ中（isDragging()が真）なら実行しない。
+     * 6. キーリピート（event.repeat）かつrepeatable: falseのエントリなら実行しない。
+     * 7. 注入コールバックactions[binding.action](binding.arg)を呼び、trueが返った場合のみpreventDefault()する。
      * preventDefault()の原則：受理した（コールバックがtrueを返した）キーのみpreventDefault()し、受理しなかったキーは
-     * preventDefault()しない（IME変換中・テキスト入力中・対応表に一致なし・コールバックがfalseを含む）。
-     * 唯一の例外：ctrl: trueのエントリが、ドラッグ中（手順4）またはキーリピート（手順5）で実行されなかった場合は、
+     * preventDefault()しない（IME変換中・テキスト入力中・対応表に一致なし・Spaceで操作する入力部品の操作中・コールバックがfalseを含む）。
+     * 唯一の例外：ctrl: trueのエントリが、ドラッグ中（手順5）またはキーリピート（手順6）で実行されなかった場合は、
      * 操作は実行せずpreventDefault()のみ行う（Ctrl+=/-/0/A/Z/Y/C/X/V/Dでブラウザのズーム・ページ全選択・標準の取り消し/やり直し・
      * 標準のコピー・切り取り・貼り付け・ブックマーク追加が起きないようにするため）。
-     * ctrl: falseのエントリが手順4・5で実行されなかった場合はpreventDefault()もしない。
+     * ctrl: falseのエントリが手順5・6で実行されなかった場合はpreventDefault()もしない。
      * @param {KeyboardEvent} event
      */
     #handleKeyDown(event) {
@@ -161,7 +164,12 @@ export class KeyboardShortcuts {
             return;
         }
 
-        // 手順4・5：ドラッグ中、またはリピート不可エントリのキーリピートは実行しない（例外判定はここ1箇所のみ）
+        // 手順4：Spaceで操作する入力部品（チェックボックス・色の欄）の操作中は、Ctrlなしのショートカットを働かせない
+        if (!binding.ctrl && isSpaceOperatedInputElement(document.activeElement)) {
+            return;
+        }
+
+        // 手順5・6：ドラッグ中、またはリピート不可エントリのキーリピートは実行しない（例外判定はここ1箇所のみ）
         if (this.#actions.isDragging() || (event.repeat && !binding.repeatable)) {
             if (binding.ctrl) {
                 event.preventDefault();

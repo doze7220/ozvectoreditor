@@ -285,7 +285,7 @@
         *   JSDoc：`SPACE_OPERATED_INPUT_TYPES`（含める`type`と理由、含めない`type`の例、パネル以外にこの`type`の`input`が無いこと）、`isSpaceOperatedInputElement`（用途：スペースパンとショートカットの誤爆防止、`@param`・`@returns`）。`isTextInputElement`のJSDocの「含めないtypeの例」に、`checkbox`・`color`は`isSpaceOperatedInputElement`で別に扱うことを足す。`#handleSpaceKeyDown`・`handleKeyUp`のJSDocを新しい条件へ改める。
         *   自動テストは足さない（`HTMLInputElement`に依存しNode.jsで確かめられない。2章 要件5）。`node --test`が従来どおり成功することを確かめる。
 
-*   [ ] タスク5: チェックボックス・色の欄の操作中の`Ctrl`なしのショートカット（`KeyboardShortcuts`）
+*   [x] タスク5: チェックボックス・色の欄の操作中の`Ctrl`なしのショートカット（`KeyboardShortcuts`）
     *   **対象ファイル** :
         *   `./js/core/KeyboardShortcuts.js` : 更新
     *   **作業内容** :
@@ -382,7 +382,8 @@
 
 ### タスク5: チェックボックス・色の欄の操作中の`Ctrl`なしのショートカット（`KeyboardShortcuts`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/KeyboardShortcuts.js`：importに`isSpaceOperatedInputElement`を追加。`#handleKeyDown`の`#findBinding`直後に「`!binding.ctrl && isSpaceOperatedInputElement(document.activeElement)`なら`return`（`preventDefault()`しない）」を新設（手順4）。判定順序のJSDocを1〜7へ改め、`preventDefault()`しない場合の列挙に追記。ファイル先頭の責務定義に当該判定を追記（3行）。古い手順番号の参照4箇所（`paste`のtypedef・`preventDefault()`の原則2箇所・行内コメント）を新番号へ更新。`Grep`（`手順`）で`KeyboardShortcuts.js`内に古い番号が残らず、`js/`の他ファイルに`#handleKeyDown`の手順番号の参照が無いことを確認（`CanvasLibrary.js`等の「手順」は別の処理の手順）。
+    *   自動テストは追加せず（計画どおり）。`node --test`：tests 840・pass 840・fail 0。
 
 ### タスク6: プロパティパネルの「図形」の段のUI部品（`palette/PropertyShapeSection.js`）
 *   **作業内容** :
