@@ -224,7 +224,7 @@
         *   2章要件1のとおり、先頭行の責務（3行以内。例「責務：選択中の要素の重なり順（並び）の変更の規則（最前面へ・前へ・後ろへ・最背面へ）を、状態を持たずDOMに触れない関数として担う。」）、`ShapeOrderOperation`、`reorderSelected`、`canReorderSelected`を作る。何もimportしない。規則の文面（4操作の走査の向き・隣の1つ分・離れた選択はまとめない・連続した選択は一緒に動く・相対的な順を保つ・未知の操作は`Error`）と、要件1の例をJSDocに書く。各関数・定数にJSDoc（`@param`・`@returns`・`@throws`）を書く。並べ替えの判定を他の関数へ重複して書かない（`canReorderSelected`は`reorderSelected`の結果との比較のみ）。
         *   テスト：2章要件6の`test/edit/ShapeOrderRules.test.js`の観点をすべて入れる。補助関数（`Set`から`isSelected`を作る等）にもJSDocを書く。
         *   プロジェクトのルートで`node --test`を実行し、`fail 0`と件数を詳細作業内容に記録する。詳細作業内容を記入し、本タスクを`[x]`にする。開発資料に影響があれば更新予定欄へ追記する。
-*   [ ] タスク2: `VectorModel.reorderShapes`とそのテスト
+*   [x] タスク2: `VectorModel.reorderShapes`とそのテスト
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js` : 更新（公開メソッドの追加）
         *   `./test/core/VectorModel.reorderShapes.test.js` : 新規
@@ -301,7 +301,11 @@
 
 ### タスク2: `VectorModel.reorderShapes`とそのテスト
 *   **作業内容** :
-    *   （未記入）
+    *   対象ファイル：`./js/core/VectorModel.js`（`replaceShape`の後・`onChange`の前に`reorderShapes(orderedIds)`を追加。他は不変）、`./test/core/VectorModel.reorderShapes.test.js`（新規）。
+    *   `reorderShapes`：配列でない／要素数違い／現存しないid／重複idは`console.warn`のうえ`false`。idからインスタンスを引いて新配列を作り、全位置で同じインスタンスなら`false`（警告・通知なし）。それ以外は`#shapes`を置換して通知1回・`true`。JSDocに処理順、触れない状態の列挙、履歴は呼び出し側の責務、操作の種類を受け取らない理由を記載。
+    *   テスト：並び変更・同一参照・`toJSON`同一・通知1回、選択集合（`getSelectedIds`は新しい並びの順）、ホバー・作成中図形・選択矩形・吸い付きの点・直前に使った値の不変、idの採番不変、同じ並び・0個の`[]`で`false`・通知なし・警告なし、不正入力6種で`false`・並び不変・通知なし・警告1回。
+    *   `node --test`（プロジェクトルート）：tests 965 / pass 965 / fail 0。
+    *   開発資料への影響：既存の更新予定欄（タスク9）のとおりで追加の影響なし。
 
 ### タスク3: 重なり順の変更の手順（`edit/ShapeOrderEditor.js`）とそのテスト
 *   **作業内容** :

@@ -649,6 +649,46 @@ export class VectorModel {
     }
 
     /**
+     * 図形の並び（重なり順。先頭＝最も奥、末尾＝最も手前）を、指定したidの並び全体で置き換える。
+     * (1)`orderedIds`が配列でない・要素数が今の図形の数と違う・今の図形に無いidを含む・同じidを2回以上含む場合は、
+     *    console.warnのうえ何も変えず（通知もせず）falseを返す（並びを壊さない）。
+     * (2)idから今の図形インスタンスを引いて新しい配列を作る。今の並びとすべての位置で同じインスタンスなら、
+     *    何も変えず（通知もせず・警告もせず）falseを返す（図形0個で`[]`を渡す場合を含む）。
+     * (3)#shapesを新しい配列に置き換え、変更を通知して（1回）trueを返す。
+     * 操作の種類（最前面へ等）は受け取らず、新しい並び全体だけを受け取る（並べ替えの規則を`core/`へ持ち込まず、
+     * 任意の並びの設定からも同じ公開操作を使えるようにするため。規則は`edit/ShapeOrderRules.js`が持つ）。
+     * 触れないもの：選択集合（同じidの図形が選ばれたまま。`getSelectedIds()`が返す順は新しい並びに従う）・ホバー・
+     * 作成中の図形・選択矩形・吸い付きの表示の点・新しく描く図形のスタイル（直前に使った値）・idの採番（#nextId）・
+     * 図形インスタンスの中身（id・頂点・スタイル。インスタンスは並び替えるだけで作り直さない）。
+     * 履歴の記録（beginEdit/commitEdit）は呼び出し側の責務。
+     * @param {Array<string>} orderedIds 現在の全図形のidをちょうど1回ずつ並べた配列（先頭＝最も奥）
+     * @returns {boolean} 並びを変えたか
+     */
+    reorderShapes(orderedIds) {
+        if (!Array.isArray(orderedIds) || orderedIds.length !== this.#shapes.length) {
+            console.warn('VectorModel.reorderShapes: 現在の全図形のidをちょうど1回ずつ並べた配列ではないため、並びを変えません。', orderedIds);
+            return false;
+        }
+        const shapeById = new Map(this.#shapes.map((s) => [s.id, s]));
+        const nextShapes = [];
+        const usedIds = new Set();
+        for (const id of orderedIds) {
+            if (!shapeById.has(id) || usedIds.has(id)) {
+                console.warn('VectorModel.reorderShapes: 現在の全図形のidをちょうど1回ずつ並べた配列ではないため、並びを変えません。', orderedIds);
+                return false;
+            }
+            usedIds.add(id);
+            nextShapes.push(shapeById.get(id));
+        }
+        if (nextShapes.every((s, i) => s === this.#shapes[i])) {
+            return false;
+        }
+        this.#shapes = nextShapes;
+        this.#notifyChange();
+        return true;
+    }
+
+    /**
      * データ変更時に呼び出されるコールバック関数を登録する。
      * @param {Function} callback 登録するコールバック関数
      */
