@@ -252,7 +252,7 @@
     *   **作業内容** :
         *   2章3-1のとおり、`#property-shape-section`の後に`#property-order-section`（見出し「重なり順」・`.order-button-grid`に4ボタン・`title`にキー・`disabled`で始める）を足し、`.order-button-grid`のスタイル（コメント付き）を`.property-row input[type="color"]`の後に足す。`#window-property-panel`のコメントの高さ・下端の記述と、`.property-section + .property-section`のコメントを更新する。「図形」の段・他のウィンドウ・他のスタイルは変えない。
         *   この時点ではボタンは`disabled`のまま押せない（配線はタスク6）。`node --test`の`fail 0`と件数を記録し、詳細作業内容（見積もった高さ・下端の値と式）を記入して`[x]`にする。開発資料に影響があれば更新予定欄へ追記する。
-*   [ ] タスク6: `main.js`の配線（「重なり順」の段とキーのコールバック）
+*   [x] タスク6: `main.js`の配線（「重なり順」の段とキーのコールバック）
     *   **対象ファイル** :
         *   `./js/main.js` : 更新
     *   **作業内容** :
@@ -332,7 +332,11 @@
 
 ### タスク6: `main.js`の配線（「重なり順」の段とキーのコールバック）
 *   **作業内容** :
-    *   （未記入）
+    *   対象ファイル：`./js/main.js`のみ。import 3行（`ShapeOrderEditor`・`ShapeOrderOperation`・`PropertyOrderSection`）、`// 7.7.`の後に`// 7.8.`ブロック（先頭コメント付き。`shapeOrderEditor`生成、`performShapeOrder`（ドラッグ中は`false`、他は`apply`の結果）、`propertyOrderSection`生成、`syncPropertyOrderSection`と`model.onChange`登録）、`KeyboardShortcuts`注入に4コールバック（`join`の後）、起動時に`syncPropertyShapeSection()`の後で`syncPropertyOrderSection()`を1回呼ぶ。既存の配線は変更なし。
+    *   `KeyboardShortcuts`の対応表には4キーがまだ無いため、4コールバックは呼ばれない。ボタンは働く。
+    *   `node --test`（プロジェクトルート）：tests 975 / pass 975 / fail 0。`node --check js/main.js`は成功。
+    *   実装後の`main.js`の行数：681行。
+    *   開発資料への影響：既存の更新予定欄（タスク9）のとおりで追加の影響なし。
 
 ### タスク7: `KeyboardShortcuts`の対応表に4つのキーを足す
 *   **作業内容** :

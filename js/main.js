@@ -26,6 +26,9 @@ import { CanvasPalette } from './palette/CanvasPalette.js';
 import { PaletteLauncher } from './palette/PaletteLauncher.js';
 import { ShapeStyleEditor } from './edit/ShapeStyleEditor.js';
 import { PropertyShapeSection } from './palette/PropertyShapeSection.js';
+import { ShapeOrderEditor } from './edit/ShapeOrderEditor.js';
+import { ShapeOrderOperation } from './edit/ShapeOrderRules.js';
+import { PropertyOrderSection } from './palette/PropertyOrderSection.js';
 
 // DOMが読み込まれた後に初期化を行う
 document.addEventListener('DOMContentLoaded', () => {
@@ -470,6 +473,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     model.onChange(syncPropertyShapeSection);
 
+    // 7.8. プロパティパネル（「重なり順」の段）配線
+    // 表示（4ボタンの押せる/押せないと押下の通知）はPropertyOrderSection（palette/）が、変更の手順（並びを変える1件の
+    // 編集操作と各操作で並びが変わるかの照会）はShapeOrderEditor（edit/）が、並べ替えの規則はShapeOrderRules（edit/）が持ち、
+    // ここは生成・注入・同期のみを行う。表示の同期はmodel.onChangeのみで行う（機能専用の同期経路は足さない）。
+    // 段を足すときの形は7.7.と同じ（段ごとにUI部品1つとこのブロックと同じ形のブロック1つ。既存の段の配線は変えない）。
+    const shapeOrderEditor = new ShapeOrderEditor({ model, editRecorder: historyManager });
+
+    /**
+     * 選択中の図形の重なり順を変える。「重なり順」のボタンとキー（Home/PageUp/PageDown/End）の共通経路
+     * （どちらもこの関数のみを呼び、shapeOrderEditor.applyを直接呼ばない）。
+     * (1) ドラッグ中（InputTracker.isDragging()が真）なら何もせずfalse（不受理）。ボタンはショートカット以外の
+     *     呼び出し元のため、中ボタンのパン中に左クリックで押される場合に備えてここで判定する。
+     * (2) それ以外はshapeOrderEditor.apply(operation)の結果を返す。
+     * @param {string} operation - ShapeOrderOperationの値
+     * @returns {boolean} 並びを変えた場合のみtrue（不受理・並びが変わらない操作ではfalse）
+     */
+    function performShapeOrder(operation) {
+        if (inputTracker.isDragging()) {
+            return false;
+        }
+        return shapeOrderEditor.apply(operation);
+    }
+
+    const propertyOrderSection = new PropertyOrderSection(document.getElementById('property-order-section'), {
+        onBringToFront: () => performShapeOrder(ShapeOrderOperation.BRING_TO_FRONT),
+        onBringForward: () => performShapeOrder(ShapeOrderOperation.BRING_FORWARD),
+        onSendBackward: () => performShapeOrder(ShapeOrderOperation.SEND_BACKWARD),
+        onSendToBack: () => performShapeOrder(ShapeOrderOperation.SEND_TO_BACK)
+    });
+
+    /**
+     * プロパティパネルの「重なり順」の段の4ボタンの押せる/押せない状態を、現在の選択と並びで各操作により
+     * 並びが変わるか（shapeOrderEditor.getAvailability()）に同期する（propertyOrderSection.render）。
+     * model.onChangeのコールバックとして登録し、起動時にも明示的に1回呼び出す。DOMの更新はPropertyOrderSectionが担い、ここは橋渡しのみ。
+     */
+    function syncPropertyOrderSection() {
+        propertyOrderSection.render(shapeOrderEditor.getAvailability());
+    }
+
+    model.onChange(syncPropertyOrderSection);
+
     // 8. キーボードショートカット配線
     /**
      * 表示中キャンバスの中心を基準に、ホイール1刻みと同じ刻み幅（WHEEL_ZOOM_STEP）で拡大・縮小する。
@@ -526,6 +570,11 @@ document.addEventListener('DOMContentLoaded', () => {
         deleteSelection: () => inputTracker.deleteSelection(),
         // 選択中の線の結合（結合ボタンと同一経路。結合した場合のみtrue）
         join: performJoin,
+        // 重なり順の変更（ボタンと同一経路。並びを変えた場合のみtrue）
+        bringToFront: () => performShapeOrder(ShapeOrderOperation.BRING_TO_FRONT),
+        bringForward: () => performShapeOrder(ShapeOrderOperation.BRING_FORWARD),
+        sendBackward: () => performShapeOrder(ShapeOrderOperation.SEND_BACKWARD),
+        sendToBack: () => performShapeOrder(ShapeOrderOperation.SEND_TO_BACK),
         // 取り消し・やり直し（取り消し・やり直しボタンと同一経路。受理条件はperformUndo/performRedoのみが判定する）
         undo: performUndo,
         redo: performRedo,
@@ -613,6 +662,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // プロパティパネルの表示も同様に、index.htmlの初期状態やonChange通知に依存させず、
     // Modelの選択・直前に使った値の実値で明示的に1回同期する
     syncPropertyShapeSection();
+
+    // プロパティパネル「重なり順」の段の4ボタンの押せる/押せない状態も同様に、index.htmlの初期disabled属性や
+    // onChange通知に依存させず、選択集合と図形の並びの実値で明示的に1回同期する
+    syncPropertyOrderSection();
 
     // キャンバス名の表示・読み込み中の覆い要素・キャンバスパレットも同様に、onChange通知に依存させず
     // 状態の実値で明示的に1回同期する（名前の表示・覆い要素はCanvasLibrary、パレットはCanvasFileOperationsの状態。
