@@ -266,7 +266,7 @@
         *   2章要件4のとおり、`SHORTCUT_BINDINGS`の`join`の後に4エントリ（コメント付き）を足し、typedef`ShortcutActions`に`bringToFront`・`bringForward`・`sendBackward`・`sendToBack`（戻り値の意味：並びを変えた場合のみtrue）を足す。判定順序・`#findBinding`・既存のエントリ・`import`は変えない。`edit/`をimportしない。
         *   `index.html`の4ボタンの`title`（`最前面へ (Home)`・`前へ (PageUp)`・`後ろへ (PageDown)`・`最背面へ (End)`）と対応表が一致することを確かめる。タスク6で`main.js`が4つのコールバックを渡していることを確かめる（欠けると起動時に`Error`）。
         *   `node --test`の`fail 0`と件数を記録し、詳細作業内容を記入して`[x]`にする。開発資料に影響があれば更新予定欄へ追記する。
-*   [ ] タスク8: JSDocの記載漏れの確認
+*   [x] タスク8: JSDocの記載漏れの確認
     *   **対象ファイル** :
         *   タスク1〜7で変更・新設したファイル（確認のみ。漏れがあればそのファイルを修正）
     *   **作業内容** :
@@ -347,7 +347,15 @@
 
 ### タスク8: JSDocの記載漏れの確認
 *   **作業内容** :
-    *   （未記入）
+    *   確認のみ（ファイルの修正なし）。漏れは見つからなかった。
+    *   新設3ファイル（`ShapeOrderRules.js`・`ShapeOrderEditor.js`・`PropertyOrderSection.js`）と新設テスト3ファイルの先頭の責務はいずれも3行以内。
+    *   `ShapeOrderRules.js`（`ShapeOrderOperation`・`assertKnownOperation`・`reorderSelected`・`canReorderSelected`）、`ShapeOrderEditor.js`（typedef・クラス・コンストラクタ・`apply`・`getAvailability`）、`PropertyOrderSection.js`（typedef2つ・`ORDER_BUTTONS`・クラス・コンストラクタ・`render`）のJSDoc（`@param`・`@returns`・`@throws`）が揃っている。テストの補助関数にもJSDocあり。
+    *   `VectorModel.reorderShapes`のJSDocに触れない状態の列挙（選択集合・ホバー・作成中の図形・選択矩形・吸い付きの表示の点・直前に使った値・idの採番・図形インスタンスの中身）がある。
+    *   `ShapeOrderAvailability`は`ShapeOrderEditor.js`と`PropertyOrderSection.js`で同じ内容、互いに二重定義の旨を明記済み。
+    *   `KeyboardShortcuts`の対応表（`Home`・`PageUp`・`PageDown`・`End`）と`index.html`の4ボタンの`title`が一致。`ShortcutActions`の4つに戻り値の記述（並びを変えた場合のみtrue）あり。
+    *   `main.js`の`performShapeOrder`・`syncPropertyOrderSection`にJSDocあり。（`performShapeOrder`は`@param`・`@returns`あり。`syncPropertyOrderSection`は引数・戻り値なし）
+    *   `node --test`（プロジェクトルート）：tests 975 / pass 975 / fail 0。
+    *   開発資料への影響：既存の更新予定欄（タスク9）のとおりで追加の影響なし。
 
 ### タスク9: 開発資料への反映
 *   **作業内容** :
