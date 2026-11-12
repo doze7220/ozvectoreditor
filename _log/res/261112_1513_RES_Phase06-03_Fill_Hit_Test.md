@@ -237,7 +237,7 @@
         *   2章1-2のとおり`hitTestFill(x, y)`を`hitTest`の直後に足す（先頭の判定 → `return false`）。JSDoc（第15メソッド、塗れない形のため常に偽、曲線と弦で囲まれた部分も内側としないこと、`x`・`y`は使わないこと、`@param`・`@returns`）。クラスJSDocの契約の列挙を15メソッドへ。
         *   テスト：`fillColor`が色の文字列でも`null`でも、曲線と弦で囲まれる部分・曲線の上・離れた点で常に偽、`toDrawElement()`の`kind`が`quadratic`（塗らない）であることと一致すること。
         *   `node --test`の`fail 0`と件数を記録し、詳細作業内容を記入して`[x]`にする。この時点で5クラスすべてに`hitTestFill`が実装されていることを確かめる。
-*   [ ] タスク7: `DEFAULT_STROKE_WIDTH`のJSDocの食い違いの修正
+*   [x] タスク7: `DEFAULT_STROKE_WIDTH`のJSDocの食い違いの修正
     *   **対象ファイル** :
         *   `./js/shapes/ShapeDataValidation.js` : 更新（JSDocのみ）
     *   **作業内容** :
@@ -325,7 +325,9 @@
 
 ### タスク7: `DEFAULT_STROKE_WIDTH`のJSDocの食い違いの修正
 *   **作業内容** :
-    *   (未実施)
+    *   `js/shapes/ShapeDataValidation.js`：`DEFAULT_STROKE_WIDTH`のJSDocの「（新しく描く図形の太さ）」を「（引数を省略して生成したときの値。新しく描く図形の太さは`VectorModel`の既定スタイルが決める）」へ修正（`VectorModel.js`の定数JSDocの整理2.と整合）。JSDocのみ。コード・他のJSDoc・エラー文は未変更。
+    *   `node --test`：tests 895・pass 895・fail 0。
+    *   diff監査の指摘により修正：JSDocの「`VectorModel`の既定スタイルが決める」を「`core/VectorModel.js`の`DEFAULT_NEW_SHAPE_STYLE`が決める」へ直した（参照先の特定のため）。`node --test`：tests 895・pass 895・fail 0。
 
 ### タスク8: 当たり分類の規則（`core/PointHitRules.js`）とそのテスト
 *   **作業内容** :

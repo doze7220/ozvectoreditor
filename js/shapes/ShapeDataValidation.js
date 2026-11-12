@@ -15,7 +15,7 @@
  * `strokeWidth`のキーが無い図形データを読み込むときの太さ（px）。`shapes/`内の唯一の定義。
  * `io/SpriteSerializer.js`の`DEFAULT_STROKE_WIDTH`（書き出し形式の読む側の既定値）と同じ値であるべき。
  * `shapes/`は`io/`をimportできないため別に定義する。
- * 図形クラスのコンストラクタの`strokeWidth`の既定値（新しく描く図形の太さ）とは別の定義。
+ * 図形クラスのコンストラクタの`strokeWidth`の既定値（引数を省略して生成したときの値。新しく描く図形の太さは`core/VectorModel.js`の`DEFAULT_NEW_SHAPE_STYLE`が決める）とは別の定義。
  * @type {number}
  */
 const DEFAULT_STROKE_WIDTH = 2;
