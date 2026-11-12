@@ -271,7 +271,7 @@
     *   **作業内容** :
         *   新設・変更したメソッド・関数・typedefのJSDoc（`@param`・`@returns`）、新設ファイルの先頭行の責務（3行以内）、`ShapeGeometry.js`の先頭の責務の記述、5クラスのクラスJSDocの共通メソッド契約の列挙（15メソッド。`Path`を含む）、`InputTracker`の当たり分類の記述（クラスJSDoc・`#classifyPoint`・`PointHit`）、`Path.hitTestFill`の曲線の区間の注意・`Ellipse.hitTestFill`の弧の塗り・回転の注意・`Ellipse.js`の`ELLIPSE_TYPES`のJSDocの列挙に`hitTestFill`があることを確認する。テストファイルの補助関数のJSDocも確認する。
         *   `node --test`の`fail 0`と件数を記録し、詳細作業内容を記入して`[x]`にする。
-*   [ ] タスク11: 開発資料への反映（最終タスク）
+*   [x] タスク11: 開発資料への反映（最終タスク）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` : 更新（1章・2章・3章・4章の一覧）
         *   `./_doc/arch/12_shapes.md` : 更新
@@ -350,7 +350,9 @@
 
 ### タスク11: 開発資料への反映
 *   **作業内容** :
-    *   (未実施)
+    *   `PROJECT_ARCHITECTURE.md`：1章（フォルダ構造に`PointHitRules.js`・`test/core/PointHitRules.test.js`・`test/shapes/ShapeGeometry.test.js`、「存在しないもの」の入れ替え、`core/`の方針の改め、依存方向に`InputTracker → PointHitRules`）、2章（15メソッド・塗れる形の記述・JSDocの食い違いの項目を削除）、3章3.（当たり分類の項を追加）、4章の一覧（`PointHitRules.js`の行）を更新。
+    *   `_doc/arch/12_shapes.md`（`isPointInPolygonNonzero`・15メソッド契約・`hitTestFill`の項・食い違いの記述の削除・新規図形の注意・`Path`/`Ellipse`の将来の注意）、`10_ShapeFactory.md`（15メソッド）、`06_InputTracker.md`（知らないこと・当たり分類・行数1305）、`16_test.md`（新設2ファイル・各クラスの`hitTestFill`・共通モジュールのテストの記述・テストできない箇所・書き換えた既存のテストは無し）を更新。`18_PointHitRules.md`を新規作成。
+    *   `node --test`：tests 913・pass 913・fail 0。
 
 ## 5. 懸念事項・要確認ポイント
 
@@ -367,6 +369,7 @@
     *   `ShapeGeometry.isPointInPolygonNonzero`の式を変えると`Rect`・`Path`の内側の当たりが同時に変わるため、`test/shapes/`の全テストと`test/core/PointHitRules.test.js`を確かめる。
     *   当たり分類の規則を変えるときは`PointHitRules.js`だけを変え、`InputTracker`の押下・クリックの分岐の表と食い違わないこと（`bodyId`が選択集合内か外かで押下の振る舞いが決まる）。
 *   **テストできない箇所**：`InputTracker`の`#classifyPoint`から`classifyPointHit`への受け渡し、ホバーの強調・カーソルの形・押下・クリックの分岐（DOM・`DragTracker`に依存）。テストプレイで確かめる。
+*   **開発資料への反映（タスク11）**：`PointHitRules.js`の行を4章の一覧の末尾に`18_PointHitRules.md`として追加した。3章の当たり分類の項は、3.「入力監視」の「端点への吸い付き」の直後の小項目として置いた。`InputTracker.js`の行数は実測1305行（`06_InputTracker.md`は1310→1305）。
 
 ### テストプレイで確認すべき項目（操作手順 → 期待する結果）
 ※ 自己交差する閉じたパス・巻き数0の穴を持つパス・頂点を動かした矩形等のファイルは現場設計AIが用意する。特記がなければ選択モード・表示倍率100%。

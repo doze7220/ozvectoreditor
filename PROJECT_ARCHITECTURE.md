@@ -26,6 +26,7 @@
 │   │   ├── CanvasManager.js
 │   │   ├── ViewTransform.js
 │   │   ├── InputTracker.js
+│   │   ├── PointHitRules.js    # 当たり分類の規則（状態なし）。InputTrackerから使う
 │   │   ├── KeyboardShortcuts.js
 │   │   ├── DragTracker.js
 │   │   ├── HistoryManager.js
@@ -70,6 +71,7 @@
 │       └── SpriteCheckInspector.js
 ├── test/                       # 自動テスト（node --test でのみ実行。index.html・js/からは参照しない）。中はjs/の構成に合わせる
 │   ├── core/
+│   │   ├── PointHitRules.test.js
 │   │   ├── ShapeFactory.test.js
 │   │   ├── VectorModel.replaceShape.test.js
 │   │   ├── VectorModel.snapPoint.test.js
@@ -81,6 +83,7 @@
 │   │   ├── Ellipse.test.js
 │   │   ├── Path.test.js
 │   │   ├── PathJoinRules.test.js
+│   │   ├── ShapeGeometry.test.js
 │   │   └── EndpointSnapRules.test.js
 │   ├── io/
 │   │   ├── DocumentSerializer.roundtrip.test.js
@@ -115,30 +118,29 @@
         └── closed/    # フェイズ大番号移行時にアーカイブ済みRESの退避先
 ```
 
-**存在しないもの**：エディタでのJSの実行（スプライトのJSはテキストから取り出すだけ）、本アプリが書き出した形以外のJSの読み込み・スプライトの`elements`からの図形の作り直し（`CodeImporter`は作らない。`_doc/PROJECT_MILESTONE.md`の将来の野望）、確認用ページでの拡大縮小・移動・編集・複数ファイルの同時表示・組み立て用のJSの表示、エディタから確認用ページへのリンク、組み立て用のJSの書き出し（アニメーションエディタモードのPhase）、スプライトのJSON（`<名前>.json`）の出力・読み込み・確認用ページでのJSONの表示（Phase 04-04でやめた。スプライトはJSだけ。`.json`は作業データファイル）、複数キャンバスの一括出力、PNG・SVG等の形式、独自のカラーピッカー（色はブラウザ標準の`<input type="color">`）、プロパティパネルの「頂点」の段（精度のPhase）、直前に使った値（新しく描く図形のスタイル）の保存・キャンバスごとの既定の色、塗った内側のクリックでの選択（内側の当たり判定）、弧・曲線・直線・開いたパスの塗り（塗れるのは`rect`・`circle`・閉じた`path`のみ）、透明度・グラデーション、ツールバー、レイヤー、グループ化、`package.json`・`node_modules`・ビルド手順、テストの自動実行（保存時・コミット時のフック、CI）、画面の操作や描画のテスト。
+**存在しないもの**：エディタでのJSの実行（スプライトのJSはテキストから取り出すだけ）、本アプリが書き出した形以外のJSの読み込み・スプライトの`elements`からの図形の作り直し（`CodeImporter`は作らない。`_doc/PROJECT_MILESTONE.md`の将来の野望）、確認用ページでの拡大縮小・移動・編集・複数ファイルの同時表示・組み立て用のJSの表示、エディタから確認用ページへのリンク、組み立て用のJSの書き出し（アニメーションエディタモードのPhase）、スプライトのJSON（`<名前>.json`）の出力・読み込み・確認用ページでのJSONの表示（Phase 04-04でやめた。スプライトはJSだけ。`.json`は作業データファイル）、複数キャンバスの一括出力、PNG・SVG等の形式、独自のカラーピッカー（色はブラウザ標準の`<input type="color">`）、プロパティパネルの「頂点」の段（精度のPhase）、直前に使った値（新しく描く図形のスタイル）の保存・キャンバスごとの既定の色、塗った内側による範囲選択（範囲選択は輪郭のみ）、弧・曲線・直線・開いたパスの塗り（塗れるのは`rect`・`circle`・閉じた`path`のみ）、透明度・グラデーション、ツールバー、レイヤー、グループ化、`package.json`・`node_modules`・ビルド手順、テストの自動実行（保存時・コミット時のフック、CI）、画面の操作や描画のテスト。
 
 **フォルダ分割の方針**
-*   `core/`：横断的な処理（入力→状態→描画の複数層にまたがるもの）。
+*   `core/`：横断的な処理（入力→状態→描画の複数層にまたがるもの）と、その処理だけが使う状態を持たない規則の関数（`PointHitRules`（当たり分類の規則）。`InputTracker`から使う。DOM・状態に触れない形で`node --test`で確かめるために切り出したもので、`InputTracker`の再分離ではない）。
 *   `shapes/`：1種類の図形（図形クラス。種別ごとに1ファイル）と、図形クラスだけが使う共通の関数（幾何の計算・図形データの検証。継承ではなく関数の切り出し。詳細は4章`shapes/`）、図形をまたぐ規則（`PathJoinRules`（結合の規則）・`EndpointSnapRules`（端点への吸い付きの規則）。第3の種類で、`shapes/`の外から使う。3章11.・12.）。`palette/`：1つのUI部品（プロパティパネルは段ごとに1つのUI部品。ウィンドウ自体を配線するクラスは無い）。
 *   `io/`：作業データ形式の変換（`DocumentSerializer`）、IndexedDBへの読み書き（`CanvasStorage`）、作業データファイル・スプライトのJSのブラウザ内での読み書き（`DocumentFileIO`）、スプライト（書き出し形式）の組み立て（`SpriteSerializer`）とスプライトJSのテキストの組み立てと実行しない取り出し（`CodeExporter`）、開く・インポートで選ばれたファイルの中身の判別と作業データの取り出し（`FileContentReader`）のみ。
 *   `check/`：確認用ページ（`sprite-check.html`）専用。DOM・選んだJSの実行・描画を含む。importは`check/`内と`io/`の`SpriteSerializer`のみ。`main.js`・`edit/`・`palette/`・`core/`の状態を持つモジュールをimportせず、`js/`の他のモジュール・`index.html`は`check/`をimportしない。
 *   `edit/`：`io/`・`core/`の機能（結合の手順`PathJoiner`と吸い付きの手順`EndpointSnapper`のみ`shapes/`の規則も）を組み合わせて図形一式を扱う手順（貼り付け・複製、履歴のスナップショットの取得・適用、キャンバス一覧の管理、ファイル操作の組み立て、パスの結合、端点への吸い付きと描き足し、選択中の図形のスタイルの変更（プロパティパネル））。操作モードを知らない。操作モードに依存する判定・処理は`shouldRestoreSelection`・`prepareSwitch`・`prepareInsert`のような中立な注入関数で受け取る。
 *   `test/`：自動テスト。Node.jsはテストの実行（`node --test`）にのみ使い、エディタのビルド・配信には使わない。依存は`test/ → js/`の一方向で、`index.html`・`js/`は`test/`を参照しない。規則は4章`test/`。
-*   **依存方向**：`main.js → edit → io → core → shapes`の一方向。`core/`は`io/`をimportしない。`core/`・`io/`は`edit/`をimportしない。`edit/PathJoiner`は例外として`shapes/PathJoinRules`を、`edit/EndpointSnapper`は例外として`shapes/EndpointSnapRules`・`shapes/PathJoinRules`をimportする（下向き。`edit/`の他のクラスは`shapes/`をimportしない）。`edit/ShapeStyleEditor`は例外として`edit/StylePanelRules`を（`edit/`内）importする。`shapes/EndpointSnapRules`は`shapes/PathJoinRules`をimportする（`shapes/`内。`PathJoinRules`は`Path`のみimportするため循環しない）。`core/InputTracker`は`edit/`をimportせず、`main.js`が注入した`EndpointSnapper`のメソッドを呼ぶだけ（`editRecorder`と同じ形）。`check/ → io`（確認用ページ専用。エディタ本体の依存の列とは独立）。
+*   **依存方向**：`main.js → edit → io → core → shapes`の一方向。`core/`は`io/`をimportしない。`core/`・`io/`は`edit/`をimportしない。`edit/PathJoiner`は例外として`shapes/PathJoinRules`を、`edit/EndpointSnapper`は例外として`shapes/EndpointSnapRules`・`shapes/PathJoinRules`をimportする（下向き。`edit/`の他のクラスは`shapes/`をimportしない）。`edit/ShapeStyleEditor`は例外として`edit/StylePanelRules`を（`edit/`内）importする。`shapes/EndpointSnapRules`は`shapes/PathJoinRules`をimportする（`shapes/`内。`PathJoinRules`は`Path`のみimportするため循環しない）。`core/InputTracker`は`core/PointHitRules`をimportする（`core/`内。`PointHitRules`は何もimportしない）。`core/InputTracker`は`edit/`をimportせず、`main.js`が注入した`EndpointSnapper`のメソッドを呼ぶだけ（`editRecorder`と同じ形）。`check/ → io`（確認用ページ専用。エディタ本体の依存の列とは独立）。
 
 ---
 
 ### 2. データ構造（Model）の概要
 *   **図形（Shape）**：`shapes/`の図形クラスのインスタンス。
     *   共通プロパティ：`type`（`ShapeFactory`が受理する文字列と一致）・`id`（`VectorModel`が採番）・`strokeColor`（色の文字列、または`null`＝線なし）・`strokeWidth`・`fillColor`（色の文字列、または`null`＝塗りなし）。
-    *   **スタイル3つ（`strokeColor`・`strokeWidth`・`fillColor`）の読み書き**：図形固有のプロパティ（頂点の保持形式等）ではなく共通プロパティのため、`VectorModel`が書き（`updateShapeStyles`・`startDraft`・`updateNewShapeStyle`の作成途中の図形）、`edit/StylePanelRules`・`edit/ShapeStyleEditor`が読む。各モジュールの「図形固有のプロパティ名を知らない」約束の例外として扱う（`ShapeStyleEditor`は書き換えを`model.updateShapeStyles`へ渡すだけで図形へ直接代入しない。図形クラスにメソッドは足さない＝共通メソッド契約は14メソッドのまま）。
+    *   **スタイル3つ（`strokeColor`・`strokeWidth`・`fillColor`）の読み書き**：図形固有のプロパティ（頂点の保持形式等）ではなく共通プロパティのため、`VectorModel`が書き（`updateShapeStyles`・`startDraft`・`updateNewShapeStyle`の作成途中の図形）、`edit/StylePanelRules`・`edit/ShapeStyleEditor`が読む。各モジュールの「図形固有のプロパティ名を知らない」約束の例外として扱う（`ShapeStyleEditor`は書き換えを`model.updateShapeStyles`へ渡すだけで図形へ直接代入しない。図形クラスにメソッドは足さない＝共通メソッド契約は、Phase 06-03で`hitTestFill`を足して15メソッドになった。スタイルの読み書きのためのメソッドは無い）。
     *   頂点の保持形式は図形クラスごとに異なる（`Line`は`x1, y1, x2, y2`、`Curve`/`Rect`/`Ellipse`/`Path`は`points`配列（`Path`は頂点数が可変で、`closed`・`segments`も持つ）。4章`shapes/`）。
-    *   **塗れる形**：`rect`・`circle`・閉じた`path`。公開メソッド`isFillable()`が返す（`Line`・`Curve`・弧は常に偽、`Rect`は常に真、`Ellipse`は`type === 'circle'`、`Path`は`closed === true`。データには保存しない。Phase 06-02のプロパティパネル（`StylePanelRules`・`ShapeStyleEditor`）が使う。06-03で内側の当たり判定に使う予定）。
+    *   **塗れる形**：`rect`・`circle`・閉じた`path`。公開メソッド`isFillable()`が返す（`Line`・`Curve`・弧は常に偽、`Rect`は常に真、`Ellipse`は`type === 'circle'`、`Path`は`closed === true`。データには保存しない。Phase 06-02のプロパティパネル（`StylePanelRules`・`ShapeStyleEditor`）が使う。内側の当たり判定（各図形クラスの`hitTestFill`）も使う）。
     *   **`fillColor`は塗れない形でも保持し、塗れる形のときだけ描く**（DIR Phase 06の決定。後続のPhaseでパスを開く・閉じる等をしても塗りが壊れないため）。`toJSON`は保持している値をそのまま出力する。線なし（`strokeColor: null`）で塗れない形（または塗りなし）の図形は何も描かれないが、データとして受理し、従来どおり選べる。
 *   **図形データ**（1図形のJSON表現）：全図形共通で`{ type, id, points: [{ x, y }, ...], strokeColor, strokeWidth, fillColor }`を共通の項目とし（`fillColor`は最後のキー）、種別により項目を足す（`path`）。
     *   **色・太さの読み込み**：`strokeColor`は文字列または`null`（線なし）。`fillColor`は文字列または`null`（塗りなし。キーが無ければ`null`として読む）。それ以外の型は不正。`strokeWidth`は正の有限の数値で、キーが無ければ（`undefined`）2pxとして読む（既定値の`shapes/`内の定義は`ShapeDataValidation.js`の`DEFAULT_STROKE_WIDTH`。`SpriteSerializer`の同名の定数と同じ値であるべき別の定義で、`shapes/`が`io/`をimportできないため。図形クラスのコンストラクタの`strokeWidth = 2`とも別の定義）。色の文字列の中身はCSSの色として正しいかを検証しない。
     *   **線の太さ2pxの4つの定義と位置づけ**：(1) `core/VectorModel.js`の`DEFAULT_NEW_SHAPE_STYLE.strokeWidth`＝新しく描く図形の既定の太さ（起動時の直前に使った値）の唯一の定義。(2) 各図形クラスのコンストラクタの既定値`strokeWidth = 2`＝引数を省略して生成したときの値（`ShapeFactory.create`はスタイルを渡さないが`startDraft`が直後に(1)で上書きするため、新しく描く図形の太さを決めない。(1)と同じ値である必要はない）。(3) `ShapeDataValidation.js`の`DEFAULT_STROKE_WIDTH`＝読み込みでキーが無いときの値。(4) `io/SpriteSerializer.js`の`DEFAULT_STROKE_WIDTH`＝書き出し形式の読む側の既定値（(3)と同じ値であるべき）。
-    *   **JSDocの食い違い（JSDocが直るまでの正しい記述）**：`js/shapes/ShapeDataValidation.js:18`の`DEFAULT_STROKE_WIDTH`のJSDocの「図形クラスのコンストラクタの`strokeWidth`の既定値（新しく描く図形の太さ）とは別の定義」は、括弧内が実態と食い違う（新しく描く図形の太さは(1)が決める。コンストラクタの既定値は(2)のとおり引数を省略したときの値）。「コンストラクタの既定値とは別の定義」という点は正しい。同ファイルは06-02で変更していない。
     *   **`path`**：`{ type: 'path', id, points, closed, segments: [{ kind: 'line' }, ...], strokeColor, strokeWidth, fillColor }`（キー順）。`closed`は真偽値のみ。
         *   区間の約束：`segments[i]`＝`points[i]`→`points[i+1]`、閉じたパスの最後＝`points[n-1]`→`points[0]`。要素数は開いた`n - 1`・閉じた`n`。`kind`は現在`'line'`のみ。曲線の区間は`kind`の値と区間の要素のキーを足して拡張する。区間の要素の余分なキーは無視する。
         *   頂点数の下限は開いた2・閉じた3、上限なし。長さ0の区間は可。
@@ -245,6 +247,7 @@
 2.  **描画サイクル (`CanvasManager.js`)**：常時ループ（rAF）は持たない。`VectorModel.onChange`・`ViewTransform.onChange`・ウィンドウリサイズの3経路から同一関数`renderCurrentState()`（`main.js`）で同期的に再描画する。描画順は4章`CanvasManager.js`。
 3.  **入力監視 (`InputTracker.js`・`KeyboardShortcuts.js` → `VectorModel.js`)**：状態が更新されると`VectorModel`が更新イベントを発火し、再描画を促す。
     *   **端点への吸い付き**：直線を描くとき、および選択モードで線の端点のハンドルをドラッグするときの吸い付きは12.。
+    *   **当たり分類（クリック・押下・ホバー・カーソル）**：規則の正本は`core/PointHitRules.classifyPointHit`（`InputTracker`の`#classifyPoint`は図形配列・選択中かの照会・許容誤差を渡すだけ）。ハンドル（選択集合の図形のみ・手前優先・Phase 06-03前のまま）→ 本体（選択集合の図形の輪郭・手前優先 → それ以外は手前から、輪郭または塗った内側（`hitTestFill`）。選択集合の図形の内側を優先しない）。塗った内側で押しても範囲選択は始まらない。選択集合外の図形は押してそのままドラッグでは動かない（1回クリックで選んでからドラッグ）。範囲選択は輪郭のみ（`intersectsRect`。塗った内側が矩形にかかっても選ばれない）。見えない図形（塗られていない）は輪郭の当たりだけで選ばれる（2026-11-12 発注者の決定）。**Phase 06-03での振る舞いの変化（発注者了承済み）**：塗りのない図形どうしの輪郭の重なる所、および選択集合の図形が複数当たる場合に、今までの奥（図形配列の先頭側）ではなく手前が選ばれるようになった。
     *   **ドラッグのライフサイクル**：左ドラッグ（ハンドルドラッグ・本体ドラッグ・範囲選択）とパンの、押下から解放まで（開始ボタン・移動量閾値・追従/終了検知・中断・終了直後のclick抑止）は`DragTracker`が`window`へのcapture購読で一元管理する。ドラッグの意味の解釈（パン量・頂点変形・選択集合の平行移動・範囲選択）は`InputTracker`が行う。閾値判定のみスクリーン座標で行い、当たり判定・移動量・選択矩形はワールド座標で扱う。
     *   **範囲選択の流れ**：選択モードで空白を左ボタンで押下 → 閾値超過後、押下点と現在のカーソル位置で`VectorModel`の選択矩形を更新（描画は`CanvasManager`）→ 解放時に矩形を正規化し、各図形の`intersectsRect`をポリモーフィックに呼んで掛かった図形で選択集合を置き換え、選択矩形を破棄する（0件なら全解除）。中断（blur・モード切替）時は選択矩形を破棄するのみで確定しない。
     *   **キーボード操作**：`document`の`keydown`は、`Space`を`InputTracker`（スペースパン）、それ以外のキーを`KeyboardShortcuts`が排他的に担当する（同一キーを二重に解釈しない）。`keyup`は`Space`のみ`InputTracker`が購読する。**入力欄の規則**：テキスト入力扱いの`input`（太さの欄を含む）にフォーカスがあるときはスペースパンとすべてのショートカットが働かない。`type`が`checkbox`・`color`の`input`にフォーカスがあるときは、`Space`のパンをせず`preventDefault()`もしない（部品の標準動作＝チェックの切り替え・ピッカーを開く）、`Ctrl`なしのショートカットは働かず、`Ctrl`付きは働く。判定は`InputTracker.js`の`isTextInputElement`・`isSpaceOperatedInputElement`（部品のidに結びつけず`type`全般に当てる）。操作の実体は`main.js`から注入されたコールバック（`applyMode`/`applyShapeType`/`viewTransform`/`InputTracker`の公開メソッド/`performUndo`・`performRedo`/`ClipboardController`の`copy`・`cut`・`paste`・`duplicate`/`performJoin`）で実行する。
@@ -397,3 +400,4 @@
 | `io/` | `_doc/arch/15_io.md` |
 | `test/`（自動テスト） | `_doc/arch/16_test.md` |
 | `sprite-check.html`・`check/`（確認用ページ） | `_doc/arch/17_sprite_check.md` |
+| `PointHitRules.js` | `_doc/arch/18_PointHitRules.md` |
