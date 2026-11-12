@@ -1,5 +1,6 @@
 /**
- * 責務: 図形クラスが当たり判定・範囲選択で共通に使う幾何の計算（点と線分の距離・線分と軸平行矩形の交差・2次ベジェ曲線の点）を、状態を持たない関数として提供する。
+ * 責務: 図形クラスが当たり判定・範囲選択で共通に使う幾何の計算（点と線分の距離・線分と軸平行矩形の交差・2次ベジェ曲線の点・
+ * 多角形の内側の判定（nonzero））を、状態を持たない関数として提供する。
  */
 
 /**
@@ -90,4 +91,51 @@ export function quadraticBezierPoint(p0, p1, p2, t) {
         x: oneMinusT * oneMinusT * p0.x + 2 * oneMinusT * t * p1.x + t * t * p2.x,
         y: oneMinusT * oneMinusT * p0.y + 2 * oneMinusT * t * p1.y + t * t * p2.y,
     };
+}
+
+/**
+ * 点(px, py)が多角形の内側にあるかを、nonzero規則（巻き数が0でなければ内側。Canvasの引数なしfill()と同じ）で判定する。
+ * pointsは「最後の頂点から最初の頂点へ戻る辺を常に含む閉じた多角形」として扱う（呼び出し側は始点を重複させない）。
+ * 自己交差する多角形（五芒星など）の中心は内側、逆向きに回った内側の穴（巻き数0）は外側になる。
+ * 境界上の点（辺の上・頂点の上）は内側に含めない（偽）。境界は輪郭の当たりが受け持つ。
+ * 頂点数3未満・面積0（全頂点が一直線上・すべて同じ点・長さ0の辺を含む）は常に偽。除算をしないため0除算は起きない。
+ * 浮動小数の注意：「辺の上」は外積がちょうど0の点に限る。小数の座標で辺のごく近く（ちょうど上ではない）にある点は、
+ * 丸めによりどちら側にも判定され得る。
+ * 引数を書き換えず、例外は投げない。
+ * @param {number} px - 判定する点のX座標（ワールド座標）
+ * @param {number} py - 判定する点のY座標（ワールド座標）
+ * @param {Array<{x: number, y: number}>} points - 多角形の頂点の並び（閉じる辺を含む。始点を重複させない）
+ * @returns {boolean} 内側（境界を除く）ならtrue
+ */
+export function isPointInPolygonNonzero(px, py, points) {
+    const n = points.length;
+    if (n < 3) return false;
+
+    // 境界上の点は偽
+    for (let i = 0; i < n; i++) {
+        const a = points[i];
+        const b = points[(i + 1) % n];
+        const cross = (b.x - a.x) * (py - a.y) - (b.y - a.y) * (px - a.x);
+        if (
+            cross === 0 &&
+            px >= Math.min(a.x, b.x) && px <= Math.max(a.x, b.x) &&
+            py >= Math.min(a.y, b.y) && py <= Math.max(a.y, b.y)
+        ) {
+            return false;
+        }
+    }
+
+    // 巻き数（Sundayの方法）
+    let winding = 0;
+    for (let i = 0; i < n; i++) {
+        const a = points[i];
+        const b = points[(i + 1) % n];
+        const cross = (b.x - a.x) * (py - a.y) - (b.y - a.y) * (px - a.x);
+        if (a.y <= py && b.y > py) {
+            if (cross > 0) winding += 1;
+        } else if (a.y > py && b.y <= py) {
+            if (cross < 0) winding -= 1;
+        }
+    }
+    return winding !== 0;
 }

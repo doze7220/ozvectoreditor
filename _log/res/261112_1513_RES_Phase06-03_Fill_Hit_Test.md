@@ -189,7 +189,7 @@
     *   書き換えた既存のテストがあれば記録する（計画時点では無し）。
 
 ## 3. タスクリスト
-*   [ ] タスク1: 多角形の内側の判定（`ShapeGeometry.js`）とそのテスト
+*   [x] タスク1: 多角形の内側の判定（`ShapeGeometry.js`）とそのテスト
     *   **対象ファイル** :
         *   `./js/shapes/ShapeGeometry.js` : 更新（関数の追加・先頭の責務の記述の更新）
         *   `./test/shapes/ShapeGeometry.test.js` : 新規
@@ -289,7 +289,9 @@
 
 ### タスク1: 多角形の内側の判定（`ShapeGeometry.js`）とそのテスト
 *   **作業内容** :
-    *   (未実施)
+    *   `js/shapes/ShapeGeometry.js`に`isPointInPolygonNonzero(px, py, points)`を追加（2章1-1の順序どおり：頂点3未満で偽 → 辺の上・頂点の上で偽 → Sundayの方法の巻き数が0でなければ真）。JSDocに規則・閉じた多角形・境界を含まない・面積0は偽・浮動小数の注意・非破壊・例外なしを記載。先頭の責務の記述に多角形の内側の判定（nonzero）を追加（3行以内）。既存3関数は未変更。
+    *   `test/shapes/ShapeGeometry.test.js`を新規作成（凸・凹・境界上・五芒星・巻き数0の穴・頂点0〜2個・面積0・向き不変・非破壊）。
+    *   `node --test`：tests 851・pass 851・fail 0（新規10ケース追加、既存ケースの書き換えなし）。
 
 ### タスク2: `Rect.hitTestFill`とそのテスト
 *   **作業内容** :
