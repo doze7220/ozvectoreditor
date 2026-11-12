@@ -19,7 +19,7 @@
         *   **読むもの**：図形の共通プロパティのスタイル3つと`isFillable()`。importなし・DOMに触れない・図形種別の分岐なし。色名の解釈にはDOMが要るため、`#rrggbb`・`#rgb`以外の色は変換しない（`null`）。
         *   **使う側**：`ShapeStyleEditor`のみ。
     *   **ShapeStyleEditor.js**：プロパティパネルの変更を選択中の図形（または直前に使った値）へ反映する1件の編集操作の手順と、パネルが覚えている色の保持（規則は`StylePanelRules`）。流れと設計判断は3章13.。
-        *   **公開メソッド**：`getPanelView`・`setStrokeEnabled`・`setFillEnabled`・`setStrokeWidth`・`previewColor`・`commitColor`・`finishColorPreview`。呼び出し元は`main.js`のパネルのコールバック（`PropertyShapeSection`経由）と表示の同期（`syncPropertyShapeSection`が`getPanelView`を呼ぶ）。各変更メソッドは受理したか（`boolean`）を返す。
+        *   **公開メソッド**：`getPanelView`・`setStrokeEnabled`・`setFillEnabled`・`setStrokeWidth`・`previewColor`・`commitColor`・`finishColorPreview`。呼び出し元は`main.js`のパネルのコールバック（`PropertyShapeSection`経由）と表示の同期（`syncPropertyShapeSection`が`getPanelView`を呼ぶ）。各変更メソッドは受理したか（`boolean`）を返す（`finishColorPreview`はピッカー操作中の記録を確定するだけで、戻り値は無い）。
         *   **依存**：`model`は`getShapes`・`isSelected`・`getNewShapeStyle`・`updateNewShapeStyle`・`updateShapeStyles`のみ使う。`editRecorder`（実体`historyManager`）は注入で受け取る。importは`./StylePanelRules.js`のみ。DOMなし・`try/catch`なし・ドラッグ中の判定なし。
         *   **契約**：図形への書き換えは`model.updateShapeStyles`へ渡すだけ（直接代入しない）。選択中の図形が無いときは直前に使った値だけを変え、履歴に記録しない。色の欄はピッカー操作中（`previewColor`）は履歴を開かずに図形へ反映し、確定（`commitColor`・`finishColorPreview`・他の変更メソッドの冒頭）で開始時の色へ戻してから`beginEdit` → 最後の色 → `commitEdit`の1件にする。記録した図形インスタンスが`model.getShapes()`から1つでも無くなっていれば記録せず捨てる。**`getPanelView()`は覚えている色を更新するため純粋な照会ではない**（`main.js`の表示の同期と`ShapeStyleEditor`の内部以外から呼ばない）。直前に使った値を更新するのはこのクラスだけ。`COLOR_ITEMS`の`shapeKey`は直前に使った値（`NewShapeStyle`）の色のキー名と同じ前提（項目を足すときは両方をそろえる）。
     *   **ShapeOrderRules.js**：選択中の要素の重なり順の変更の規則（`StylePanelRules`と同じく手順の`ShapeOrderEditor`と分けた規則）。状態を持たない`export`した関数と定数のみ。流れは3章14.。
