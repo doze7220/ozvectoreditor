@@ -299,7 +299,7 @@
             *   上の4箇所と判定順序の列挙のほかに古い番号の参照が無いことを、作業後に`Grep`（`手順`）で確かめる（`js/`内の他のファイルには`#handleKeyDown`の手順番号の参照は無いことを計画時に確認済み）。
         *   自動テストは足さない（同上）。`node --test`が従来どおり成功することを確かめる。
 
-*   [ ] タスク6: プロパティパネルの「図形」の段のUI部品（`palette/PropertyShapeSection.js`）
+*   [x] タスク6: プロパティパネルの「図形」の段のUI部品（`palette/PropertyShapeSection.js`）
     *   **対象ファイル** :
         *   `./js/palette/PropertyShapeSection.js` : 新規
     *   **作業内容** :
@@ -387,7 +387,9 @@
 
 ### タスク6: プロパティパネルの「図形」の段のUI部品（`palette/PropertyShapeSection.js`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/palette/PropertyShapeSection.js`：新規。`export class PropertyShapeSection`（`constructor(sectionElement, actions)`、公開`render(view)`）。コールバック6つが関数でなければ`Error`、要素8つが欠ければ`console.warn`して配線せず（`#wired`が偽で`render`は何もしない）。非公開：要素の参照8つ・`#wired`・`#lastView`・`#actions`、`#wire()`、`#writeBackStrokeWidth()`、静的`#renderToggle`・`#renderColor`。非公開定数`COLOR_NOTE_TEXT`（凍結）・`SOURCE_NEW_SHAPE_TEXT`・`STROKE_WIDTH_MIXED_PLACEHOLDER`が文言の唯一の定義箇所。typedef`StylePanelView`（二重定義の旨を記載）・`PropertyColorView`・`PropertyColorNote`・`PropertyShapeSectionActions`。importなし。
+    *   太さの欄：`change`で`onStrokeWidthChange`を呼び、戻り値が`false`なら書き戻す。`blur`で書き戻す。`render`はフォーカスがある間は書き換えない。
+    *   `index.html`・`main.js`は未変更（画面は変わらない）。`node --test`：tests 840・pass 840・fail 0。
 
 ### タスク7: プロパティパネルのウィンドウ（`index.html`）
 *   **作業内容** :
