@@ -525,3 +525,9 @@
 
 ### Phase06-01「塗り・線なしのデータと描画」（完了日：2026-11-11。テストプレイ実施済み、問題なし）
 * 【解決】Phase04-02由来の「エディタ側でも線の太さ（`strokeWidth`）が無い図形を2pxとして読み込む」（発注者の意向・Interrupt候補）：キーが無い（`undefined`）場合だけ2pxとして読むようにした（値があって0以下・`null`・文字列等は従来どおり不正）。既定値は`js/shapes/ShapeDataValidation.js`の非公開定数（`io/SpriteSerializer.js`の`DEFAULT_STROKE_WIDTH`と同じ値であるべき）。あわせて図形データに`fillColor`（色の文字列または`null`。キーが無ければ`null`）・線なし（`strokeColor: null`）を足し、塗れる形（矩形・円・閉じたパス。共通メソッド契約の第14メソッド`isFillable()`）だけを塗る。作業データの版・書き出し形式の版をどちらも2に上げた（版1→版2の移行は`fillColor: null`を設定）。`DRAW_SOURCE`も塗りに対応し、線なしの要素は外枠を広げない。結合・描き足し・閉じるの塗りは基準の線Aのもの。REQ `261111_1828`・RES `261111_1913`。詳細は`PROJECT_ARCHITECTURE.md`2章・`_doc/arch/12_shapes.md`・`15_io.md`・`16_test.md`。
+
+### Phase06-02「プロパティパネル（図形の段）と既定の色」（完了日：2026-11-12。テストプレイ実施済み、問題なし）
+* 【解決】Phase06-01由来の「線の太さ2pxの定義が3種類ある。『直前に使った値』を入れるときに3つ目（図形クラスのコンストラクタの既定値）の扱いを決める」：新しく描く図形の既定の太さは`core/VectorModel.js`の`DEFAULT_NEW_SHAPE_STYLE.strokeWidth`を唯一の定義とし、`startDraft`が生成直後に直前に使った値を当てる。コンストラクタの既定値は「引数を省略して生成したときの値」として残し、読み込み・書き出しの既定値は変えていない（4つの定義の位置づけは`PROJECT_ARCHITECTURE.md`2章）。
+* 【一部解決】Phase06-01由来の「見えない図形（線なしで塗れない形）をプロパティパネルで許すか」：許すと決めた（発注者、2026-11-12）。選び方は06-03で決める（本ファイル2章Dに残した）。
+* 【一部解決】Phase02-04由来の「`checkbox`/`color`等にフォーカス中はショートカットが効き、`Space`がパンになる」：`checkbox`・`color`は`InputTracker.js`の`isSpaceOperatedInputElement`で対応した（`Space`でパンせず`Ctrl`なしのショートカットを止める。`Ctrl`のショートカットは効く）。`range`等は2章Cに残した。
+* 実装の内容：常に表示するフロートウィンドウ「プロパティ」に「図形」の段を足し、選択中の図形の線の有無・線の色・太さ（整数1〜100）・塗りの有無・塗りの色を表示・変更できるようにした（複数選択は一番手前の値＋「混在」、塗れる形だけに塗りを反映、色を選ぶとその項目を「あり」にする、ピッカー1回分で取り消し1回）。何も選んでいないときは「次に描く図形」の値（直前に使った値。保存しない）を表示・変更する。規則は新設`js/edit/StylePanelRules.js`、手順は新設`js/edit/ShapeStyleEditor.js`、DOMは新設`js/palette/PropertyShapeSection.js`、直前に使った値とスタイルの書き換えは`VectorModel`。REQ `261112_1130`・RES `261112_1151`。詳細は`PROJECT_ARCHITECTURE.md`2章・3章13.と`_doc/arch/02_main.md`・`13_palette.md`・`14_edit.md`。
