@@ -1,7 +1,58 @@
 /**
- * 責務：図形データ・選択集合・ホバー・作成中図形・選択矩形・吸い付きの表示の点の状態管理（SSOT：Single Source of Truth）と更新通知を担う。
+ * 責務：図形データ・選択集合・ホバー・作成中図形・選択矩形・吸い付きの表示の点・新しく描く図形のスタイル（直前に使った値）の
+ * 状態管理（SSOT：Single Source of Truth）と更新通知を担う。
  */
 import { ShapeFactory, SHAPE_TYPES } from './ShapeFactory.js';
+
+/**
+ * 新しく描く図形のスタイル（直前に使った値）。有無と色を分けて持つ
+ * （「なし」にしても色の欄に直前の色を表示し、「あり」に戻すとその色が入るため）。
+ * @typedef {Object} NewShapeStyle
+ * @property {boolean} strokeEnabled 線を付けるか
+ * @property {string} strokeColor 線の色（strokeEnabledが偽でも保持する）
+ * @property {number} strokeWidth 線の太さ
+ * @property {boolean} fillEnabled 塗りを付けるか
+ * @property {string} fillColor 塗りの色（fillEnabledが偽でも保持する）
+ */
+
+/**
+ * 図形のスタイルの書き換え1件。
+ * @typedef {Object} ShapeStyleChange
+ * @property {string} id 対象の図形のid
+ * @property {{strokeColor?: (string|null), strokeWidth?: number, fillColor?: (string|null)}} style
+ *   代入するスタイル（自身のプロパティとして持つキーだけを代入する）
+ */
+
+/**
+ * 新しく描く図形の既定のスタイル（起動時の直前に使った値。凍結）。
+ * 線の太さ2pxの定義の整理：
+ * 1. 本定数の`strokeWidth`：新しく描く図形の既定の太さ（起動時の直前に使った値）の唯一の定義。
+ * 2. 各図形クラス（`shapes/`）のコンストラクタの既定値`strokeWidth = 2`：引数を省略して生成したときの値。
+ *    `startDraft`が生成直後に直前に使った値で上書きするため、新しく描く図形の太さを決めない。
+ * 3. `shapes/ShapeDataValidation.js`の`DEFAULT_STROKE_WIDTH`：読み込みで`strokeWidth`のキーが無いときの値。
+ * 4. `io/SpriteSerializer.js`の`DEFAULT_STROKE_WIDTH`：書き出し形式を読む側の既定値（3.と同じ値であるべき）。
+ * 既定のまま描いた図形のスタイルは、線あり`#000000`・2px・塗りなし（`fillColor: null`）。
+ * @type {Readonly<NewShapeStyle>}
+ */
+const DEFAULT_NEW_SHAPE_STYLE = Object.freeze({
+    strokeEnabled: true,
+    strokeColor: '#000000',
+    strokeWidth: 2,
+    fillEnabled: false,
+    fillColor: '#ffffff',
+});
+
+/**
+ * NewShapeStyleのキー（updateNewShapeStyleが受理するキー）。
+ * @type {ReadonlyArray<string>}
+ */
+const NEW_SHAPE_STYLE_KEYS = Object.freeze(['strokeEnabled', 'strokeColor', 'strokeWidth', 'fillEnabled', 'fillColor']);
+
+/**
+ * 図形の共通プロパティのスタイル3つ（図形固有のプロパティではない）。
+ * @type {ReadonlyArray<string>}
+ */
+const SHAPE_STYLE_KEYS = Object.freeze(['strokeColor', 'strokeWidth', 'fillColor']);
 
 /**
  * 図形idの接頭辞。VectorModelが採番するidは `shape-<連番>`（例：'shape-1'）の形式とする。
@@ -21,6 +72,8 @@ const ID_PATTERN = new RegExp(`^${ID_PREFIX}(\\d+)$`);
  * 図形の配列（描画順）と、選択集合・ホバー・作成中の図形・選択矩形・吸い付きの表示の点を保持する単一の真実（SSOT）。
  * 状態を変更するAPIは変更後にonChangeの登録リスナーへ通知する。図形idの採番（`shape-<連番>`）も本クラスが担う。
  * 図形の生成はShapeFactoryへ委譲する（復元は`DocumentSerializer`→`ShapeFactory.fromJSON`が行い、本クラスは復元済みの図形一式を受け取るのみ）。図形固有の頂点構造には依存しない（ポリモーフィック呼び出しのみ）。
+ * 新しく描く図形のスタイル（直前に使った値）も保持する（作業データ・履歴のスナップショットには含まれない）。
+ * 図形のスタイルについては、共通プロパティの`strokeColor`・`strokeWidth`・`fillColor`の3つだけを書く（図形固有のプロパティ名は知らない）。
  */
 export class VectorModel {
     /**
@@ -81,7 +134,15 @@ export class VectorModel {
     #nextId;
 
     /**
-     * 図形0個・選択なし・ホバーなし・作成中の図形なし・選択矩形なし・リスナーなしの状態で初期化する。
+     * @type {NewShapeStyle} 新しく描く図形のスタイル（直前に使った値）。保存せず、履歴の対象外。
+     * replaceAllShapesは触れない。
+     * @private
+     */
+    #newShapeStyle;
+
+    /**
+     * 図形0個・選択なし・ホバーなし・作成中の図形なし・選択矩形なし・リスナーなし・
+     * 新しく描く図形のスタイルは既定値（DEFAULT_NEW_SHAPE_STYLE）の状態で初期化する。
      */
     constructor() {
         this.#shapes = [];
@@ -92,6 +153,7 @@ export class VectorModel {
         this.#selectionRect = null;
         this.#snapPoint = null;
         this.#nextId = 1;
+        this.#newShapeStyle = { ...DEFAULT_NEW_SHAPE_STYLE };
     }
 
     /**
@@ -249,13 +311,74 @@ export class VectorModel {
     /**
      * 始点を確定し、始点・終点が同一座標の仮図形を作成中データとして生成する。
      * 生成した時点ではidを持たず、#shapesにも登録しない（コミットはcommitDraftで行う）。
+     * 生成直後に、直前に使った値（新しく描く図形のスタイル）を作成中の図形へ当てる（ShapeFactory.createの呼び方は変えない）。
      * @param {number} x 始点のX座標（ワールド座標）
      * @param {number} y 始点のY座標（ワールド座標）
      * @param {string} [type=SHAPE_TYPES[0]] 生成する図形の種別（SHAPE_TYPESのいずれか。ShapeFactory.createへ渡される）
      */
     startDraft(x, y, type = SHAPE_TYPES[0]) {
-        this.#draftShape = ShapeFactory.create(type, x, y, x, y);
+        const draft = ShapeFactory.create(type, x, y, x, y);
+        this.#assignShapeStyle(draft, this.#toShapeStyle());
+        this.#draftShape = draft;
         this.#notifyChange();
+    }
+
+    /**
+     * 新しく描く図形のスタイル（直前に使った値）のコピーを取得する。
+     * @returns {NewShapeStyle} 直前に使った値のコピー
+     */
+    getNewShapeStyle() {
+        return { ...this.#newShapeStyle };
+    }
+
+    /**
+     * 新しく描く図形のスタイル（直前に使った値）を部分的に更新する。
+     * `patch`のうちNewShapeStyleの5つのキー（自身のプロパティとして持つもの）だけを上書きし、他のキーは無視する。
+     * 値の検証はしない（呼び出し側の責務）。値が1つでも変わった場合のみ、作成中の図形があればそのスタイルも
+     * 新しい値にしたうえで、変更を通知する（1回）。選択集合・ホバー・図形一式には触れない。
+     * @param {Partial<NewShapeStyle>} patch 上書きする項目
+     * @returns {boolean} 値が変わったか
+     */
+    updateNewShapeStyle(patch) {
+        let changed = false;
+        for (const key of NEW_SHAPE_STYLE_KEYS) {
+            if (Object.prototype.hasOwnProperty.call(patch, key) && this.#newShapeStyle[key] !== patch[key]) {
+                this.#newShapeStyle[key] = patch[key];
+                changed = true;
+            }
+        }
+        if (!changed) {
+            return false;
+        }
+        if (this.#draftShape) {
+            this.#assignShapeStyle(this.#draftShape, this.#toShapeStyle());
+        }
+        this.#notifyChange();
+        return true;
+    }
+
+    /**
+     * 指定した図形のスタイルを書き換える。各idの図形へ、`style`が自身のプロパティとして持つ
+     * `strokeColor`・`strokeWidth`・`fillColor`だけを代入する（他のキーは無視。値の検証はしない）。
+     * 存在しないidは無視する。1件以上の図形に代入した場合のみ変更を通知する（1回）。
+     * 選択集合・ホバー・作成中の図形・選択矩形・吸い付きの表示の点・直前に使った値には触れない。
+     * @param {Array<ShapeStyleChange>} changes 書き換えの配列
+     * @returns {number} 代入した図形の数
+     */
+    updateShapeStyles(changes) {
+        let count = 0;
+        for (const change of changes) {
+            const shape = this.#shapes.find((s) => s.id === change.id);
+            if (!shape) {
+                continue;
+            }
+            this.#assignShapeStyle(shape, change.style);
+            count++;
+        }
+        if (count > 0) {
+            this.#notifyChange();
+        }
+        return count;
     }
 
     /**
@@ -387,6 +510,7 @@ export class VectorModel {
      * (4)振り直し対象に#issueId()で新しいidを採番する（(3)により保持idとは衝突しない）。
      * (5)選択集合・ホバー状態・作成中の図形・選択矩形・吸い付きの表示の点をクリアする。
      * (6)変更を通知する（1回のみ）。
+     * 新しく描く図形のスタイル（直前に使った値）には触れない。
      * 進行中の入力操作（ドラッグ・作成途中の図形）の中断は呼び出し側の責務（`InputTracker.abortOngoingOperation()`、または`CanvasLibrary`では`prepareSwitch()`経由の`setMode`）。
      * 受け取ったインスタンスの`id`を直接書き換える。idの重複判定は値で行うため、同一インスタンスを配列に重複して渡さない（既存インスタンスを渡す場合は呼び出し側で複製する）。
      * @param {Array<Object>} shapes 新しい図形の配列（描画順。共通インターフェースを持つ図形インスタンス）
@@ -542,6 +666,34 @@ export class VectorModel {
      */
     #issueId() {
         return `${ID_PREFIX}${this.#nextId++}`;
+    }
+
+    /**
+     * 直前に使った値から、図形へ代入するスタイル（共通プロパティ3つ）を求める。
+     * @returns {{strokeColor: (string|null), strokeWidth: number, fillColor: (string|null)}} 無効の項目はnull
+     * @private
+     */
+    #toShapeStyle() {
+        const s = this.#newShapeStyle;
+        return {
+            strokeColor: s.strokeEnabled ? s.strokeColor : null,
+            strokeWidth: s.strokeWidth,
+            fillColor: s.fillEnabled ? s.fillColor : null,
+        };
+    }
+
+    /**
+     * 図形へスタイルを代入する。`style`が自身のプロパティとして持つSHAPE_STYLE_KEYSのキーだけを代入する。
+     * @param {Object} shape 代入先の図形
+     * @param {Object} style 代入するスタイル
+     * @private
+     */
+    #assignShapeStyle(shape, style) {
+        for (const key of SHAPE_STYLE_KEYS) {
+            if (Object.prototype.hasOwnProperty.call(style, key)) {
+                shape[key] = style[key];
+            }
+        }
     }
 
     /**

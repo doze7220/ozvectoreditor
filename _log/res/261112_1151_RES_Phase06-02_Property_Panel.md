@@ -247,7 +247,7 @@
 *   開発資料の記載に影響があれば、資料本体は直さず「開発資料の更新予定」へ追記する。迷った点・目視確認を推奨する点・将来の注意は「5. 懸念事項」へ追記する。
 *   完了後、本RESの該当タスクを`[x]`にし、「4. 詳細作業内容」を記入する。
 
-*   [ ] タスク1: `VectorModel`の直前に使った値・新しく描く図形への適用・スタイルの書き換え
+*   [x] タスク1: `VectorModel`の直前に使った値・新しく描く図形への適用・スタイルの書き換え
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js` : 更新
         *   `./test/core/VectorModel.style.test.js` : 新規
@@ -356,7 +356,10 @@
 
 ### タスク1: `VectorModel`の直前に使った値・新しく描く図形への適用・スタイルの書き換え
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/VectorModel.js`：非公開定数`DEFAULT_NEW_SHAPE_STYLE`（凍結。JSDocに線の太さ2pxの4つの定義）・`NEW_SHAPE_STYLE_KEYS`・`SHAPE_STYLE_KEYS`、typedef`NewShapeStyle`・`ShapeStyleChange`、非公開フィールド`#newShapeStyle`を追加。公開メソッド`getNewShapeStyle()`・`updateNewShapeStyle(patch)`・`updateShapeStyles(changes)`、非公開`#toShapeStyle()`・`#assignShapeStyle()`を追加。`startDraft`は`ShapeFactory.create`の直後にスタイルを当てる。ファイル先頭の責務・クラスJSDoc・`startDraft`・コンストラクタ・`replaceAllShapes`のJSDocを更新。
+    *   `test/core/VectorModel.style.test.js`：新規（18ケース。SHAPE_TYPES全種別の既定／変更後の適用を含む）。
+    *   既存テストの書き換え：なし。
+    *   `node --test`：tests 798・pass 798・fail 0（着手前780＋新規18）。
 
 ### タスク2: パネルに出す値の算出の規則（`edit/StylePanelRules.js`）
 *   **作業内容** :
