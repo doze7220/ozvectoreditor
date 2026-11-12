@@ -266,7 +266,7 @@
         *   JSDoc：先頭行の責務（例：「プロパティパネルの『図形』の段に出す値の算出（そろっている値・混在・無効・表示する色）と、色の文字列の表示用の変換・線の太さの入力の受理を担う。状態を持たずDOMに触れない」）。typedef`StylePanelView`（2章 要件2の形と各値の意味）・`RememberedColors`（`{ stroke: string, fill: string }`）。各関数の規則（要件2の「図形を選んでいるとき」「図形を選んでいないとき」「色の文字列の表示用の変換」、要件3の「太さの受理」）を`@param`・`@returns`とともに書く。読むのは図形の共通プロパティ`strokeColor`・`strokeWidth`・`fillColor`と`isFillable()`だけであること（`edit/`の約束の例外）。
         *   テスト（新設）：2章 要件7の`test/edit/StylePanelRules.test.js`の観点。図形は実物の`Line`・`Curve`・`Rect`・`Ellipse`（`'circle'`・`'arc'`）・`Path`（開いた・閉じた）をコンストラクタのスタイルの引数で作る。
 
-*   [ ] タスク3: スタイルの変更の手順（`edit/ShapeStyleEditor.js`）
+*   [x] タスク3: スタイルの変更の手順（`edit/ShapeStyleEditor.js`）
     *   **対象ファイル** :
         *   `./js/edit/ShapeStyleEditor.js` : 新規
         *   `./test/edit/ShapeStyleEditor.test.js` : 新規
@@ -370,7 +370,10 @@
 
 ### タスク3: スタイルの変更の手順（`edit/ShapeStyleEditor.js`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/edit/ShapeStyleEditor.js`：新規。`export class ShapeStyleEditor`（`constructor({ model, editRecorder })`）。公開：`getPanelView`・`setStrokeEnabled`・`setFillEnabled`・`setStrokeWidth`・`previewColor`・`commitColor`・`finishColorPreview`。非公開：`#model`・`#editRecorder`・`#rememberedColors`・`#preview`、`#setEnabled(target, enabled)`（線・塗りの有無の共通実装）、`#selectedShapes`・`#isSamePreview`・`#finishPreview`・`#recordEdit`。色の項目の対応表`COLOR_ITEMS`（凍結。`stroke`・`fill`）の表引きで項目を分岐。importは`./StylePanelRules.js`のみ。DOMなし・`try/catch`なし・ドラッグ判定なし。
+    *   `test/edit/ShapeStyleEditor.test.js`：新規（22ケース。実物の`VectorModel`・`SnapshotAdapter`・`HistoryManager`・`ShapeStyleEditor`の組み合わせ。直前に使った値の2観点を含む）。
+    *   既存テストの書き換え：なし。
+    *   `node --test`：tests 840・pass 840・fail 0（着手前818＋新規22）。
 
 ### タスク4: 入力欄の判定関数とスペースパン（`InputTracker`）
 *   **作業内容** :
@@ -433,6 +436,11 @@
 *   **パネルの表示の更新の頻度**：`model.onChange`はホバー・作成途中の図形の追従でも通知されるため、マウスを動かすたびに`getPanelView()`と`render`が走る（選択中の図形の数に比例する軽い計算と、値が違うときだけのDOMの代入）。図形が非常に多い選択で重くなった場合は、`model.onChange`の種類別の通知（`_doc/COWORK_STATUS.md` 2章C「性能」）と合わせて検討する。
 *   **見えない図形**：線を「なし」にした直線・曲線・弧・開いたパス、線も塗りもない図形は画面に何も描かれないが、選び方は06-01のまま（輪郭付近のクリック・範囲選択・全選択で選べ、選んでいる間はハンドルが出る）。扱いの見直しはPhase 06-03。
 *   **画面幅が狭い場合**：画面幅が約1104px未満では`?dev`の確認用ウィンドウとパネルが重なり、約728px未満ではパネルの左端が画面外へ出る（ドラッグで動かせる）。条件（1280×800以上）の範囲外。
+
+### タスク3での実装時の注意
+*   **`ShapeStyleEditor`の細部の判断**：`previewColor`は受け取った色を`toColorInputValue`の変換結果（小文字`#rrggbb`）で図形・直前に使った値へ入れる（`<input type="color">`の値は常にこの形）。ピッカー操作中の記録と今の対象（項目・図形インスタンスの並び）が違うときだけ先に確定する。選択なし・塗れる形なしの`false`の分岐でも、記録との不一致があれば先に確定してから返す。`setFillEnabled`が`false`を返す（選択中に塗れる形が無い）場合も冒頭の`#finishPreview()`は行う。
+*   **`getPanelView()`の副作用の利用**：`setStrokeEnabled(true)`・`setFillEnabled(true)`が表示中の色を得るために内部で`getPanelView()`を呼ぶ（覚えている色を更新するが、同じ状態なら結果は同じ）。
+*   **将来の注意**：`COLOR_ITEMS`の`shapeKey`は直前に使った値（`NewShapeStyle`）の色のキー名と同じ前提。項目を足す（透明度等）ときは表へ足すが、`NewShapeStyle`のキーも揃える必要がある。
 
 ### テストプレイで確認すべき項目（操作手順 → 期待する結果）
 **A. パネルの置き場所・構成**
