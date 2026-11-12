@@ -265,7 +265,7 @@
         *   JSDocを揃える：`PointHit`のtypedefを`@typedef {import('./PointHitRules.js').PointHit} PointHit`（正本は`PointHitRules.js`である旨の説明付き）に置き換える。`#classifyPoint`のJSDocの規則の記述を、規則の正本は`PointHitRules.classifyPointHit`で、ハンドル（今のまま）→ 本体（選択集合の図形の輪郭・手前優先 → 手前から輪郭または塗った内側）の要約と、図形のメソッドを直接呼ばないことへ改める。クラスJSDocの当たり分類の記述（「当たり分類（#classifyPoint）」の箇所と「図形種別の分岐・図形固有のプロパティ名は持たない」の近く）に、当たり分類の規則は`PointHitRules`に委ねる旨を足す。`handleMouseDown`・`handleClick`の分岐の表、`handleMouseMove`・`#resolveCursor`のコードとJSDocは変えない。
         *   `isFillable()`・`fillColor`・図形種別の分岐を持ち込まない。`main.js`・他の`core/`ファイルは変えない。
         *   `node --test`の`fail 0`と件数を記録する（`InputTracker`の自動テストは無い。画面の振る舞いはテストプレイで確かめる）。詳細作業内容を記入して`[x]`にする。実装後の`InputTracker.js`の行数を詳細作業内容に記録する（開発資料の「行数」の更新に使う）。
-*   [ ] タスク10: JSDocの記載漏れの確認
+*   [x] タスク10: JSDocの記載漏れの確認
     *   **対象ファイル** :
         *   タスク1〜9で変更・新設したファイル（確認のみ。漏れがあればそのファイルを修正）
     *   **作業内容** :
@@ -343,7 +343,10 @@
 
 ### タスク10: JSDocの記載漏れの確認
 *   **作業内容** :
-    *   (未実施)
+    *   確認のみで漏れなし：`ShapeGeometry.isPointInPolygonNonzero`・先頭の責務（3行以内）、`PointHitRules.js`の先頭責務・typedef`PointHit`・`classifyPointHit`・非公開の`findHandleHit`/`findBodyHit`の`@param`/`@returns`、5クラスのクラスJSDocの契約列挙（15メソッド。`Path`含む）と各`hitTestFill`の`@param`/`@returns`、`Path.hitTestFill`の曲線の区間の注意、`Ellipse.hitTestFill`の弧の塗り・回転の注意、`ELLIPSE_TYPES`のJSDocの`hitTestFill`の記述、`InputTracker`の当たり分類の記述（クラスJSDoc・`#classifyPoint`・`PointHit`）、テストファイルの補助関数（`makeFilledClosed`ほか）のJSDoc。
+    *   タスク9の監査の観点外メモに対応：`js/core/InputTracker.js`の`PointHit`typedefの説明「ここでは名前を参照するためだけに再掲する。」を「ここでは同じ名前の型の別名を定義し、本ファイルのJSDocから参照できるようにする。」へ修正（JSDocのみ）。
+    *   タスク10のdiff監査の観点外メモに対応：`js/shapes/ShapeGeometry.js`の`isPointInPolygonNonzero`のJSDocの「面積0（…長さ0の辺を含む）は常に偽」を、「面積0（全頂点が一直線上、または全頂点が同じ点）は常に偽。長さ0の辺（重複頂点）を含んでも面積のある多角形なら内側の判定は通常どおり」へ修正（JSDocのみ）。
+    *   `node --test`：tests 913・pass 913・fail 0。
 
 ### タスク11: 開発資料への反映
 *   **作業内容** :

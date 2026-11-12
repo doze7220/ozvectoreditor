@@ -28,7 +28,7 @@ export const InputState = {
 
 /**
  * 当たり分類（#classifyPoint）の結果。ホバー・押下・クリック・カーソル形状の判定で共通に用いる。
- * 型の正本はPointHitRules.jsのPointHit（handleもbodyIdもnullなら空白）。ここでは名前を参照するためだけに再掲する。
+ * 型の正本はPointHitRules.jsのPointHit（handleもbodyIdもnullなら空白）。ここでは同じ名前の型の別名を定義し、本ファイルのJSDocから参照できるようにする。
  * @typedef {import('./PointHitRules.js').PointHit} PointHit
  */
 
