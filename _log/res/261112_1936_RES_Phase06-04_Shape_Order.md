@@ -232,7 +232,7 @@
         *   2章2-1のとおり`reorderShapes(orderedIds)`を`replaceShape`の後（`onChange`の前）に足す。JSDoc（処理の順序、不正な入力の条件と扱い（`console.warn`・`false`・何も変えない）、同じ並びでは通知しないこと、変わったときだけ1回通知、触れない状態の列挙（選択集合・ホバー・作成中の図形・選択矩形・吸い付きの表示の点・直前に使った値・idの採番・図形インスタンスの中身）、履歴の記録は呼び出し側の責務、操作の種類を受け取らない理由、`@param`・`@returns`）を書く。他のメソッド・先頭の責務の記述・クラスJSDocは変えない（責務の範囲内のため。クラスJSDocに公開操作の列挙は無い）。`edit/`をimportしない。
         *   テスト：2章要件6の`test/core/VectorModel.reorderShapes.test.js`の観点をすべて入れる（図形は`Line`等を`id`の直接代入で作り`replaceAllShapes`で入れる。`console.warn`は`t.mock.method`で抑止し呼び出し回数を確かめる）。
         *   `node --test`の`fail 0`と件数を記録し、詳細作業内容を記入して`[x]`にする。開発資料に影響があれば更新予定欄へ追記する。
-*   [ ] タスク3: 重なり順の変更の手順（`edit/ShapeOrderEditor.js`）とそのテスト
+*   [x] タスク3: 重なり順の変更の手順（`edit/ShapeOrderEditor.js`）とそのテスト
     *   **対象ファイル** :
         *   `./js/edit/ShapeOrderEditor.js` : 新規
         *   `./test/edit/ShapeOrderEditor.test.js` : 新規
@@ -309,7 +309,11 @@
 
 ### タスク3: 重なり順の変更の手順（`edit/ShapeOrderEditor.js`）とそのテスト
 *   **作業内容** :
-    *   （未記入）
+    *   対象ファイル：`./js/edit/ShapeOrderEditor.js`（新規）、`./test/edit/ShapeOrderEditor.test.js`（新規）。
+    *   `ShapeOrderEditor.js`：先頭に責務、typedef`ShapeOrderAvailability`（`PropertyOrderSection`と同内容の二重定義の旨を明記）、クラス`ShapeOrderEditor`（コンストラクタ・`apply`・`getAvailability`）。importは`./ShapeOrderRules.js`のみ。`apply`は`canReorderSelected`が偽なら何も呼ばず`false`、真なら`beginEdit` → `model.reorderShapes(nextIds)` → `commitEdit`で戻り値を返す。`getAvailability`は`Object.values(ShapeOrderOperation)`から組み立てる。
+    *   テスト：偽の依存（呼び出し順・引数・4操作、何もしない場合、未知の操作でbeginEditなし、`getAvailability`の一致と無副作用）、実物の組み合わせ（4操作の履歴1件・undo/redo、選択集合、何もしない場合の並び・選択・履歴・通知回数）、保存の往復（`DocumentSerializer`・`SpriteSerializer`のidの並び）。
+    *   `node --test`（プロジェクトルート）：tests 975 / pass 975 / fail 0。
+    *   開発資料への影響：既存の更新予定欄（タスク9）のとおりで追加の影響なし。
 
 ### タスク4: 「重なり順」の段のUI部品（`palette/PropertyOrderSection.js`）
 *   **作業内容** :
