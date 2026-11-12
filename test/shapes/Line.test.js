@@ -139,6 +139,37 @@ describe('Line.hitTest', () => {
     });
 });
 
+describe('Line.hitTestFill', () => {
+    const points = [[50, 0], [50, 3], [50, 5], [0, 0], [100, 0], [50, 50], [-20, 0], [1000, 1000]];
+
+    it('fillColorが色の文字列でも、線の上・近く・離れた点で常にfalse', () => {
+        const l = new Line(0, 0, 100, 0, '#000000', 2, '#ff0000');
+        for (const [x, y] of points) {
+            assert.equal(l.hitTestFill(x, y), false);
+        }
+    });
+
+    it('fillColorがnullでも常にfalse', () => {
+        const l = new Line(0, 0, 100, 0, '#000000', 2, null);
+        for (const [x, y] of points) {
+            assert.equal(l.hitTestFill(x, y), false);
+        }
+    });
+
+    it('strokeColor: nullでも常にfalse', () => {
+        const l = new Line(0, 0, 100, 0, null, 2, '#ff0000');
+        for (const [x, y] of points) {
+            assert.equal(l.hitTestFill(x, y), false);
+        }
+    });
+
+    it('toDrawElementが塗る条件を満たさない（closed: false・fillColor: null）ことと一致する', () => {
+        const el = new Line(0, 0, 100, 0, '#000000', 2, '#ff0000').toDrawElement();
+        assert.equal(el.closed, false);
+        assert.equal(el.fillColor, null);
+    });
+});
+
 describe('Line.intersectsRect', () => {
     const line = () => new Line(0, 0, 100, 0);
 

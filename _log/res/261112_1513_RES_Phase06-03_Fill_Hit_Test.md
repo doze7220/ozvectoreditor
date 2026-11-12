@@ -221,7 +221,7 @@
         *   2章1-2のとおり`hitTestFill(x, y)`を`hitTest`の直後に足す（先頭の判定 → `rx`・`ry`を`draw`と同じ式で求める → `rx * rx > 0 && ry * ry > 0`でなければ偽 → `(dx * dx) / (rx * rx) + (dy * dy) / (ry * ry) < 1`）。JSDoc（第15メソッド、塗られている条件（弧は常に偽）、許容誤差を使わないこと、境界を含まないこと、つぶれた円の扱い（半径0は偽・半径が正なら`rx < 1 || ry < 1`でも厳密）、`hitTest`の`value`と同じ式にしている理由、`hitTest`の平均半径の近似との和に隙間が無いこと（2章1-3の要約）、**弧の塗り・回転を入れるときは本メソッドの式と塗れる形の判定を見直すこと**、`@param`・`@returns`）。クラスJSDocの契約の列挙を15メソッドへ。ファイル先頭付近の`ELLIPSE_TYPES`のJSDoc（種別を増やす場合に揃える箇所の列挙）に`hitTestFill`を加える（2章1-2。`hitTestFill`は`isFillable()`を通すだけで種別の分岐を持たないが、塗れる楕円の種別（扇形など）を増やすときは式の見直しが要る箇所として辿れるようにする。その趣旨を列挙の中に短く添える。列挙の他の項目・文は変えない）。
         *   テスト：塗られた円・楕円（`rx ≠ ry`）の中心と内側（比率0.9程度）で真・外側（比率1.1程度）で偽・軸上の境界ちょうど（例`(xc + rx, yc)`）で偽、`fillColor: null`で偽、弧は`fillColor`が色の文字列でも中心・弧の内側で偽、`strokeColor: null`でも塗られていれば真、つぶれた円（`rx = 0`・`ry = 0`・両方0）は中心を含めどこでも偽で例外を投げない、`rx = 0.5`・`ry = 50`は中心で真・離れた点（例`(xc + 1000, yc + 1000)`や`(xc + 2, yc)`）で偽、`translate`後・`toJSON`→`fromJSON`の往復後も同じ結果、塗られている条件が`toDrawElement()`の塗る条件（`kind`が`ellipse`・`closed === true`・`fillColor`が文字列）と一致すること（円／弧 × `fillColor`の有無）、内側と輪郭の当たりの間に隙間が無いこと（例：`rx = 100`・`ry = 50`の円の中心から外へ向かう線上の点を細かく取り、`hitTestFill(x, y) || hitTest(x, y, 5)`が比率`1 + (5 + strokeWidth/2)/r_avg`より十分内側では常に真になること。境界付近は浮動小数の誤差に余裕を持たせる）。既存のケースは変えない。
         *   `node --test`の`fail 0`と件数を記録し、詳細作業内容を記入して`[x]`にする。開発資料に影響があれば更新予定欄へ追記する。
-*   [ ] タスク5: `Line.hitTestFill`とそのテスト
+*   [x] タスク5: `Line.hitTestFill`とそのテスト
     *   **対象ファイル** :
         *   `./js/shapes/Line.js` : 更新
         *   `./test/shapes/Line.test.js` : 更新（`describe('Line.hitTestFill')`の追加）
@@ -313,7 +313,9 @@
 
 ### タスク5: `Line.hitTestFill`とそのテスト
 *   **作業内容** :
-    *   (未実施)
+    *   `js/shapes/Line.js`：`hitTest`の直後（`hitTestHandle`の直前）に`hitTestFill(x, y)`を追加（先頭の判定で偽 → `return false`）。JSDoc（第15メソッド・塗られている条件・塗れない形のため常に偽・面積を持たない・許容誤差なし・`x`・`y`は使わない）を記載。クラスJSDocの契約の列挙を15メソッド（末尾`hitTestFill`）へ。他のメソッドは未変更。
+    *   `test/shapes/Line.test.js`：`describe('Line.hitTestFill')`を追加（4ケース：fillColor文字列・fillColor null・strokeColor null で線の上/近く/離れた点が常に偽、toDrawElementの塗る条件を満たさないこと（closed: false・fillColor: null）との一致）。既存ケースの書き換えなし。
+    *   `node --test`：tests 892・pass 892・fail 0。
 
 ### タスク6: `Curve.hitTestFill`とそのテスト
 *   **作業内容** :

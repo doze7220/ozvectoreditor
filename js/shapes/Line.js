@@ -13,8 +13,8 @@ const LINE_POINT_COUNT = 2;
 
 /**
  * 直線の図形クラス（図形種別`'line'`）。頂点は`x1, y1`＝始点、`x2, y2`＝終点として保持する。
- * 共通メソッド契約（14メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（15メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill）を自律実装する。座標はすべてワールド座標。
  */
 export class Line {
     /**
@@ -59,6 +59,22 @@ export class Line {
      */
     hitTest(x, y, tolerance) {
         return distanceToSegment(x, y, this.x1, this.y1, this.x2, this.y2) <= tolerance;
+    }
+
+    /**
+     * 点(x, y)が塗られた内側にあるかを判定する内側の当たり判定（共通メソッド契約の第15メソッド）。
+     * 塗られている条件は`draw`と同じ（`isFillable()`が真で`fillColor`が文字列）。直線は塗れない形
+     * （`isFillable()`が常に偽）で、面積を持たないため内側の点は無く、常に`false`を返す。許容誤差は使わない。
+     * 引数`x`・`y`は使わない（契約の形を揃えるために受け取る）。
+     * @param {number} x - 判定対象点のX座標（ワールド座標。使わない）
+     * @param {number} y - 判定対象点のY座標（ワールド座標。使わない）
+     * @returns {boolean} 常に`false`
+     */
+    hitTestFill(x, y) {
+        if (!this.isFillable() || typeof this.fillColor !== 'string') {
+            return false;
+        }
+        return false;
     }
 
     /**
