@@ -1,5 +1,5 @@
 /**
- * 責務: パス（Path）の当たり判定・頂点のハンドル・塗れる形（isFillable）・描画命令（塗り・線なし）・
+ * 責務: パス（Path）の当たり判定（輪郭・内側）・頂点のハンドル・塗れる形（isFillable）・描画命令（塗り・線なし）・
  * fromJSONの不正な図形データのエラー文・図形データと描画要素への変換を、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
@@ -138,6 +138,143 @@ describe('Path.hitTest', () => {
         const p = new Path(makePoints(), true, '#000000', 40);
         assert.equal(p.hitTest(50, -6, 5), false);
         assert.equal(p.hitTest(50, -5, 5), true);
+    });
+});
+
+/**
+ * 塗り色つきの閉じたパスを作る。
+ * @param {{x: number, y: number}[]} points - 頂点の並び
+ * @param {string|null} [fillColor='#ff0000'] - 塗りの色
+ * @param {string|null} [strokeColor='#000000'] - 線の色
+ * @returns {Path} 閉じたパス
+ */
+function makeFilledClosed(points, fillColor = '#ff0000', strokeColor = '#000000') {
+    return new Path(points, true, strokeColor, 2, fillColor);
+}
+
+describe('Path.hitTestFill', () => {
+    it('塗られた閉じたパス: 内側は真・外側は偽', () => {
+        const p = makeFilledClosed(makePoints());
+        assert.equal(p.hitTestFill(50, 50), true);
+        assert.equal(p.hitTestFill(1, 1), true);
+        assert.equal(p.hitTestFill(-1, 50), false);
+        assert.equal(p.hitTestFill(101, 50), false);
+        assert.equal(p.hitTestFill(50, 200), false);
+    });
+
+    it('境界上（辺・頂点・閉じる区間）は偽', () => {
+        const p = makeFilledClosed(makePoints());
+        assert.equal(p.hitTestFill(50, 0), false);
+        assert.equal(p.hitTestFill(100, 50), false);
+        assert.equal(p.hitTestFill(0, 50), false);
+        assert.equal(p.hitTestFill(0, 0), false);
+        assert.equal(p.hitTestFill(100, 100), false);
+    });
+
+    it('fillColorがnullなら偽', () => {
+        assert.equal(makeFilledClosed(makePoints(), null).hitTestFill(50, 50), false);
+    });
+
+    it('strokeColorがnullでも塗られていれば真', () => {
+        assert.equal(makeFilledClosed(makePoints(), '#ff0000', null).hitTestFill(50, 50), true);
+    });
+
+    it('開いたパスはfillColorが文字列でも偽（閉じれば内側になる位置でも）', () => {
+        const p = new Path(makePoints(), false, '#000000', 2, '#ff0000');
+        assert.equal(p.hitTestFill(50, 50), false);
+        assert.equal(p.hitTestFill(10, 50), false);
+    });
+
+    it('凹型（矢じり形）: 本体は真・くぼみは偽', () => {
+        const p = makeFilledClosed([
+            { x: 20, y: 0 },
+            { x: -10, y: -10 },
+            { x: -4, y: 0 },
+            { x: -10, y: 10 },
+        ]);
+        assert.equal(p.hitTestFill(0, 0), true);
+        assert.equal(p.hitTestFill(-7, 0), false);
+        assert.equal(p.hitTestFill(-8, -7), true);
+    });
+
+    it('自己交差（五芒星）: 中心と先端の三角形の内側は真・星の外は偽', () => {
+        const star = [];
+        for (const k of [0, 2, 4, 1, 3]) {
+            const angle = ((-90 + 72 * k) * Math.PI) / 180;
+            star.push({ x: 100 * Math.cos(angle), y: 100 * Math.sin(angle) });
+        }
+        const p = makeFilledClosed(star);
+        assert.equal(p.hitTestFill(0, 0), true);
+        assert.equal(p.hitTestFill(0, -95), true);
+        assert.equal(p.hitTestFill(0, -120), false);
+        assert.equal(p.hitTestFill(100, 100), false);
+    });
+
+    it('巻き数0の穴: 穴の中は偽・塗られている帯は真', () => {
+        const p = makeFilledClosed([
+            { x: 0, y: 0 },
+            { x: 100, y: 0 },
+            { x: 100, y: 100 },
+            { x: 0, y: 100 },
+            { x: 0, y: 0 },
+            { x: 25, y: 25 },
+            { x: 25, y: 75 },
+            { x: 75, y: 75 },
+            { x: 75, y: 25 },
+            { x: 25, y: 25 },
+        ]);
+        assert.equal(p.hitTestFill(50, 50), false);
+        assert.equal(p.hitTestFill(10, 50), true);
+        assert.equal(p.hitTestFill(90, 50), true);
+        assert.equal(p.hitTestFill(50, 10), true);
+    });
+
+    it('長さ0の区間（重複する頂点）を含んでも例外を投げず判定できる', () => {
+        const p = makeFilledClosed([
+            { x: 0, y: 0 },
+            { x: 0, y: 0 },
+            { x: 100, y: 0 },
+            { x: 100, y: 100 },
+        ]);
+        assert.doesNotThrow(() => p.hitTestFill(50, 20));
+        assert.equal(p.hitTestFill(80, 20), true);
+        assert.equal(p.hitTestFill(20, 80), false);
+        assert.equal(p.hitTestFill(0, 0), false);
+    });
+
+    it('許容誤差を使わない（境界のすぐ外は偽）', () => {
+        const p = makeFilledClosed(makePoints());
+        assert.equal(p.hitTestFill(-0.5, 50), false);
+        assert.equal(p.hitTestFill(0.5, 50), true);
+    });
+
+    it('translate後は移動先で真・元の位置で偽', () => {
+        const p = makeFilledClosed(makePoints());
+        p.translate(200, 300);
+        assert.equal(p.hitTestFill(250, 350), true);
+        assert.equal(p.hitTestFill(50, 50), false);
+    });
+
+    it('toJSON→fromJSONの往復後も同じ結果', () => {
+        const original = makeFilledClosed(makePoints());
+        const data = original.toJSON();
+        data.id = 'shape-1';
+        const restored = Path.fromJSON(data);
+        for (const [x, y] of [[50, 50], [150, 50], [0, 50], [10, 90]]) {
+            assert.equal(restored.hitTestFill(x, y), original.hitTestFill(x, y));
+        }
+        assert.equal(restored.hitTestFill(50, 50), true);
+    });
+
+    it('塗られている条件がtoDrawElementの塗る条件と一致する（開いた／閉じた × fillColorの有無）', () => {
+        for (const closed of [false, true]) {
+            for (const fillColor of [null, '#ff0000']) {
+                const p = new Path(makePoints(), closed, '#000000', 2, fillColor);
+                const element = p.toDrawElement();
+                const fills = typeof element.fillColor === 'string' && element.kind === 'polyline' && element.closed === true;
+                assert.equal(p.hitTestFill(50, 50), fills, `closed=${closed}, fillColor=${fillColor}`);
+            }
+        }
     });
 });
 

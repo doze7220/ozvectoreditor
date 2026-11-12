@@ -3,7 +3,7 @@
  * および図形データとの相互変換と描画要素（スプライトの書き出し用）への変換を担う。
  */
 
-import { distanceToSegment, segmentIntersectsRect } from './ShapeGeometry.js';
+import { distanceToSegment, isPointInPolygonNonzero, segmentIntersectsRect } from './ShapeGeometry.js';
 import { validateShapeData } from './ShapeDataValidation.js';
 
 /**
@@ -55,8 +55,8 @@ function isPlainObject(value) {
  * パスの図形クラス（図形種別`'path'`）。頂点の並び`points`（開いたパス2点以上・閉じたパス3点以上）、
  * 閉じているかを表す`closed`、区間の並び`segments`を持つ。`segments[i]`は`points[i]`→`points[i+1]`の区間で、
  * 閉じたパスの最後の要素は`points[n-1]`→`points[0]`の区間（要素数は開いたパス`n - 1`、閉じたパス`n`）。区間の要素は`{ kind }`で、`kind`は現在`'line'`のみ。
- * 共通メソッド契約（14メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（15メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill）を自律実装する。座標はすべてワールド座標。
  * パスは`ShapeFactory.create`では作られない（読み込み専用。作る操作はPhase 05-03・05-04）。
  */
 export class Path {
@@ -207,6 +207,26 @@ export class Path {
      */
     hitTest(x, y, tolerance) {
         return this.#someSegment((ax, ay, bx, by) => distanceToSegment(x, y, ax, ay, bx, by) <= tolerance);
+    }
+
+    /**
+     * 点(x, y)が塗られたパスの内側にあるかを判定する（共通メソッド契約の第15メソッド）。許容誤差は使わない。
+     * 塗られている（`draw`が塗りを描く条件と同じ`isFillable()`かつ`fillColor`が文字列）ときだけ内側を判定し、塗られていなければ常に`false`
+     * （開いたパスは`fillColor`が文字列でも`false`）。
+     * 内側は、`#tracePath`と同じ頂点の並び（`points[0]`→…→`points[n-1]`→閉じる区間で`points[0]`）の多角形を
+     * nonzero（Canvasの`fill()`引数なしと同じ規則）で判定する。自己交差の中心は内側、逆向きの穴は外側。
+     * 境界（輪郭線の中心線）上の点は内側に含めない（輪郭の当たり`hitTest`が受け持つ）。
+     * 区間の種類（`segments[i].kind`）による分岐の置き場所はここ。本作業の区間はすべて直線のため分岐しない。
+     * 曲線の区間を足すときは、曲線の区間を折れ線で近似した頂点の並び等にしてから判定するよう、ここで`kind`により分岐を足す（`#tracePath`・`#someSegment`と揃える）。
+     * @param {number} x - 判定対象点のX座標（ワールド座標）
+     * @param {number} y - 判定対象点のY座標（ワールド座標）
+     * @returns {boolean} 塗られたパスの内側（境界を除く）であれば`true`
+     */
+    hitTestFill(x, y) {
+        if (!this.isFillable() || typeof this.fillColor !== 'string') {
+            return false;
+        }
+        return isPointInPolygonNonzero(x, y, this.points);
     }
 
     /**

@@ -205,7 +205,7 @@
         *   2章1-2のとおり`hitTestFill(x, y)`を`hitTest`の直後に足す（先頭の判定 → `isPointInPolygonNonzero(x, y, this.points)`。`ShapeGeometry.js`のimportに追加）。JSDoc（第15メソッド、塗られている条件、許容誤差を使わないこと、境界を含まないこと、4頂点の多角形としてnonzeroで判定し軸平行・凸・自己交差なしを前提にしないこと、`@param`・`@returns`）。クラスJSDocの契約の列挙を15メソッド（末尾に`hitTestFill`）へ。
         *   テスト：塗られた矩形の内側で真・外側で偽・辺の上と頂点の上で偽、`fillColor: null`で偽、`strokeColor: null`でも塗られていれば真、頂点を動かした矩形（軸に平行でない（菱形）・凹（1頂点を内へ）のくぼみは偽・自己交差（蝶ネクタイ形。`points`を`(0,0)`,`(100,0)`,`(0,100)`,`(100,100)`等）の2つの三角形の内側は真で交差していない左右のすき間は偽）、`translate`後に移動先で真・元の位置で偽、`toJSON`→`fromJSON`の往復後も同じ結果、塗られている条件が`toDrawElement()`の塗る条件（`fillColor`が文字列・`kind`が`polyline`・`closed === true`）と一致すること。既存の`Rect.hitTest`・`Rect.intersectsRect`のケースは変えない。
         *   `node --test`の`fail 0`と件数を記録し、詳細作業内容を記入して`[x]`にする。開発資料に影響があれば更新予定欄へ追記する。
-*   [ ] タスク3: `Path.hitTestFill`とそのテスト
+*   [x] タスク3: `Path.hitTestFill`とそのテスト
     *   **対象ファイル** :
         *   `./js/shapes/Path.js` : 更新
         *   `./test/shapes/Path.test.js` : 更新（`describe('Path.hitTestFill')`の追加）
@@ -301,7 +301,9 @@
 
 ### タスク3: `Path.hitTestFill`とそのテスト
 *   **作業内容** :
-    *   (未実施)
+    *   `js/shapes/Path.js`：`ShapeGeometry.js`のimportに`isPointInPolygonNonzero`を追加。`hitTest`の直後（`intersectsRect`の直前）に`hitTestFill(x, y)`を追加（先頭の判定で偽 → `isPointInPolygonNonzero(x, y, this.points)`）。JSDoc（第15メソッド・塗られている条件・開いたパスは偽・許容誤差なし・境界を含まない・`#tracePath`と同じ頂点の並びでnonzero・曲線の区間を足すときはここで`kind`により分岐を足すこと）を記載。クラスJSDocの契約の列挙を15メソッド（末尾`hitTestFill`）へ。他のメソッドは未変更。
+    *   `test/shapes/Path.test.js`：`describe('Path.hitTestFill')`を追加（13ケース：内側/外側、境界上、fillColor null、strokeColor null、開いたパス、凹型、五芒星、巻き数0の穴、長さ0の区間、許容誤差を使わない、translate、往復、toDrawElementの塗る条件との一致）。補助関数`makeFilledClosed`を追加。先頭の責務の記述に「（輪郭・内側）」を追記。既存ケースの書き換えなし。
+    *   `node --test`：tests 875・pass 875・fail 0。
 
 ### タスク4: `Ellipse.hitTestFill`とそのテスト
 *   **作業内容** :
