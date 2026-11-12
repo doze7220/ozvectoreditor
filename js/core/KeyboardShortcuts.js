@@ -47,6 +47,14 @@ const ShiftRule = Object.freeze({
  * @property {() => boolean} deleteSelection 選択集合の全図形を削除する
  * @property {() => boolean} join 選択中の線を結合する（開いたパス1本を閉じる・2本を1本の開いたパスにする）。
  *     結合した場合のみtrue（結合できない選択ではfalse）
+ * @property {() => boolean} bringToFront 選択中の図形を最前面へ移す。並びを変えた場合のみtrue
+ *     （何も選んでいない・すでに最前面・ドラッグ中ではfalse）
+ * @property {() => boolean} bringForward 選択中の図形を1つ手前へ移す。並びを変えた場合のみtrue
+ *     （何も選んでいない・すでに最前面・ドラッグ中ではfalse）
+ * @property {() => boolean} sendBackward 選択中の図形を1つ後ろへ移す。並びを変えた場合のみtrue
+ *     （何も選んでいない・すでに最背面・ドラッグ中ではfalse）
+ * @property {() => boolean} sendToBack 選択中の図形を最背面へ移す。並びを変えた場合のみtrue
+ *     （何も選んでいない・すでに最背面・ドラッグ中ではfalse）
  * @property {() => boolean} undo 直前の編集操作を取り消す。作成途中の図形があれば、その破棄のみを行い履歴は変化させない。
  *     取り消せる履歴がなくても、ドラッグ中でなければ常にtrue（ブラウザ標準のCtrl+Zを起こさないため）
  * @property {() => boolean} redo 取り消した編集操作をやり直す。作成途中の図形があれば破棄したうえでやり直す。
@@ -94,6 +102,11 @@ const SHORTCUT_BINDINGS = Object.freeze([
     { codes: ['Delete', 'Backspace'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'deleteSelection' },
     // 選択中の線の結合。キーリピートでは実行しない
     { codes: ['KeyJ'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'join' },
+    // 重なり順の変更。前へ・後ろへは押しっぱなしで連続実行できるようrepeatable: true、最前面へ・最背面へは繰り返さない
+    { codes: ['Home'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'bringToFront' },
+    { codes: ['PageUp'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: true, action: 'bringForward' },
+    { codes: ['PageDown'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: true, action: 'sendBackward' },
+    { codes: ['End'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'sendToBack' },
     // 取り消し・やり直し（押しっぱなしで連続実行できるようrepeatable: true）
     { codes: ['KeyZ'], ctrl: true, shift: ShiftRule.FORBIDDEN, repeatable: true, action: 'undo' },
     { codes: ['KeyZ'], ctrl: true, shift: ShiftRule.REQUIRED, repeatable: true, action: 'redo' },

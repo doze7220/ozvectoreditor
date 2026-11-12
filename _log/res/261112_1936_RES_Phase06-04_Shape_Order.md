@@ -259,7 +259,7 @@
         *   2章3-3のとおり、import 3行、`// 7.8.`のブロック（`ShapeOrderEditor`の生成・`performShapeOrder`・`PropertyOrderSection`の生成・`syncPropertyOrderSection`と`model.onChange`への登録。ブロックの先頭コメントに、表示は`PropertyOrderSection`・手順は`ShapeOrderEditor`・規則は`ShapeOrderRules`が持ちここは生成・注入・同期のみ、同期は`model.onChange`のみ、段を足すときの形は`// 7.7.`と同じ、を書く）、`KeyboardShortcuts`への4つのコールバック、起動時の`syncPropertyOrderSection()`の1回の呼び出しを足す。`performShapeOrder`・`syncPropertyOrderSection`にJSDocを書く。判定・並べ替えのロジックを`main.js`に持ち込まない（ドラッグ中の判定のみ。`performJoin`と同じ）。`// 7.7.`のブロック・既存の配線は変えない。
         *   この時点では`KeyboardShortcuts`の対応表に4つのキーが無く、注入した4つのコールバックは呼ばれない（コンストラクタは余分なコールバックを検査しないため起動時の例外は起きない）。ボタンはこのタスクで働くようになる。
         *   `node --test`の`fail 0`と件数を記録し、実装後の`main.js`の行数を詳細作業内容に記録する（開発資料の「行数」の更新に使う）。詳細作業内容を記入して`[x]`にする。開発資料に影響があれば更新予定欄へ追記する。
-*   [ ] タスク7: `KeyboardShortcuts`の対応表に4つのキーを足す
+*   [x] タスク7: `KeyboardShortcuts`の対応表に4つのキーを足す
     *   **対象ファイル** :
         *   `./js/core/KeyboardShortcuts.js` : 更新
     *   **作業内容** :
@@ -340,7 +340,10 @@
 
 ### タスク7: `KeyboardShortcuts`の対応表に4つのキーを足す
 *   **作業内容** :
-    *   （未記入）
+    *   対象ファイル：`./js/core/KeyboardShortcuts.js`のみ。`SHORTCUT_BINDINGS`の`join`の後に4エントリ（コメント付き。`Home`＝`bringToFront`・`PageUp`＝`bringForward`（repeatable）・`PageDown`＝`sendBackward`（repeatable）・`End`＝`sendToBack`。いずれも`ctrl: false`・`ShiftRule.FORBIDDEN`）を追加し、typedef`ShortcutActions`に4つ（並びを変えた場合のみtrue）を追加。判定順序・`#findBinding`・既存エントリ・importは不変。
+    *   確認：`index.html`の4ボタンの`title`（`Home`・`PageUp`・`PageDown`・`End`）と対応表が一致。`main.js`が4つのコールバックを注入済み（起動時の`Error`なし）。
+    *   `node --test`（プロジェクトルート）：tests 975 / pass 975 / fail 0。
+    *   開発資料への影響：既存の更新予定欄（タスク9）のとおりで追加の影響なし。
 
 ### タスク8: JSDocの記載漏れの確認
 *   **作業内容** :
