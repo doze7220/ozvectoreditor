@@ -229,7 +229,7 @@
         *   2章1-2のとおり`hitTestFill(x, y)`を`hitTest`の直後に足す（先頭の判定 → `return false`）。JSDoc（第15メソッド、塗れない形（`isFillable()`が常に偽）のため常に偽であること、直線は面積を持たないこと、`x`・`y`は使わないこと、`@param`・`@returns`）。クラスJSDocの契約の列挙を15メソッドへ。
         *   テスト：`fillColor`が色の文字列でも`null`でも、線の上・線の近く・離れた点で常に偽、`strokeColor: null`でも偽、`toDrawElement()`が塗る条件を満たさないこと（`closed: false`）と一致すること。
         *   `node --test`の`fail 0`と件数を記録し、詳細作業内容を記入して`[x]`にする。
-*   [ ] タスク6: `Curve.hitTestFill`とそのテスト
+*   [x] タスク6: `Curve.hitTestFill`とそのテスト
     *   **対象ファイル** :
         *   `./js/shapes/Curve.js` : 更新
         *   `./test/shapes/Curve.test.js` : 更新（`describe('Curve.hitTestFill')`の追加）
@@ -319,7 +319,9 @@
 
 ### タスク6: `Curve.hitTestFill`とそのテスト
 *   **作業内容** :
-    *   (未実施)
+    *   `js/shapes/Curve.js`：`hitTest`の直後（`hitTestHandle`の直前）に`hitTestFill(x, y)`を追加（先頭の判定で偽 → `return false`）。JSDoc（第15メソッド・塗られている条件・塗れない形のため常に偽・曲線と弦で囲まれた部分も内側としない・許容誤差なし・`x`・`y`は使わない）を記載。クラスJSDocの契約の列挙を15メソッド（末尾`hitTestFill`）へ。他のメソッドは未変更。
+    *   `test/shapes/Curve.test.js`：`describe('Curve.hitTestFill')`を追加（3ケース：fillColor文字列・fillColor nullで曲線と弦の間/曲線上/弦上/始点/終点/離れた点が常に偽、toDrawElementの`kind`が`quadratic`・`fillColor`が`null`であることとの一致）。既存ケースの書き換えなし。
+    *   `node --test`：tests 895・pass 895・fail 0。5クラス（Line・Curve・Rect・Ellipse・Path）すべてに`hitTestFill`が実装されていることを確認済み。
 
 ### タスク7: `DEFAULT_STROKE_WIDTH`のJSDocの食い違いの修正
 *   **作業内容** :

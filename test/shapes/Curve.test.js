@@ -163,6 +163,33 @@ describe('Curve.hitTest', () => {
     });
 });
 
+describe('Curve.hitTestFill', () => {
+    // 曲線と弦で囲まれる部分(50,20)・曲線の上(50,50)・弦の上(50,0)・始点・離れた点
+    const points = [[50, 20], [50, 50], [50, 0], [0, 0], [100, 0], [50, 100], [1000, 1000]];
+
+    it('fillColorが色の文字列でも、弦との間・曲線の上・離れた点で常にfalse', () => {
+        const c = new Curve(0, 0, 100, 0, '#000000', 2, '#ff0000');
+        c.setVertex(1, 50, 100);
+        for (const [x, y] of points) {
+            assert.equal(c.hitTestFill(x, y), false);
+        }
+    });
+
+    it('fillColorがnullでも常にfalse', () => {
+        const c = new Curve(0, 0, 100, 0, '#000000', 2, null);
+        c.setVertex(1, 50, 100);
+        for (const [x, y] of points) {
+            assert.equal(c.hitTestFill(x, y), false);
+        }
+    });
+
+    it('toDrawElementのkindがquadratic（塗らない）でfillColorがnullであることと一致する', () => {
+        const el = new Curve(0, 0, 100, 0, '#000000', 2, '#ff0000').toDrawElement();
+        assert.equal(el.kind, 'quadratic');
+        assert.equal(el.fillColor, null);
+    });
+});
+
 describe('Curve.intersectsRect', () => {
     it('A: 輪郭に掛かる矩形・全体を含む矩形は true', () => {
         assert.equal(curveA().intersectsRect(45, 45, 55, 55), true);
