@@ -257,7 +257,7 @@
             *   見えない図形（`strokeColor: null`・`fillColor: null`）が輪郭の当たりで選ばれ、内側では選ばれない。線なしで塗られた図形の塗りの外側の許容誤差以内（輪郭の当たり）で選ばれる。
             *   引数の図形配列の並びを書き換えないこと。
         *   `node --test`の`fail 0`と件数を記録し、詳細作業内容を記入して`[x]`にする。開発資料に影響があれば更新予定欄へ追記する。
-*   [ ] タスク9: `InputTracker`の当たり分類を`PointHitRules`へ委ねる
+*   [x] タスク9: `InputTracker`の当たり分類を`PointHitRules`へ委ねる
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` : 更新
     *   **作業内容** :
@@ -337,7 +337,9 @@
 
 ### タスク9: `InputTracker`の当たり分類を`PointHitRules`へ委ねる
 *   **作業内容** :
-    *   (未実施)
+    *   `js/core/InputTracker.js`：`import { classifyPointHit } from './PointHitRules.js';`を追加。`#classifyPoint(point)`の本体を`classifyPointHit(this.model.getShapes(), (id) => this.model.isSelected(id), point.x, point.y, this.#getWorldHitTolerance())`の返却のみに置き換え（引数・戻り値・呼び出し元4箇所は未変更）。
+    *   JSDoc：`PointHit`のtypedefを`import('./PointHitRules.js').PointHit`へ置換（正本は`PointHitRules.js`の旨を記載）。`#classifyPoint`のJSDocを、規則の正本は`PointHitRules.classifyPointHit`・図形のメソッドを直接呼ばない・ハンドル→本体の要約へ改めた。クラスJSDocの「図形種別の分岐…持たない。」の直後に、当たり分類の規則は`PointHitRules`に委ねる旨を1文追加。`handleMouseDown`・`handleClick`の分岐の表、`handleMouseMove`・`#resolveCursor`は未変更。`isFillable()`・`fillColor`・図形種別の分岐は持ち込んでいない。
+    *   `node --test`：tests 913・pass 913・fail 0。実装後の`InputTracker.js`の行数：1305行（`wc -l`の値）。
 
 ### タスク10: JSDocの記載漏れの確認
 *   **作業内容** :

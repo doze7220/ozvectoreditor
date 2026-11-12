@@ -6,6 +6,7 @@
 
 import { DragTracker } from './DragTracker.js';
 import { SHAPE_TYPES } from './ShapeFactory.js';
+import { classifyPointHit } from './PointHitRules.js';
 
 /**
  * InputTrackerが取りうる内部状態。
@@ -27,12 +28,8 @@ export const InputState = {
 
 /**
  * 当たり分類（#classifyPoint）の結果。ホバー・押下・クリック・カーソル形状の判定で共通に用いる。
- * handleもbodyIdもnullの場合は「空白」を表す。
- * @typedef {Object} PointHit
- * @property {{shapeId: string, handle: string} | null} handle
- *     選択集合の図形のハンドル（前面優先）。shapeId：ハンドルが属する図形のid（単一）、handle：hitTestHandleの戻り値
- * @property {string | null} bodyId
- *     本体（hitTest）が真の図形のid（単一）。選択集合の図形を優先し、同順位は図形配列の先頭
+ * 型の正本はPointHitRules.jsのPointHit（handleもbodyIdもnullなら空白）。ここでは名前を参照するためだけに再掲する。
+ * @typedef {import('./PointHitRules.js').PointHit} PointHit
  */
 
 /**
@@ -204,6 +201,7 @@ export function isSpaceOperatedInputElement(element) {
  * 委ね、本クラスは呼ぶ場面の配線と吸い付きの表示（model.setSnapPoint/clearSnapPoint）の設定・消去のみを行う。
  * 吸い付きの規則（探索・距離・候補の選び方）・結果の組み立て・描く図形種別の判定は持たない。
  * 図形種別の分岐・図形固有のプロパティ名は持たない。
+ * 当たり分類の規則（ハンドル・本体の優先順位）はPointHitRules.classifyPointHitに委ね、#classifyPointは受け渡しのみ行う。
  * メソッドは区切りコメントで「公開API（モード・図形種別）」「公開API（状態依存の操作：削除・取消・全選択・中断）」「イベントハンドラ」「左ドラッグ」「パン」「当たり分類」
  * 「座標取得」「カーソル形状」の順に整理している。
  */
@@ -1166,48 +1164,22 @@ export class InputTracker {
     /**
      * 指定位置の当たり分類を行う。ホバー（handleMouseMove）・押下（handleMouseDown）・クリック（handleClick）・
      * カーソル形状（#resolveCursor）で共通に用いる（クリック時に古いホバー状態へ依存しないため）。
-     * 規則：
-     * ・ハンドル：選択集合の全図形を対象に、図形配列の後ろ（描画順で前面）からshape.hitTestHandle(...)を呼び、
-     *   最初に非nullとなった図形・ハンドルを採用する（前面優先。CanvasManagerがハンドルを図形配列順に描くため、重なり順と一致する）。
-     * ・本体：図形配列を先頭から1回だけ走査し、shape.hitTest(...)が真の最初の図形を記録しつつ、
-     *   選択集合の図形で真になった時点でそれを採用して打ち切る（選択集合の図形を優先、同順位は図形配列の先頭）。
-     * 図形種別の分岐は持たず、isSelected・hitTestHandle・hitTestのポリモーフィック呼び出しのみで判定する。
+     * 規則の正本はPointHitRules.classifyPointHit。本メソッドはモデルの図形配列・選択中かの照会・座標・許容誤差を渡して結果を返すだけで、
+     * 図形のメソッド（hitTest・hitTestHandle・hitTestFill）を直接呼ばない。規則の要約：
+     * ・ハンドル（今のまま）：選択集合の図形を対象に、図形配列の後ろ（前面）から最初に当たったハンドル。
+     * ・本体：選択集合の図形の輪郭を手前優先で優先し、なければ手前から輪郭または塗った内側（選択集合の内側を優先しない）。
      * 許容誤差は#getWorldHitTolerance()（画面上hitTolerance pxのワールド換算値）。
      * @param {{x: number, y: number}} point 判定位置（ワールド座標）
      * @returns {PointHit} 当たり分類の結果（handle・bodyIdともnullなら空白）
      */
     #classifyPoint(point) {
-        const shapes = this.model.getShapes();
-        const tolerance = this.#getWorldHitTolerance();
-
-        let handle = null;
-        for (let i = shapes.length - 1; i >= 0; i--) {
-            const shape = shapes[i];
-            if (!this.model.isSelected(shape.id)) {
-                continue;
-            }
-            const handleName = shape.hitTestHandle(point.x, point.y, tolerance);
-            if (handleName) {
-                handle = { shapeId: shape.id, handle: handleName };
-                break;
-            }
-        }
-
-        let bodyId = null;
-        for (const shape of shapes) {
-            if (!shape.hitTest(point.x, point.y, tolerance)) {
-                continue;
-            }
-            if (this.model.isSelected(shape.id)) {
-                bodyId = shape.id;
-                break;
-            }
-            if (bodyId === null) {
-                bodyId = shape.id;
-            }
-        }
-
-        return { handle, bodyId };
+        return classifyPointHit(
+            this.model.getShapes(),
+            (id) => this.model.isSelected(id),
+            point.x,
+            point.y,
+            this.#getWorldHitTolerance()
+        );
     }
 
     // ---- 座標取得 ----
