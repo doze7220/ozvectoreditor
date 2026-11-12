@@ -334,7 +334,7 @@
         *   `Grep`で、`js/`内に「新しく描く図形の太さ」等の古い位置づけの記述が残っていないか確かめる（変更対象外のファイルに残る記述は直さず5章に記録する。`js/shapes/ShapeDataValidation.js:18`は計画時に特定して5章・「開発資料の更新予定」に記録済み。それ以外に見つかった場合だけ追記する）。
         *   `js/core/KeyboardShortcuts.js`で、`#handleKeyDown`の判定順序の手順番号を参照する箇所すべて（判定順序の列挙、typedef`ShortcutActions`の`paste`の「`#handleKeyDown`の手順N」、`preventDefault()`の原則の「唯一の例外」と「`ctrl: false`のエントリが手順N・Mで実行されなかった場合」、`#handleKeyDown`内の行内コメント「手順N・M」）が新しい番号（ドラッグ中＝手順5、キーリピート＝手順6、実行＝手順7）にそろっていることを`Grep`（`手順`）で確かめる。
 
-*   [ ] タスク10: 開発資料への反映（最終タスク）
+*   [x] タスク10: 開発資料への反映（最終タスク）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` : 更新（1章・2章・3章）
         *   `./_doc/arch/01_index_html.md` : 更新
@@ -418,7 +418,9 @@
 
 ### タスク10: 開発資料への反映
 *   **作業内容** :
-    *   （未実施）
+    *   `PROJECT_ARCHITECTURE.md`：1章（フォルダ構造に新設6ファイル、「存在しないもの」の更新、`edit/`・`palette/`の分割方針、依存方向の例外）、2章（図形のスタイル3つの読み書き、`isFillable()`の記述、線の太さ2pxの4つの定義と`ShapeDataValidation.js:18`のJSDocの食い違い、新項「新しく描く図形のスタイル（直前に使った値）」、作業データ・キャンバス記録の「保存しないもの」）、3章（同期の経路、読み込み完了前の操作、キーボード操作の入力欄の規則、履歴の記録する操作・記録しない操作、新しい節13.「プロパティパネル（図形の段）」）。4章の一覧は行を足さない（計画どおり）。
+    *   `_doc/arch/`：`01_index_html.md`（プロパティパネル・2段構成）、`02_main.md`（`// 7.7.`・注入の一覧・`syncPropertyShapeSection`・行数628・切り出しを行わなかった理由）、`03_VectorModel.md`、`06_InputTracker.md`、`07_KeyboardShortcuts.md`、`08_HistoryManager.md`、`12_shapes.md`、`13_palette.md`（`PropertyShapeSection`の項）、`14_edit.md`（`StylePanelRules`・`ShapeStyleEditor`の項、例外の追記）、`16_test.md`（新設3ファイル・例外・テストできない箇所）を更新。
+    *   ソース・テスト・`_doc/arch/`以外の`_doc/`は変更していない。`node --test`は初回は未実行。diff監査の指摘修正後に実行し、841件（pass 841・fail 0）。修正は資料のほか`js/main.js`のコメント1箇所のみ（コード不変）。
 
 ## 5. 懸念事項・要確認ポイント
 ### 計画時の判断・注意
@@ -529,6 +531,12 @@
 50. キャンバスパレットの新規作成・開く・名前の変更・削除・出力（作業ファイル・エンジン用）・開く（ファイル）・インポートがこれまでどおり動く。パネルで変えた図形を出力（エンジン用）して`sprite-check.html`で開くと、エディタと同じ見た目で描かれる。
 51. 既存のショートカット（`V`・`P`・`H`・数字キー・`Ctrl`+`0`/`=`/`-`・`Esc`・`Ctrl`+`A`・`Delete`・`J`・`Ctrl`+`Z`/`Y`/`C`/`X`/`V`/`D`）が、パネルの部品にフォーカスが無いときはこれまでどおり働く。
 52. 既存のウィンドウ（コントロールパネル・図形選択パレット・キャンバスパレット・`?dev`の確認用ウィンドウ）の位置・見た目が変わらない。
+
+### タスク10実施時の記録
+*   `PROJECT_ARCHITECTURE.md`2章の「線の太さ2pxの4つの定義」は、RES 2章 要件4の整理を記載基準（設計判断・食い違いの記録）に沿って要約した。コード側のJSDoc（`VectorModel.js`の`DEFAULT_NEW_SHAPE_STYLE`）が正本。
+*   `02_main.md`の「`PropertyShapeSection`の注入」は`main.js`の記述（`document.getElementById('property-shape-section')`をルート要素として渡す）に基づく。行数628は着手前593＋35（タスク8の記録）による値で、`main.js`を直接数え直してはいない。（diff監査で`main.js`の行数628は実コードと一致することを確認済み）将来`main.js`を変更する際に実測と合わせて更新すること。
+*   `14_edit.md`の`ShapeStyleEditor`の依存（`model`の使うメソッド）はRES 2章の記載に基づく。実コードとの突き合わせは行っていない。（diff監査で`02_main.md`の注入の記述・`14_edit.md`の`ShapeStyleEditor`の依存が実コードと一致することを確認済み）将来`ShapeStyleEditor`が使う`model`のメソッドを増減する際は併せて直すこと。
+*   `js/shapes/ShapeDataValidation.js:18`のJSDocは未変更のまま（食い違いは`PROJECT_ARCHITECTURE.md`2章と`12_shapes.md`に記録済み）。`shapes/`を変更する後続の作業で直したら、両資料の該当の記述を削除すること。
 
 ### タスク8実施時の記録
 *   `main.js`の`syncPropertyShapeSection`は`model.onChange`登録のため、`shapeStyleEditor`の色プレビュー中も再描画される。ブラウザでの目視確認を推奨（色の欄のドラッグ中にパネルが乱れないか、フォーカス中の太さの欄が書き換わらないか、選択・取り消し/やり直し・キャンバス切り替えでの追従、チェックボックス操作中のSpaceキー）。

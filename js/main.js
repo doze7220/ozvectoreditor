@@ -447,7 +447,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 表示の同期はmodel.onChangeのみで行う（機能専用の同期経路は足さない）。
     // 段（「図形」以外）を足すときは、段ごとにこのブロックと同じ形のブロックを足す（既存の段の配線は変えない）。
     // コールバックはshapeStyleEditorのメソッドを呼ぶだけで、判定を持たない。
-    // inputTracker.isDragging()を見ない理由は開発資料に記載予定（ここでは判定しない）。
+    // inputTracker.isDragging()を見ない理由は開発資料（PROJECT_ARCHITECTURE.md 3章13.）に記載（ここでは判定しない）。
     const shapeStyleEditor = new ShapeStyleEditor({ model, editRecorder: historyManager });
     const propertyShapeSection = new PropertyShapeSection(document.getElementById('property-shape-section'), {
         onStrokeEnabledChange: (enabled) => shapeStyleEditor.setStrokeEnabled(enabled),

@@ -1,4 +1,4 @@
-*   **palette/**：自己完結するUI部品。いずれもDOM操作専任で、`VectorModel`・図形データ・選択状態に関与しない（受け取るのは注入された値とコールバックのみ）。カラーピッカー・ツールバーは未実装。
+*   **palette/**：自己完結するUI部品。いずれもDOM操作専任で、`VectorModel`・図形データ・選択状態に関与しない（受け取るのは注入された値とコールバックのみ）。ツールバー・独自のカラーピッカーは未実装（色はブラウザ標準の`<input type="color">`）。
     *   **PaletteController.js**：図形選択パレットの配線。
         *   **公開メソッド**：`setEnabled`・`setActiveType`。
         *   **注入**：`main.js`が種別一覧（`SHAPE_TYPES`）と`onTypeSelected`（`applyShapeType`）を渡す。importは持たず、`InputTracker`・`ShapeFactory`へ直接依存しない。
@@ -7,6 +7,13 @@
         *   **公開メソッド**：`show`。
         *   **知らないこと**：作業データの中身。importを持たず、`VectorModel`・`InputTracker`・`DocumentSerializer`・図形インスタンスを参照しない（受け取るのは文字列と要約`ImportSummary`のみ）。
         *   **契約**：コールバックの例外は捕捉しない。`onImport`側の処理を増やす場合は例外を漏らさない（漏れると結果表示が更新されない）。
+    *   **PropertyShapeSection.js**：プロパティパネル（`#window-property-panel`）の「図形」の段のDOMの配線（`render(view)`の表示と、利用者の操作のコールバックへの通知）。流れは3章13.。
+        *   **公開メソッド**：`render`。
+        *   **注入**：コンストラクタで段のルート要素（`#property-shape-section`）とコールバック6つ（`onStrokeEnabledChange(checked)`・`onFillEnabledChange(checked)`・`onStrokeWidthChange(value)`（戻り値`false`なら表示を書き戻す）・`onColorInput(target, value)`・`onColorChange(target, value)`・`onColorEditEnd()`）を受け取る。コールバックが関数でなければ`Error`、要素が欠ければ`console.warn`して配線しない（`render`は何もしない）。`main.js`がコールバックを`ShapeStyleEditor`のメソッドへつなぐ。
+        *   **知らないこと**：importを持たず、`VectorModel`・図形データ・選択状態・`ShapeStyleEditor`・`StylePanelRules`を参照しない（受け取るのは`view`とコールバックのみ）。判定・変更の手順を持たない。
+        *   **表示の規則の要点**：太さの欄はフォーカスがある間は書き換えない（打ち込み途中の値が`model.onChange`で消えないため）。値の確定が受理されなかったとき・欄から出たときは最後の`view`で書き戻す。色の欄は値が今の値と違うときだけ代入する（ピッカー操作中の再描画で同じ値を入れ直さないため）。チェックボックスの中間表示は`indeterminate`。文言（「混在」「表示できない色」「次に描く図形」等）はこのファイルが唯一の定義箇所。文字は`textContent`で設定する。
+        *   **二重定義**：typedef`StylePanelView`は`edit/StylePanelRules.js`と同じ内容を持つ。形を変える場合は両方を揃える。
+        *   **段の足し方**：プロパティパネルは段ごとに1つのUI部品を持つ。段を足すときは、`index.html`に`<section class="property-section">`、`palette/`にその段のUI部品（自分の`<section>`をルート要素に受け取り、要素はルート要素内の`querySelector('#id')`で解決する）、`main.js`に段のブロックを足すだけで、`PropertyShapeSection`・既存の段を変えない。
     *   **コントロールパネルの位置づけ**：操作モードの切り替え・頻繁に使う操作（削除・取り消し/やり直し・ビューのリセット等）と、他のパレットの**呼び出し口**（開閉ボタン）を置く場所である。頻繁には使わない機能はパレットに分け、呼び出し口から開閉する。
     *   **PaletteLauncher.js**：呼び出し口のボタンと開閉式パレットの対応づけと開閉。
         *   **公開メソッド**：なし（コンストラクタのみ）。

@@ -45,12 +45,15 @@
 │   │   ├── PaletteController.js
 │   │   ├── DevPanel.js
 │   │   ├── CanvasPalette.js
+│   │   ├── PropertyShapeSection.js # プロパティパネルの「図形」の段。段ごとに1ファイル
 │   │   └── PaletteLauncher.js  # 自己完結するUI部品をここに追加する
 │   ├── edit/
 │   │   ├── ShapeInserter.js
 │   │   ├── PathJoiner.js
 │   │   ├── EndpointSnapper.js
 │   │   ├── ClipboardController.js
+│   │   ├── StylePanelRules.js
+│   │   ├── ShapeStyleEditor.js
 │   │   ├── SnapshotAdapter.js
 │   │   ├── CanvasLibrary.js
 │   │   └── CanvasFileOperations.js
@@ -69,7 +72,8 @@
 │   ├── core/
 │   │   ├── ShapeFactory.test.js
 │   │   ├── VectorModel.replaceShape.test.js
-│   │   └── VectorModel.snapPoint.test.js
+│   │   ├── VectorModel.snapPoint.test.js
+│   │   └── VectorModel.style.test.js
 │   ├── shapes/
 │   │   ├── Line.test.js
 │   │   ├── Curve.test.js
@@ -91,7 +95,9 @@
 │   │   ├── CanvasFileOperations.test.js
 │   │   ├── CanvasFileOperations.export.test.js
 │   │   ├── PathJoiner.test.js
-│   │   └── EndpointSnapper.test.js
+│   │   ├── EndpointSnapper.test.js
+│   │   ├── StylePanelRules.test.js
+│   │   └── ShapeStyleEditor.test.js
 │   └── check/
 │       └── SpriteCheckInspector.test.js
 │
@@ -109,27 +115,30 @@
         └── closed/    # フェイズ大番号移行時にアーカイブ済みRESの退避先
 ```
 
-**存在しないもの**：エディタでのJSの実行（スプライトのJSはテキストから取り出すだけ）、本アプリが書き出した形以外のJSの読み込み・スプライトの`elements`からの図形の作り直し（`CodeImporter`は作らない。`_doc/PROJECT_MILESTONE.md`の将来の野望）、確認用ページでの拡大縮小・移動・編集・複数ファイルの同時表示・組み立て用のJSの表示、エディタから確認用ページへのリンク、組み立て用のJSの書き出し（アニメーションエディタモードのPhase）、スプライトのJSON（`<名前>.json`）の出力・読み込み・確認用ページでのJSONの表示（Phase 04-04でやめた。スプライトはJSだけ。`.json`は作業データファイル）、複数キャンバスの一括出力、PNG・SVG等の形式、カラーピッカー、画面から線・塗りを変える操作（プロパティパネル。Phase 06-02）、塗った内側のクリックでの選択（内側の当たり判定）、弧・曲線・直線・開いたパスの塗り（塗れるのは`rect`・`circle`・閉じた`path`のみ）、透明度・グラデーション、ツールバー、レイヤー、グループ化、`package.json`・`node_modules`・ビルド手順、テストの自動実行（保存時・コミット時のフック、CI）、画面の操作や描画のテスト。
+**存在しないもの**：エディタでのJSの実行（スプライトのJSはテキストから取り出すだけ）、本アプリが書き出した形以外のJSの読み込み・スプライトの`elements`からの図形の作り直し（`CodeImporter`は作らない。`_doc/PROJECT_MILESTONE.md`の将来の野望）、確認用ページでの拡大縮小・移動・編集・複数ファイルの同時表示・組み立て用のJSの表示、エディタから確認用ページへのリンク、組み立て用のJSの書き出し（アニメーションエディタモードのPhase）、スプライトのJSON（`<名前>.json`）の出力・読み込み・確認用ページでのJSONの表示（Phase 04-04でやめた。スプライトはJSだけ。`.json`は作業データファイル）、複数キャンバスの一括出力、PNG・SVG等の形式、独自のカラーピッカー（色はブラウザ標準の`<input type="color">`）、プロパティパネルの「頂点」の段（精度のPhase）、直前に使った値（新しく描く図形のスタイル）の保存・キャンバスごとの既定の色、塗った内側のクリックでの選択（内側の当たり判定）、弧・曲線・直線・開いたパスの塗り（塗れるのは`rect`・`circle`・閉じた`path`のみ）、透明度・グラデーション、ツールバー、レイヤー、グループ化、`package.json`・`node_modules`・ビルド手順、テストの自動実行（保存時・コミット時のフック、CI）、画面の操作や描画のテスト。
 
 **フォルダ分割の方針**
 *   `core/`：横断的な処理（入力→状態→描画の複数層にまたがるもの）。
-*   `shapes/`：1種類の図形（図形クラス。種別ごとに1ファイル）と、図形クラスだけが使う共通の関数（幾何の計算・図形データの検証。継承ではなく関数の切り出し。詳細は4章`shapes/`）、図形をまたぐ規則（`PathJoinRules`（結合の規則）・`EndpointSnapRules`（端点への吸い付きの規則）。第3の種類で、`shapes/`の外から使う。3章11.・12.）。`palette/`：1つのUI部品。
+*   `shapes/`：1種類の図形（図形クラス。種別ごとに1ファイル）と、図形クラスだけが使う共通の関数（幾何の計算・図形データの検証。継承ではなく関数の切り出し。詳細は4章`shapes/`）、図形をまたぐ規則（`PathJoinRules`（結合の規則）・`EndpointSnapRules`（端点への吸い付きの規則）。第3の種類で、`shapes/`の外から使う。3章11.・12.）。`palette/`：1つのUI部品（プロパティパネルは段ごとに1つのUI部品。ウィンドウ自体を配線するクラスは無い）。
 *   `io/`：作業データ形式の変換（`DocumentSerializer`）、IndexedDBへの読み書き（`CanvasStorage`）、作業データファイル・スプライトのJSのブラウザ内での読み書き（`DocumentFileIO`）、スプライト（書き出し形式）の組み立て（`SpriteSerializer`）とスプライトJSのテキストの組み立てと実行しない取り出し（`CodeExporter`）、開く・インポートで選ばれたファイルの中身の判別と作業データの取り出し（`FileContentReader`）のみ。
 *   `check/`：確認用ページ（`sprite-check.html`）専用。DOM・選んだJSの実行・描画を含む。importは`check/`内と`io/`の`SpriteSerializer`のみ。`main.js`・`edit/`・`palette/`・`core/`の状態を持つモジュールをimportせず、`js/`の他のモジュール・`index.html`は`check/`をimportしない。
-*   `edit/`：`io/`・`core/`の機能（結合の手順`PathJoiner`と吸い付きの手順`EndpointSnapper`のみ`shapes/`の規則も）を組み合わせて図形一式を扱う手順（貼り付け・複製、履歴のスナップショットの取得・適用、キャンバス一覧の管理、ファイル操作の組み立て、パスの結合、端点への吸い付きと描き足し）。操作モードを知らない。操作モードに依存する判定・処理は`shouldRestoreSelection`・`prepareSwitch`・`prepareInsert`のような中立な注入関数で受け取る。
+*   `edit/`：`io/`・`core/`の機能（結合の手順`PathJoiner`と吸い付きの手順`EndpointSnapper`のみ`shapes/`の規則も）を組み合わせて図形一式を扱う手順（貼り付け・複製、履歴のスナップショットの取得・適用、キャンバス一覧の管理、ファイル操作の組み立て、パスの結合、端点への吸い付きと描き足し、選択中の図形のスタイルの変更（プロパティパネル））。操作モードを知らない。操作モードに依存する判定・処理は`shouldRestoreSelection`・`prepareSwitch`・`prepareInsert`のような中立な注入関数で受け取る。
 *   `test/`：自動テスト。Node.jsはテストの実行（`node --test`）にのみ使い、エディタのビルド・配信には使わない。依存は`test/ → js/`の一方向で、`index.html`・`js/`は`test/`を参照しない。規則は4章`test/`。
-*   **依存方向**：`main.js → edit → io → core → shapes`の一方向。`core/`は`io/`をimportしない。`core/`・`io/`は`edit/`をimportしない。`edit/PathJoiner`は例外として`shapes/PathJoinRules`を、`edit/EndpointSnapper`は例外として`shapes/EndpointSnapRules`・`shapes/PathJoinRules`をimportする（下向き。`edit/`の他のクラスは`shapes/`をimportしない）。`shapes/EndpointSnapRules`は`shapes/PathJoinRules`をimportする（`shapes/`内。`PathJoinRules`は`Path`のみimportするため循環しない）。`core/InputTracker`は`edit/`をimportせず、`main.js`が注入した`EndpointSnapper`のメソッドを呼ぶだけ（`editRecorder`と同じ形）。`check/ → io`（確認用ページ専用。エディタ本体の依存の列とは独立）。
+*   **依存方向**：`main.js → edit → io → core → shapes`の一方向。`core/`は`io/`をimportしない。`core/`・`io/`は`edit/`をimportしない。`edit/PathJoiner`は例外として`shapes/PathJoinRules`を、`edit/EndpointSnapper`は例外として`shapes/EndpointSnapRules`・`shapes/PathJoinRules`をimportする（下向き。`edit/`の他のクラスは`shapes/`をimportしない）。`edit/ShapeStyleEditor`は例外として`edit/StylePanelRules`を（`edit/`内）importする。`shapes/EndpointSnapRules`は`shapes/PathJoinRules`をimportする（`shapes/`内。`PathJoinRules`は`Path`のみimportするため循環しない）。`core/InputTracker`は`edit/`をimportせず、`main.js`が注入した`EndpointSnapper`のメソッドを呼ぶだけ（`editRecorder`と同じ形）。`check/ → io`（確認用ページ専用。エディタ本体の依存の列とは独立）。
 
 ---
 
 ### 2. データ構造（Model）の概要
 *   **図形（Shape）**：`shapes/`の図形クラスのインスタンス。
     *   共通プロパティ：`type`（`ShapeFactory`が受理する文字列と一致）・`id`（`VectorModel`が採番）・`strokeColor`（色の文字列、または`null`＝線なし）・`strokeWidth`・`fillColor`（色の文字列、または`null`＝塗りなし）。
+    *   **スタイル3つ（`strokeColor`・`strokeWidth`・`fillColor`）の読み書き**：図形固有のプロパティ（頂点の保持形式等）ではなく共通プロパティのため、`VectorModel`が書き（`updateShapeStyles`・`startDraft`・`updateNewShapeStyle`の作成途中の図形）、`edit/StylePanelRules`・`edit/ShapeStyleEditor`が読む。各モジュールの「図形固有のプロパティ名を知らない」約束の例外として扱う（`ShapeStyleEditor`は書き換えを`model.updateShapeStyles`へ渡すだけで図形へ直接代入しない。図形クラスにメソッドは足さない＝共通メソッド契約は14メソッドのまま）。
     *   頂点の保持形式は図形クラスごとに異なる（`Line`は`x1, y1, x2, y2`、`Curve`/`Rect`/`Ellipse`/`Path`は`points`配列（`Path`は頂点数が可変で、`closed`・`segments`も持つ）。4章`shapes/`）。
-    *   **塗れる形**：`rect`・`circle`・閉じた`path`。公開メソッド`isFillable()`が返す（`Line`・`Curve`・弧は常に偽、`Rect`は常に真、`Ellipse`は`type === 'circle'`、`Path`は`closed === true`。データには保存しない。Phase 06-02の塗りの欄の無効表示・06-03の内側の当たり判定で外から使う予定）。
+    *   **塗れる形**：`rect`・`circle`・閉じた`path`。公開メソッド`isFillable()`が返す（`Line`・`Curve`・弧は常に偽、`Rect`は常に真、`Ellipse`は`type === 'circle'`、`Path`は`closed === true`。データには保存しない。Phase 06-02のプロパティパネル（`StylePanelRules`・`ShapeStyleEditor`）が使う。06-03で内側の当たり判定に使う予定）。
     *   **`fillColor`は塗れない形でも保持し、塗れる形のときだけ描く**（DIR Phase 06の決定。後続のPhaseでパスを開く・閉じる等をしても塗りが壊れないため）。`toJSON`は保持している値をそのまま出力する。線なし（`strokeColor: null`）で塗れない形（または塗りなし）の図形は何も描かれないが、データとして受理し、従来どおり選べる。
 *   **図形データ**（1図形のJSON表現）：全図形共通で`{ type, id, points: [{ x, y }, ...], strokeColor, strokeWidth, fillColor }`を共通の項目とし（`fillColor`は最後のキー）、種別により項目を足す（`path`）。
-    *   **色・太さの読み込み**：`strokeColor`は文字列または`null`（線なし）。`fillColor`は文字列または`null`（塗りなし。キーが無ければ`null`として読む）。それ以外の型は不正。`strokeWidth`は正の有限の数値で、キーが無ければ（`undefined`）2pxとして読む（既定値の`shapes/`内の定義は`ShapeDataValidation.js`の`DEFAULT_STROKE_WIDTH`。`SpriteSerializer`の同名の定数と同じ値であるべき別の定義で、`shapes/`が`io/`をimportできないため。図形クラスのコンストラクタの`strokeWidth = 2`（新しく描く図形の太さ）とも別の定義）。色の文字列の中身はCSSの色として正しいかを検証しない。
+    *   **色・太さの読み込み**：`strokeColor`は文字列または`null`（線なし）。`fillColor`は文字列または`null`（塗りなし。キーが無ければ`null`として読む）。それ以外の型は不正。`strokeWidth`は正の有限の数値で、キーが無ければ（`undefined`）2pxとして読む（既定値の`shapes/`内の定義は`ShapeDataValidation.js`の`DEFAULT_STROKE_WIDTH`。`SpriteSerializer`の同名の定数と同じ値であるべき別の定義で、`shapes/`が`io/`をimportできないため。図形クラスのコンストラクタの`strokeWidth = 2`とも別の定義）。色の文字列の中身はCSSの色として正しいかを検証しない。
+    *   **線の太さ2pxの4つの定義と位置づけ**：(1) `core/VectorModel.js`の`DEFAULT_NEW_SHAPE_STYLE.strokeWidth`＝新しく描く図形の既定の太さ（起動時の直前に使った値）の唯一の定義。(2) 各図形クラスのコンストラクタの既定値`strokeWidth = 2`＝引数を省略して生成したときの値（`ShapeFactory.create`はスタイルを渡さないが`startDraft`が直後に(1)で上書きするため、新しく描く図形の太さを決めない。(1)と同じ値である必要はない）。(3) `ShapeDataValidation.js`の`DEFAULT_STROKE_WIDTH`＝読み込みでキーが無いときの値。(4) `io/SpriteSerializer.js`の`DEFAULT_STROKE_WIDTH`＝書き出し形式の読む側の既定値（(3)と同じ値であるべき）。
+    *   **JSDocの食い違い（JSDocが直るまでの正しい記述）**：`js/shapes/ShapeDataValidation.js:18`の`DEFAULT_STROKE_WIDTH`のJSDocの「図形クラスのコンストラクタの`strokeWidth`の既定値（新しく描く図形の太さ）とは別の定義」は、括弧内が実態と食い違う（新しく描く図形の太さは(1)が決める。コンストラクタの既定値は(2)のとおり引数を省略したときの値）。「コンストラクタの既定値とは別の定義」という点は正しい。同ファイルは06-02で変更していない。
     *   **`path`**：`{ type: 'path', id, points, closed, segments: [{ kind: 'line' }, ...], strokeColor, strokeWidth, fillColor }`（キー順）。`closed`は真偽値のみ。
         *   区間の約束：`segments[i]`＝`points[i]`→`points[i+1]`、閉じたパスの最後＝`points[n-1]`→`points[0]`。要素数は開いた`n - 1`・閉じた`n`。`kind`は現在`'line'`のみ。曲線の区間は`kind`の値と区間の要素のキーを足して拡張する。区間の要素の余分なキーは無視する。
         *   頂点数の下限は開いた2・閉じた3、上限なし。長さ0の区間は可。
@@ -139,7 +148,7 @@
     *   `fromJSON`直後の`id`は未検証・未正規化（欠落なら`undefined`、任意の型を取り得る）。`VectorModel.replaceAllShapes`の正規化を経て初めて一意な文字列になる。
 *   **作業データ形式**（キャンバス全体の版番号付きJSON表現）：`{ format: "oz-vector-editor", version, shapes: [図形データ, ...] }`（`shapes`は描画順）。
     *   変換は`io/DocumentSerializer.js`が担う。
-    *   保存対象は図形データのみ。選択集合・ホバー・作成中の図形・選択矩形・吸い付きの表示・ビュー変換は含めない。
+    *   保存対象は図形データのみ。選択集合・ホバー・作成中の図形・選択矩形・吸い付きの表示・ビュー変換・新しく描く図形のスタイル（直前に使った値）は含めない。
     *   図形クラスは常に現行版の図形データのみを扱う。旧版の知識は`DocumentSerializer`のマイグレーション表に閉じる。
     *   **現行版は2**。版1→版2の移行（`migrateVersion1To2`）は、全図形の`fillColor`を`null`にする（版1に塗りの意味はないため、`fillColor`を持っていても`null`）。`strokeColor`・`strokeWidth`には触れない。プレーンオブジェクトでない要素はそのまま残し、後の図形単位の検証でスキップされる。
     *   **版2の作業データを古いエディタ（版1まで対応）で開くと「対応していない版」として全体が断られる**（DIRの決定。許容）。版を上げた理由：上げないと`strokeColor: null`の図形が古いエディタで黙って捨てられるため。
@@ -206,7 +215,7 @@
     *   `name`：前後の空白を除いた1〜100文字。重複は許す。
     *   `updatedAt`：`Date.now()`のミリ秒。名前の変更では更新しない。
     *   `document`：作業データ形式のオブジェクト（`DocumentSerializer.serialize`の戻り値）。保存処理・キャンバス一覧の管理とも中身を解釈しない。読み込みは`DocumentSerializer.deserialize`を通す。
-    *   保存しないもの：Undo/Redoの履歴・選択集合・ホバー・作成中の図形・選択矩形・吸い付きの表示・ビュー変換・クリップボード・操作モード。
+    *   保存しないもの：Undo/Redoの履歴・選択集合・ホバー・作成中の図形・選択矩形・吸い付きの表示・ビュー変換・クリップボード・操作モード・新しく描く図形のスタイル（直前に使った値）。
 *   **保存先**：IndexedDB。設定は`CanvasStorage.js`の`STORAGE_CONFIG`が唯一の定義箇所。ストアはキャンバス記録と、「最後に開いていたキャンバスの識別子」を保持するメタ情報の2つ。
     *   オリジン単位のため、`file://`で開いた場合とローカルサーバー経由で開いた場合、ポート番号が違う場合は別のキャンバス一覧になる。
     *   複数タブで同時に開いた場合の整合は扱わない（後から書き込んだ側が残る）。
@@ -215,23 +224,30 @@
     *   **選択集合**：選択中の図形idの集合。0個以上で、常に現存図形のidのみを含む。選択モード以外では空（不変条件）。
     *   **選択矩形**：範囲選択中の表示用。ワールド座標の対角2点（押下点と現在のカーソル位置）。正規化しない。
 *   **吸い付きの表示の点**：`core/VectorModel.js`が保持するワールド座標の1点（`null`＝表示なし）。表示専用で、保存対象外・履歴の対象外。`InputTracker`が設定・消去する（3章12.）。
+*   **新しく描く図形のスタイル（直前に使った値）**：`core/VectorModel.js`が保持する（`NewShapeStyle`＝`strokeEnabled`・`strokeColor`・`strokeWidth`・`fillEnabled`・`fillColor`の5項目）。
+    *   **有無と色を分けて持つ理由**：「なし」にしても色の欄に直前の色を表示でき、「あり」に戻すとその色が入るため。
+    *   **既定**（起動時）：線あり`#000000`・太さ2・塗りなし・塗りの色`#ffffff`（`DEFAULT_NEW_SHAPE_STYLE`）。既定のまま描いた図形のスタイルは従来と同じ（`fillColor: null`）。
+    *   **当てる場所**：`VectorModel.startDraft`が`ShapeFactory.create`の直後に作成途中の図形へ当てる（`InputTracker`・`ShapeFactory`・図形クラスを変えずに済むため。作成途中の図形を作るのは`startDraft`だけ）。作成途中に直前に使った値を変えると作成途中の図形も変わる（確定する図形は確定時点の値）。塗れない形も`fillColor`を持つ（描かれないが保持する）。
+    *   **更新**：パネルの変更（`ShapeStyleEditor`）からだけ。図形を選んだだけ・`getPanelView()`を呼んだだけでは変わらない。
+    *   **保存しない・履歴の対象外・キャンバスごとに持たない**：作業データにもスナップショットにも含まれず、`replaceAllShapes`（取り消し/やり直し・キャンバスの切り替え・`?dev`の復元）も触れない。ページを開き直すと既定に戻る。直前に使った値を`VectorModel`に置く理由：(1) `startDraft`が使う、(2) 変更を既存の`model.onChange`で通知でき表示の同期に新しい経路が要らない、(3) 上記の「含まれない」が自然に満たされる。
+    *   **当てないもの**：貼り付け・複製・インポート・開く（ファイル）・取り消し/やり直し・直線の描き終えの吸い付きによる描き足し・結合・閉じるの結果（作成途中の直線は捨てられ、`PathJoinRules`の基準の線Aのスタイルになる）。
 
 ---
 
 ### 3. 描画・操作フロー（実行サイクル）
-**同期の経路（全機能共通）**：再描画・UI同期は既存の経路（`model.onChange`・`viewTransform.onChange`・`historyManager.onChange`・`canvasLibrary.onChange`・`canvasFileOperations.onChange`、モードと図形種別は`applyMode`・`applyShapeType`）のみで行う。機能専用の再描画・同期処理を足さない。
+**同期の経路（全機能共通）**：再描画・UI同期は既存の経路（`model.onChange`・`viewTransform.onChange`・`historyManager.onChange`・`canvasLibrary.onChange`・`canvasFileOperations.onChange`、モードと図形種別は`applyMode`・`applyShapeType`）のみで行う。機能専用の再描画・同期処理を足さない。プロパティパネルの表示は`model.onChange`で同期する（直前に使った値の変更も`model.onChange`で通知される。13.）。
 
 1.  **起動処理 (`main.js`)**：DOMの読み込み完了後、インスタンス化・依存の注入・イベントバインドを行う（配線は4章`main.js`）。URLに`?dev`があるときのみ`DevPanel`も生成・表示する。
     *   **キャンバスの非同期の読み込み**：初期化の最後に`canvasLibrary.start()`を呼ぶ（`await`しない）。起動直後は空のキャンバスで描画され、読み込み完了時に切り替え処理（8.）で図形一式が入る（倍率100%・選択モード・履歴は空）。
     *   **開くキャンバスの決定**：候補は「最後に開いていたキャンバス（一覧にあれば）→ 残りを最終更新日時の新しい順」。先頭から読み込みを試し、全体として読めた最初の1枚を開く。読めない記録は一覧に残し、保存先からも消さない。形式不正の記録（`id`・`name`・`updatedAt`の型が違う）は一覧から除外し、保存先からは消さない。候補が無い・すべて読めない場合は新しい空のキャンバスを作成して開く（初回起動を含む）。
     *   **保存先を利用できない場合**：保存先へ一切書き込まず、メモリ上だけの空のキャンバス「無題 1」を開く（`'unavailable'`。8.）。
-    *   **読み込み完了前の操作**：`index.html`で表示状態から始まる覆い要素`#canvas-loading-cover`がキャンバスへのマウス入力を遮る（読み込み完了時の切り替えで利用者の操作が消されたり別のキャンバスに保存されたりしないため）。キーボードショートカットとフロートウィンドウ上のボタンは働く。読み込み中は図形0個・クリップボード空・履歴空のため図形一式を変えない（結合も、図形0個・選択集合が空のため何もしない。専用の判定は無い）。唯一図形一式を変え得る`?dev`の「復元」は読み込み中は受理しない。`CanvasLibrary`も読み込み中の開く・新規作成等を受理しない。図形一式を変える操作を新しく足す場合は読み込み中の扱いが要る。
+    *   **読み込み完了前の操作**：`index.html`で表示状態から始まる覆い要素`#canvas-loading-cover`がキャンバスへのマウス入力を遮る（読み込み完了時の切り替えで利用者の操作が消されたり別のキャンバスに保存されたりしないため）。キーボードショートカットとフロートウィンドウ上のボタンは働く。読み込み中は図形0個・クリップボード空・履歴空のため図形一式を変えない（結合も、図形0個・選択集合が空のため何もしない。専用の判定は無い）。唯一図形一式を変え得る`?dev`の「復元」は読み込み中は受理しない。`CanvasLibrary`も読み込み中の開く・新規作成等を受理しない。図形一式を変える操作を新しく足す場合は読み込み中の扱いが要る。プロパティパネルは読み込み中も操作でき、選択集合が空のため直前に使った値だけを変える（図形一式を変えない。専用の判定は無い）。
 2.  **描画サイクル (`CanvasManager.js`)**：常時ループ（rAF）は持たない。`VectorModel.onChange`・`ViewTransform.onChange`・ウィンドウリサイズの3経路から同一関数`renderCurrentState()`（`main.js`）で同期的に再描画する。描画順は4章`CanvasManager.js`。
 3.  **入力監視 (`InputTracker.js`・`KeyboardShortcuts.js` → `VectorModel.js`)**：状態が更新されると`VectorModel`が更新イベントを発火し、再描画を促す。
     *   **端点への吸い付き**：直線を描くとき、および選択モードで線の端点のハンドルをドラッグするときの吸い付きは12.。
     *   **ドラッグのライフサイクル**：左ドラッグ（ハンドルドラッグ・本体ドラッグ・範囲選択）とパンの、押下から解放まで（開始ボタン・移動量閾値・追従/終了検知・中断・終了直後のclick抑止）は`DragTracker`が`window`へのcapture購読で一元管理する。ドラッグの意味の解釈（パン量・頂点変形・選択集合の平行移動・範囲選択）は`InputTracker`が行う。閾値判定のみスクリーン座標で行い、当たり判定・移動量・選択矩形はワールド座標で扱う。
     *   **範囲選択の流れ**：選択モードで空白を左ボタンで押下 → 閾値超過後、押下点と現在のカーソル位置で`VectorModel`の選択矩形を更新（描画は`CanvasManager`）→ 解放時に矩形を正規化し、各図形の`intersectsRect`をポリモーフィックに呼んで掛かった図形で選択集合を置き換え、選択矩形を破棄する（0件なら全解除）。中断（blur・モード切替）時は選択矩形を破棄するのみで確定しない。
-    *   **キーボード操作**：`document`の`keydown`は、`Space`を`InputTracker`（スペースパン）、それ以外のキーを`KeyboardShortcuts`が排他的に担当する（同一キーを二重に解釈しない）。`keyup`は`Space`のみ`InputTracker`が購読する。操作の実体は`main.js`から注入されたコールバック（`applyMode`/`applyShapeType`/`viewTransform`/`InputTracker`の公開メソッド/`performUndo`・`performRedo`/`ClipboardController`の`copy`・`cut`・`paste`・`duplicate`/`performJoin`）で実行する。
+    *   **キーボード操作**：`document`の`keydown`は、`Space`を`InputTracker`（スペースパン）、それ以外のキーを`KeyboardShortcuts`が排他的に担当する（同一キーを二重に解釈しない）。`keyup`は`Space`のみ`InputTracker`が購読する。**入力欄の規則**：テキスト入力扱いの`input`（太さの欄を含む）にフォーカスがあるときはスペースパンとすべてのショートカットが働かない。`type`が`checkbox`・`color`の`input`にフォーカスがあるときは、`Space`のパンをせず`preventDefault()`もしない（部品の標準動作＝チェックの切り替え・ピッカーを開く）、`Ctrl`なしのショートカットは働かず、`Ctrl`付きは働く。判定は`InputTracker.js`の`isTextInputElement`・`isSpaceOperatedInputElement`（部品のidに結びつけず`type`全般に当てる）。操作の実体は`main.js`から注入されたコールバック（`applyMode`/`applyShapeType`/`viewTransform`/`InputTracker`の公開メソッド/`performUndo`・`performRedo`/`ClipboardController`の`copy`・`cut`・`paste`・`duplicate`/`performJoin`）で実行する。
 4.  **座標系とビュー変換 (`ViewTransform.js`)**：図形データが保持する座標を「ワールド座標」、キャンバス要素の左上を原点とするCSSピクセル座標を「スクリーン座標」と呼ぶ。`スクリーン = ワールド × 倍率 ＋ オフセット`。
     *   **入力**：`InputTracker`がマウスイベントからスクリーン座標を取得し、`ViewTransform.screenToWorld`でワールド座標へ逆変換して`VectorModel`・当たり判定へ渡す。パン量・ズーム中心はスクリーン座標のまま`ViewTransform`へ渡す。
     *   **描画**：`renderCurrentState()`が`viewTransform.getState()`を`CanvasManager.render()`へ渡し、`CanvasManager`がdprと合成した描画変換を毎回設定する。
@@ -249,7 +265,8 @@
         *   `?dev`の「JSONから復元」：5.の順序。
         *   結合（結合ボタン・`J`）：`PathJoiner.join`で、`model.replaceShape`の前後。結合できない選択では記録しない（11.）。
         *   貼り付け・複製（`Ctrl`+`V`／`Ctrl`+`D`）・インポート：`ShapeInserter.insertDocument`で、`model.addShapesWithNewIds(shapes)`の前後。追加0件では記録しない。
-    *   **記録しない操作**：範囲選択・クリック選択・全選択・選択解除・ホバー・パン・ズーム・ビューのリセット・操作モード/図形種別の切り替え、作成途中の図形の開始・破棄、コピー、出力（作業ファイル・エンジン用）、開く（ファイル）・キャンバスの切り替え。
+        *   プロパティパネルの変更（`ShapeStyleEditor`。13.）：チェックボックス・太さは`model.updateShapeStyles`の前後。色の欄はピッカー操作中は記録せず図形へ反映し、確定（`change`・`blur`・`keydown`・他の変更）のときに開始時の色へ戻してから`beginEdit` → 最後の色 → `commitEdit`の1件（図形が入れ替わっていれば捨てる）。
+    *   **記録しない操作**：直前に使った値の変更、選択中の図形が無いときのパネルの変更、範囲選択・クリック選択・全選択・選択解除・ホバー・パン・ズーム・ビューのリセット・操作モード/図形種別の切り替え、作成途中の図形の開始・破棄、コピー、出力（作業ファイル・エンジン用）、開く（ファイル）・キャンバスの切り替え。
     *   **適用の流れ**：ショートカット（`Ctrl`+`Z`／`Ctrl`+`Y`・`Ctrl`+`Shift`+`Z`）とボタン（`#history-undo`／`#history-redo`）は、どちらも`main.js`の`performUndo()`／`performRedo()`を呼ぶ（`historyManager.undo()`/`redo()`を直接呼ばない）。
         1.  ドラッグ中（`inputTracker.isDragging()`）なら不受理。
         2.  `inputTracker.abortOngoingOperation()`。取り消しは、作成途中の図形を破棄した場合はそこで終了し履歴を変化させない。やり直しは破棄したうえで続行する。
@@ -341,6 +358,20 @@
     *   **やらないこと**：曲線・矩形・円・弧・閉じたパスの点・途中の頂点への吸い付き、修飾キーでの一時無効、整数px・グリッドへの吸い付き、本体・moveハンドルのドラッグでの吸い付き、自動で閉じる。
     *   **別の定義**：`SNAP_TOLERANCE_SCREEN_PX`（8px）・`JOIN_TOLERANCE_SCREEN_PX`（5px。端点が重なっているとみなす距離）・`InputTracker`の`hitTolerance`（5px）・表示の大きさ（`CanvasManager`の定数）は互いに別の定義で、どれを変えても他は変わらない。
     *   **注意（パン／ズームの後）**：パンの開始で表示は消すが描き終えの端点の保持は残すため、パンの後にカーソルを動かさずに描き終えると、表示の無いまま直前の照会結果で結合・描き足しになり得る。ズーム（`handleWheel`）は、描いている途中・図形作成モードのIDLEでは照会し直さないため表示を消さず、ズームの後も表示が残る（作成途中の終点・保持した端点も更新されない）。端点のハンドルを閾値を超えてドラッグしている最中のズームは`#applyLeftDragUpdate`で照会し直す（吸い付く距離をその時点の表示倍率で換算し直す）ため、吸い付きが外れて表示が消えることがある。
+
+13. **プロパティパネル（「図形」の段） (`palette/PropertyShapeSection.js` ⇄ `main.js` → `edit/ShapeStyleEditor.js` → `edit/StylePanelRules.js`・`core/VectorModel.js`・`HistoryManager.js`)**：常に表示される「プロパティ」ウィンドウ（`#window-property-panel`）の「図形」の段で、選択中の図形のスタイル（線の有無・色・太さ、塗りの有無・色）を変える。図形を選んでいないときは新しく描く図形のスタイル（直前に使った値。2章）を表示・変更する。
+    *   **モジュールの分担**：DOM＝`PropertyShapeSection`（表示と、操作のコールバックへの通知のみ。importなし・`VectorModel`・図形データ・選択状態・`ShapeStyleEditor`を知らない）。配線＝`main.js`（コールバックを`ShapeStyleEditor`のメソッドへつなぐだけ。判定を持たない）。手順＝`ShapeStyleEditor`（DOMなし。反映の範囲・履歴の記録・色の欄のピッカー操作中の扱い・パネルが覚えている色）。規則＝`StylePanelRules`（パネルに出す値の算出・色の文字列の表示用の変換・太さの入力の受理。状態なし・DOMなし・importなし）。typedef`StylePanelView`は`StylePanelRules.js`と`PropertyShapeSection.js`の二重定義（形を変えるときは両方を揃える）。
+    *   **表示の流れ**：`model.onChange` → `syncPropertyShapeSection()` → `shapeStyleEditor.getPanelView()` → `propertyShapeSection.render(view)`。起動時にも1回呼ぶ。選択の変更・取り消し/やり直し・キャンバスの切り替え・図形の作成/削除・パネルでの変更・直前に使った値の変更はすべて`model.onChange`を通知するため、既存の経路だけで追従する。
+    *   **表示の規則**：図形を選んでいるときは、線・塗りの有無（そろっていなければ中間表示）・色・太さを選択中の図形から決める。色が違えば欄の横に「混在」、太さが違えば欄を空にして「混在」。塗りは塗れる形（`isFillable()`が真）だけで決め、塗れる形が無ければ塗りの欄を無効表示にする（`fillColor`は消さない）。複数の図形の色は重なり順で最も手前の図形の色を表示する。`<input type="color">`は`#rrggbb`しか表示できないため、`#rrggbb`・`#rgb`は表示用に変換し、変換できない色（色名・`rgb(...)`等）は「パネルが覚えている色」を表示して「表示できない色」と添える。表示のために図形の値は書き換えない。混在は文字列の完全一致で判定する（`#fff`と`#ffffff`は混在）。
+    *   **パネルが覚えている色**：`ShapeStyleEditor`が保持する「色の欄に最後に表示した色」（線・塗り）。`getPanelView()`が内容を求めるたびに更新するため、**`getPanelView()`は純粋な照会ではない**（表示の同期と`ShapeStyleEditor`の内部以外から呼ばない。同じ状態なら何度呼んでも結果は同じ）。色が決まらない項目（すべて線なし・塗れる形なし・変換できない色）は直前の表示を保つ。これにより、線を「なし」→ 選択を変えずに「あり」で元の色に戻る。
+    *   **反映の範囲**：選択中の図形があるとき、変えた項目だけを反映する（線の有無・色・太さは選択中の全図形、塗りの有無・色は塗れる形だけ。塗れない形の`fillColor`は変えない）。あわせて直前に使った値の同じ項目を更新する。選択中の図形が無いときは直前に使った値だけを変える（履歴に記録しない。読み込み中もこちら）。線の「あり」は表示中の色を入れ、色を選ぶと選んだ色が入って線なしの図形にも線が付く（「あり」になる）。塗れる形が無い選択での塗りの変更は受理しない（`false`）。
+    *   **履歴の単位**：チェックボックス1回・太さの確定1回で1件。色の欄はピッカーを開いてから閉じるまでを1件にする。`input`の間は履歴を開かずに図形へ反映し、確定の契機（`change`・色の欄の`blur`・`keydown`・`ShapeStyleEditor`の他の変更メソッドの冒頭）で、開始時の色へ戻してから`beginEdit` → 最後の色 → `commitEdit`として記録する。編集操作を`input`から`change`まで開いたままにしないため、他の操作と`beginEdit`/`commitEdit`の対が崩れることが構造上ない。記録した図形が入れ替わっていた（取り消し/やり直し・キャンバスの切り替え・`?dev`の復元・削除）場合は、記録せず捨てる。
+    *   **確定前に他の操作が起きた場合**：`blur`・`keydown`の来ない操作（フォーカスを移さないボタンの押下、非同期に終わった読み込みによるキャンバスの切り替え）が確定の前に起きると、ピッカーで入れた色は他の操作のスナップショットに含まれる、または図形が入れ替わってその色の変化が履歴に残らないことがある（`console.warn`は出ず、アプリは停止しない）。ブラウザによっては1回のピッカーの操作が複数件に分かれる（`blur`で途中確定した後の`input`は新しい1件）。
+    *   **太さの受理**：1以上100以下の整数のみ（空・0・負・小数・100超・数値でない入力は受理しない。受理しなければ図形を変えず欄を元の値へ書き戻す）。太さの欄はフォーカスがある間は表示を書き換えず（打ち込み途中の値が`model.onChange`で消えないため）、フォーカスが外れたとき最後の表示へ書き戻す。
+    *   **ドラッグ中のパネルの変更は拒まない（REQ要件3の「受け付けない、または起こり得ない」のどちらにも当たらない判断）**：`main.js`のコールバックも`ShapeStyleEditor`も`inputTracker.isDragging()`を見ない。理由：`isDragging()`はドラッグのセッション中（閾値以前を含む）に真になり、太さの欄に打って`Enter`を押さずにキャンバスを押すと、キャンバスの`mousedown`の後にフォーカスが移って太さの欄の`change`が来るため、拒むと打ち込んだ値が失われる。閾値以前・パンの間は他の編集操作が開いていないため、受け付けても履歴の対は崩れない。**残る経路**：閾値を超えた左ドラッグ中（`InputTracker`が編集操作を開いている間）に、`Tab`でパネルの部品へフォーカスを移して値を変えた場合。パネルの`beginEdit()`がドラッグの「前の状態」を上書きし（`console.warn`）、その後のドラッグの`commitEdit()`は対を失って記録されない（ドラッグを始める前の位置へは取り消しで戻れなくなる）。アプリは停止せず、通常のマウス操作では起こりにくいため対処していない。**将来防ぐ場合の案**：`InputTracker`に「編集操作を開いているか」の照会を足して`main.js`が`ShapeStyleEditor`へ注入し、開いている間は変更を受理しない（`false`を返しパネルは書き戻す）。またはドラッグの開始時にパネルの部品からフォーカスを外す。`isDragging()`では判定しない。
+    *   **発注者の決定**：混在は「混在」と表示する。塗りは塗れる形だけで決め、塗れる形だけへ反映する。「あり」にしたときは表示中の色を入れる。太さは1〜100の整数。線を「なし」にした結果の見えない図形（何も描かれない図形）も受け付ける（選び方は06-01のまま。扱いの見直しは06-03）。直前に使った値はパネルで変えたときだけ更新し、保存しない。
+    *   **2段構成（段の足し方）**：ウィンドウの本体に段ごとの`<section class="property-section">`（見出し付き）を置き、段ごとに`palette/`のUI部品1つと`main.js`の配線ブロック1つを持つ。精度のPhaseで「頂点」の段を足すときは、`index.html`に`<section id="property-vertex-section">`、`palette/`にその段のUI部品、`main.js`にその段のブロックを足すだけで、`PropertyShapeSection`・既存の段・既存のブロックを変えない。各段のUI部品は自分の`<section>`をルート要素として受け取り、要素idは段ごとの接頭辞（「図形」の段は`property-`）で重複させない。
+    *   **やらないこと**：「頂点」の段、透明度、独自のカラーピッカー、スポイト、直前に使った値の保存。
 
 ---
 
