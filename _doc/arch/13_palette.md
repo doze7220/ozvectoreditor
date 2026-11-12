@@ -14,6 +14,11 @@
         *   **表示の規則の要点**：太さの欄はフォーカスがある間は書き換えない（打ち込み途中の値が`model.onChange`で消えないため）。値の確定が受理されなかったとき・欄から出たときは最後の`view`で書き戻す。色の欄は値が今の値と違うときだけ代入する（ピッカー操作中の再描画で同じ値を入れ直さないため）。チェックボックスの中間表示は`indeterminate`。文言（「混在」「表示できない色」「次に描く図形」等）はこのファイルが唯一の定義箇所。文字は`textContent`で設定する。
         *   **二重定義**：typedef`StylePanelView`は`edit/StylePanelRules.js`と同じ内容を持つ。形を変える場合は両方を揃える。
         *   **段の足し方**：プロパティパネルは段ごとに1つのUI部品を持つ。段を足すときは、`index.html`に`<section class="property-section">`、`palette/`にその段のUI部品（自分の`<section>`をルート要素に受け取り、要素はルート要素内の`querySelector('#id')`で解決する）、`main.js`に段のブロックを足すだけで、`PropertyShapeSection`・既存の段を変えない。
+    *   **PropertyOrderSection.js**：プロパティパネルの「重なり順」の段（`#property-order-section`）の4ボタンのDOMの配線（`render(view)`で各ボタンの押せる/押せないを表示し、押下をコールバックへ通知）。流れは3章14.。
+        *   **公開メソッド**：`render`。
+        *   **注入**：コンストラクタで段のルート要素とコールバック4つ（`onBringToFront`・`onBringForward`・`onSendBackward`・`onSendToBack`）を受け取る。コールバックが関数でなければ`Error`、要素が欠ければ`console.warn`して配線しない（`render`は何もしない）。`main.js`がコールバックを`performShapeOrder(ShapeOrderOperation.…)`へつなぐ。
+        *   **知らないこと**：importを持たず、`VectorModel`・選択集合・図形データ・`ShapeOrderEditor`・規則・操作の値（`ShapeOrderOperation`）を参照しない（受け取るのは`view`とコールバックのみ）。
+        *   **二重定義**：typedef`ShapeOrderAvailability`は`edit/ShapeOrderEditor.js`と同じ内容を持つ。形を変える場合は両方を揃える。
     *   **コントロールパネルの位置づけ**：操作モードの切り替え・頻繁に使う操作（削除・取り消し/やり直し・ビューのリセット等）と、他のパレットの**呼び出し口**（開閉ボタン）を置く場所である。頻繁には使わない機能はパレットに分け、呼び出し口から開閉する。
     *   **PaletteLauncher.js**：呼び出し口のボタンと開閉式パレットの対応づけと開閉。
         *   **公開メソッド**：なし（コンストラクタのみ）。

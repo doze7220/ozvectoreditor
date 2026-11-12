@@ -211,6 +211,7 @@
 *   **`_doc/arch/02_main.md`**：配線ブロックの表に`// 7.8.`（プロパティパネル「重なり順」の段。`ShapeOrderEditor`・`PropertyOrderSection`の生成、`performShapeOrder`、`syncPropertyOrderSection`と`model.onChange`への登録）を追加。主な関数に`performShapeOrder`・`syncPropertyOrderSection`を追加。注入の一覧に`ShapeOrderEditor`（`model`・`editRecorder`＝`historyManager`）・`PropertyOrderSection`（`#property-order-section`の要素・4つのコールバック→`performShapeOrder(ShapeOrderOperation.…)`）を追加し、`KeyboardShortcuts`の行に`bringToFront`/`bringForward`/`sendBackward`/`sendToBack`を追加。同一経路の原則に「重なり順のボタンとショートカットは`performShapeOrder()`を呼ぶのみ（`shapeOrderEditor.apply()`を直接呼ばない。ドラッグ中の判定は`performShapeOrder`が行う）」を追加。押せる/押せない状態に「重なり順」の4ボタン（`shapeOrderEditor.getAvailability()`）を追加。「行数」を実装後の行数へ更新（`// 7.8.`は`applyMode`・`viewTransform`等への依存の受け渡しを伴わない独立したブロックのため切り出さなかった旨）。
 *   **`_doc/arch/03_VectorModel.md`**：公開メソッドに`reorderShapes`を追加。`reorderShapes`の項（現在の全図形のidをちょうど1回ずつ並べた配列で新しい並びを受け取る・不正な入力は`console.warn`して何もしない・同じ並びでは通知しない・変わったときだけ1回通知・触れない状態の列挙・履歴の記録は呼び出し側・呼び出し元は`ShapeOrderEditor`のみ（図形の一覧のPhaseで一覧のドラッグからも使う見込み）・操作の種類を受け取らない理由）を追加。
 *   **`_doc/arch/07_KeyboardShortcuts.md`**：「追加の仕方」の後に、`Home`（`bringToFront`）・`PageUp`（`bringForward`）・`PageDown`（`sendBackward`）・`End`（`sendToBack`）は修飾キーなし・`Shift`不可、前へ・後ろへのみキーリピートで実行、コールバックは並びを変えた場合のみ`true`、actionを4つに分けた理由（`core/`が`edit/`の操作の値を知らないため）を追加。
+*   **`_doc/arch/08_HistoryManager.md`**（監査指摘の修正で追加）：「呼び出し元」の列挙と「`EditRecorder`として注入され」の列挙に`ShapeOrderEditor`（重なり順の変更）を加える。
 *   **`_doc/arch/13_palette.md`**：`PropertyOrderSection.js`の項（公開メソッド`render`、注入（段のルート要素・コールバック4つ。関数でなければ`Error`、要素が欠ければ`console.warn`して配線しない）、知らないこと（importなし・`VectorModel`・選択集合・図形データ・`ShapeOrderEditor`・規則・操作の値）、二重定義（typedef`ShapeOrderAvailability`は`edit/ShapeOrderEditor.js`と同じ内容））を追加。
 *   **`_doc/arch/14_edit.md`**：`ShapeOrderRules.js`（公開：`ShapeOrderOperation`・`reorderSelected`・`canReorderSelected`。importなし・DOMなし・状態なし・要素を不透明に扱う。使う側は`ShapeOrderEditor`と`main.js`（定数のみ））と`ShapeOrderEditor.js`（公開メソッド`apply`・`getAvailability`、呼び出し元は`main.js`（`performShapeOrder`・`syncPropertyOrderSection`）、依存（`model`は`getShapes`・`isSelected`・`reorderShapes`のみ、`editRecorder`は注入、importは`./ShapeOrderRules.js`のみ）、契約（並びが変わらない操作では何もせず記録しない・履歴へは1件・ドラッグ中でないことは呼び出し側・進行中の入力操作の中断・モード切り替えは行わない）、二重定義（typedef`ShapeOrderAvailability`は`palette/PropertyOrderSection.js`と同じ内容））の項を追加。「依存」の段落の例外の列挙に`ShapeOrderEditor` → `./ShapeOrderRules.js`を追加。冒頭の「流れは3章6.〜9.・11.〜13.」を「11.〜14.」へ。
 *   **`_doc/arch/16_test.md`**：既存のテストファイルと検証範囲に`test/edit/ShapeOrderRules.test.js`・`test/core/VectorModel.reorderShapes.test.js`・`test/edit/ShapeOrderEditor.test.js`を追加。実物の組み合わせの例外に`test/edit/ShapeOrderEditor.test.js`（実物の`VectorModel`・`SnapshotAdapter`・`HistoryManager`・`ShapeOrderEditor`、保存の往復のため`DocumentSerializer`・`SpriteSerializer`）を追加。テストできない箇所（06-04の追加）として`PropertyOrderSection`（DOM）・`main.js`の重なり順の配線（`performShapeOrder`のドラッグ中の不受理・`syncPropertyOrderSection`）・`index.html`の段・`KeyboardShortcuts`の4つのキー（押しっぱなし・入力欄の規則を含む）を追加。書き換えた既存のテスト（06-04）を記録（計画時点では無し）。保存の往復を`io/`のテストに足さなかった根拠（2章要件6）を1行で残す。
@@ -272,13 +273,14 @@
     *   **作業内容** :
         *   新設・変更したクラス・メソッド・関数・typedefのJSDoc（`@param`・`@returns`・`@throws`）、新設ファイル（`ShapeOrderRules.js`・`ShapeOrderEditor.js`・`PropertyOrderSection.js`・新設テスト3ファイル）の先頭行の責務（3行以内）、`VectorModel.reorderShapes`のJSDocの触れない状態の列挙、typedef`ShapeOrderAvailability`の二重定義の明記（2ファイルで同じ内容）、`KeyboardShortcuts`の対応表とボタンの`title`の一致（`Home`・`PageUp`・`PageDown`・`End`）、`ShortcutActions`の4つの戻り値の記述、`main.js`の`performShapeOrder`・`syncPropertyOrderSection`のJSDocを確認する。
         *   `node --test`の`fail 0`と件数を記録し、詳細作業内容を記入して`[x]`にする。
-*   [ ] タスク9: 開発資料への反映（最終タスク）
+*   [x] タスク9: 開発資料への反映（最終タスク）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` : 更新（1章・3章。4章の一覧は変更なしの見込み）
         *   `./_doc/arch/01_index_html.md` : 更新
         *   `./_doc/arch/02_main.md` : 更新
         *   `./_doc/arch/03_VectorModel.md` : 更新
         *   `./_doc/arch/07_KeyboardShortcuts.md` : 更新
+        *   `./_doc/arch/08_HistoryManager.md` : 更新（監査指摘の修正で追加）
         *   `./_doc/arch/13_palette.md` : 更新
         *   `./_doc/arch/14_edit.md` : 更新
         *   `./_doc/arch/16_test.md` : 更新
@@ -359,7 +361,13 @@
 
 ### タスク9: 開発資料への反映
 *   **作業内容** :
-    *   （未記入）
+    *   2章「開発資料の更新予定」の全項目を反映（タスク1〜8で追加された項目は無し。`_doc/arch/08_HistoryManager.md`の項目はタスク9の監査指摘の修正で追加）。
+    *   `PROJECT_ARCHITECTURE.md`：1章（フォルダ構造に新設6ファイル、「存在しないもの」、`edit/`の列挙、依存方向に`ShapeOrderEditor` → `ShapeOrderRules`）、3章（新しい節14.、6.の記録する操作、キーボード操作の注入コールバックに`performShapeOrder`、1.の読み込み完了前の操作、13.の2段構成に現在の段）。4章の一覧は変更なし。
+    *   `_doc/arch/`：`01_index_html.md`・`02_main.md`（行数は681行、`// 7.8.`は独立したブロックのため切り出さなかった旨）・`03_VectorModel.md`（`reorderShapes`）・`07_KeyboardShortcuts.md`・`08_HistoryManager.md`（「呼び出し元」と`EditRecorder`の注入先の列挙に`ShapeOrderEditor`）・`13_palette.md`（`PropertyOrderSection`）・`14_edit.md`（`ShapeOrderRules`・`ShapeOrderEditor`、冒頭の流れの範囲、依存の例外）・`16_test.md`（新設テスト3ファイル、実物の組み合わせの例外、06-04のテストできない箇所と書き換えた既存のテスト＝無し、保存の往復を`io/`に足さなかった根拠）。
+    *   **監査指摘の修正**：
+        *   `_doc/arch/08_HistoryManager.md`：「呼び出し元」の列挙と「`EditRecorder`として注入され」の列挙に`ShapeOrderEditor`（重なり順の変更）を追加（実コード：`ShapeOrderEditor.apply`が`beginEdit` → `model.reorderShapes` → `commitEdit`、`main.js`の7.8.が`editRecorder: historyManager`で注入）。他の`_doc/arch/`・`PROJECT_ARCHITECTURE.md`に`beginEdit`/`commitEdit`の呼び出し元・`EditRecorder`の注入先を網羅的に列挙した箇所は無く（確認済み）、追加の修正は無し。
+        *   `_doc/arch/02_main.md`：行数の項の`// 7.8.`を「約40行。全体の増分は+53行」へ（`git diff --stat 19bca96 -- js/main.js`で+53行を確認）。
+    *   `node --test`（プロジェクトルート）：tests 975 / pass 975 / fail 0。
 
 ## 5. 懸念事項・要確認ポイント
 

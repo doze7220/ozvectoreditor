@@ -1,7 +1,7 @@
-*   **edit/**：`io/`・`core/`の機能を組み合わせて図形一式を扱う手順。流れは3章6.〜9.・11.〜13.。
+*   **edit/**：`io/`・`core/`の機能を組み合わせて図形一式を扱う手順。流れは3章6.〜9.・11.〜14.。
     *   **知らないこと（全クラス共通）**：DOM、図形種別の分岐、図形固有のプロパティ名、図形のid形式、操作モード。`InputTracker`に依存しない。例外：`StylePanelRules`・`ShapeStyleEditor`は共通プロパティのスタイル3つ（`strokeColor`・`strokeWidth`・`fillColor`。図形固有のプロパティではない）を読む。塗れるかは`isFillable()`を呼んで決め、図形種別の分岐は持たない。
     *   **`ShapeInserter`と`ClipboardController`の`paste`・`duplicate`の前提（呼び出し側の責務）**：選択モードであること・ドラッグ中でないこと・作成途中の図形がないこと。呼び出し側は`main.js`。インポートでは`CanvasFileOperations`が`insertDocument`の前に`prepareInsert()`を呼んで満たす。選択モード以外で呼ぶと「選択集合は選択モード以外では空」の不変条件が崩れる。`SnapshotAdapter`は選択モード以外でも動き、`CanvasLibrary`は自分で`prepareSwitch()`を呼ぶ。
-    *   **依存**：importは`DocumentSerializer`のみ（`CanvasFileOperations`は例外で、`SpriteSerializer`・`CodeExporter`・`FileContentReader`も加える。読み込みは`FileContentReader.deserializeFromText`を通し、スプライト形式を知らない）。他の依存（`VectorModel`・`HistoryManager`・`CanvasStorage`等）は注入で受け取る。操作モードに依存する判定・処理は`shouldRestoreSelection`・`prepareSwitch`・`prepareInsert`のような中立な注入関数で受け取る（実体は`main.js`が与える。注入の一覧は4章`main.js`）。`PathJoiner`も例外で、`shapes/PathJoinRules`のみをimportする。`EndpointSnapper`も例外で、`shapes/EndpointSnapRules`・`shapes/PathJoinRules`のみをimportする（いずれも下向き。`edit/`の他のクラスは`shapes/`をimportしない）。`ShapeStyleEditor`も例外で、`edit/`内の`./StylePanelRules.js`のみをimportする（`StylePanelRules`はimportを持たない）。`core/`は`edit/`をimportしない（`VectorModel`は`StylePanelRules`を知らない）。
+    *   **依存**：importは`DocumentSerializer`のみ（`CanvasFileOperations`は例外で、`SpriteSerializer`・`CodeExporter`・`FileContentReader`も加える。読み込みは`FileContentReader.deserializeFromText`を通し、スプライト形式を知らない）。他の依存（`VectorModel`・`HistoryManager`・`CanvasStorage`等）は注入で受け取る。操作モードに依存する判定・処理は`shouldRestoreSelection`・`prepareSwitch`・`prepareInsert`のような中立な注入関数で受け取る（実体は`main.js`が与える。注入の一覧は4章`main.js`）。`PathJoiner`も例外で、`shapes/PathJoinRules`のみをimportする。`EndpointSnapper`も例外で、`shapes/EndpointSnapRules`・`shapes/PathJoinRules`のみをimportする（いずれも下向き。`edit/`の他のクラスは`shapes/`をimportしない）。`ShapeStyleEditor`も例外で、`edit/`内の`./StylePanelRules.js`のみをimportする（`StylePanelRules`はimportを持たない）。`ShapeOrderEditor`も例外で、`edit/`内の`./ShapeOrderRules.js`のみをimportする（`ShapeOrderRules`はimportを持たない）。`core/`は`edit/`をimportしない（`VectorModel`は`StylePanelRules`を知らない）。
     *   **ShapeInserter.js**：作業データの図形を平行移動したうえで新しいidで最前面へ追加し、追加した図形だけを選択する1件の編集操作（貼り付け・複製・インポートの共通処理）。
         *   **公開メソッド**：`insertDocument`。呼び出し元は`ClipboardController`・`CanvasFileOperations`。
         *   **契約**：履歴へは1件以上追加した場合のみ1件記録する。`documentData`を書き換えない。進行中の入力操作の中断・モード切り替えは行わない。
@@ -22,6 +22,15 @@
         *   **公開メソッド**：`getPanelView`・`setStrokeEnabled`・`setFillEnabled`・`setStrokeWidth`・`previewColor`・`commitColor`・`finishColorPreview`。呼び出し元は`main.js`のパネルのコールバック（`PropertyShapeSection`経由）と表示の同期（`syncPropertyShapeSection`が`getPanelView`を呼ぶ）。各変更メソッドは受理したか（`boolean`）を返す。
         *   **依存**：`model`は`getShapes`・`isSelected`・`getNewShapeStyle`・`updateNewShapeStyle`・`updateShapeStyles`のみ使う。`editRecorder`（実体`historyManager`）は注入で受け取る。importは`./StylePanelRules.js`のみ。DOMなし・`try/catch`なし・ドラッグ中の判定なし。
         *   **契約**：図形への書き換えは`model.updateShapeStyles`へ渡すだけ（直接代入しない）。選択中の図形が無いときは直前に使った値だけを変え、履歴に記録しない。色の欄はピッカー操作中（`previewColor`）は履歴を開かずに図形へ反映し、確定（`commitColor`・`finishColorPreview`・他の変更メソッドの冒頭）で開始時の色へ戻してから`beginEdit` → 最後の色 → `commitEdit`の1件にする。記録した図形インスタンスが`model.getShapes()`から1つでも無くなっていれば記録せず捨てる。**`getPanelView()`は覚えている色を更新するため純粋な照会ではない**（`main.js`の表示の同期と`ShapeStyleEditor`の内部以外から呼ばない）。直前に使った値を更新するのはこのクラスだけ。`COLOR_ITEMS`の`shapeKey`は直前に使った値（`NewShapeStyle`）の色のキー名と同じ前提（項目を足すときは両方をそろえる）。
+    *   **ShapeOrderRules.js**：選択中の要素の重なり順の変更の規則（`StylePanelRules`と同じく手順の`ShapeOrderEditor`と分けた規則）。状態を持たない`export`した関数と定数のみ。流れは3章14.。
+        *   **公開**：`ShapeOrderOperation`（4操作の値の唯一の定義）・`reorderSelected`・`canReorderSelected`。
+        *   **読むもの**：並びと選択の有無のみ。importなし・DOMに触れない・要素を不透明に扱い（`===`でのみ比べる）図形の形・種別・プロパティを読まない。未知の操作は`Error`。`canReorderSelected`は`reorderSelected`の結果との比較で、押せる/押せないと手順の「何もしない」の判定をこの1か所に保つ。
+        *   **使う側**：`ShapeOrderEditor`と`main.js`（定数のみ）。
+    *   **ShapeOrderEditor.js**：選択中の図形の重なり順を、規則で求めた並びを履歴の記録で挟んで`VectorModel`へ渡す1件の編集操作の手順。流れと設計判断は3章14.。
+        *   **公開メソッド**：`apply`・`getAvailability`。呼び出し元は`main.js`（`performShapeOrder`・`syncPropertyOrderSection`）。
+        *   **依存**：`model`は`getShapes`・`isSelected`・`reorderShapes`のみ使う。`editRecorder`（実体`historyManager`）は注入で受け取る。importは`./ShapeOrderRules.js`のみ。DOMなし・`try/catch`なし。
+        *   **契約**：並びが変わらない操作では何もせず（`beginEdit`も呼ばず）記録しない。履歴へは1件記録する。ドラッグ中でないことは呼び出し側（`performShapeOrder`）の責務。進行中の入力操作の中断・モード切り替えは行わない（選択モード以外では選択集合が空のため何もしない）。
+        *   **二重定義**：typedef`ShapeOrderAvailability`は`palette/PropertyOrderSection.js`と同じ内容を持つ。形を変える場合は両方を揃える。
     *   **ClipboardController.js**：アプリ内部のクリップボードの保持と、コピー・切り取り・貼り付け・複製の手順。規則はクラスJSDoc。
         *   **公開メソッド**：`copy`・`cut`・`paste`・`duplicate`・`isEmpty`。呼び出し元は`main.js`の`KeyboardShortcuts`コールバック。
         *   **契約**：モデルへの依存は読み取りのみ。追加は`ShapeInserter`、削除は注入された`deleteSelection`（実体`inputTracker.deleteSelection()`）へ委譲する。`cut()`は削除の前に`serialize`する（削除後は選択集合が空になるため。順序を入れ替えない）。
