@@ -243,7 +243,7 @@
     *   **作業内容** :
         *   2章1-4のとおり、`DEFAULT_STROKE_WIDTH`のJSDocの「（新しく描く図形の太さ）」を実態に合わせて直す。コード・他のJSDoc・エラー文は変えない。
         *   `node --test`の`fail 0`と件数を記録し、詳細作業内容を記入して`[x]`にする。
-*   [ ] タスク8: 当たり分類の規則（`core/PointHitRules.js`）とそのテスト
+*   [x] タスク8: 当たり分類の規則（`core/PointHitRules.js`）とそのテスト
     *   **対象ファイル** :
         *   `./js/core/PointHitRules.js` : 新規
         *   `./test/core/PointHitRules.test.js` : 新規
@@ -331,7 +331,9 @@
 
 ### タスク8: 当たり分類の規則（`core/PointHitRules.js`）とそのテスト
 *   **作業内容** :
-    *   (未実施)
+    *   `js/core/PointHitRules.js`を新規作成（何もimportしない）。先頭の責務（3行以内）、typedef`PointHit`（正本）、`export function classifyPointHit(shapes, isSelected, x, y, tolerance)`、非公開の補助関数`findHandleHit`（選択集合・後ろから・最初の非null）・`findBodyHit`（規則2：選択集合の図形の輪郭を後ろから → 規則3：後ろから`hitTest || hitTestFill`）。`handle`と`bodyId`は独立に求める。図形種別の分岐・`isFillable()`・`fillColor`の読み取りなし。全関数・typedefにJSDoc。`InputTracker`は未変更。
+    *   `test/core/PointHitRules.test.js`を新規作成（18ケース：規則1の4件、規則2・3の7件、空白・見えない図形の6件、非破壊1件）。図形は実物のクラス、`id`は直接代入、`isSelected`は`Set`による関数。
+    *   `node --test`：tests 913・pass 913・fail 0（新規18ケース追加、既存ケースの書き換えなし）。
 
 ### タスク9: `InputTracker`の当たり分類を`PointHitRules`へ委ねる
 *   **作業内容** :
