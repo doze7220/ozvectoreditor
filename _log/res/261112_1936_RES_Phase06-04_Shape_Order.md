@@ -216,7 +216,7 @@
 *   **`_doc/arch/16_test.md`**：既存のテストファイルと検証範囲に`test/edit/ShapeOrderRules.test.js`・`test/core/VectorModel.reorderShapes.test.js`・`test/edit/ShapeOrderEditor.test.js`を追加。実物の組み合わせの例外に`test/edit/ShapeOrderEditor.test.js`（実物の`VectorModel`・`SnapshotAdapter`・`HistoryManager`・`ShapeOrderEditor`、保存の往復のため`DocumentSerializer`・`SpriteSerializer`）を追加。テストできない箇所（06-04の追加）として`PropertyOrderSection`（DOM）・`main.js`の重なり順の配線（`performShapeOrder`のドラッグ中の不受理・`syncPropertyOrderSection`）・`index.html`の段・`KeyboardShortcuts`の4つのキー（押しっぱなし・入力欄の規則を含む）を追加。書き換えた既存のテスト（06-04）を記録（計画時点では無し）。保存の往復を`io/`のテストに足さなかった根拠（2章要件6）を1行で残す。
 
 ## 3. タスクリスト
-*   [ ] タスク1: 並べ替えの規則（`edit/ShapeOrderRules.js`）とそのテスト
+*   [x] タスク1: 並べ替えの規則（`edit/ShapeOrderRules.js`）とそのテスト
     *   **対象ファイル** :
         *   `./js/edit/ShapeOrderRules.js` : 新規
         *   `./test/edit/ShapeOrderRules.test.js` : 新規
@@ -292,7 +292,12 @@
 
 ### タスク1: 並べ替えの規則（`edit/ShapeOrderRules.js`）とそのテスト
 *   **作業内容** :
-    *   （未記入）
+    *   対象ファイル：`./js/edit/ShapeOrderRules.js`（新規）、`./test/edit/ShapeOrderRules.test.js`（新規）。
+    *   `ShapeOrderRules.js`：先頭に責務、`ShapeOrderOperation`（凍結・`@enum`）、`reorderSelected`、`canReorderSelected`を実装。importなし。未知の操作の判定は非公開関数`assertKnownOperation`に集約（`reorderSelected`冒頭で呼ぶ。空配列でもthrow）。`canReorderSelected`は`reorderSelected`の結果との`!==`比較のみ。規則の文面と要件1の例をJSDocに記載。
+    *   追加仕様：`ShapeOrderOperation`のJSDocに、値が`ShapeOrderAvailability`のキーと`PropertyOrderSection`の対応表のキーにも使われるため、変えるときは両方を揃える旨を明記（値・設計は不変）。
+    *   テスト：4操作×（単一・連続・離れた・端・選択なし・全選択・0個）、要件1の全例、相対順の保持・`canReorderSelected`との一致（全ケース×4操作）、引数不変・新配列、`isSelected`1回ずつ、未知操作のError（0個でも）、`ShapeOrderOperation`の値と凍結。
+    *   `node --test`（プロジェクトルート）：tests 953 / pass 953 / fail 0。
+    *   開発資料への影響：新設ファイル`edit/ShapeOrderRules.js`・`test/edit/ShapeOrderRules.test.js`は、既存の更新予定欄（タスク9）のとおりで追加の影響なし。
 
 ### タスク2: `VectorModel.reorderShapes`とそのテスト
 *   **作業内容** :
