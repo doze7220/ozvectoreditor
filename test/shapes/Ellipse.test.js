@@ -1,5 +1,5 @@
 /**
- * 責務: 円・弧（Ellipse）の当たり判定（縮退時の分岐を含む）・塗れる形か（isFillable）・偽のctxによる描画命令・図形データとの相互変換
+ * 責務: 円・弧（Ellipse）の当たり判定（輪郭（縮退時の分岐を含む）・内側）・塗れる形か（isFillable）・偽のctxによる描画命令・図形データとの相互変換
  * （fromJSONの受理と不正なデータのエラー文・toJSON・toDrawElement）を、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
@@ -256,6 +256,121 @@ describe('Ellipse.hitTest', () => {
         const e = new Ellipse(0, 0, 0.5, 50, 'circle');
         assert.equal(e.hitTest(0, 0, 0), true);
         assert.equal(e.hitTest(0, 49, 0), true);
+    });
+});
+
+describe('Ellipse.hitTestFill', () => {
+    it('塗られた円：中心と内側（比率0.9）は真・外側（比率1.1）は偽', () => {
+        const c = new Ellipse(0, 0, 50, 50, 'circle', '#000000', 2, '#ff0000');
+        assert.equal(c.hitTestFill(0, 0), true);
+        assert.equal(c.hitTestFill(45, 0), true);
+        assert.equal(c.hitTestFill(0, -45), true);
+        assert.equal(c.hitTestFill(55, 0), false);
+        assert.equal(c.hitTestFill(0, 55), false);
+    });
+
+    it('塗られた楕円（rx ≠ ry）：軸ごとの半径で判定する', () => {
+        const e = new Ellipse(0, 0, 100, 50, 'circle', '#000000', 2, '#ff0000');
+        assert.equal(e.hitTestFill(0, 0), true);
+        assert.equal(e.hitTestFill(90, 0), true);
+        assert.equal(e.hitTestFill(0, -45), true);
+        assert.equal(e.hitTestFill(110, 0), false);
+        assert.equal(e.hitTestFill(0, -55), false);
+        assert.equal(e.hitTestFill(0, 45), true);
+    });
+
+    it('軸上の境界ちょうどは偽（輪郭の当たりが受け持つ）', () => {
+        const c = new Ellipse(0, 0, 50, 50, 'circle', '#000000', 2, '#ff0000');
+        assert.equal(c.hitTestFill(50, 0), false);
+        assert.equal(c.hitTestFill(-50, 0), false);
+        assert.equal(c.hitTestFill(0, -50), false);
+        assert.equal(c.hitTestFill(0, 50), false);
+        assert.equal(c.hitTest(50, 0, 5), true);
+    });
+
+    it('fillColor が null なら内側でも偽', () => {
+        assert.equal(new Ellipse(0, 0, 50, 50, 'circle', '#000000', 2, null).hitTestFill(0, 0), false);
+    });
+
+    it('strokeColor が null でも塗られていれば真', () => {
+        assert.equal(new Ellipse(0, 0, 50, 50, 'circle', null, 2, '#ff0000').hitTestFill(0, 0), true);
+    });
+
+    it('弧は fillColor が色の文字列でも中心・弧の内側で偽', () => {
+        const a = new Ellipse(0, 0, 50, 50, 'arc', '#000000', 2, '#ff0000');
+        assert.equal(a.hitTestFill(0, 0), false);
+        assert.equal(a.hitTestFill(0, -25), false);
+        assert.equal(a.hitTestFill(0, 25), false);
+    });
+
+    it('許容誤差を使わない（輪郭の外側の許容幅内の点は偽）', () => {
+        const c = new Ellipse(0, 0, 50, 50, 'circle', '#000000', 2, '#ff0000');
+        assert.equal(c.hitTest(52, 0, 5), true);
+        assert.equal(c.hitTestFill(52, 0), false);
+    });
+
+    it('つぶれた円（rx = 0・ry = 0・両方0）は中心を含めどこでも偽で例外を投げない', () => {
+        for (const [x2, y2] of [[0, 50], [50, 0], [0, 0]]) {
+            const e = new Ellipse(0, 0, x2, y2, 'circle', '#000000', 2, '#ff0000');
+            assert.doesNotThrow(() => e.hitTestFill(0, 0));
+            assert.equal(e.hitTestFill(0, 0), false);
+            assert.equal(e.hitTestFill(10, 10), false);
+            assert.equal(e.hitTestFill(0, 25), false);
+            assert.equal(e.hitTestFill(25, 0), false);
+        }
+    });
+
+    it('rx = 0.5・ry = 50 は半径が正なので厳密に判定する（中心は真・離れた点は偽）', () => {
+        const e = new Ellipse(0, 0, 0.5, 50, 'circle', '#000000', 2, '#ff0000');
+        assert.equal(e.hitTestFill(0, 0), true);
+        assert.equal(e.hitTestFill(0, 25), true);
+        assert.equal(e.hitTestFill(2, 0), false);
+        assert.equal(e.hitTestFill(1000, 1000), false);
+    });
+
+    it('平行移動の後：移動先で真・元の位置で偽', () => {
+        const c = new Ellipse(0, 0, 50, 50, 'circle', '#000000', 2, '#ff0000');
+        c.translate(200, 100);
+        assert.equal(c.hitTestFill(200, 100), true);
+        assert.equal(c.hitTestFill(0, 0), false);
+    });
+
+    it('toJSON → fromJSON の往復後も同じ結果', () => {
+        const c = new Ellipse(0, 0, 100, 50, 'circle', '#000000', 2, '#ff0000');
+        c.id = 'shape-1';
+        const restored = Ellipse.fromJSON(c.toJSON());
+        for (const [x, y] of [[0, 0], [90, 0], [110, 0], [0, -45], [0, -55], [100, 0]]) {
+            assert.equal(restored.hitTestFill(x, y), c.hitTestFill(x, y));
+        }
+        assert.equal(restored.hitTestFill(0, 0), true);
+    });
+
+    it('塗られている条件が toDrawElement の塗る条件と一致する（円／弧 × fillColor の有無）', () => {
+        for (const type of ['circle', 'arc']) {
+            for (const fill of ['#ff0000', null]) {
+                const e = new Ellipse(0, 0, 50, 50, type, '#000000', 2, fill);
+                const el = e.toDrawElement();
+                const drawFills = el.kind === 'ellipse' && el.closed === true && typeof el.fillColor === 'string';
+                assert.equal(e.hitTestFill(0, -10) || e.hitTestFill(0, 10), drawFills);
+                assert.equal(e.hitTestFill(0, 0), drawFills);
+            }
+        }
+    });
+
+    it('内側と輪郭の当たりの間に隙間が無い（rx = 100・ry = 50 の円、中心から外へ向かう線上）', () => {
+        const e = new Ellipse(0, 0, 100, 50, 'circle', '#000000', 2, '#ff0000');
+        const tolerance = 5;
+        const rAvg = (100 + 50) / 2;
+        const limitRatio = 1 + (tolerance + e.strokeWidth / 2) / rAvg;
+        for (let angleStep = 0; angleStep < 72; angleStep++) {
+            const theta = (Math.PI * 2 * angleStep) / 72;
+            for (let step = 0; step <= 1000; step++) {
+                const ratio = (limitRatio * 0.99 * step) / 1000;
+                const x = ratio * 100 * Math.cos(theta);
+                const y = ratio * 50 * Math.sin(theta);
+                assert.equal(e.hitTestFill(x, y) || e.hitTest(x, y, tolerance), true);
+            }
+        }
     });
 });
 

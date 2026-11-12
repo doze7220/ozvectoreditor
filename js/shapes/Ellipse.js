@@ -22,6 +22,7 @@ const ELLIPSE_POINT_COUNT = 5;
  * 本クラスが扱う図形種別（`fromJSON`の`type`検証に用いる）。
  * 種別を増やす場合に揃える箇所：本一覧・種別で分岐する全箇所（コンストラクタ、`draw`、`drawHover`、`#updatePointsFromRadii`、
  * `hitTest`、`toDrawElement`、`isFillable`。`!== 'circle'`の分岐は弧として扱われる）・`ShapeFactory`の対応表・`index.html`のボタン。
+ * `hitTestFill`は種別の分岐を持たない（塗れるかを`isFillable()`に通すだけ）が、塗れる種別（扇形など）を増やすときは式の見直しが要る。
  * @type {ReadonlyArray<string>}
  */
 const ELLIPSE_TYPES = Object.freeze(['circle', 'arc']);
@@ -29,8 +30,8 @@ const ELLIPSE_TYPES = Object.freeze(['circle', 'arc']);
 /**
  * 円・弧の図形クラス（図形種別`'circle'`|`'arc'`。`type`で振る舞いを分岐する）。頂点は`points[0]`＝中心、`[1]`＝右端制御点、
  * `[2]`＝上端制御点、`[3]`＝開始角制御点、`[4]`＝終了角制御点。開始角・終了角は`type`から決まり、図形データには保存しない。
- * 共通メソッド契約（14メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（15メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill）を自律実装する。座標はすべてワールド座標。
  */
 export class Ellipse {
     /**
@@ -355,6 +356,38 @@ export class Ellipse {
         }
 
         return true;
+    }
+
+    /**
+     * 指定された座標(x, y)が塗られた内側にあるかを判定する（共通メソッド契約の第15メソッド）。
+     * 塗られている（`isFillable()`が真で`fillColor`が文字列。`draw`の塗る条件と同じ）ときだけ判定し、そうでなければ常にfalse（弧は`fillColor`が文字列でもfalse）。
+     * 許容誤差は使わない。`rx`・`ry`は`draw`と同じ式で求め、`rx * rx > 0 && ry * ry > 0`でなければ（半径0、および2乗が0へ丸められる半径）
+     * 面積0としてfalse（以後の除算の分母は0にならず、NaN・Infinityは生じない）。半径が正なら`rx < 1 || ry < 1`でも楕円の式で厳密に判定する。
+     * 式は`(dx² / rx²) + (dy² / ry²) < 1`で、`hitTest`の`value`と同じ式（境目で丸めの差が出ないため）。境界上の点は含めない
+     * （境界は輪郭の当たり`hitTest`が受け持つ）。通常の分岐では内側（`value < 1`）と輪郭（`|r − 1| ≤ allowedDiff`、`allowedDiff > 0`）の和が
+     * `r ≤ 1 + allowedDiff`を隙間なく覆うため、`hitTest`の平均半径の近似は見直していない（`hitTest`の式を変えるときは和に隙間ができないか確かめ直すこと）。
+     * 注意：弧の塗り（弓形・扇形）や`Ellipse`の回転を入れるときは、本メソッドの式（回転を含まない軸平行の楕円の式）と`isFillable()`の判定を見直すこと。
+     * @param {number} x - 判定するX座標（ワールド座標）
+     * @param {number} y - 判定するY座標（ワールド座標）
+     * @returns {boolean} 塗られていて、かつ楕円の内側（境界を除く）ならtrue
+     */
+    hitTestFill(x, y) {
+        if (!this.isFillable() || typeof this.fillColor !== 'string') {
+            return false;
+        }
+
+        const xc = this.points[0].x;
+        const yc = this.points[0].y;
+        const rx = Math.abs(this.points[1].x - xc);
+        const ry = Math.abs(this.points[2].y - yc);
+
+        if (!(rx * rx > 0 && ry * ry > 0)) {
+            return false;
+        }
+
+        const dx = x - xc;
+        const dy = y - yc;
+        return (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry) < 1;
     }
 
     /**

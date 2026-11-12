@@ -213,7 +213,7 @@
         *   2章1-2のとおり`hitTestFill(x, y)`を`hitTest`の直後に足す（先頭の判定 → `isPointInPolygonNonzero(x, y, this.points)`。importに追加）。JSDoc（第15メソッド、塗られている条件、許容誤差を使わないこと、境界を含まないこと、`#tracePath`と同じ頂点の並び（閉じる区間を含む）でnonzeroで判定すること、**曲線の区間を足すときに区間の種類による分岐をここに足すこと**、`@param`・`@returns`）。クラスJSDocの契約の列挙を15メソッドへ。
         *   テスト：塗られた閉じたパスの内側で真・外側で偽・境界上で偽、`fillColor: null`で偽、開いたパスは`fillColor`が色の文字列でも（閉じれば内側になる位置でも）偽、`strokeColor: null`でも塗られていれば真、凹型（`ship.js`の機体のような4頂点）のくぼみが偽で本体が真、自己交差（五芒星の閉じたパス）の中心が真、巻き数0の穴を持つ閉じたパスの穴が偽、長さ0の区間（重複する頂点）を含んでも例外を投げない、`translate`後・`toJSON`→`fromJSON`の往復後も同じ結果、塗られている条件が`toDrawElement()`の塗る条件と一致すること（開いた／閉じた × `fillColor`の有無）。既存のケースは変えない。
         *   `node --test`の`fail 0`と件数を記録し、詳細作業内容を記入して`[x]`にする。開発資料に影響があれば更新予定欄へ追記する。
-*   [ ] タスク4: `Ellipse.hitTestFill`とそのテスト
+*   [x] タスク4: `Ellipse.hitTestFill`とそのテスト
     *   **対象ファイル** :
         *   `./js/shapes/Ellipse.js` : 更新
         *   `./test/shapes/Ellipse.test.js` : 更新（`describe('Ellipse.hitTestFill')`の追加）
@@ -307,7 +307,9 @@
 
 ### タスク4: `Ellipse.hitTestFill`とそのテスト
 *   **作業内容** :
-    *   (未実施)
+    *   `js/shapes/Ellipse.js`：`hitTest`の直後（`#distanceToOutline`の直前）に`hitTestFill(x, y)`を追加（先頭の判定で偽 → `rx`・`ry`を`draw`と同じ式で求める → `rx * rx > 0 && ry * ry > 0`でなければ偽 → `dx²/rx² + dy²/ry² < 1`）。JSDoc（第15メソッド・塗られている条件・弧は常に偽・許容誤差なし・境界を含まない・つぶれた円の扱い・`hitTest`の`value`と同じ式の理由・内側と輪郭の和に隙間が無いこと・弧の塗り/回転を入れるときは式と`isFillable()`を見直すこと）を記載。クラスJSDocの契約の列挙を15メソッド（末尾`hitTestFill`）へ。`ELLIPSE_TYPES`のJSDocの列挙の後ろに、`hitTestFill`は種別の分岐を持たないが塗れる種別を増やすときは式の見直しが要る旨を1文添えた（既存の列挙は未変更）。他のメソッドは未変更。
+    *   `test/shapes/Ellipse.test.js`：`describe('Ellipse.hitTestFill')`を追加（13ケース：円の内外、楕円、軸上の境界、fillColor null、strokeColor null、弧、許容誤差を使わない、つぶれた円、rx=0.5・ry=50、translate、往復、toDrawElementの塗る条件との一致、内側と輪郭の隙間なし）。先頭の責務の記述に「輪郭（縮退時の分岐を含む）・内側」を反映。既存ケースの書き換えなし。
+    *   `node --test`：tests 888・pass 888・fail 0。
 
 ### タスク5: `Line.hitTestFill`とそのテスト
 *   **作業内容** :
