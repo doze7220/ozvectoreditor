@@ -246,7 +246,7 @@
     *   **作業内容** :
         *   2章3-2のとおり、先頭行の責務（3行以内。例「責務：プロパティパネルの「重なり順」の段（`#property-order-section`）の4つのボタンの押せる/押せないの表示と、押下のコールバックへの通知を担う。選択状態・並べ替えの規則には関与しない。DOM操作専任。」）、typedef`ShapeOrderAvailability`（`edit/ShapeOrderEditor.js`と同じ内容の二重定義である旨を明記）・`PropertyOrderSectionActions`、ボタンの対応表、クラス`PropertyOrderSection`（コンストラクタ・`render`）を作る。importを持たない。クラスJSDocに段の構成（ルート要素は自分の`<section>`・要素はルート要素内の`querySelector('#id')`で解決・既存の段を変えない）と知らないことを書く。各メソッド・private項目にJSDoc。
         *   この時点では`main.js`から使われない（画面は変わらない）。`node --test`の`fail 0`と件数を記録し、詳細作業内容を記入して`[x]`にする。開発資料に影響があれば更新予定欄へ追記する。
-*   [ ] タスク5: `index.html`に「重なり順」の段を足す
+*   [x] タスク5: `index.html`に「重なり順」の段を足す
     *   **対象ファイル** :
         *   `./index.html` : 更新（段・ボタン・スタイル・コメント）
     *   **作業内容** :
@@ -325,7 +325,10 @@
 
 ### タスク5: `index.html`に「重なり順」の段を足す
 *   **作業内容** :
-    *   （未記入）
+    *   対象ファイル：`./index.html`のみ。`#property-shape-section`の後に`#property-order-section`（見出し「重なり順」・`.order-button-grid`に4ボタン・`title`にキー・`disabled`で開始）を2章3-1のとおり追加。`.order-button-grid`・`.order-button-grid .tool-btn`のスタイル（コメント付き）を`.property-row input[type="color"]`の後に追加。
+    *   コメント更新：`#window-property-panel`の「高さは約200px・下端は約216px」を「高さは約330px・下端は約345pxで800px未満」へ（式：「図形」の段約200px＋「重なり順」の段約127px＝約327px→約330px、下端は上端16pxを足して約345px。未実測、テストプレイで確認）。`.property-section + .property-section`のコメントを「「図形」と「重なり順」の段の間に効く」へ。
+    *   `node --test`（プロジェクトルート）：tests 975 / pass 975 / fail 0。
+    *   開発資料への影響：既存の更新予定欄（タスク9）のとおりで追加の影響なし。
 
 ### タスク6: `main.js`の配線（「重なり順」の段とキーのコールバック）
 *   **作業内容** :
