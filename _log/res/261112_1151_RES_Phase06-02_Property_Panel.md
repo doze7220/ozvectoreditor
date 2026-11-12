@@ -317,7 +317,7 @@
         *   CSS（`<style>`内）：`#window-property-panel { top: 16px; right: 508px; width: 220px; }`と、位置の根拠のコメント（2章 要件1。`#window-shape-palette`のコメントと同じ形：各ウィンドウの位置・幅と、重ならない理由、`?dev`の確認用ウィンドウと重ならない画面幅の見積もり）。`.property-section`（縦並び・行間）・`.property-section + .property-section`（段の間の上の罫線と余白。今は効かない旨のコメント）・`.property-section-title`（`margin: 0`・文字の大きさ）・`.property-source`・`.property-row`（横並び・中央揃え・間隔）・`.property-toggle`・`.property-label`・`.property-note`（小さい文字・色）・`.property-unit`、太さの欄の幅と`user-select: text`、色の欄の大きさ。既存のウィンドウ・クラスのCSSは変えない。
         *   本タスクの時点では配線されない（パネルは表示されドラッグできるが、操作しても何も起きない）。既存の操作がこれまでどおりできること、`node --test`が成功することを確かめる。
 
-*   [ ] タスク8: プロパティパネルの配線（`main.js`）
+*   [x] タスク8: プロパティパネルの配線（`main.js`）
     *   **対象ファイル** :
         *   `./js/main.js` : 更新
     *   **作業内容** :
@@ -399,7 +399,9 @@
 
 ### タスク8: プロパティパネルの配線（`main.js`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/main.js`：`ShapeStyleEditor`・`PropertyShapeSection`をimport。`// 7.7. プロパティパネル（「図形」の段）配線`ブロックを`// 7.6.`の後・`// 8.`の前に追加（`shapeStyleEditor`・`propertyShapeSection`の生成、コールバック6つは各メソッド呼び出しのみ、関数`syncPropertyShapeSection()`とJSDoc、`model.onChange(syncPropertyShapeSection)`）。起動時の同期の並びで`syncHistoryButtonState();`の後・キャンバス名の同期の前に`syncPropertyShapeSection();`と理由コメントを追加。ブロック先頭コメントで分担・同期はmodel.onChangeのみ・段ごとにブロックを足すこと・`isDragging()`を見ない理由は開発資料に記載予定、に触れた。
+    *   配線ブロックの切り出しは行わない（要件6）。`main.js`の行数：着手前593行→628行（+35行）。
+    *   `node --test`：tests 840・pass 840・fail 0。ブラウザでの目視確認は未実施。
 
 ### タスク9: JSDocの記載漏れの確認
 *   **作業内容** :
@@ -518,3 +520,7 @@
 50. キャンバスパレットの新規作成・開く・名前の変更・削除・出力（作業ファイル・エンジン用）・開く（ファイル）・インポートがこれまでどおり動く。パネルで変えた図形を出力（エンジン用）して`sprite-check.html`で開くと、エディタと同じ見た目で描かれる。
 51. 既存のショートカット（`V`・`P`・`H`・数字キー・`Ctrl`+`0`/`=`/`-`・`Esc`・`Ctrl`+`A`・`Delete`・`J`・`Ctrl`+`Z`/`Y`/`C`/`X`/`V`/`D`）が、パネルの部品にフォーカスが無いときはこれまでどおり働く。
 52. 既存のウィンドウ（コントロールパネル・図形選択パレット・キャンバスパレット・`?dev`の確認用ウィンドウ）の位置・見た目が変わらない。
+
+### タスク8実施時の記録
+*   `main.js`の`syncPropertyShapeSection`は`model.onChange`登録のため、`shapeStyleEditor`の色プレビュー中も再描画される。ブラウザでの目視確認を推奨（色の欄のドラッグ中にパネルが乱れないか、フォーカス中の太さの欄が書き換わらないか、選択・取り消し/やり直し・キャンバス切り替えでの追従、チェックボックス操作中のSpaceキー）。
+*   開発資料の更新予定：2章「開発資料の更新予定」の`_doc/arch/02_main.md`の項のとおりで追加なし。

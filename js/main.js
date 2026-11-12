@@ -24,6 +24,8 @@ import { DocumentFileIO } from './io/DocumentFileIO.js';
 import { CanvasFileOperations } from './edit/CanvasFileOperations.js';
 import { CanvasPalette } from './palette/CanvasPalette.js';
 import { PaletteLauncher } from './palette/PaletteLauncher.js';
+import { ShapeStyleEditor } from './edit/ShapeStyleEditor.js';
+import { PropertyShapeSection } from './palette/PropertyShapeSection.js';
 
 // DOMが読み込まれた後に初期化を行う
 document.addEventListener('DOMContentLoaded', () => {
@@ -439,6 +441,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // 7.7. プロパティパネル（「図形」の段）配線
+    // 表示（描き分け・入力値の受け取り）はPropertyShapeSection（palette/）が、変更の手順（選択中の図形または
+    // 直前に使った値への適用・履歴への記録・色のプレビュー）はShapeStyleEditor（edit/）が持ち、ここは生成・注入・同期のみを行う。
+    // 表示の同期はmodel.onChangeのみで行う（機能専用の同期経路は足さない）。
+    // 段（「図形」以外）を足すときは、段ごとにこのブロックと同じ形のブロックを足す（既存の段の配線は変えない）。
+    // コールバックはshapeStyleEditorのメソッドを呼ぶだけで、判定を持たない。
+    // inputTracker.isDragging()を見ない理由は開発資料に記載予定（ここでは判定しない）。
+    const shapeStyleEditor = new ShapeStyleEditor({ model, editRecorder: historyManager });
+    const propertyShapeSection = new PropertyShapeSection(document.getElementById('property-shape-section'), {
+        onStrokeEnabledChange: (enabled) => shapeStyleEditor.setStrokeEnabled(enabled),
+        onFillEnabledChange: (enabled) => shapeStyleEditor.setFillEnabled(enabled),
+        onStrokeWidthChange: (text) => shapeStyleEditor.setStrokeWidth(text),
+        onColorInput: (target, color) => shapeStyleEditor.previewColor(target, color),
+        onColorChange: (target, color) => shapeStyleEditor.commitColor(target, color),
+        onColorEditEnd: () => shapeStyleEditor.finishColorPreview()
+    });
+
+    /**
+     * プロパティパネルの「図形」の段の表示を、`shapeStyleEditor.getPanelView()`（選択中の図形、
+     * 選択がなければ直前に使った値）に同期する（`propertyShapeSection.render`）。
+     * model.onChangeのコールバックとして登録し、起動時にも明示的に1回呼び出す。
+     * DOMの更新はPropertyShapeSectionが担い、ここは橋渡しのみ。
+     */
+    function syncPropertyShapeSection() {
+        propertyShapeSection.render(shapeStyleEditor.getPanelView());
+    }
+
+    model.onChange(syncPropertyShapeSection);
+
     // 8. キーボードショートカット配線
     /**
      * 表示中キャンバスの中心を基準に、ホイール1刻みと同じ刻み幅（WHEEL_ZOOM_STEP）で拡大・縮小する。
@@ -578,6 +609,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // 取り消し・やり直しボタンの押せる/押せない状態も同様に、index.htmlの初期disabled属性やonChange通知に
     // 依存させず、履歴と作成途中の図形の実値で明示的に1回同期する
     syncHistoryButtonState();
+
+    // プロパティパネルの表示も同様に、index.htmlの初期状態やonChange通知に依存させず、
+    // Modelの選択・直前に使った値の実値で明示的に1回同期する
+    syncPropertyShapeSection();
 
     // キャンバス名の表示・読み込み中の覆い要素・キャンバスパレットも同様に、onChange通知に依存させず
     // 状態の実値で明示的に1回同期する（名前の表示・覆い要素はCanvasLibrary、パレットはCanvasFileOperationsの状態。
