@@ -531,3 +531,9 @@
 * 【一部解決】Phase06-01由来の「見えない図形（線なしで塗れない形）をプロパティパネルで許すか」：許すと決めた（発注者、2026-11-12）。選び方は06-03で決める（本ファイル2章Dに残した）。
 * 【一部解決】Phase02-04由来の「`checkbox`/`color`等にフォーカス中はショートカットが効き、`Space`がパンになる」：`checkbox`・`color`は`InputTracker.js`の`isSpaceOperatedInputElement`で対応した（`Space`でパンせず`Ctrl`なしのショートカットを止める。`Ctrl`のショートカットは効く）。`range`等は2章Cに残した。
 * 実装の内容：常に表示するフロートウィンドウ「プロパティ」に「図形」の段を足し、選択中の図形の線の有無・線の色・太さ（整数1〜100）・塗りの有無・塗りの色を表示・変更できるようにした（複数選択は一番手前の値＋「混在」、塗れる形だけに塗りを反映、色を選ぶとその項目を「あり」にする、ピッカー1回分で取り消し1回）。何も選んでいないときは「次に描く図形」の値（直前に使った値。保存しない）を表示・変更する。規則は新設`js/edit/StylePanelRules.js`、手順は新設`js/edit/ShapeStyleEditor.js`、DOMは新設`js/palette/PropertyShapeSection.js`、直前に使った値とスタイルの書き換えは`VectorModel`。REQ `261112_1130`・RES `261112_1151`。詳細は`PROJECT_ARCHITECTURE.md`2章・3章13.と`_doc/arch/02_main.md`・`13_palette.md`・`14_edit.md`。
+
+### Phase06-03「塗った内側の当たり判定」（完了日：2026-11-12。テストプレイ実施済み、問題なし）
+* 【解決】Phase06-01・06-02由来の「見えない図形（線なしで塗れない形、線も塗りもない図形）の選び方」：今のまま変えないと決めた（発注者、2026-11-12）。輪郭付近のクリック・範囲選択・全選択で選べ、ホバーの強調・ハンドルが出る。内側の当たりは塗られていないため常に偽。
+* 【解決】Phase06-02由来の「`js/shapes/ShapeDataValidation.js:18`の`DEFAULT_STROKE_WIDTH`のJSDocの食い違い」：JSDocを直し、`PROJECT_ARCHITECTURE.md`2章・`_doc/arch/12_shapes.md`の「JSDocの食い違い」の記述を削除した。
+* 【解決】Phase06-01由来の「内側の当たり判定は`isFillable()`を正本にし、書き出し側と食い違わないこと」：`hitTestFill`は`draw`の塗る条件（`isFillable() && typeof fillColor === 'string'`）と同じ条件で判定する。
+* 実装の内容：共通メソッド契約に第15メソッド`hitTestFill(x, y)`を足した（許容誤差なし・境界を含まない。矩形・閉じたパスは新設`ShapeGeometry.isPointInPolygonNonzero`（nonzero）、円は楕円の式、直線・曲線・弧・開いたパスは常に偽）。当たり分類の規則を新設`js/core/PointHitRules.js`へ切り出し、「見た目どおり」（選択集合の図形のハンドル → 選択集合の図形の輪郭・手前優先 → 手前から輪郭または塗った内側）にした（発注者、2026-11-12）。塗りのない輪郭どうしの重なりは奥から手前に変わった（了承済み）。選択集合外の図形を押してそのままドラッグしても動かない・範囲選択は輪郭のみ・`Ellipse.hitTest`の近似は見直さない、は今のまま。REQ `261112_1503`・RES `261112_1513`。詳細は`PROJECT_ARCHITECTURE.md`3章3.・`_doc/arch/12_shapes.md`・`18_PointHitRules.md`・`16_test.md`。
