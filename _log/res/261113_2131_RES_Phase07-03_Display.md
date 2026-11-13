@@ -455,7 +455,7 @@
         *   `index.html`：2章「要件8」のステータスバーのマークアップの左側と、CSS（`.status-bar-group`の`flex: none`、`.status-bar-left > .status-bar-group`のルールの削除、`.status-bar-group-shrink`、`.status-bar-left { display: contents; }`（`flex`・`min-width`は削除）、`.status-bar`の`justify-content`を`flex-start`へ、`.status-bar-right { flex: none; margin-left: auto; padding-left: 8px; }`、`.status-readout`と3つの最小の幅）。関係するCSSコメントを実態へ（`.status-bar-left`は箱を作らない理由・縮むのは名前のまとまりだけ・縮まない3つのまとまり・足りないと右側が切れる・右側は`margin-left: auto`で右端へ・空白2つを保つため`pre`）。
         *   `main.js`：`import`（`ShapeExtentReader`・`StatusReadoutRules`の3関数・`computeGridSpacing`）。`// 6.`の後に`// 6.5.`のブロック（2章「要件8」の見出しのコメント）を新設し、`shapeExtentReader`の生成、`syncCursorReadout`・`syncSelectionSizeReadout`・`syncGridSizeReadout`（JSDoc付き）と登録（2章「要件3・4」）。起動時に3つを1回ずつ（理由のコメント付き）。
         *   完了時点：カーソル位置の座標（キャンバスの外は`—`）・選択中の図形の大きさ・グリッド1マスの大きさが表示され、追従する。
-*   [ ] タスク23: アウトライン・背景・グリッドの切り替え（`KeyboardShortcuts.js`・`index.html`・`main.js`）
+*   [x] タスク23: アウトライン・背景・グリッドの切り替え（`KeyboardShortcuts.js`・`index.html`・`main.js`）
     *   **対象ファイル** :
         *   `./js/core/KeyboardShortcuts.js` : 更新（3エントリ・typedefの3コールバック・`SHORTCUT_BINDINGS`のJSDoc）
         *   `./index.html` : 更新（ステータスバーの右側の表示の切り替えのまとまり）
@@ -663,7 +663,12 @@
 
 ### タスク23: アウトライン・背景・グリッドの切り替え（`KeyboardShortcuts.js`・`index.html`・`main.js`）
 *   **作業内容** :
-    *   （未記入）
+    *   `KeyboardShortcuts.js`：`SHORTCUT_BINDINGS`の末尾に`KeyZ`・`KeyX`・`KeyC`（`ctrl: false`・`FORBIDDEN`・`repeatable: false`）の3エントリ（`toggleOutline`・`toggleBackground`・`toggleGrid`）、typedef`ShortcutActions`へ3コールバック、`SHORTCUT_BINDINGS`のJSDocへ`KeyZ`・`KeyX`・`KeyC`が`ctrl`の値で区別される旨を追記。手順・既存のエントリは未変更。
+    *   `index.html`：`.status-bar-right`の先頭に`<div id="view-toggle-group" class="status-bar-group">`と3ボタン（`view-outline-toggle` ▢・`view-background-toggle` ◐・`view-grid-toggle` ▦。`title`は2章の表どおり）。
+    *   `main.js`：`DisplayState`・`ViewToggleGroup`をimport。`// 3.2.`で`displayState`を生成。`InputTracker`の第6引数に`() => displayState.isOutline()`（コメント付き）。`renderCurrentState`が`outline`・`darkBackground`・`showGrid`を渡し、JSDocを4経路へ。`displayState.onChange(renderCurrentState)`を登録。`// 6.5.`の見出しのコメントへ表示の切り替えのまとまりを書き足し、`ViewToggleGroup`の生成（コールバックは`displayState.toggleOutline()`等）・`syncViewToggleGroup()`（JSDoc付き）・`displayState.onChange`への登録。`// 8.`へ3コールバック。起動時に`syncViewToggleGroup()`を1回（理由のコメント付き）。
+    *   `node --test`：tests 1106 / pass 1106 / fail 0。`node --check js/main.js`も通過。
+    *   開発資料への影響：計画どおりで追加の差異なし（本体は未修正）。
+    *   目視確認の推奨：`Z`・`X`・`C`とボタンの切り替え・押し込みの追従、`Ctrl`+`Z`・`Ctrl`+`X`・`Ctrl`+`C`が従来どおりであること、アウトライン表示の間の塗った内側のクリック（`CanvasManager`・`PointHitRules`の対応タスクが完了している前提）。
 
 ### タスク24: パレットをまとめて隠す/出す（`KeyboardShortcuts.js`・`index.html`・`main.js`）
 *   **作業内容** :

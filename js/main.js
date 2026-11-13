@@ -35,6 +35,8 @@ import { OptionBarOrderGroup } from './palette/OptionBarOrderGroup.js';
 import { ShapeExtentReader } from './edit/ShapeExtentReader.js';
 import { formatCursorReadout, formatSizeReadout, formatGridReadout } from './core/StatusReadoutRules.js';
 import { computeGridSpacing } from './core/GridSpacingRules.js';
+import { DisplayState } from './core/DisplayState.js';
+import { ViewToggleGroup } from './palette/ViewToggleGroup.js';
 
 // DOMが読み込まれた後に初期化を行う
 document.addEventListener('DOMContentLoaded', () => {
@@ -54,6 +56,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 3. ViewTransform (ビュー変換：表示倍率・オフセットの保持とスクリーン⇔ワールド座標変換)
     const viewTransform = new ViewTransform();
+
+    // 3.2. DisplayState (表示の状態：アウトライン表示・背景の白/黒・グリッドの表示・フロートウィンドウの表示。表示専用で保存しない)
+    const displayState = new DisplayState();
 
     // 3.5. 履歴（取り消し・やり直し）配線
     // スナップショットの取得・適用の実体はSnapshotAdapter（edit/。core/からio/をimportしないため、DocumentSerializerを使う処理はedit/に置く）が持ち、
@@ -125,16 +130,22 @@ document.addEventListener('DOMContentLoaded', () => {
         screenLengthToWorld: (length) => viewTransform.screenLengthToWorld(length)
     });
     // 編集操作の記録先（EditRecorder）としてhistoryManagerを、吸い付きの照会と反映としてendpointSnapperを注入する
-    const inputTracker = new InputTracker(canvas, model, viewTransform, historyManager, endpointSnapper);
+    // 第6引数は、塗った内側を当たりに含めないかの照会（アウトライン表示の間は含めない）
+    const inputTracker = new InputTracker(canvas, model, viewTransform, historyManager, endpointSnapper, () => displayState.isOutline());
 
     /**
      * Modelの現在の状態（shapes/selectedIds/hoveredId/draftShape/selectionRect/snapPoint）とビュー変換の現在の状態
      * （`viewTransform.getState()`による倍率・オフセットのスナップショット）をCanvasManagerへ渡し、
-     * 再描画を要求するローカル関数。model.onChange・viewTransform.onChangeのコールバックと
-     * resizeハンドラの3経路から同一の引数構成で呼び出すことで、再描画トリガーの重複定義を避ける。
+     * 再描画を要求するローカル関数。表示の状態（`displayState.getState()`のアウトライン表示・背景の白/黒・グリッドの表示）も
+     * あわせて渡す。model.onChange・viewTransform.onChange・displayState.onChangeのコールバックと
+     * resizeハンドラの4経路から同一の引数構成で呼び出すことで、再描画トリガーの重複定義を避ける。
      */
     function renderCurrentState() {
+        const display = displayState.getState();
         canvasManager.render(model.getShapes(), {
+            outline: display.outline,
+            darkBackground: display.darkBackground,
+            showGrid: display.gridVisible,
             selectedIds: model.getSelectedIds(),
             hoveredId: model.getHoveredId(),
             draftShape: model.getDraftShape(),
@@ -149,6 +160,8 @@ document.addEventListener('DOMContentLoaded', () => {
     model.onChange(renderCurrentState);
     // ビュー変換（パン・ズーム・リセット）が変化したら、同一経路で再描画する
     viewTransform.onChange(renderCurrentState);
+    // 表示の状態（アウトライン・背景・グリッド）が変化したら、同一経路で再描画する
+    displayState.onChange(renderCurrentState);
 
     // カーソル位置の追跡（キャンバス上の最後のカーソル位置。スクリーン座標の求め方・ワールド座標への変換は既存のものを注入する）
     const cursorTracker = new CanvasCursorTracker(canvas, {
@@ -305,7 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
     historyUndoBtn.addEventListener('click', () => performUndo());
     historyRedoBtn.addEventListener('click', () => performRedo());
 
-    // 6.5. 表示配線（ステータスバーの座標・大きさ・グリッドの表示）
+    // 6.5. 表示配線（ステータスバーの座標・大きさ・グリッドの表示、表示の切り替えのまとまり（アウトライン・背景・グリッド））
     // 外枠の照会（選択中の図形の大きさに使う）
     const shapeExtentReader = new ShapeExtentReader({ model });
     const cursorReadoutEl = document.getElementById('cursor-readout');
@@ -340,6 +353,25 @@ document.addEventListener('DOMContentLoaded', () => {
     viewTransform.onChange(syncCursorReadout);
     model.onChange(syncSelectionSizeReadout);
     viewTransform.onChange(syncGridSizeReadout);
+
+    // 表示の切り替えのまとまり（▢◐▦）。表示（押し込みの付け外しと押下の通知）はViewToggleGroup（palette/）が持ち、
+    // ここは生成・注入・同期のみを行う。コールバックはキー（Z・X・C）と同じdisplayStateの操作を呼ぶだけで、判定を持たない
+    const viewToggleGroup = new ViewToggleGroup(document.getElementById('view-toggle-group'), {
+        onToggleOutline: () => displayState.toggleOutline(),
+        onToggleBackground: () => displayState.toggleBackground(),
+        onToggleGrid: () => displayState.toggleGrid()
+    });
+
+    /**
+     * ステータスバーの表示の切り替えのまとまり（▢◐▦）の押し込みを、表示の状態（`displayState.getState()`）に同期する
+     * （`viewToggleGroup.render`）。displayState.onChangeに登録し、起動時にも明示的に1回呼び出す
+     * （キーで切り替えてもボタンの表示が追従する）。DOMの更新はViewToggleGroupが担い、ここは橋渡しのみ。
+     */
+    function syncViewToggleGroup() {
+        viewToggleGroup.render(displayState.getState());
+    }
+
+    displayState.onChange(syncViewToggleGroup);
 
     // 7. ツールパレット配線
     // ツールの識別子一覧はToolRulesのTOOL_IDS（SHAPE_TYPESから導出）。パレットのボタンはid`tool-${toolId}`で照合される
@@ -685,6 +717,20 @@ document.addEventListener('DOMContentLoaded', () => {
             clipboardController.duplicate();
             return true;
         },
+        // 表示の切り替え（ステータスバーの▢◐▦ボタンと同一経路。表示の状態を切り替えるだけで常にtrue。
+        // ボタンの押し込みの表示・再描画はdisplayState.onChangeの通知で同期される）
+        toggleOutline: () => {
+            displayState.toggleOutline();
+            return true;
+        },
+        toggleBackground: () => {
+            displayState.toggleBackground();
+            return true;
+        },
+        toggleGrid: () => {
+            displayState.toggleGrid();
+            return true;
+        },
     });
 
     // 9. 開発者向け確認用ウィンドウ配線（URLに`?dev`がある場合のみ。判定結果はグローバルへ公開しない）
@@ -742,6 +788,10 @@ document.addEventListener('DOMContentLoaded', () => {
     syncCursorReadout();
     syncSelectionSizeReadout();
     syncGridSizeReadout();
+
+    // 表示の切り替えのまとまり（▢◐▦）の押し込みも同様に、index.htmlの初期状態やonChange通知に依存させず、
+    // 表示の状態の実値で明示的に1回同期する
+    syncViewToggleGroup();
 
     // 削除ボタンの押せる/押せない状態も同様に、index.htmlの初期disabled属性やonChange通知に
     // 依存させず、Modelの選択集合の実値で明示的に1回同期する

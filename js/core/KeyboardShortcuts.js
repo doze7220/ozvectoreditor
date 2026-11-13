@@ -67,6 +67,9 @@ const ShiftRule = Object.freeze({
  *     選択モード以外では選択モードへ切り替えてから貼り付ける。クリップボードが空でも常にtrue（ブラウザ標準の貼り付けを起こさないため。
  *     ドラッグ中は受理判定（#handleKeyDownの手順5）によりそもそも呼ばれない）
  * @property {() => boolean} duplicate 選択集合の図形をその場で複製する。ブラウザ標準のブックマーク追加を抑止するため常にtrue
+ * @property {() => boolean} toggleOutline アウトライン表示を切り替える。表示の状態を切り替えるだけで常にtrue
+ * @property {() => boolean} toggleBackground 背景の白/黒を切り替える。表示の状態を切り替えるだけで常にtrue
+ * @property {() => boolean} toggleGrid グリッドの表示を切り替える。表示の状態を切り替えるだけで常にtrue
  */
 
 /**
@@ -79,6 +82,8 @@ const ShiftRule = Object.freeze({
  * ・修飾キー規則：Shiftはshiftプロパティの3値（ShiftRule）で指定する。通常はFORBIDDEN、拡大・縮小のみANY、
  *   やり直しのCtrl+Shift+ZのみREQUIRED。KeyZはShiftの有無で取り消し（FORBIDDEN）とやり直し（REQUIRED）に排他的に分かれる。
  *   KeyVはctrlの値でV単体（ctrl: false。選択モードへの切り替え）とCtrl+V（ctrl: true。貼り付け）に排他的に区別される。
+ *   KeyZ・KeyX・KeyCも同様にctrlの値で区別される（Z・X・C単体＝表示の切り替え：ctrl: false、Ctrl+Z（取り消し）・Ctrl+X（切り取り）・Ctrl+C（コピー）：ctrl: true）。
+ *   KeyZのCtrl付きはShiftで取り消し・やり直しに分かれるが、Ctrlなしは単体（FORBIDDEN）のみでShift+Zは一致しない。
  * ・index.htmlの各ボタンのtitle属性（例：「選択 (V)」）はこの表と手動で一致させている。
  * @type {ReadonlyArray<Readonly<ShortcutBinding>>}
  */
@@ -116,6 +121,10 @@ const SHORTCUT_BINDINGS = Object.freeze([
     { codes: ['KeyX'], ctrl: true, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'cut' },
     { codes: ['KeyV'], ctrl: true, shift: ShiftRule.FORBIDDEN, repeatable: true, action: 'paste' },
     { codes: ['KeyD'], ctrl: true, shift: ShiftRule.FORBIDDEN, repeatable: true, action: 'duplicate' },
+    // 表示の切り替え（アウトライン・背景の白/黒・グリッド。キーリピートでは実行しない）
+    { codes: ['KeyZ'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'toggleOutline' },
+    { codes: ['KeyX'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'toggleBackground' },
+    { codes: ['KeyC'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'toggleGrid' },
 ].map((binding) => Object.freeze(binding)));
 
 /**
