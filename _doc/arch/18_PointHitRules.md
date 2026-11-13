@@ -1,8 +1,8 @@
 *   **PointHitRules.js**：選択モードの当たり分類の規則（ある点が選択集合の図形のハンドル・図形の本体・空白のどれに当たるか）を、図形の公開メソッドと選択中かの照会だけで判定する、状態を持たない関数として提供する（Phase 06-03で新設）。
-    *   **公開**：`classifyPointHit(shapes, isSelected, x, y, tolerance)`と、typedef`PointHit`（`handle: {shapeId, handle} | null`・`bodyId: string | null`。両方`null`は空白。**正本はこのファイル**。`InputTracker.js`は`import()`型の別名で参照する）。非公開の補助関数に分けている。
+    *   **公開**：`classifyPointHit(shapes, isSelected, x, y, tolerance, includeFill = true)`（第6引数`includeFill`は塗った内側を当たりに含めるか。省略時は含める＝従来と同じ結果。Phase 07-03で追加）と、typedef`PointHit`（`handle: {shapeId, handle} | null`・`bodyId: string | null`。両方`null`は空白。**正本はこのファイル**。`InputTracker.js`は`import()`型の別名で参照する）。非公開の補助関数に分けている。
     *   **読むもの**：図形の公開プロパティ`id`と`hitTestHandle`・`hitTest`・`hitTestFill`、引数の`isSelected`（`(id) => boolean`。`InputTracker`は`model.isSelected`を渡す）。何もimportしない。
-    *   **使う側**：`core/InputTracker`の`#classifyPoint`のみ（ホバー・押下・クリック・カーソルの4箇所は`#classifyPoint`の結果を共用する）。
-    *   **知らないこと**：図形種別・`isFillable()`・`fillColor`・`VectorModel`・`ViewTransform`・表示倍率（許容誤差はワールドの長さで受け取る）・DOM。
-    *   **規則の要約（正本はJSDoc）**：(1) ハンドル：図形配列の後ろ（手前）から、選択集合の図形だけ`hitTestHandle`を呼び最初の非`null`。(2) 本体・選択集合の図形の輪郭（`hitTest`）：後ろから最初。(3) 本体・それ以外：(2)で決まらなければ後ろから`hitTest || hitTestFill`の最初（選択集合の図形の内側も同じ順番の中。内側を優先しない）。`handle`と`bodyId`は独立に求める（ハンドルが当たっても`bodyId`も求める。押下・クリックの分岐の表がハンドルを先に見る）。
+    *   **使う側**：`core/InputTracker`の`#classifyPoint`のみ（注入された照会`isFillHitExcluded`の否定を`includeFill`として渡す。ホバー・押下・クリック・カーソルの4箇所は`#classifyPoint`の結果を共用する）。
+    *   **知らないこと**：アウトライン表示・表示の状態（`includeFill`の真偽が何で決まるかは使う側の事情）・図形種別・`isFillable()`・`fillColor`・`VectorModel`・`ViewTransform`・表示倍率（許容誤差はワールドの長さで受け取る）・DOM。
+    *   **規則の要約（正本はJSDoc）**：(1) ハンドル：図形配列の後ろ（手前）から、選択集合の図形だけ`hitTestHandle`を呼び最初の非`null`。(2) 本体・選択集合の図形の輪郭（`hitTest`）：後ろから最初。(3) 本体・それ以外：(2)で決まらなければ後ろから`hitTest || (includeFill && hitTestFill)`の最初（選択集合の図形の内側も同じ順番の中。内側を優先しない。`includeFill`が偽なら塗った内側は空白になり、手前の塗った図形に隠れていた奥の図形の輪郭が選ばれる）。(1)(2)は`includeFill`の影響を受けない。`handle`と`bodyId`は独立に求める（ハンドルが当たっても`bodyId`も求める。押下・クリックの分岐の表がハンドルを先に見る）。
     *   **置き場所の理由**：規則を`node --test`で確かめるため（`InputTracker.js`は`DragTracker`・DOMに依存し、ソースを書き換えないテストの規則のもとでは非公開メソッドを確かめられない）。`InputTracker`の再分離（状態の所有者設計）ではない。状態・入力状態・カーソル・ホバーは`InputTracker`に残る。
     *   **注意**：ハンドルの優先順位（図形配列の後ろ＝前面優先）は`CanvasManager`のハンドル描画順と一致させること。当たり分類の規則を変えるときはこのファイルだけを変え、`InputTracker`の押下・クリックの分岐の表（`bodyId`が選択集合内か外かで押下の振る舞いが決まる）と食い違わないこと。

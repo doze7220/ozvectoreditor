@@ -495,7 +495,7 @@
         *   `js/`・`index.html`・`test/`を「15メソッド」「`.disabled`」「07-03で」「3経路」「`GRID_MINOR_COLOR`」「`GRID_MAJOR_COLOR`」「`ORIGIN_AXIS_COLOR`」「`ORIGIN_MARK_COLOR`」「`GRID_BASE_SPACING`」（`GridSpacingRules.js`以外）「`background-color: #ffffff`」（`#editor-canvas`）「オプションバー（スタイル・重なり順の2つのまとまり）の幅の見積もり」で検索し、残り（使われなくなったコード・CSS・実態と合わないコメント）が無いことを記録する。
         *   新設・変更したファイルのJSDoc（`@param`・`@returns`・`@throws`）・先頭の責務定義（3行以内）・注入するコールバックの契約（`InputTracker`の第6引数・`PaletteLauncher`の第2引数・`CanvasCursorTracker`・`ViewToggleGroup`・`KeyboardShortcuts`の4コールバック）を確認する。
         *   `node --test`の件数を記録する（2章「開発資料の更新予定」の`16_test.md`へ）。
-*   [ ] タスク27: 開発資料への反映（最終固定タスク）
+*   [x] タスク27: 開発資料への反映（最終固定タスク）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` : 更新（1章・2章・3章・4章）
         *   `./_doc/arch/01_index_html.md` : 更新
@@ -504,6 +504,7 @@
         *   `./_doc/arch/05_ViewTransform.md` : 更新
         *   `./_doc/arch/06_InputTracker.md` : 更新
         *   `./_doc/arch/07_KeyboardShortcuts.md` : 更新
+        *   `./_doc/arch/10_ShapeFactory.md` : 更新（「15メソッド契約」→「16メソッド契約」の1語）
         *   `./_doc/arch/12_shapes.md` : 更新
         *   `./_doc/arch/13_palette.md` : 更新
         *   `./_doc/arch/14_edit.md` : 更新
@@ -696,7 +697,7 @@
     *   追加仕様の要件3：2章『開発資料の更新予定』の`02_main.md`の項へ`js/main.js`の実測877行、`06_InputTracker.md`の項へ`js/core/InputTracker.js`の実測1345行（いずれも`wc -l`で測り直した値）を記入。2章（要件8の`main.js`の配線ブロック）と5章の「約840行」の記述は「見込みは約840行だったが、実測は877行」の形へ改めた。
     *   残置の検索（`js/`・`index.html`・`test/`。当たり件数と判定）：
         *   「15メソッド」：5件（`shapes/`の`Line`・`Curve`・`Ellipse`・`Path`・`Rect`の`hitTestFill`JSDocの「共通メソッド契約の第15メソッド」）。すべて正しい記述。契約の列挙としての「15メソッド」は0件。
-        *   「`.disabled`」：16件。`test/edit/StylePanelRules.test.js`の`.fill.disabled`（規則の戻り値のプロパティ）4件、`main.js`・`OptionBarStyleGroup.js`・`CanvasPalette.js`・`OptionBarOrderGroup.js`の`button.disabled = …`等のDOMのプロパティ12件。存在しないCSSクラス`.disabled`を今もあるかのように書いた記述は0件（`index.html`にも0件）。残置なし。
+        *   「`.disabled`」：18行（タスク27で`js/`・`index.html`・`test/`を再検索して確かめた値）。`test/edit/StylePanelRules.test.js`の`.fill.disabled`（規則の戻り値のプロパティ）4件、`js/main.js` 4件・`js/palette/CanvasPalette.js` 7件・`js/palette/OptionBarOrderGroup.js` 1件・`js/palette/OptionBarStyleGroup.js` 2件の`button.disabled = …`等のDOMのプロパティ14件。存在しないCSSクラス`.disabled`を今もあるかのように書いた記述は0件（`index.html`にも0件）。残置なし。
         *   「07-03で」：0件。「3経路」「三経路」：0件。
         *   「`GRID_MINOR_COLOR`」「`GRID_MAJOR_COLOR`」「`ORIGIN_AXIS_COLOR`」「`ORIGIN_MARK_COLOR`」：各0件。
         *   「`GRID_BASE_SPACING`」：2件、いずれも`core/GridSpacingRules.js`（定義と`computeGridSpacing`内の使用）。それ以外は0件。
@@ -712,7 +713,13 @@
 
 ### タスク27: 開発資料への反映（最終固定タスク）
 *   **作業内容** :
-    *   （未記入）
+    *   `PROJECT_ARCHITECTURE.md`：1章（フォルダ構造に`core/`の7ファイル・`edit/ShapeExtentReader.js`・`palette/ViewToggleGroup.js`・`test/`の7ファイル、`index.html`のコメントに定規、「存在しないもの」へ07-03の列挙、フォルダ分割の方針の`core/`・`edit/`、依存方向）、2章（共通メソッド契約を16メソッドへ、作業データ・キャンバス記録の「保存しないもの」へ表示の状態）、3章（冒頭の同期の経路、1.の読み込み完了前の操作、2.の描画サイクル（4経路・定規）、3.の当たり分類（アウトライン表示の間は塗った内側を含めない）・キーボード操作（`Z`・`X`・`C`・`Tab`）・操作の実体、4.の座標系（定規・`setView`）、6.の記録しない操作、**新設15.「表示」**）、4章の一覧へ7行を追記。
+    *   `_doc/arch/`：更新＝`01_index_html.md`（定規・`--ruler-size`・`--frame-background-color`・重なり・id・ステータスバーの並びと`.status-bar-left`の`display: contents`の理由・右側の`margin-left: auto`・`.status-readout`・`#editor-canvas`に背景色を付けない・まとめて隠すCSS・`aria-pressed`を付けない理由・`title`のキーの表記・ツールバー約646px・ウィンドウの既定の位置）、`02_main.md`（877行・主な関数・配線ブロックの表（`// 3.2.`・`// 6.5.`・`// 2.`・`// 4.`）・注入の一覧・同一経路の原則・起動時の同期）、`04_CanvasManager.md`、`05_ViewTransform.md`、`06_InputTracker.md`（第6引数・行数を1305から1345へ）、`07_KeyboardShortcuts.md`、`12_shapes.md`（16メソッド契約・`drawOutline`）、`13_palette.md`（`ViewToggleGroup`・`PaletteLauncher`の第2引数とその例外・`ToolPalette`の`.disabled`の記述を実態へ・冒頭の分担）、`14_edit.md`（`ShapeExtentReader`）、`15_io.md`（`computeShapesBounds`）、`16_test.md`（新設・追加分、テストできない箇所、書き換えた既存のテスト（無し）、件数）、`18_PointHitRules.md`（`includeFill`）。新設＝`20_DisplayState.md`〜`26_StatusReadoutRules.md`の7ファイル。計画の後で変わった3点は変わった後の実態を書いた：(1)`23_RulerRenderer.md`に`render`の`view`は必須で`DEFAULT_VIEW`を持たないこと、(2)`01_index_html.md`と3章15.（および`02`の関連）に`.status-bar-left`が`display: contents`で箱を作らず右側が`margin-left: auto`で右端へ寄ること（入れ子のflexで名前だけを縮ませられない理由つき）、(3)`13_palette.md`に`PaletteLauncher`の第2引数は省略でき、関数でない値は`Error`ではなく`console.warn`して既定を使う（`palette/`の規約の例外。理由つき）こと。
+    *   実コードで確かめた値：`js/main.js` 877行・`js/core/InputTracker.js` 1345行（`wc -l`）、公開メソッド名・引数（`DisplayState`・`RulerRenderer`・`CanvasCursorTracker`・`ShapeExtentReader`・`ViewToggleGroup`・`PaletteLauncher`・`ViewTransform.setView`・`SpriteSerializer.computeShapesBounds`・`classifyPointHit`）、`index.html`のid・CSS、`main.js`の配線ブロックの番号・関数名、`KeyboardShortcuts`の4エントリ。テストの件数は`node --test <ファイル>`で確かめた値：新設の`DisplayState` 20・`GridSpacingRules` 6・`RulerTickRules` 14・`StatusReadoutRules` 13・`ViewFitRules` 13・`ViewTransform.setView` 6・`ShapeExtentReader` 7（計79）、追加は`SpriteSerializer` 3・`PointHitRules` 6・`Line`・`Curve`・`Rect`・`Path`各4・`Ellipse` 5（計30）。既存のテストの行の削除は0（`git diff`で確認）。
+    *   タスク26の記録の訂正：4章タスク26の残置の検索の「`.disabled`」を、再検索の結果（18行。`js/main.js` 4・`js/palette/CanvasPalette.js` 7・`OptionBarOrderGroup.js` 1・`OptionBarStyleGroup.js` 2・`test/edit/StylePanelRules.test.js` 4）へ直した（結論「存在しないCSSクラス`.disabled`を指す記述は0件」は変えていない）。
+    *   反映後の検索（`PROJECT_ARCHITECTURE.md`と`_doc/arch/`全ファイル）：「15メソッド」＝`PROJECT_ARCHITECTURE.md`2章の1件（「15メソッドになり、…16メソッドになった」の経緯）・`12_shapes.md`25行の「第15メソッド。Phase 06-03」（`hitTestFill`の経緯）で、いずれも正しい記述として残した。契約の列挙としての「15メソッド」は、`10_ShapeFactory.md`の「15メソッド契約を満たす」が残っていたため「16メソッド契約」へ直した（計画の対象ファイル一覧にないが`arch/`内の実態と合わない記述のため。この1語のみ）。「3経路」「三経路」＝0件。「07-03で」＝すべて「Phase 07-03で…」の経緯の記述（実態と合わない予定の記述は無し）。「定規を足すとき」「ツールバー・ステータスバーを除いた」「約610」＝0件。「`.disabled`」＝`01_index_html.md`の1件のみ（「フロートウィンドウ全体を非活性にする`.disabled`クラスは以前あったがPhase 07-01で削除した」という経緯の記述。実態どおり）。`13_palette.md`の`ToolPalette`の記述は改めた（`.disabled`を扱わない旨は、ウィンドウ全体を非活性にするクラスは無く、まとめて隠される対象である旨へ）。「1305行」「701行」（`06`・`02`の行数）＝実測値へ直し、残りは経緯の記述のみ。
+    *   `node --test`（プロジェクトのルート）：tests 1106 / suites 161 / pass 1106 / fail 0。（`js/`・`index.html`・`test/`は変更していない。）
+    *   **監査指摘の修正**：(1) `PROJECT_ARCHITECTURE.md`3章15.の「発注者の決定（2026-11-13）」を、2件から9件の箇条（キャンバスを切り替えても保つ・アウトライン表示の見え方・塗った内側を当たりに含めない・`C`は細線/太線だけ・`Tab`の扱い（ボタンにフォーカスがある間も含む）・隠している間の📁・押し込みは`.active`で`aria-pressed`なし・⛶にキーなし・配色をひと組にまとめる）へ書き改めた（中身は15.の他の箇条を参照）。(2) 同15.「やらないこと」へ、アウトライン表示の間も範囲選択・ハンドルの当たり・結合・吸い付きの規則を変えない旨を1点足した。(3) `_doc/arch/02_main.md`の表で字下げの無かった6行（10・16・32・33・43・44行）を8字下げにそろえ、表の全行（行頭が`|`で始まる行）の字下げが8字であることを確かめた（不揃い0行）。(4) 3章タスク27の対象ファイル一覧へ`10_ShapeFactory.md`を1行足した。(5) `_doc/arch/07_KeyboardShortcuts.md`の`Tab`の説明の手順4の対象を「`type`が`checkbox`・`color`の`input`の欄（`isSpaceOperatedInputElement`）」へ直した。修正後の`node --test`：tests 1106 / suites 161 / pass 1106 / fail 0（`js/`・`index.html`・`test/`は変更していない）。
 
 ## 5. 懸念事項・要確認ポイント
 **計画時の判断・注意点**
@@ -767,3 +774,5 @@
 30. **既存の働き**：図形の作成・選択・移動・変形・削除・結合・スタイル（オプションバー）・重なり順・取り消し/やり直し・コピー/貼り付け/複製・キャンバスパレット（開く・新規作成・名前の変更・削除・出力・開く（ファイル）・インポート）・自動保存・`?dev`の確認用ウィンドウが、これまでと同じに動く。表示の状態が初期値のとき、キャンバスの見た目が07-03前と同じ（定規の分だけ領域が狭いことを除く）。コンソールにエラー・警告が出ない。
 
 *   **タスク22の追記（懸念）**：ステータスバーの左側は`display: contents`のため、`.status-bar-left`自体にはもう幅・余白・背景などを指定できない（指定しても効かない）。左側へ項目を足すときは`.status-bar-left`の中へ`.status-bar-group`を足す。目視確認推奨：1280px幅で右側の表示倍率と🎯が従来と同じ右端の位置に出ること、幅を狭めたとき名前だけが先に`…`で縮み、それでも足りないと右側が右端から切れて左側と重ならないこと。
+
+*   **タスク27の追記（資料）**：(1) 資料に書いた`PaletteLauncher`の第2引数の例外（`Error`でなく`console.warn`）は`13_palette.md`に理由つきで書いてある。`palette/`のUI部品を新しく作るときは、省略可で既定値を持つ引数に限る例外であって、他のコールバックは従来どおり関数でなければ`Error`であること。(2) `10_ShapeFactory.md`の「15メソッド契約を満たす」の1語を「16メソッド契約」へ直した（計画の対象ファイル一覧にない`arch/`内のファイル。実態と合わない記述の検索で見つかったため）。(3) 資料の3章15.「表示」の「発注者の決定（2026-11-13）」は、当初REQを見ずに2件しか書いていなかったが、監査の指摘で発注者から示された決定9件（キャンバスの切り替えで保つ・アウトライン表示の見え方・塗った内側を含めない・`C`は細線/太線だけ・`Tab`の扱い・隠している間の📁・`.active`で`aria-pressed`なし・⛶にキーなし・配色をひと組にまとめる）へ書き改めて解消した（4章タスク27の「監査指摘の修正」）。ステータスバーに選択中の図形の大きさ・グリッド1マスの両方を入れたこと等、決定として示されていない計画段階の設計判断は、決定とは書いていない。(4) 目視確認の推奨：資料の記述（`.status-bar-left`が`display: contents`であること、`Tab`と入力欄・ボタンの関係、隠している間の📁）が実ブラウザの動きと合うか。
