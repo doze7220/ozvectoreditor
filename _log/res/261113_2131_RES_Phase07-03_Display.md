@@ -318,7 +318,7 @@
         *   2章「要件2」の`computeGridSpacing(scale)`を作る（先頭に単一責務のJSDoc。例：「責務：表示倍率から背景グリッドの細線・太線の間隔（ワールドの長さ）を求める規則を、状態を持たない関数として提供する。」）。定数3つ（JSDoc付き）はこのファイルへ移す。
         *   `CanvasManager.js`：`import { computeGridSpacing } from './GridSpacingRules.js';`、`#drawGrid`の`let minor…`のループと`const major`を`const { minor, major } = computeGridSpacing(scale);`へ置き換え、定数`GRID_BASE_SPACING`・`GRID_MIN_SCREEN_SPACING`・`GRID_MAX_SPACING_STEPS`を削除。倍率の検査（`if (!(scale > 0) || !Number.isFinite(scale)) return;`）は残す。`#drawGrid`のJSDocの間引き規則の記述を「間隔は`GridSpacingRules.computeGridSpacing`（定規・ステータスバーと共有）」へ改める。色・他の処理は変えない（見た目は不変）。
         *   テストは2章「要件11」の`GridSpacingRules.test.js`の観点。
-*   [ ] タスク2: 表示の状態の持ち主（`DisplayState.js`）とテスト
+*   [x] タスク2: 表示の状態の持ち主（`DisplayState.js`）とテスト
     *   **対象ファイル** :
         *   `./js/core/DisplayState.js` : 新規
         *   `./test/core/DisplayState.test.js` : 新規
@@ -528,7 +528,10 @@
 
 ### タスク2: 表示の状態の持ち主（`DisplayState.js`）とテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/DisplayState.js`を新規作成（要件1のとおり。4つの状態・`getState`・`isOutline`・`isFloatWindowsVisible`・`set…`4種・`toggle…`4種・`onChange`。何もimportしない。誰もimportしない）。
+    *   `test/core/DisplayState.test.js`を新規作成（初期値・toggle・set（変化/同値/非真偽値の警告）・`getState`の独立性・`onChange`の関数以外）。
+    *   `node --test`：tests 1023 / pass 1023 / fail 0。
+    *   監査指摘の修正：`DisplayState.test.js`の補助関数`captureWarnings`（`console.warn`の手書き差し替え）を削除し、非真偽値のテストを`t.mock.method(console, 'warn', () => {})`と`warn.mock.callCount()`（4回）・`warn.mock.calls[0].arguments[0]`で確かめる形に変更。定数`SETTERS`にJSDocを追加。修正後`node --test`：tests 1023 / pass 1023 / fail 0（件数は不変）。
 
 ### タスク3: `Line`の`drawOutline`とテスト
 *   **作業内容** :
