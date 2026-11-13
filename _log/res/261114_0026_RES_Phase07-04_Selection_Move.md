@@ -261,7 +261,7 @@
         *   `AltKeyGuard`を「2. 要件4」のとおりに新設（先頭の責務定義、クラス・コンストラクタ・ハンドラのJSDocに対象・対象外・状態を持たないこと・`InputTracker`・`KeyboardShortcuts`へ入れない理由）。
         *   `main.js`：import、「// 8.」の`new KeyboardShortcuts(…)`の後に`new AltKeyGuard();`とコメント。
         *   自動テストは足さない（`document`を購読するため。テストプレイの項目は「5. 懸念事項」）。
-*   [ ] タスク9: `D`の値と手本から取り込む値の規則（要件7・8）とテスト
+*   [x] タスク9: `D`の値と手本から取り込む値の規則（要件7・8）とテスト
     *   **対象ファイル** :
         *   `./js/edit/StylePanelRules.js` : 更新
         *   `./js/core/VectorModel.js` : 更新（コメントのみ）
@@ -420,7 +420,18 @@
 
 ### タスク9: `D`の値と手本から取り込む値の規則（要件7・8）とテスト
 *   **作業内容** :
-    *   （未実施）
+    *   `js/edit/StylePanelRules.js`：typedef`StyleApplication`、凍結定数`RESET_COLORS_STYLE`（`{ strokeColor: '#000000', fillColor: '#ffffff' }`）、関数`sampleStyleFromShape(shape)`（線の色・太さは常に、`fillColor`は`isFillable()`が真のときだけ。新しいオブジェクト）を足した。importは増やしていない。
+    *   `js/core/VectorModel.js`：コメントのみ（コードは不変）。`DEFAULT_NEW_SHAPE_STYLE`のJSDocへ、`RESET_COLORS_STYLE`と色の値が重なるが別の定義であること・塗りの有無が違うこと・`edit/`は本ファイルをimportしないことを追記。
+    *   `test/edit/StylePanelRules.test.js`：import・先頭の責務に`RESET_COLORS_STYLE`・`sampleStyleFromShape`を追記し、`describe`を2つ追加（6ケース。既存のケースは不変）。`RESET_COLORS_STYLE`（値・`strokeWidth`を持たない・凍結）、`sampleStyleFromShape`（塗れる形（`Rect`・円・閉じた`Path`）は`fillColor`あり、`Line`・開いた`Path`はキーなし、線なし・塗りなしは`null`、小数の太さ・`'red'`・`'#ABC'`・`'rgb(1,2,3)'`をそのまま、図形を書き換えない・毎回新しいオブジェクト）。
+    *   JSDoc・コメントの更新（実ファイルで確認済み）：
+        *   `StylePanelRules.js`先頭の責務定義（3行以内。スタイルをまとめて当てるときの値の規則を追記）。
+        *   typedef`StyleApplication`のJSDoc（項目・`null`の意味・値の検証をしないこと）。
+        *   `RESET_COLORS_STYLE`のJSDoc（`D`の値・唯一の定義・`DEFAULT_NEW_SHAPE_STYLE`とは別の定義であること）。
+        *   `sampleStyleFromShape`のJSDoc（`@param`・`@returns`・検証しないこと・読むプロパティ）。
+        *   `VectorModel.js`の`DEFAULT_NEW_SHAPE_STYLE`のJSDoc（上記）。
+        *   テストファイル先頭の責務定義。
+    *   `node --test`：tests 1154・pass 1154・fail 0。
+    *   開発資料への影響：`_doc/arch/14_edit.md`（`RESET_COLORS_STYLE`・`sampleStyleFromShape`・`StyleApplication`）、`_doc/arch/03_VectorModel.md`（別定義の記載）、`_doc/arch/16_test.md`（件数）。計画の「開発資料の更新予定」に既出。資料本体は未変更。
 
 ### タスク10: スタイルをまとめて当てる入口と`D`の入口（要件7）とテスト
 *   **作業内容** :

@@ -32,6 +32,8 @@ import { ShapeFactory, SHAPE_TYPES } from './ShapeFactory.js';
  * 3. `shapes/ShapeDataValidation.js`の`DEFAULT_STROKE_WIDTH`：読み込みで`strokeWidth`のキーが無いときの値。
  * 4. `io/SpriteSerializer.js`の`DEFAULT_STROKE_WIDTH`：書き出し形式を読む側の既定値（3.と同じ値であるべき）。
  * 既定のまま描いた図形のスタイルは、線あり`#000000`・2px・塗りなし（`fillColor: null`）。
+ * `edit/StylePanelRules.js`の`RESET_COLORS_STYLE`（`D`キーの値。線あり黒・塗りあり白）とは色の値が重なるが別の定義
+ * （塗りの有無が違い、`edit/`は本ファイルをimportしない）。片方を変えてももう片方は変わらない。
  * @type {Readonly<NewShapeStyle>}
  */
 const DEFAULT_NEW_SHAPE_STYLE = Object.freeze({

@@ -1,7 +1,7 @@
 /**
- * 責務: オプションバーのスタイルのまとまりに出す値の算出（そろっている値・混在・無効・表示する色）と、色の文字列の表示用の変換・線の太さの入力の受理・ON/OFFのボタンを押したときの次の有無の規則を担う。
- * 状態を持たずDOMに触れない。importを持たない。
- * 識別子の「Panel」は表示の部品一般を指す名前として残す（実体はオプションバー）。
+ * 責務: オプションバーのスタイルのまとまりに出す値の算出・色の表示用の変換・線の太さの入力の受理・ON/OFFの次の有無の規則と、
+ * スタイルをまとめて当てるときの値（`D`の色・手本の図形から取り込む値）の規則を担う。
+ * 状態を持たずDOMに触れない。importを持たない。識別子の「Panel」は表示の部品一般を指す名前として残す（実体はオプションバー）。
  */
 
 /** @type {number} 線の太さの下限（整数。オプションバーの太さの入力の受理範囲） */
@@ -58,6 +58,23 @@ const HEX3_PATTERN = /^#[0-9a-fA-F]{3}$/;
  */
 
 /**
+ * スタイルをまとめて当てるときの値（`ShapeStyleEditor.applyStyle`へ渡す）。自身のプロパティとして持つ項目だけを当てる。
+ * `strokeColor`・`fillColor`の`null`は線なし・塗りなし、文字列は線あり・塗りありでその色。値の検証・変換はしない。
+ * @typedef {Object} StyleApplication
+ * @property {(string|null)} [strokeColor] - 線の色（`null`＝線なし）
+ * @property {(string|null)} [fillColor] - 塗りの色（`null`＝塗りなし）
+ * @property {number} [strokeWidth] - 線の太さ
+ */
+
+/**
+ * `D`キーの値：線を黒・塗りを白にする（線あり黒・塗りあり白。太さは含めない＝変えない）。唯一の定義箇所（凍結）。
+ * `core/VectorModel.js`の`DEFAULT_NEW_SHAPE_STYLE`（起動時の直前に使った値。線あり黒・塗りなし・塗りの色は白）とは
+ * 色の値が重なるが別の定義（塗りの有無が違い、`edit/`は`core/VectorModel.js`をimportしない）。片方を変えてももう片方は変わらない。
+ * @type {Readonly<StyleApplication>}
+ */
+export const RESET_COLORS_STYLE = Object.freeze({ strokeColor: '#000000', fillColor: '#ffffff' });
+
+/**
  * 色の文字列を`<input type="color">`に入れられる`#rrggbb`（小文字）へ変換する。
  * `#rrggbb`は小文字化、`#rgb`は各桁を2回並べて展開する。それ以外（色名・`rgb(...)`・`#rrggbbaa`・`#rgba`・空文字・文字列でない値）は
  * DOMなしでは解釈できないため変換しない。
@@ -106,6 +123,21 @@ export function parseStrokeWidthInput(text) {
  */
 export function nextEnabledOnToggle(enabled) {
     return enabled !== true;
+}
+
+/**
+ * 手本の図形から取り込むスタイルの値を求める（スポイト用。検証・丸め・色の形式の変換はせず、図形を書き換えない）。
+ * 線の色・太さは常に、塗りの色は`isFillable()`が真のときだけ取り込む（塗れない形は`fillColor`のキーを持たない）。
+ * 読むのは図形の共通プロパティ`strokeColor`・`strokeWidth`・`fillColor`と`isFillable()`だけ。
+ * @param {{strokeColor: (string|null), strokeWidth: number, fillColor: (string|null), isFillable: function(): boolean}} shape - 手本の図形
+ * @returns {StyleApplication} 取り込む値（呼ぶたびに新しいオブジェクト）
+ */
+export function sampleStyleFromShape(shape) {
+    const style = { strokeColor: shape.strokeColor, strokeWidth: shape.strokeWidth };
+    if (shape.isFillable()) {
+        style.fillColor = shape.fillColor;
+    }
+    return style;
 }
 
 /**

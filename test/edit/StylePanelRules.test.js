@@ -1,5 +1,5 @@
 /**
- * 責務: StylePanelRulesの公開API（buildStylePanelView・toColorInputValue・parseStrokeWidthInput）を、実物の図形クラスを使って検証する。
+ * 責務: StylePanelRulesの公開API（buildStylePanelView・toColorInputValue・parseStrokeWidthInput・RESET_COLORS_STYLE・sampleStyleFromShape）を、実物の図形クラスを使って検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -8,6 +8,8 @@ import {
     toColorInputValue,
     parseStrokeWidthInput,
     nextEnabledOnToggle,
+    RESET_COLORS_STYLE,
+    sampleStyleFromShape,
 } from '../../js/edit/StylePanelRules.js';
 import { Line } from '../../js/shapes/Line.js';
 import { Curve } from '../../js/shapes/Curve.js';
@@ -193,5 +195,52 @@ describe('buildStylePanelView: 選択あり', () => {
         assert.deepEqual(newStyle, NEW_STYLE);
         assert.deepEqual(remembered, REMEMBERED);
         assert.equal(shapes.length, 2);
+    });
+});
+
+describe('RESET_COLORS_STYLE', () => {
+    it('線は黒・塗りは白で、太さを持たず、凍結されている', () => {
+        assert.equal(RESET_COLORS_STYLE.strokeColor, '#000000');
+        assert.equal(RESET_COLORS_STYLE.fillColor, '#ffffff');
+        assert.equal(Object.hasOwn(RESET_COLORS_STYLE, 'strokeWidth'), false);
+        assert.equal(Object.isFrozen(RESET_COLORS_STYLE), true);
+    });
+});
+
+describe('sampleStyleFromShape', () => {
+    it('塗れる形は線の色・太さ・塗りの色を取り込む', () => {
+        assert.deepEqual(sampleStyleFromShape(rect('#ff0000', 3, '#00ff00')), {
+            strokeColor: '#ff0000', strokeWidth: 3, fillColor: '#00ff00',
+        });
+        const pts = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }];
+        assert.equal(Object.hasOwn(sampleStyleFromShape(new Ellipse(0, 0, 9, 9, 'circle', '#000000', 2, '#010101')), 'fillColor'), true);
+        assert.equal(Object.hasOwn(sampleStyleFromShape(new Path(pts, true, '#000000', 2, '#010101')), 'fillColor'), true);
+    });
+    it('塗れない形（直線・開いたパス）はfillColorのキーを持たない', () => {
+        const pts = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }];
+        const lineStyle = sampleStyleFromShape(line('#112233', 4, '#ff0000'));
+        assert.deepEqual(lineStyle, { strokeColor: '#112233', strokeWidth: 4 });
+        assert.equal(Object.hasOwn(lineStyle, 'fillColor'), false);
+        assert.equal(Object.hasOwn(sampleStyleFromShape(new Path(pts, false, '#000000', 2, '#010101')), 'fillColor'), false);
+    });
+    it('線なし・塗りなしはnullのまま取り込む', () => {
+        assert.deepEqual(sampleStyleFromShape(rect(null, 2, null)), { strokeColor: null, strokeWidth: 2, fillColor: null });
+    });
+    it('小数の太さ・色の文字列をそのまま取り込む', () => {
+        assert.equal(sampleStyleFromShape(rect('#000000', 2.5)).strokeWidth, 2.5);
+        for (const color of ['red', '#ABC', 'rgb(1,2,3)']) {
+            const style = sampleStyleFromShape(rect(color, 2, color));
+            assert.equal(style.strokeColor, color);
+            assert.equal(style.fillColor, color);
+        }
+    });
+    it('図形を書き換えず、呼ぶたびに新しいオブジェクトを返す', () => {
+        const shape = rect('#ff0000', 3, 'red');
+        const before = JSON.stringify(shape.toJSON());
+        const first = sampleStyleFromShape(shape);
+        const second = sampleStyleFromShape(shape);
+        assert.equal(JSON.stringify(shape.toJSON()), before);
+        assert.notEqual(first, second);
+        assert.deepEqual(first, second);
     });
 });
