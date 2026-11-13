@@ -235,7 +235,7 @@
         *   `insertDocument`の本体を非公開`#insert(documentData, dx, dy, record)`へ移し、`insertDocument`は働き・戻り値・記録の単位を変えずに`#insert(…, true)`を呼ぶ形にする。公開メソッド`insertDocumentWithinEdit(documentData, dx = 0, dy = 0)`（`beginEdit()`／`commitEdit()`を呼ばない。開いている編集操作の中で呼ぶ前提。その他の処理順・戻り値は`insertDocument`と同じ）を足す。
         *   JSDoc：両メソッドの処理順・記録の有無・前提（記録しない入口を開いている編集操作の外で呼ぶと記録されない）、先頭の責務定義とクラスの説明（「1件の編集操作」に加えて、開いている編集操作の中で記録せずに追加する入口があること。`Alt`+ドラッグの複製が使う）。
         *   このタスクではテストを足さない（`ShapeInserter`のテストファイルは無く、入口の振る舞いはタスク6の`ClipboardController.test.js`で実物を組み合わせて確かめる）。既存のテストが全件通ること。
-*   [ ] タスク6: 同じ位置に貼り付け（要件6）と`Alt`+ドラッグの複製の手順（要件3）とテスト
+*   [x] タスク6: 同じ位置に貼り付け（要件6）と`Alt`+ドラッグの複製の手順（要件3）とテスト
     *   **対象ファイル** :
         *   `./js/edit/ClipboardController.js` : 更新
         *   `./test/edit/ClipboardController.test.js` : 新規
@@ -391,7 +391,9 @@
 
 ### タスク6: 同じ位置に貼り付け（要件6）と`Alt`+ドラッグの複製の手順（要件3）とテスト
 *   **作業内容** :
-    *   （未実施）
+    *   `js/edit/ClipboardController.js`：`pasteInPlace()`（空なら`false`。`insertDocument(data, 0, 0)`。段数を読まず変えない）と`duplicateInPlaceWithinEdit()`（`#serializeSelection()` → `insertDocumentWithinEdit(data, 0, 0)`。クリップボード・段数不変・記録しない・選択が空なら`false`）を足した。JSDoc・先頭の責務定義・クラスの説明（段数の規則・前提にドラッグの編集操作の中で呼ばれる旨）を更新。既存メソッドは不変。
+    *   `test/edit/ClipboardController.test.js`を新設（実物の`VectorModel`・`ShapeInserter`・`SnapshotAdapter`・`HistoryManager`・`ClipboardController`。`deleteSelection`は素の関数の偽物）。10ケース（`pasteInPlace`4・`duplicateInPlaceWithinEdit`6）。
+    *   `node --test`：tests 1148・pass 1148・fail 0。
 
 ### タスク7: `InputTracker`の要件3（`Alt`+ドラッグ）と`main.js`の注入
 *   **作業内容** :

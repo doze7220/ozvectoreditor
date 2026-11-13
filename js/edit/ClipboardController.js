@@ -1,6 +1,6 @@
 /**
  * 責務: アプリ内部のクリップボード（コピー・切り取りした図形一式と貼り付けの段数）の保持と、
- * コピー・切り取り・貼り付け・複製の手順を担う。DOMに触れない。
+ * コピー・切り取り・貼り付け・同じ位置に貼り付け・複製（Alt+ドラッグの記録しない複製を含む）の手順を担う。DOMに触れない。
  */
 import { DocumentSerializer } from '../io/DocumentSerializer.js';
 
@@ -27,11 +27,13 @@ const PASTE_OFFSET_STEP = 20;
  * 段数（次の貼り付けで適用するずらし量の段の数）の規則:
  *   - コピーで1、切り取りで0にリセットする（コピー直後の貼り付けは1段ずれ、切り取り直後の貼り付けは元の位置）。
  *   - 貼り付けで1件以上追加するたびに1増やす。
- *   - 複製・取り消し・やり直しでは変えない。
+ *   - 複製・同じ位置に貼り付け・Alt+ドラッグの複製・取り消し・やり直しでは変えない。
  *
  * 前提（呼び出し側の責務）:
- *   - 貼り付け・複製は、選択モードであること・ドラッグ中でないことを呼び出し側が保証する
+ *   - 貼り付け・同じ位置に貼り付け・複製は、選択モードであること・ドラッグ中でないことを呼び出し側が保証する
  *     （本クラスは操作モードを知らず、InputTrackerに依存しない）。
+ *   - duplicateInPlaceWithinEditはドラッグの編集操作の中で呼ばれる（InputTrackerへmain.jsが注入する。
+ *     閾値超過時のbeginEditの後に呼ばれ、確定時に移動とあわせて1件として記録される）。上の「ドラッグ中でないこと」の例外。
  *
  * 依存の制約:
  *   - DOMに触れない。図形種別の分岐・図形固有のプロパティ名・id形式の知識を持たない
@@ -172,6 +174,41 @@ export class ClipboardController {
             return false;
         }
         const result = this.#inserter.insertDocument(documentData, PASTE_OFFSET_STEP, PASTE_OFFSET_STEP);
+        return result.insertedIds.length > 0;
+    }
+
+    /**
+     * クリップボードの図形の新しい複製を、元と同じ位置（ずらし量0）に、新しいidでキャンバスの最前面へ追加する（同じ位置に貼り付け）。
+     * クリップボードが空なら何もせずfalseを返す。追加した図形だけが選択される。
+     * 段数は読まず、変えない（続けてpaste()すると、pasteInPlace()が無かった場合と同じ段数でずれる）。
+     * 追加・id採番・選択・1件の編集操作としての記録はShapeInserter.insertDocumentが行う。
+     * 前提: 選択モードであること・ドラッグ中でないことは呼び出し側の責務（本クラスは操作モードを知らない）。
+     * @returns {boolean} 1件以上貼り付けたらtrue
+     */
+    pasteInPlace() {
+        if (this.#documentData === null) {
+            return false;
+        }
+        const result = this.#inserter.insertDocument(this.#documentData, 0, 0);
+        return result.insertedIds.length > 0;
+    }
+
+    /**
+     * 選択集合の図形の新しい複製を、クリップボードを経由せずに同じ位置へ新しいidで最前面へ追加し、複製だけを選択する
+     * （Alt+ドラッグの複製の手順）。選択集合が空なら何もせずfalseを返す。
+     * クリップボードの内容・段数は変えない。
+     * 履歴へは記録しない（ShapeInserter.insertDocumentWithinEditを使う）。呼び出し側が開いている編集操作
+     * （ドラッグの編集操作。main.jsがInputTrackerへ注入して閾値超過時のbeginEditの後に呼ばせる）の中で呼ぶ前提で、
+     * 開いている編集操作の外で呼ぶと記録されない。
+     * 前提: 選択モードであること・作成途中の図形がないことは呼び出し側の責務（本クラスは操作モードを知らない）。
+     * @returns {boolean} 1件以上複製したらtrue
+     */
+    duplicateInPlaceWithinEdit() {
+        const documentData = this.#serializeSelection();
+        if (documentData === null) {
+            return false;
+        }
+        const result = this.#inserter.insertDocumentWithinEdit(documentData, 0, 0);
         return result.insertedIds.length > 0;
     }
 
