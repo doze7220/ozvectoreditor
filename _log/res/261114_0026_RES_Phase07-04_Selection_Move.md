@@ -298,7 +298,7 @@
         *   typedef`InputAssist`と`NO_INPUT_ASSIST`へ`isPickingShape`（既定は常に偽）・`pickShape`（既定は何もしない）を足し、コンストラクタの項目ごとの既定の置き換えに含める。
         *   `handleMouseDown`・`handleClick`・`#resolveCursor`を「2. 要件8」のとおりに替える（`handleMouseMove`は変えない）。JSDoc：3か所の判定順の記述、`#resolveCursor`の`@returns`に`'cell'`、クラスの説明（「クリックした図形を外へ渡す待ち受け」としてだけ扱い、スポイト・スタイルを知らない）。
         *   `main.js`はこのタスクでは変えない（省略時は待ち受けなし＝今と同じ）。
-*   [ ] タスク14: 選択の反転（`Ctrl`+`I`）と同じ位置に貼り付け（`Ctrl`+`Shift`+`V`）のキーと操作関数
+*   [x] タスク14: 選択の反転（`Ctrl`+`I`）と同じ位置に貼り付け（`Ctrl`+`Shift`+`V`）のキーと操作関数
     *   **対象ファイル** :
         *   `./js/core/KeyboardShortcuts.js` : 更新
         *   `./js/main.js` : 更新
@@ -492,7 +492,18 @@
 
 ### タスク14: 選択の反転（`Ctrl`+`I`）と同じ位置に貼り付け（`Ctrl`+`Shift`+`V`）のキーと操作関数
 *   **作業内容** :
-    *   （未実施）
+    *   `KeyboardShortcuts.js`：対応表の末尾（`duplicate`の後）に`pasteInPlace`（`KeyV`・`ctrl: true`・`REQUIRED`・`repeatable: false`）・`invertSelection`（`KeyI`・`ctrl: true`・`FORBIDDEN`・`false`）の2エントリを足した（受理判定・既存エントリは未変更）。
+    *   `main.js`：`invertSelection`のimport（`./core/SelectionRules.js`）、`ensureSelectMode()`（「// 7.」の`applyShapeType`の前）、`performPaste(pasteDocument)`（「// 7.5.」の`clipboardController`生成の後）、`performInvertSelection()`（「// 8.」の`KeyboardShortcuts`の前）を足し、`paste`を`performPaste`経由へ、`selectAll`の前処理を`ensureSelectMode()`へ替え、`invertSelection`・`pasteInPlace`のコールバック（常に`true`）を足した。
+    *   JSDoc・コメントの更新（実ファイルで確認済み）：
+        *   `KeyboardShortcuts.js`の`ShiftRule`のJSDoc：FORBIDDENの「Ctrl+Shift+V以外のShift+V等は予約」、REQUIREDに`Ctrl+Shift+V`の同じ位置に貼り付け。
+        *   typedef`ShortcutActions`：`pasteInPlace`・`invertSelection`の2契約を追記（`duplicate`の前）。
+        *   `SHORTCUT_BINDINGS`の説明：REQUIREDの例に`Ctrl+Shift+V`、`KeyV`の3通りの区別（V単体・`Ctrl`+`V`・`Ctrl`+`Shift`+`V`、`Shift`+`V`単体は予約のまま）、`KeyI`のCtrl付き。対応表内に2エントリ用のコメントを追加。
+        *   `#handleKeyDown`のJSDoc：手順5・6で`preventDefault()`だけ行う`Ctrl`付きのキーの列挙に`I`、貼り付けに`Ctrl+Shift+V`の書式なし貼り付け・ページの情報を追記。
+        *   `#findBinding`のJSDoc：REQUIREDの例に`Ctrl+Shift+V`、「上記以外のShift+V等は予約」へ改めた。
+        *   `main.js`：`ensureSelectMode`・`performPaste`・`performInvertSelection`のJSDoc（新規。契約・共通の前処理・判定を持たないこと）、`KeyboardShortcuts`注入内の`selectAll`・`invertSelection`・`paste`・`pasteInPlace`のコメント（同一経路`performPaste`・常に`true`）。
+    *   `node --test`：tests 1181・pass 1181・fail 0。
+    *   `main.js`の行数：888行 → 925行。
+    *   開発資料への影響：`_doc/arch/02_main.md`・`07_KeyboardShortcuts.md`（2エントリ・`KeyV`の3通り）。計画の「開発資料の更新予定」に既出。資料本体は未変更。
 
 ### タスク15: `D`のキー
 *   **作業内容** :

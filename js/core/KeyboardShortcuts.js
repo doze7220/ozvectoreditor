@@ -8,9 +8,9 @@ import { OperationMode, SHAPE_TYPES, isTextInputElement, isSpaceOperatedInputEle
 
 /**
  * 対応表エントリのShift規則（3値）。本ファイル内でのみ用いる（exportしない）。
- * ・FORBIDDEN：shiftKeyが偽であること（通常のショートカット。Shift+V等は将来のShift併用操作のために予約）
+ * ・FORBIDDEN：shiftKeyが偽であること（通常のショートカット。Ctrl+Shift+V以外のShift+V等は将来のShift併用操作のために予約）
  * ・ANY：shiftKeyを問わない（拡大・縮小。JIS配列のCtrl+Shift+;、US配列のCtrl+Shift+=に対応するため）
- * ・REQUIRED：shiftKeyが真であること（Ctrl+Shift+Zのやり直し）
+ * ・REQUIRED：shiftKeyが真であること（Ctrl+Shift+Zのやり直し、Ctrl+Shift+Vの同じ位置に貼り付け）
  * @readonly
  * @enum {string}
  */
@@ -66,6 +66,12 @@ const ShiftRule = Object.freeze({
  * @property {() => boolean} paste クリップボードの図形を貼り付ける。クリップボードが空なら何もしない（操作モードも切り替えない）。
  *     選択モード以外では選択モードへ切り替えてから貼り付ける。クリップボードが空でも常にtrue（ブラウザ標準の貼り付けを起こさないため。
  *     ドラッグ中は受理判定（#handleKeyDownの手順5）によりそもそも呼ばれない）
+ * @property {() => boolean} pasteInPlace クリップボードの図形を元と同じ位置に貼り付ける（Ctrl+Shift+V。貼り付けのずらしの段数は読まず変えない）。
+ *     クリップボードが空なら何もしない（操作モードも切り替えない）。選択モード以外では選択モードへ切り替えてから貼り付ける。
+ *     クリップボードが空でも常にtrue（ブラウザ標準の書式なし貼り付けを起こさないため。ドラッグ中・キーリピートは受理判定により呼ばれない）
+ * @property {() => boolean} invertSelection 選択を反転する（Ctrl+I。全図形のうち選択されていないものを選択する）。
+ *     選択モード以外では選択モードへ切り替えた後（選択が空になるため結果は全選択）。編集操作として記録しない。
+ *     図形0個でも常にtrue（ブラウザ標準のCtrl+I（Firefoxのページの情報等）を起こさないため）
  * @property {() => boolean} duplicate 選択集合の図形をその場で複製する。ブラウザ標準のブックマーク追加を抑止するため常にtrue
  * @property {() => boolean} toggleOutline アウトライン表示を切り替える。表示の状態を切り替えるだけで常にtrue
  * @property {() => boolean} toggleBackground 背景の白/黒を切り替える。表示の状態を切り替えるだけで常にtrue
@@ -81,8 +87,10 @@ const ShiftRule = Object.freeze({
  * ・同一のcode・修飾キーの組み合わせに一致するエントリが2件以上存在しないこと（#findBindingは最初の一致を返す）。
  * ・新しいショートカットはエントリの追加（＋必要なら注入コールバックの追加）で対応する。
  * ・修飾キー規則：Shiftはshiftプロパティの3値（ShiftRule）で指定する。通常はFORBIDDEN、拡大・縮小のみANY、
- *   やり直しのCtrl+Shift+ZのみREQUIRED。KeyZはShiftの有無で取り消し（FORBIDDEN）とやり直し（REQUIRED）に排他的に分かれる。
- *   KeyVはctrlの値でV単体（ctrl: false。選択モードへの切り替え）とCtrl+V（ctrl: true。貼り付け）に排他的に区別される。
+ *   やり直しのCtrl+Shift+Zと同じ位置に貼り付けのCtrl+Shift+VのみREQUIRED。KeyZはShiftの有無で取り消し（FORBIDDEN）とやり直し（REQUIRED）に排他的に分かれる。
+ *   KeyVはctrlの値とShift規則でV単体（ctrl: false。選択モードへの切り替え）・Ctrl+V（ctrl: true・FORBIDDEN。貼り付け）・
+ *   Ctrl+Shift+V（ctrl: true・REQUIRED。同じ位置に貼り付け）の3通りに排他的に区別される（Shift+V単体はctrl: falseのFORBIDDENと一致せず予約のまま）。
+ *   KeyIのCtrl付き（Ctrl+I。選択の反転）もctrl: trueのエントリで、Ctrlなしの（将来の）Iとはctrlの値で区別される。
  *   KeyZ・KeyX・KeyCも同様にctrlの値で区別される（Z・X・C単体＝表示の切り替え：ctrl: false、Ctrl+Z（取り消し）・Ctrl+X（切り取り）・Ctrl+C（コピー）：ctrl: true）。
  *   KeyZのCtrl付きはShiftで取り消し・やり直しに分かれるが、Ctrlなしは単体（FORBIDDEN）のみでShift+Zは一致しない。
  * ・Tab（フロートウィンドウをまとめて隠す/出す）は、テキスト入力扱いの欄（太さの欄・テキスト欄＝受理判定の手順2）と
@@ -126,6 +134,9 @@ const SHORTCUT_BINDINGS = Object.freeze([
     { codes: ['KeyX'], ctrl: true, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'cut' },
     { codes: ['KeyV'], ctrl: true, shift: ShiftRule.FORBIDDEN, repeatable: true, action: 'paste' },
     { codes: ['KeyD'], ctrl: true, shift: ShiftRule.FORBIDDEN, repeatable: true, action: 'duplicate' },
+    // 同じ位置に貼り付け（Ctrl+Shift+V。Ctrl+V（FORBIDDEN）と排他的）・選択の反転（Ctrl+I）。キーリピートでは実行しない
+    { codes: ['KeyV'], ctrl: true, shift: ShiftRule.REQUIRED, repeatable: false, action: 'pasteInPlace' },
+    { codes: ['KeyI'], ctrl: true, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'invertSelection' },
     // 表示の切り替え（アウトライン・背景の白/黒・グリッド。キーリピートでは実行しない）
     { codes: ['KeyZ'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'toggleOutline' },
     { codes: ['KeyX'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'toggleBackground' },
@@ -176,8 +187,8 @@ export class KeyboardShortcuts {
      * preventDefault()の原則：受理した（コールバックがtrueを返した）キーのみpreventDefault()し、受理しなかったキーは
      * preventDefault()しない（IME変換中・テキスト入力中・対応表に一致なし・Spaceで操作する入力部品の操作中・コールバックがfalseを含む）。
      * 唯一の例外：ctrl: trueのエントリが、ドラッグ中（手順5）またはキーリピート（手順6）で実行されなかった場合は、
-     * 操作は実行せずpreventDefault()のみ行う（Ctrl+=/-/0/A/Z/Y/C/X/V/Dでブラウザのズーム・ページ全選択・標準の取り消し/やり直し・
-     * 標準のコピー・切り取り・貼り付け・ブックマーク追加が起きないようにするため）。
+     * 操作は実行せずpreventDefault()のみ行う（Ctrl+=/-/0/A/Z/Y/C/X/V/D/Iでブラウザのズーム・ページ全選択・標準の取り消し/やり直し・
+     * 標準のコピー・切り取り・貼り付け（Ctrl+Shift+Vの書式なし貼り付けを含む）・ブックマーク追加・ページの情報が起きないようにするため）。
      * ctrl: falseのエントリが手順5・6で実行されなかった場合はpreventDefault()もしない。
      * @param {KeyboardEvent} event
      */
@@ -220,8 +231,8 @@ export class KeyboardShortcuts {
      * ・Meta（⌘）はCtrlと同一視する（macOS対応）。ctrl: trueはctrlKey || metaKeyが真、ctrl: falseは両方が偽であること。
      * ・Shift：エントリのshift（ShiftRule）の3値で判定する。FORBIDDENはshiftKeyが偽であること、
      *   ANY（拡大・縮小のみ）はshiftKeyを問わない（JIS配列のCtrl+Shift+;、US配列のCtrl+Shift+=に対応するため）、
-     *   REQUIRED（やり直しのCtrl+Shift+Zのみ）はshiftKeyが真であること。Shift+V等は引き続き不一致であり、
-     *   将来のShift併用操作のために予約する。
+     *   REQUIRED（やり直しのCtrl+Shift+Zと同じ位置に貼り付けのCtrl+Shift+Vのみ）はshiftKeyが真であること。
+     *   上記以外のShift+V等は引き続き不一致であり、将来のShift併用操作のために予約する。
      * @param {KeyboardEvent} event
      * @returns {Readonly<ShortcutBinding> | null} 一致したエントリ（なければnull）
      */

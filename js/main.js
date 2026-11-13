@@ -9,6 +9,7 @@ import { CanvasCursorTracker } from './core/CanvasCursorTracker.js';
 import { InputTracker, OperationMode, WHEEL_ZOOM_STEP } from './core/InputTracker.js';
 import { KeyboardShortcuts } from './core/KeyboardShortcuts.js';
 import { AltKeyGuard } from './core/AltKeyGuard.js';
+import { invertSelection } from './core/SelectionRules.js';
 import { WindowManager } from './core/WindowManager.js';
 import { ViewTransform } from './core/ViewTransform.js';
 import { HistoryManager } from './core/HistoryManager.js';
@@ -441,6 +442,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
+     * 操作モードが選択モード以外なら、先に`applyMode(OperationMode.SELECT)`で選択モードへ切り替える（すでに選択モードなら何もしない）。
+     * 全選択・貼り付け・同じ位置に貼り付け・選択の反転が共通に使う前処理（同じ前処理を各所に書かないため）。
+     * 判定は現在の操作モードの照会だけで、切り替えは`applyMode`の経路（作成途中の図形の破棄・選択の全解除・押し込みの同期）に任せる。
+     */
+    function ensureSelectMode() {
+        if (inputTracker.getMode() !== OperationMode.SELECT) {
+            applyMode(OperationMode.SELECT);
+        }
+    }
+
+    /**
      * 図形種別の切り替えを一元的に行う共通関数。操作モードは変更しない。
      * InputTrackerへの図形種別切り替え要求の後、切替後に`inputTracker.getMode()`・`getShapeType()`で
      * 実際の内部状態を読み返し、`resolveActiveTool`で求めたツールを押し込みにする
@@ -493,6 +505,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const shapeInserter = new ShapeInserter({ model, editRecorder: historyManager });
     // 切り取りの削除は、既存の唯一の削除経路inputTracker.deleteSelection()を注入する（Delete/削除ボタンと同一経路）
     const clipboardController = new ClipboardController({ model, inserter: shapeInserter, deleteSelection: () => inputTracker.deleteSelection() });
+
+    /**
+     * 貼り付け系の操作（`Ctrl`+`V`の貼り付け・`Ctrl`+`Shift`+`V`の同じ位置に貼り付け）の共通の前処理。
+     * クリップボードが空なら何もしない（操作モードも切り替えない）。空でなければ`ensureSelectMode()`で
+     * 選択モードへ切り替えてから、渡された貼り付けの手順を呼ぶ。判定は`isEmpty()`の照会だけで、
+     * 貼り付けの中身（ずらし量・追加・選択・記録）は`clipboardController`・`ShapeInserter`が持つ。
+     * @param {() => boolean} pasteDocument - 貼り付けの手順（`clipboardController.paste`または`pasteInPlace`の呼び出し）
+     * @returns {boolean} 常にtrue（ブラウザ標準の貼り付けを起こさないため）
+     */
+    function performPaste(pasteDocument) {
+        if (clipboardController.isEmpty()) {
+            return true;
+        }
+        ensureSelectMode();
+        pasteDocument();
+        return true;
+    }
 
     // 7.6. キャンバス管理（キャンバス一覧・自動保存・ファイル操作・キャンバスパレット・呼び出し口）配線
     // 処理本体（起動時の復元・開く・新規作成・名前の変更・削除・切り替え処理・自動保存）はCanvasLibrary（edit/）が、
@@ -692,6 +721,16 @@ document.addEventListener('DOMContentLoaded', () => {
         viewTransform.zoomAt(canvas.clientWidth / 2, canvas.clientHeight / 2, direction > 0 ? WHEEL_ZOOM_STEP : 1 / WHEEL_ZOOM_STEP);
     }
 
+    /**
+     * 選択の反転（`Ctrl`+`I`）。`ensureSelectMode()`で選択モードへ切り替えた後、全図形のidと現在の選択から
+     * `invertSelection`（SelectionRules）で求めた選択を`model.setSelection`へ渡す。規則の結果をモデルへ渡すだけで
+     * 判定を持たない。編集操作として記録しない（選択の変更は履歴の対象外）。InputTrackerへは入れない。
+     */
+    function performInvertSelection() {
+        ensureSelectMode();
+        model.setSelection(invertSelection(model.getShapes().map((shape) => shape.id), model.getSelectedIds()));
+    }
+
     // キー→操作の対応表と受理判定はKeyboardShortcutsが担い、操作の実体はここで注入するコールバックが行う。
     // 各コールバックの戻り値はtrue＝受理（KeyboardShortcutsがpreventDefault()する）、false＝受理せず。
     // UI同期は既存経路（applyMode/applyShapeType、viewTransform.onChange、model.onChange）のみを通り、
@@ -721,13 +760,17 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         // 作成途中の図形の破棄／選択解除（何もしなかった場合はfalse）
         cancel: () => inputTracker.cancelDraftOrClearSelection(),
-        // 全選択。選択モード以外では先に選択モードへ切り替える。図形0個・非受理でもページ全選択を
-        // 起こさないよう常にtrueを返す
+        // 全選択。選択モード以外では先に選択モードへ切り替える（ensureSelectMode。貼り付け・選択の反転と共通の前処理）。
+        // 図形0個・非受理でもページ全選択を起こさないよう常にtrueを返す
         selectAll: () => {
-            if (inputTracker.getMode() !== OperationMode.SELECT) {
-                applyMode(OperationMode.SELECT);
-            }
+            ensureSelectMode();
             inputTracker.selectAll();
+            return true;
+        },
+        // 選択の反転（Ctrl+I）。選択モード以外では先に選択モードへ切り替える（選択は空になるため結果は全選択）。
+        // 記録しない。ブラウザ標準の動作（Firefoxのページの情報等）を起こさないよう常にtrueを返す
+        invertSelection: () => {
+            performInvertSelection();
             return true;
         },
         // 選択集合の削除（削除ボタンと同一経路。受理条件はdeleteSelection()のみが判定する）
@@ -746,18 +789,12 @@ document.addEventListener('DOMContentLoaded', () => {
         copy: () => clipboardController.copy(),
         cut: () => clipboardController.cut(),
         // 貼り付け。クリップボードが空なら何もしない（モードも切り替えない）。選択モード以外では先に選択モードへ
-        // 切り替えてから貼り付ける（作成途中の図形はapplyModeの経路で破棄される）。ブラウザ標準の貼り付けを
-        // 起こさないよう常にtrueを返す
-        paste: () => {
-            if (clipboardController.isEmpty()) {
-                return true;
-            }
-            if (inputTracker.getMode() !== OperationMode.SELECT) {
-                applyMode(OperationMode.SELECT);
-            }
-            clipboardController.paste();
-            return true;
-        },
+        // 切り替えてから貼り付ける（作成途中の図形はapplyModeの経路で破棄される）。前処理はperformPaste
+        // （同じ位置に貼り付けと共通）。ブラウザ標準の貼り付けを起こさないよう常にtrueを返す
+        paste: () => performPaste(() => clipboardController.paste()),
+        // 同じ位置に貼り付け（Ctrl+Shift+V）。前処理・戻り値はpasteと同じ（performPaste）。
+        // 貼り付けの中身（段数を読まず変えない）はclipboardController.pasteInPlaceが持つ
+        pasteInPlace: () => performPaste(() => clipboardController.pasteInPlace()),
         // 複製（選択集合が空でもブラウザ標準のブックマーク追加を起こさないよう常にtrueを返す）
         duplicate: () => {
             clipboardController.duplicate();
