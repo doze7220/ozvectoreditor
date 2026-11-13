@@ -332,7 +332,7 @@
         *   2章「要件5」の`drawOutline(ctx, viewScale = 1, color)`を`drawHover`の直後に足す（JSDocに「共通メソッド契約の第16メソッド」、輪郭のパスは`draw`と同じ、塗らない、図形のスタイルを読まない、線の太さは画面上1px、`draw`を変えない理由（`CodeExporter`の`DRAW_SOURCE`と揃えているため））。クラスJSDocを「共通メソッド契約（16メソッド：…・hitTestFill・drawOutline）」へ。
         *   テストは2章「要件11」の`shapes/`の観点（`describe('Line.drawOutline の描画命令')`）。
         *   **5クラスを別タスクに分ける理由**：1タスク＝ソースとそのテストの原則に従う。各クラスの途中では契約の数がクラス間で一時的にそろわないが、`CanvasManager`はタスク8まで`drawOutline`を呼ばないため動きは変わらない。
-*   [ ] タスク4: `Curve`の`drawOutline`とテスト
+*   [x] タスク4: `Curve`の`drawOutline`とテスト
     *   **対象ファイル** :
         *   `./js/shapes/Curve.js` : 更新（`drawOutline`の追加、クラスJSDocの契約の列挙のみ）
         *   `./test/shapes/Curve.test.js` : 更新（テストの追加のみ）
@@ -541,7 +541,9 @@
 
 ### タスク4: `Curve`の`drawOutline`とテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `js/shapes/Curve.js`：`drawHover`の直後に`drawOutline(ctx, viewScale = 1, color)`を追加（JSDoc付き。パスは`draw`と同じ`moveTo(points[0])`→`quadraticCurveTo(points[1], points[2])`、閉じない、`fill`・図形のスタイルを使わない、`lineWidth = 1 / viewScale`）。クラスJSDocを16メソッド契約へ。`draw`は不変。
+    *   `test/shapes/Curve.test.js`：`describe('Curve.drawOutline の描画命令')`を追加（4ケース。Lineと同じ観点）。偽の`ctx`は既に`quadraticCurveTo`を記録するため補助関数は不変。既存ケースも不変。
+    *   `node --test`：tests 1031 / pass 1031 / fail 0。
 
 ### タスク5: `Rect`の`drawOutline`とテスト
 *   **作業内容** :
