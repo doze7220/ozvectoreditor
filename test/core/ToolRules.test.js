@@ -1,9 +1,9 @@
 /**
- * 責務: ToolRules（ツールの一覧TOOL_IDSと、押し込みにするツールを求めるresolveActiveTool）の振る舞いを検証する。
+ * 責務: ToolRules（ツールの一覧TOOL_IDS・スポイトの識別子EYEDROPPER_TOOL_ID・押し込みにするツールを求めるresolveActiveTool）の振る舞いを検証する。
  */
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { TOOL_IDS, resolveActiveTool } from '../../js/core/ToolRules.js';
+import { TOOL_IDS, EYEDROPPER_TOOL_ID, resolveActiveTool } from '../../js/core/ToolRules.js';
 import { OperationMode } from '../../js/core/InputTracker.js';
 import { SHAPE_TYPES } from '../../js/core/ShapeFactory.js';
 
@@ -72,5 +72,30 @@ describe('resolveActiveTool', () => {
         assert.equal(resolveActiveTool(OperationMode.CREATE, 'path'), null);
         assert.equal(resolveActiveTool(OperationMode.CREATE, 'unknown'), null);
         assert.equal(resolveActiveTool(OperationMode.CREATE, undefined), null);
+    });
+
+    test('picking が true なら全操作モード×図形種別で EYEDROPPER_TOOL_ID', () => {
+        for (const mode of [...Object.values(OperationMode), 'unknown', undefined]) {
+            for (const type of SHAPE_TYPE_INPUTS) {
+                assert.equal(resolveActiveTool(mode, type, true), EYEDROPPER_TOOL_ID, `${mode}/${type}`);
+            }
+        }
+    });
+
+    test('picking が省略・false のとき第3引数なしと同じ結果', () => {
+        for (const mode of [...Object.values(OperationMode), 'unknown', undefined]) {
+            for (const type of SHAPE_TYPE_INPUTS) {
+                const expected = resolveActiveTool(mode, type);
+                assert.equal(resolveActiveTool(mode, type, undefined), expected, `${mode}/${type}`);
+                assert.equal(resolveActiveTool(mode, type, false), expected, `${mode}/${type}`);
+            }
+        }
+    });
+});
+
+describe('EYEDROPPER_TOOL_ID', () => {
+    test('OperationMode の値・SHAPE_TYPES のどれとも違う', () => {
+        assert.ok(!Object.values(OperationMode).includes(EYEDROPPER_TOOL_ID));
+        assert.ok(!SHAPE_TYPES.includes(EYEDROPPER_TOOL_ID));
     });
 });

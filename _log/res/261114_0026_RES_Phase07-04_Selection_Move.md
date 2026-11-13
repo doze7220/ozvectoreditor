@@ -284,7 +284,7 @@
     *   **作業内容** :
         *   `StyleEyedropper`を「2. 要件8」のとおりに新設（先頭の責務定義：スポイトの待ち受けの状態の保持と変更の通知、手本の図形からスタイルを取り込んで反映する手順。クラスのJSDocに、知らないこと（DOM・操作モード・`InputTracker`・ボタン）、状態を作業データ・履歴・`VectorModel`に入れないこと、importは`./StylePanelRules.js`の`sampleStyleFromShape`のみ）。
         *   テスト：偽物の`model`（`getShapes`）・`applyStyle`（呼び出しを記録）で、初期は待ち受けでない、`start`で待ち受け・通知1回・`true`、待ち受け中の`start`は通知なし・`false`、`stop`でやめる・通知1回・`true`、待ち受けでない`stop`は通知なし・`false`、待ち受けでない`pickFrom`は`applyStyle`を呼ばず`false`、存在しないidの`pickFrom`は停止せず`false`・待ち受けが続く・通知なし、存在するidの`pickFrom`は`applyStyle`を`sampleStyleFromShape`の結果で1回呼び・待ち受けが解け・通知1回・`true`、`cancelPicking`（待ち受け中は`true`で`fallback`を呼ばない・待ち受けでなければ`fallback`の戻り値を返す）、`applyStyle`が関数でなければ`Error`、`onChange`に関数以外を渡しても例外にならない。加えて実物の`VectorModel`・`ShapeStyleEditor`（記録先は`SnapshotAdapter`・`HistoryManager`の実物）を組み合わせ、取り込みで選択中の図形と直前に使った値が変わり待ち受けが解けること、選択なしでは直前に使った値だけが変わること、塗れない形を手本にすると塗りが変わらないこと、選択ありで履歴1件。
-*   [ ] タスク12: `resolveActiveTool`の第3引数（要件8）とテスト
+*   [x] タスク12: `resolveActiveTool`の第3引数（要件8）とテスト
     *   **対象ファイル** :
         *   `./js/core/ToolRules.js` : 更新
         *   `./test/core/ToolRules.test.js` : 更新（ケースの追加のみ）
@@ -459,7 +459,16 @@
 
 ### タスク12: `resolveActiveTool`の第3引数（要件8）とテスト
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/ToolRules.js`へ`export const EYEDROPPER_TOOL_ID = 'eyedropper'`と`resolveActiveTool(mode, shapeType, picking = false)`（`picking === true`なら操作モードによらず`EYEDROPPER_TOOL_ID`、それ以外は従来どおり）を追加。`TOOL_IDS`は変えていない（タスク16）。
+    *   `test/core/ToolRules.test.js`へ3件追加（`picking`真で全モード×図形種別が`EYEDROPPER_TOOL_ID`・省略／偽で第3引数なしと一致・`EYEDROPPER_TOOL_ID`が`OperationMode`の値・`SHAPE_TYPES`と重複しない）。既存ケースは未変更。importに`EYEDROPPER_TOOL_ID`を追加。
+    *   JSDoc・コメントの更新（実ファイルで確認済み）：
+        *   `ToolRules.js`先頭の責務定義（3行以内。スポイトの識別子と待ち受けを加味する旨を追記）。
+        *   `EYEDROPPER_TOOL_ID`のJSDoc（新規。独自の識別子である旨・`TOOL_IDS`への追加は別タスク）。
+        *   `resolveActiveTool`のJSDoc（冒頭の説明・`@param picking`・`@returns`）。
+        *   `TOOL_IDS`のJSDocは未変更（タスク16で更新）。
+        *   `test/core/ToolRules.test.js`先頭の責務定義。
+    *   `node --test`：tests 1181・pass 1181・fail 0。
+    *   開発資料への影響：`_doc/arch/19_ToolRules.md`・`_doc/arch/16_test.md`（件数）。計画の「開発資料の更新予定」に既出。資料本体は未変更。
 
 ### タスク13: `InputTracker`の要件8（スポイトの待ち受けの照会と受け渡し）
 *   **作業内容** :

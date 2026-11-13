@@ -1,6 +1,6 @@
 /**
- * 責務: ツール（選択・キャンバス移動・図形の種別）の一覧と、操作モードと図形種別から押し込みの表示にするツールを求める規則を、
- * 状態を持たない関数として提供する。DOMに触れない。
+ * 責務: ツール（選択・キャンバス移動・スポイト・図形の種別）の識別子と、操作モード・図形種別・スポイトの待ち受けから
+ * 押し込みの表示にするツールを求める規則を、状態を持たない関数として提供する。DOMに触れない。
  */
 import { OperationMode } from './InputTracker.js';
 import { SHAPE_TYPES } from './ShapeFactory.js';
@@ -15,15 +15,27 @@ import { SHAPE_TYPES } from './ShapeFactory.js';
 export const TOOL_IDS = Object.freeze([OperationMode.SELECT, OperationMode.PAN, ...SHAPE_TYPES]);
 
 /**
- * 操作モードと図形種別から、押し込みの表示にするツールの識別子を求める。
- * `mode`が選択なら`'select'`、キャンバス移動なら`'pan'`（`shapeType`は見ない）、図形作成なら`shapeType`
- * （`SHAPE_TYPES`に含まれるときのみ）を返す。引数を書き換えない。
+ * スポイトのツールの識別子。操作モードの値でも図形種別の値でもない独自の識別子（識別子の約束）。
+ * ボタンのid`tool-eyedropper`は`index.html`側の約束。なお`TOOL_IDS`への追加は別タスクで行う。
+ * @type {string}
+ */
+export const EYEDROPPER_TOOL_ID = 'eyedropper';
+
+/**
+ * 操作モード・図形種別・スポイトの待ち受けから、押し込みの表示にするツールの識別子を求める。
+ * `picking`が`true`なら操作モードによらず`EYEDROPPER_TOOL_ID`。そうでなければ、`mode`が選択なら`'select'`、
+ * キャンバス移動なら`'pan'`（`shapeType`は見ない）、図形作成なら`shapeType`（`SHAPE_TYPES`に含まれるときのみ）を返す。
+ * 引数を書き換えない。
  * @param {string} mode - 操作モード（`OperationMode`の値）
  * @param {string} shapeType - 図形種別（`SHAPE_TYPES`の要素）
- * @returns {string|null} ツールの識別子（`TOOL_IDS`の要素）。未知の`mode`、または図形作成モードで`SHAPE_TYPES`外の
- *     `shapeType`のときは`null`（どのボタンも押し込みにしない）
+ * @param {boolean} [picking=false] - スポイトの待ち受け中か。`true`のときだけスポイトを優先する（省略・偽なら従来どおり）
+ * @returns {string|null} ツールの識別子。未知の`mode`、または図形作成モードで`SHAPE_TYPES`外の
+ *     `shapeType`のときは`null`（どのボタンも押し込みにしない）。`picking`が`true`のときは常に`EYEDROPPER_TOOL_ID`
  */
-export function resolveActiveTool(mode, shapeType) {
+export function resolveActiveTool(mode, shapeType, picking = false) {
+    if (picking === true) {
+        return EYEDROPPER_TOOL_ID;
+    }
     if (mode === OperationMode.SELECT) {
         return OperationMode.SELECT;
     }
