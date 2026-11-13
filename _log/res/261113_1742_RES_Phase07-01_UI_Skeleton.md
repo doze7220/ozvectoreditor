@@ -285,7 +285,7 @@
             *   `// 8.`：`setShapeType`コールバックを`(type) => { selectShapeTool(type); return true; }`へ（コメント「図形種別切替。…パレットと同一経路」を「ツールパレットの図形のボタンと同一経路」へ）。`setMode`のコメント「モードボタンと同一経路」を「ツールパレットの選択・キャンバス移動のボタンと同一経路」へ。
             *   その他のコメント：`performUndo`/`performRedo`/`performJoin`/`syncDeleteButtonState`/`syncJoinButtonState`/`syncHistoryButtonState`/`syncZoomDisplay`/`paletteLaunchers`（「index.htmlへ呼び出し口のボタン」→「ツールバーへ」）/起動時初期化（「モードボタンの.active・パレットの.disabled・パレット内ハイライト」→「ツールパレットの押し込みの表示」）等の「コントロールパネル」「図形選択パレット」「図形パレット」「モードボタン」を実態へ改める。
         *   確認：7つのボタンで常にちょうど1つが押し込み、図形のボタン1回で描ける、`V`・`H`・`P`・`1`〜`5`（テンキー）と押し込みの一致、貼り付け・全選択・キャンバスの切り替え・インポートで選択へ戻ったときの追従、ツールパレットが半透明にならずドラッグで動かせる、起動時の`console.warn`が出ない、コンソールにエラーが出ない。
-*   [ ] タスク6: 使われなくなった`PaletteController.js`の削除
+*   [x] タスク6: 使われなくなった`PaletteController.js`の削除
     *   **対象ファイル** :
         *   `./js/palette/PaletteController.js` : 削除
     *   **作業内容** :
@@ -360,7 +360,8 @@
 
 ### タスク6: 使われなくなった`PaletteController.js`の削除
 *   **作業内容** :
-    *   (未着手)
+    *   `index.html`・`js/`・`test/`・`sprite-check.html`を`Grep`し、`PaletteController`の参照が`PaletteController.js`自身以外に無いことを確認のうえ、`js/palette/PaletteController.js`を削除した。`js/palette/`にはCanvasPalette・DevPanel・PaletteLauncher・PropertyOrderSection・PropertyShapeSection・ToolPaletteが残る。
+    *   開発資料の更新予定への新規追記：なし（`PROJECT_ARCHITECTURE.md`4章の`PaletteController.js`の記述、`_doc/arch/01・02・10・13`の`PaletteController`への言及はタスク9で直す）。`node --test`は未実行（削除対象はテストから参照されていないため）。
 
 ### タスク7: `PaletteLauncher.js`のコメント・JSDocの修正
 *   **作業内容** :
