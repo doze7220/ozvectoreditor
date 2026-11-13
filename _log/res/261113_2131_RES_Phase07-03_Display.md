@@ -397,7 +397,7 @@
         *   `./test/io/SpriteSerializer.test.js` : 更新（テストの追加のみ）
     *   **作業内容** :
         *   2章「要件4」のとおり`serialize`の直後に足す（JSDoc付き）。`serialize`・`#computeBounds`・他の関数は変えない。テストは2章「要件11」の観点。
-*   [ ] タスク14: 外枠の照会（`edit/ShapeExtentReader.js`）とテスト
+*   [x] タスク14: 外枠の照会（`edit/ShapeExtentReader.js`）とテスト
     *   **対象ファイル** :
         *   `./js/edit/ShapeExtentReader.js` : 新規
         *   `./test/edit/ShapeExtentReader.test.js` : 新規
@@ -600,7 +600,9 @@
 
 ### タスク14: 外枠の照会（`edit/ShapeExtentReader.js`）とテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `js/edit/ShapeExtentReader.js`（新規）：`constructor({ model })`・`getSelectedBounds()`・`getAllBounds()`（いずれも`SpriteSerializer.computeShapesBounds`を使う。JSDoc・先頭の責務定義付き）。完了時点では誰もimportしない。
+    *   `test/edit/ShapeExtentReader.test.js`（新規）：7ケース（選択なしで`null`・1つ・複数の和・選択の変更に追従、図形0個で`null`・全図形が`serialize(...).bounds`と同値、図形・選択集合を変えず`onChange`を呼ばない）。実物の`VectorModel`・`Rect`・`Line`を使用。
+    *   `node --test`：tests 1079 / pass 1079 / fail 0。
 
 ### タスク15: 定規の目盛りの規則（`RulerTickRules.js`）とテスト
 *   **作業内容** :
