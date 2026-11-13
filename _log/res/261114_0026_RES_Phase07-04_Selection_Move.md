@@ -291,7 +291,7 @@
     *   **作業内容** :
         *   `export const EYEDROPPER_TOOL_ID = 'eyedropper'`（JSDocに独自の識別子である旨）と`resolveActiveTool(mode, shapeType, picking = false)`を「2. 要件8」のとおりに足す。`TOOL_IDS`はこのタスクでは変えない（ボタンとの照合が要るためタスク16）。JSDoc・先頭の責務定義を改める。
         *   テスト（追加）：`picking`が`true`なら全操作モード×図形種別で`EYEDROPPER_TOOL_ID`、省略時・`false`のとき全操作モード×図形種別で今と同じ結果（第3引数なしの結果と一致）、`EYEDROPPER_TOOL_ID`が`OperationMode`の値・`SHAPE_TYPES`のどれとも違うこと。既存のケースは変えない。
-*   [ ] タスク13: `InputTracker`の要件8（スポイトの待ち受けの照会と受け渡し）
+*   [x] タスク13: `InputTracker`の要件8（スポイトの待ち受けの照会と受け渡し）
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` : 更新
     *   **作業内容** :
@@ -472,7 +472,23 @@
 
 ### タスク13: `InputTracker`の要件8（スポイトの待ち受けの照会と受け渡し）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/InputTracker.js`のみ変更（`main.js`は未変更。省略時は待ち受けなし＝今と同じ）。
+    *   `NO_INPUT_ASSIST`へ`isPickingShape`（常に`false`）・`pickShape`（何もしない）を足し、コンストラクタの`#inputAssist`の項目ごとの置き換え（関数でなければ既定。`console.warn`なし）へ含めた。
+    *   `handleMouseDown`：選択モード・IDLEの分岐の`#classifyPoint`の前に`isPickingShape()`なら`return`を足した（パン・中ボタンの判定はそれより前のまま）。
+    *   `handleClick`：選択モードの分岐で`#classifyPoint`の直後・ハンドル判定の前に、`isPickingShape()`なら`hit.bodyId`があれば`pickShape(hit.bodyId)`を呼び、いずれにしても`return`（選択を変えない・`Ctrl`を見ない）。
+    *   `#resolveCursor`：「(3)選択モード以外 → default」の後、「(4)DRAGGING_HANDLE・MOVING_SELECTION」の前に待ち受け中 → `'cell'`を足した。
+    *   `handleMouseMove`・`#resetSnapState()`の呼び出し箇所と順は変えていない。
+    *   JSDoc・コメントの更新（実ファイルで確認済み）：
+        *   typedef`InputAssist`：`isPickingShape`・`pickShape`の2つの`@property`を追記（冒頭の「項目ごとに既定へ置き換える」の説明はそのまま有効）。
+        *   `NO_INPUT_ASSIST`のJSDoc：「（複製しない・待ち受けなし・図形を渡さない）」へ。
+        *   コンストラクタの`@param inputAssist`：項目3つの列挙と省略時の動き（複製しない・待ち受けなし）。
+        *   クラスのJSDoc：`InputAssist`の項目を3つへ改め、「クリックした図形を外へ渡す待ち受け」としての扱い（押下で何も始めない・クリックはidを渡すだけ・カーソル`cell`・スポイト／スタイルを知らない）を追記。
+        *   `handleMouseDown`のJSDoc：判定順へ(5a)（待ち受け中は何もしない）を追記。
+        *   `handleClick`のJSDoc：選択モードの分岐へ待ち受け中の扱い（`pickShape`・選択を変えない・`Ctrl`を見ない・空白では何もしない）を追記。
+        *   `#resolveCursor`のJSDoc：判定順へ(3a)（`'cell'`）を追記、`@returns`へ`'cell'`を追加。
+        *   ファイル先頭の責務定義（3行のまま）：待ち受け中のクリックは図形のidを外へ渡すだけ、を追記。
+    *   `node --test`：tests 1181・pass 1181・fail 0。
+    *   開発資料への影響：`_doc/arch/06_InputTracker.md`（第7引数の項目・待ち受け中の押下・クリック・カーソル）。計画の「開発資料の更新予定」に既出。資料本体は未変更。
 
 ### タスク14: 選択の反転（`Ctrl`+`I`）と同じ位置に貼り付け（`Ctrl`+`Shift`+`V`）のキーと操作関数
 *   **作業内容** :

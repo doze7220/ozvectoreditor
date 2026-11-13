@@ -1,6 +1,6 @@
 /**
  * 責務：ユーザー入力（図形作成・選択・範囲選択・本体ドラッグ・ハンドルドラッグ・パン・ズーム。キーはスペースパンのみ）の解釈と
- * Model・ビュー変換への反映（修飾キーの読み取りは選択・移動方向の限定の規則の関数へ渡すだけ）、状態依存の操作（一括削除・取消・全選択・進行中操作の中断）の公開、編集操作の開始・確定の通知（注入された記録先へ）、
+ * Model・ビュー変換への反映（修飾キーの読み取りは選択・移動方向の限定の規則の関数へ渡すだけ。待ち受け中のクリックは図形のidを外へ渡すだけ）、状態依存の操作（一括削除・取消・全選択・進行中操作の中断）の公開、編集操作の開始・確定の通知（注入された記録先へ）、
  * および入力状態に応じたカーソル形状のフィードバックを担う。
  */
 
@@ -137,14 +137,22 @@ const NO_SNAP_ASSIST = Object.freeze({
  * @typedef {Object} InputAssist
  * @property {() => void} duplicateSelection 選択中の図形を同じ位置に複製して複製だけを選択する。
  *     Alt+ドラッグの閾値超過時、ドラッグの編集操作（beginEdit済み）の中で呼ばれ、記録しない。既定は何もしない（複製しない）
+ * @property {() => boolean} isPickingShape クリックした図形を外へ渡す待ち受け中か。真の間、選択モード・IDLEの左ボタンの押下は何も始めず、
+ *     クリックは当たった図形のidを pickShape へ渡すだけで選択を変えず、カーソルは'cell'になる。既定は常に偽（待ち受けなし）
+ * @property {(shapeId: string) => void} pickShape 待ち受け中にクリックした図形のidを外へ渡す（handleClickが当たった本体がある場合だけ呼ぶ）。
+ *     既定は何もしない。渡した先で何をするか（待ち受けの終了を含む）は本クラスは知らない
  */
 
 /**
- * 第7引数の補助が注入されなかった場合の既定値（複製しない）。
+ * 第7引数の補助が注入されなかった場合の既定値（複製しない・待ち受けなし・図形を渡さない）。
  * @type {InputAssist}
  */
 const NO_INPUT_ASSIST = Object.freeze({
     duplicateSelection() {},
+    isPickingShape() {
+        return false;
+    },
+    pickShape() {},
 });
 
 /**
@@ -256,9 +264,12 @@ function hasCtrlModifier(event) {
  * 図形種別の分岐・図形固有のプロパティ名は持たない。
  * 当たり分類の規則（ハンドル・本体の優先順位）はPointHitRules.classifyPointHitに委ね、#classifyPointは受け渡しのみ行う
  * （塗った内側を当たりに含めるかは、コンストラクタ第6引数で注入された照会に従う）。
- * 入力の解釈の外へ委ねる補助（InputAssist。コンストラクタ第7引数。この時点の項目はduplicateSelectionのみ）も注入される。
+ * 入力の解釈の外へ委ねる補助（InputAssist。コンストラクタ第7引数。項目はduplicateSelection・isPickingShape・pickShape）も注入される。
  * Altを押して始めた本体ドラッグ・移動用ハンドルのドラッグで移動量が閾値を超えた時点（beginEdit()の後）に、
  * 注入された複製を呼ぶだけで、複製の仕方・idの採番は知らない。
+ * 「クリックした図形を外へ渡す待ち受け」（isPickingShape）の間は、選択モード・IDLEの左ボタンの押下で何も始めず、
+ * クリックは当たった図形のidをpickShapeへ渡すだけ（選択は変えない。Ctrlも見ない）で、カーソルは'cell'になる。
+ * 渡した図形を何に使うか・待ち受けの開始と終了は知らない（図形のスタイルのプロパティも読まない）。
  * メソッドは区切りコメントで「公開API（モード・図形種別）」「公開API（状態依存の操作：削除・取消・全選択・中断）」「イベントハンドラ」「左ドラッグ」「パン」「当たり分類」
  * 「座標取得」「カーソル形状」の順に整理している。
  */
@@ -385,7 +396,8 @@ export class InputTracker {
      * @param {() => boolean} [isFillHitExcluded=() => false] - 塗った内側を当たりに含めないかの照会（真なら含めない。
      *     当たり分類のたびに呼ぶ）。省略時は常に含める（従来どおり動作する）。関数でなければ`console.warn`して既定（常に含める）を使う
      * @param {InputAssist} [inputAssist=NO_INPUT_ASSIST] - 入力の解釈の外へ委ねる補助（実体はmain.jsが注入する）。
-     *     項目ごとに、関数でなければ既定へ置き換える（`console.warn`は出さない）。省略時は従来どおり動作する
+     *     項目（duplicateSelection・isPickingShape・pickShape）ごとに、関数でなければ既定へ置き換える（`console.warn`は出さない）。
+     *     省略時は従来どおり動作する（複製しない・図形を渡す待ち受けなし）
      */
     constructor(canvas, model, viewTransform, editRecorder = NO_EDIT_RECORDER, snapAssist = NO_SNAP_ASSIST, isFillHitExcluded = () => false, inputAssist = NO_INPUT_ASSIST) {
         this.canvas = canvas;
@@ -402,6 +414,12 @@ export class InputTracker {
             duplicateSelection: typeof inputAssist?.duplicateSelection === 'function'
                 ? () => inputAssist.duplicateSelection()
                 : NO_INPUT_ASSIST.duplicateSelection,
+            isPickingShape: typeof inputAssist?.isPickingShape === 'function'
+                ? () => inputAssist.isPickingShape()
+                : NO_INPUT_ASSIST.isPickingShape,
+            pickShape: typeof inputAssist?.pickShape === 'function'
+                ? (shapeId) => inputAssist.pickShape(shapeId)
+                : NO_INPUT_ASSIST.pickShape,
         };
 
         /**
@@ -777,6 +795,8 @@ export class InputTracker {
      * (3)ドラッグセッション中（パン・左ドラッグ。閾値以前を含む）なら何もしない（セッションは同時に1つのみ）。
      * (4)左ボタンでスペース押下中またはキャンバス移動モードならパンを開始する。パンはDRAWING状態・作成途中図形を保持したまま行う。
      * (5)左ボタン以外（右ボタン等）なら何もしない（右ボタンで左ドラッグを開始しない）。
+     * (5a)IDLE状態かつ選択モード中で、注入された補助のisPickingShape()が真（クリックした図形を外へ渡す待ち受け中）なら、
+     * 当たり分類の前に何もせず終了する（左ボタンの押下で何も始めない。(2)(4)のパンは先に判定済みのため働く）。
      * (6)IDLE状態かつ選択モード中のみ、押下点（ワールド座標）を#classifyPointで当たり分類し、以下の表で分岐する
      * （左ドラッグは#beginLeftDragで開始し、閾値以内で離した場合は離した後のclickで判定する。
      * MOVING_SELECTIONの2か所は#beginMoveSelection経由で開始し、開始できたときに押した時点のevent.altKeyを記憶する
@@ -818,6 +838,10 @@ export class InputTracker {
             return;
         }
 
+        if (this.#inputAssist.isPickingShape()) {
+            return;
+        }
+
         const point = this.getWorldCoordinate(event);
         const hit = this.#classifyPoint(point);
 
@@ -850,6 +874,9 @@ export class InputTracker {
      * IDLE状態かつ図形作成モード中の描き始めは、クリック位置で吸い付きを照会し（ホバー状態は参照しない）、
      * 結果を#drawStartSnapに保持・表示し、吸い付いていれば端点の座標、いなければクリック位置でstartDraftする。
      * IDLE状態かつ選択モード中では、クリック位置を#classifyPointで当たり分類し（ホバー状態は参照しない）、
+     * 当たり分類の直後・ハンドルの判定より前に、注入された補助のisPickingShape()が真（クリックした図形を外へ渡す待ち受け中）なら、
+     * 当たった本体のid（hit.bodyId）があればpickShape(bodyId)を呼び、いずれにしても終了する（選択は変えない。Ctrlも見ない。
+     * 空白では何もしない）。待ち受けでなければ、
      * 選択集合の図形のハンドル上なら何もしない（選択集合を維持。Ctrlの有無によらない）。それ以外は、選択集合・当たった本体のid・
      * Ctrlの有無（hasCtrlModifier。見るのはclickイベント＝確定の時点）をSelectionRulesのresolveClickSelectionへ渡し、結果を#applySelectionChangeで反映する。
      * Ctrlなし：図形の本体上ならその図形のみの単一選択（setSelection([bodyId])）、空白なら選択集合が空でなければ全解除（clearSelection()）。
@@ -890,6 +917,12 @@ export class InputTracker {
 
         if (this.currentMode === OperationMode.SELECT) {
             const hit = this.#classifyPoint({ x, y });
+            if (this.#inputAssist.isPickingShape()) {
+                if (hit.bodyId) {
+                    this.#inputAssist.pickShape(hit.bodyId);
+                }
+                return;
+            }
             if (hit.handle) {
                 return;
             }
@@ -1404,6 +1437,8 @@ export class InputTracker {
      * (1)図形作成モード → 'crosshair'（作成途中を含む）、
      * (2)キャンバス移動モード → 'grab'、
      * (3)選択モード以外のモード → 'default'（将来のモード追加時の既定値）、
+     * (3a)クリックした図形を外へ渡す待ち受け中（注入された補助のisPickingShape()が真） → 'cell'（パン中・スペース押下中の
+     * 'grabbing'・'grab'は先に判定されるため優先順は変わらない）、
      * (4)DRAGGING_HANDLE・MOVING_SELECTION状態 → 'move'、
      * (5)MARQUEE_SELECTING状態 → 'default'、
      * (6)当たり分類なし（hit === null。座標不明） → 'default'、
@@ -1413,7 +1448,7 @@ export class InputTracker {
      * (10)それ以外 → 'default'。
      * @param {PointHit | null} hit カーソル位置の当たり分類（#classifyPointの結果）。座標が不明なとき
      *     （setMode直後・パン開始/終了・左ドラッグ開始/終了・スペース押下/解放等）はnull
-     * @returns {'grabbing'|'grab'|'crosshair'|'move'|'pointer'|'default'} 適用すべきCSS cursor値
+     * @returns {'grabbing'|'grab'|'crosshair'|'cell'|'move'|'pointer'|'default'} 適用すべきCSS cursor値
      */
     #resolveCursor(hit) {
         if (this.#isPanning) {
@@ -1434,6 +1469,10 @@ export class InputTracker {
 
         if (this.currentMode !== OperationMode.SELECT) {
             return 'default';
+        }
+
+        if (this.#inputAssist.isPickingShape()) {
+            return 'cell';
         }
 
         if (this.state === InputState.DRAGGING_HANDLE || this.state === InputState.MOVING_SELECTION) {
