@@ -20,7 +20,7 @@ const ELLIPSE_POINT_COUNT = 5;
 
 /**
  * 本クラスが扱う図形種別（`fromJSON`の`type`検証に用いる）。
- * 種別を増やす場合に揃える箇所：本一覧・種別で分岐する全箇所（コンストラクタ、`draw`、`drawHover`、`#updatePointsFromRadii`、
+ * 種別を増やす場合に揃える箇所：本一覧・種別で分岐する全箇所（コンストラクタ、`draw`、`drawHover`、`drawOutline`、`#updatePointsFromRadii`、
  * `hitTest`、`toDrawElement`、`isFillable`。`!== 'circle'`の分岐は弧として扱われる）・`ShapeFactory`の対応表・`index.html`のボタン。
  * `hitTestFill`は種別の分岐を持たない（塗れるかを`isFillable()`に通すだけ）が、塗れる種別（扇形など）を増やすときは式の見直しが要る。
  * @type {ReadonlyArray<string>}

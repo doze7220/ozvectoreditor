@@ -191,7 +191,7 @@
     *   `// 7.6.`：`PaletteLauncher`の第2引数（要件7）。
     *   `// 8.`：`KeyboardShortcuts`へ4コールバック。
     *   起動時の同期（末尾）：`renderRulers()`・`syncCursorReadout()`・`syncSelectionSizeReadout()`・`syncGridSizeReadout()`・`syncViewToggleGroup()`・`syncFloatWindowVisibility()`を、既存の同期関数の呼び出しと同じ形（理由のコメント付き）で`canvasLibrary.start()`の前に足す。
-    *   見込みの行数：約840行（約140行の増加）。配線ブロックの切り出しは本作業では行わない（5章）。
+    *   見込みの行数：約840行（約140行の増加）だったが、実測は877行（タスク26の完了時の`wc -l`。5章）。配線ブロックの切り出しは本作業では行わない（5章）。
 
 ### 要件9: 全体を画面に収める
 *   **`ViewTransform.setView(scale, offsetX, offsetY)`（公開メソッドを1つ足す）**：`scale`が正の有限の数でない、または`offsetX`・`offsetY`が有限の数でなければ`console.warn`（例：`ViewTransform.setView: 不正な値が指定されました: scale=${scale}, offsetX=${offsetX}, offsetY=${offsetY}`）して何もしない。`scale`は`MIN_SCALE`〜`MAX_SCALE`に収める。収めた後の値が今と同じなら通知しない。変われば3つを設定して通知を1回。変換式は持たない（設定だけ）。先頭の責務定義に「表示倍率とオフセットの一括設定」を足す。
@@ -285,10 +285,10 @@
 *   **3章へ「15. 表示」の節を新設**：表示の状態の持ち主（`DisplayState`。保存しない・キャンバスを切り替えても保つ・ページを開き直すと初期値）と通知の経路、配色の組（白・黒の2組。`CanvasManager`の`render`の`darkBackground`で選ぶ。背景の色はCSSに置かず配色の組が唯一）、アウトライン表示（`drawOutline`。画面上1pxの一定の線・塗らない・図形のスタイルを使わない・作成途中も。ホバー・ハンドル・範囲選択・吸い付きは今のまま）、グリッドの表示（細線・太線だけ消す。軸線・原点マークは残す）、定規（常に表示・別要素・`GridSpacingRules`で間隔をグリッドと共有・数字は太線・カーソル位置の印・配色は背景によらない・`z-index` 8）、カーソル位置の座標・選択中の図形の大きさ・グリッド1マスの大きさ（`CanvasCursorTracker`・`StatusReadoutRules`・`ShapeExtentReader`→`SpriteSerializer.computeShapesBounds`。`—`の条件）、パレットをまとめて隠す（`body.float-windows-hidden`。`hidden`・位置・重なりに触れない。隠している間の📁は`PaletteLauncher`の規則）、全体を画面に収める（`ViewFitRules`・`setView`・余白40px・図形0個はリセットと同じ・キーなし）、ボタンに`aria-pressed`を付けない理由（フォーカス中の`Space`をパンにするため）、発注者の決定（2026-11-13）、やらないこと（REQのNon-goals）。
 *   **4章の一覧**：`DisplayState.js`・`GridSpacingRules.js`・`RulerTickRules.js`・`RulerRenderer.js`・`CanvasCursorTracker.js`・`ViewFitRules.js`・`StatusReadoutRules.js`の7行を足す（`_doc/arch/20_DisplayState.md`〜`26_StatusReadoutRules.md`）。
 *   **`_doc/arch/01_index_html.md`**：画面の領域（定規2本と角、`--ruler-size`・`--frame-background-color`、「07-03で定規を足すときに直すのは…」の予定の記述を実態へ）、重なりの順に定規（8）、定規の`<canvas>`にも枠線・余白を付けない理由、保っているidに`#float-windows-toggle`・`#ruler-horizontal`・`#ruler-vertical`・`#ruler-corner`・`#cursor-readout`・`#selection-size-readout`・`#grid-size-readout`・`#view-toggle-group`（中の3ボタンはUI部品が解決）・`#view-fit`、ステータスバーの並びと縮む項目（名前のまとまりだけ`.status-bar-group-shrink`。`.status-bar-left`は`display: contents`で箱を作らない＝入れ子のflexでは名前だけを縮ませられないため〔`min-width: 0`を削ると名前が縮まず、残すと縮まないまとまりが右側へ重なる〕、右側は`margin-left: auto`で右端へ寄せる。`.status-readout`の`white-space: pre`・等幅の数字・最小の幅）、`#editor-canvas`の背景の色をCSSに置かないこと、まとめて隠すCSS、ボタンの押し込みは`.active`で`aria-pressed`を付けない理由、ショートカットの表記（`Tab`・`Z`・`X`・`C`）、ツールバー全体の幅の見積もり約646px、ウィンドウの既定の位置は定規の分ずれること。
-*   **`_doc/arch/02_main.md`**：主な関数（`renderRulers`・`syncCursorReadout`・`syncSelectionSizeReadout`・`syncGridSizeReadout`・`syncViewToggleGroup`・`syncFloatWindowVisibility`・`fitViewToShapes`）、配線ブロックの表（`// 2.`に`RulerRenderer`、`// 3.2.`（新）、`// 4.`に`CanvasCursorTracker`・`renderRulers`・登録、`// 6.5.`（新））、注入の一覧（`InputTracker`の第6引数`isFillHitExcluded`＝`() => displayState.isOutline()`、`CanvasCursorTracker`＝`canvas`・`getScreenPoint`・`screenToWorld`、`RulerRenderer`＝2要素、`ShapeExtentReader`＝`model`、`ViewToggleGroup`＝`#view-toggle-group`・3コールバック→`displayState`のメソッド、`PaletteLauncher`の第2引数、`KeyboardShortcuts`の4コールバック）、同一経路の原則（▢◐▦・🧰とキーは`displayState`のメソッドを呼ぶ、⛶は`fitViewToShapes`、キャンバス要素の大きさを使う計算に`fitViewToShapes`）、起動時の同期、行数（タスク25の完了時に実測）。
+*   **`_doc/arch/02_main.md`**：主な関数（`renderRulers`・`syncCursorReadout`・`syncSelectionSizeReadout`・`syncGridSizeReadout`・`syncViewToggleGroup`・`syncFloatWindowVisibility`・`fitViewToShapes`）、配線ブロックの表（`// 2.`に`RulerRenderer`、`// 3.2.`（新）、`// 4.`に`CanvasCursorTracker`・`renderRulers`・登録、`// 6.5.`（新））、注入の一覧（`InputTracker`の第6引数`isFillHitExcluded`＝`() => displayState.isOutline()`、`CanvasCursorTracker`＝`canvas`・`getScreenPoint`・`screenToWorld`、`RulerRenderer`＝2要素、`ShapeExtentReader`＝`model`、`ViewToggleGroup`＝`#view-toggle-group`・3コールバック→`displayState`のメソッド、`PaletteLauncher`の第2引数、`KeyboardShortcuts`の4コールバック）、同一経路の原則（▢◐▦・🧰とキーは`displayState`のメソッドを呼ぶ、⛶は`fitViewToShapes`、キャンバス要素の大きさを使う計算に`fitViewToShapes`）、起動時の同期、行数（タスク25の完了時に実測。`js/main.js`は877行。タスク26の完了時に測り直しても877行）。
 *   **`_doc/arch/04_CanvasManager.md`**：公開メソッドの`render`の引数に`outline`・`darkBackground`・`showGrid`、描画順（背景の塗り・グリッドの表示・`draw`/`drawOutline`）、配色の組（定数は`CanvasManager`内。白の組は07-03前の見た目と同じ）、背景の色をCSSに置かない理由、持たないものに表示の状態（`DisplayState`をimportしない）、グリッドの間隔は`GridSpacingRules`（定規・ステータスバーと共有）。「初期表示…原点がキャンバス要素全体の中央」は定規で狭まった領域の中央であること。
 *   **`_doc/arch/05_ViewTransform.md`**：公開メソッドに`setView`、契約（倍率は下限・上限に収める・不正な値は`console.warn`して何もしない・変わらなければ通知しない・通知1回）、呼び出し元は`main.js`の`fitViewToShapes`。
-*   **`_doc/arch/06_InputTracker.md`**：第6引数`isFillHitExcluded`（照会の注入。表示の状態を知らない。`#classifyPoint`から`classifyPointHit`の`includeFill`へ渡すだけ）、当たり分類の項目の追記、行数（タスク10の完了時に実測）。
+*   **`_doc/arch/06_InputTracker.md`**：第6引数`isFillHitExcluded`（照会の注入。表示の状態を知らない。`#classifyPoint`から`classifyPointHit`の`includeFill`へ渡すだけ）、当たり分類の項目の追記、行数（タスク10の完了時に実測。`js/core/InputTracker.js`は1345行。タスク26の完了時に測り直しても1345行）。
 *   **`_doc/arch/07_KeyboardShortcuts.md`**：足したエントリ（`Z`・`X`・`C`・`Tab`。修飾キーなし・`Shift`不可・リピートしない・コールバックは常に`true`）、`KeyZ`・`KeyX`・`KeyC`の`ctrl`による排他、`Tab`と入力欄（手順2・4でフォーカスの移動）・ボタン・ドラッグ中、知らないことに表示の状態。
 *   **`_doc/arch/12_shapes.md`**：「15メソッド契約」→「16メソッド契約」（`drawOutline(ctx, viewScale = 1, color)`。輪郭のパスは`draw`・`drawHover`と同じ・塗らない・図形のスタイルを読まない・画面上1px・`draw`を変えない理由）。5クラスのクラスJSDocが16メソッドを列挙していること。
 *   **`_doc/arch/13_palette.md`**：`ViewToggleGroup.js`の項目（公開`render`・注入・知らないこと・typedefの写し）、`PaletteLauncher.js`（第2引数の照会と「出す」、隠している間の📁の規則、知らないことに表示の状態の持ち主。第2引数は省略でき、関数でない値は`Error`ではなく`console.warn`して既定を使う＝`palette/`の規約の例外である旨と理由〔省略時は今と同じ動きにする既定値を持つ。対応表の不正も従来から`console.warn`〕を書く）、`ToolPalette.js`の`.disabled`の記述を実態へ（まとめて隠される対象）、冒頭のツールバー・ステータスバーの配線の分担（ステータスバーの表示の切り替えのまとまりは`palette/`、単独のボタン・文字の表示は`main.js`）。
@@ -486,7 +486,7 @@
         *   `index.html`：表示倍率のまとまりの`#view-zoom-display`と🎯の間に⛶（2章「要件8」の表）。
         *   `main.js`：`import`（`computeFitView`）。`// 6.5.`に`fitViewToShapes()`（JSDoc付き。2章「要件9」）と⛶の`click`。完了後に`main.js`の行数を記録する（2章「開発資料の更新予定」の`02_main.md`へ追記）。
         *   完了時点：⛶で全図形が余白40pxを空けて収まり、図形0個では表示のリセットと同じになる。
-*   [ ] タスク26: コメントの整理（`ToolPalette.js`）と残置・JSDocの最終確認
+*   [x] タスク26: コメントの整理（`ToolPalette.js`）と残置・JSDocの最終確認
     *   **対象ファイル** :
         *   `./js/palette/ToolPalette.js` : 更新（クラスJSDocの1文のみ）
         *   （見落としが見つかった場合に限り、タスク1〜25の対象ファイルの中で直す）
@@ -690,7 +690,25 @@
 
 ### タスク26: コメントの整理（`ToolPalette.js`）と残置・JSDocの最終確認
 *   **作業内容** :
-    *   （未記入）
+    *   `js/palette/ToolPalette.js`：クラスJSDocの「ウィンドウ全体の非活性…」の1文を、2章「要件10」の文面（ウィンドウ全体を非活性にするクラスは無く、`Tab`・パレットの表示・非表示のボタンでまとめて隠される、隠す仕組みは`index.html`のCSSと`main.js`）へ改めた（コメントのみ）。
+    *   追加仕様の要件1：`js/shapes/Ellipse.js`の`ELLIPSE_TYPES`のJSDocの「種別で分岐する全箇所」の一覧へ`drawOutline`を足した（JSDocのみ）。
+    *   追加仕様の要件2：`js/core/CanvasManager.js`の先頭の責務定義の2行目を「描画変換は引数で受け取った値から、配色は引数で選ばれた配色の組（モジュール定数）から毎フレーム設定し、状態は保持しない。」へ改めた（3行以内・責務の範囲は変えない）。
+    *   追加仕様の要件3：2章『開発資料の更新予定』の`02_main.md`の項へ`js/main.js`の実測877行、`06_InputTracker.md`の項へ`js/core/InputTracker.js`の実測1345行（いずれも`wc -l`で測り直した値）を記入。2章（要件8の`main.js`の配線ブロック）と5章の「約840行」の記述は「見込みは約840行だったが、実測は877行」の形へ改めた。
+    *   残置の検索（`js/`・`index.html`・`test/`。当たり件数と判定）：
+        *   「15メソッド」：5件（`shapes/`の`Line`・`Curve`・`Ellipse`・`Path`・`Rect`の`hitTestFill`JSDocの「共通メソッド契約の第15メソッド」）。すべて正しい記述。契約の列挙としての「15メソッド」は0件。
+        *   「`.disabled`」：16件。`test/edit/StylePanelRules.test.js`の`.fill.disabled`（規則の戻り値のプロパティ）4件、`main.js`・`OptionBarStyleGroup.js`・`CanvasPalette.js`・`OptionBarOrderGroup.js`の`button.disabled = …`等のDOMのプロパティ12件。存在しないCSSクラス`.disabled`を今もあるかのように書いた記述は0件（`index.html`にも0件）。残置なし。
+        *   「07-03で」：0件。「3経路」「三経路」：0件。
+        *   「`GRID_MINOR_COLOR`」「`GRID_MAJOR_COLOR`」「`ORIGIN_AXIS_COLOR`」「`ORIGIN_MARK_COLOR`」：各0件。
+        *   「`GRID_BASE_SPACING`」：2件、いずれも`core/GridSpacingRules.js`（定義と`computeGridSpacing`内の使用）。それ以外は0件。
+        *   「`background-color: #ffffff`」：`index.html`の1件（176行、`.float-window`のルール。対象外の別要素）。`#editor-canvas`のルールにあるものは0件（43行のルールは`z-index`のみ。背景は`CanvasManager`の配色の組で塗るとのコメントが付く）。残置なし。
+        *   「オプションバー…の幅の見積もり」：0件（`index.html`425行に「ツールバー全体の幅の見積もり」があるが、現在のツールバーの構成の記述で、オプションバー2まとまりの旧見積もりではない）。309行の見積もり（フロートウィンドウの範囲）も実態と合う記述。
+        *   結論：使われなくなったコード・CSS・実態と合わないコメントの残置は無く、該当の修正は無し（ロジックの修正が必要な箇所も見つけていない）。
+    *   JSDoc・責務定義・コールバック契約の確認（`js/core/GridSpacingRules.js`・`DisplayState.js`・`CanvasManager.js`・`PointHitRules.js`・`InputTracker.js`・`ViewTransform.js`・`ViewFitRules.js`・`RulerTickRules.js`・`RulerRenderer.js`・`CanvasCursorTracker.js`・`StatusReadoutRules.js`・`KeyboardShortcuts.js`、`io/SpriteSerializer.js`、`edit/ShapeExtentReader.js`、`palette/ViewToggleGroup.js`・`PaletteLauncher.js`・`ToolPalette.js`、`shapes/`の5クラス、`main.js`）：
+        *   先頭の責務定義：上の全ファイルで3行以内（`shapes/`・`main.js`も最先頭にあり）。不足なし。
+        *   JSDoc：メソッド・関数ごとに、直前のJSDocの有無、`@param`の数と引数の数、戻り値を返すものの`@returns`、`throw`するものの`@throws`を、補助スクリプト（記録なし・一時）で機械的に照合した。不一致の報告は、分割代入・`deps.`・`options.`の入れ子の`@param`による見かけの差（`computeFitView`・`ShapeExtentReader`の`constructor`・`CanvasCursorTracker`の`constructor`・`RulerRenderer.render`・`CanvasManager.render`）だけで、実際の不足は0件。JSDocの無い箇所は`InputTracker.js`冒頭の何もしない既定オブジェクトの7メソッド（既存）だけで、本作業の追加分ではない。
+        *   注入するコールバックの契約：`InputTracker`の第6引数`isFillHitExcluded`（`@param {() => boolean}`に既定値と意味あり）、`PaletteLauncher`の第2引数`options`（`@param`と、省略可・関数以外は`console.warn`の規約の例外の説明あり）、`CanvasCursorTracker`（`getScreenPoint`・`screenToWorld`の`@param`と`@throws`）、`ViewToggleGroup`（`ViewToggleGroupActions`の3コールバックの`@property`と`@throws`）、`KeyboardShortcuts`（`ShortcutActions`に`toggleOutline`・`toggleBackground`・`toggleGrid`・`toggleFloatWindows`の4つの`@property`と戻り値の意味）。すべて記述あり。不足は無く、直した箇所は無し。
+    *   `node --test`（プロジェクトのルート）：tests 1106 / suites 161 / pass 1106 / fail 0。
+    *   開発資料への影響：計画どおりで追加の差異なし（本体は未修正。行数は上記の実測値をタスク27で使う）。
 
 ### タスク27: 開発資料への反映（最終固定タスク）
 *   **作業内容** :
@@ -705,7 +723,7 @@
 *   **背景の色**：`#editor-canvas`のCSSの白を削除し、配色の組の1か所にした。`main.js`の実行前の一瞬は`body`の`#f9f9f9`と覆い要素が見えるだけで、`DOMContentLoaded`の直後に描かれる（テストプレイで初期表示のちらつきを確かめる）。
 *   **定規の地の色**：地は描かずにCSSの`--frame-background-color`（ツールバー・ステータスバーと共有）とし、角の要素と色を1か所で共有した。REQの「定規の配色（地・目盛り・数字）の定数は定規を描くファイルにまとめる」のうち、地だけはCSSの変数にした（角の要素と二重に定義しないため）。目盛り・数字・印の色は`RulerRenderer.js`の定数。
 *   **黒の背景の`Curve`の点線**：`Curve.drawHandles`の始点⇔制御点・終点⇔制御点の点線（`rgba(0, 0, 0, 0.4)`）は黒の背景ではほぼ見えない。ハンドル自体（白の塗り・青の枠）は見えるため、`drawHandles`を変えない（Non-goal）。見えにくさが問題なら、配色の組を図形クラスへ渡す形を後のPhaseで検討する。
-*   **`main.js`の行数**：約840行になる見込み（701行から約140行の増加）。開発資料`02_main.md`は配線ブロックの切り出しの検討を求めているが、本作業のスコープ外のため行わない。切り出すなら`// 6.5.`（表示配線）が`displayState`・`viewTransform`・`shapeExtentReader`への依存の受け渡しだけで独立しており候補になる。
+*   **`main.js`の行数**：見込みは約840行（701行から約140行の増加）だったが、実測は877行（701行から176行の増加）。開発資料`02_main.md`は配線ブロックの切り出しの検討を求めているが、本作業のスコープ外のため行わない。切り出すなら`// 6.5.`（表示配線）が`displayState`・`viewTransform`・`shapeExtentReader`への依存の受け渡しだけで独立しており候補になる。
 *   **ステータスバーの最小の幅**：座標・大きさの最小の幅は5桁の整数部（`-99999.9`）まで。それを超える座標（遠くへパンした場合）ではその分だけ伸び、右側の項目が少し動く（許容）。
 *   **見積もりの前提**：ツールバー約646px・ステータスバーの名前に残る約595pxは、CSSの値と12〜16pxの文字幅の見積もり。実ブラウザの絵文字・記号の幅で数px変わり得る。
 *   **`WindowManager`のドラッグ中の`Tab`**：見出しをドラッグ中に`Tab`で隠すと、見えないままドラッグが続き（`mouseup`で終わる）、出すとドラッグした先の位置に出る。止まったままにはならない。
