@@ -172,6 +172,49 @@ describe('classifyPointHit: 空白と見えない図形', () => {
     });
 });
 
+describe('classifyPointHit: includeFill（塗った内側を当たりに含めるか）', () => {
+    test('falseのとき、塗った内側は空白になる（選択中の図形の内側でも）', () => {
+        const shapes = [makeRect('a', [0, 0, 100, 100], '#ff0000')];
+        assert.deepEqual(classifyPointHit(shapes, selectedBy([]), 50, 50, TOLERANCE, false), { handle: null, bodyId: null });
+        assert.equal(classifyPointHit(shapes, selectedBy(['a']), 50, 50, TOLERANCE, false).bodyId, null);
+    });
+
+    test('falseのとき、手前の塗った図形の内側にある奥の図形の輪郭が選ばれる', () => {
+        const shapes = [makeRect('a', [40, 40, 60, 60], null), makeRect('b', [0, 0, 100, 100], '#ff0000')];
+        assert.equal(classifyPointHit(shapes, selectedBy([]), 40, 50, TOLERANCE, false).bodyId, 'a');
+        assert.equal(classifyPointHit(shapes, selectedBy([]), 40, 50, TOLERANCE, true).bodyId, 'b');
+    });
+
+    test('falseのとき、選択集合の図形の輪郭の優先は変わらない', () => {
+        const shapes = [makeRect('a', [0, 0, 100, 100], null), makeRect('b', [20, -50, 80, 50], '#ff0000')];
+        assert.equal(classifyPointHit(shapes, selectedBy(['a']), 50, 0, TOLERANCE, false).bodyId, 'a');
+    });
+
+    test('falseのとき、ハンドルの当たりは変わらない', () => {
+        const shapes = [makeRect('a', [0, 0, 100, 100], '#ff0000')];
+        const hit = classifyPointHit(shapes, selectedBy(['a']), 1, 1, TOLERANCE, false);
+        assert.deepEqual(hit.handle, { shapeId: 'a', handle: 'topLeft' });
+        assert.equal(hit.bodyId, 'a');
+    });
+
+    test('falseのとき、輪郭の近くは今までどおり選ばれる', () => {
+        const shapes = [makeRect('a', [0, 0, 100, 100], '#ff0000')];
+        assert.equal(classifyPointHit(shapes, selectedBy([]), 0, 50, TOLERANCE, false).bodyId, 'a');
+        assert.equal(classifyPointHit(shapes, selectedBy([]), 100, 50, TOLERANCE, false).bodyId, 'a');
+    });
+
+    test('trueを明示したときは省略時と同じ結果', () => {
+        const shapes = [makeRect('a', [0, 0, 100, 100], '#ff0000'), makeRect('b', [50, 50, 150, 150], '#0000ff')];
+        const points = [[75, 75], [25, 25], [0, 50], [200, 200], [120, 120]];
+        for (const [x, y] of points) {
+            assert.deepEqual(
+                classifyPointHit(shapes, selectedBy(['a']), x, y, TOLERANCE, true),
+                classifyPointHit(shapes, selectedBy(['a']), x, y, TOLERANCE)
+            );
+        }
+    });
+});
+
 describe('classifyPointHit: 非破壊', () => {
     test('引数の図形配列の並びを書き換えない', () => {
         const shapes = [makeRect('a', [0, 0, 100, 100], '#ff0000'), makeRect('b', [50, 50, 150, 150], '#0000ff')];

@@ -367,7 +367,7 @@
         *   先頭の責務定義・クラスJSDoc・`render`のJSDoc（描画順・新しい引数・省略時は今と同じ見た目）・`#drawGrid`・`#drawOrigin`のJSDocを改める（2章「要件10」）。
         *   `index.html`：`#editor-canvas`のルールから`background-color: #ffffff;`を削除し、「背景の色はCanvasManagerの配色の組で塗る（CSSでは付けない。色の定義を1か所にするため）」のコメントを付ける。
         *   完了時点では`main.js`が新しい引数を渡さないため、省略時の値で今と同じ見た目になる。
-*   [ ] タスク9: `classifyPointHit`の第6引数`includeFill`とテスト
+*   [x] タスク9: `classifyPointHit`の第6引数`includeFill`とテスト
     *   **対象ファイル** :
         *   `./js/core/PointHitRules.js` : 更新
         *   `./test/core/PointHitRules.test.js` : 更新（テストの追加のみ）
@@ -572,7 +572,9 @@
 
 ### タスク9: `classifyPointHit`の第6引数`includeFill`とテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/PointHitRules.js`：`classifyPointHit`へ第6引数`includeFill = true`を追加し`findBodyHit`へ渡す。`findBodyHit`の2つ目のループを`hitTest || (includeFill && hitTestFill)`へ変更（1つ目のループと`findHandleHit`は不変）。先頭の責務定義（塗った内側を当たりに含めるかは引数で受け取る）・typedef`PointHit`の`bodyId`・`findBodyHit`・`classifyPointHit`のJSDocを更新。
+    *   `test/core/PointHitRules.test.js`：`describe('classifyPointHit: includeFill…')`を追加（6ケース。既存ケースは不変）。
+    *   `node --test`：tests 1050 / pass 1050 / fail 0。
 
 ### タスク10: `InputTracker`の照会の注入と受け渡し
 *   **作業内容** :
