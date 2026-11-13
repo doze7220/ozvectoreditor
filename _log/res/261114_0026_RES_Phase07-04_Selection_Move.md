@@ -341,7 +341,7 @@
         *   「5. 懸念事項」の後の一覧「コメントの洗い出し」の各項目が実態どおりかを確かめ、残っている食い違いだけを直す（コードは変えない）。使われなくなったコメント・JSDoc（`lastCursor`への言及、「`applyMode`・`applyShapeType`の中からだけ呼ぶ」、「`Shift`+`V`等は将来の予約」で実態と合わない箇所、「スポイトはやらない」等）が残っていないことを`Grep`で確かめる。
         *   新設・変更したクラス・メソッド・関数・定数・typedefのJSDoc（`@param`・`@returns`・`@throws`）、注入するコールバックの契約、変更したファイルの先頭の責務定義（3行以内）の漏れを確かめる。
         *   `main.js`の行数を記録する。
-*   [ ] タスク19: 開発資料への反映（固定タスク）
+*   [x] タスク19: 開発資料への反映（固定タスク）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` : 更新（1章・3章・4章）
         *   `./_doc/arch/01_index_html.md`・`02_main.md`・`06_InputTracker.md`・`07_KeyboardShortcuts.md`・`14_edit.md`・`16_test.md`・`19_ToolRules.md` : 更新
@@ -569,7 +569,31 @@
 
 ### タスク19: 開発資料への反映（固定タスク）
 *   **作業内容** :
-    *   （未実施）
+    *   ソース（`js/`・`index.html`・`test/`）は変えていない。資料に書いた事実（メソッド名・引数・エントリの位置・行数・件数・宣言順）は、計画時の記述ではなく実際のソースを開いて確かめた実態に合わせた。実測：`js/main.js` 973行・`js/core/InputTracker.js` 1512行（`wc -l`）、`node --test` は tests 1183・suites 174・pass 1183・fail 0（07-03完了時は1106件。新設4ファイル：`SelectionRules.test.js` 20件・`MoveDirectionRules.test.js` 12件・`ClipboardController.test.js` 10件・`StyleEyedropper.test.js` 13件＝55件、既存への追加：`ToolRules.test.js` 5件・`StylePanelRules.test.js` 6件・`ShapeStyleEditor.test.js` 11件＝22件。個別に`node --test <ファイル>`でも確認）。
+    *   **計画から実態で変えて書いた点**：`#beginLeftDrag`は開始できたかの`boolean`を返す（`#beginMoveSelection`がそれを見て`#duplicateOnMove`を立てる）。キーの対応表では`pasteInPlace`・`invertSelection`が`duplicate`の直後にあり、`resetColors`・`startEyedropper`が`Tab`の後の末尾にある（計画の「末尾に4つ」ではない）。`EYEDROPPER_TOOL_ID`の宣言は`TOOL_IDS`より前。`D`・スポイトは`setStrokeEnabled`・`setFillEnabled`を使わず`applyStyle`を使う。`KeyboardShortcuts`の手順5・6は「ドラッグ中・リピート不可のエントリのキーリピート」（コールバックが`false`の場合ではない）。
+    *   **「開発資料の更新予定」の各項目の反映先**（項目ごと）：
+        *   **1章**：`PROJECT_ARCHITECTURE.md`1章 → フォルダ構造（`core/SelectionRules.js`・`MoveDirectionRules.js`・`AltKeyGuard.js`、`edit/StyleEyedropper.js`、`test/core/SelectionRules.test.js`・`MoveDirectionRules.test.js`、`test/edit/ClipboardController.test.js`・`StyleEyedropper.test.js`、`index.html`の説明にスポイトのボタン）・「存在しないもの」（Phase 07-04の分：`Shift`+クリックでの追加、`Ctrl`+範囲選択での解除、選択集合外の押してそのままのドラッグ・`Alt`+ドラッグ、頂点のハンドルでの`Shift`の限定、`Shift`での正方形、ドラッグ途中の`Alt`の切り替え、スポイトの連続・項目を選ぶUI・画面の色・一時的なスポイト、`D`での太さの変更）・「フォルダ分割の方針」（`core/`へ`SelectionRules`・`MoveDirectionRules`・`AltKeyGuard`、`edit/`へスポイト・同じ位置に貼り付け・`Alt`+ドラッグの複製）・「依存方向」（`InputTracker → SelectionRules・MoveDirectionRules`、`AltKeyGuard → InputTracker（isTextInputElement）`、`main.js → SelectionRules`、`StyleEyedropper → StylePanelRules`、`InputTracker`が第7引数の関数を呼ぶだけ）。
+        *   **3章冒頭「同期の経路」**：`PROJECT_ARCHITECTURE.md`3章冒頭 → `styleEyedropper.onChange`を足し、ツールパレットの押し込みを「`applyMode`・`applyShapeType`の中と`styleEyedropper.onChange`で同期」へ改めた。
+        *   **3章3.**：当たり分類（`Ctrl`+クリック・`Alt`+ドラッグ・スポイトも`#classifyPoint`）・範囲選択の流れ（`Ctrl`）・新設の4つの箇条（クリックの解釈・本体ドラッグの移動量・`Alt`+ドラッグ・スポイトの待ち受け中の入力）・キーボード操作（`keyup`は`Space`＝`InputTracker`・`Alt`＝`AltKeyGuard`、新しい4キー、コールバックの列挙）。
+        *   **3章6.**：記録する操作へ同じ位置に貼り付け・`Alt`+ドラッグ・`D`／スポイト、記録しない操作へ選択の反転・`Ctrl`+クリック／範囲選択・スポイトの待ち受けの開始/終了・選択なしの`D`／スポイト。
+        *   **3章7.**：`Ctrl`+`Shift`+`V`、同じ位置に貼り付け（段数を読まず変えない）、`Alt`+ドラッグの複製（クリップボードを変えない）、`performPaste`の共通の前処理（`ensureSelectMode`）。
+        *   **3章13.**：「`setStrokeEnabled`・`setFillEnabled`は…`D`キー・スポイトで使う見込み」を実態（`applyStyle`を使う）へ、「やらないこと」からスポイトを外し、`applyStyle`・`resetColors`・`RESET_COLORS_STYLE`と`DEFAULT_NEW_SHAPE_STYLE`の関係・`sampleStyleFromShape`・選択なしで変換できない色の表示の規則の箇条を新設。
+        *   **3章に16.を新設**：修飾キーを見る時点、2026-11-14の発注者の決定、`D`・選択の反転・スポイトの経路と持ち主・待ち受けが続く／やめる操作・生成順の制約・「4つ目の操作モードにしない」・`Alt`の抑止・やらないこと。
+        *   **4章**：一覧へ`SelectionRules.js`（27）・`MoveDirectionRules.js`（28）・`AltKeyGuard.js`（29）の3行（`StyleEyedropper`は`edit/`のため`14_edit.md`）。
+        *   **`_doc/arch/01_index_html.md`**：ツールのid一覧へ`eyedropper`、ツールパレットのまとまりと`#tool-eyedropper`（💉仮・`title`・`aria-pressed`なし）、ツールパレットの縦の範囲、`title`の表記。
+        *   **`_doc/arch/02_main.md`**：行数（973行）、主な関数、配線ブロックの表（`// 4.`・`// 7.`・`// 7.5.`・`// 8.`）、注入の一覧（`InputTracker`の第7引数・`StyleEyedropper`・`KeyboardShortcuts`の4つと`cancel`・`paste`・`selectAll`・`invertSelection`の中身）、生成順の制約（`styleEyedropper`は`inputTracker`より前）、同一経路（スポイト・`performPaste`）、操作モードの切替（`syncToolPalette`の2系統・`ensureSelectMode`・`toolActions`の並び）、キーボードのコールバック。
+        *   **`_doc/arch/06_InputTracker.md`**：`lastCursor`の廃止と`#moveOrigin`・`#appliedMoveDelta`・`#resolveMoveDelta`、修飾キー、選択の規則の呼び出し、第7引数`inputAssist`（`duplicateSelection`・`isPickingShape`・`pickShape`）、`Alt`+ドラッグ（`#beginLeftDrag`の`boolean`・`#beginMoveSelection`・`#duplicateOnMove`）、待ち受け中の押下・クリック・カーソル、知らないこと、行数（1512行）。
+        *   **`_doc/arch/07_KeyboardShortcuts.md`**：4エントリ（実際の位置）・`KeyV`・`KeyD`・`KeyI`の区別・`Shift`+`V`の予約の記述を「`Ctrl`+`Shift`+`V`だけは同じ位置に貼り付け」へ・手順4／5・6の扱い・`AltKeyGuard`との関係。
+        *   **`_doc/arch/14_edit.md`**：`ShapeInserter.insertDocumentWithinEdit`、`ClipboardController.pasteInPlace`・`duplicateInPlaceWithinEdit`、`ShapeStyleEditor.applyStyle`・`resetColors`、`StylePanelRules`の`RESET_COLORS_STYLE`・`sampleStyleFromShape`・`StyleApplication`、`StyleEyedropper`の新設、依存のimportの例外、前提の列挙。
+        *   **`_doc/arch/16_test.md`**：「Phase 07-04の新設・追加分」（4ファイルと各ケースの観点・件数、実物の組み合わせの例外）、書き換えた既存のテスト（`ToolRules.test.js`の並びの期待値）、テストできない箇所、件数（tests 1183 / suites 174）、既存の`ToolRules`の記述の並び。
+        *   **`_doc/arch/19_ToolRules.md`**：`EYEDROPPER_TOOL_ID`、`TOOL_IDS`の並び、識別子の約束、`resolveActiveTool`の第3引数、使う側（`toolActions`も）。
+        *   **`_doc/arch/27_SelectionRules.md`・`28_MoveDirectionRules.md`・`29_AltKeyGuard.md`**：新設（`18_PointHitRules.md`・`25_ViewFitRules.md`と同じ形式）。
+        *   **`_doc/arch/03_VectorModel.md`**：`DEFAULT_NEW_SHAPE_STYLE`と`RESET_COLORS_STYLE`が別の定義であること（`DEFAULT_NEW_SHAPE_STYLE`の名前の記載は無かったが、直前に使った値の箇条に追記）。
+        *   反映しない項目：なし。
+    *   **実態と合わなくなった記述の洗い出し（`Grep`）と改め**：「やらないこと」のスポイト（3章13.）、`lastCursor`・「直前カーソルとの差分を積み上げる」（`06_InputTracker.md`）、`InputTracker`の引数の数の記述（`02_main.md`の注入の一覧・`06_InputTracker.md`に第7引数）、`setStrokeEnabled`・`setFillEnabled`を`D`・スポイトで使う見込み（3章13.）、ツールパレットの押し込みを`applyMode`・`applyShapeType`の中だけで同期する（3章冒頭・`02_main.md`）、`TOOL_IDS`の並び（`19_ToolRules.md`・`16_test.md`・`01_index_html.md`）、「`Shift`+`V`は将来の予約」（`07_KeyboardShortcuts.md`）、`main.js`・`InputTracker.js`の行数（877→973・1345→1512）、`paste`コールバックの前処理の記述（3章7.・`02_main.md`）を改めた。改め後に`lastCursor`・`直前カーソル`・`積み上げ`を`Grep`し、残るのは廃止した旨の記述だけ（`PROJECT_ARCHITECTURE.md`3章3.・`06_InputTracker.md`）。
+    *   `node --test`：tests 1183・pass 1183・fail 0。
+    *   `main.js`の行数：973行（変更なし）。
+    *   **監査の指摘による修正**：`PROJECT_ARCHITECTURE.md`3章16.の2か所を直した。(a) スポイトの箇条の「4つ目の操作モードにしない」へ理由（REQ要件8：操作モードの切り替えで選択集合が解除され選択中の図形へ反映できない／不変条件「選択集合は選択モード以外では空」が崩れる）を追記。(b)「発注者の決定（2026-11-14）」の列挙から「`Ctrl`+範囲選択は追加だけ」「`Ctrl`+クリックの空白は解除しない」を外し、別の箇条に出どころ（DIRの「やらないこと」2026-11-13の決定／DIRのPhase 07-04の実装要件／REQ要件1）を分けて書いた。`PROJECT_ARCHITECTURE.md`・`_doc/arch/`のほかに同じ記述は無いことを`Grep`で確認。
 
 ## 5. 懸念事項・要確認ポイント
 
@@ -586,6 +610,7 @@
 * **`Shift`+ホイール**：ブラウザ・OSによっては`Shift`+ホイールが横スクロール（`deltaY`が0）になり、`handleWheel`の既存の規則でズームしない。ドラッグ中の`Shift`の限定はホイールの追従でも働く設計だが、この場合はズーム自体が起きない（既存の振る舞い）。
 * **タスク18の注意点**：`InputTracker.js#resolveMoveDelta`のJSDocに「Phase 07-05の移動量の丸めもここへ足す」という後続Phaseへの言及が残る（移動量を加工する唯一の箇所である旨の設計の注記として残した。Phase 07-05の作業時に内容を確かめて更新または削除すること）。`index.html`の`.status-bar-group`のコメントにも「Phase 07-05」への言及が既存で残るが本作業と無関係。
 * **`Ctrl`+`I`のブラウザの標準動作**：Firefoxでは`Ctrl`+`I`がページの情報を開くことがある。`preventDefault()`で抑止できるかは実際のブラウザで確かめる。
+* **タスク19の注意点（開発資料）**：(1) 3章16.の「4つ目の操作モードにしない」は、当初RESに理由の本文が無く事実だけを書いていたが、監査の指摘により、REQ要件8の理由（操作モードを切り替えると選択集合が解除され選択中の図形へ反映できない／不変条件「選択集合は選択モード以外では空」を崩さない）を3章16.へ書き足した。あわせて3章16.の「2026-11-14の決定」の列挙を、REQで決定と付記された5項目に改め、`Ctrl`+範囲選択は追加のみ・`Ctrl`+クリックの空白は解除しない・0件なら選択を変えない、の3点は出どころ（DIR・REQ）を分けた別の箇条に書いた。(2) `28_MoveDirectionRules.md`の注意に「Phase 07-05の丸めと本規則の順序はそのとき決める」と書いた（`InputTracker.js#resolveMoveDelta`のJSDocと同じく、Phase 07-05の作業時に内容を確かめて更新すること）。(3) `AltKeyGuard`・`KeyboardShortcuts`の4エントリ・`InputTracker`の修飾キーの配線・`main.js`の配線・`index.html`は自動テストの対象外のため、資料の記述は実ソースの確認のみで、動作はテストプレイ項目（上記）で確かめる。(4) `16_test.md`の07-04の件数は`node --test`の実測（tests 1183 / suites 174。07-03完了時は1106）。
 
 ### テストプレイで確認すべき項目（操作手順と期待する結果）
 ※【実ブラウザ】は、実装AIの確認が合成イベントのみのため、実際のブラウザでの確認が要る項目。
