@@ -214,7 +214,7 @@
         *   `handleClick`の選択モードの分岐と`#commitMarquee`を「2. 要件1」のとおりに替える（ハンドルの上の`return`・矩形の正規化・`clearSelectionRect()`は今のまま）。
         *   JSDocの更新：`handleClick`（`Ctrl`の扱いと見る時点、閾値以内で離したときの選択中の図形の解除）、`#commitMarquee`（`Ctrl`の追加・0件・見る時点）、`#onLeftDragEnd`の`@param event`の説明（範囲選択の`Ctrl`を見るイベント）、`handleMouseDown`（押下時の分岐は`Ctrl`で変えない旨）、クラスの説明・先頭の責務定義（修飾キーの読み取りは規則の関数へ渡すだけ）。
         *   `#resetSnapState()`の呼び出し箇所・順は変えない。
-*   [ ] タスク3: 移動方向の限定の規則（要件2）とテスト（まだ使わない）
+*   [x] タスク3: 移動方向の限定の規則（要件2）とテスト（まだ使わない）
     *   **対象ファイル** :
         *   `./js/core/MoveDirectionRules.js` : 新規
         *   `./test/core/MoveDirectionRules.test.js` : 新規
@@ -369,7 +369,9 @@
 
 ### タスク3: 移動方向の限定の規則（要件2）とテスト
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/MoveDirectionRules.js`を新設（責務定義3行以内・importなし）。`constrainMoveDirection(dx, dy)`を「2. 要件2」の場合分け（0→そのまま、横、縦、斜め）で実装。tan 22.5°は非exportの定数`TAN_HALF_DIAGONAL`。JSDocに正射影・境界は`<=`で横・縦側・有限の数値が前提を記載。
+    *   `test/core/MoveDirectionRules.test.js`を新設（軸上・対角線上、近い向き、境界の近く、移動量0、4本の直線上・正射影（内積≒0）・同じ入力に同じ結果）。まだどこからも使っていない。
+    *   `node --test`：tests 1138・pass 1138・fail 0。
 
 ### タスク4: `InputTracker`の要件2（本体ドラッグの移動量と`Shift`の限定）
 *   **作業内容** :
