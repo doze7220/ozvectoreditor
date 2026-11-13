@@ -1,5 +1,5 @@
 /**
- * 責務: プロパティパネルの「図形」の段に出す値の算出（そろっている値・混在・無効・表示する色）と、色の文字列の表示用の変換・線の太さの入力の受理を担う。
+ * 責務: プロパティパネルの「図形」の段に出す値の算出（そろっている値・混在・無効・表示する色）と、色の文字列の表示用の変換・線の太さの入力の受理・ON/OFFのボタンを押したときの次の有無の規則を担う。
  * 状態を持たずDOMに触れない。importを持たない。
  */
 
@@ -98,6 +98,15 @@ export function parseStrokeWidthInput(text) {
         return null;
     }
     return value;
+}
+
+/**
+ * ON/OFFのボタンを押したときの次の有無を求める（今の表示がONならOFF、OFFまたはそろっていないならON）。
+ * @param {boolean|null} enabled - 今の表示（true＝ON・false＝OFF・null＝そろっていない）
+ * @returns {boolean} 次の有無
+ */
+export function nextEnabledOnToggle(enabled) {
+    return enabled !== true;
 }
 
 /**

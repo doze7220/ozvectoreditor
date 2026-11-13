@@ -313,7 +313,7 @@
 * 開発資料の記載に影響が出る場合は資料本体を修正せず、2章「開発資料の更新予定」へ追記する。
 * 判断に迷った点・目視確認を推奨する箇所・将来の注意点は5章へ追記する。
 
-*   [ ] タスク1: 切り替えの規則`nextEnabledOnToggle`の追加とテスト
+*   [x] タスク1: 切り替えの規則`nextEnabledOnToggle`の追加とテスト
     *   **対象ファイル** :
         *   `./js/edit/StylePanelRules.js` : 更新（関数の追加と、先頭の責務定義への切り替えの規則の追記のみ）
         *   `./test/edit/StylePanelRules.test.js` : 更新（テストの追加のみ。既存のケースは変えない）
@@ -426,7 +426,9 @@
 
 ### タスク1: 切り替えの規則`nextEnabledOnToggle`の追加とテスト
 *   **作業内容** :
-    *   (未実施)
+    *   `js/edit/StylePanelRules.js`：`parseStrokeWidthInput`の後ろに`export function nextEnabledOnToggle(enabled)`（`enabled !== true`を返す。JSDoc付き）を追加。先頭の責務定義1行目の末尾を「…線の太さの入力の受理・ON/OFFのボタンを押したときの次の有無の規則を担う。」に変更（3行のまま。「プロパティパネルの「図形」の段」はタスク7まで未変更）。
+    *   `test/edit/StylePanelRules.test.js`：importに`nextEnabledOnToggle`を追加し、`describe('nextEnabledOnToggle')`に3ケース（true→false、false→true、null→true）を追加。既存ケースは未変更。
+    *   `node --test`：tests 989 / pass 989 / fail 0（基準986＋3）。
 
 ### タスク2: 切り替えのメソッド`toggleStrokeEnabled`・`toggleFillEnabled`の追加とテスト
 *   **作業内容** :

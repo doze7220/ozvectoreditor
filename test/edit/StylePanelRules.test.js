@@ -7,6 +7,7 @@ import {
     buildStylePanelView,
     toColorInputValue,
     parseStrokeWidthInput,
+    nextEnabledOnToggle,
 } from '../../js/edit/StylePanelRules.js';
 import { Line } from '../../js/shapes/Line.js';
 import { Curve } from '../../js/shapes/Curve.js';
@@ -78,6 +79,20 @@ describe('parseStrokeWidthInput', () => {
         for (const value of ['', '  ', '0', '-3', '2.5', '101', 'abc', '1e3', 'Infinity', 5, null, undefined]) {
             assert.equal(parseStrokeWidthInput(value), null, String(value));
         }
+    });
+});
+
+describe('nextEnabledOnToggle', () => {
+    it('ON（true）ならOFF（false）になる', () => {
+        assert.equal(nextEnabledOnToggle(true), false);
+    });
+
+    it('OFF（false）ならON（true）になる', () => {
+        assert.equal(nextEnabledOnToggle(false), true);
+    });
+
+    it('そろっていない（null）ならON（true）になる', () => {
+        assert.equal(nextEnabledOnToggle(null), true);
     });
 });
 
