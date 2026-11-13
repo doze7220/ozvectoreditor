@@ -8,6 +8,7 @@ import { RulerRenderer } from './core/RulerRenderer.js';
 import { CanvasCursorTracker } from './core/CanvasCursorTracker.js';
 import { InputTracker, OperationMode, WHEEL_ZOOM_STEP } from './core/InputTracker.js';
 import { KeyboardShortcuts } from './core/KeyboardShortcuts.js';
+import { AltKeyGuard } from './core/AltKeyGuard.js';
 import { WindowManager } from './core/WindowManager.js';
 import { ViewTransform } from './core/ViewTransform.js';
 import { HistoryManager } from './core/HistoryManager.js';
@@ -783,6 +784,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return true;
         },
     });
+
+    // Altキーの単独押下・単独解放でブラウザのメニューへフォーカスが移らないようにする（AltKeyGuardが
+    // documentのkeydown・keyupを購読して抑止する）。状態を持たず公開メソッドもないためインスタンスは保持しない。
+    // InputTracker・KeyboardShortcutsには入れない（KeyboardShortcutsはkeyupを購読せず、Alt押下中は常に不一致の規則も変えない）
+    new AltKeyGuard();
 
     // 9. 開発者向け確認用ウィンドウ配線（URLに`?dev`がある場合のみ。判定結果はグローバルへ公開しない）
     const isDevMode = new URLSearchParams(window.location.search).has('dev');

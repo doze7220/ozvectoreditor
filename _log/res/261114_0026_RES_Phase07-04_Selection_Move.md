@@ -252,7 +252,7 @@
         *   2ファイルを同じタスクにする理由：REQの例示どおり、注入の受け口と注入を揃えて`Alt`+ドラッグを動く状態にするため（`InputTracker`だけでも省略時は今と同じで壊れない）。
         *   `InputTracker`：typedef`InputAssist`（この時点の項目は`duplicateSelection`。契約：開いている編集操作の中で呼ばれ記録しない・選択中の図形を同じ位置に複製して複製だけを選択する）と既定`NO_INPUT_ASSIST`、コンストラクタの第7引数`inputAssist`（項目ごとに関数でなければ既定へ置き換える。`console.warn`は出さない）、作業用フィールド`#duplicateOnMove`、非公開メソッド`#beginMoveSelection(event, point)`、`#onLeftDragStart`での呼び出し、`#finishLeftDrag`での消去を「2. 要件3」のとおりに足す。JSDoc：コンストラクタの`@param`、`handleMouseDown`（`Alt`を見る時点）、`#onLeftDragStart`（複製の時点と記録の単位）、`#finishLeftDrag`、クラスの説明（注入の一覧に第7引数）。
         *   `main.js`：「// 4.」の`new InputTracker(…)`へ第7引数`{ duplicateSelection: () => { clipboardController.duplicateInPlaceWithinEdit(); } }`を足し、前方参照の理由のコメントと「// 4.」のコメント（第7引数の説明）を足す。
-*   [ ] タスク8: `Alt`の単独押下の抑止（要件4）
+*   [x] タスク8: `Alt`の単独押下の抑止（要件4）
     *   **対象ファイル** :
         *   `./js/core/AltKeyGuard.js` : 新規
         *   `./js/main.js` : 更新
@@ -407,7 +407,16 @@
 
 ### タスク8: `Alt`の単独押下の抑止（要件4）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/AltKeyGuard.js`を新設（クラス`AltKeyGuard`）。コンストラクタで`document`の`keydown`・`keyup`を購読し、`event.key === 'Alt'`かつ`event.ctrlKey`が偽かつ`isTextInputElement(document.activeElement)`が偽のときだけ`event.preventDefault()`。状態なし・公開メソッドなし。importは`./InputTracker.js`の`isTextInputElement`のみ。`document`の参照はコンストラクタ内だけ。
+    *   `js/main.js`：`AltKeyGuard`をimport（`KeyboardShortcuts`のimportの次の行）。「// 8.」の`new KeyboardShortcuts(…)`の後に`new AltKeyGuard();`（インスタンス非保持）とコメントを追加。`main.js`は882行 → 888行。
+    *   JSDoc・コメントの更新（実ファイルで確認済み）：
+        *   `AltKeyGuard.js`先頭の責務定義（3行以内：Altキー単独押下・解放の標準動作をpreventDefaultで抑止することのみ・状態なし）。
+        *   クラス`AltKeyGuard`のJSDoc（対象・対象外（AltGr・Ctrl同時・テキスト入力中・Alt+ほかのキー）・状態なし・公開メソッドなし・`InputTracker`／`KeyboardShortcuts`へ入れない理由）。
+        *   コンストラクタのJSDoc（購読の内容・最上位でDOMに触れない旨）と、ハンドラ`handleAltKey`のJSDoc（`@param event`・`@returns`・対象条件）。
+        *   `main.js`の`new AltKeyGuard();`直前のコメント（目的・インスタンス非保持の理由・`InputTracker`／`KeyboardShortcuts`へ入れない理由）。
+    *   自動テストは足していない（計画どおり）。`node --test`：tests 1148・pass 1148・fail 0。
+    *   開発資料への影響：`_doc/arch`のAltKeyGuardの新設・`main.js`の「// 8.」の記載（計画の「開発資料の更新予定」に既出のはず）。資料本体は未変更。
+    *   目視確認推奨：`Alt`を単独で押して離してもブラウザのメニューへフォーカスが移らないこと、テキスト入力中は抑止されないこと、`Alt`+ドラッグが従来どおり動くこと。
 
 ### タスク9: `D`の値と手本から取り込む値の規則（要件7・8）とテスト
 *   **作業内容** :
