@@ -198,7 +198,7 @@
 ## 3. タスクリスト
 各タスクの共通事項：完了時にプロジェクトのルートで`node --test`を実行し、`fail 0`と件数（tests・pass）を「4. 詳細作業内容」へ記録する。変更・新設したクラス・メソッド・関数・定数・typedefのJSDoc（`@param`・`@returns`・`@throws`）、注入するコールバックの契約、変更したファイルの先頭の責務定義（3行以内）を、そのタスクの中で実態へ改める。開発資料の更新が必要と分かった点は本RESの「開発資料の更新予定」へ追記する（資料本体は最終タスクまで変えない）。迷った点・目視確認を推奨する点は「5. 懸念事項」へ書く。テストは`_doc/arch/16_test.md`の規則（`node:test`・`node:assert/strict`のみ・公開APIのみ・ソースを書き換えない・`test/`に共有の補助モジュールを置かない・先頭行に責務のJSDoc・`console.warn`は`t.mock.method`で抑止）に従う。既存のテストのケースは、明記したもの以外変えない。
 
-*   [ ] タスク1: 選択の規則（要件1・5）とテスト（まだ使わない）
+*   [x] タスク1: 選択の規則（要件1・5）とテスト（まだ使わない）
     *   **対象ファイル** :
         *   `./js/core/SelectionRules.js` : 新規
         *   `./test/core/SelectionRules.test.js` : 新規
@@ -356,7 +356,9 @@
 
 ### タスク1: 選択の規則（要件1・5）とテスト
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/SelectionRules.js`を新設（責務定義3行以内・importなし）。typedef`SelectionChange`、`resolveClickSelection`・`resolveMarqueeSelection`・`invertSelection`を「2. 要件1・5」のとおり実装。引数は書き換えず新しい配列を返す。
+    *   `test/core/SelectionRules.test.js`を新設（Ctrlなし／ありのクリック・範囲選択、反転、引数の非破壊）。まだどこからも使っていない。
+    *   `node --test`：tests 1126・pass 1126・fail 0。
 
 ### タスク2: `InputTracker`の要件1（`Ctrl`+クリック・`Ctrl`+範囲選択）
 *   **作業内容** :
