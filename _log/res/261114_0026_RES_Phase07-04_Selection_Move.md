@@ -326,7 +326,7 @@
         *   `ToolRules.test.js`：既存の「並びが select, pan, ...SHAPE_TYPES である」の期待値を`['select', 'pan', 'eyedropper', ...SHAPE_TYPES]`へ更新し（テスト名もそれに合わせる）、「`EYEDROPPER_TOOL_ID`が`TOOL_IDS`に含まれる（3番目）」「`picking`が真のときの結果が`TOOL_IDS`にちょうど1回現れる」を足す。
         *   `index.html`：`#tool-eyedropper`のボタンと、ツールパレットのCSSコメントの位置・大きさの数値（「2. 要件8」）。
         *   `main.js`：`StyleEyedropper`のimportと「// 4.」での生成（`inputTracker`より前。前方参照と生成順のコメント）、`inputTracker`の第7引数へ`isPickingShape`・`pickShape`、`EYEDROPPER_TOOL_ID`のimport、`startEyedropper()`、`toolActions`のエントリ、`syncToolPalette`（第3引数）と`styleEyedropper.onChange(syncToolPalette)`の登録、`applyMode`の`styleEyedropper.stop()`、`cancel`のコールバックを`styleEyedropper.cancelPicking(…)`へ。コメントの更新：`syncToolPalette`（呼ばれる経路に`styleEyedropper.onChange`）、`applyMode`（待ち受けをやめる）、`toolActions`（スポイトは`startEyedropper`）、`cancel`。
-*   [ ] タスク17: スポイトのキー（`I`）
+*   [x] タスク17: スポイトのキー（`I`）
     *   **対象ファイル** :
         *   `./js/core/KeyboardShortcuts.js` : 更新
         *   `./js/main.js` : 更新
@@ -537,7 +537,19 @@
 
 ### タスク17: スポイトのキー（`I`）
 *   **作業内容** :
-    *   （未実施）
+    *   `KeyboardShortcuts.js`：`SHORTCUT_BINDINGS`の末尾（`resetColors`（`KeyD`・`ctrl: false`）のエントリの直後・配列の閉じ`]`の直前）へ、コメント付きで`{ codes: ['KeyI'], ctrl: false, shift: FORBIDDEN, repeatable: false, action: 'startEyedropper' }`を1件だけ足した。`KeyI`は`ctrl: true`の`invertSelection`と`ctrl: false`の`startEyedropper`の2件（ctrlの値で排他的。同じcode・修飾キーの組み合わせの重複なし）。既存のエントリ・受理判定の手順は変更していない。
+    *   `main.js`：`new KeyboardShortcuts({...})`の注入オブジェクトの末尾（`toggleFloatWindows`の直後）へ、コメント付きで`startEyedropper: () => { startEyedropper(); return true; }`を足した。
+    *   JSDoc・コメントの更新（実ファイルで確認済み）：
+        *   `KeyboardShortcuts.js`のtypedef`ShortcutActions`：`@property startEyedropper`（ボタンと同一経路・選択モード以外では選択モードへ切り替えた後に始める・待ち受け中でも常にtrue・ドラッグ中とキーリピートは呼ばれない）を`toggleFloatWindows`の後へ追記。
+        *   `SHORTCUT_BINDINGS`のJSDoc：「`KeyI`のCtrl付き…Ctrlなしの（将来の）I…」を「`KeyI`は`ctrl`の値でI単体（`ctrl: false`。スポイトの待ち受け）とCtrl+I（`ctrl: true`。選択の反転）に排他的に分かれる（いずれもFORBIDDEN）」へ改めた。
+        *   `main.js`の`startEyedropper`のJSDoc：「キー`I`は別タスクで同じ関数を呼ぶ」を「ツールパレットのスポイトのボタンとキー`I`の同一経路。どちらもこの関数を呼ぶ」へ改めた。
+        *   `main.js`の注入コールバックのコメント：`startEyedropper`にボタンと同一経路・Ctrl+Iとctrlの値で別・常にtrueの旨を記述。
+        *   段取りの記述の残存確認：`main.js`・`KeyboardShortcuts.js`を`Grep`（`将来|別タスク|タスク[0-9]+|スポイト`）。`toolActions`のJSDoc等に「タスク17で」「別タスクで」は残っていない。残る「将来」はShift併用の予約（`KeyboardShortcuts.js`2か所）と`main.js`の描画通知の最適化の注意のみで、本件と無関係のため変更していない。
+    *   `index.html`の`#tool-eyedropper`の`title="スポイト (I)"`と対応表（`KeyI`・`ctrl: false`）は一致（`index.html`は未変更）。
+    *   `node --test`：tests 1183・pass 1183・fail 0（ブラウザでの目視は未実施）。
+    *   `main.js`の行数：964行 → 970行。
+    *   開発資料への影響：`_doc/arch/02_main.md`（`startEyedropper`の注入コールバック）・`07_KeyboardShortcuts.md`（`startEyedropper`のエントリ・`KeyI`のctrlでの分岐・契約）。計画の「開発資料の更新予定」に既出。資料本体は未変更。
+    *   注意点：目視確認の推奨＝`I`で待ち受けに入り押し込みが付くこと、`Ctrl+I`は従来どおり選択反転で待ち受けに入らないこと、テキスト入力・色の欄の操作中は`I`が働かないこと、キーリピートで連続して呼ばれないこと。`KeyboardShortcuts`の既存テストは変更していない（`startEyedropper`のテストの追加はこのタスクのスコープ外）。
 
 ### タスク18: コメントの整理とJSDocの確認
 *   **作業内容** :

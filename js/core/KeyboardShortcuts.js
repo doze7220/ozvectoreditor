@@ -80,6 +80,9 @@ const ShiftRule = Object.freeze({
  * @property {() => boolean} toggleBackground 背景の白/黒を切り替える。表示の状態を切り替えるだけで常にtrue
  * @property {() => boolean} toggleGrid グリッドの表示を切り替える。表示の状態を切り替えるだけで常にtrue
  * @property {() => boolean} toggleFloatWindows フロートウィンドウをまとめて隠す/出す。表示の状態を切り替えるだけで常にtrue
+ * @property {() => boolean} startEyedropper スポイトの待ち受けを始める（I。ツールパレットのスポイトのボタンと同一経路）。
+ *     選択モード以外では選択モードへ切り替えた後に始める。すでに待ち受け中でも何も変わらず、常にtrue
+ *     （ドラッグ中・キーリピートは受理判定により呼ばれない）
  */
 
 /**
@@ -93,7 +96,7 @@ const ShiftRule = Object.freeze({
  *   やり直しのCtrl+Shift+Zと同じ位置に貼り付けのCtrl+Shift+VのみREQUIRED。KeyZはShiftの有無で取り消し（FORBIDDEN）とやり直し（REQUIRED）に排他的に分かれる。
  *   KeyVはctrlの値とShift規則でV単体（ctrl: false。選択モードへの切り替え）・Ctrl+V（ctrl: true・FORBIDDEN。貼り付け）・
  *   Ctrl+Shift+V（ctrl: true・REQUIRED。同じ位置に貼り付け）の3通りに排他的に区別される（Shift+V単体はctrl: falseのFORBIDDENと一致せず予約のまま）。
- *   KeyIのCtrl付き（Ctrl+I。選択の反転）もctrl: trueのエントリで、Ctrlなしの（将来の）Iとはctrlの値で区別される。
+ *   KeyIはctrlの値でI単体（ctrl: false。スポイトの待ち受けを始める）とCtrl+I（ctrl: true。選択の反転）に排他的に分かれる（いずれもFORBIDDEN）。
  *   KeyDはctrlの値でD単体（ctrl: false。線を黒・塗りを白にする）とCtrl+D（ctrl: true。複製）に排他的に分かれる（いずれもFORBIDDEN）。
  *   KeyZ・KeyX・KeyCも同様にctrlの値で区別される（Z・X・C単体＝表示の切り替え：ctrl: false、Ctrl+Z（取り消し）・Ctrl+X（切り取り）・Ctrl+C（コピー）：ctrl: true）。
  *   KeyZのCtrl付きはShiftで取り消し・やり直しに分かれるが、Ctrlなしは単体（FORBIDDEN）のみでShift+Zは一致しない。
@@ -149,6 +152,8 @@ const SHORTCUT_BINDINGS = Object.freeze([
     { codes: ['Tab'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'toggleFloatWindows' },
     // 線を黒・塗りを白にする（D。Ctrl+D（複製）とctrlの値で排他的）。キーリピートでは実行しない
     { codes: ['KeyD'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'resetColors' },
+    // スポイトの待ち受けを始める（I。Ctrl+I（選択の反転）とctrlの値で排他的）。キーリピートでは実行しない
+    { codes: ['KeyI'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'startEyedropper' },
 ].map((binding) => Object.freeze(binding)));
 
 /**

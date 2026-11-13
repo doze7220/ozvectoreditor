@@ -498,7 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * スポイトの待ち受けを始める（ツールパレットのスポイトのボタンの操作。キー`I`は別タスクで同じ関数を呼ぶ）。
+     * スポイトの待ち受けを始める（ツールパレットのスポイトのボタンとキー`I`の同一経路。どちらもこの関数を呼ぶ）。
      * 選択モード以外なら先に選択モードへ切り替え（`ensureSelectMode`。待ち受けは切り替えの後に始まる）、
      * 待ち受けを始める。すでに待ち受け中なら何も変わらない。判定は持たない。
      */
@@ -857,6 +857,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // bodyのクラス・🧰の押し込みの同期はdisplayState.onChangeの通知で行われる）
         toggleFloatWindows: () => {
             displayState.toggleFloatWindows();
+            return true;
+        },
+        // スポイトの待ち受けを始める（I。ツールパレットのスポイトのボタンと同一経路のstartEyedropper。
+        // 選択モード以外では先に選択モードへ切り替える。Ctrl+I（選択の反転）とはctrlの値で別。常にtrue）
+        startEyedropper: () => {
+            startEyedropper();
             return true;
         },
     });
