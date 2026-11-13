@@ -308,7 +308,7 @@
 * 判断に迷った点・目視確認を推奨する箇所・将来の注意点は5章へ追記する。
 * 各タスクの完了時点で、画面が壊れていない（起動してこれまでの操作ができ、コンソールにエラー・警告が出ない）状態を保つ。既存のエラー文・`console.warn`の文言を変えない。
 
-*   [ ] タスク1: グリッドの間隔の規則の切り出し（`GridSpacingRules.js`）と`CanvasManager`での利用
+*   [x] タスク1: グリッドの間隔の規則の切り出し（`GridSpacingRules.js`）と`CanvasManager`での利用
     *   **対象ファイル** :
         *   `./js/core/GridSpacingRules.js` : 新規
         *   `./test/core/GridSpacingRules.test.js` : 新規
@@ -521,7 +521,10 @@
 
 ### タスク1: グリッドの間隔の規則の切り出し（`GridSpacingRules.js`）と`CanvasManager`での利用
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/GridSpacingRules.js`を新規作成（`computeGridSpacing(scale)`と非公開定数3つ。先頭に責務定義）。
+    *   `CanvasManager.js`：`computeGridSpacing`をimport、`#drawGrid`の繰り上げループ・`major`を置き換え、定数3つを削除、`#drawGrid`のJSDocを更新。倍率の検査・色・他の処理は不変。
+    *   `test/core/GridSpacingRules.test.js`を新規作成（100%・80%/79%・10%・1000%・不正倍率・旧式との一致）。
+    *   `node --test`：tests 1003 / pass 1003 / fail 0。
 
 ### タスク2: 表示の状態の持ち主（`DisplayState.js`）とテスト
 *   **作業内容** :

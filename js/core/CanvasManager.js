@@ -2,6 +2,7 @@
  * 責務：Canvas要素への純粋な描画処理（背景グリッド・原点表示・選択矩形・吸い付きの表示を含む）のみを担う。
  * 描画変換は引数で受け取ったビュー変換値から毎フレーム設定し、状態は保持しない。
  */
+import { computeGridSpacing } from './GridSpacingRules.js';
 
 /**
  * `render()`の`view`省略時に用いるビュー変換値（倍率1.0・オフセット(0,0)）。
@@ -9,26 +10,6 @@
  * @type {Readonly<{scale: number, offsetX: number, offsetY: number}>}
  */
 const DEFAULT_VIEW = Object.freeze({ scale: 1, offsetX: 0, offsetY: 0 });
-
-/**
- * 背景グリッドの細線の基本間隔（ワールド座標の長さ）。
- * 画面上の間隔が`GRID_MIN_SCREEN_SPACING`未満になる場合は10倍ずつ繰り上げる。
- * @type {number}
- */
-const GRID_BASE_SPACING = 10;
-
-/**
- * 背景グリッドの細線の画面上の最小間隔（スクリーン座標のCSSピクセル）。
- * これより細かくなる倍率では、細線の間隔を10倍に繰り上げる（間引き）。
- * @type {number}
- */
-const GRID_MIN_SCREEN_SPACING = 8;
-
-/**
- * 間隔の繰り上げループの最大回数（無限ループ防止の上限ガード）。
- * @type {number}
- */
-const GRID_MAX_SPACING_STEPS = 10;
 
 /**
  * 背景グリッドの細線の色。
@@ -298,8 +279,7 @@ export class CanvasManager {
      * ワールド座標上の背景グリッド（細線・太線）を、画面に見えている範囲のみ描画する。
      * 呼び出し時点でワールド座標の描画変換が設定済みであることを前提とする。
      * - 線幅は`1 / view.scale`（ワールド長）とし、画面上で常に1px相当にする。
-     * - 間引き規則：細線間隔は`GRID_BASE_SPACING`（ワールド長10）から開始し、画面上の間隔が
-     *   `GRID_MIN_SCREEN_SPACING`（8px）未満の間は10倍ずつ繰り上げる。太線間隔は細線間隔の10倍。
+     * - 間隔は`GridSpacingRules.computeGridSpacing`で求める（定規・ステータスバーと共有）。
      * - 可視範囲は`#getVisibleWorldBounds()`で求める（原点表示と共用）。
      * - スタイル（線幅・色）は`save()`/`restore()`で後続の描画へ残さない。
      * @param {{scale: number, offsetX: number, offsetY: number}} view - ビュー変換値（offsetはスクリーン座標）
@@ -310,12 +290,7 @@ export class CanvasManager {
             return;
         }
 
-        // 細線の間隔を決定（画面上で詰まりすぎる場合は10倍ずつ繰り上げる）
-        let minor = GRID_BASE_SPACING;
-        for (let i = 0; i < GRID_MAX_SPACING_STEPS && minor * scale < GRID_MIN_SCREEN_SPACING; i++) {
-            minor *= 10;
-        }
-        const major = minor * 10;
+        const { minor, major } = computeGridSpacing(scale);
 
         const bounds = this.#getVisibleWorldBounds();
 
