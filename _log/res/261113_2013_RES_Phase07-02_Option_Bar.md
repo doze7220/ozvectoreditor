@@ -354,7 +354,7 @@
     *   **作業内容** :
         *   2章「要件7」のとおりクラス`OptionBarOrderGroup`を作る（旧`PropertyOrderSection.js`を下敷きにし、ファイル名・クラス名・typedef名`OptionBarOrderGroupActions`・`ORDER_BUTTONS`のid（`#option-…`）・`console.warn`／`Error`の文言・JSDocの「段」「プロパティパネル」を実態へ改める。`render`・配線の働きは同じ）。先頭に単一責務のJSDoc（3行以内）。typedef`ShapeOrderAvailability`は形を変えず、二重定義の相手を`edit/ShapeOrderEditor.js`と書く。
         *   完了時点では誰もimportしないため、画面の動きは変わらない。
-*   [ ] タスク6: オプションバーへの切り替えと、プロパティパネル・古いUI部品の削除
+*   [x] タスク6: オプションバーへの切り替えと、プロパティパネル・古いUI部品の削除
     *   **対象ファイル** :
         *   `./index.html` : 更新（オプションバーのマークアップとCSSの追加、プロパティパネルのDOM・CSSの削除、CSSコメントの修正）
         *   `./js/main.js` : 更新（import・`// 7.7.`・`// 7.8.`・起動時の同期の差し替えとコメント）
@@ -455,7 +455,11 @@
 
 ### タスク6: オプションバーへの切り替えと、プロパティパネル・古いUI部品の削除
 *   **作業内容** :
-    *   (未実施)
+    *   `index.html`：`#toolbar`の既存3つのまとまりの後ろに`#option-style-group`・`#option-order-group`を要件1のマークアップどおり追加。CSSに`.option-color-frame`・色の欄の大きさ・覆いと斜線（`::after`）・`#option-stroke-width`・`.option-unit`・`.tool-btn[aria-pressed="mixed"]`（破線の枠）を追加し、`.tool-btn.active`のセレクタを`.tool-btn.active, .tool-btn[aria-pressed="true"]`に拡張、幅の見積もり（約610px）のコメントを付けた。`#window-property-panel`のDOMと`.property-*`・`.order-button-grid`等のCSS・コメントを削除。ツールパレット・読み込み中の覆い要素・`?dev`の確認用ウィンドウのCSSコメントのプロパティパネルの記述を改めた（位置の値は不変）。
+    *   `js/main.js`：import・`// 7.7.`・`// 7.8.`のブロック（`optionBarStyleGroup`・`optionBarOrderGroup`の生成、`onStrokeToggle`/`onFillToggle`→`toggleStrokeEnabled`/`toggleFillEnabled`、`syncOptionBarStyleGroup`・`syncOptionBarOrderGroup`）・JSDoc・コメント・起動時の同期を差し替え。`performShapeOrder`のJSDocを「オプションバーの重なり順のボタン」へ。
+    *   `js/palette/PropertyShapeSection.js`・`PropertyOrderSection.js`をファイル削除。
+    *   検索結果（`id="property-`・`#property-`・`.property-`・`id="order-`・`#order-`・`PropertyShapeSection`・`PropertyOrderSection`・`window-property-panel`・`プロパティパネル`、`js/`・`index.html`）：残りはタスク7〜9の対象ファイルのコメントのみ（`InputTracker.js`169行、`ShapeOrderEditor.js`9行、`ShapeOrderRules.js`9行、`ShapeStyleEditor.js`2・35行、`StylePanelRules.js`2・35行、`PaletteLauncher.js`29行）。`index.html`・`main.js`に残りなし。
+    *   `main.js`の行数：701行。`node --test`：tests 997 / pass 997 / fail 0（`node --check js/main.js`も通過）。実ブラウザでの確認は未実施（5章のテストプレイ項目）。
 
 ### タスク7: `StylePanelView`の`source`・`selectedCount`の削除とテストの書き換え、`StylePanelRules.js`のコメント
 *   **作業内容** :
@@ -543,4 +547,5 @@
         41. ページを開いたときと各操作の後に、ブラウザのコンソールにエラー・警告が出ない（特に`OptionBarStyleGroup`・`OptionBarOrderGroup`の要素が見つからない旨の`console.warn`が出ない）。【実ブラウザ】
         42. 書き出したスプライトJS・作業データファイルの内容（版2）が変わらない（スタイルを変えた図形を出力し、開き直して同じに見える）。
 * **（タスク4の記録）色の欄の`title`の付け先**：計画書に付け先の指定が無いため、`title`は色の欄（`input[type="color"]`）にだけ設定した（包む`.option-color-frame`には`data-color-note`のみ。覆いは`pointer-events: none`で、ホバーは下の色の欄に届く）。タスク6で`index.html`の初期`title`（`線の色`・`塗りの色`）と整合することを確認すること。
+* **（タスク6の記録）** 色の欄の`title`は`index.html`の初期値（`線の色`・`塗りの色`）が`COLOR_TITLE_TEXT`の`''`列と一致することを確認した。覆いの`inset: 2px`は計画の例のまま（実ブラウザでの見え方の確認・必要なら調整はテストプレイで）。`02_main.md`の行数は701行（開発資料の更新予定へ反映すること）。
 * **（タスク4の記録）`OptionBarStyleGroup.js`は`StylePanelView`の二重定義に`source`・`selectedCount`を含む**：タスク7で`StylePanelRules.js`と同時に2項目を消す約束（この時点では`render`はそれらを使わない）。

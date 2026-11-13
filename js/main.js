@@ -26,10 +26,10 @@ import { CanvasFileOperations } from './edit/CanvasFileOperations.js';
 import { CanvasPalette } from './palette/CanvasPalette.js';
 import { PaletteLauncher } from './palette/PaletteLauncher.js';
 import { ShapeStyleEditor } from './edit/ShapeStyleEditor.js';
-import { PropertyShapeSection } from './palette/PropertyShapeSection.js';
+import { OptionBarStyleGroup } from './palette/OptionBarStyleGroup.js';
 import { ShapeOrderEditor } from './edit/ShapeOrderEditor.js';
 import { ShapeOrderOperation } from './edit/ShapeOrderRules.js';
-import { PropertyOrderSection } from './palette/PropertyOrderSection.js';
+import { OptionBarOrderGroup } from './palette/OptionBarOrderGroup.js';
 
 // DOMが読み込まれた後に初期化を行う
 document.addEventListener('DOMContentLoaded', () => {
@@ -467,17 +467,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 7.7. プロパティパネル（「図形」の段）配線
-    // 表示（描き分け・入力値の受け取り）はPropertyShapeSection（palette/）が、変更の手順（選択中の図形または
+    // 7.7. オプションバー（スタイルのまとまり）配線
+    // 表示（描き分け・入力値の受け取り）はOptionBarStyleGroup（palette/）が、変更の手順（選択中の図形または
     // 直前に使った値への適用・履歴への記録・色のプレビュー）はShapeStyleEditor（edit/）が持ち、ここは生成・注入・同期のみを行う。
     // 表示の同期はmodel.onChangeのみで行う（機能専用の同期経路は足さない）。
-    // 段（「図形」以外）を足すときは、段ごとにこのブロックと同じ形のブロックを足す（既存の段の配線は変えない）。
+    // まとまりを足すときは、まとまりごとにこのブロックと同じ形のブロックを足す（既存のまとまりの配線は変えない）。
     // コールバックはshapeStyleEditorのメソッドを呼ぶだけで、判定を持たない。
     // inputTracker.isDragging()を見ない理由は開発資料（PROJECT_ARCHITECTURE.md 3章13.）に記載（ここでは判定しない）。
     const shapeStyleEditor = new ShapeStyleEditor({ model, editRecorder: historyManager });
-    const propertyShapeSection = new PropertyShapeSection(document.getElementById('property-shape-section'), {
-        onStrokeEnabledChange: (enabled) => shapeStyleEditor.setStrokeEnabled(enabled),
-        onFillEnabledChange: (enabled) => shapeStyleEditor.setFillEnabled(enabled),
+    const optionBarStyleGroup = new OptionBarStyleGroup(document.getElementById('option-style-group'), {
+        onStrokeToggle: () => shapeStyleEditor.toggleStrokeEnabled(),
+        onFillToggle: () => shapeStyleEditor.toggleFillEnabled(),
         onStrokeWidthChange: (text) => shapeStyleEditor.setStrokeWidth(text),
         onColorInput: (target, color) => shapeStyleEditor.previewColor(target, color),
         onColorChange: (target, color) => shapeStyleEditor.commitColor(target, color),
@@ -485,26 +485,26 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     /**
-     * プロパティパネルの「図形」の段の表示を、`shapeStyleEditor.getPanelView()`（選択中の図形、
-     * 選択がなければ直前に使った値）に同期する（`propertyShapeSection.render`）。
+     * オプションバーのスタイルのまとまりの表示を、`shapeStyleEditor.getPanelView()`（選択中の図形、
+     * 選択がなければ直前に使った値）に同期する（`optionBarStyleGroup.render`）。
      * model.onChangeのコールバックとして登録し、起動時にも明示的に1回呼び出す。
-     * DOMの更新はPropertyShapeSectionが担い、ここは橋渡しのみ。
+     * DOMの更新はOptionBarStyleGroupが担い、ここは橋渡しのみ。
      */
-    function syncPropertyShapeSection() {
-        propertyShapeSection.render(shapeStyleEditor.getPanelView());
+    function syncOptionBarStyleGroup() {
+        optionBarStyleGroup.render(shapeStyleEditor.getPanelView());
     }
 
-    model.onChange(syncPropertyShapeSection);
+    model.onChange(syncOptionBarStyleGroup);
 
-    // 7.8. プロパティパネル（「重なり順」の段）配線
-    // 表示（4ボタンの押せる/押せないと押下の通知）はPropertyOrderSection（palette/）が、変更の手順（並びを変える1件の
+    // 7.8. オプションバー（重なり順のまとまり）配線
+    // 表示（4ボタンの押せる/押せないと押下の通知）はOptionBarOrderGroup（palette/）が、変更の手順（並びを変える1件の
     // 編集操作と各操作で並びが変わるかの照会）はShapeOrderEditor（edit/）が、並べ替えの規則はShapeOrderRules（edit/）が持ち、
     // ここは生成・注入・同期のみを行う。表示の同期はmodel.onChangeのみで行う（機能専用の同期経路は足さない）。
-    // 段を足すときの形は7.7.と同じ（段ごとにUI部品1つとこのブロックと同じ形のブロック1つ。既存の段の配線は変えない）。
+    // まとまりを足すときの形は7.7.と同じ（まとまりごとにUI部品1つとこのブロックと同じ形のブロック1つ。既存のまとまりの配線は変えない）。
     const shapeOrderEditor = new ShapeOrderEditor({ model, editRecorder: historyManager });
 
     /**
-     * 選択中の図形の重なり順を変える。「重なり順」のボタンとキー（Home/PageUp/PageDown/End）の共通経路
+     * 選択中の図形の重なり順を変える。オプションバーの重なり順のボタンとキー（Home/PageUp/PageDown/End）の共通経路
      * （どちらもこの関数のみを呼び、shapeOrderEditor.applyを直接呼ばない）。
      * (1) ドラッグ中（InputTracker.isDragging()が真）なら何もせずfalse（不受理）。ボタンはショートカット以外の
      *     呼び出し元のため、中ボタンのパン中に左クリックで押される場合に備えてここで判定する。
@@ -519,7 +519,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return shapeOrderEditor.apply(operation);
     }
 
-    const propertyOrderSection = new PropertyOrderSection(document.getElementById('property-order-section'), {
+    const optionBarOrderGroup = new OptionBarOrderGroup(document.getElementById('option-order-group'), {
         onBringToFront: () => performShapeOrder(ShapeOrderOperation.BRING_TO_FRONT),
         onBringForward: () => performShapeOrder(ShapeOrderOperation.BRING_FORWARD),
         onSendBackward: () => performShapeOrder(ShapeOrderOperation.SEND_BACKWARD),
@@ -527,15 +527,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     /**
-     * プロパティパネルの「重なり順」の段の4ボタンの押せる/押せない状態を、現在の選択と並びで各操作により
-     * 並びが変わるか（shapeOrderEditor.getAvailability()）に同期する（propertyOrderSection.render）。
-     * model.onChangeのコールバックとして登録し、起動時にも明示的に1回呼び出す。DOMの更新はPropertyOrderSectionが担い、ここは橋渡しのみ。
+     * オプションバーの重なり順のまとまりの4ボタンの押せる/押せない状態を、現在の選択と並びで各操作により
+     * 並びが変わるか（shapeOrderEditor.getAvailability()）に同期する（optionBarOrderGroup.render）。
+     * model.onChangeのコールバックとして登録し、起動時にも明示的に1回呼び出す。DOMの更新はOptionBarOrderGroupが担い、ここは橋渡しのみ。
      */
-    function syncPropertyOrderSection() {
-        propertyOrderSection.render(shapeOrderEditor.getAvailability());
+    function syncOptionBarOrderGroup() {
+        optionBarOrderGroup.render(shapeOrderEditor.getAvailability());
     }
 
-    model.onChange(syncPropertyOrderSection);
+    model.onChange(syncOptionBarOrderGroup);
 
     // 8. キーボードショートカット配線
     /**
@@ -679,13 +679,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // 依存させず、履歴と作成途中の図形の実値で明示的に1回同期する
     syncHistoryButtonState();
 
-    // プロパティパネルの表示も同様に、index.htmlの初期状態やonChange通知に依存させず、
+    // オプションバーのスタイルのまとまりの表示も同様に、index.htmlの初期状態やonChange通知に依存させず、
     // Modelの選択・直前に使った値の実値で明示的に1回同期する
-    syncPropertyShapeSection();
+    syncOptionBarStyleGroup();
 
-    // プロパティパネル「重なり順」の段の4ボタンの押せる/押せない状態も同様に、index.htmlの初期disabled属性や
+    // オプションバーの重なり順のまとまりの4ボタンの押せる/押せない状態も同様に、index.htmlの初期disabled属性や
     // onChange通知に依存させず、選択集合と図形の並びの実値で明示的に1回同期する
-    syncPropertyOrderSection();
+    syncOptionBarOrderGroup();
 
     // キャンバス名の表示・読み込み中の覆い要素・キャンバスパレットも同様に、onChange通知に依存させず
     // 状態の実値で明示的に1回同期する（名前の表示・覆い要素はCanvasLibrary、パレットはCanvasFileOperationsの状態。

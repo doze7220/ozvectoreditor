@@ -168,7 +168,7 @@
            キャンバスの領域の左上に置く（top: --float-window-top＝ツールバーの下端40px＋余白8px＝48px、left: 余白8px）。
            幅44px（ボタン32px＋.window-bodyの左右の余白6px×2）。1280×800での範囲はx 8〜54、y 48〜約354
            （見出し約39px＋本体約265px＋枠2px）で、ステータスバーの上端772pxより上。
-           ?devの確認用ウィンドウ（left: 62px）・プロパティパネル・キャンバスパレットとは横方向で離れているため重ならない */
+           ?devの確認用ウィンドウ（left: 62px）・キャンバスパレットとは横方向で離れているため重ならない */
         #window-tool-palette {
             top: var(--float-window-top);
             left: var(--float-window-left);
@@ -208,10 +208,15 @@
             opacity: 0.4;
             cursor: default;
         }
-        .tool-btn.active {
+        .tool-btn.active, .tool-btn[aria-pressed="true"] {
             background-color: #dbe9ff;
             border-color: #6699ff;
             font-weight: bold;
+        }
+        /* ON/OFFのボタン（aria-pressed）のそろっていない表示（破線の枠。押し込みの色は付けない。ON＝押し込みは上の.tool-btn.activeのルールを共有する） */
+        .tool-btn[aria-pressed="mixed"] {
+            border-style: dashed;
+            border-color: #666;
         }
         /* アイコンのみのボタン（.tool-btnと併用。押し込み・押せない・ホバーの見た目は.tool-btnのルールを使い、大きさと中央寄せだけを上書きする。
            ツールバー・ツールパレットは32×32。アイコンはindex.htmlのボタンの中身の文字だけに書く） */
@@ -309,7 +314,7 @@
         /* 読み込み中の覆い要素（キャンバスの領域だけを覆い、読み込み完了までキャンバスへのマウス入力を遮る。位置と大きさは上のまとめたルール）。
            表示状態で始まり（main.jsの実行前から遮るため）、main.jsのsyncLoadingCover()が読み込み完了でhidden属性を付けて非表示にする。
            z-index: 5はキャンバス（1）より前面・ツールバー・ステータスバー（8）・フロートウィンドウ（10以上。最前面化でも下がらない）より背面のため、
-           ツールバー・ステータスバー・ツールパレット・キャンバスパレット・プロパティパネル・?devの確認用ウィンドウは読み込み中も操作できる */
+           ツールバー（オプションバーを含む）・ステータスバー・ツールパレット・キャンバスパレット・?devの確認用ウィンドウは読み込み中も操作できる */
         .canvas-loading-cover {
             z-index: 5;
             display: flex;
@@ -326,90 +331,49 @@
         .canvas-loading-cover[hidden] {
             display: none;
         }
-        /* プロパティパネル（静的に置き常に表示。×なし。.disabledは使わない）。
-           開いた状態のキャンバスパレットの左隣に置く（right: 余白8px＋キャンバスパレット幅240px＋枠2px＋余白8px＝258px）。
-           ツールパレット（左端から8〜54px）・開いた状態のキャンバスパレット（右端から8〜250px）とは
-           横方向で離れているため、各ウィンドウの高さによらず重ならない。
-           ?devの確認用ウィンドウ（left: 62px・幅360px＝左端から424px）とは、画面幅が258＋220＋424＝902px以上なら重ならない
-           （プロパティパネルの右端は右端から258〜478px。1280×800ではx 800〜1022で、?devの右端424pxと重ならない）。
-           パネル自身は1280×800に収まる（幅は258＋220＝478＜1280、高さは約330px・y 48〜約378で、ステータスバーの上端772pxより上。
-           「図形」の段約200pxに「重なり順」の段約127pxを足した見積もり） */
-        #window-property-panel {
-            top: var(--float-window-top);
-            right: 258px;
-            width: 220px;
+        /* オプションバーの色の欄を包む要素（覆いと斜線の基準。ツールバーの高さ40pxに収まるよう欄は32×24px） */
+        .option-color-frame {
+            position: relative;
+            display: inline-flex;
+            flex: none;
         }
-        /* プロパティパネルの段（段ごとに1つの<section>。縦並び） */
-        .property-section {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        /* 段の間の区切り（上の罫線と余白）。「図形」と「重なり順」の段の間に効く */
-        .property-section + .property-section {
-            border-top: 1px solid #ddd;
-            padding-top: 12px;
-            margin-top: 4px;
-        }
-        .property-section-title {
-            margin: 0;
-            font-size: 13px;
-            color: #333;
-        }
-        /* 表示の対象（「選択中：n個」／「次に描く図形」） */
-        .property-source {
-            font-size: 12px;
-            color: #666;
-        }
-        .property-row {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 13px;
-            color: #333;
-        }
-        .property-toggle {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            min-width: 52px;
-            cursor: pointer;
-        }
-        .property-label {
-            min-width: 52px;
-        }
-        .property-note {
-            font-size: 11px;
-            color: #888;
-        }
-        .property-unit {
-            font-size: 12px;
-            color: #666;
-        }
-        /* 太さの欄（.float-windowのuser-select: noneは変えず、この欄に限り文字の選択を許可する） */
-        #property-stroke-width {
-            width: 56px;
+        .option-color-frame input[type="color"] {
             box-sizing: border-box;
-            user-select: text;
-        }
-        .property-row input[type="color"] {
-            width: 36px;
+            width: 32px;
             height: 24px;
             padding: 0;
         }
-        /* プロパティパネルの「重なり順」の段の4ボタン（2×2。内側196pxを間隔8pxで2等分＝各94px。最長の4字のボタンは約74pxで収まる） */
-        .order-button-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
+        /* 色の欄の「色を表示できない」表示（混在・表示できない色。2つは見た目を区別せずtitleで区別する）。
+           グレーの地・赤の斜線の色と太さの唯一の定義箇所。欄の上に重ねるだけで幅を変えず（疑似要素は絶対配置）、マウスの操作は欄へ通す */
+        .option-color-frame[data-color-note="mixed"]::after,
+        .option-color-frame[data-color-note="unsupported"]::after {
+            content: '';
+            position: absolute;
+            inset: 2px;
+            pointer-events: none;
+            background:
+                linear-gradient(to bottom right,
+                    transparent calc(50% - 1px), #e00000 calc(50% - 1px),
+                    #e00000 calc(50% + 1px), transparent calc(50% + 1px)),
+                #c8c8c8;
         }
-        .order-button-grid .tool-btn {
-            text-align: center;
-            white-space: nowrap;
+        /* 線の太さの欄（.toolbarのuser-select: noneは変えず、この欄に限り文字の選択を許可する） */
+        #option-stroke-width {
+            box-sizing: border-box;
+            width: 56px;
+            height: 24px;
+            user-select: text;
         }
+        .option-unit {
+            font-size: 12px;
+            color: #666;
+        }
+        /* オプションバー（スタイル・重なり順の2つのまとまり）の幅の見積もり（1280px幅）：
+           左右の余白16px＋既存3つのまとまり（32、68、68）＋区切り17px×4＋スタイル約218px＋重なり順140px＝約610px。
+           幅が足りないときは右のまとまりから切れる（.toolbarのoverflow: hidden） */
         /* 開発者向け確認用ウィンドウ（?dev時のみ表示。ツールパレットの右隣に置く。
            left: ツールパレットの左の位置に54px（ツールパレット幅44px＋枠2px＋余白8px）を足す。1280×800ではx 62〜424、y 48〜。
-           ツールパレット（x 8〜54）とは重ならない。プロパティパネルとは画面幅が約902px未満で重なり得る（許容） */
+           ツールパレット（x 8〜54）とは重ならない */
         #window-dev-panel {
             top: var(--float-window-top);
             left: calc(var(--float-window-left) + 54px);
@@ -454,6 +418,20 @@
         <div class="toolbar-group">
             <button type="button" id="selection-delete" class="tool-btn icon-btn" title="選択中の図形を削除 (Delete / Backspace)" disabled>🗑</button>
             <button type="button" id="selection-join" class="tool-btn icon-btn" title="選択中の線を結合 (J)" disabled>🔗</button>
+        </div>
+        <div id="option-style-group" class="toolbar-group">
+            <button type="button" id="option-stroke-toggle" class="tool-btn icon-btn" title="線のあり／なしを切り替え" aria-pressed="false">🖊</button>
+            <span id="option-stroke-color-frame" class="option-color-frame"><input type="color" id="option-stroke-color" title="線の色"></span>
+            <button type="button" id="option-fill-toggle" class="tool-btn icon-btn" title="塗りのあり／なしを切り替え" aria-pressed="false">🪣</button>
+            <span id="option-fill-color-frame" class="option-color-frame"><input type="color" id="option-fill-color" title="塗りの色"></span>
+            <input type="number" id="option-stroke-width" min="1" max="100" step="1" title="線の太さ（1〜100の整数）">
+            <span class="option-unit">px</span>
+        </div>
+        <div id="option-order-group" class="toolbar-group">
+            <button type="button" id="option-bring-to-front" class="tool-btn icon-btn" title="最前面へ (Home)" disabled>⏫</button>
+            <button type="button" id="option-bring-forward" class="tool-btn icon-btn" title="前へ (PageUp)" disabled>🔼</button>
+            <button type="button" id="option-send-backward" class="tool-btn icon-btn" title="後ろへ (PageDown)" disabled>🔽</button>
+            <button type="button" id="option-send-to-back" class="tool-btn icon-btn" title="最背面へ (End)" disabled>⏬</button>
         </div>
     </header>
     <footer id="status-bar" class="status-bar">
@@ -503,41 +481,6 @@
             <div id="canvas-list" class="canvas-list"></div>
             <p id="canvas-notice" class="canvas-notice" hidden></p>
             <p id="canvas-file-notice" class="canvas-notice" hidden></p>
-        </div>
-    </div>
-    <div id="window-property-panel" class="float-window">
-        <div class="window-header">
-            <span class="window-title">プロパティ</span>
-        </div>
-        <div class="window-body">
-            <section id="property-shape-section" class="property-section">
-                <h3 class="property-section-title">図形</h3>
-                <div id="property-shape-source" class="property-source"></div>
-                <div class="property-row">
-                    <label class="property-toggle"><input type="checkbox" id="property-stroke-enabled"> 線</label>
-                    <input type="color" id="property-stroke-color" title="線の色">
-                    <span id="property-stroke-color-note" class="property-note"></span>
-                </div>
-                <div class="property-row">
-                    <label for="property-stroke-width" class="property-label">太さ</label>
-                    <input type="number" id="property-stroke-width" min="1" max="100" step="1" title="線の太さ（1〜100の整数）">
-                    <span class="property-unit">px</span>
-                </div>
-                <div class="property-row">
-                    <label class="property-toggle"><input type="checkbox" id="property-fill-enabled"> 塗り</label>
-                    <input type="color" id="property-fill-color" title="塗りの色">
-                    <span id="property-fill-color-note" class="property-note"></span>
-                </div>
-            </section>
-            <section id="property-order-section" class="property-section">
-                <h3 class="property-section-title">重なり順</h3>
-                <div class="order-button-grid">
-                    <button type="button" id="order-bring-to-front" class="tool-btn" title="最前面へ (Home)" disabled>最前面へ</button>
-                    <button type="button" id="order-bring-forward" class="tool-btn" title="前へ (PageUp)" disabled>前へ</button>
-                    <button type="button" id="order-send-backward" class="tool-btn" title="後ろへ (PageDown)" disabled>後ろへ</button>
-                    <button type="button" id="order-send-to-back" class="tool-btn" title="最背面へ (End)" disabled>最背面へ</button>
-                </div>
-            </section>
         </div>
     </div>
     <div id="window-dev-panel" class="float-window" hidden>
