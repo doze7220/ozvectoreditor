@@ -263,7 +263,7 @@
         *   ツールバー・ステータスバーの枠を足す：`<header id="toolbar" class="toolbar"></header>`（中身なし）と、`<footer id="status-bar" class="status-bar">`に空の`<div class="status-bar-side status-bar-left"></div>`・`<div class="status-bar-side status-bar-right"></div>`を、覆い要素の直後・最初のフロートウィンドウの前に置く。CSS：`.toolbar, .status-bar`の共通（`position: fixed; left: 0; right: 0; box-sizing: border-box; display: flex; flex-wrap: nowrap; align-items: center; overflow: hidden; white-space: nowrap; z-index: 8; background-color: #f0f0f0; font-family: sans-serif; user-select: none;`）、`.toolbar`（`top: 0; height: var(--toolbar-height); padding: 0 8px; border-bottom: 1px solid #ccc;`）、`.status-bar`（`bottom: 0; height: var(--statusbar-height); padding: 0 8px; border-top: 1px solid #ccc; justify-content: space-between; font-size: 12px; color: #333;`）、`.toolbar-group`・`.toolbar-group + .toolbar-group`・`.status-bar-side`・`.status-bar-left`・`.status-bar-right`・`.status-bar-group`・`.status-bar-group + .status-bar-group`・`.status-bar-left > .status-bar-group`（2章 要件2・3）。各ルールに役割と1行固定・右側が切れる旨のCSSコメントを書く。
         *   既存のフロートウィンドウ（コントロールパネル・キャンバスパレット・プロパティパネル・`?dev`）の`top: 16px`を`top: var(--float-window-top)`へ、`#window-shape-palette`の`top: 440px`を`top: calc(var(--float-window-top) + 424px)`へ改める（コントロールパネルとの相対の位置を保つ一時的な値。タスク5で削除）。`right`・`left`・`width`はこのタスクでは変えない。位置のCSSコメントのうち`top`の数値に触れている箇所を新しい基準（ツールバーの下）へ合わせる（コントロールパネル基準の説明の全面的な書き直しはタスク5）。
         *   `main.js`は変えない（キャンバスの大きさは`resize`の経路で追従する）。確認：キャンバスがツールバーとステータスバーの間に収まり、四隅付近のクリック・ドラッグ・ホイールのズームがカーソルとずれないこと、リサイズへの追従、読み込み中の覆いがキャンバスの領域だけを覆うこと。
-*   [ ] タスク4: ツールバー・ステータスバーへのボタンの移設（idを保つ）
+*   [x] タスク4: ツールバー・ステータスバーへのボタンの移設（idを保つ）
     *   **対象ファイル** :
         *   `./index.html` : 更新
     *   **作業内容** :
@@ -346,7 +346,9 @@
 
 ### タスク4: ツールバー・ステータスバーへのボタンの移設（idを保つ）
 *   **作業内容** :
-    *   (未着手)
+    *   `index.html`のみ更新。ツールバーへ3つの`.toolbar-group`で`#launcher-canvas`(📁)／`#history-undo`(↶)・`#history-redo`(↷)／`#selection-delete`(🗑)・`#selection-join`(🔗)を移設（`class="tool-btn icon-btn"`・アイコンのみ・`title`はREQ要件5の表どおり・`disabled`初期値を保持）。ステータスバー左側の`.status-bar-group`へ`#canvas-name-display`（空）、右側の`.status-bar-group`へ`#view-zoom-display`（100%）と`#view-reset`(🎯・`title="表示をリセット (Ctrl+0)"`)。コントロールパネルには`#mode-select`・`#mode-create`・`#mode-pan`だけが残る。
+    *   CSS：`.icon-btn`・`.status-bar .icon-btn`を`.tool-btn`のルール群の後（旧`.view-zoom-row`の位置）に追加。`.view-zoom-row`・`.history-button-row`（＋`.tool-btn`）・`.selection-button-row`（＋`.tool-btn`）とコメントを削除。`.canvas-name-display`に`min-width: 0`を足しコメントを改めた。`#window-canvas-palette`のCSSコメントの呼び出し口を「ツールバーの」へ（位置の数値は未変更。タスク5）。
+    *   `main.js`は未変更。`node --test`：tests 986 / pass 986 / fail 0。(c)：ブラウザでの起動・合成イベントによる確認は行っていない（静的な編集のみ。idを保ったため配線は変わらない見込み。確認項目はテストプレイ）。
 
 ### タスク5: ツールパレットへの切り替えとコントロールパネル・図形選択パレットの削除
 *   **作業内容** :
@@ -385,6 +387,11 @@
 * ツールバー・ステータスバーは中身が空の枠のため、この時点では細い帯（40px・28px）として表示される。コントロールパネルの`top`が16px→48pxに下がるため、既存ウィンドウの位置は一時的な値（タスク5で確定）。
 * コントロールパネル基準の位置コメント（`right`の説明等）はタスク5で書き直す前提で、`top`以外は未変更。
 * 目視推奨：ブラウザで開き、キャンバスが帯の間に収まり四隅でカーソルとずれないこと（テストプレイ項目A）。
+
+### タスク4での追記
+* コントロールパネルは高さが縮むが、`#window-shape-palette`の`top`は一時的な値のまま（タスク5で確定）。
+* 目視推奨：5つのツールバーのボタン・倍率・🎯・キャンバス名（`⚠ `・省略表示・`title`）の働き、アイコンの大きさ・縦位置がそろっていること、狭い幅で1行のまま右側が切れること。
+* 開発資料の更新予定への新規追記：なし。
 
 ### テストプレイの確認項目（操作手順 → 期待する結果）
 ※【実ブラウザ】は、実装AIの合成イベントでは確かめられず、実際のブラウザでの確認が要る項目。

@@ -206,40 +206,31 @@
             border-color: #6699ff;
             font-weight: bold;
         }
-        /* コントロールパネルの表示倍率行（倍率表示＋リセットボタン） */
-        .view-zoom-row {
-            display: flex;
+        /* アイコンのみのボタン（.tool-btnと併用。押し込み・押せない・ホバーの見た目は.tool-btnのルールを使い、大きさと中央寄せだけを上書きする。
+           ツールバー・ツールパレットは32×32。アイコンはindex.htmlのボタンの中身の文字だけに書く） */
+        .icon-btn {
+            box-sizing: border-box;
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            display: inline-flex;
             align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            font-size: 13px;
-            color: #333;
-        }
-        /* コントロールパネルの取り消し・やり直しボタン行（2ボタンを1行に横並び。
-           パネル内側196pxに2ボタン＋余白8pxで収める。押せない状態は.tool-btn:disabledを用いる） */
-        .history-button-row {
-            display: flex;
-            gap: 8px;
-        }
-        .history-button-row .tool-btn {
-            flex: 1;
+            justify-content: center;
+            flex: none;
+            font-size: 16px;
+            line-height: 1;
             text-align: center;
-            white-space: nowrap;
         }
-        /* 削除・結合の2ボタンを1行に横並び（コントロールパネルの高さを増やさないため。
-           取り消し・やり直しの行と同じ見た目） */
-        .selection-button-row {
-            display: flex;
-            gap: 8px;
+        /* ステータスバー（高さ28px）の中のアイコンのボタンは24×24 */
+        .status-bar .icon-btn {
+            width: 24px;
+            height: 24px;
+            font-size: 14px;
         }
-        .selection-button-row .tool-btn {
-            flex: 1;
-            text-align: center;
-            white-space: nowrap;
-        }
-        /* コントロールパネルの開いているキャンバスの名前の表示（呼び出し口の直上の1行。
-           長い名前は省略表示し、名前全体はmain.jsがtitle属性に設定する） */
+        /* ステータスバーの左側の開いているキャンバスの名前の表示。
+           長い名前は省略表示し（min-width: 0で縮められる）、名前全体はmain.jsがtitle属性に設定する */
         .canvas-name-display {
+            min-width: 0;
             font-size: 12px;
             line-height: 18px;
             color: #333;
@@ -247,7 +238,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        /* キャンバスパレット（呼び出し口#launcher-canvasで開閉。hidden属性で初期非表示）。
+        /* キャンバスパレット（ツールバーの呼び出し口#launcher-canvasで開閉。hidden属性で初期非表示）。
            コントロールパネルの左隣に置く（right: コントロールパネルのright 16px＋幅220px＋間隔16px＝252px）。
            ?devの確認用ウィンドウ（left: 16px・幅360px）とは、画面幅が約870px以上なら重ならない */
         #window-canvas-palette {
@@ -440,10 +431,31 @@
 <body>
     <canvas id="editor-canvas"></canvas>
     <div id="canvas-loading-cover" class="canvas-loading-cover">読み込み中…</div>
-    <header id="toolbar" class="toolbar"></header>
+    <header id="toolbar" class="toolbar">
+        <div class="toolbar-group">
+            <button type="button" id="launcher-canvas" class="tool-btn icon-btn" title="キャンバスパレットを開く／閉じる">📁</button>
+        </div>
+        <div class="toolbar-group">
+            <button type="button" id="history-undo" class="tool-btn icon-btn" title="取り消し (Ctrl+Z)" disabled>↶</button>
+            <button type="button" id="history-redo" class="tool-btn icon-btn" title="やり直し (Ctrl+Y / Ctrl+Shift+Z)" disabled>↷</button>
+        </div>
+        <div class="toolbar-group">
+            <button type="button" id="selection-delete" class="tool-btn icon-btn" title="選択中の図形を削除 (Delete / Backspace)" disabled>🗑</button>
+            <button type="button" id="selection-join" class="tool-btn icon-btn" title="選択中の線を結合 (J)" disabled>🔗</button>
+        </div>
+    </header>
     <footer id="status-bar" class="status-bar">
-        <div class="status-bar-side status-bar-left"></div>
-        <div class="status-bar-side status-bar-right"></div>
+        <div class="status-bar-side status-bar-left">
+            <div class="status-bar-group">
+                <div id="canvas-name-display" class="canvas-name-display"></div>
+            </div>
+        </div>
+        <div class="status-bar-side status-bar-right">
+            <div class="status-bar-group">
+                <span id="view-zoom-display">100%</span>
+                <button type="button" id="view-reset" class="tool-btn icon-btn" title="表示をリセット (Ctrl+0)">🎯</button>
+            </div>
+        </div>
     </footer>
     <div id="window-control-panel" class="float-window">
         <div class="window-header">
@@ -453,20 +465,6 @@
             <button type="button" id="mode-select" class="tool-btn active" title="選択 (V)">🖱 選択</button>
             <button type="button" id="mode-create" class="tool-btn" title="図形作成 (P)">✏ 図形作成</button>
             <button type="button" id="mode-pan" class="tool-btn" title="キャンバス移動 (H)">✋ キャンバス移動</button>
-            <div class="selection-button-row">
-                <button type="button" id="selection-delete" class="tool-btn" title="選択中の図形を削除 (Delete / Backspace)" disabled>🗑 削除</button>
-                <button type="button" id="selection-join" class="tool-btn" title="選択中の線を結合 (J)" disabled>🔗 結合</button>
-            </div>
-            <div class="history-button-row">
-                <button type="button" id="history-undo" class="tool-btn" title="取り消し (Ctrl+Z)" disabled>↶ 取り消し</button>
-                <button type="button" id="history-redo" class="tool-btn" title="やり直し (Ctrl+Y / Ctrl+Shift+Z)" disabled>↷ やり直し</button>
-            </div>
-            <div class="view-zoom-row">
-                <span id="view-zoom-display">100%</span>
-                <button type="button" id="view-reset" class="tool-btn" title="表示をリセット (Ctrl+0)">リセット</button>
-            </div>
-            <div id="canvas-name-display" class="canvas-name-display"></div>
-            <button type="button" id="launcher-canvas" class="tool-btn" title="キャンバスパレットを開く／閉じる">📁 キャンバス</button>
         </div>
     </div>
     <div id="window-shape-palette" class="float-window disabled">
