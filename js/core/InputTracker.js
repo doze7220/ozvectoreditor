@@ -1,6 +1,6 @@
 /**
  * 責務：ユーザー入力（図形作成・選択・範囲選択・本体ドラッグ・ハンドルドラッグ・パン・ズーム。キーはスペースパンのみ）の解釈と
- * Model・ビュー変換への反映（修飾キーの読み取りは選択の規則の関数へ渡すだけ）、状態依存の操作（一括削除・取消・全選択・進行中操作の中断）の公開、編集操作の開始・確定の通知（注入された記録先へ）、
+ * Model・ビュー変換への反映（修飾キーの読み取りは選択・移動方向の限定の規則の関数へ渡すだけ）、状態依存の操作（一括削除・取消・全選択・進行中操作の中断）の公開、編集操作の開始・確定の通知（注入された記録先へ）、
  * および入力状態に応じたカーソル形状のフィードバックを担う。
  */
 
@@ -8,6 +8,7 @@ import { DragTracker } from './DragTracker.js';
 import { SHAPE_TYPES } from './ShapeFactory.js';
 import { classifyPointHit } from './PointHitRules.js';
 import { resolveClickSelection, resolveMarqueeSelection } from './SelectionRules.js';
+import { constrainMoveDirection } from './MoveDirectionRules.js';
 
 /**
  * InputTrackerが取りうる内部状態。
@@ -225,6 +226,9 @@ function hasCtrlModifier(event) {
  * ズーム・パンによる表示の変更はViewTransformへ委譲する。
  * 修飾キー（Ctrl＝ctrlKey||metaKey）の読み取りは行うが、クリック・範囲選択の次の選択の決定はSelectionRulesの関数へ渡すだけで本クラスは持たない
  * （結果の反映は#applySelectionChangeが受け渡す）。
+ * 本体ドラッグ・移動用ハンドルのドラッグ（MOVING_SELECTION）では、追従のたびのイベントのshiftKeyも読み取るが、
+ * 移動方向の限定はMoveDirectionRulesの関数へ渡すだけで本クラスは持たない。移動量は、押した位置からの移動量（限定の適用後）と
+ * 反映済みの移動量の差分で求める。
  * Space以外のキー（ショートカット）は解釈しない。削除・取消・全選択・進行中操作の中断は状態依存の公開メソッドとして提供し、
  * 削除ボタン・ショートカット（KeyboardShortcuts）・切り取り（`ClipboardController.cut()`へ`main.js`が注入）・作業データの復元・取り消し/やり直しの前処理からはmain.js経由で呼び出される。
  * 編集操作（図形の作成・一括削除・選択集合の平行移動・ハンドルによる変形）は、変更処理を注入された記録先（EditRecorder）の
@@ -260,6 +264,21 @@ export class InputTracker {
      * @type {{x: number, y: number} | null}
      */
     #marqueeAnchor = null;
+
+    /**
+     * 本体ドラッグ（MOVING_SELECTION）の押下点。ワールド座標。移動量（押した位置からの移動量）の基準。
+     * 寿命はMOVING_SELECTIONの押下（#beginLeftDrag）から#finishLeftDrag()まで（それ以外の状態ではnull）。
+     * @type {{x: number, y: number} | null}
+     */
+    #moveOrigin = null;
+
+    /**
+     * 本体ドラッグ（MOVING_SELECTION）で、すでに図形へ反映した移動量（ワールド座標。押した位置からの移動量を加工した後の値）。
+     * 押下時は{ dx: 0, dy: 0 }。更新のたびに「新しい目標の移動量 − この値」の差分だけをmoveShapesへ渡し、目標の移動量で置き換える。
+     * 寿命はMOVING_SELECTIONの押下（#beginLeftDrag）から#finishLeftDrag()まで（それ以外の状態ではnull）。
+     * @type {{dx: number, dy: number} | null}
+     */
+    #appliedMoveDelta = null;
 
     /**
      * ドラッグのライフサイクル管理（コンストラクタで生成・所有）。パンと左ドラッグ（ハンドルドラッグ・本体ドラッグ・範囲選択）が利用する。
@@ -374,15 +393,6 @@ export class InputTracker {
          * @type {string}
          */
         this.currentShapeType = SHAPE_TYPES[0];
-
-        /**
-         * MOVING_SELECTION状態中、選択集合の差分移動計算に用いる直前のカーソル位置（ワールド座標）。
-         * 押下時に押下点で初期化し、移動を反映するたびに更新する（閾値分の移動量は閾値超過時の最初の更新でまとめて反映される）。
-         * DRAGGING_HANDLE状態でも押下点を記憶するが、頂点の更新には用いない。
-         * IDLE/DRAWING/MARQUEE_SELECTING状態では未使用（null。範囲選択の押下点は#marqueeAnchorが保持する）。
-         * @type {{x: number, y: number} | null}
-         */
-        this.lastCursor = null;
 
         /**
          * DRAGGING_HANDLE状態中に操作している頂点ハンドルの名前（押下時の各図形のhitTestHandleの戻り値。'move'以外）。
@@ -903,7 +913,8 @@ export class InputTracker {
      * ズーム方向はdeltaYの符号のみで決め（負：拡大、正：縮小）、大きさは用いない。deltaYが0（横スクロールのみ）なら何もしない。
      * ズーム中心はスクリーン座標（getScreenCoordinate由来）。ズーム後のホバー・カーソル形状は次のmousemoveで再評価する。
      * 左ドラッグ中（閾値超過後）は、ズーム直後にホイールイベントの座標で#applyLeftDragUpdateを呼び、
-     * ドラッグ対象をズーム後のカーソル位置へ追従し直す（パン中・閾値以前は何もしない）。範囲選択中は、押下点のワールド位置を
+     * ドラッグ対象をズーム後のカーソル位置へ追従し直す（パン中・閾値以前は何もしない。本体ドラッグではホイールイベントの
+     * shiftKeyでも移動方向を限定する）。範囲選択中は、押下点のワールド位置を
      * 固定したまま選択矩形をズーム後のカーソル位置まで伸ばし直す。
      * @param {WheelEvent} event
      */
@@ -952,7 +963,7 @@ export class InputTracker {
      * 左ドラッグ（頂点ハンドルのドラッグ、選択集合の平行移動、または範囲選択）を開始する。handleMouseDownから左ボタン押下時に呼ばれる。
      * DragTrackerのセッションを閾値DRAG_START_THRESHOLD（スクリーンpx）・click抑止'whenMoved'（閾値を超えて動かした場合のみ
      * 直後のclickを抑止）で開始し、成功した場合のみ押下点を記憶して（MARQUEE_SELECTINGなら#marqueeAnchor、それ以外なら
-     * 直前カーソル座標lastCursor）、DRAGGING_HANDLEなら操作対象のハンドル名・図形idも記憶してnextStateへ遷移し、
+     * MOVING_SELECTIONなら押下点#moveOriginと反映済みの移動量#appliedMoveDelta（{ dx: 0, dy: 0 }））、DRAGGING_HANDLEなら操作対象のハンドル名・図形idも記憶してnextStateへ遷移し、
      * カーソル形状を更新する。閾値以内では図形・選択矩形は変化しない。
      * 追従（onMove）は#applyLeftDragUpdate、開始（onStart）は#onLeftDragStart、
      * 終了（onEnd：左ボタンの解放）は#onLeftDragEnd、中断（onCancel：blur・setMode・abortOngoingOperation）は#onLeftDragCancelが担う。
@@ -982,7 +993,9 @@ export class InputTracker {
         const isMarquee = nextState === InputState.MARQUEE_SELECTING;
         this.activeHandle = target?.handle ?? null;
         this.activeShapeId = target?.shapeId ?? null;
-        this.lastCursor = isMarquee ? null : point;
+        const isMoving = nextState === InputState.MOVING_SELECTION;
+        this.#moveOrigin = isMoving ? point : null;
+        this.#appliedMoveDelta = isMoving ? { dx: 0, dy: 0 } : null;
         this.#marqueeAnchor = isMarquee ? point : null;
         this.#dragEndpoint = null;
         this.#dragSnap = null;
@@ -1014,15 +1027,18 @@ export class InputTracker {
     /**
      * 左ドラッグの追従処理（DragTrackerのonMove、およびドラッグ中のhandleWheelから呼ばれる）。
      * InputStateで処理を振り分けるディスパッチャ（図形種別の分岐ではない）：
-     * MOVING_SELECTIONなら直前カーソル座標（lastCursor）との差分（ワールド座標）を選択集合の全図形へ一括で渡し
-     * （moveShapes。変更通知は1回）、直前カーソル座標を更新する。
+     * MOVING_SELECTIONなら押した位置（#moveOrigin）からの移動量（ワールド座標）を求め、#resolveMoveDeltaで加工した目標の移動量と
+     * 反映済みの移動量（#appliedMoveDelta）との差分を選択集合の全図形へ一括で渡し（moveShapes。更新1回につき1回で、差分0でも呼ぶ。
+     * 変更通知は1回）、反映済みの移動量を目標の移動量へ更新する。閾値分の移動量は閾値超過時の最初の更新でまとめて反映される。
+     * Shiftを見るのは追従のたびの本イベント（mousemove・ドラッグ中のwheelのshiftKey。キーの購読はしない）。
+     * ズーム直後のwheelでも同じ式で、ズーム後のカーソル位置へ追従し直す（Shiftを押している間は限定されたまま）。
      * MARQUEE_SELECTINGなら押下点（#marqueeAnchor）と現在のカーソル位置（いずれもワールド座標）を対角2点として
      * 選択矩形をModelへ設定する（正規化しない。選択集合は確定時まで変更しない）。
      * DRAGGING_HANDLEならshape.getVertexIndexForHandle()で頂点インデックスを解決して現在のワールド座標をModelへ渡す
      * （その1図形のみ。選択集合は変更しない）。対象図形が存在しない場合は何もしない。
      * 端点のハンドル（#dragEndpointあり）なら、頂点を渡す前に注入された補助のfindDragSnap(#dragEndpoint, カーソル位置)で
      * 吸い付きを照会して#dragSnapに保持・表示し、吸い付いていればその端点の座標、いなければカーソル位置を頂点の座標にする。
-     * @param {MouseEvent} event カーソル位置を持つイベント（window captureのmousemove、またはwheel）
+     * @param {MouseEvent} event カーソル位置とshiftKeyを持つイベント（window captureのmousemove、またはwheel。shiftKeyはMOVING_SELECTIONの移動方向の限定にのみ使う）
      */
     #applyLeftDragUpdate(event) {
         if (!this.#isLeftDragState()) {
@@ -1037,10 +1053,10 @@ export class InputTracker {
         }
 
         if (this.state === InputState.MOVING_SELECTION) {
-            const dx = x - this.lastCursor.x;
-            const dy = y - this.lastCursor.y;
-            this.model.moveShapes(this.model.getSelectedIds(), dx, dy);
-            this.lastCursor = { x, y };
+            const target = this.#resolveMoveDelta({ dx: x - this.#moveOrigin.x, dy: y - this.#moveOrigin.y }, event);
+            const applied = this.#appliedMoveDelta;
+            this.model.moveShapes(this.model.getSelectedIds(), target.dx - applied.dx, target.dy - applied.dy);
+            this.#appliedMoveDelta = target;
             return;
         }
 
@@ -1059,6 +1075,21 @@ export class InputTracker {
             }
         }
         this.model.updateVertex(this.activeShapeId, vertexIndex, target.x, target.y);
+    }
+
+    /**
+     * 本体ドラッグの「押した位置からの移動量」を加工して目標の移動量にする（**押した位置からの移動量を加工する唯一の箇所**。
+     * Phase 07-05の移動量の丸めもここへ足す）。現在はShiftが押されていれば横・縦・斜め45°の直線へ限定する
+     * （MoveDirectionRulesのconstrainMoveDirection）。押されていなければそのまま返す。
+     * @param {{dx: number, dy: number}} rawDelta 押した位置からの移動量（ワールド座標）
+     * @param {MouseEvent} event カーソル位置とshiftKeyを持つ追従のイベント（mousemoveまたはwheel）
+     * @returns {{dx: number, dy: number}} 加工後の目標の移動量
+     */
+    #resolveMoveDelta(rawDelta, event) {
+        if (event.shiftKey) {
+            return constrainMoveDirection(rawDelta.dx, rawDelta.dy);
+        }
+        return rawDelta;
     }
 
     /**
@@ -1141,7 +1172,7 @@ export class InputTracker {
 
     /**
      * 左ドラッグの終了・中断時の後始末（#onLeftDragEnd・#onLeftDragCancelから呼ばれる）。
-     * IDLE状態へ戻し、作業用フィールド（activeHandle・activeShapeId・lastCursor・#marqueeAnchor）をnullにして、
+     * IDLE状態へ戻し、作業用フィールド（activeHandle・activeShapeId・#moveOrigin・#appliedMoveDelta・#marqueeAnchor）をnullにして、
      * カーソル形状を再評価する。ドラッグ中に反映した変更（頂点・位置）は取り消さない。
      * 範囲選択の確定・選択矩形の破棄は呼び出し前に済ませること。click抑止フラグの管理はDragTrackerが担う。
      * 冒頭で、#isEditOpenが立っていれば（閾値超過時にbeginEdit()済みの移動・変形）記録先のcommitEdit()を呼んで下ろす
@@ -1157,7 +1188,8 @@ export class InputTracker {
         this.state = InputState.IDLE;
         this.activeHandle = null;
         this.activeShapeId = null;
-        this.lastCursor = null;
+        this.#moveOrigin = null;
+        this.#appliedMoveDelta = null;
         this.#marqueeAnchor = null;
         this.#updateCursor();
     }

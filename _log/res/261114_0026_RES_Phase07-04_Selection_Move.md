@@ -221,7 +221,7 @@
     *   **作業内容** :
         *   先頭に責務定義。`constrainMoveDirection(dx, dy)`を「2. 要件2」の場合分けで実装（tan 22.5°の定数はexportしない定数として定義しJSDocを付ける）。JSDocに正射影であること・境界の扱い・有限の数値が前提であることを書く。
         *   テスト：横・縦・斜め4方向の正負（各軸上・各対角線上で入力と同じ値）、各直線に近い向き（例：`(10, 1)`→`(10, 0)`、`(1, -10)`→`(0, -10)`、`(10, 9)`→`(9.5, 9.5)`、`(-10, 8)`→`(-9, 9)`）、境界の近く（22.5°の少し手前・少し先で横と斜めに分かれる）、移動量0、多数の入力で結果が4本の直線のいずれかの上にあること（`dy === 0`・`dx === 0`・`|dx| === |dy|`のいずれかが厳密に成り立つ）、結果が元の移動量の正射影であること（元のベクトルとの差が結果に直交する：内積が誤差の範囲で0）、同じ入力に同じ結果。
-*   [ ] タスク4: `InputTracker`の要件2（本体ドラッグの移動量と`Shift`の限定）
+*   [x] タスク4: `InputTracker`の要件2（本体ドラッグの移動量と`Shift`の限定）
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` : 更新
     *   **作業内容** :
@@ -375,7 +375,11 @@
 
 ### タスク4: `InputTracker`の要件2（本体ドラッグの移動量と`Shift`の限定）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/InputTracker.js`：`MoveDirectionRules.js`から`constrainMoveDirection`をimport。公開フィールド`lastCursor`を廃止（`js/`内に残参照なし）し、非公開の作業用フィールド`#moveOrigin`・`#appliedMoveDelta`（JSDoc付き）と非公開メソッド`#resolveMoveDelta(rawDelta, event)`（`event.shiftKey`なら`constrainMoveDirection`。押した位置からの移動量を加工する唯一の箇所・Phase 07-05の丸めの置き場所をJSDocに記載）を足した。
+    *   `#beginLeftDrag`：`MOVING_SELECTION`のときだけ`#moveOrigin = point`・`#appliedMoveDelta = {dx:0, dy:0}`（それ以外はnull）。`#applyLeftDragUpdate`：押した位置からの移動量 → `#resolveMoveDelta` → 反映済みとの差分で`moveShapes`を毎回1回（差分0でも）→ `#appliedMoveDelta`更新。`#finishLeftDrag`：`#moveOrigin`・`#appliedMoveDelta`をnullへ（`#resetSnapState()`の位置・順は不変）。
+    *   JSDoc更新：`#beginLeftDrag`・`#applyLeftDragUpdate`・`#finishLeftDrag`・`handleWheel`・先頭の責務定義。
+    *   監査の指摘による修正：`class InputTracker`のJSDoc（クラスの説明）へ、`MOVING_SELECTION`で`shiftKey`を読み取り限定は`MoveDirectionRules`へ渡すだけであること・移動量は押した位置からの移動量と反映済みの移動量の差分で求めることを追記。`#applyLeftDragUpdate`の`@param`も`shiftKey`を読むことが分かる説明へ更新（コードは不変）。
+    *   `node --test`：tests 1138・pass 1138・fail 0。
 
 ### タスク5: 記録しない追加の入口（要件3）
 *   **作業内容** :
