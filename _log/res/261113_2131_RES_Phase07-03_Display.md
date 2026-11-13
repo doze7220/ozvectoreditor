@@ -426,7 +426,7 @@
         *   `./test/core/StatusReadoutRules.test.js` : 新規
     *   **作業内容** :
         *   2章「要件3・4」のとおり4つの関数と文言の定数を作る（何もimportしない。JSDoc付き）。テストは2章「要件11」の観点。
-*   [ ] タスク19: 表示の切り替えのまとまりのUI部品（`palette/ViewToggleGroup.js`）
+*   [x] タスク19: 表示の切り替えのまとまりのUI部品（`palette/ViewToggleGroup.js`）
     *   **対象ファイル** :
         *   `./js/palette/ViewToggleGroup.js` : 新規
     *   **作業内容** :
@@ -634,7 +634,9 @@
 
 ### タスク19: 表示の切り替えのまとまりのUI部品（`palette/ViewToggleGroup.js`）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/palette/ViewToggleGroup.js`（新規）：`OptionBarOrderGroup.js`を下敷きに作成。先頭に単一責務のJSDoc、importなし。typedef`ViewToggleView`（`outline`・`darkBackground`・`gridVisible`。`DisplayStateSnapshot`の一部の写しである旨を記載）・`ViewToggleGroupActions`（`onToggleOutline`・`onToggleBackground`・`onToggleGrid`）。対応表`TOGGLE_BUTTONS`（`#view-outline-toggle`・`#view-background-toggle`・`#view-grid-toggle`）。`constructor(groupElement, actions)`（コールバックが関数でなければ`Error`、要素が欠ければ`console.warn`して配線しない）・`render(view)`（`classList.toggle('active', view[key] === true)`。未配線なら何もしない）。誰もimportしていない（配線はタスク23）。
+    *   `node --test`：tests 1106 / pass 1106 / fail 0。
+    *   開発資料への影響：計画どおりで追加の差異なし（本体は未修正。`13_palette.md`はタスク27）。
 
 ### タスク20: 隠している間の📁の規則（`PaletteLauncher.js`）
 *   **作業内容** :
