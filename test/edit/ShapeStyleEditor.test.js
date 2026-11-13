@@ -1,5 +1,5 @@
 /**
- * 責務: ShapeStyleEditor（オプションバーでの変更の反映・履歴の単位・ピッカー操作中の記録・直前に使った値の更新）の振る舞いを検証する。
+ * 責務: ShapeStyleEditor（オプションバーでの変更とスタイルをまとめて当てる入口`applyStyle`・`resetColors`の反映・履歴の単位・ピッカー操作中の記録・直前に使った値の更新）の振る舞いを検証する。
  * 実物のVectorModel・SnapshotAdapter・HistoryManagerと組み合わせ、表示の同期をmodel.onChangeでmain.jsと同じ呼び方にして確かめる。
  */
 import test from 'node:test';
@@ -461,4 +461,122 @@ test('toggleStrokeEnabled：ピッカー操作中は先にピッカーの分が�
     assert.equal(model.getShapes()[0].strokeColor, '#112233');
     assert.equal(history.canUndo(), false);
     assert.equal(warn.mock.calls.length, 0);
+});
+
+test('applyStyle: 線・塗り・太さの3項目を選択中の図形へ1件で当てる。塗れない形の塗りは変わらず、直前に使った値へも写る。undo/redoで往復する', () => {
+    const { model, history, editor } = setup([makeRect('a'), makeLine('b'), makeRect('c')], ['a', 'b']);
+    const before = dump(model);
+    assert.equal(editor.applyStyle({ strokeColor: '#ff0000', fillColor: '#00ff00', strokeWidth: 9 }), true);
+    const after = dump(model);
+    assert.deepEqual([after[0].strokeColor, after[0].fillColor, after[0].strokeWidth], ['#ff0000', '#00ff00', 9]);
+    assert.deepEqual([after[1].strokeColor, after[1].fillColor, after[1].strokeWidth], ['#ff0000', '#abcdef', 9]);
+    assert.deepEqual(after[2], before[2]);
+    assert.deepEqual(model.getNewShapeStyle(), { strokeEnabled: true, strokeColor: '#ff0000', strokeWidth: 9, fillEnabled: true, fillColor: '#00ff00' });
+    history.undo();
+    assert.deepEqual(dump(model), before);
+    history.redo();
+    assert.deepEqual(dump(model), after);
+    assert.equal(countUndo(history), 1);
+});
+
+test('applyStyle: 1項目だけ当てると、ほかの項目は図形も直前に使った値も変わらない', () => {
+    const { model, editor } = setup([makeRect('a', '#112233', 3, '#445566')], ['a']);
+    assert.equal(editor.applyStyle({ strokeWidth: 6 }), true);
+    assert.deepEqual([model.getShapes()[0].strokeColor, model.getShapes()[0].fillColor, model.getShapes()[0].strokeWidth], ['#112233', '#445566', 6]);
+    assert.deepEqual(model.getNewShapeStyle(), { strokeEnabled: true, strokeColor: '#000000', strokeWidth: 6, fillEnabled: false, fillColor: '#ffffff' });
+    assert.equal(editor.applyStyle({ fillColor: '#abcdef' }), true);
+    assert.equal(model.getShapes()[0].fillColor, '#abcdef');
+    assert.equal(model.getShapes()[0].strokeColor, '#112233');
+    assert.equal(model.getNewShapeStyle().strokeWidth, 6);
+    assert.equal(model.getNewShapeStyle().strokeColor, '#000000');
+});
+
+test('applyStyle: nullは線なし・塗りなし。直前に使った値は有無がfalseで色は保たれる', () => {
+    const { model, editor } = setup([makeRect('a', '#112233', 3, '#445566')], ['a']);
+    assert.equal(editor.applyStyle({ strokeColor: null, fillColor: null }), true);
+    assert.equal(model.getShapes()[0].strokeColor, null);
+    assert.equal(model.getShapes()[0].fillColor, null);
+    assert.deepEqual(model.getNewShapeStyle(), { strokeEnabled: false, strokeColor: '#000000', strokeWidth: 2, fillEnabled: false, fillColor: '#ffffff' });
+});
+
+test('applyStyle: 塗れない形だけの選択に塗りを当てても図形・履歴は変わらず、直前に使った値の塗りは更新される', () => {
+    const { model, history, editor } = setup([makeLine('b')], ['b']);
+    const before = dump(model);
+    assert.equal(editor.applyStyle({ fillColor: '#123456' }), true);
+    assert.deepEqual(dump(model), before);
+    assert.equal(history.canUndo(), false);
+    assert.equal(model.getNewShapeStyle().fillEnabled, true);
+    assert.equal(model.getNewShapeStyle().fillColor, '#123456');
+});
+
+test('applyStyle: 選択なしでは直前に使った値だけが変わり、図形・履歴は変わらない', () => {
+    const { model, history, editor } = setup([makeRect('a')], []);
+    const before = dump(model);
+    assert.equal(editor.applyStyle({ strokeColor: '#ff0000', strokeWidth: 4 }), true);
+    assert.deepEqual(dump(model), before);
+    assert.equal(history.canUndo(), false);
+    assert.deepEqual(model.getNewShapeStyle(), { strokeEnabled: true, strokeColor: '#ff0000', strokeWidth: 4, fillEnabled: false, fillColor: '#ffffff' });
+});
+
+test('applyStyle: 前後が同じ値なら履歴に記録されない', () => {
+    const { history, editor } = setup([makeRect('a', '#112233', 3, '#445566')], ['a']);
+    assert.equal(editor.applyStyle({ strokeColor: '#112233', fillColor: '#445566', strokeWidth: 3 }), true);
+    assert.equal(history.canUndo(), false);
+});
+
+test('applyStyle: 3項目のどれも持たない引数はfalseで、図形・履歴・直前に使った値を変えない', () => {
+    const { model, history, editor } = setup([makeRect('a')], ['a']);
+    const before = dump(model);
+    const style = model.getNewShapeStyle();
+    assert.equal(editor.applyStyle({}), false);
+    assert.equal(editor.applyStyle({ other: 1 }), false);
+    assert.deepEqual(dump(model), before);
+    assert.deepEqual(model.getNewShapeStyle(), style);
+    assert.equal(history.canUndo(), false);
+});
+
+test('applyStyle: ピッカー操作中の記録が先に確定され、履歴は2件になる。console.warnは出ない', (t) => {
+    const warn = t.mock.method(console, 'warn', () => {});
+    const { model, history, editor } = setup([makeRect('a', '#112233')], ['a']);
+    editor.previewColor('stroke', '#123456');
+    assert.equal(editor.applyStyle({ strokeColor: '#abcdef' }), true);
+    assert.equal(model.getShapes()[0].strokeColor, '#abcdef');
+    history.undo();
+    assert.equal(model.getShapes()[0].strokeColor, '#123456');
+    history.undo();
+    assert.equal(model.getShapes()[0].strokeColor, '#112233');
+    assert.equal(history.canUndo(), false);
+    assert.equal(warn.mock.calls.length, 0);
+});
+
+test('resetColors: 選択中の線が黒・塗れる形の塗りが白になり、太さは不変。直前に使った値は線あり黒・塗りあり白で1件のundoで戻る', () => {
+    const { model, history, editor } = setup([makeRect('a', '#ff0000', 7, '#00ff00'), makeLine('b', '#445566', 5, '#abcdef')], ['a', 'b']);
+    const before = dump(model);
+    assert.equal(editor.resetColors(), true);
+    const after = dump(model);
+    assert.deepEqual([after[0].strokeColor, after[0].fillColor, after[0].strokeWidth], ['#000000', '#ffffff', 7]);
+    assert.deepEqual([after[1].strokeColor, after[1].fillColor, after[1].strokeWidth], ['#000000', '#abcdef', 5]);
+    assert.deepEqual(model.getNewShapeStyle(), { strokeEnabled: true, strokeColor: '#000000', strokeWidth: 2, fillEnabled: true, fillColor: '#ffffff' });
+    history.undo();
+    assert.deepEqual(dump(model), before);
+    assert.equal(history.canUndo(), false);
+});
+
+test('resetColors: 塗れる形が無い選択でも、直前に使った値の塗りは塗りあり白になる', () => {
+    const { model, editor } = setup([makeLine('b', '#445566', 5, '#abcdef')], ['b']);
+    assert.equal(editor.resetColors(), true);
+    assert.equal(model.getShapes()[0].strokeColor, '#000000');
+    assert.equal(model.getShapes()[0].fillColor, '#abcdef');
+    assert.equal(model.getNewShapeStyle().fillEnabled, true);
+    assert.equal(model.getNewShapeStyle().fillColor, '#ffffff');
+});
+
+test('resetColors: 選択なしでは直前に使った値だけが変わり、図形・履歴は変わらない', () => {
+    const { model, history, editor } = setup([makeRect('a', '#ff0000', 7, '#00ff00')], []);
+    editor.setStrokeWidth('6');
+    const before = dump(model);
+    assert.equal(editor.resetColors(), true);
+    assert.deepEqual(dump(model), before);
+    assert.equal(history.canUndo(), false);
+    assert.deepEqual(model.getNewShapeStyle(), { strokeEnabled: true, strokeColor: '#000000', strokeWidth: 6, fillEnabled: true, fillColor: '#ffffff' });
 });

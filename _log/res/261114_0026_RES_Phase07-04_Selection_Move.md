@@ -270,7 +270,7 @@
         *   `VectorModel.js`を同じタスクにする理由：`RESET_COLORS_STYLE`と`DEFAULT_NEW_SHAPE_STYLE`が別の定義であることを両方のコメントに同時に書くため（REQ要件7）。`VectorModel.js`はJSDocのコメントの追記だけで、コードは変えない。
         *   `StylePanelRules.js`：typedef`StyleApplication`、定数`RESET_COLORS_STYLE`（凍結）、関数`sampleStyleFromShape(shape)`を「2. 要件7・8」のとおりに足す。先頭の責務定義を「…の規則と、スタイルをまとめて当てるときの値（`D`の色・手本の図形から取り込む値）の規則を担う」へ改める（3行以内）。
         *   テスト（追加）：`RESET_COLORS_STYLE`（凍結・`strokeColor: '#000000'`・`fillColor: '#ffffff'`・`strokeWidth`を持たない）、`sampleStyleFromShape`（線なし（`strokeColor: null`）・塗りなし（`fillColor: null`）・塗れない形（`Line`・開いた`Path`等）は`fillColor`のキーを持たない・塗れる形（`Rect`・円・閉じた`Path`）は持つ・太さ（小数を含む）をそのまま・色の文字列（`'red'`・`'#ABC'`・`'rgb(1,2,3)'`）をそのまま・図形を書き換えない・呼ぶたびに新しいオブジェクト）。既存のケースは変えない。
-*   [ ] タスク10: スタイルをまとめて当てる入口と`D`の入口（要件7）とテスト
+*   [x] タスク10: スタイルをまとめて当てる入口と`D`の入口（要件7）とテスト
     *   **対象ファイル** :
         *   `./js/edit/ShapeStyleEditor.js` : 更新
         *   `./test/edit/ShapeStyleEditor.test.js` : 更新（ケースの追加のみ）
@@ -435,7 +435,15 @@
 
 ### タスク10: スタイルをまとめて当てる入口と`D`の入口（要件7）とテスト
 *   **作業内容** :
-    *   （未実施）
+    *   `js/edit/ShapeStyleEditor.js`：`RESET_COLORS_STYLE`を`./StylePanelRules.js`の既存のimportへ足した。公開メソッド`applyStyle(style)`（冒頭で`#finishPreview()`、3項目のどれも自身のプロパティに持たなければ`false`、選択ありなら`COLOR_ITEMS`の`selectTargets`で線＝全図形・塗り＝塗れる形、太さ＝全図形を図形idごとにまとめた`updateShapeStyles`を`#recordEdit`の1回で反映、選択の有無によらず`updateNewShapeStyle`の1回で直前に使った値へ写す（`null`→`[enabledKey]: false`、文字列→`true`と色、太さはその値）。値の検証なし）と`resetColors()`（`applyStyle(RESET_COLORS_STYLE)`）を足した。既存メソッドは不変。
+    *   `test/edit/ShapeStyleEditor.test.js`：ケースを11件追加（`applyStyle`8・`resetColors`3。既存は不変）。3項目・1項目・`null`・塗れない形・選択なし・前後同じで記録なし・項目なしで`false`・ピッカー操作中の確定（履歴2件・`console.warn`なし）、`resetColors`（選択あり・塗れる形が無い選択・選択なし）。
+    *   JSDoc・コメントの更新（実ファイルで確認済み）：
+        *   `ShapeStyleEditor.js`先頭の責務定義（3行以内。スタイルをまとめて当てる入口（`D`・スポイト）を追記）。
+        *   `class ShapeStyleEditor`のJSDoc冒頭の説明（`applyStyle`・`resetColors`を持ち`D`・スポイトが使う旨）。
+        *   `applyStyle`のJSDoc（冒頭の確定・当てる項目の範囲・`null`の意味・値の検証をしない理由・既存メソッドを呼ばない旨・`@param`・`@returns`）、`resetColors`のJSDoc（`@returns`）。
+        *   `test/edit/ShapeStyleEditor.test.js`先頭の責務定義。
+    *   `node --test`：tests 1165・pass 1165・fail 0。
+    *   開発資料への影響：`_doc/arch/14_edit.md`・`_doc/arch/16_test.md`（件数）。計画の「開発資料の更新予定」に既出。資料本体は未変更。
 
 ### タスク11: スポイトの待ち受けの持ち主と取り込みの手順（要件8）とテスト
 *   **作業内容** :

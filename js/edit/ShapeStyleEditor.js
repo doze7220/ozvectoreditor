@@ -1,8 +1,8 @@
 /**
- * 責務: オプションバーでの変更を、選択中の図形（塗りは塗れる形だけ）と直前に使った値へ反映する編集操作と、
- * 色の欄のピッカー操作中の記録の確定、オプションバーが覚えている色の保持を担う。DOMに触れない。
+ * 責務: オプションバーでの変更とスタイルをまとめて当てる入口（`D`・スポイト）を、選択中の図形（塗りは塗れる形だけ）と直前に使った値へ
+ * 反映する編集操作と、ピッカー操作中の記録の確定、オプションバーが覚えている色の保持を担う。DOMに触れない。
  */
-import { buildStylePanelView, nextEnabledOnToggle, parseStrokeWidthInput, toColorInputValue } from './StylePanelRules.js';
+import { buildStylePanelView, nextEnabledOnToggle, parseStrokeWidthInput, RESET_COLORS_STYLE, toColorInputValue } from './StylePanelRules.js';
 
 /**
  * 色の項目（線・塗り）ごとの対応表。項目による分岐はこの表引きで行う。
@@ -32,7 +32,7 @@ const COLOR_ITEMS = Object.freeze({
  */
 
 /**
- * オプションバーでの変更を反映する編集操作のクラス。
+ * オプションバーでの変更と、スタイルをまとめて当てる入口（`applyStyle`・`resetColors`。`D`・スポイトが使う）を反映する編集操作のクラス。
  * 識別子の「Panel」（`getPanelView`・`StylePanelRules`等）は表示の部品一般を指す名前として残しており実体はオプションバー。テスト名（`test/edit/ShapeStyleEditor.test.js`）の「パネル」「パネルが覚えている色」は、オプションバー・「オプションバーが覚えている色」（`#rememberedColors`）のこと。
  * 依存の制約：importは`./StylePanelRules.js`のみ。`model`（`getShapes`・`isSelected`・`getNewShapeStyle`・`updateNewShapeStyle`・`updateShapeStyles`だけを使う）と
  * `editRecorder`（`beginEdit()`・`commitEdit()`）は注入で受け取る。知らないこと：DOM・図形種別の分岐・操作モード・`InputTracker`。
@@ -134,6 +134,69 @@ export class ShapeStyleEditor {
         }
         this.#model.updateNewShapeStyle({ strokeWidth: width });
         return true;
+    }
+
+    /**
+     * スタイル（線の色・塗りの色・線の太さ）をまとめて当てる入口（`D`・スポイトが使う）。
+     * 冒頭でピッカー操作中の記録を確定する。`style`が自身のプロパティとして持つ項目だけを当て、値の検証・変換はしない
+     * （スポイトの「そのまま写す」ため。オプションバー由来の値は既存のメソッドが検証済み）。
+     * 選択中の図形があれば、当てる項目（線の色・太さは全図形、塗りの色は塗れる形だけ）を1件の編集操作で反映する
+     * （前後が同じなら`HistoryManager`が記録しない）。選択の有無によらず、直前に使った値へ`updateNewShapeStyle`の1回で写す
+     * （色が`null`なら有無を`false`にして色は変えない、文字列なら有無を`true`にして色、太さはその値）。
+     * 既存の変更メソッドを続けて呼ばない（直前に使った値を更新するのは本クラスだけ）。
+     * @param {import('./StylePanelRules.js').StyleApplication} style - 当てる項目（持たない項目は変えない）
+     * @returns {boolean} 受理したか（3項目のどれも持たなければ`false`で何も変えない）
+     */
+    applyStyle(style) {
+        this.#finishPreview();
+        const has = (key) => Object.hasOwn(style, key);
+        const colorTargets = Object.values(COLOR_ITEMS).filter((item) => has(item.shapeKey));
+        const hasWidth = has('strokeWidth');
+        if (colorTargets.length === 0 && !hasWidth) {
+            return false;
+        }
+        const shapes = this.#selectedShapes();
+        if (shapes.length > 0) {
+            /** @type {Map<string, Object>} 図形idごとに当てる項目 */
+            const styleById = new Map();
+            for (const item of colorTargets) {
+                for (const shape of item.selectTargets(shapes)) {
+                    styleById.set(shape.id, { ...styleById.get(shape.id), [item.shapeKey]: style[item.shapeKey] });
+                }
+            }
+            if (hasWidth) {
+                for (const shape of shapes) {
+                    styleById.set(shape.id, { ...styleById.get(shape.id), strokeWidth: style.strokeWidth });
+                }
+            }
+            const changes = [...styleById].map(([id, partial]) => ({ id, style: partial }));
+            if (changes.length > 0) {
+                this.#recordEdit(() => this.#model.updateShapeStyles(changes));
+            }
+        }
+        const newShapeStyle = {};
+        for (const item of colorTargets) {
+            const color = style[item.shapeKey];
+            if (color === null) {
+                newShapeStyle[item.enabledKey] = false;
+            } else {
+                newShapeStyle[item.enabledKey] = true;
+                newShapeStyle[item.shapeKey] = color;
+            }
+        }
+        if (hasWidth) {
+            newShapeStyle.strokeWidth = style.strokeWidth;
+        }
+        this.#model.updateNewShapeStyle(newShapeStyle);
+        return true;
+    }
+
+    /**
+     * 線を黒・塗りを白にする（`D`用の入口。`main.js`が値を知らずに済むよう`RESET_COLORS_STYLE`を`applyStyle`へ渡すだけ。太さは変えない）。
+     * @returns {boolean} 受理したか（常に`true`）
+     */
+    resetColors() {
+        return this.applyStyle(RESET_COLORS_STYLE);
     }
 
     /**
