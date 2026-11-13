@@ -403,7 +403,7 @@
         *   `./test/edit/ShapeExtentReader.test.js` : 新規
     *   **作業内容** :
         *   2章「要件4」のとおり作る（JSDoc付き）。テストは2章「要件11」の観点。完了時点では誰もimportしない。
-*   [ ] タスク15: 定規の目盛りの規則（`RulerTickRules.js`）とテスト
+*   [x] タスク15: 定規の目盛りの規則（`RulerTickRules.js`）とテスト
     *   **対象ファイル** :
         *   `./js/core/RulerTickRules.js` : 新規
         *   `./test/core/RulerTickRules.test.js` : 新規
@@ -606,7 +606,9 @@
 
 ### タスク15: 定規の目盛りの規則（`RulerTickRules.js`）とテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/RulerTickRules.js`（新規）：先頭に単一責務のJSDoc、何もimportしない。typedef`RulerTick`、`computeRulerTicks(minValue, maxValue, minorSpacing, majorSpacing)`（要件2の式。`i = Math.ceil(min / minor)`から`i * minor <= max`、`value: i * minor + 0`で`-0`を正規化、`major: ((i % ratio) + ratio) % ratio === 0`、不正引数・`ratio < 1`・`min > max`は空配列）、`formatRulerLabel(value)`（`String(Math.round(value) + 0)`）。
+    *   `test/core/RulerTickRules.test.js`（新規）：`computeRulerTicks`11ケース・`formatRulerLabel`3ケース（正・負・0をまたぐ範囲、10/100・100/1000の太線区別、端ちょうど、端が途中、目盛りなし、`-100000`付近の誤差なし、小数間隔、`-0`なし、不正引数13通りで空配列、ラベルの整数化・`-0`・丸め）。補助関数`values`・`majorValues`はJSDoc付き。
+    *   `node --test`：tests 1093 / pass 1093 / fail 0。
 
 ### タスク16: 定規のレンダラー（`RulerRenderer.js`）
 *   **作業内容** :
