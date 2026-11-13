@@ -290,7 +290,7 @@
         *   `./js/palette/PaletteController.js` : 削除
     *   **作業内容** :
         *   リポジトリ内（`index.html`・`js/`・`test/`・`sprite-check.html`）に`PaletteController`の参照が残っていないことを`Grep`で確かめてから削除する（開発資料の記述は最終タスクで直す）。
-*   [ ] タスク7: `PaletteLauncher.js`のコメント・JSDocの修正
+*   [x] タスク7: `PaletteLauncher.js`のコメント・JSDocの修正
     *   **対象ファイル** :
         *   `./js/palette/PaletteLauncher.js` : 更新（コメント・JSDocのみ）
     *   **作業内容** :
@@ -365,7 +365,8 @@
 
 ### タスク7: `PaletteLauncher.js`のコメント・JSDocの修正
 *   **作業内容** :
-    *   (未着手)
+    *   `js/palette/PaletteLauncher.js`のコメントのみ更新。責務定義「コントロールパネル」→「ツールバー」、クラスJSDocの呼び出し口の説明→「ツールバー上の」、追加方法1.に「ツールバーの`.toolbar-group`に置く」を追記、「対応表に含まれないウィンドウ」の例→「ツールパレット・プロパティパネルには×が無い」。ロジック・`console.warn`の文言は未変更。テストは未実行（コメントのみ）。
+    *   開発資料の更新予定への新規追記：なし。
 
 ### タスク8: `core/`のコメント・JSDocの修正
 *   **作業内容** :
