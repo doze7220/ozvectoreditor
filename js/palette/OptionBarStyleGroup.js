@@ -20,8 +20,6 @@
 /**
  * オプションバーのスタイルのまとまりに表示する内容。`edit/StylePanelRules.js`のtypedef`StylePanelView`と同じ内容（二重定義。形を変える場合は両方を揃える）。
  * @typedef {Object} StylePanelView
- * @property {'selection' | 'newShape'} source 選択中の図形を表示しているか、次に描く図形を表示しているか
- * @property {number} selectedCount 選択中の図形の数（`newShape`では0）
  * @property {OptionBarColorView} stroke 線の表示内容
  * @property {number|null} strokeWidth 線の太さ（`null`は混在）
  * @property {OptionBarColorView} fill 塗りの表示内容

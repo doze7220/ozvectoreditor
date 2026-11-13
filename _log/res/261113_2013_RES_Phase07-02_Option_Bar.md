@@ -367,7 +367,7 @@
         *   `js/palette/PropertyShapeSection.js`・`js/palette/PropertyOrderSection.js`をファイルごと削除する（`git rm`等のリポジトリ操作はしない。ファイルの削除のみ）。
         *   完了後に`js/`・`index.html`を`id="property-`・`#property-`・`.property-`・`id="order-`・`#order-`（`order-`単独はCSSの`border-`に誤って一致するため使わない）・`PropertyShapeSection`・`PropertyOrderSection`・`window-property-panel`で検索し、残りが無いこと（コメントの残りはタスク8・9の対象のファイルのみ）を確かめて記録する。`main.js`の行数を記録する（2章「開発資料の更新予定」の`02_main.md`の行数へ追記）。
         *   完了時点：起動してこれまでの操作ができ、オプションバーから線・塗り・太さ・重なり順を変えられる（コンソールにエラー・警告が出ないことは合成イベントの範囲で確かめ、実ブラウザでの確認は5章のテストプレイ項目）。
-*   [ ] タスク7: `StylePanelView`の`source`・`selectedCount`の削除とテストの書き換え、`StylePanelRules.js`のコメント
+*   [x] タスク7: `StylePanelView`の`source`・`selectedCount`の削除とテストの書き換え、`StylePanelRules.js`のコメント
     *   **対象ファイル** :
         *   `./js/edit/StylePanelRules.js` : 更新（戻り値とtypedefから2項目を削除、コメント・JSDocの修正）
         *   `./test/edit/StylePanelRules.test.js` : 更新（2章「要件5」の2ケースの期待値から2項目を削除のみ）
@@ -463,7 +463,10 @@
 
 ### タスク7: `StylePanelView`の`source`・`selectedCount`の削除とテストの書き換え、`StylePanelRules.js`のコメント
 *   **作業内容** :
-    *   (未実施)
+    *   `js/edit/StylePanelRules.js`：`buildStylePanelView`の戻り値2か所から`source`・`selectedCount`を削除し、typedef`StylePanelView`・JSDocから2項目と`source`の言及を除いた。先頭の責務定義を最終形（3行：オプションバーのスタイルのまとまり＋切り替えの規則／状態を持たない／識別子「Panel」を残す旨）にした。`STROKE_WIDTH_MIN`／`MAX`・`StylePanelColorView`（`aria-pressed="mixed"`、`colorNote`は覆いと斜線・`title`の種類）・`StylePanelView`（`OptionBarStyleGroup.js`との二重定義）・`RememberedColors`・`resolveColorView`・`newShapeColorView`・`buildStylePanelView`のコメント・JSDocの「パネル」表現を改めた。
+    *   `js/palette/OptionBarStyleGroup.js`：二重定義のtypedef`StylePanelView`から2項目を削除のみ。
+    *   `test/edit/StylePanelRules.test.js`：2ケースの期待値から2行ずつ削除のみ。
+    *   `js/`・`test/`を`selectedCount`・`source: '`で検索し、残りなし。`node --test`：tests 997 / pass 997 / fail 0。
 
 ### タスク8: `edit/`のコメント・JSDocの修正（オプションバーの実態へ）
 *   **作業内容** :

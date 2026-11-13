@@ -104,8 +104,6 @@ describe('buildStylePanelView: 選択なし', () => {
             rememberedColors: REMEMBERED,
         });
         assert.deepEqual(view, {
-            source: 'newShape',
-            selectedCount: 0,
             stroke: { enabled: false, color: '#ff0000', colorNote: '', disabled: false },
             strokeWidth: 5,
             fill: { enabled: true, color: '#abcdef', colorNote: '', disabled: false },
@@ -117,8 +115,6 @@ describe('buildStylePanelView: 選択あり', () => {
     it('1個選択', () => {
         const view = build([rect('#FF0000', 3, '#00ff00')]);
         assert.deepEqual(view, {
-            source: 'selection',
-            selectedCount: 1,
             stroke: { enabled: true, color: '#ff0000', colorNote: '', disabled: false },
             strokeWidth: 3,
             fill: { enabled: true, color: '#00ff00', colorNote: '', disabled: false },

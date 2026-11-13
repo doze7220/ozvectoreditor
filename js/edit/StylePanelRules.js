@@ -1,12 +1,13 @@
 /**
- * 責務: プロパティパネルの「図形」の段に出す値の算出（そろっている値・混在・無効・表示する色）と、色の文字列の表示用の変換・線の太さの入力の受理・ON/OFFのボタンを押したときの次の有無の規則を担う。
+ * 責務: オプションバーのスタイルのまとまりに出す値の算出（そろっている値・混在・無効・表示する色）と、色の文字列の表示用の変換・線の太さの入力の受理・ON/OFFのボタンを押したときの次の有無の規則を担う。
  * 状態を持たずDOMに触れない。importを持たない。
+ * 識別子の「Panel」は表示の部品一般を指す名前として残す（実体はオプションバー）。
  */
 
-/** @type {number} 線の太さの下限（整数。パネルの太さの入力の受理範囲） */
+/** @type {number} 線の太さの下限（整数。オプションバーの太さの入力の受理範囲） */
 export const STROKE_WIDTH_MIN = 1;
 
-/** @type {number} 線の太さの上限（整数。パネルの太さの入力の受理範囲） */
+/** @type {number} 線の太さの上限（整数。オプションバーの太さの入力の受理範囲） */
 export const STROKE_WIDTH_MAX = 100;
 
 /** 色の文字列（16進6桁）の形 */
@@ -22,27 +23,25 @@ const HEX3_PATTERN = /^#[0-9a-fA-F]{3}$/;
 
 /**
  * 線・塗りの1項目の表示内容。
- * `enabled`の`null`は中間表示（`indeterminate`）、`color`は色の欄にそのまま入れる`#rrggbb`（小文字）、
+ * `enabled`の`null`はそろっていない（ボタンの`aria-pressed="mixed"`）、`color`は色の欄にそのまま入れる`#rrggbb`（小文字）、
  * `disabled`は欄を無効にするか（線は常に`false`。塗りは塗れる形が選択中に1つも無いとき`true`）。
  * @typedef {Object} StylePanelColorView
  * @property {boolean|null} enabled - 有無（`null`＝混在）
  * @property {string} color - 色の欄に入れる`#rrggbb`
- * @property {ColorNote} colorNote - 色の欄の横の表示
+ * @property {ColorNote} colorNote - 色の欄に重ねる表示（混在・表示できない色の覆いと斜線、`title`）の種類
  * @property {boolean} disabled - 欄を無効にするか
  */
 
 /**
- * パネルに出す内容（`palette/PropertyShapeSection.js`の同名typedefと同じ内容の二重定義。形を変えるときは両方を揃える）。
+ * オプションバーのスタイルのまとまりに出す内容（`palette/OptionBarStyleGroup.js`の同名typedefと同じ内容の二重定義。形を変えるときは両方を揃える）。
  * @typedef {Object} StylePanelView
- * @property {'selection'|'newShape'} source - 選択中の図形を表示しているか・次に描く図形を表示しているか
- * @property {number} selectedCount - 選択中の図形の数（`'newShape'`では0）
  * @property {StylePanelColorView} stroke - 線の表示
  * @property {number|null} strokeWidth - 線の太さ（`null`＝混在）
  * @property {StylePanelColorView} fill - 塗りの表示
  */
 
 /**
- * パネルが覚えている色（色の欄に最後に表示した色）。
+ * 覚えている色（色の欄に最後に表示した色）。
  * @typedef {Object} RememberedColors
  * @property {string} stroke - 線の色（`#rrggbb`）
  * @property {string} fill - 塗りの色（`#rrggbb`）
@@ -117,7 +116,7 @@ export function nextEnabledOnToggle(enabled) {
  * 図形は書き換えない。
  * @param {object[]} shapes - 対象の図形（描画順。1個以上）
  * @param {'strokeColor'|'fillColor'} key - 読む図形のプロパティ名
- * @param {string} remembered - パネルが覚えている色（`#rrggbb`）
+ * @param {string} remembered - 覚えている色（`#rrggbb`）
  * @returns {{enabled: boolean|null, color: string, colorNote: ColorNote}} 決めた内容
  */
 function resolveColorView(shapes, key, remembered) {
@@ -142,10 +141,10 @@ function resolveColorView(shapes, key, remembered) {
 }
 
 /**
- * 直前に使った値の1項目（有無と色）を、そのままパネルの表示内容にする。
+ * 直前に使った値の1項目（有無と色）を、そのまま表示内容にする。
  * @param {boolean} enabled - 有無
  * @param {string} color - 色の文字列
- * @param {string} remembered - 変換できないときに表示する、パネルが覚えている色
+ * @param {string} remembered - 変換できないときに表示する、覚えている色
  * @returns {StylePanelColorView} 表示内容
  */
 function newShapeColorView(enabled, color, remembered) {
@@ -153,22 +152,20 @@ function newShapeColorView(enabled, color, remembered) {
 }
 
 /**
- * パネルに出す内容を求める（DOMに触れない純粋な関数。引数を書き換えない）。
- * 図形を1個以上選んでいるとき（`source: 'selection'`）は選択中の図形から、選んでいないとき（`'newShape'`）は直前に使った値から決める。
+ * オプションバーのスタイルのまとまりに出す内容を求める（DOMに触れない純粋な関数。引数を書き換えない）。
+ * 図形を1個以上選んでいるときは選択中の図形から、選んでいないときは直前に使った値から決める。
  * 太さは線の有無にかかわらず全図形の`strokeWidth`が`===`でそろえばその値、違えば`null`。
  * 塗りは`isFillable()`が真の図形だけで決め、1つも無ければ無効（`disabled: true`・`enabled: false`・`color: rememberedColors.fill`）。
  * 読むのは図形の共通プロパティ`strokeColor`・`strokeWidth`・`fillColor`と`isFillable()`だけ。
  * @param {Object} params - 引数
  * @param {object[]} params.selectedShapes - 選択中の図形（描画順＝重なり順で最も手前が最後）
  * @param {PanelNewShapeStyle} params.newShapeStyle - 直前に使った値
- * @param {RememberedColors} params.rememberedColors - パネルが覚えている色
- * @returns {StylePanelView} パネルに出す内容
+ * @param {RememberedColors} params.rememberedColors - 覚えている色
+ * @returns {StylePanelView} オプションバーのスタイルのまとまりに出す内容
  */
 export function buildStylePanelView({ selectedShapes, newShapeStyle, rememberedColors }) {
     if (selectedShapes.length === 0) {
         return {
-            source: 'newShape',
-            selectedCount: 0,
             stroke: newShapeColorView(newShapeStyle.strokeEnabled, newShapeStyle.strokeColor, rememberedColors.stroke),
             strokeWidth: newShapeStyle.strokeWidth,
             fill: newShapeColorView(newShapeStyle.fillEnabled, newShapeStyle.fillColor, rememberedColors.fill),
@@ -181,8 +178,6 @@ export function buildStylePanelView({ selectedShapes, newShapeStyle, rememberedC
         ? { enabled: false, color: rememberedColors.fill, colorNote: '', disabled: true }
         : { ...resolveColorView(fillableShapes, 'fillColor', rememberedColors.fill), disabled: false };
     return {
-        source: 'selection',
-        selectedCount: selectedShapes.length,
         stroke: { ...resolveColorView(selectedShapes, 'strokeColor', rememberedColors.stroke), disabled: false },
         strokeWidth,
         fill,
