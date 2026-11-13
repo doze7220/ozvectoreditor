@@ -62,7 +62,7 @@
 *   **定規の描画（`core/RulerRenderer.js`）**：`CanvasManager`と同じ「引数だけから毎回描く、状態を持たないレンダラー」。保持するのは2つの`<canvas>`要素・2Dコンテキスト・dprのみ。`ViewTransform`・`DisplayState`・`VectorModel`をimportしない（importは`GridSpacingRules`・`RulerTickRules`のみ）。
     *   `constructor(horizontalCanvas, verticalCanvas)`：どちらかが無ければ`console.warn`（例：`RulerRenderer: 定規の要素が見つかりません。描画しません。`）し、以後`resize`・`render`は何もしない。あれば最後に`resize()`を呼ぶ。
     *   `resize()`：`CanvasManager.resize()`と同じ考え方（`window.devicePixelRatio || 1`、各要素の`clientWidth`/`clientHeight` × dprへ内部バッファを同期。`render`は呼ばない）。
-    *   `render({ view = DEFAULT_VIEW, cursor = null } = {})`：`view`は`{ scale, offsetX, offsetY }`（`viewTransform.getState()`）、`cursor`はキャンバス要素左上基準のスクリーン座標`{x, y}`または`null`。2本とも全体を消してから描く（地の色はCSS。下記）。倍率が正の有限値でなければ目盛りを描かない。
+    *   `render({ view, cursor = null })`：`view`は**必須**で`{ scale, offsetX, offsetY }`（`viewTransform.getState()`）、`cursor`はキャンバス要素左上基準のスクリーン座標`{x, y}`または`null`。`DEFAULT_VIEW`は置かない（`CanvasManager`と同じ値の定数を2ファイルに持たないため）。2本とも全体を消してから描く（地の色はCSS。下記）。`view`が渡されない・倍率が正の有限値でなければ、例外を投げず目盛り・数字を描かない（2本を消すだけ。カーソル位置の印は`cursor`があれば描く）。
         *   **ワールド⇔定規の位置の写し方**：横の定規の左端・縦の定規の上端は、CSSでキャンバスの領域の左端・上端にそろえる（下記`index.html`）ため、定規の位置＝キャンバスのスクリーン座標の同じ軸の値。`CanvasManager`が描画変換の行列とその逆行列で写すのと同じく、ビュー変換値を行列`new DOMMatrix([scale, 0, 0, scale, offsetX, offsetY])`として組み、逆行列で定規の両端の位置からワールドの範囲を求め、行列で各目盛りの`value`を定規上の位置へ写す（変換式を手で書かない）。
         *   範囲の目盛りは`computeGridSpacing(view.scale)`の`minor`・`major`で`computeRulerTicks`を呼んで得る（グリッドと同じ間隔。ズームで細線10→100→1000、太線100→1000→10000と繰り上がると定規も同じに変わる）。
         *   描き方（CSSピクセルで`setTransform(dpr, 0, 0, dpr, 0, 0)`。グリッドと同じく位置を画素に丸めない＝グリッドの線と同じ位置に出る）：細線の位置はキャンバス側の辺から長さ5pxの短い目盛り、太線の位置は定規の太さいっぱい（20px）の長い目盛りと、その横に`formatRulerLabel(value)`の数字（`10px sans-serif`）。横の定規は目盛りが縦線で数字は太線の右側に横書き。縦の定規は目盛りが横線で、数字は太線の下側に`-90°`回転して描く（`save`→`translate`→`rotate(-Math.PI / 2)`→`fillText`→`restore`。定規の幅20pxに収まる）。太線の画面上の間隔は80px以上（`GRID_MIN_SCREEN_SPACING` × 10）で、`-10000`等の6文字でも約36pxのため隣の数字と重ならない。
@@ -409,11 +409,11 @@
         *   `./test/core/RulerTickRules.test.js` : 新規
     *   **作業内容** :
         *   2章「要件2」のとおり`computeRulerTicks`・`formatRulerLabel`を作る（何もimportしない。JSDoc付き）。テストは2章「要件11」の観点。
-*   [ ] タスク16: 定規のレンダラー（`RulerRenderer.js`）
+*   [x] タスク16: 定規のレンダラー（`RulerRenderer.js`）
     *   **対象ファイル** :
         *   `./js/core/RulerRenderer.js` : 新規
     *   **作業内容** :
-        *   2章「要件2」のとおり作る（先頭の責務の例：「責務：定規（横・縦の2本）の`<canvas>`への純粋な描画（目盛り・数字・カーソル位置の印）のみを担う。ビュー変換値・カーソル位置は引数で受け取り、状態は保持しない。」）。importは`GridSpacingRules`・`RulerTickRules`のみ。定数（色・フォント・長さ）はJSDoc付きでこのファイルにまとめる。`DEFAULT_VIEW`は`CanvasManager`と同じ値をこのファイルにも置く（`CanvasManager`の非公開の定数をimportしないため。JSDocに理由）。
+        *   2章「要件2」のとおり作る（先頭の責務の例：「責務：定規（横・縦の2本）の`<canvas>`への純粋な描画（目盛り・数字・カーソル位置の印）のみを担う。ビュー変換値・カーソル位置は引数で受け取り、状態は保持しない。」）。importは`GridSpacingRules`・`RulerTickRules`のみ。定数（色・フォント・長さ）はJSDoc付きでこのファイルにまとめる。`render`の`view`は必須の引数とし、`DEFAULT_VIEW`は置かない（追加仕様。`view`が無い・倍率が不正なら目盛りを描かず、JSDocの`@param`に必須と明記）。
         *   完了時点では誰もimportしない（自動テストの対象外）。
 *   [ ] タスク17: カーソル位置の追跡（`CanvasCursorTracker.js`）
     *   **対象ファイル** :
@@ -612,7 +612,10 @@
 
 ### タスク16: 定規のレンダラー（`RulerRenderer.js`）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/RulerRenderer.js`（新規）：先頭に単一責務のJSDoc。importは`GridSpacingRules`・`RulerTickRules`のみ。定数（目盛り色・数字色・フォント・印の色・細線の長さ・数字の余白）はJSDoc付きでファイル内にまとめた。`constructor`（要素が無ければ`console.warn`して以後何もしない）・`resize()`・`render({ view, cursor = null } = {})`。`view`は必須で`DEFAULT_VIEW`は置かない（追加仕様）。`view`無し・`scale`が正の有限値でないときは2本を消し、目盛りは描かず、`cursor`があれば印だけ描く。目盛りは`DOMMatrix`とその逆行列で写し、`computeGridSpacing`・`computeRulerTicks`で求めた。縦の数字は`-90°`回転で太線の下側へ描く。
+    *   誰もimportしていない（配線はタスク21）。`node --test`は未実行（自動テストの対象外）。
+    *   開発資料への影響：`_doc/arch/23_RulerRenderer.md`（タスク27）には`render`の`view`が必須で`DEFAULT_VIEW`を持たないことを書くこと（本体は未修正）。
+    *   目視確認の推奨（タスク21後）：縦の定規の数字の位置（太線の下側・幅20px内）、数字の文字位置（横は太線の右・上寄せ）、高DPIでのグリッドの線との一致。`.ruler`のCSSのサイズが`resize()`時に0だと内部バッファは1pxになる（要素が表示されてから`resize()`すること）。
 
 ### タスク17: カーソル位置の追跡（`CanvasCursorTracker.js`）
 *   **作業内容** :
