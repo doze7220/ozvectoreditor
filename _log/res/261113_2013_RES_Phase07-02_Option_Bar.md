@@ -337,7 +337,7 @@
         *   2章「要件6」のとおり、`isSpaceOperatedInputElement`の直後に非公開のモジュール関数`isToggleButtonElement`・`isSpaceYieldedElement`を足す（exportしない。JSDoc付き。`HTMLButtonElement`は関数の中でだけ参照）。
         *   `#handleSpaceKeyDown`と`handleKeyUp`の条件の`isSpaceOperatedInputElement(document.activeElement)`を`isSpaceYieldedElement(document.activeElement)`へ置き換え（2か所のみ）、両メソッドのJSDocの説明を改める。`InputTracker`クラスに他のロジックを足さない。`SPACE_OPERATED_INPUT_TYPES`のJSDocの「プロパティパネル」の行はタスク9で改める（このタスクでは触れない）。
         *   完了時点で`aria-pressed`を持つ要素は画面に無いため、動きは変わらない。
-*   [ ] タスク4: オプションバーのスタイルのまとまりのUI部品の新設（`OptionBarStyleGroup.js`）
+*   [x] タスク4: オプションバーのスタイルのまとまりのUI部品の新設（`OptionBarStyleGroup.js`）
     *   **対象ファイル** :
         *   `./js/palette/OptionBarStyleGroup.js` : 新規
     *   **作業内容** :
@@ -443,7 +443,9 @@
 
 ### タスク4: オプションバーのスタイルのまとまりのUI部品の新設（`OptionBarStyleGroup.js`）
 *   **作業内容** :
-    *   (未実施)
+    *   `js/palette/OptionBarStyleGroup.js`を新規作成（旧`PropertyShapeSection.js`は未変更・未削除）。クラス`OptionBarStyleGroup`、typedef（`OptionBarColorNote`・`OptionBarColorView`・`StylePanelView`（`source`・`selectedCount`を含む今の形）・`OptionBarStyleGroupActions`）、定数`COLOR_TITLE_TEXT`（凍結）・`STROKE_WIDTH_MIXED_PLACEHOLDER`。
+    *   コールバック6つ（`onStrokeToggle`・`onFillToggle`・`onStrokeWidthChange`・`onColorInput`・`onColorChange`・`onColorEditEnd`）の検証、7要素の解決と`console.warn`、配線（ON/OFFのボタンの`click`、太さの`change`・`blur`、色の`input`・`change`・`blur`・`keydown`）、`render(view)`（`aria-pressed`の3値と`disabled`、色の欄の`value`（違うときだけ）・`disabled`・`title`、包む要素の`data-color-note`、太さの欄）。
+    *   旧文言の「色の欄の横の表示」「中間表示」「`indeterminate`」「`.disabled`」は写していない。選択の対象の表示（`source`の表示）は扱わない。誰もimportしないため画面の動きは変わらない。`node --check`で構文確認済み（`node --test`はテスト対象外のため未実行）。
 
 ### タスク5: オプションバーの重なり順のまとまりのUI部品の新設（`OptionBarOrderGroup.js`）
 *   **作業内容** :
@@ -538,3 +540,5 @@
         40. 図形の作成（5種）・選択・移動・変形・削除（ボタン・キー）・結合（ボタン・`J`）・取り消し/やり直し（ボタン・キー）・コピー/切り取り/貼り付け/複製・キャンバスパレット（一覧・新規作成・名前の変更・削除・出力・開く・インポート）・自動保存（再読み込みで残る）・`?dev`の確認用ウィンドウ（`?dev`付きで開く、JSONへ変換・復元）が、これまでと同じに動く。
         41. ページを開いたときと各操作の後に、ブラウザのコンソールにエラー・警告が出ない（特に`OptionBarStyleGroup`・`OptionBarOrderGroup`の要素が見つからない旨の`console.warn`が出ない）。【実ブラウザ】
         42. 書き出したスプライトJS・作業データファイルの内容（版2）が変わらない（スタイルを変えた図形を出力し、開き直して同じに見える）。
+* **（タスク4の記録）色の欄の`title`の付け先**：計画書に付け先の指定が無いため、`title`は色の欄（`input[type="color"]`）にだけ設定した（包む`.option-color-frame`には`data-color-note`のみ。覆いは`pointer-events: none`で、ホバーは下の色の欄に届く）。タスク6で`index.html`の初期`title`（`線の色`・`塗りの色`）と整合することを確認すること。
+* **（タスク4の記録）`OptionBarStyleGroup.js`は`StylePanelView`の二重定義に`source`・`selectedCount`を含む**：タスク7で`StylePanelRules.js`と同時に2項目を消す約束（この時点では`render`はそれらを使わない）。
