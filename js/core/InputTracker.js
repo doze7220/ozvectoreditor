@@ -222,7 +222,8 @@ function isSpaceYieldedElement(element) {
  * 委ね、本クラスは呼ぶ場面の配線と吸い付きの表示（model.setSnapPoint/clearSnapPoint）の設定・消去のみを行う。
  * 吸い付きの規則（探索・距離・候補の選び方）・結果の組み立て・描く図形種別の判定は持たない。
  * 図形種別の分岐・図形固有のプロパティ名は持たない。
- * 当たり分類の規則（ハンドル・本体の優先順位）はPointHitRules.classifyPointHitに委ね、#classifyPointは受け渡しのみ行う。
+ * 当たり分類の規則（ハンドル・本体の優先順位）はPointHitRules.classifyPointHitに委ね、#classifyPointは受け渡しのみ行う
+ * （塗った内側を当たりに含めるかは、コンストラクタ第6引数で注入された照会に従う）。
  * メソッドは区切りコメントで「公開API（モード・図形種別）」「公開API（状態依存の操作：削除・取消・全選択・中断）」「イベントハンドラ」「左ドラッグ」「パン」「当たり分類」
  * 「座標取得」「カーソル形状」の順に整理している。
  */
@@ -276,6 +277,13 @@ export class InputTracker {
     #snapAssist;
 
     /**
+     * 塗った内側を当たりに含めないかの照会（コンストラクタ第6引数。真なら含めない。省略時は常に含める）。
+     * #classifyPointがclassifyPointHitへ渡す直前に呼ぶ。
+     * @type {() => boolean}
+     */
+    #isFillHitExcluded;
+
+    /**
      * 直線を描き始めたときに吸い付いていた端点（handleClickのIDLE・図形作成モードで照会した結果。吸い付いていなければnull）。
      * 描き終えのcommitDrawnLineへ渡す。#resetSnapState()でnullに戻す。
      * @type {Object|null}
@@ -311,12 +319,20 @@ export class InputTracker {
      *     HistoryManager）。省略時は何も記録しない（既存の呼び出しは従来どおり動作する）
      * @param {EndpointSnapAssist} [snapAssist=NO_SNAP_ASSIST] - 端点への吸い付きの照会と反映を委ねる補助（実体はmain.jsが注入する
      *     EndpointSnapper）。省略時は吸い付かない（従来どおり動作する）
+     * @param {() => boolean} [isFillHitExcluded=() => false] - 塗った内側を当たりに含めないかの照会（真なら含めない。
+     *     当たり分類のたびに呼ぶ）。省略時は常に含める（従来どおり動作する）。関数でなければ`console.warn`して既定（常に含める）を使う
      */
-    constructor(canvas, model, viewTransform, editRecorder = NO_EDIT_RECORDER, snapAssist = NO_SNAP_ASSIST) {
+    constructor(canvas, model, viewTransform, editRecorder = NO_EDIT_RECORDER, snapAssist = NO_SNAP_ASSIST, isFillHitExcluded = () => false) {
         this.canvas = canvas;
         this.model = model;
         this.#editRecorder = editRecorder;
         this.#snapAssist = snapAssist;
+        if (typeof isFillHitExcluded === 'function') {
+            this.#isFillHitExcluded = isFillHitExcluded;
+        } else {
+            console.warn('InputTracker: isFillHitExcluded が関数ではないため、塗った内側を常に当たりに含めます');
+            this.#isFillHitExcluded = () => false;
+        }
 
         /**
          * スクリーン⇔ワールド座標変換とズーム・パンを担うビュー変換（main.jsが生成・注入）。
@@ -1190,6 +1206,7 @@ export class InputTracker {
      * 図形のメソッド（hitTest・hitTestHandle・hitTestFill）を直接呼ばない。規則の要約：
      * ・ハンドル（今のまま）：選択集合の図形を対象に、図形配列の後ろ（前面）から最初に当たったハンドル。
      * ・本体：選択集合の図形の輪郭を手前優先で優先し、なければ手前から輪郭または塗った内側（選択集合の内側を優先しない）。
+     *   塗った内側を当たりに含めるかは、注入された照会（#isFillHitExcluded）の否定をそのまま渡して決める（含めないときは輪郭だけ）。
      * 許容誤差は#getWorldHitTolerance()（画面上hitTolerance pxのワールド換算値）。
      * @param {{x: number, y: number}} point 判定位置（ワールド座標）
      * @returns {PointHit} 当たり分類の結果（handle・bodyIdともnullなら空白）
@@ -1200,7 +1217,8 @@ export class InputTracker {
             (id) => this.model.isSelected(id),
             point.x,
             point.y,
-            this.#getWorldHitTolerance()
+            this.#getWorldHitTolerance(),
+            !this.#isFillHitExcluded()
         );
     }
 

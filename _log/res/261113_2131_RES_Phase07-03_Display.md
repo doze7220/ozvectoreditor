@@ -373,7 +373,7 @@
         *   `./test/core/PointHitRules.test.js` : 更新（テストの追加のみ）
     *   **作業内容** :
         *   2章「要件6」のとおり。先頭の責務定義・typedef`PointHit`の`bodyId`の説明・`findBodyHit`・`classifyPointHit`のJSDocを改める。テストは2章「要件11」の観点。既存のケースは変えない。
-*   [ ] タスク10: `InputTracker`の照会の注入と受け渡し
+*   [x] タスク10: `InputTracker`の照会の注入と受け渡し
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` : 更新（第6引数・非公開フィールド・`#classifyPoint`の受け渡しとJSDocのみ）
     *   **作業内容** :
@@ -578,7 +578,9 @@
 
 ### タスク10: `InputTracker`の照会の注入と受け渡し
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/InputTracker.js`：コンストラクタへ第6引数`isFillHitExcluded = () => false`を追加（関数でなければ`console.warn`して既定を使う）。非公開フィールド`#isFillHitExcluded`を追加。`#classifyPoint`は`classifyPointHit(…, this.#getWorldHitTolerance(), !this.#isFillHitExcluded())`と渡すだけ。コンストラクタ・`#classifyPoint`・クラスJSDocの当たり分類の1文を更新（表示の状態・アウトライン表示という言葉は書いていない）。`main.js`は第6引数を渡さないため既定で挙動は従来どおり。
+    *   `js/core/InputTracker.js`の行数：1345行（タスク10の完了時に実測。`06_InputTracker.md`へ反映）。
+    *   `node --test`：tests 1050 / pass 1050 / fail 0。
 
 ### タスク11: `ViewTransform.setView`とテスト
 *   **作業内容** :
