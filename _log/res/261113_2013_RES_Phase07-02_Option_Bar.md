@@ -397,7 +397,7 @@
         *   **同じタスクで複数ファイルを変える理由**：タスク8と同じ（コメントのみで互いの前提にならない）。
         *   2章「要件6・8」の洗い出しのとおり改める。`KeyboardShortcuts.js`は手順4の判定（`isSpaceOperatedInputElement`）・手順の順序を変えず、ON/OFFのボタンが手順4の対象外であることをJSDocに1文足す。
         *   ロジックは変えない。
-*   [ ] タスク10: 残置とJSDocの最終確認
+*   [x] タスク10: 残置とJSDocの最終確認
     *   **対象ファイル** :
         *   （原則として変更なし。見落としが見つかった場合に限り、タスク1〜9の対象ファイルの中で直す）
     *   **作業内容** :
@@ -483,7 +483,12 @@
 
 ### タスク10: 残置とJSDocの最終確認
 *   **作業内容** :
-    *   (未実施)
+    *   **追加仕様（タスク8の監査の指摘）**：`js/edit/ShapeStyleEditor.js`のクラスJSDocの注記1行（36行）を、(a) 識別子の「Panel」（`getPanelView`・`StylePanelRules`等）は表示の部品一般を指す名前として残しており実体はオプションバー、(b) テスト名（`test/edit/ShapeStyleEditor.test.js`）の「パネル」「パネルが覚えている色」はオプションバー・「オプションバーが覚えている色」（`#rememberedColors`）のこと、が読み取れる1行に書き直した。コメントのみ。ロジック・他のコメント・テストのケースは未変更。
+    *   **検索**（`js/`・`index.html`・`test/`）：`プロパティパネル`・`PropertyShapeSection`・`PropertyOrderSection`・`id="property-`・`#property-`・`id="order-`・`#order-`・`window-property-panel`・`チェックボックス`・`.property-`・`order-button-grid`・`indeterminate`・`横の表示`・`中間表示`・`selectedCount`はいずれも0件。`checkbox`は`InputTracker.js`・`KeyboardShortcuts.js`の`isSpaceOperatedInputElement`の`type`の一覧とその説明のみ（残す）。
+    *   **残してよいもの**：`test/edit/ShapeStyleEditor.test.js`のケース名に残る「パネル」2件（316行「選択中にパネルで変えたとき」・358行「パネルが覚えている色を更新する」）。理由：既存のテストのケースを変えない約束のため。意味はクラスJSDocの注記（上記(b)）に書いた。
+    *   **JSDoc等の確認**：新設・変更したファイル（`OptionBarStyleGroup.js`・`OptionBarOrderGroup.js`・`StylePanelRules.js`・`ShapeStyleEditor.js`・`InputTracker.js`ほか）のJSDoc・先頭の責務定義（3行以内）は、タスク4〜9の作業と監査で確認済みの内容から見落としは見つからなかった。
+    *   `node --test`：tests 997 / pass 997 / fail 0。
+    *   開発資料（`PROJECT_ARCHITECTURE.md`）への影響：なし（コメントのみ。タスク11の範囲は変更していない）。
 
 ### タスク11: 開発資料への反映（最終固定タスク）
 *   **作業内容** :

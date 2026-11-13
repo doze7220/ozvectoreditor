@@ -33,7 +33,7 @@ const COLOR_ITEMS = Object.freeze({
 
 /**
  * オプションバーでの変更を反映する編集操作のクラス。
- * 識別子の「Panel」（`getPanelView`・`StylePanelRules`等）と「パネルが覚えている色」は表示の部品一般を指す名前として残す（実体はオプションバー）。
+ * 識別子の「Panel」（`getPanelView`・`StylePanelRules`等）は表示の部品一般を指す名前として残しており実体はオプションバー。テスト名（`test/edit/ShapeStyleEditor.test.js`）の「パネル」「パネルが覚えている色」は、オプションバー・「オプションバーが覚えている色」（`#rememberedColors`）のこと。
  * 依存の制約：importは`./StylePanelRules.js`のみ。`model`（`getShapes`・`isSelected`・`getNewShapeStyle`・`updateNewShapeStyle`・`updateShapeStyles`だけを使う）と
  * `editRecorder`（`beginEdit()`・`commitEdit()`）は注入で受け取る。知らないこと：DOM・図形種別の分岐・操作モード・`InputTracker`。
  * 図形の共通プロパティのスタイル3つ（`strokeColor`・`strokeWidth`・`fillColor`）は読むが、書き換えは`model.updateShapeStyles`へ渡すだけ。
