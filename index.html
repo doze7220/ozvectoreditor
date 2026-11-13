@@ -5,15 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OZ Vector Editor</title>
     <style>
-        /* 画面の領域の寸法の唯一の定義箇所（ツールバー・ステータスバー・キャンバスの領域・フロートウィンドウの既定の位置の基準）。
-           定規を足すとき（Phase 07-03）に直すのは、--canvas-area-top（ツールバー＋定規の高さ）と--canvas-area-left（定規の幅）の2行だけで、
+        /* 画面の領域の寸法の唯一の定義箇所（ツールバー・ステータスバー・定規・キャンバスの領域・フロートウィンドウの既定の位置の基準）。
+           キャンバスの領域は、ツールバー・横の定規の下、縦の定規の右、ステータスバーの上（定規の太さ--ruler-sizeの分だけ狭い）。
            --canvas-area-width・--canvas-area-heightとフロートウィンドウの既定の位置の基準はそれに追従する */
         :root {
             --toolbar-height: 40px;          /* ツールバーの高さ（1行固定） */
             --statusbar-height: 28px;        /* ステータスバーの高さ（1行固定） */
-            /* キャンバスの領域（07-03で定規を足すときに直すのは--canvas-area-topと--canvas-area-leftの2行。幅・高さはそれに追従する） */
-            --canvas-area-top: var(--toolbar-height);
-            --canvas-area-left: 0px;
+            --ruler-size: 20px;              /* 定規の太さ（横の定規の高さ・縦の定規の幅。唯一の定義箇所） */
+            /* ツールバー・ステータスバー・定規・定規の角の地の色（1か所で共有する） */
+            --frame-background-color: #f0f0f0;
+            /* キャンバスの領域（上端＝ツールバー＋横の定規、左端＝縦の定規の幅。幅・高さはそれに追従する） */
+            --canvas-area-top: calc(var(--toolbar-height) + var(--ruler-size));
+            --canvas-area-left: var(--ruler-size);
             --canvas-area-width: calc(100vw - var(--canvas-area-left));
             --canvas-area-height: calc(100vh - var(--canvas-area-top) - var(--statusbar-height));
             /* フロートウィンドウの既定の位置の基準（キャンバスの領域の左上から余白を空ける） */
@@ -26,7 +29,7 @@
             overflow: hidden;
             background-color: #f9f9f9;
         }
-        /* キャンバスと読み込み中の覆い要素を、同じキャンバスの領域（ツールバーとステータスバーの間）に置く。
+        /* キャンバスと読み込み中の覆い要素を、同じキャンバスの領域（ツールバー・横の定規とステータスバーの間、縦の定規の右）に置く。
            <canvas>は置換要素のためleftとrightを両方指定しても伸びず、width/heightをCSSで明示する必要がある。
            キャンバスに枠線・内側の余白を付けてはならない（InputTracker.getScreenCoordinateのclientWidthとrect.widthの比がずれ、座標がずれる） */
         #editor-canvas, .canvas-loading-cover {
@@ -42,7 +45,7 @@
         }
         /* ツールバー（上端）とステータスバー（下端）の共通。画面に固定する枠（フロートウィンドウではない）で、1行固定。
            収まらない右側の項目は画面の外へ切れる（折り返し・横スクロールはしない）。
-           重なりはキャンバス（1）・覆い要素（5）より前面（8）・フロートウィンドウ（10以上）より背面のため、読み込み中も押せ、フロートウィンドウはその上へ動かせる */
+           重なりは定規と同じく、キャンバス（1）・覆い要素（5）より前面（8）・フロートウィンドウ（10以上）より背面のため、読み込み中も押せ、フロートウィンドウはその上へ動かせる */
         .toolbar, .status-bar {
             position: fixed;
             left: 0;
@@ -54,9 +57,39 @@
             overflow: hidden;
             white-space: nowrap;
             z-index: 8;
-            background-color: #f0f0f0;
+            background-color: var(--frame-background-color);
             font-family: sans-serif;
             user-select: none;
+        }
+        /* 定規（横・縦の<canvas>と左上の角の要素。画面に固定する枠で、フロートウィンドウではない）。
+           地の色はここ（<canvas>は透明に消して目盛りだけを描く）。重なりはツールバー・ステータスバーと同じ（8）で、
+           キャンバス・覆い要素より前面のため、定規の上の押下・ホイールはキャンバスへ届かない。
+           キャンバスの座標と位置がずれるため、<canvas>に枠線・内側の余白を付けてはならない */
+        .ruler {
+            position: fixed;
+            z-index: 8;
+            background-color: var(--frame-background-color);
+        }
+        /* 横の定規（ツールバーの下。左端はキャンバスの領域の左端にそろえ、縦の定規の上には重ならない） */
+        #ruler-horizontal {
+            top: var(--toolbar-height);
+            left: var(--canvas-area-left);
+            width: var(--canvas-area-width);
+            height: var(--ruler-size);
+        }
+        /* 縦の定規（横の定規の下。ステータスバーの上で終わる） */
+        #ruler-vertical {
+            top: var(--canvas-area-top);
+            left: 0;
+            width: var(--ruler-size);
+            height: var(--canvas-area-height);
+        }
+        /* 定規の角（左上。何も描かない枠） */
+        #ruler-corner {
+            top: var(--toolbar-height);
+            left: 0;
+            width: var(--ruler-size);
+            height: var(--ruler-size);
         }
         /* ツールバー（上端。高さは--toolbar-heightで固定）。項目はまとまり（.toolbar-group）ごとに足す */
         .toolbar {
@@ -165,10 +198,10 @@
             gap: 8px;
         }
         /* ツールパレット（静的に置き常に表示。×なし・見出しの文字なし。常に押せる＝半透明にしない）。
-           キャンバスの領域の左上に置く（top: --float-window-top＝ツールバーの下端40px＋余白8px＝48px、left: 余白8px）。
-           幅44px（ボタン32px＋.window-bodyの左右の余白6px×2）。1280×800での範囲はx 8〜54、y 48〜約354
+           キャンバスの領域の左上に置く（top: --float-window-top＝ツールバー40px＋定規20px＋余白8px＝68px、left: 縦の定規20px＋余白8px＝28px）。
+           幅44px（ボタン32px＋.window-bodyの左右の余白6px×2）。1280×800での範囲はx 28〜74、y 68〜約374
            （見出し約39px＋本体約265px＋枠2px）で、ステータスバーの上端772pxより上。
-           ?devの確認用ウィンドウ（left: 62px）・キャンバスパレットとは横方向で離れているため重ならない */
+           ?devの確認用ウィンドウ（left: 82px）・キャンバスパレットとは横方向で離れているため重ならない */
         #window-tool-palette {
             top: var(--float-window-top);
             left: var(--float-window-left);
@@ -251,9 +284,9 @@
             text-overflow: ellipsis;
         }
         /* キャンバスパレット（ツールバーの呼び出し口#launcher-canvasで開閉。hidden属性で初期非表示）。
-           キャンバスの領域の右上に置く（top: ツールバーの下の--float-window-top＝48px、right: 余白8px、幅240px）。
-           1280×800での範囲はx 1030〜1272、y 48〜約565（一覧の最大240pxを含む見積もり）で、ステータスバーの上端772pxより上。
-           ツールパレット（x 8〜54）・?devの確認用ウィンドウ（left: 62px・幅360px）とは、画面幅が約670px以上なら重ならない */
+           キャンバスの領域の右上に置く（top: 定規の下の--float-window-top＝68px、right: 余白8px、幅240px）。
+           1280×800での範囲はx 1030〜1272、y 68〜約585（一覧の最大240pxを含む見積もり）で、ステータスバーの上端772pxより上。
+           ツールパレット（x 28〜74）・?devの確認用ウィンドウ（left: 82px・幅360px）とは、画面幅が約700px以上なら重ならない */
         #window-canvas-palette {
             top: var(--float-window-top);
             right: var(--float-window-margin);
@@ -313,8 +346,8 @@
         }
         /* 読み込み中の覆い要素（キャンバスの領域だけを覆い、読み込み完了までキャンバスへのマウス入力を遮る。位置と大きさは上のまとめたルール）。
            表示状態で始まり（main.jsの実行前から遮るため）、main.jsのsyncLoadingCover()が読み込み完了でhidden属性を付けて非表示にする。
-           z-index: 5はキャンバス（1）より前面・ツールバー・ステータスバー（8）・フロートウィンドウ（10以上。最前面化でも下がらない）より背面のため、
-           ツールバー（オプションバーを含む）・ステータスバー・ツールパレット・キャンバスパレット・?devの確認用ウィンドウは読み込み中も操作できる */
+           z-index: 5はキャンバス（1）より前面・ツールバー・ステータスバー・定規（8）・フロートウィンドウ（10以上。最前面化でも下がらない）より背面のため、
+           ツールバー（オプションバーを含む）・ステータスバー・定規・ツールパレット・キャンバスパレット・?devの確認用ウィンドウは読み込み中も操作できる */
         .canvas-loading-cover {
             z-index: 5;
             display: flex;
@@ -372,8 +405,8 @@
            左右の余白16px＋既存3つのまとまり（32、68、68）＋区切り17px×4＋スタイル約218px＋重なり順140px＝約610px。
            幅が足りないときは右のまとまりから切れる（.toolbarのoverflow: hidden） */
         /* 開発者向け確認用ウィンドウ（?dev時のみ表示。ツールパレットの右隣に置く。
-           left: ツールパレットの左の位置に54px（ツールパレット幅44px＋枠2px＋余白8px）を足す。1280×800ではx 62〜424、y 48〜。
-           ツールパレット（x 8〜54）とは重ならない */
+           left: ツールパレットの左の位置に54px（ツールパレット幅44px＋枠2px＋余白8px）を足す。1280×800ではx 82〜444、y 68〜。
+           ツールパレット（x 28〜74）とは重ならない */
         #window-dev-panel {
             top: var(--float-window-top);
             left: calc(var(--float-window-left) + 54px);
@@ -407,6 +440,9 @@
 <body>
     <canvas id="editor-canvas"></canvas>
     <div id="canvas-loading-cover" class="canvas-loading-cover">読み込み中…</div>
+    <canvas id="ruler-horizontal" class="ruler"></canvas>
+    <canvas id="ruler-vertical" class="ruler"></canvas>
+    <div id="ruler-corner" class="ruler"></div>
     <header id="toolbar" class="toolbar">
         <div class="toolbar-group">
             <button type="button" id="launcher-canvas" class="tool-btn icon-btn" title="キャンバスパレットを開く／閉じる">📁</button>

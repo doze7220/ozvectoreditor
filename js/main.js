@@ -4,6 +4,8 @@
 
 import { VectorModel } from './core/VectorModel.js';
 import { CanvasManager } from './core/CanvasManager.js';
+import { RulerRenderer } from './core/RulerRenderer.js';
+import { CanvasCursorTracker } from './core/CanvasCursorTracker.js';
 import { InputTracker, OperationMode, WHEEL_ZOOM_STEP } from './core/InputTracker.js';
 import { KeyboardShortcuts } from './core/KeyboardShortcuts.js';
 import { WindowManager } from './core/WindowManager.js';
@@ -44,7 +46,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 2. View (描画管理)
     const canvasManager = new CanvasManager(canvas);
-    
+    // 定規（横・縦の2本。目盛り・数字・カーソル位置の印の描画のみ。描画に使う値は`renderRulers`が渡す）
+    const rulerRenderer = new RulerRenderer(document.getElementById('ruler-horizontal'), document.getElementById('ruler-vertical'));
+
     // 3. ViewTransform (ビュー変換：表示倍率・オフセットの保持とスクリーン⇔ワールド座標変換)
     const viewTransform = new ViewTransform();
 
@@ -143,12 +147,35 @@ document.addEventListener('DOMContentLoaded', () => {
     // ビュー変換（パン・ズーム・リセット）が変化したら、同一経路で再描画する
     viewTransform.onChange(renderCurrentState);
 
+    // カーソル位置の追跡（キャンバス上の最後のカーソル位置。スクリーン座標の求め方・ワールド座標への変換は既存のものを注入する）
+    const cursorTracker = new CanvasCursorTracker(canvas, {
+        getScreenPoint: (event) => inputTracker.getScreenCoordinate(event),
+        screenToWorld: (x, y) => viewTransform.screenToWorld(x, y)
+    });
+
+    /**
+     * 現在のビュー変換とカーソル位置（スクリーン座標）で、定規（目盛り・数字・カーソル位置の印）を再描画するローカル関数。
+     * viewTransform.onChange・cursorTracker.onChange・resizeハンドラから呼ぶ（キャンバスは再描画しない）。
+     */
+    function renderRulers() {
+        rulerRenderer.render({
+            view: viewTransform.getState(),
+            cursor: cursorTracker.getScreenPosition()
+        });
+    }
+    // ビュー変換（パン・ズーム・リセット）・カーソル位置が変化したら、定規を再描画する
+    viewTransform.onChange(renderRulers);
+    cursorTracker.onChange(renderRulers);
+
     // ウィンドウリサイズ時は、まずCanvasManager.resize()でdprの算出と内部バッファサイズの同期を行い
     // （resize()は描画変換を適用しない。dpr × ビュー変換の描画変換はrender()が毎フレーム設定する）、
-    // その直後に最新のModel状態・ビュー変換状態で再描画する（この呼び出し順序を厳守すること）
+    // 続いて定規の内部バッファの大きさを同期し（rulerRenderer.resize()。描画はしない）、
+    // その直後に最新のModel状態・ビュー変換状態でキャンバスと定規を再描画する（この呼び出し順序を厳守すること）
     window.addEventListener('resize', () => {
         canvasManager.resize();
+        rulerRenderer.resize();
         renderCurrentState();
+        renderRulers();
     });
 
     // 5. フロートウィンドウ統治（ドラッグ・最前面化・イベント遮断の一元管理）
@@ -178,7 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
     viewTransform.onChange(syncZoomDisplay);
 
     /**
-     * ビュー変換を初期表示（倍率1.0・ワールド原点がキャンバスの領域（キャンバス要素。ツールバー・ステータスバーを除いた領域）の中心）へ戻す。
+     * ビュー変換を初期表示（倍率1.0・ワールド原点がキャンバスの領域（キャンバス要素。ツールバー・定規・ステータスバーを除いた領域）の中心）へ戻す。
      * キャンバス要素の大きさ（CSSピクセル）を使う計算はこの関数（とzoomAtCanvasCenter）に集める。
      * フロートウィンドウに隠れる部分は考慮しない。ウィンドウの大きさ変更には追従しない（呼ばれた時点の大きさのみ使う）。
      * リセットボタン・リセットのショートカット・CanvasLibraryへ注入するresetViewの共通経路。
@@ -662,6 +689,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // 将来その通知を「値が変化した場合のみ」に最適化すると起動直後に何も描画されなくなる。
     // 初期化の最後に1回描画することで、起動時の表示（背景グリッド等）を通知の有無から独立させる。
     renderCurrentState();
+
+    // 定規も同様に、onChange通知（ビュー変換・カーソル位置）やリサイズに依存させず、起動時に1回描く
+    // （カーソル位置は未取得のため印は出ない）
+    renderRulers();
 
     // 倍率表示の初期化も同様に、index.htmlの初期文字列（"100%"）やonChange通知に依存させず、
     // ViewTransformの実値で明示的に1回同期する

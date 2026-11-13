@@ -437,7 +437,7 @@
     *   **作業内容** :
         *   2章「要件7」のとおり第2引数`options`を足し、呼び出し口の`click`の規則を改める（`#bind`へ照会と通知を渡す。`#setOpen`・`×`・対応表の形は変えない）。先頭の責務定義・クラスJSDoc（2章「要件10」）・コンストラクタのJSDocを改める。
         *   完了時点では`main.js`が第2引数を渡さないため、既定（常に表示中）で今と同じ。
-*   [ ] タスク21: 定規とキャンバスの領域（`index.html`・`main.js`）
+*   [x] タスク21: 定規とキャンバスの領域（`index.html`・`main.js`）
     *   **対象ファイル** :
         *   `./index.html` : 更新（`:root`・定規の要素とCSS・枠の地の色の変数・CSSコメント）
         *   `./js/main.js` : 更新（`RulerRenderer`・`CanvasCursorTracker`の生成、`renderRulers`と登録、`resize`の手順、コメント）
@@ -648,7 +648,10 @@
 
 ### タスク21: 定規とキャンバスの領域（`index.html`・`main.js`）
 *   **作業内容** :
-    *   （未記入）
+    *   `index.html`：`:root`へ`--ruler-size: 20px`・`--frame-background-color: #f0f0f0`を足し、`--canvas-area-top`・`--canvas-area-left`を定規の分だけ狭めた。`.toolbar, .status-bar`の背景色を変数へ。`#canvas-loading-cover`の直後に`#ruler-horizontal`・`#ruler-vertical`（`<canvas>`）・`#ruler-corner`（`<div>`）を静的に置き、`.ruler`（`position: fixed; z-index: 8`・地の色）と3つの位置のCSSを追加。`:root`先頭・`--canvas-area-*`のコメント、キャンバス・覆い要素の共通ルール、ツールバー・ステータスバー共通、覆い要素のコメント、ツールパレット（x 28〜74・y 68〜約374）・キャンバスパレット（y 68〜約585、約700px以上）・`?dev`の確認用ウィンドウ（x 82〜444・y 68〜）の数値を実態へ改めた。
+    *   `main.js`：`RulerRenderer`・`CanvasCursorTracker`をimport。`// 2.`で`rulerRenderer`を生成。`// 4.`の`inputTracker`・`renderCurrentState`の後（`resize`ハンドラの直前）に`cursorTracker`（`getScreenPoint`＝`inputTracker.getScreenCoordinate`、`screenToWorld`＝`viewTransform.screenToWorld`）と`renderRulers()`（JSDoc付き）を置き、`viewTransform.onChange(renderRulers)`・`cursorTracker.onChange(renderRulers)`を登録。`resize`は`canvasManager.resize()` → `rulerRenderer.resize()` → `renderCurrentState()` → `renderRulers()`（コメントも）。`resetViewToCenter`のJSDocの領域の記述に定規を追記。起動時に`renderRulers()`を1回（理由のコメント付き）。
+    *   `node --test`：tests 1106 / pass 1106 / fail 0。`node --check js/main.js`も通過。
+    *   開発資料への影響：計画どおり（本体は未修正。`02_main.md`・`3章`等はタスク27）。
 
 ### タスク22: ステータスバーの座標・大きさ・グリッドの表示（`index.html`・`main.js`）
 *   **作業内容** :
@@ -688,6 +691,11 @@
 *   **見積もりの前提**：ツールバー約646px・ステータスバーの名前に残る約595pxは、CSSの値と12〜16pxの文字幅の見積もり。実ブラウザの絵文字・記号の幅で数px変わり得る。
 *   **`WindowManager`のドラッグ中の`Tab`**：見出しをドラッグ中に`Tab`で隠すと、見えないままドラッグが続き（`mouseup`で終わる）、出すとドラッグした先の位置に出る。止まったままにはならない。
 *   **変更対象外のファイル**：REQの「変更しない見込み」のファイル（`VectorModel.js`・`HistoryManager.js`・`DragTracker.js`・`WindowManager.js`・`ShapeFactory.js`・`ToolRules.js`・`edit/`の既存のファイル・`io/`のその他・`shapes/`のその他・`palette/`のその他・`js/check/`・`sprite-check.html`・その他の`test/`）は変更しない。
+
+**実装時の注記（タスク21）**
+*   `cursorTracker`・`renderRulers`は、タスク計画の「`inputTracker`の生成の直後」ではなく`renderCurrentState`の定義の後（`resize`ハンドラの直前）に置いた（`renderRulers`の登録を`resize`の登録と並べるため。順序の影響なし）。
+*   `renderCurrentState`のJSDoc（「3経路」）は`displayState`が未導入のため触れていない（タスク23）。
+*   目視確認の推奨：定規の数字の位置・グリッドとの一致（タスク16の注記）、定規がフロートウィンドウより奥・キャンバスより手前であること、既定のウィンドウ位置（68px・28px）。
 
 **テストプレイの確認項目（操作手順 → 期待する結果）**。【実ブラウザ】は実装AIの合成イベントでは確かめられない項目。
 1.  **定規の表示と追従**：起動する → ツールバーの下に横の定規、左端に縦の定規が出て、左上の角は何も描かれない。100%で太線（100px間隔）の位置に`-200`・`-100`・`0`・`100`…の数字、細線（10px間隔）の位置に短い目盛りが出る。パン（`Space`+ドラッグ・中ボタン・✋）・ホイールのズームで数字が追従する。
