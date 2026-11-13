@@ -379,7 +379,7 @@
     *   **作業内容** :
         *   2章「要件6」のとおり。他のロジック・状態を足さない。JSDocに表示の状態・アウトライン表示という言葉を書かない（「塗った内側を当たりに含めないかの照会」）。クラスJSDocの当たり分類の1文、コンストラクタのJSDoc、`#classifyPoint`のJSDocを改める。
         *   完了時点では`main.js`が第6引数を渡さないため、既定（常に含める）で今と同じ。行数を記録する（2章「開発資料の更新予定」の`06_InputTracker.md`へ追記）。
-*   [ ] タスク11: `ViewTransform.setView`とテスト
+*   [x] タスク11: `ViewTransform.setView`とテスト
     *   **対象ファイル** :
         *   `./js/core/ViewTransform.js` : 更新（`setView`の追加と先頭の責務定義のみ）
         *   `./test/core/ViewTransform.setView.test.js` : 新規
@@ -584,7 +584,8 @@
 
 ### タスク11: `ViewTransform.setView`とテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `ViewTransform.js`：`reset`の直後に`setView(scale, offsetX, offsetY)`を追加（JSDoc付き。不正値は`console.warn`して何もしない、倍率を`MIN_SCALE`〜`MAX_SCALE`に収める、収めた後が今と同じなら通知なし、変われば3つを設定して通知1回。変換式なし）。先頭の責務定義に「表示倍率とオフセットの一括設定」を追記。
+    *   `test/core/ViewTransform.setView.test.js`を新設（6ケース：設定と通知1回、上限・下限、不正値8通りでwarn回数・不変・通知なし（`t.mock.method`使用）、同じ値、収めた結果が同じ、オフセットのみ変化）。`node --test`は1056件pass・fail 0。
 
 ### タスク12: 全体を画面に収める計算（`ViewFitRules.js`）とテスト
 *   **作業内容** :

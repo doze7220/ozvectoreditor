@@ -1,6 +1,6 @@
 /**
  * 責務：キャンバスのビュー変換状態（表示倍率・オフセット）の保持と、
- * スクリーン座標⇔ワールド座標の相互変換・ズーム・パン・リセット・変更通知を担う。
+ * スクリーン座標⇔ワールド座標の相互変換・ズーム・パン・リセット・表示倍率とオフセットの一括設定・変更通知を担う。
  */
 
 /**
@@ -170,6 +170,32 @@ export class ViewTransform {
         this.#scale = 1;
         this.#offsetX = originX;
         this.#offsetY = originY;
+        this.#notifyChange();
+    }
+
+    /**
+     * 表示倍率とオフセットを一括で設定する（設定だけ。変換式は持たない）。
+     * 倍率は MIN_SCALE〜MAX_SCALE に収める。収めた後の値が今と同じなら何もせず、通知もしない。
+     * `scale`が正の有限の数でない、または`offsetX`・`offsetY`が有限の数でなければ`console.warn`して何もしない。
+     * @param {number} scale 表示倍率（正の有限数。無次元。1 = 100%）
+     * @param {number} offsetX X方向のオフセット（スクリーン座標のCSSピクセル。有限の数）
+     * @param {number} offsetY Y方向のオフセット（スクリーン座標のCSSピクセル。有限の数）
+     */
+    setView(scale, offsetX, offsetY) {
+        if (!Number.isFinite(scale) || scale <= 0 || !Number.isFinite(offsetX) || !Number.isFinite(offsetY)) {
+            console.warn(`ViewTransform.setView: 不正な値が指定されました: scale=${scale}, offsetX=${offsetX}, offsetY=${offsetY}`);
+            return;
+        }
+        const newScale = Math.min(
+            Math.max(scale, ViewTransform.MIN_SCALE),
+            ViewTransform.MAX_SCALE
+        );
+        if (newScale === this.#scale && offsetX === this.#offsetX && offsetY === this.#offsetY) {
+            return;
+        }
+        this.#scale = newScale;
+        this.#offsetX = offsetX;
+        this.#offsetY = offsetY;
         this.#notifyChange();
     }
 
