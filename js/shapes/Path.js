@@ -55,8 +55,8 @@ function isPlainObject(value) {
  * パスの図形クラス（図形種別`'path'`）。頂点の並び`points`（開いたパス2点以上・閉じたパス3点以上）、
  * 閉じているかを表す`closed`、区間の並び`segments`を持つ。`segments[i]`は`points[i]`→`points[i+1]`の区間で、
  * 閉じたパスの最後の要素は`points[n-1]`→`points[0]`の区間（要素数は開いたパス`n - 1`、閉じたパス`n`）。区間の要素は`{ kind }`で、`kind`は現在`'line'`のみ。
- * 共通メソッド契約（15メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（16メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline）を自律実装する。座標はすべてワールド座標。
  * パスは`ShapeFactory.create`では作られない（読み込み専用。作る操作はPhase 05-03・05-04）。
  */
 export class Path {
@@ -100,7 +100,7 @@ export class Path {
     }
 
     /**
-     * パスの輪郭をCanvasのパスとして組み立てる（`draw`と`drawHover`が共有）。
+     * パスの輪郭をCanvasのパスとして組み立てる（`draw`・`drawHover`・`drawOutline`が共有）。
      * `beginPath` → `moveTo(points[0])` → `lineTo(points[1]…points[n-1])` → `closed`なら`closePath`。
      * 区間の種類（`segments[i].kind`）による分岐の置き場所はここ。本作業の区間はすべて直線のため分岐しない。
      * 曲線の区間を足すときは、ここで`kind`により`lineTo`と曲線の命令を分ける。閉じる区間が曲線の場合は`closePath`だけでは描けないことに注意する。
@@ -194,6 +194,22 @@ export class Path {
 
         ctx.strokeStyle = 'rgba(74, 144, 226, 0.4)';
         ctx.lineWidth = this.strokeWidth + 6 / viewScale;
+        ctx.stroke();
+    }
+
+    /**
+     * アウトライン表示用に、`draw`と同じパスを細い1色の線だけで描画する（共通メソッド契約の第16メソッド）。
+     * `fill`を呼ばず、`strokeColor`・`strokeWidth`・`fillColor`を読まない（線なし・塗りなしの図形でも輪郭を描く）。
+     * 順序は パス（閉じたパスは`closePath`を含む） → `strokeStyle` → `lineWidth` → `stroke()`。
+     * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
+     * @param {number} [viewScale=1] - 現在の表示倍率。線の太さを画面上で1pxに保つために用いる（`lineWidth = 1 / viewScale`）
+     * @param {string} color - 輪郭の線の色
+     */
+    drawOutline(ctx, viewScale = 1, color) {
+        this.#tracePath(ctx);
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1 / viewScale;
         ctx.stroke();
     }
 

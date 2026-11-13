@@ -940,3 +940,59 @@ describe('Path の描画命令', () => {
         ]);
     });
 });
+
+describe('Path.drawOutline の描画命令', () => {
+    it('開いたパス: パス → strokeStyle(color) → lineWidth(1 / viewScale) → stroke で、closePathとfillを呼ばない', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Path(makePoints(), false, '#112233', 4, '#ff0000').drawOutline(ctx, 2, '#abcdef');
+        assert.deepEqual(log, [
+            ['beginPath'],
+            ['moveTo', 0, 0],
+            ['lineTo', 100, 0],
+            ['lineTo', 100, 100],
+            ['lineTo', 0, 100],
+            ['set', 'strokeStyle', '#abcdef'],
+            ['set', 'lineWidth', 0.5],
+            ['stroke'],
+        ]);
+    });
+
+    it('閉じたパス: closePathが1回入り、fill・fillStyleを呼ばない', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Path(makePoints(), true, '#112233', 4, '#ff0000').drawOutline(ctx, 4, '#000000');
+        assert.deepEqual(log, [
+            ['beginPath'],
+            ['moveTo', 0, 0],
+            ['lineTo', 100, 0],
+            ['lineTo', 100, 100],
+            ['lineTo', 0, 100],
+            ['closePath'],
+            ['set', 'strokeStyle', '#000000'],
+            ['set', 'lineWidth', 0.25],
+            ['stroke'],
+        ]);
+        assert.equal(log.some(([name]) => name === 'fill'), false);
+        assert.equal(log.some(([name, key]) => name === 'set' && key === 'fillStyle'), false);
+    });
+
+    it('viewScale省略時はlineWidthが1', () => {
+        const { ctx, log } = makeRecordingCtx();
+        makePath(true).drawOutline(ctx, undefined, '#ffffff');
+        assert.deepEqual(log.slice(-3), [
+            ['set', 'strokeStyle', '#ffffff'],
+            ['set', 'lineWidth', 1],
+            ['stroke'],
+        ]);
+    });
+
+    it('線なし・塗りなし・何も描かれない図形でも同じ命令を出す（開いた・閉じたの両方）', () => {
+        for (const closed of [false, true]) {
+            const styled = makeRecordingCtx();
+            new Path(makePoints(), closed, '#112233', 4, '#ff0000').drawOutline(styled.ctx, 2, '#abcdef');
+            const plain = makeRecordingCtx();
+            new Path(makePoints(), closed, null, 4, null).drawOutline(plain.ctx, 2, '#abcdef');
+            assert.deepEqual(plain.log, styled.log);
+            assert.equal(plain.log.filter(([name]) => name === 'stroke').length, 1);
+        }
+    });
+});

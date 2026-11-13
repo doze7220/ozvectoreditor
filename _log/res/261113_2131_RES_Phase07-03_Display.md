@@ -350,7 +350,7 @@
         *   `./test/shapes/Ellipse.test.js` : 更新（テストの追加のみ）
     *   **作業内容** :
         *   タスク3と同じ形（パスは`ellipse(xc, yc, rx, ry, 0, startAngle, endAngle)`、円のみ`closePath`。弧は閉じない）。テストに円と弧の両方。
-*   [ ] タスク7: `Path`の`drawOutline`とテスト
+*   [x] タスク7: `Path`の`drawOutline`とテスト
     *   **対象ファイル** :
         *   `./js/shapes/Path.js` : 更新（`drawOutline`の追加、クラスJSDocの契約の列挙、`#tracePath`のJSDocの共有先に`drawOutline`を足すのみ）
         *   `./test/shapes/Path.test.js` : 更新（テストの追加のみ）
@@ -559,7 +559,10 @@
 
 ### タスク7: `Path`の`drawOutline`とテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `js/shapes/Path.js`：`drawHover`の直後に`drawOutline(ctx, viewScale = 1, color)`を追加（JSDoc付き。パスは`#tracePath(ctx)`、閉じたパスのみ`closePath`、`fill`・図形のスタイルを使わない、`lineWidth = 1 / viewScale`）。クラスJSDocを16メソッド契約へ。`#tracePath`のJSDocの共有先に`drawOutline`を追加。`draw`は不変。
+    *   `test/shapes/Path.test.js`：`describe('Path.drawOutline の描画命令')`を追加（4ケース。開いたパスの命令列と`1 / viewScale`・閉じたパスの`closePath`と`fill`/`fillStyle`を呼ばない・省略時1・線なし/塗りなし/何も描かれない図形でも開いた・閉じた両方で同じ命令）。既存の補助関数・ケースは不変。
+    *   `js/shapes/`を「15メソッド」で検索：残りは5クラスの`hitTestFill`のJSDoc「第15メソッド」（正しい記述）のみで、契約の列挙の「15メソッド」は残っていない。
+    *   `node --test`：tests 1044 / pass 1044 / fail 0。
 
 ### タスク8: `CanvasManager`の配色の組・背景の塗り・グリッドの表示・アウトライン表示
 *   **作業内容** :
