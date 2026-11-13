@@ -151,7 +151,7 @@
     *   **実コードで確かめた動き（`KeyboardShortcuts`の手順は変えない）**：テキスト入力扱いの欄（太さの欄`type="number"`は`TEXT_INPUT_TYPES`に含まれる、`?dev`の`textarea`）にフォーカスがある間は手順2で何もしない（従来どおりフォーカスの移動）。色の欄（`type="color"`）は手順4（`ctrl: false`かつ`isSpaceOperatedInputElement`）で何もしない（フォーカスの移動）。ボタン（`aria-pressed`の有無によらない）・何もフォーカスが無い（`body`）ときは手順4の対象外で実行される（隠す/出す。`Tab`でボタンからボタンへフォーカスを移すことはできなくなる）。`Shift`+`Tab`は`FORBIDDEN`で一致せずブラウザのフォーカスの移動。`Ctrl`+`Tab`は`ctrl`が一致せず、`Alt`+`Tab`は`#findBinding`がAlt押下で`null`。ドラッグ中は手順5で実行されず、`ctrl: false`のため`preventDefault()`もされない（ブラウザのフォーカスの移動。今と同じ）。
 *   **ツールバーのボタン🧰**：最初のまとまり（📁のあるまとまり）の📁の左に`<button type="button" id="float-windows-toggle" class="tool-btn icon-btn" title="パレットを隠す／出す (Tab)">🧰</button>`。`click`で`displayState.toggleFloatWindows()`（`Tab`と同じ操作）。
 *   **隠している間の📁（`palette/PaletteLauncher.js`の開閉の規則として持つ）**：
-    *   コンストラクタへ第2引数`options = {}`（`{ isFloatWindowsVisible, showFloatWindows }`）を足す。`isFloatWindowsVisible`（既定`() => true`）・`showFloatWindows`（既定`() => {}`）。指定されて関数でなければ`console.warn`して既定を使う。省略時は今と同じ動き。
+    *   コンストラクタへ第2引数`options = {}`（`{ isFloatWindowsVisible, showFloatWindows }`）を足す。`isFloatWindowsVisible`（既定`() => true`）・`showFloatWindows`（既定`() => {}`）。指定されて関数でなければ`console.warn`して既定を使う（`Error`にしない）。これは`palette/`のUI部品の規約（コールバックが関数でなければ`Error`）の**例外**で、省略してよい引数であり、省略時は今と同じ動きにするための既定値を持つため（`PaletteLauncher`は以前から対応表の不正も`Error`ではなく`console.warn`で扱っている）。省略時は今と同じ動き。
     *   呼び出し口のボタンの`click`：`isFloatWindowsVisible()`が偽なら`showFloatWindows()`を呼び、パレットを必ず開く（`#setOpen(button, palette, true)`。隠す前に開いていた場合も閉じない）。真なら今までどおり開閉を反転。`×`で閉じる働き・対応表の形・起動時の`.active`の合わせ方は変えない。隠している間、📁の`.active`は各パレットの開閉の状態のまま。
     *   `main.js`の注入：`new PaletteLauncher(paletteLaunchers, { isFloatWindowsVisible: () => displayState.isFloatWindowsVisible(), showFloatWindows: () => displayState.setFloatWindowsVisible(true) })`（`main.js`に判定を書かない）。
 *   **その他**：隠している間もショートカット（`V`・`H`・数字・`P`等）のツールの切り替えは働き、ツールパレットの押し込みの表示は`syncToolPalette`で内部的に同期される（`display: none`の要素の`classList`も更新される）。隠したウィンドウの中にフォーカスがあった場合は専用の制御を足さない。
@@ -291,7 +291,7 @@
 *   **`_doc/arch/06_InputTracker.md`**：第6引数`isFillHitExcluded`（照会の注入。表示の状態を知らない。`#classifyPoint`から`classifyPointHit`の`includeFill`へ渡すだけ）、当たり分類の項目の追記、行数（タスク10の完了時に実測）。
 *   **`_doc/arch/07_KeyboardShortcuts.md`**：足したエントリ（`Z`・`X`・`C`・`Tab`。修飾キーなし・`Shift`不可・リピートしない・コールバックは常に`true`）、`KeyZ`・`KeyX`・`KeyC`の`ctrl`による排他、`Tab`と入力欄（手順2・4でフォーカスの移動）・ボタン・ドラッグ中、知らないことに表示の状態。
 *   **`_doc/arch/12_shapes.md`**：「15メソッド契約」→「16メソッド契約」（`drawOutline(ctx, viewScale = 1, color)`。輪郭のパスは`draw`・`drawHover`と同じ・塗らない・図形のスタイルを読まない・画面上1px・`draw`を変えない理由）。5クラスのクラスJSDocが16メソッドを列挙していること。
-*   **`_doc/arch/13_palette.md`**：`ViewToggleGroup.js`の項目（公開`render`・注入・知らないこと・typedefの写し）、`PaletteLauncher.js`（第2引数の照会と「出す」、隠している間の📁の規則、知らないことに表示の状態の持ち主）、`ToolPalette.js`の`.disabled`の記述を実態へ（まとめて隠される対象）、冒頭のツールバー・ステータスバーの配線の分担（ステータスバーの表示の切り替えのまとまりは`palette/`、単独のボタン・文字の表示は`main.js`）。
+*   **`_doc/arch/13_palette.md`**：`ViewToggleGroup.js`の項目（公開`render`・注入・知らないこと・typedefの写し）、`PaletteLauncher.js`（第2引数の照会と「出す」、隠している間の📁の規則、知らないことに表示の状態の持ち主。第2引数は省略でき、関数でない値は`Error`ではなく`console.warn`して既定を使う＝`palette/`の規約の例外である旨と理由〔省略時は今と同じ動きにする既定値を持つ。対応表の不正も従来から`console.warn`〕を書く）、`ToolPalette.js`の`.disabled`の記述を実態へ（まとめて隠される対象）、冒頭のツールバー・ステータスバーの配線の分担（ステータスバーの表示の切り替えのまとまりは`palette/`、単独のボタン・文字の表示は`main.js`）。
 *   **`_doc/arch/14_edit.md`**：`ShapeExtentReader.js`の項目（公開`getSelectedBounds`・`getAllBounds`、`SpriteSerializer.computeShapesBounds`を使う、呼び出し元は`main.js`の`syncSelectionSizeReadout`・`fitViewToShapes`、図形・選択集合・履歴に触れない）。
 *   **`_doc/arch/15_io.md`**：`SpriteSerializer`の公開に`computeShapesBounds`（`serialize(shapes).bounds`と同じ値。外枠の求め方を二重に書かないための入口。呼び出し元は`edit/ShapeExtentReader`）。
 *   **`_doc/arch/16_test.md`**：新設の7ファイルと追加分（`PointHitRules`・`SpriteSerializer`・`shapes/`5ファイル）の検証範囲、「テストできない箇所（07-03の追加）」（要件11の対象外の列挙）、「書き換えた既存のテスト（07-03）」（無し。図形のテストの偽の`ctx`の補助関数へ記録する命令を足した場合はその旨）、件数（タスク26の実測）。
@@ -431,7 +431,7 @@
         *   `./js/palette/ViewToggleGroup.js` : 新規
     *   **作業内容** :
         *   2章「要件8」のとおり作る（`OptionBarOrderGroup.js`を下敷きにする。先頭に単一責務のJSDoc。typedef`ViewToggleView`・`ViewToggleGroupActions`。importなし）。完了時点では誰もimportしない。
-*   [ ] タスク20: 隠している間の📁の規則（`PaletteLauncher.js`）
+*   [x] タスク20: 隠している間の📁の規則（`PaletteLauncher.js`）
     *   **対象ファイル** :
         *   `./js/palette/PaletteLauncher.js` : 更新
     *   **作業内容** :
@@ -640,7 +640,11 @@
 
 ### タスク20: 隠している間の📁の規則（`PaletteLauncher.js`）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/palette/PaletteLauncher.js`：コンストラクタへ第2引数`options = {}`（typedef`PaletteLauncherOptions`：`isFloatWindowsVisible`既定`() => true`・`showFloatWindows`既定`() => {}`）を足した。指定されて関数でなければ`console.warn`して既定を使う。`#bind`へ照会と通知を渡し、`click`は照会が偽なら`showFloatWindows()`を呼んで`#setOpen(..., true)`（必ず開く）、真なら従来の反転。`#setOpen`・`×`・対応表の形・起動時の`.active`は変えていない。先頭の責務定義・クラスJSDoc（開閉の規則・他との関係）・コンストラクタのJSDocを改めた。`main.js`は第2引数を渡さないため既定で今と同じ動き。
+    *   追加仕様：第2引数が`palette/`の規約（関数でなければ`Error`）の例外である旨と理由（省略可で既定値を持つ。対応表の不正も従来から`console.warn`）を、コンストラクタのJSDoc、2章「要件7」、2章「開発資料の更新予定」の`13_palette.md`の項（タスク27で資料へ書く内容）に明記した。
+    *   `node --test`：tests 1106 / pass 1106 / fail 0。
+    *   開発資料への影響：`13_palette.md`（タスク27）へ上記の例外の旨を書くこと（本体は未修正）。
+    *   目視確認の推奨：配線後（タスク24）に、隠している間に📁を押すと出て開くこと。
 
 ### タスク21: 定規とキャンバスの領域（`index.html`・`main.js`）
 *   **作業内容** :
