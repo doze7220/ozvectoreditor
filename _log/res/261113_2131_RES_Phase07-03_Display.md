@@ -415,7 +415,7 @@
     *   **作業内容** :
         *   2章「要件2」のとおり作る（先頭の責務の例：「責務：定規（横・縦の2本）の`<canvas>`への純粋な描画（目盛り・数字・カーソル位置の印）のみを担う。ビュー変換値・カーソル位置は引数で受け取り、状態は保持しない。」）。importは`GridSpacingRules`・`RulerTickRules`のみ。定数（色・フォント・長さ）はJSDoc付きでこのファイルにまとめる。`render`の`view`は必須の引数とし、`DEFAULT_VIEW`は置かない（追加仕様。`view`が無い・倍率が不正なら目盛りを描かず、JSDocの`@param`に必須と明記）。
         *   完了時点では誰もimportしない（自動テストの対象外）。
-*   [ ] タスク17: カーソル位置の追跡（`CanvasCursorTracker.js`）
+*   [x] タスク17: カーソル位置の追跡（`CanvasCursorTracker.js`）
     *   **対象ファイル** :
         *   `./js/core/CanvasCursorTracker.js` : 新規
     *   **作業内容** :
@@ -619,7 +619,11 @@
 
 ### タスク17: カーソル位置の追跡（`CanvasCursorTracker.js`）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/CanvasCursorTracker.js`（新規）：先頭に単一責務のJSDoc、何もimportしない。`constructor(canvas, { getScreenPoint, screenToWorld })`（関数でなければ`Error`）、`getScreenPosition()`（コピーまたは`null`）、`getWorldPosition()`（呼んだ時点の`screenToWorld`の結果または`null`）、`onChange(callback)`（関数以外は無視）。`mousemove`で位置を記録（同じ位置なら通知しない）、`mouseleave`で`null`（前が`null`なら通知しない）。クラスJSDocにドラッグ中・パン中・フロートウィンドウの上・読み込み中の動きを記載。
+    *   誰もimportしていない（配線はタスク21）。
+    *   `node --test`：tests 1093 / pass 1093 / fail 0。
+    *   開発資料への影響：`_doc/arch/24_CanvasCursorTracker.md`（タスク27）は計画どおりで追加の差異なし（本体は未修正）。
+    *   目視確認の推奨（タスク21後）：ドラッグ中・パン中・フロートウィンドウ上・読み込み中の座標表示（`—`への切り替え）。
 
 ### タスク18: ステータスバーの表示の文字列の規則（`StatusReadoutRules.js`）とテスト
 *   **作業内容** :
