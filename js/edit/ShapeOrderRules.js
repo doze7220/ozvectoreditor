@@ -6,7 +6,7 @@
 /**
  * 重なり順の操作の種類。操作の値の唯一の定義。
  * 値（文字列）は、`ShapeOrderEditor.getAvailability`が返す`ShapeOrderAvailability`のキーと、
- * `PropertyOrderSection`の対応表のキーにも同じ文字列として使われる。
+ * `OptionBarOrderGroup`の対応表のキーにも同じ文字列として使われる。
  * 値を変えると表示側が黙って押せない表示になるため、変えるときは両方を揃えること。
  * @readonly
  * @enum {string}

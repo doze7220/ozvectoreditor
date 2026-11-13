@@ -377,7 +377,7 @@
         *   `buildStylePanelView`の戻り値（選択なし・選択ありの2か所）から`source`・`selectedCount`を削除し、typedef・JSDocから2項目と`source`の言及を除く。2章「要件8」の`StylePanelRules.js`のコメント・JSDocの修正を行う（`StylePanelColorView`の「中間表示（`indeterminate`）」と、`colorNote`の説明「色の欄の横の表示」→「色の欄に重ねる表示（混在・表示できない色の覆いと斜線、`title`）の種類」を含む）。先頭の責務定義は2章「要件8」の最終形（3行）にする：対象を「オプションバーのスタイルのまとまり」へ改め、タスク1で足した切り替えの規則（`nextEnabledOnToggle`＝ON/OFFのボタンを押したときの次の有無の規則）を担う内容に残し、識別子の「Panel」を残す旨を1行で明記する（3行以内）。
         *   テストは2章「要件5」の2ケースの期待値から2行ずつを削除するだけ（他のケースは変えない）。
         *   完了後に`js/`・`test/`を`selectedCount`と`source: '`（`'selection'`・`'newShape'`）で検索し、残りが無いことを記録する。
-*   [ ] タスク8: `edit/`のコメント・JSDocの修正（オプションバーの実態へ）
+*   [x] タスク8: `edit/`のコメント・JSDocの修正（オプションバーの実態へ）
     *   **対象ファイル** :
         *   `./js/edit/ShapeStyleEditor.js` : 更新（コメント・JSDocのみ）
         *   `./js/edit/ShapeOrderEditor.js` : 更新（コメント・JSDocのみ）
@@ -470,7 +470,9 @@
 
 ### タスク8: `edit/`のコメント・JSDocの修正（オプションバーの実態へ）
 *   **作業内容** :
-    *   (未実施)
+    *   `js/edit/ShapeStyleEditor.js`：先頭の責務定義・クラスJSDoc・`#rememberedColors`・`getPanelView`の「プロパティパネル」「パネル」を「オプションバー」へ改め、クラスJSDocに識別子の「Panel」と「パネルが覚えている色」を表示の部品一般の名前として残す旨を1行足した（責務定義は2行のまま）。タスク2のメソッドのJSDocは実態に合うため未変更。
+    *   `js/edit/ShapeOrderEditor.js`：9行を`palette/OptionBarOrderGroup.js`へ。`js/edit/ShapeOrderRules.js`：9行を`OptionBarOrderGroup`の対応表へ。
+    *   `test/edit/ShapeStyleEditor.test.js`：先頭の責務定義を「オプションバーでの変更の反映」へ（ケースは未変更）。コード・識別子は変えていない（`node --test`は未実行。コメントのみ）。
 
 ### タスク9: `core/`・`palette/`のコメント・JSDocの修正
 *   **作業内容** :

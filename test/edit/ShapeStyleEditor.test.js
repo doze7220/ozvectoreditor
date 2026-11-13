@@ -1,5 +1,5 @@
 /**
- * 責務: ShapeStyleEditor（プロパティパネルの変更の反映・履歴の単位・ピッカー操作中の記録・直前に使った値の更新）の振る舞いを検証する。
+ * 責務: ShapeStyleEditor（オプションバーでの変更の反映・履歴の単位・ピッカー操作中の記録・直前に使った値の更新）の振る舞いを検証する。
  * 実物のVectorModel・SnapshotAdapter・HistoryManagerと組み合わせ、表示の同期をmodel.onChangeでmain.jsと同じ呼び方にして確かめる。
  */
 import test from 'node:test';

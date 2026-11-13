@@ -6,7 +6,7 @@ import { ShapeOrderOperation, canReorderSelected, reorderSelected } from './Shap
 
 /**
  * 4つの操作それぞれについて、並びが変わるか（押せるか）。キーは`ShapeOrderOperation`の値。
- * `palette/PropertyOrderSection.js`のtypedef`ShapeOrderAvailability`と同じ内容の二重定義。形を変えるときは両方を揃えること。
+ * `palette/OptionBarOrderGroup.js`のtypedef`ShapeOrderAvailability`と同じ内容の二重定義。形を変えるときは両方を揃えること。
  * @typedef {Object} ShapeOrderAvailability
  * @property {boolean} bringToFront 最前面へ
  * @property {boolean} bringForward 前へ

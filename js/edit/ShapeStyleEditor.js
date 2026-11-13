@@ -1,6 +1,6 @@
 /**
- * 責務: プロパティパネルの変更を、選択中の図形（塗りは塗れる形だけ）と直前に使った値へ反映する編集操作と、
- * 色の欄のピッカー操作中の記録の確定、パネルが覚えている色の保持を担う。DOMに触れない。
+ * 責務: オプションバーでの変更を、選択中の図形（塗りは塗れる形だけ）と直前に使った値へ反映する編集操作と、
+ * 色の欄のピッカー操作中の記録の確定、オプションバーが覚えている色の保持を担う。DOMに触れない。
  */
 import { buildStylePanelView, nextEnabledOnToggle, parseStrokeWidthInput, toColorInputValue } from './StylePanelRules.js';
 
@@ -32,23 +32,24 @@ const COLOR_ITEMS = Object.freeze({
  */
 
 /**
- * プロパティパネルの変更を反映する編集操作のクラス。
+ * オプションバーでの変更を反映する編集操作のクラス。
+ * 識別子の「Panel」（`getPanelView`・`StylePanelRules`等）と「パネルが覚えている色」は表示の部品一般を指す名前として残す（実体はオプションバー）。
  * 依存の制約：importは`./StylePanelRules.js`のみ。`model`（`getShapes`・`isSelected`・`getNewShapeStyle`・`updateNewShapeStyle`・`updateShapeStyles`だけを使う）と
  * `editRecorder`（`beginEdit()`・`commitEdit()`）は注入で受け取る。知らないこと：DOM・図形種別の分岐・操作モード・`InputTracker`。
  * 図形の共通プロパティのスタイル3つ（`strokeColor`・`strokeWidth`・`fillColor`）は読むが、書き換えは`model.updateShapeStyles`へ渡すだけ。
  * 前提：ドラッグ中（`isDragging()`）を判定しない。判定すると太さの欄に打ち込んで`Enter`を押さずにキャンバスを押したときに入力が失われるため
- * （閾値以前・パン中は編集操作が開いていないので対は崩れない。編集操作が開いている閾値超過後の左ドラッグ中は、キャンバスの押下でパネルの部品がフォーカスを失うため通常は起こらない。`Tab`でフォーカスを移して操作した場合だけ対が崩れ得るが`console.warn`のみで停止しない）。
+ * （閾値以前・パン中は編集操作が開いていないので対は崩れない。編集操作が開いている閾値超過後の左ドラッグ中は、キャンバスの押下でオプションバーの部品がフォーカスを失うため通常は起こらない。`Tab`でフォーカスを移して操作した場合だけ対が崩れ得るが`console.warn`のみで停止しない）。
  * ピッカー操作中の記録の方式：`input`の間は編集操作を開かずに図形へ反映し、確定のときに開始時の色へ戻して
  * `beginEdit()` → 最後の色 → `commitEdit()`の1件として記録する（編集操作を開いたままにしないため、他の操作と対が崩れない）。
  * 確定の契機は`commitColor`・`finishColorPreview`、および他の変更メソッドの冒頭。反映した図形が入れ替わっていれば記録せず捨てる。
- * `getPanelView()`はパネルが覚えている色を更新するため、表示の同期とこのクラスの内部からだけ呼ぶ。
+ * `getPanelView()`はオプションバーが覚えている色を更新するため、表示の同期とこのクラスの内部からだけ呼ぶ。
  */
 export class ShapeStyleEditor {
     /** @type {object} */
     #model;
     /** @type {{beginEdit: function(): void, commitEdit: function(): boolean}} */
     #editRecorder;
-    /** @type {{stroke: string, fill: string}} パネルが覚えている色（色の欄に最後に表示した色） */
+    /** @type {{stroke: string, fill: string}} オプションバーが覚えている色（色の欄に最後に表示した色） */
     #rememberedColors;
     /** @type {ColorPreview|null} ピッカー操作中の記録 */
     #preview = null;
@@ -66,9 +67,9 @@ export class ShapeStyleEditor {
     }
 
     /**
-     * パネルに出す内容を求め、色の欄に表示する色（`stroke.color`・`fill.color`）をパネルが覚えている色にする。
+     * オプションバーに出す内容を求め、色の欄に表示する色（`stroke.color`・`fill.color`）をオプションバーが覚えている色にする。
      * 表示の同期（`model.onChange`）とこのクラスの内部からだけ呼ぶこと。直前に使った値・図形は変えない。
-     * @returns {import('./StylePanelRules.js').StylePanelView} パネルに出す内容
+     * @returns {import('./StylePanelRules.js').StylePanelView} オプションバーに出す内容
      */
     getPanelView() {
         const view = buildStylePanelView({
