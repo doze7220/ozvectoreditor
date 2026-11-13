@@ -15,8 +15,13 @@ describe('TOOL_IDS', () => {
         assert.ok(Object.isFrozen(TOOL_IDS));
     });
 
-    test('並びが select, pan, ...SHAPE_TYPES である', () => {
-        assert.deepEqual([...TOOL_IDS], ['select', 'pan', ...SHAPE_TYPES]);
+    test('並びが select, pan, eyedropper, ...SHAPE_TYPES である', () => {
+        assert.deepEqual([...TOOL_IDS], ['select', 'pan', 'eyedropper', ...SHAPE_TYPES]);
+    });
+
+    test('EYEDROPPER_TOOL_ID が TOOL_IDS の3番目に含まれる', () => {
+        assert.equal(TOOL_IDS[2], EYEDROPPER_TOOL_ID);
+        assert.ok(TOOL_IDS.includes(EYEDROPPER_TOOL_ID));
     });
 
     test('先頭2つが OperationMode.SELECT・PAN と同じ値である', () => {
@@ -58,6 +63,15 @@ describe('resolveActiveTool', () => {
         for (const mode of Object.values(OperationMode)) {
             for (const type of SHAPE_TYPES) {
                 const result = resolveActiveTool(mode, type);
+                assert.equal(TOOL_IDS.filter((id) => id === result).length, 1, `${mode}/${type}`);
+            }
+        }
+    });
+
+    test('picking が true のときの結果が TOOL_IDS にちょうど1回現れる', () => {
+        for (const mode of Object.values(OperationMode)) {
+            for (const type of SHAPE_TYPES) {
+                const result = resolveActiveTool(mode, type, true);
                 assert.equal(TOOL_IDS.filter((id) => id === result).length, 1, `${mode}/${type}`);
             }
         }

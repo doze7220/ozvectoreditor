@@ -220,8 +220,8 @@
         }
         /* ツールパレット（静的に置き常に表示。×なし・見出しの文字なし。常に押せる＝半透明にしない）。
            キャンバスの領域の左上に置く（top: --float-window-top＝ツールバー40px＋定規20px＋余白8px＝68px、left: 縦の定規20px＋余白8px＝28px）。
-           幅44px（ボタン32px＋.window-bodyの左右の余白6px×2）。1280×800での範囲はx 28〜74、y 68〜約374
-           （見出し約39px＋本体約265px＋枠2px）で、ステータスバーの上端772pxより上。
+           幅44px（ボタン32px＋.window-bodyの左右の余白6px×2）。1280×800での範囲はx 28〜74、y 68〜約410
+           （見出し約39px＋本体約301px＋枠2px）で、ステータスバーの上端772pxより上。
            ?devの確認用ウィンドウ（left: 82px）・キャンバスパレットとは横方向で離れているため重ならない */
         #window-tool-palette {
             top: var(--float-window-top);
@@ -232,7 +232,7 @@
             padding: 6px;
             gap: 0;
         }
-        /* ツールパレットのツールのまとまり（縦並び）。「選択・キャンバス移動」と「図形」の2つ */
+        /* ツールパレットのツールのまとまり（縦並び）。「選択・キャンバス移動・スポイト」と「図形」の2つ */
         .tool-palette-group {
             display: flex;
             flex-direction: column;
@@ -520,6 +520,7 @@
             <div class="tool-palette-group">
                 <button type="button" id="tool-select" class="tool-btn icon-btn active" title="選択 (V)">🖱</button>
                 <button type="button" id="tool-pan" class="tool-btn icon-btn" title="キャンバス移動 (H)">✋</button>
+                <button type="button" id="tool-eyedropper" class="tool-btn icon-btn" title="スポイト (I)">💉</button>
             </div>
             <div class="tool-palette-group">
                 <button type="button" id="tool-line" class="tool-btn icon-btn" title="直線 (1)">／</button>

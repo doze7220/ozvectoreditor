@@ -314,7 +314,7 @@
         *   2ファイルを同じタスクにする理由：タスク14と同じ。
         *   `KeyboardShortcuts`：`resetColors`のエントリ、契約、対応表のJSDoc（`KeyD`は`ctrl`の値で`D`と`Ctrl`+`D`（複製）に分かれる）。
         *   `main.js`：`resetColors: () => { shapeStyleEditor.resetColors(); return true; }`とコメント（操作モードを切り替えない・どの状態でも働く・表示は`model.onChange`）。
-*   [ ] タスク16: スポイトのボタンと待ち受けの配線
+*   [x] タスク16: スポイトのボタンと待ち受けの配線
     *   **対象ファイル** :
         *   `./js/core/ToolRules.js` : 更新
         *   `./test/core/ToolRules.test.js` : 更新（`TOOL_IDS`の並びの期待値の更新とケースの追加）
@@ -520,7 +520,20 @@
 
 ### タスク16: スポイトのボタンと待ち受けの配線
 *   **作業内容** :
-    *   （未実施）
+    *   `ToolRules.js`：`TOOL_IDS`へ`EYEDROPPER_TOOL_ID`をキャンバス移動の次に足した。`TOOL_IDS`の定義が`EYEDROPPER_TOOL_ID`を参照するため、`const`の一時的デッドゾーンを避けて`EYEDROPPER_TOOL_ID`の宣言を`TOOL_IDS`の前へ移した（コードの位置の変更のみ）。
+    *   `ToolRules.test.js`：並びの期待値を`['select', 'pan', 'eyedropper', ...SHAPE_TYPES]`へ（テスト名も）、`EYEDROPPER_TOOL_ID`が`TOOL_IDS`の3番目に含まれるケースと`picking`真の結果が`TOOL_IDS`にちょうど1回現れるケースを足した（+2件）。
+    *   `index.html`：`#tool-pan`の下に`#tool-eyedropper`（`💉`・`title="スポイト (I)"`・`aria-pressed`なし）。
+    *   `main.js`：`StyleEyedropper`・`EYEDROPPER_TOOL_ID`のimport、「// 4.」で`inputTracker`より前に`styleEyedropper`を生成、第7引数へ`isPickingShape`・`pickShape`、`startEyedropper()`（`ensureSelectMode()` → `start()`）、`toolActions`のエントリ（`TOOL_IDS`と同じ位置）、`syncToolPalette`の第3引数、`styleEyedropper.onChange(syncToolPalette)`の登録、`applyMode`の`styleEyedropper.stop()`、`cancel`を`cancelPicking(…)`へ。キー`I`は足していない（タスク17）。
+    *   JSDoc・コメントの更新（実ファイルで確認済み）：
+        *   `ToolRules.js`：`EYEDROPPER_TOOL_ID`のJSDoc（「なお`TOOL_IDS`への追加は別タスクで行う。」を削除し、`TOOL_IDS`に含まれる（キャンバス移動の次）旨と、宣言位置の理由を記述）。`TOOL_IDS`のJSDoc（並び・識別子の約束にスポイトの独自の識別子を追記）。`resolveActiveTool`の`@returns`（「`TOOL_IDS`の要素のいずれか（スポイトも含む）」）。先頭の責務定義は変更不要（タスク12で記述済み）。
+        *   `ToolRules.test.js`：先頭の責務定義は既にスポイトを含む（変更不要）。テスト名を並びに合わせて更新。
+        *   `index.html`：ツールパレットのCSSコメントの縦の範囲（`y 68〜約410`・本体約301px）、`.tool-palette-group`のコメントのまとまりの説明（「選択・キャンバス移動・スポイト」と「図形」）。
+        *   `main.js`：「// 4.」の`styleEyedropper`の生成順（`inputTracker`より前）と`shapeStyleEditor`の前方参照のコメント、第7引数の説明コメント、「// 7.」の`TOOL_IDS`の説明コメント、`syncToolPalette`のJSDoc（呼ばれる経路に`styleEyedropper.onChange`）、`onChange`登録のコメント、`applyMode`のJSDoc（待ち受けをやめる・2回呼ばれ得る）、`startEyedropper`のJSDoc（新規）、`toolActions`のJSDoc（スポイトは`startEyedropper`）、`cancel`のコメント。
+    *   起動の確認：`index.html`の`id="tool-*"`は`tool-select`・`tool-pan`・`tool-eyedropper`・`tool-line`・`tool-curve`・`tool-arc`・`tool-rect`・`tool-circle`の8つ。`TOOL_IDS`は`select,pan,eyedropper,line,curve,arc,rect,circle`（`node`で実測）で、すべてにボタンのidがあり、`toolActions`にも`select`・`pan`・`eyedropper`・`...SHAPE_TYPES`の全識別子の対応がある（`ToolPalette`の`console.warn`は出ない見込み）。
+    *   `node --test`：tests 1183・pass 1183・fail 0。
+    *   `main.js`の行数：931行 → 964行。
+    *   開発資料への影響：`_doc/arch/01_index_html.md`（ボタン・大きさ）・`02_main.md`（`styleEyedropper`の生成順・`startEyedropper`・`syncToolPalette`・`applyMode`・`cancel`・注入）・`19_ToolRules.md`（`TOOL_IDS`の並び・宣言順）・`16_test.md`（件数）。計画の「開発資料の更新予定」に既出。資料本体は未変更。
+    *   注意点：目視確認の推奨＝ボタンで待ち受け→キャンバスの図形をクリックでスタイルが取り込まれ押し込みが戻ること、`Esc`で待ち受けだけ解けること、ほかのボタンで待ち受けが解けること、起動時に`console.warn`が出ないこと。`EYEDROPPER_TOOL_ID`は`TOOL_IDS`のTDZを避けるため`TOOL_IDS`より前に宣言する必要がある。
 
 ### タスク17: スポイトのキー（`I`）
 *   **作業内容** :

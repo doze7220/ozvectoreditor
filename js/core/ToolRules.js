@@ -6,20 +6,23 @@ import { OperationMode } from './InputTracker.js';
 import { SHAPE_TYPES } from './ShapeFactory.js';
 
 /**
- * ツールの識別子の一覧（凍結した配列）。並びはツールパレットのボタンの並び。
+ * スポイトのツールの識別子。操作モードの値でも図形種別の値でもない独自の識別子（識別子の約束）。
+ * `TOOL_IDS`に含まれる（キャンバス移動の次）。ボタンのid`tool-eyedropper`は`index.html`側の約束。
+ * `TOOL_IDS`の定義が参照するため、`TOOL_IDS`より前に宣言する。
+ * @type {string}
+ */
+export const EYEDROPPER_TOOL_ID = 'eyedropper';
+
+/**
+ * ツールの識別子の一覧（凍結した配列）。並びはツールパレットのボタンの並び：
+ * 選択・キャンバス移動・スポイト・`SHAPE_TYPES`の各図形。
  * 識別子の約束：選択・キャンバス移動のツールは操作モードの値（`OperationMode.SELECT`・`OperationMode.PAN`）と同じ、
+ * スポイトは独自の識別子`EYEDROPPER_TOOL_ID`（操作モードの値でも図形種別の値でもない）、
  * 図形のツールは図形種別の値（`SHAPE_TYPES`の各要素）と同じ。
  * ボタンのid`tool-${toolId}`は`index.html`側の約束であり、本ファイルはDOMを知らない。
  * @type {ReadonlyArray<string>}
  */
-export const TOOL_IDS = Object.freeze([OperationMode.SELECT, OperationMode.PAN, ...SHAPE_TYPES]);
-
-/**
- * スポイトのツールの識別子。操作モードの値でも図形種別の値でもない独自の識別子（識別子の約束）。
- * ボタンのid`tool-eyedropper`は`index.html`側の約束。なお`TOOL_IDS`への追加は別タスクで行う。
- * @type {string}
- */
-export const EYEDROPPER_TOOL_ID = 'eyedropper';
+export const TOOL_IDS = Object.freeze([OperationMode.SELECT, OperationMode.PAN, EYEDROPPER_TOOL_ID, ...SHAPE_TYPES]);
 
 /**
  * 操作モード・図形種別・スポイトの待ち受けから、押し込みの表示にするツールの識別子を求める。
@@ -29,7 +32,7 @@ export const EYEDROPPER_TOOL_ID = 'eyedropper';
  * @param {string} mode - 操作モード（`OperationMode`の値）
  * @param {string} shapeType - 図形種別（`SHAPE_TYPES`の要素）
  * @param {boolean} [picking=false] - スポイトの待ち受け中か。`true`のときだけスポイトを優先する（省略・偽なら従来どおり）
- * @returns {string|null} ツールの識別子。未知の`mode`、または図形作成モードで`SHAPE_TYPES`外の
+ * @returns {string|null} `TOOL_IDS`の要素のいずれか（スポイトも含む）。未知の`mode`、または図形作成モードで`SHAPE_TYPES`外の
  *     `shapeType`のときは`null`（どのボタンも押し込みにしない）。`picking`が`true`のときは常に`EYEDROPPER_TOOL_ID`
  */
 export function resolveActiveTool(mode, shapeType, picking = false) {

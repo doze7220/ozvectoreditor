@@ -14,7 +14,7 @@ import { WindowManager } from './core/WindowManager.js';
 import { ViewTransform } from './core/ViewTransform.js';
 import { HistoryManager } from './core/HistoryManager.js';
 import { ToolPalette } from './palette/ToolPalette.js';
-import { TOOL_IDS, resolveActiveTool } from './core/ToolRules.js';
+import { TOOL_IDS, EYEDROPPER_TOOL_ID, resolveActiveTool } from './core/ToolRules.js';
 import { SHAPE_TYPES } from './core/ShapeFactory.js';
 import { DocumentSerializer } from './io/DocumentSerializer.js';
 import { DevPanel } from './palette/DevPanel.js';
@@ -30,6 +30,7 @@ import { CanvasFileOperations } from './edit/CanvasFileOperations.js';
 import { CanvasPalette } from './palette/CanvasPalette.js';
 import { PaletteLauncher } from './palette/PaletteLauncher.js';
 import { ShapeStyleEditor } from './edit/ShapeStyleEditor.js';
+import { StyleEyedropper } from './edit/StyleEyedropper.js';
 import { OptionBarStyleGroup } from './palette/OptionBarStyleGroup.js';
 import { ShapeOrderEditor } from './edit/ShapeOrderEditor.js';
 import { ShapeOrderOperation } from './edit/ShapeOrderRules.js';
@@ -132,13 +133,25 @@ document.addEventListener('DOMContentLoaded', () => {
         editRecorder: historyManager,
         screenLengthToWorld: (length) => viewTransform.screenLengthToWorld(length)
     });
+    // スポイトの待ち受けの状態と取り込みの手順（edit/StyleEyedropper。DOM・操作モード・InputTrackerを知らない）。
+    // 生成順の制約：InputTrackerのコンストラクタが#updateCursor() → #resolveCursor → isPickingShape()を呼ぶため、
+    // inputTrackerより前に生成する（後に宣言すると一時的デッドゾーンでReferenceError）。
+    // shapeStyleEditorは後の「// 7.7.」でconst宣言されるが、applyStyleが呼ばれるのは取り込み時（起動完了後）だけで、
+    // StyleEyedropperのコンストラクタはapplyStyleを呼ばない（既存のinputTrackerの前方参照と同じ扱い）
+    const styleEyedropper = new StyleEyedropper({
+        model,
+        applyStyle: (style) => shapeStyleEditor.applyStyle(style)
+    });
     // 編集操作の記録先（EditRecorder）としてhistoryManagerを、吸い付きの照会と反映としてendpointSnapperを注入する
     // 第6引数は、塗った内側を当たりに含めないかの照会（アウトライン表示の間は含めない）
-    // 第7引数は、Alt+ドラッグで選択中の図形を複製する補助（実体はclipboardController.duplicateInPlaceWithinEdit()）
+    // 第7引数は入力の補助：Alt+ドラッグで選択中の図形を複製する補助（実体はclipboardController.duplicateInPlaceWithinEdit()）と、
+    // スポイトの待ち受けの照会・クリックした図形の受け渡し（実体はstyleEyedropper。InputTrackerはスポイト・スタイルを知らない）
     const inputTracker = new InputTracker(canvas, model, viewTransform, historyManager, endpointSnapper, () => displayState.isOutline(), {
         // clipboardControllerは後の「// 7.5.」でconst宣言されるが、呼ばれるのはAlt+ドラッグ中（起動完了後）だけで、
         // InputTrackerのコンストラクタはduplicateSelectionを呼ばない（既存のinputTrackerの前方参照と同じ扱い）
         duplicateSelection: () => { clipboardController.duplicateInPlaceWithinEdit(); },
+        isPickingShape: () => styleEyedropper.isPicking(),
+        pickShape: (shapeId) => { styleEyedropper.pickFrom(shapeId); },
     });
 
     /**
@@ -417,16 +430,21 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('view-fit').addEventListener('click', () => fitViewToShapes());
 
     // 7. ツールパレット配線
-    // ツールの識別子一覧はToolRulesのTOOL_IDS（SHAPE_TYPESから導出）。パレットのボタンはid`tool-${toolId}`で照合される
+    // ツールの識別子一覧はToolRulesのTOOL_IDS（選択・キャンバス移動・スポイト・SHAPE_TYPES）。パレットのボタンはid`tool-${toolId}`で照合される
     const toolPalette = new ToolPalette(document.getElementById('window-tool-palette'), TOOL_IDS, (toolId) => selectTool(toolId));
 
     /**
-     * ツールパレットの押し込みの表示を、InputTrackerの現在の操作モード・図形種別に同期する。
-     * 求める規則はToolRulesのresolveActiveTool。applyMode・applyShapeTypeの中からだけ呼ぶ（専用の同期経路ではない）。
+     * ツールパレットの押し込みの表示を、InputTrackerの現在の操作モード・図形種別・スポイトの待ち受けに同期する。
+     * 求める規則はToolRulesのresolveActiveTool。呼ばれる経路は、applyMode・applyShapeTypeの中と、
+     * styleEyedropper.onChange（待ち受けの開始・終了・取り込み。applyMode・applyShapeTypeを通らないため）の2系統だけ。
      */
     function syncToolPalette() {
-        toolPalette.setActiveTool(resolveActiveTool(inputTracker.getMode(), inputTracker.getShapeType()));
+        toolPalette.setActiveTool(resolveActiveTool(inputTracker.getMode(), inputTracker.getShapeType(), styleEyedropper.isPicking()));
     }
+
+    // スポイトの待ち受けの変化（I・ボタン・Esc・applyModeでのやめる・取り込み）のたびに押し込みを同期する。
+    // 同期の経路へ足す1つの通知で、キャンバスの再描画はしない
+    styleEyedropper.onChange(syncToolPalette);
 
     /**
      * 操作モードの切り替えを一元的に行う共通関数。ツールパレットの選択・キャンバス移動のボタン
@@ -434,10 +452,13 @@ document.addEventListener('DOMContentLoaded', () => {
      * InputTrackerへのモード切り替え要求の後、切替後に`inputTracker.getMode()`・`getShapeType()`で
      * 実際の内部状態を読み返し、`resolveActiveTool`で求めたツールを押し込みにする（未知の値が渡され
      * InputTracker側で無視された場合でも、UI表示と内部状態が乖離しないようにするため）。
+     * applyModeを通ったらスポイトの待ち受けは必ずやめる（`styleEyedropper.stop()`）。待ち受け中だったときは
+     * stopの通知によるsyncToolPaletteと末尾の呼び出しの2回呼ばれ得るが、同じ結果を設定するだけで害はない。
      * @param {'select'|'create'|'pan'} mode - 切り替え先の操作モード（OperationModeの値）
      */
     function applyMode(mode) {
         inputTracker.setMode(mode);
+        styleEyedropper.stop();
         syncToolPalette();
     }
 
@@ -477,13 +498,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
+     * スポイトの待ち受けを始める（ツールパレットのスポイトのボタンの操作。キー`I`は別タスクで同じ関数を呼ぶ）。
+     * 選択モード以外なら先に選択モードへ切り替え（`ensureSelectMode`。待ち受けは切り替えの後に始まる）、
+     * 待ち受けを始める。すでに待ち受け中なら何も変わらない。判定は持たない。
+     */
+    function startEyedropper() {
+        ensureSelectMode();
+        styleEyedropper.start();
+    }
+
+    /**
      * ツールの識別子から操作への対応表。識別子は`TOOL_IDS`と同じ（同じ並び）。
-     * 選択・キャンバス移動は`applyMode`、図形は`selectShapeTool`の経路を通る。
+     * 選択・キャンバス移動は`applyMode`、スポイトは`startEyedropper`、図形は`selectShapeTool`の経路を通る。
      * @type {Object<string, function(): void>}
      */
     const toolActions = {
         [OperationMode.SELECT]: () => applyMode(OperationMode.SELECT),
         [OperationMode.PAN]: () => applyMode(OperationMode.PAN),
+        [EYEDROPPER_TOOL_ID]: () => startEyedropper(),
         ...Object.fromEntries(SHAPE_TYPES.map((type) => [type, () => selectShapeTool(type)])),
     };
 
@@ -758,8 +790,9 @@ document.addEventListener('DOMContentLoaded', () => {
             resetViewToCenter();
             return true;
         },
-        // 作成途中の図形の破棄／選択解除（何もしなかった場合はfalse）
-        cancel: () => inputTracker.cancelDraftOrClearSelection(),
+        // スポイトの待ち受け中は待ち受けだけをやめる（選択は残す。true）。待ち受けでなければ
+        // 作成途中の図形の破棄／選択解除（何もしなかった場合はfalse）。判定はstyleEyedropper.cancelPickingが持つ
+        cancel: () => styleEyedropper.cancelPicking(() => inputTracker.cancelDraftOrClearSelection()),
         // 全選択。選択モード以外では先に選択モードへ切り替える（ensureSelectMode。貼り付け・選択の反転と共通の前処理）。
         // 図形0個・非受理でもページ全選択を起こさないよう常にtrueを返す
         selectAll: () => {
