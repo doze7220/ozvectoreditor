@@ -35,6 +35,7 @@ import { OptionBarOrderGroup } from './palette/OptionBarOrderGroup.js';
 import { ShapeExtentReader } from './edit/ShapeExtentReader.js';
 import { formatCursorReadout, formatSizeReadout, formatGridReadout } from './core/StatusReadoutRules.js';
 import { computeGridSpacing } from './core/GridSpacingRules.js';
+import { computeFitView } from './core/ViewFitRules.js';
 import { DisplayState } from './core/DisplayState.js';
 import { ViewToggleGroup } from './palette/ViewToggleGroup.js';
 
@@ -318,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
     historyUndoBtn.addEventListener('click', () => performUndo());
     historyRedoBtn.addEventListener('click', () => performRedo());
 
-    // 6.5. 表示配線（ステータスバーの座標・大きさ・グリッドの表示、表示の切り替えのまとまり（アウトライン・背景・グリッド）、パレットを隠す）
+    // 6.5. 表示配線（ステータスバーの座標・大きさ・グリッドの表示、表示の切り替えのまとまり（アウトライン・背景・グリッド）、パレットを隠す、全体を画面に収める）
     // 外枠の照会（選択中の図形の大きさに使う）
     const shapeExtentReader = new ShapeExtentReader({ model });
     const cursorReadoutEl = document.getElementById('cursor-readout');
@@ -389,6 +390,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     displayState.onChange(syncFloatWindowVisibility);
+
+    /**
+     * 全図形の外枠がキャンバスの領域（キャンバス要素）に余白を空けて収まるよう、表示倍率とオフセットを設定する。
+     * 求める規則は`computeFitView`（図形0個のときは表示のリセットと同じ結果）。再描画・倍率表示・定規・座標の表示は
+     * viewTransform.onChangeが追従する。⛶（`#view-fit`）のclickからのみ呼ぶ（キーは割り当てない）。
+     */
+    function fitViewToShapes() {
+        const view = computeFitView(
+            shapeExtentReader.getAllBounds(),
+            canvas.clientWidth,
+            canvas.clientHeight,
+            { minScale: ViewTransform.MIN_SCALE, maxScale: ViewTransform.MAX_SCALE }
+        );
+        viewTransform.setView(view.scale, view.offsetX, view.offsetY);
+    }
+
+    // 全体を画面に収める（⛶。単独のボタン。🎯と同じく判定を持たない）
+    document.getElementById('view-fit').addEventListener('click', () => fitViewToShapes());
 
     // 7. ツールパレット配線
     // ツールの識別子一覧はToolRulesのTOOL_IDS（SHAPE_TYPESから導出）。パレットのボタンはid`tool-${toolId}`で照合される

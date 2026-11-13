@@ -477,7 +477,7 @@
         *   `index.html`：最初のまとまりの📁の左に🧰（2章「要件8」の表）。`body.float-windows-hidden .float-window { display: none; }`（コメント：各ウィンドウの`hidden`・位置・重なりに触れずにまとめて隠す）。CSSコメント「オプションバー（…）の幅の見積もり」の見出しを「ツールバー全体の幅の見積もり」へ改め、数値を約646pxへ（2章「要件8」）。
         *   `main.js`：`// 6.5.`に🧰の要素の取得・`click`で`displayState.toggleFloatWindows()`・`syncFloatWindowVisibility()`（JSDoc付き）と`displayState.onChange`への登録。`// 7.6.`の`new PaletteLauncher(paletteLaunchers, { isFloatWindowsVisible, showFloatWindows })`（コメント付き）。`// 8.`に`toggleFloatWindows`。起動時に`syncFloatWindowVisibility()`を1回。
         *   完了時点：`Tab`・🧰でフロートウィンドウがまとめて隠れ・出て、隠している間の📁でパレットがすべて出てキャンバスパレットが開く。
-*   [ ] タスク25: 全体を画面に収める（`index.html`・`main.js`）
+*   [x] タスク25: 全体を画面に収める（`index.html`・`main.js`）
     *   **対象ファイル** :
         *   `./index.html` : 更新（⛶のボタン）
         *   `./js/main.js` : 更新（`fitViewToShapes`と⛶の配線）
@@ -681,7 +681,12 @@
 
 ### タスク25: 全体を画面に収める（`index.html`・`main.js`）
 *   **作業内容** :
-    *   （未記入）
+    *   `index.html`：表示倍率のまとまりの`#view-zoom-display`と🎯の間に⛶（`#view-fit`、`tool-btn icon-btn`、`title`「全体を画面に収める」）。
+    *   `main.js`：`computeFitView`をimport。`// 6.5.`の見出しのコメントへ「全体を画面に収める」を書き足し（2章「要件8」の見出しと同じ内容がそろった）、`fitViewToShapes()`（JSDoc付き。`computeFitView(shapeExtentReader.getAllBounds(), canvas.clientWidth, canvas.clientHeight, { minScale, maxScale })`の結果を`viewTransform.setView`へ渡すだけ）と⛶の`click`を、🧰の`displayState.onChange(syncFloatWindowVisibility)`の直後（`// 7.`の前）に置いた。
+    *   `main.js`の行数：877行（`wc -l`）。`02_main.md`（タスク27）へ。
+    *   `node --test`：tests 1106 / pass 1106 / fail 0。`node --check js/main.js`も通過。
+    *   開発資料への影響：計画どおりで追加の差異なし（本体は未修正）。
+    *   目視確認の推奨：⛶で全図形が余白40pxで収まること、図形0個で🎯と同じ結果になること、ウィンドウのリサイズ後に押した場合。
 
 ### タスク26: コメントの整理（`ToolPalette.js`）と残置・JSDocの最終確認
 *   **作業内容** :
