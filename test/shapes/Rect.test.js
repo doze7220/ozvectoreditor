@@ -112,6 +112,51 @@ describe('Rect.draw の描画命令', () => {
     });
 });
 
+describe('Rect.drawOutline の描画命令', () => {
+    it('パスはdrawと同じ形（closePathあり）で、色・画面上1pxの線・strokeを1回だけ呼ぶ', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Rect(1, 2, 3, 4, '#ff0000', 5, '#00ff00').drawOutline(ctx, 1, '#123456');
+        assert.deepEqual(log, [
+            ['beginPath'], ['moveTo', 1, 2], ['lineTo', 3, 2], ['lineTo', 3, 4], ['lineTo', 1, 4], ['closePath'],
+            ['set:strokeStyle', '#123456'], ['set:lineWidth', 1], ['stroke'],
+        ]);
+    });
+
+    it('lineWidthは1 / viewScale（viewScale=2で0.5）、省略時は1', () => {
+        const scaled = makeRecordingCtx();
+        new Rect(0, 0, 10, 10).drawOutline(scaled.ctx, 2, '#000000');
+        assert.deepEqual(scaled.log.find(([name]) => name === 'set:lineWidth'), ['set:lineWidth', 0.5]);
+        const omitted = makeRecordingCtx();
+        new Rect(0, 0, 10, 10).drawOutline(omitted.ctx, undefined, '#000000');
+        assert.deepEqual(omitted.log.find(([name]) => name === 'set:lineWidth'), ['set:lineWidth', 1]);
+    });
+
+    it('fill・fillStyleを呼ばない', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Rect(1, 2, 3, 4, '#ff0000', 5, '#00ff00').drawOutline(ctx, 1, '#000000');
+        const names = log.map(([name]) => name);
+        assert.equal(names.includes('fill'), false);
+        assert.equal(names.includes('set:fillStyle'), false);
+        assert.equal(names.filter((name) => name === 'stroke').length, 1);
+    });
+
+    it('線なし・塗りなし・何も描かれない図形でも同じ命令列を出し、図形のスタイルを使わない', () => {
+        const expected = [
+            ['beginPath'], ['moveTo', 1, 2], ['lineTo', 3, 2], ['lineTo', 3, 4], ['lineTo', 1, 4], ['closePath'],
+            ['set:strokeStyle', '#ffffff'], ['set:lineWidth', 0.5], ['stroke'],
+        ];
+        for (const rect of [
+            new Rect(1, 2, 3, 4, null, 5, '#00ff00'),
+            new Rect(1, 2, 3, 4, '#ff0000', 9, null),
+            new Rect(1, 2, 3, 4, null, 5, null),
+        ]) {
+            const { ctx, log } = makeRecordingCtx();
+            rect.drawOutline(ctx, 2, '#ffffff');
+            assert.deepEqual(log, expected);
+        }
+    });
+});
+
 describe('Rect.hitTest', () => {
     it('4辺の上は当たる', () => {
         const r = makeRect();

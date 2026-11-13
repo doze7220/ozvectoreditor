@@ -338,7 +338,7 @@
         *   `./test/shapes/Curve.test.js` : 更新（テストの追加のみ）
     *   **作業内容** :
         *   タスク3と同じ形（パスは`moveTo(points[0])`→`quadraticCurveTo(points[1], points[2])`。閉じない）。偽の`ctx`に`quadraticCurveTo`の記録が無ければ既存の補助関数へ記録する命令を足すだけにする（既存のケースの期待値を変えない）。
-*   [ ] タスク5: `Rect`の`drawOutline`とテスト
+*   [x] タスク5: `Rect`の`drawOutline`とテスト
     *   **対象ファイル** :
         *   `./js/shapes/Rect.js` : 更新（`drawOutline`の追加、クラスJSDocの契約の列挙のみ）
         *   `./test/shapes/Rect.test.js` : 更新（テストの追加のみ）
@@ -547,7 +547,9 @@
 
 ### タスク5: `Rect`の`drawOutline`とテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `js/shapes/Rect.js`：`drawHover`の直後に`drawOutline(ctx, viewScale = 1, color)`を追加（JSDoc付き。パスは`draw`と同じ4頂点＋`closePath`、`fill`・図形のスタイルを使わない、`lineWidth = 1 / viewScale`）。クラスJSDocを16メソッド契約へ。`draw`は不変。
+    *   `test/shapes/Rect.test.js`：`describe('Rect.drawOutline の描画命令')`を追加（4ケース。Lineと同じ観点。`closePath`を含む命令列）。偽の`ctx`は既に`closePath`・`lineTo`を記録するため補助関数は不変。既存ケースも不変。
+    *   `node --test`：tests 1035 / pass 1035 / fail 0。
 
 ### タスク6: `Ellipse`の`drawOutline`とテスト
 *   **作業内容** :
