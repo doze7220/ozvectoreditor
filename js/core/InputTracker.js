@@ -33,7 +33,7 @@ export const InputState = {
  */
 
 /**
- * 操作モード。コントロールパネルの各ボタンはこの値に1対1で対応する。
+ * 操作モード。ツールパレットの「選択」「キャンバス移動」のボタンはSELECT・PANに、図形のボタンはCREATE（と図形種別）に対応する（対応の規則は`ToolRules.js`）。
  * SELECT: 選択モード（ホバー判定・選択・範囲選択・本体ドラッグ・ハンドルドラッグ・一括削除）。
  * CREATE: 図形作成モード（currentShapeTypeの図形を新規作成）。
  * PAN: キャンバス移動モード（左ドラッグでパン）。
@@ -321,7 +321,7 @@ export class InputTracker {
         /**
          * 図形作成モードで作成する図形種別（SHAPE_TYPESのいずれか）。setShapeType()経由でのみ更新する。
          * 操作モードの切り替えではリセットされないため、図形作成モードへ戻った際は前回の種別へ復帰する。
-         * 初期値はSHAPE_TYPESの先頭要素（図形パレットの先頭ボタン）。
+         * 初期値はSHAPE_TYPESの先頭要素（ツールパレットの最初の図形のボタン）。
          * @type {string}
          */
         this.currentShapeType = SHAPE_TYPES[0];

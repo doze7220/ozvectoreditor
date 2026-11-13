@@ -14,16 +14,16 @@ import { Path } from '../shapes/Path.js';
  * @property {string} type 図形種別（各図形クラスのtypeプロパティ・図形データのtypeと一致）
  * @property {((x1: number, y1: number, x2: number, y2: number) => Object) | null} create
  *     始点・終点（ワールド座標）から図形インスタンスを新規生成する。
- *     nullは「作れない種別」（読み込み専用。図形パレット・数字キーに出さず、createもできない。fromJSONでのみ復元される）
+ *     nullは「作れない種別」（読み込み専用。ツールパレット・数字キーに出さず、createもできない。fromJSONでのみ復元される）
  * @property {(data: Object) => Object} fromJSON
  *     図形データから図形インスタンスを復元する（各図形クラスのstatic fromJSONへ委譲。不正なデータではErrorをthrowする）
  */
 
 /**
  * 図形種別の対応表（図形種別一覧の正本）。
- * 並び順＝図形パレットのボタン順＝数字キー（1〜）の割り当て順（KeyboardShortcutsがこの並びを前提とする）。
- * この並びの意味はcreateがnullでないエントリについてのもの。createがnullの読み込み専用のエントリ（path）は末尾に置き、パレットのボタンは不要。
- * 作成できる図形種別を追加する際は、ここへ1エントリを追加し、index.htmlに`#palette-${type}`のボタンを用意する。
+ * 並び順＝ツールパレットの図形のボタン順＝数字キー（1〜）の割り当て順（KeyboardShortcutsがこの並びを前提とする）。
+ * この並びの意味はcreateがnullでないエントリについてのもの。createがnullの読み込み専用のエントリ（path）は末尾に置き、ツールパレットのボタンは不要。
+ * 作成できる図形種別を追加する際は、ここへ1エントリを追加し、index.htmlのツールパレットに`#tool-${type}`のボタンを用意する（`ToolRules`の`TOOL_IDS`は`SHAPE_TYPES`から導出されるため変更不要）。
  * @type {ReadonlyArray<Readonly<ShapeRegistryEntry>>}
  */
 const SHAPE_REGISTRY = Object.freeze([
@@ -44,7 +44,7 @@ const REGISTRY_BY_TYPE = new Map(SHAPE_REGISTRY.map((entry) => [entry.type, entr
 /**
  * 作成できる図形種別一覧（SHAPE_REGISTRYのうちcreateがnullでないエントリから導出。並び順も対応表と同一）。
  * createがnullの読み込み専用の種別（path）は含まない。
- * 図形種別の受理判定・パレットの配線・数字キーの割り当てはすべてこの値を用いる。
+ * 図形種別の受理判定・ツールパレットの配線（`ToolRules`の`TOOL_IDS`経由）・数字キーの割り当てはすべてこの値を用いる。
  * InputTracker.jsはこれを再exportしている（既存のimport元を変えないため）。
  * @type {ReadonlyArray<string>}
  */
