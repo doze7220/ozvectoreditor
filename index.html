@@ -111,34 +111,40 @@
             margin-left: 8px;
             padding-left: 8px;
         }
-        /* ステータスバー（下端。高さは--statusbar-heightで固定）。左側・右側（.status-bar-side）を両端に寄せる */
+        /* ステータスバー（下端。高さは--statusbar-heightで固定）。左詰めで並べ、右側（.status-bar-right）だけmargin-left: autoで右端へ寄せる */
         .status-bar {
             bottom: 0;
             height: var(--statusbar-height);
             padding: 0 8px;
             border-top: 1px solid #ccc;
-            justify-content: space-between;
+            justify-content: flex-start;
             font-size: 12px;
             color: #333;
         }
-        /* ステータスバーの左側・右側（中に.status-bar-groupを足す） */
+        /* ステータスバーの左側・右側（中に.status-bar-groupを足す）。左側はこの後のルールでdisplay: contentsに上書きする */
         .status-bar-side {
             display: flex;
             align-items: center;
         }
-        /* 左側：残りの幅を使い、縮められる（キャンバスの名前が省略表示で先に縮む） */
+        /* 左側：箱を作らない（display: contents）。中の.status-bar-groupが.status-bar直下のflexの項目として並ぶ。
+           箱にすると入れ子のflexでは、子のwhite-space: nowrapの文字の全幅が左側の最小の幅に含まれて名前が縮まない
+           （min-width: 0を付けると、名前が縮みきった後に縮まないまとまりが右側へはみ出して重なる）ため。
+           これにより、幅が足りないときはまず名前のまとまり（.status-bar-group-shrink）だけが省略表示で縮み、
+           それでも足りないと右側が右端から画面の外へ切れる（左側の表示は右側へ重ならない） */
         .status-bar-left {
-            flex: 1 1 auto;
-            min-width: 0;
+            display: contents;
         }
-        /* 右側：縮まない。収まらないときは画面の外へ切れる */
+        /* 右側：縮まない。margin-left: autoで右端へ寄せる。padding-leftは左側との最小の間隔。
+           Phase 07-05で右側へまとまりを足すときは、中へ.status-bar-groupを足すだけでよい */
         .status-bar-right {
             flex: none;
-            margin-left: 8px;
+            margin-left: auto;
+            padding-left: 8px;
         }
-        /* ステータスバーの項目のまとまり */
+        /* ステータスバーの項目のまとまり（既定は縮まない。縮められるのは.status-bar-group-shrinkだけ） */
         .status-bar-group {
             display: flex;
+            flex: none;
             align-items: center;
             gap: 4px;
         }
@@ -148,11 +154,21 @@
             margin-left: 8px;
             padding-left: 8px;
         }
-        /* 左側のまとまりは縮められる（中の名前が省略表示されるように） */
-        .status-bar-left > .status-bar-group {
+        /* 縮められるまとまり（キャンバスの名前。中の名前が省略表示されるように） */
+        .status-bar-group-shrink {
             flex: 0 1 auto;
             min-width: 0;
         }
+        /* 座標・大きさ・グリッドの表示。white-space: nowrapは連続する空白を1つにまとめるため、項目の間の空白2つを保つ（pre）。
+           最小の幅は想定の最大の桁数（X: -99999.9  Y: -99999.9＝24文字など）で、数字の桁が変わっても右側の項目が揺れないため。
+           これを超える桁ではその分だけ伸びる */
+        .status-readout {
+            white-space: pre;
+            font-variant-numeric: tabular-nums;
+        }
+        #cursor-readout { min-width: 24ch; }
+        #selection-size-readout { min-width: 22ch; }
+        #grid-size-readout { min-width: 17ch; }
         /* 共通フロートウィンドウ規格（WindowManagerの管理対象）: 個々のウィンドウはこのクラス群に準拠する */
         .float-window {
             position: fixed;
@@ -472,9 +488,12 @@
     </header>
     <footer id="status-bar" class="status-bar">
         <div class="status-bar-side status-bar-left">
-            <div class="status-bar-group">
+            <div class="status-bar-group status-bar-group-shrink">
                 <div id="canvas-name-display" class="canvas-name-display"></div>
             </div>
+            <div class="status-bar-group"><span id="cursor-readout" class="status-readout"></span></div>
+            <div class="status-bar-group"><span id="selection-size-readout" class="status-readout"></span></div>
+            <div class="status-bar-group"><span id="grid-size-readout" class="status-readout"></span></div>
         </div>
         <div class="status-bar-side status-bar-right">
             <div class="status-bar-group">

@@ -32,6 +32,9 @@ import { OptionBarStyleGroup } from './palette/OptionBarStyleGroup.js';
 import { ShapeOrderEditor } from './edit/ShapeOrderEditor.js';
 import { ShapeOrderOperation } from './edit/ShapeOrderRules.js';
 import { OptionBarOrderGroup } from './palette/OptionBarOrderGroup.js';
+import { ShapeExtentReader } from './edit/ShapeExtentReader.js';
+import { formatCursorReadout, formatSizeReadout, formatGridReadout } from './core/StatusReadoutRules.js';
+import { computeGridSpacing } from './core/GridSpacingRules.js';
 
 // DOMが読み込まれた後に初期化を行う
 document.addEventListener('DOMContentLoaded', () => {
@@ -301,6 +304,42 @@ document.addEventListener('DOMContentLoaded', () => {
     // （ショートカットと同一経路。ここでhistoryManager.undo()/redo()を直接呼ばないこと）
     historyUndoBtn.addEventListener('click', () => performUndo());
     historyRedoBtn.addEventListener('click', () => performRedo());
+
+    // 6.5. 表示配線（ステータスバーの座標・大きさ・グリッドの表示）
+    // 外枠の照会（選択中の図形の大きさに使う）
+    const shapeExtentReader = new ShapeExtentReader({ model });
+    const cursorReadoutEl = document.getElementById('cursor-readout');
+    const selectionSizeReadoutEl = document.getElementById('selection-size-readout');
+    const gridSizeReadoutEl = document.getElementById('grid-size-readout');
+
+    /**
+     * ステータスバーのカーソル位置の座標（`#cursor-readout`）を、最後のカーソル位置から求め直して同期する。
+     * cursorTracker.onChange・viewTransform.onChangeに登録する（ビュー変換が変わったときも求め直す）。
+     */
+    function syncCursorReadout() {
+        cursorReadoutEl.textContent = formatCursorReadout(cursorTracker.getWorldPosition());
+    }
+
+    /**
+     * ステータスバーの選択中の図形の大きさ（`#selection-size-readout`）を同期する。
+     * model.onChangeに登録する（ドラッグでの移動・変形の途中も追従する）。
+     */
+    function syncSelectionSizeReadout() {
+        selectionSizeReadoutEl.textContent = formatSizeReadout(shapeExtentReader.getSelectedBounds());
+    }
+
+    /**
+     * ステータスバーのグリッド1マスの大きさ（`#grid-size-readout`）を、現在の表示倍率から同期する。
+     * viewTransform.onChangeに登録する（グリッドを非表示にしている間も表示したまま）。
+     */
+    function syncGridSizeReadout() {
+        gridSizeReadoutEl.textContent = formatGridReadout(computeGridSpacing(viewTransform.getScale()).minor);
+    }
+
+    cursorTracker.onChange(syncCursorReadout);
+    viewTransform.onChange(syncCursorReadout);
+    model.onChange(syncSelectionSizeReadout);
+    viewTransform.onChange(syncGridSizeReadout);
 
     // 7. ツールパレット配線
     // ツールの識別子一覧はToolRulesのTOOL_IDS（SHAPE_TYPESから導出）。パレットのボタンはid`tool-${toolId}`で照合される
@@ -697,6 +736,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // 倍率表示の初期化も同様に、index.htmlの初期文字列（"100%"）やonChange通知に依存させず、
     // ViewTransformの実値で明示的に1回同期する
     syncZoomDisplay();
+
+    // 座標・大きさ・グリッドの表示も同様に、index.htmlの空の初期状態やonChange通知に依存させず、実値で明示的に1回ずつ同期する
+    // （カーソル位置は未取得のため座標は「—」）
+    syncCursorReadout();
+    syncSelectionSizeReadout();
+    syncGridSizeReadout();
 
     // 削除ボタンの押せる/押せない状態も同様に、index.htmlの初期disabled属性やonChange通知に
     // 依存させず、Modelの選択集合の実値で明示的に1回同期する
