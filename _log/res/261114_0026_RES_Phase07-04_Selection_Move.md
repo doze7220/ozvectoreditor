@@ -277,7 +277,7 @@
     *   **作業内容** :
         *   `applyStyle(style)`・`resetColors()`を「2. 要件7」のとおりに足す（`RESET_COLORS_STYLE`を`./StylePanelRules.js`の既存のimportへ足す。反映の対象の選び方は`COLOR_ITEMS`の`selectTargets`を使い、項目による分岐を表引きで行う）。JSDoc（既存の変更メソッドと同じ約束、値の検証をしない理由、戻り値）。先頭の責務定義・クラスの説明（スタイルをまとめて当てる入口があり、`D`・スポイトが使う）を改める。既存の公開メソッドの働きは変えない。
         *   テスト（既存の実物の組み合わせの形で追加）：線・塗り・太さの組み合わせ（1項目だけ・3項目）、`null`で線なし・塗りなし（直前に使った値は`enabled: false`で色は保つ）、塗れない形へ塗りを当てないこと（塗れない形の`fillColor`は変わらない）、選択なしで直前に使った値だけが変わり図形・履歴が変わらないこと、選択ありで履歴1件・undoで戻り・redoで再び当たること、前後が同じなら記録されないこと、ピッカー操作中の記録が先に確定されること（`previewColor`の後に`applyStyle` → 履歴2件・`console.warn`なし）、項目を1つも持たない引数は`false`で何も変えない、`resetColors`の値（選択ありで線が黒・塗れる形の塗りが白・太さ不変・直前に使った値が線あり黒・塗りあり白・太さ不変、塗れる形が無い選択でも直前に使った値の塗りがあり白、選択なしで直前に使った値だけ）。既存のケースは変えない。
-*   [ ] タスク11: スポイトの待ち受けの持ち主と取り込みの手順（要件8）とテスト（まだ使わない）
+*   [x] タスク11: スポイトの待ち受けの持ち主と取り込みの手順（要件8）とテスト（まだ使わない）
     *   **対象ファイル** :
         *   `./js/edit/StyleEyedropper.js` : 新規
         *   `./test/edit/StyleEyedropper.test.js` : 新規
@@ -447,7 +447,15 @@
 
 ### タスク11: スポイトの待ち受けの持ち主と取り込みの手順（要件8）とテスト
 *   **作業内容** :
-    *   （未実施）
+    *   `js/edit/StyleEyedropper.js`を新設（まだ誰も使わない）。コンストラクタ`({ model, applyStyle })`（`applyStyle`が関数でなければ`Error`）、`isPicking`・`start`・`stop`・`cancelPicking(fallback)`・`pickFrom(shapeId)`・`onChange(callback)`を「2. 要件8」のとおりに実装。importは`./StylePanelRules.js`の`sampleStyleFromShape`のみ。状態は待ち受けの真偽値と通知先の配列だけ。
+    *   `test/edit/StyleEyedropper.test.js`を新設（13件）。偽物の`model`・`applyStyle`での単体（コンストラクタ・初期状態・`start`・`stop`・`pickFrom`の3場合・`cancelPicking`2件・`onChange`）と、実物の`VectorModel`・`ShapeStyleEditor`・`SnapshotAdapter`・`HistoryManager`の組み合わせ3件（選択あり：図形と直前に使った値が変わり待ち受けが解け履歴1件・選択なし：直前に使った値だけ・塗れない形を手本にして塗りが変わらない）。
+    *   JSDoc・コメントの更新（実ファイルで確認済み）：
+        *   `StyleEyedropper.js`先頭の責務定義（3行以内）。
+        *   `class StyleEyedropper`のJSDoc（知らないこと・状態を作業データ・履歴・`VectorModel`に入れないこと・importの制約）。
+        *   各メンバー・メソッド（`#model`・`#applyStyle`・`#picking`・`#listeners`・コンストラクタ（`@throws`）・`isPicking`・`start`・`stop`・`cancelPicking`・`pickFrom`・`onChange`・`#notify`）のJSDoc（`@param`・`@returns`）。
+        *   `test/edit/StyleEyedropper.test.js`先頭の責務定義と補助関数のJSDoc。
+    *   `node --test`：tests 1178・pass 1178・fail 0。
+    *   開発資料への影響：`_doc/arch/14_edit.md`（`StyleEyedropper`の新設）、`_doc/arch/16_test.md`（テストファイルと件数13）、1章のフォルダ構造。計画の「開発資料の更新予定」に既出。資料本体は未変更。
 
 ### タスク12: `resolveActiveTool`の第3引数（要件8）とテスト
 *   **作業内容** :
