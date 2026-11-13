@@ -1,4 +1,4 @@
-*   **palette/**：自己完結するUI部品。いずれもDOM操作専任で、`VectorModel`・図形データ・選択状態に関与しない（受け取るのは注入された値とコールバックのみ）。独自のカラーピッカーは未実装（色はブラウザ標準の`<input type="color">`）。ツールバー・ステータスバーは`index.html`の静的な要素で、配線は`main.js`（`palette/`の部品は無い）。
+*   **palette/**：自己完結するUI部品。いずれもDOM操作専任で、`VectorModel`・図形データ・選択状態に関与しない（受け取るのは注入された値とコールバックのみ）。独自のカラーピッカーは未実装（色はブラウザ標準の`<input type="color">`）。ツールバー・ステータスバーは`index.html`の静的な要素。ツールバーの操作のボタンとステータスバーの配線は`main.js`、ツールバーのオプションバーのまとまりは`palette/`のUI部品（`OptionBarStyleGroup`・`OptionBarOrderGroup`）。
     *   **ToolPalette.js**：ツールパレット（`#window-tool-palette`）のツールのボタンの配線。
         *   **公開メソッド**：`setActiveTool`。
         *   **注入**：`main.js`がルート要素・ツールの識別子の一覧（`ToolRules`の`TOOL_IDS`）・`onToolSelected`（`selectTool`）を渡す。importは持たず、`InputTracker`・`ShapeFactory`・`ToolRules`へ直接依存しない。
@@ -7,19 +7,19 @@
         *   **公開メソッド**：`show`。
         *   **知らないこと**：作業データの中身。importを持たず、`VectorModel`・`InputTracker`・`DocumentSerializer`・図形インスタンスを参照しない（受け取るのは文字列と要約`ImportSummary`のみ）。
         *   **契約**：コールバックの例外は捕捉しない。`onImport`側の処理を増やす場合は例外を漏らさない（漏れると結果表示が更新されない）。
-    *   **PropertyShapeSection.js**：プロパティパネル（`#window-property-panel`）の「図形」の段のDOMの配線（`render(view)`の表示と、利用者の操作のコールバックへの通知）。流れは3章13.。
+    *   **OptionBarStyleGroup.js**：オプションバーの「スタイル」のまとまり（`#option-style-group`）のDOMの配線（`render(view)`の表示と、利用者の操作のコールバックへの通知）。流れは3章13.。
         *   **公開メソッド**：`render`。
-        *   **注入**：コンストラクタで段のルート要素（`#property-shape-section`）とコールバック6つ（`onStrokeEnabledChange(checked)`・`onFillEnabledChange(checked)`・`onStrokeWidthChange(value)`（戻り値`false`なら表示を書き戻す）・`onColorInput(target, value)`・`onColorChange(target, value)`・`onColorEditEnd()`）を受け取る。コールバックが関数でなければ`Error`、要素が欠ければ`console.warn`して配線しない（`render`は何もしない）。`main.js`がコールバックを`ShapeStyleEditor`のメソッドへつなぐ。
+        *   **注入**：コンストラクタでまとまりのルート要素（`#option-style-group`）とコールバック6つ（`onStrokeToggle()`・`onFillToggle()`（ON/OFFのボタンの`click`。「押された」ことだけを通知し引数なし）・`onStrokeWidthChange(value)`（戻り値`false`なら表示を書き戻す）・`onColorInput(target, value)`・`onColorChange(target, value)`・`onColorEditEnd()`）を受け取る。コールバックが関数でなければ`Error`、要素が欠ければ`console.warn`して配線しない（`render`は何もしない）。`main.js`がコールバックを`ShapeStyleEditor`のメソッドへつなぐ。
         *   **知らないこと**：importを持たず、`VectorModel`・図形データ・選択状態・`ShapeStyleEditor`・`StylePanelRules`を参照しない（受け取るのは`view`とコールバックのみ）。判定・変更の手順を持たない。
-        *   **表示の規則の要点**：太さの欄はフォーカスがある間は書き換えない（打ち込み途中の値が`model.onChange`で消えないため）。値の確定が受理されなかったとき・欄から出たときは最後の`view`で書き戻す。色の欄は値が今の値と違うときだけ代入する（ピッカー操作中の再描画で同じ値を入れ直さないため）。チェックボックスの中間表示は`indeterminate`。文言（「混在」「表示できない色」「次に描く図形」等）はこのファイルが唯一の定義箇所。文字は`textContent`で設定する（太さの欄の「混在」は`placeholder`で出す）。
+        *   **表示の規則の要点**：太さの欄はフォーカスがある間は書き換えない（打ち込み途中の値が`model.onChange`で消えないため）。値の確定が受理されなかったとき・欄から出たときは最後の`view`で書き戻す。色の欄は値が今の値と違うときだけ代入する（ピッカー操作中の再描画で同じ値を入れ直さないため）。ON/OFFのボタンは`aria-pressed`（`"true"`／`"false"`／`"mixed"`。`enabled`の`true`／`false`／`null`の写し）で表し、見た目はCSSが決める。色の欄を包む`.option-color-frame`の`data-color-note`（`mixed`・`unsupported`・なし。`colorNote`の写し）と色の欄の`title`を`colorNote`から決める（覆いと斜線の見た目はCSS）。`title`の文言（`COLOR_TITLE_TEXT`）と太さの欄の`placeholder`（「混在」）はこのファイルが唯一の定義箇所。「選択中：n個」「次に描く図形」の表示は持たない。
         *   **二重定義**：typedef`StylePanelView`は`edit/StylePanelRules.js`と同じ内容を持つ。形を変える場合は両方を揃える。
-        *   **段の足し方**：プロパティパネルは段ごとに1つのUI部品を持つ。段を足すときは、`index.html`に`<section class="property-section">`、`palette/`にその段のUI部品（自分の`<section>`をルート要素に受け取り、要素はルート要素内の`querySelector('#id')`で解決する）、`main.js`に段のブロックを足すだけで、`PropertyShapeSection`・既存の段を変えない。
-    *   **PropertyOrderSection.js**：プロパティパネルの「重なり順」の段（`#property-order-section`）の4ボタンのDOMの配線（`render(view)`で各ボタンの押せる/押せないを表示し、押下をコールバックへ通知）。流れは3章14.。
+        *   **まとまりの足し方**：オプションバーはまとまり（`.toolbar-group`）ごとに1つのUI部品を持つ。まとまりを足すときは、`index.html`に`<div class="toolbar-group">`、`palette/`にそのまとまりのUI部品（自分のまとまりの要素をルート要素に受け取り、要素はルート要素内の`querySelector('#id')`で解決する）、`main.js`にまとまりのブロックを足すだけで、`OptionBarStyleGroup`・既存のまとまりを変えない。
+    *   **OptionBarOrderGroup.js**：オプションバーの重なり順のまとまり（`#option-order-group`）の4ボタンのDOMの配線（`render(view)`で各ボタンの押せる/押せないを表示し、押下をコールバックへ通知）。流れは3章14.。
         *   **公開メソッド**：`render`。
-        *   **注入**：コンストラクタで段のルート要素とコールバック4つ（`onBringToFront`・`onBringForward`・`onSendBackward`・`onSendToBack`）を受け取る。コールバックが関数でなければ`Error`、要素が欠ければ`console.warn`して配線しない（`render`は何もしない）。`main.js`がコールバックを`performShapeOrder(ShapeOrderOperation.…)`へつなぐ。
+        *   **注入**：コンストラクタでまとまりのルート要素とコールバック4つ（`onBringToFront`・`onBringForward`・`onSendBackward`・`onSendToBack`）を受け取る。コールバックが関数でなければ`Error`、要素が欠ければ`console.warn`して配線しない（`render`は何もしない）。`main.js`がコールバックを`performShapeOrder(ShapeOrderOperation.…)`へつなぐ。
         *   **知らないこと**：importを持たず、`VectorModel`・選択集合・図形データ・`ShapeOrderEditor`・規則・操作の値（`ShapeOrderOperation`）を参照しない（受け取るのは`view`とコールバックのみ）。
         *   **二重定義**：typedef`ShapeOrderAvailability`は`edit/ShapeOrderEditor.js`と同じ内容を持つ。形を変える場合は両方を揃える。
-    *   **ツールバーの位置づけ**：頻繁に使う操作（削除・結合・取り消し/やり直し等）と、他のパレットの**呼び出し口**（開閉ボタン）を置く場所である（ビューのリセット・倍率・キャンバス名はステータスバー）。頻繁には使わない機能はパレットに分け、呼び出し口から開閉する。項目は`<div class="toolbar-group">`のまとまりごとに足し、既存のまとまりは変えない（`_doc/arch/01_index_html.md`）。
+    *   **ツールバーの位置づけ**：頻繁に使う操作（削除・結合・取り消し/やり直し等）と、他のパレットの**呼び出し口**（開閉ボタン）を置く場所である。続けてオプションバー（選択中の図形・新しく描く図形のスタイルと重なり順）を置く（ビューのリセット・倍率・キャンバス名はステータスバー）。頻繁には使わない機能はパレットに分け、呼び出し口から開閉する。項目は`<div class="toolbar-group">`のまとまりごとに足し、既存のまとまりは変えない（`_doc/arch/01_index_html.md`）。
     *   **PaletteLauncher.js**：呼び出し口のボタンと開閉式パレットの対応づけと開閉。
         *   **公開メソッド**：なし（コンストラクタのみ）。
         *   **知らないこと**：パレットの中身・`WindowManager`。importを持たない。

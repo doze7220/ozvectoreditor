@@ -14,12 +14,12 @@
         *   **依存**：`model`は`getShapes`・`getDraftShape`・`cancelDraft`・`replaceShape`のみ使う。`editRecorder`（実体`historyManager`）と`screenLengthToWorld`は注入で受け取る。`try/catch`を持たない。
         *   **契約**：`commitDrawnLine`は描き始め・描き終えの結果が両方`null`なら何もしない（`false`を返し、従来の確定は呼び出し側）。それ以外は`cancelDraft`の後に計画を反映し、計画が何も起こさない場合は記録せず、起こす場合は`beginEdit` → `replaceShape`（`keepId`の指定・`select: false`）→ `commitEdit`の1件。`joinDraggedEndpoint`は記録しない（呼び出し側がドラッグの開始で開いた編集操作の中で呼ぶ。確定も呼び出し側）。作成モードでは選択しない（`select: false`）、ドラッグでは結果だけを選択する（`select: true`）。操作モード・図形種別の分岐・図形固有のプロパティ名を知らない（図形種別の判定は`EndpointSnapRules`、端点のハンドルの判定は`resolveDragEndpoint`経由）。
         *   **注意**：`resolveDragEndpoint`は図形が`getShapes()`に無ければ`null`。`replaceShape`の戻り値は見ない（計画が有効なら`null`にならないため）。
-    *   **StylePanelRules.js**：プロパティパネルに出す値の算出の規則（`PathJoinRules`と`PathJoiner`の分け方に合わせ、手順の`ShapeStyleEditor`と分けた規則）。状態を持たない`export`した関数と定数のみ。流れは3章13.。
-        *   **公開**：`STROKE_WIDTH_MIN`・`STROKE_WIDTH_MAX`・`toColorInputValue`・`parseStrokeWidthInput`・`buildStylePanelView`、typedef`StylePanelView`ほか。
+    *   **StylePanelRules.js**：オプションバーに出す値の算出の規則（`PathJoinRules`と`PathJoiner`の分け方に合わせ、手順の`ShapeStyleEditor`と分けた規則）。状態を持たない`export`した関数と定数のみ。流れは3章13.。
+        *   **公開**：`STROKE_WIDTH_MIN`・`STROKE_WIDTH_MAX`・`toColorInputValue`・`parseStrokeWidthInput`・`nextEnabledOnToggle`（ON/OFFのボタンを押したときの次の有無。ONならOFF、OFFまたはそろっていない（`null`）ならON）・`buildStylePanelView`、typedef`StylePanelView`ほか（`StylePanelView`は`stroke`・`strokeWidth`・`fill`のみ。`source`・`selectedCount`はPhase 07-02で削除）。
         *   **読むもの**：図形の共通プロパティのスタイル3つと`isFillable()`。importなし・DOMに触れない・図形種別の分岐なし。色名の解釈にはDOMが要るため、`#rrggbb`・`#rgb`以外の色は変換しない（`null`）。
         *   **使う側**：`ShapeStyleEditor`のみ。
-    *   **ShapeStyleEditor.js**：プロパティパネルの変更を選択中の図形（または直前に使った値）へ反映する1件の編集操作の手順と、パネルが覚えている色の保持（規則は`StylePanelRules`）。流れと設計判断は3章13.。
-        *   **公開メソッド**：`getPanelView`・`setStrokeEnabled`・`setFillEnabled`・`setStrokeWidth`・`previewColor`・`commitColor`・`finishColorPreview`。呼び出し元は`main.js`のパネルのコールバック（`PropertyShapeSection`経由）と表示の同期（`syncPropertyShapeSection`が`getPanelView`を呼ぶ）。各変更メソッドは受理したか（`boolean`）を返す（`finishColorPreview`はピッカー操作中の記録を確定するだけで、戻り値は無い）。
+    *   **ShapeStyleEditor.js**：オプションバーでの変更を選択中の図形（または直前に使った値）へ反映する1件の編集操作の手順と、パネルが覚えている色（オプションバーが覚えている色。識別子の「Panel」は表示の部品一般を指す名前として残した）の保持（規則は`StylePanelRules`）。流れと設計判断は3章13.。
+        *   **公開メソッド**：`getPanelView`・`setStrokeEnabled`・`setFillEnabled`・`toggleStrokeEnabled`・`toggleFillEnabled`（ON/OFFのボタン用。ピッカー操作中の記録を確定してから`getPanelView()`の有無に`nextEnabledOnToggle`を当てて`setStrokeEnabled`・`setFillEnabled`と同じ経路で反映。`setStrokeEnabled`・`setFillEnabled`は公開のまま残す）・`setStrokeWidth`・`previewColor`・`commitColor`・`finishColorPreview`。呼び出し元は`main.js`のコールバック（`OptionBarStyleGroup`経由）と表示の同期（`syncOptionBarStyleGroup`が`getPanelView`を呼ぶ）。各変更メソッドは受理したか（`boolean`）を返す（`finishColorPreview`はピッカー操作中の記録を確定するだけで、戻り値は無い）。
         *   **依存**：`model`は`getShapes`・`isSelected`・`getNewShapeStyle`・`updateNewShapeStyle`・`updateShapeStyles`のみ使う。`editRecorder`（実体`historyManager`）は注入で受け取る。importは`./StylePanelRules.js`のみ。DOMなし・`try/catch`なし・ドラッグ中の判定なし。
         *   **契約**：図形への書き換えは`model.updateShapeStyles`へ渡すだけ（直接代入しない）。選択中の図形が無いときは直前に使った値だけを変え、履歴に記録しない。色の欄はピッカー操作中（`previewColor`）は履歴を開かずに図形へ反映し、確定（`commitColor`・`finishColorPreview`・他の変更メソッドの冒頭）で開始時の色へ戻してから`beginEdit` → 最後の色 → `commitEdit`の1件にする。記録した図形インスタンスが`model.getShapes()`から1つでも無くなっていれば記録せず捨てる。**`getPanelView()`は覚えている色を更新するため純粋な照会ではない**（`main.js`の表示の同期と`ShapeStyleEditor`の内部以外から呼ばない）。直前に使った値を更新するのはこのクラスだけ。`COLOR_ITEMS`の`shapeKey`は直前に使った値（`NewShapeStyle`）の色のキー名と同じ前提（項目を足すときは両方をそろえる）。
     *   **ShapeOrderRules.js**：選択中の要素の重なり順の変更の規則（`StylePanelRules`と同じく手順の`ShapeOrderEditor`と分けた規則）。状態を持たない`export`した関数と定数のみ。流れは3章14.。
@@ -27,10 +27,10 @@
         *   **読むもの**：並びと選択の有無のみ。importなし・DOMに触れない・要素を不透明に扱い（`===`でのみ比べる）図形の形・種別・プロパティを読まない。未知の操作は`Error`。`canReorderSelected`は`reorderSelected`の結果との比較で、押せる/押せないと手順の「何もしない」の判定をこの1か所に保つ。
         *   **使う側**：`ShapeOrderEditor`と`main.js`（定数のみ）。
     *   **ShapeOrderEditor.js**：選択中の図形の重なり順を、規則で求めた並びを履歴の記録で挟んで`VectorModel`へ渡す1件の編集操作の手順。流れと設計判断は3章14.。
-        *   **公開メソッド**：`apply`・`getAvailability`。呼び出し元は`main.js`（`performShapeOrder`・`syncPropertyOrderSection`）。
+        *   **公開メソッド**：`apply`・`getAvailability`。呼び出し元は`main.js`（`performShapeOrder`・`syncOptionBarOrderGroup`）。
         *   **依存**：`model`は`getShapes`・`isSelected`・`reorderShapes`のみ使う。`editRecorder`（実体`historyManager`）は注入で受け取る。importは`./ShapeOrderRules.js`のみ。DOMなし・`try/catch`なし。
         *   **契約**：並びが変わらない操作では何もせず（`beginEdit`も呼ばず）記録しない。履歴へは1件記録する。ドラッグ中でないことは呼び出し側（`performShapeOrder`）の責務。進行中の入力操作の中断・モード切り替えは行わない（選択モード以外では選択集合が空のため何もしない）。
-        *   **二重定義**：typedef`ShapeOrderAvailability`は`palette/PropertyOrderSection.js`と同じ内容を持つ。形を変える場合は両方を揃える。
+        *   **二重定義**：typedef`ShapeOrderAvailability`は`palette/OptionBarOrderGroup.js`と同じ内容を持つ。形を変える場合は両方を揃える。
     *   **ClipboardController.js**：アプリ内部のクリップボードの保持と、コピー・切り取り・貼り付け・複製の手順。規則はクラスJSDoc。
         *   **公開メソッド**：`copy`・`cut`・`paste`・`duplicate`・`isEmpty`。呼び出し元は`main.js`の`KeyboardShortcuts`コールバック。
         *   **契約**：モデルへの依存は読み取りのみ。追加は`ShapeInserter`、削除は注入された`deleteSelection`（実体`inputTracker.deleteSelection()`）へ委譲する。`cut()`は削除の前に`serialize`する（削除後は選択集合が空になるため。順序を入れ替えない）。

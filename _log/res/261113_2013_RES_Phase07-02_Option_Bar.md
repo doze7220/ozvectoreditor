@@ -404,7 +404,7 @@
         *   `js/`・`index.html`・`test/`を`プロパティパネル`・`PropertyShapeSection`・`PropertyOrderSection`・`id="property-`・`#property-`・`id="order-`・`#order-`・`window-property-panel`・`チェックボックス`・`.property-`・`order-button-grid`・`indeterminate`・`横の表示`・`中間表示`・`selectedCount`で検索し（`order-`・`property-`を単独で使わない：`order-`はCSSの`border-`に、接頭辞なしの語は作り替え後の`option-order-group`等に誤って一致するため。上の形は`#option-order-group`・`id="option-order-group"`には一致しない）、残りが無いこと（`isSpaceOperatedInputElement`の`checkbox`の`type`の一覧とその説明は残す）を記録する。
         *   新設・変更したファイルのJSDoc（`@param`・`@returns`・`@throws`）・先頭の責務定義（3行以内）・注入するコールバックの契約を確認する。
         *   `node --test`の件数を記録する。
-*   [ ] タスク11: 開発資料への反映（最終固定タスク）
+*   [x] タスク11: 開発資料への反映（最終固定タスク）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` : 更新（1章・2章・3章・4章の本文の該当箇所）
         *   `./_doc/arch/01_index_html.md` : 更新
@@ -492,7 +492,10 @@
 
 ### タスク11: 開発資料への反映（最終固定タスク）
 *   **作業内容** :
-    *   (未実施)
+    *   `PROJECT_ARCHITECTURE.md`：1章（フォルダ構造の`palette/`2行・`index.html`のコメント・「存在しないもの」・フォルダ分割の方針の`palette/`と`edit/`）、2章（塗れる形・新しく描く図形のスタイルの更新）、3章（同期の経路・1.読み込み完了前の操作・3.入力欄の規則（ON/OFFのボタンと`isSpaceYieldedElement`、発注者の決定）・6.・13.（見出し・モジュールの分担・表示の流れ・表示の規則・押したときの規則・履歴の単位・発注者の決定・まとまりごとの分け方・やらないこと）・14.）を2章「開発資料の更新予定」のとおり反映。
+    *   `_doc/arch/`：`01_index_html.md`（保っているid・ボタンの見た目・「オプションバー」の項目新設・プロパティパネル関連の項目削除）、`02_main.md`（`// 7.7.`・`// 7.8.`・注入・主な関数・同一経路・起動時の同期。行数は実測701行のまま）、`06_InputTracker.md`、`07_KeyboardShortcuts.md`、`08_HistoryManager.md`、`12_shapes.md`（`isFillable()`の1か所）、`13_palette.md`（`OptionBarStyleGroup`・`OptionBarOrderGroup`の項目へ置き換え）、`14_edit.md`、`16_test.md`（`nextEnabledOnToggle`・切り替えのメソッドのテスト、07-02の「テストできない箇所」「書き換えた既存のテスト」、旧名の置き換え）を更新。`03`・`15`・`18`ほかは変更なし。
+    *   監査の指摘による修正：(1) `16_test.md`の「書き換えた既存のテスト（07-02）」を「追加と`ShapeStyleEditor.test.js`の先頭の責務定義のコメントの書き換え」に直し、「パネル」の注記はケース名のみにした。(2) `01_index_html.md`の「約610px」を「ツールバー全体の内容」の幅と明記した。(3) `PROJECT_ARCHITECTURE.md`3章13.の発注者の決定の先頭を、太さ＝`placeholder`の「混在」、色＝グレーの地に赤の斜線＋`title`で区別、と1つの記述に直した。
+    *   検索（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`全体。「プロパティパネル」「`PropertyShapeSection`」「`PropertyOrderSection`」「`property-`」「`#order-`」「の段」「チェックボックス」「`indeterminate`」「`syncProperty`」「`window-property`」）：残りは経緯・否定の記述のみ（`PROJECT_ARCHITECTURE.md`129行「存在しないもの」、`02_main.md`3行の07-02で差し替えた経緯、`16_test.md`42・47行の「旧`〜`」併記、`06_InputTracker.md`5行の`type`が`checkbox`の`input`の説明）。「パネル」は識別子の「Panel」（`getPanelView`・パネルが覚えている色）を指す記述に限って残した。
 
 ## 5. 懸念事項・要確認ポイント
 * **計画時の判断事項（REQで計画時に決めるとされた項目）**
@@ -506,6 +509,7 @@
 * **`disabled`の塗りのON/OFFのボタンにフォーカスが残った場合**：`aria-pressed`を持つため`isSpaceYieldedElement`が真になり、`Space`はパンせず`preventDefault()`もしない（`disabled`のボタンは押されないため何も起きない。ページは`overflow: hidden`でスクロールしない）。テストプレイで確かめる。
 * **絵文字の見え方**：🖊（U+1F58A）・🪣（U+1FAA3、Unicode 13）・⏫・🔼・🔽・⏬はOS・フォントによって白黒の記号・カラーの絵文字・豆腐（□）で表示が変わり得る。アイコンは後で差し替える予定の仮のもの（発注者の決定）。実ブラウザでの見え方をテストプレイで確かめる。
 * **色の欄の内側の描かれ方**：`<input type="color">`の色の部分の余白（ブラウザ標準の`::-webkit-color-swatch-wrapper`等）はブラウザで異なるため、覆いの`inset`の値は実装時に見え方で調整してよい（色の部分を覆い、欄の外へはみ出さないこと）。実ブラウザでの見え方をテストプレイで確かめる。
+* **開発資料の反映（タスク11）で残したもの**：`13_palette.md`の`ToolPalette.js`の項目の`.disabled`の記述は範囲外のため変えていない（上の注記のとおり）。`PROJECT_ARCHITECTURE.md`3章13.の「パネル」は識別子の「Panel」と同じ意味（オプションバー）である旨を冒頭に1文で明記して残した。`01_index_html.md`のオプションバーの項の「1280pxで約610px・右から切れる」は`index.html`のCSSコメントの見積もりを写したもので、実ブラウザでは未確認。
 * **`getPanelView()`の呼び出しが増えること**：`#toggleEnabled`は`getPanelView()`で今の有無を求め、ONにする場合は`#setEnabled`の中でもう一度`getPanelView()`を呼ぶ（覚えている色の更新は同じ状態なら同じ結果のため、表示は変わらない）。`getPanelView()`をクラスの内部から呼ぶのは既存の約束の範囲内。
 * **テストプレイで確認すべき項目**（実装AIの確認は合成イベントのみのため、【実ブラウザ】を付けた項目は発注者の実際のブラウザで確かめる）
     * **画面の構成**
