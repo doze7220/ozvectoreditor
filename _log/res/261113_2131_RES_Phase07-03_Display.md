@@ -420,7 +420,7 @@
         *   `./js/core/CanvasCursorTracker.js` : 新規
     *   **作業内容** :
         *   2章「要件3」のとおり作る（JSDoc付き。クラスJSDocに、ドラッグ中・パン中・フロートウィンドウの上・読み込み中の動き（2章「要件3」の実コードで確かめた動き）を短く書く）。完了時点では誰もimportしない（自動テストの対象外）。
-*   [ ] タスク18: ステータスバーの表示の文字列の規則（`StatusReadoutRules.js`）とテスト
+*   [x] タスク18: ステータスバーの表示の文字列の規則（`StatusReadoutRules.js`）とテスト
     *   **対象ファイル** :
         *   `./js/core/StatusReadoutRules.js` : 新規
         *   `./test/core/StatusReadoutRules.test.js` : 新規
@@ -627,7 +627,10 @@
 
 ### タスク18: ステータスバーの表示の文字列の規則（`StatusReadoutRules.js`）とテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/StatusReadoutRules.js`（新規）：先頭に単一責務のJSDoc、何もimportしない。文言・記号（`X:`・`Y:`・`W:`・`H:`・`グリッド:`・`—`・項目の間の半角空白2つ）はモジュール内の非公開の`Object.freeze`した定数`READOUT_TEXT`。`formatReadoutNumber`（非有限は`'—'`、`Math.round(value * 10) / 10 + 0`で`-0`を正規化して`toFixed(1)`）・`formatCursorReadout`・`formatSizeReadout`・`formatGridReadout`（整数のまま`px`を付ける。非有限は`グリッド: —`）。誰もimportしていない（配線はタスク22）。
+    *   `test/core/StatusReadoutRules.test.js`（新規）：`formatReadoutNumber`5ケース・`formatCursorReadout`3ケース・`formatSizeReadout`3ケース・`formatGridReadout`2ケース（丸め・負の値・`-0.04`→`'0.0'`・`-0`・非有限、値あり・`null`、幅と高さの引き算・`null`、10・1000・非有限）。補助関数なし。
+    *   `node --test`：tests 1106 / pass 1106 / fail 0。
+    *   開発資料への影響：計画どおりで追加の差異なし（本体は未修正）。
 
 ### タスク19: 表示の切り替えのまとまりのUI部品（`palette/ViewToggleGroup.js`）
 *   **作業内容** :
