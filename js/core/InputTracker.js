@@ -132,6 +132,22 @@ const NO_SNAP_ASSIST = Object.freeze({
 });
 
 /**
+ * 入力の解釈の外へ委ねる補助の束（実体はmain.jsが注入する。本ファイルはedit/をimportしない）。
+ * 項目ごとに、関数でなければ既定へ置き換える（省略は正当なためconsole.warnは出さない）。
+ * @typedef {Object} InputAssist
+ * @property {() => void} duplicateSelection 選択中の図形を同じ位置に複製して複製だけを選択する。
+ *     Alt+ドラッグの閾値超過時、ドラッグの編集操作（beginEdit済み）の中で呼ばれ、記録しない。既定は何もしない（複製しない）
+ */
+
+/**
+ * 第7引数の補助が注入されなかった場合の既定値（複製しない）。
+ * @type {InputAssist}
+ */
+const NO_INPUT_ASSIST = Object.freeze({
+    duplicateSelection() {},
+});
+
+/**
  * テキスト入力扱いとするinput要素のtype一覧（isTextInputElementの判定に用いる）。
  * 日付・時刻系（date/datetime-local/month/time/week）は数字キー・Backspaceによる直接入力を受け付けるため含める。
  * 含めないtypeの例：checkbox / radio / range / color / button / submit / reset / file / image / hidden。
@@ -240,6 +256,9 @@ function hasCtrlModifier(event) {
  * 図形種別の分岐・図形固有のプロパティ名は持たない。
  * 当たり分類の規則（ハンドル・本体の優先順位）はPointHitRules.classifyPointHitに委ね、#classifyPointは受け渡しのみ行う
  * （塗った内側を当たりに含めるかは、コンストラクタ第6引数で注入された照会に従う）。
+ * 入力の解釈の外へ委ねる補助（InputAssist。コンストラクタ第7引数。この時点の項目はduplicateSelectionのみ）も注入される。
+ * Altを押して始めた本体ドラッグ・移動用ハンドルのドラッグで移動量が閾値を超えた時点（beginEdit()の後）に、
+ * 注入された複製を呼ぶだけで、複製の仕方・idの採番は知らない。
  * メソッドは区切りコメントで「公開API（モード・図形種別）」「公開API（状態依存の操作：削除・取消・全選択・中断）」「イベントハンドラ」「左ドラッグ」「パン」「当たり分類」
  * 「座標取得」「カーソル形状」の順に整理している。
  */
@@ -315,6 +334,19 @@ export class InputTracker {
     #isFillHitExcluded;
 
     /**
+     * 入力の解釈の外へ委ねる補助（コンストラクタ第7引数。項目ごとに関数でなければNO_INPUT_ASSISTの項目）。
+     * @type {InputAssist}
+     */
+    #inputAssist;
+
+    /**
+     * 本体ドラッグ（MOVING_SELECTION）を押した時点のAltキーの状態（event.altKey）。真なら閾値超過時（#onLeftDragStart）に
+     * 選択中の図形を複製してから動かす。押した後のAltは見ない（途中で切り替わらない）。#beginMoveSelectionで立て、#finishLeftDrag()で下ろす。
+     * @type {boolean}
+     */
+    #duplicateOnMove = false;
+
+    /**
      * 直線を描き始めたときに吸い付いていた端点（handleClickのIDLE・図形作成モードで照会した結果。吸い付いていなければnull）。
      * 描き終えのcommitDrawnLineへ渡す。#resetSnapState()でnullに戻す。
      * @type {Object|null}
@@ -352,8 +384,10 @@ export class InputTracker {
      *     EndpointSnapper）。省略時は吸い付かない（従来どおり動作する）
      * @param {() => boolean} [isFillHitExcluded=() => false] - 塗った内側を当たりに含めないかの照会（真なら含めない。
      *     当たり分類のたびに呼ぶ）。省略時は常に含める（従来どおり動作する）。関数でなければ`console.warn`して既定（常に含める）を使う
+     * @param {InputAssist} [inputAssist=NO_INPUT_ASSIST] - 入力の解釈の外へ委ねる補助（実体はmain.jsが注入する）。
+     *     項目ごとに、関数でなければ既定へ置き換える（`console.warn`は出さない）。省略時は従来どおり動作する
      */
-    constructor(canvas, model, viewTransform, editRecorder = NO_EDIT_RECORDER, snapAssist = NO_SNAP_ASSIST, isFillHitExcluded = () => false) {
+    constructor(canvas, model, viewTransform, editRecorder = NO_EDIT_RECORDER, snapAssist = NO_SNAP_ASSIST, isFillHitExcluded = () => false, inputAssist = NO_INPUT_ASSIST) {
         this.canvas = canvas;
         this.model = model;
         this.#editRecorder = editRecorder;
@@ -364,6 +398,11 @@ export class InputTracker {
             console.warn('InputTracker: isFillHitExcluded が関数ではないため、塗った内側を常に当たりに含めます');
             this.#isFillHitExcluded = () => false;
         }
+        this.#inputAssist = {
+            duplicateSelection: typeof inputAssist?.duplicateSelection === 'function'
+                ? () => inputAssist.duplicateSelection()
+                : NO_INPUT_ASSIST.duplicateSelection,
+        };
 
         /**
          * スクリーン⇔ワールド座標変換とズーム・パンを担うビュー変換（main.jsが生成・注入）。
@@ -739,10 +778,12 @@ export class InputTracker {
      * (4)左ボタンでスペース押下中またはキャンバス移動モードならパンを開始する。パンはDRAWING状態・作成途中図形を保持したまま行う。
      * (5)左ボタン以外（右ボタン等）なら何もしない（右ボタンで左ドラッグを開始しない）。
      * (6)IDLE状態かつ選択モード中のみ、押下点（ワールド座標）を#classifyPointで当たり分類し、以下の表で分岐する
-     * （左ドラッグは#beginLeftDragで開始し、閾値以内で離した場合は離した後のclickで判定する）：
-     * ・ハンドルあり・'move'            → MOVING_SELECTION（moveハンドル。選択集合の全図形を平行移動）
+     * （左ドラッグは#beginLeftDragで開始し、閾値以内で離した場合は離した後のclickで判定する。
+     * MOVING_SELECTIONの2か所は#beginMoveSelection経由で開始し、開始できたときに押した時点のevent.altKeyを記憶する
+     * （Alt+ドラッグの複製の判定。Altを見るのは押した時点だけで、頂点のハンドル・範囲選択では記憶しない））：
+     * ・ハンドルあり・'move'            → MOVING_SELECTION（moveハンドル。選択集合の全図形を平行移動。#beginMoveSelection経由）
      * ・ハンドルあり・それ以外（頂点）   → DRAGGING_HANDLE（そのハンドルが属する1図形の頂点のみ変形）
-     * ・本体（bodyId）が選択集合内       → MOVING_SELECTION（本体ドラッグ。単一選択でも有効）
+     * ・本体（bodyId）が選択集合内       → MOVING_SELECTION（本体ドラッグ。単一選択でも有効。#beginMoveSelection経由）
      * ・本体（bodyId）が選択集合外       → 遷移しない（セッションも開始しない。離した後のclickで判定する）
      * ・空白                             → MARQUEE_SELECTING（範囲選択。押下点を#marqueeAnchorに記憶）
      * スペース押下中・中ボタン・キャンバス移動モードは(2)(4)のパン判定が先に成立するため、範囲選択は起きない。
@@ -782,7 +823,7 @@ export class InputTracker {
 
         if (hit.handle) {
             if (hit.handle.handle === 'move') {
-                this.#beginLeftDrag(event, InputState.MOVING_SELECTION, point);
+                this.#beginMoveSelection(event, point);
             } else {
                 this.#beginLeftDrag(event, InputState.DRAGGING_HANDLE, point, hit.handle);
             }
@@ -790,7 +831,7 @@ export class InputTracker {
         }
 
         if (hit.bodyId && this.model.isSelected(hit.bodyId)) {
-            this.#beginLeftDrag(event, InputState.MOVING_SELECTION, point);
+            this.#beginMoveSelection(event, point);
             return;
         }
 
@@ -974,6 +1015,7 @@ export class InputTracker {
      * @param {{x: number, y: number}} point 押下点（ワールド座標）
      * @param {{shapeId: string, handle: string} | null} [target=null] DRAGGING_HANDLEの操作対象（頂点ハンドルが属する図形のid（単一）と
      *     ハンドル名）。MOVING_SELECTION（選択集合の全図形が対象）・MARQUEE_SELECTINGでは不要
+     * @returns {boolean} 開始できたか（DragTrackerがセッション中で開始できなかった場合はfalseで、何も記憶・遷移しない）
      */
     #beginLeftDrag(event, nextState, point, target = null) {
         const started = this.#drag.begin(
@@ -987,7 +1029,7 @@ export class InputTracker {
             { threshold: DRAG_START_THRESHOLD, suppressClick: 'whenMoved' },
         );
         if (!started) {
-            return;
+            return false;
         }
 
         const isMarquee = nextState === InputState.MARQUEE_SELECTING;
@@ -1005,12 +1047,28 @@ export class InputTracker {
         }
         this.state = nextState;
         this.#updateCursor();
+        return true;
+    }
+
+    /**
+     * 選択集合の平行移動のドラッグ（MOVING_SELECTION。moveハンドル・選択中の図形の本体）を開始する。handleMouseDownから呼ばれる。
+     * #beginLeftDragの戻り値（開始できたか）が真のときだけ、押した時点のevent.altKeyを#duplicateOnMoveへ記憶する
+     * （閾値超過時に#onLeftDragStartが複製を呼ぶ。押した後のAltは見ない）。
+     * @param {MouseEvent} event ドラッグを開始したmousedownイベント
+     * @param {{x: number, y: number}} point 押下点（ワールド座標）
+     */
+    #beginMoveSelection(event, point) {
+        if (this.#beginLeftDrag(event, InputState.MOVING_SELECTION, point)) {
+            this.#duplicateOnMove = Boolean(event.altKey);
+        }
     }
 
     /**
      * 左ドラッグの移動量が閾値を超えた時点の処理（DragTrackerのonStart）。
      * 状態がMOVING_SELECTION（本体ドラッグ・moveハンドル）またはDRAGGING_HANDLE（ハンドル変形）のときのみ、記録先の
      * beginEdit()を呼んで#isEditOpenを立てる（まだ図形は動いていない時点の状態が「前の状態」になる。確定は#finishLeftDrag()）。
+     * その後、MOVING_SELECTIONかつ#duplicateOnMove（Alt+ドラッグ）なら注入された補助のduplicateSelection()を呼ぶ
+     * （開いた編集操作の中で複製し、以後の追従は複製を動かす。閾値以内で離したときは本メソッドが呼ばれないため複製しない）。
      * MARQUEE_SELECTING（範囲選択）では呼ばない（編集操作ではないため）。閾値以内で離した場合は本メソッドが呼ばれないため記録しない。
      * 状態は押下時（#beginLeftDrag）に遷移済みである（DragTracker.begin()はonStartを同期的に呼ばず、閾値超過時のmousemoveで呼ぶ）。
      * あわせて、押下前のホバー表示が古いまま残らないようホバー状態をクリアし、カーソル形状を更新する。
@@ -1019,6 +1077,9 @@ export class InputTracker {
         if (this.state === InputState.MOVING_SELECTION || this.state === InputState.DRAGGING_HANDLE) {
             this.#editRecorder.beginEdit();
             this.#isEditOpen = true;
+            if (this.state === InputState.MOVING_SELECTION && this.#duplicateOnMove) {
+                this.#inputAssist.duplicateSelection();
+            }
         }
         this.model.clearHovered();
         this.#updateCursor();
@@ -1172,7 +1233,7 @@ export class InputTracker {
 
     /**
      * 左ドラッグの終了・中断時の後始末（#onLeftDragEnd・#onLeftDragCancelから呼ばれる）。
-     * IDLE状態へ戻し、作業用フィールド（activeHandle・activeShapeId・#moveOrigin・#appliedMoveDelta・#marqueeAnchor）をnullにして、
+     * IDLE状態へ戻し、作業用フィールド（activeHandle・activeShapeId・#moveOrigin・#appliedMoveDelta・#marqueeAnchor）をnullに、#duplicateOnMoveをfalseにして、
      * カーソル形状を再評価する。ドラッグ中に反映した変更（頂点・位置）は取り消さない。
      * 範囲選択の確定・選択矩形の破棄は呼び出し前に済ませること。click抑止フラグの管理はDragTrackerが担う。
      * 冒頭で、#isEditOpenが立っていれば（閾値超過時にbeginEdit()済みの移動・変形）記録先のcommitEdit()を呼んで下ろす
@@ -1190,6 +1251,7 @@ export class InputTracker {
         this.activeShapeId = null;
         this.#moveOrigin = null;
         this.#appliedMoveDelta = null;
+        this.#duplicateOnMove = false;
         this.#marqueeAnchor = null;
         this.#updateCursor();
     }

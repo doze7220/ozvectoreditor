@@ -244,7 +244,7 @@
         *   テスト（先頭のJSDocに、実物の`VectorModel`・`ShapeInserter`・`SnapshotAdapter`・`HistoryManager`・`ClipboardController`を組み合わせる旨を書く。図形は実物の図形クラス、`deleteSelection`は素の関数の偽物）：
             *   `pasteInPlace`：元と同じ位置（`toJSON`の`points`が元と同じ）・新しいid・最前面に足され貼り付けた図形だけが選択・1件の記録（undoで元に戻る）、段数が変わらないこと（`copy` → `pasteInPlace` → `paste`の位置が、`copy` → `paste`の位置（1段ずれ）と同じ）、クリップボードが空のとき`false`・図形と履歴が変わらない。
             *   `duplicateInPlaceWithinEdit`：複製が元と同じ位置・新しいid・最前面に足され複製だけが選択されること、元の図形が変わらないこと（`toJSON`）、クリップボードが変わらないこと（事前の`copy`の後に呼び、続く`paste`の結果と段数が変わらない）、ドラッグの編集操作の中で呼んだとき（`history.beginEdit()` → `duplicateInPlaceWithinEdit()` → `model.moveShapes(選択中, dx, dy)` → `history.commitEdit()`）に履歴が1件で`console.warn`が出ないこと、undoで複製前（元の図形だけ・元が選択）、redoで複製して動かした後（複製が選択）に戻ること、単独で呼んでも記録されないこと（`canUndo()`が偽のまま）、選択が空のとき`false`で何も変わらないこと。
-*   [ ] タスク7: `InputTracker`の要件3（`Alt`+ドラッグ）と`main.js`の注入
+*   [x] タスク7: `InputTracker`の要件3（`Alt`+ドラッグ）と`main.js`の注入
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` : 更新
         *   `./js/main.js` : 更新
@@ -397,7 +397,13 @@
 
 ### タスク7: `InputTracker`の要件3（`Alt`+ドラッグ）と`main.js`の注入
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/InputTracker.js`：typedef`InputAssist`（項目は`duplicateSelection`のみ）・既定`NO_INPUT_ASSIST`・コンストラクタ第7引数`inputAssist`（項目ごとに関数でなければ既定へ。`console.warn`なし）・非公開フィールド`#inputAssist`・`#duplicateOnMove`を足した。非公開メソッド`#beginMoveSelection(event, point)`を足し、`handleMouseDown`の`MOVING_SELECTION`の2か所（moveハンドル・選択中の図形の本体）をその呼び出しへ替えた。`#onLeftDragStart`は`beginEdit()`の後に、`MOVING_SELECTION`かつ`#duplicateOnMove`なら`duplicateSelection()`を呼ぶ。`#finishLeftDrag`で`#duplicateOnMove = false`（`#resetSnapState()`の位置・順は不変）。
+    *   追加仕様：`#beginLeftDrag`が開始できたかの`boolean`を返すようにし（開始できなければ`false`、できれば末尾で`true`。既存の処理は不変）、JSDocへ`@returns`を足した。`#beginMoveSelection`はその戻り値が真のときだけ`#duplicateOnMove = event.altKey`とする。ほかの呼び出し元（頂点のハンドル・範囲選択）は戻り値を使わない。
+    *   `js/main.js`：`new InputTracker(…)`の第7引数に`{ duplicateSelection: () => { clipboardController.duplicateInPlaceWithinEdit(); } }`を足した（`clipboardController`の前方参照の理由をコメントに記載）。`main.js`は877行 → 882行（監査指摘のコメント追記後。追記前は881行）。
+    *   JSDoc・コメントの更新（監査の指摘による修正）：`handleMouseDown`（`MOVING_SELECTION`の2か所が`#beginMoveSelection`経由・押した時点の`event.altKey`を記憶する旨）、`class InputTracker`の説明（第7引数`InputAssist`・`Alt`+ドラッグで閾値超過時に注入された複製を呼ぶだけの旨）、`main.js`の「// 4.」のコメント（第7引数の説明）を追記。コンストラクタの`@param`・`#onLeftDragStart`・`#finishLeftDrag`は実装時に更新済みであることを実ファイルで確認した。
+    *   `node --test`：tests 1148・pass 1148・fail 0。
+    *   開発資料への影響：`_doc/arch/06_InputTracker.md`（第7引数・`#beginLeftDrag`の戻り値・`#beginMoveSelection`）、`_doc/arch/02_main.md`（注入の一覧）。計画の「開発資料の更新予定」に既出。資料本体は未変更。
+    *   目視確認推奨：`Alt`+ドラッグで複製が動き元が残ること、`Alt`を押して閾値以内で離すと複製されないこと、元に戻す1回で複製前へ戻ること。
 
 ### タスク8: `Alt`の単独押下の抑止（要件4）
 *   **作業内容** :

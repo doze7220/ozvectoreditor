@@ -132,7 +132,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     // 編集操作の記録先（EditRecorder）としてhistoryManagerを、吸い付きの照会と反映としてendpointSnapperを注入する
     // 第6引数は、塗った内側を当たりに含めないかの照会（アウトライン表示の間は含めない）
-    const inputTracker = new InputTracker(canvas, model, viewTransform, historyManager, endpointSnapper, () => displayState.isOutline());
+    // 第7引数は、Alt+ドラッグで選択中の図形を複製する補助（実体はclipboardController.duplicateInPlaceWithinEdit()）
+    const inputTracker = new InputTracker(canvas, model, viewTransform, historyManager, endpointSnapper, () => displayState.isOutline(), {
+        // clipboardControllerは後の「// 7.5.」でconst宣言されるが、呼ばれるのはAlt+ドラッグ中（起動完了後）だけで、
+        // InputTrackerのコンストラクタはduplicateSelectionを呼ばない（既存のinputTrackerの前方参照と同じ扱い）
+        duplicateSelection: () => { clipboardController.duplicateInPlaceWithinEdit(); },
+    });
 
     /**
      * Modelの現在の状態（shapes/selectedIds/hoveredId/draftShape/selectionRect/snapPoint）とビュー変換の現在の状態
