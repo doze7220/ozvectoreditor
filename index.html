@@ -6,11 +6,12 @@
     <title>OZ Vector Editor</title>
     <style>
         /* 画面の領域の寸法の唯一の定義箇所（ツールバー・ステータスバー・キャンバスの領域・フロートウィンドウの既定の位置の基準）。
-           定規を足すとき（Phase 07-03）は、--canvas-area-top（ツールバー＋定規の高さ）と--canvas-area-left（定規の幅）の2行だけを直す */
+           定規を足すとき（Phase 07-03）に直すのは、--canvas-area-top（ツールバー＋定規の高さ）と--canvas-area-left（定規の幅）の2行だけで、
+           --canvas-area-width・--canvas-area-heightとフロートウィンドウの既定の位置の基準はそれに追従する */
         :root {
             --toolbar-height: 40px;          /* ツールバーの高さ（1行固定） */
             --statusbar-height: 28px;        /* ステータスバーの高さ（1行固定） */
-            /* キャンバスの領域（07-03で定規を足すときは、この4行だけを直す） */
+            /* キャンバスの領域（07-03で定規を足すときに直すのは--canvas-area-topと--canvas-area-leftの2行。幅・高さはそれに追従する） */
             --canvas-area-top: var(--toolbar-height);
             --canvas-area-left: 0px;
             --canvas-area-width: calc(100vw - var(--canvas-area-left));
@@ -163,24 +164,31 @@
             flex-direction: column;
             gap: 8px;
         }
-        #window-control-panel {
+        /* ツールパレット（静的に置き常に表示。×なし・見出しの文字なし。常に押せる＝半透明にしない）。
+           キャンバスの領域の左上に置く（top: --float-window-top＝ツールバーの下端40px＋余白8px＝48px、left: 余白8px）。
+           幅44px（ボタン32px＋.window-bodyの左右の余白6px×2）。1280×800での範囲はx 8〜54、y 48〜約354
+           （見出し約39px＋本体約265px＋枠2px）で、ステータスバーの上端772pxより上。
+           ?devの確認用ウィンドウ（left: 62px）・プロパティパネル・キャンバスパレットとは横方向で離れているため重ならない */
+        #window-tool-palette {
             top: var(--float-window-top);
-            right: 16px;
-            width: 220px;
+            left: var(--float-window-left);
+            width: 44px;
         }
-        /* topはコントロールパネルのキャンバス名の表示行・呼び出し口ボタンの追加に合わせて368px→440pxへ下げた
-           （変更前のパネル下端 約341px＋追加分 約70px（キャンバス名の行18px＋行間8px＋呼び出し口ボタン約36px＋行間8px）
-           ＝新しい下端 約411px。440−411＝約29pxで、余白24px以上を確保するため。自動配置はしない。
-           topはコントロールパネルとの相対の位置（16px＋424px）を保つ一時的な値で、基準はツールバーの下の--float-window-top） */
-        #window-shape-palette {
-            top: calc(var(--float-window-top) + 424px);
-            right: 16px;
-            width: 220px;
+        #window-tool-palette .window-body {
+            padding: 6px;
+            gap: 0;
         }
-        /* SELECTモード中など非活性化させたい.float-windowに付与する（クリック不可＋半透明化） */
-        .disabled {
-            opacity: 0.4;
-            pointer-events: none;
+        /* ツールパレットのツールのまとまり（縦並び）。「選択・キャンバス移動」と「図形」の2つ */
+        .tool-palette-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        /* まとまりの間の区切り（上の罫線と余白。区切りの要素は置かず、まとまりを足すだけで付く） */
+        .tool-palette-group + .tool-palette-group {
+            border-top: 1px solid #ddd;
+            margin-top: 4px;
+            padding-top: 4px;
         }
         .tool-btn {
             padding: 8px 10px;
@@ -195,8 +203,7 @@
         .tool-btn:hover:not(:disabled) {
             background-color: #eee;
         }
-        /* ボタン単体の押せない状態（HTMLのdisabled属性。例：選択集合が空の削除ボタン）。
-           フロートウィンドウ全体を非活性化する.disabledクラスとは別物 */
+        /* ボタン単体の押せない状態（HTMLのdisabled属性。例：選択集合が空の削除ボタン） */
         .tool-btn:disabled {
             opacity: 0.4;
             cursor: default;
@@ -239,11 +246,12 @@
             text-overflow: ellipsis;
         }
         /* キャンバスパレット（ツールバーの呼び出し口#launcher-canvasで開閉。hidden属性で初期非表示）。
-           コントロールパネルの左隣に置く（right: コントロールパネルのright 16px＋幅220px＋間隔16px＝252px）。
-           ?devの確認用ウィンドウ（left: 16px・幅360px）とは、画面幅が約870px以上なら重ならない */
+           キャンバスの領域の右上に置く（top: ツールバーの下の--float-window-top＝48px、right: 余白8px、幅240px）。
+           1280×800での範囲はx 1030〜1272、y 48〜約565（一覧の最大240pxを含む見積もり）で、ステータスバーの上端772pxより上。
+           ツールパレット（x 8〜54）・?devの確認用ウィンドウ（left: 62px・幅360px）とは、画面幅が約670px以上なら重ならない */
         #window-canvas-palette {
             top: var(--float-window-top);
-            right: 252px;
+            right: var(--float-window-margin);
             width: 240px;
         }
         /* キャンバスパレットの一覧（キャンバス数が多い場合はパレット内で縦スクロールする） */
@@ -301,7 +309,7 @@
         /* 読み込み中の覆い要素（キャンバスの領域だけを覆い、読み込み完了までキャンバスへのマウス入力を遮る。位置と大きさは上のまとめたルール）。
            表示状態で始まり（main.jsの実行前から遮るため）、main.jsのsyncLoadingCover()が読み込み完了でhidden属性を付けて非表示にする。
            z-index: 5はキャンバス（1）より前面・ツールバー・ステータスバー（8）・フロートウィンドウ（10以上。最前面化でも下がらない）より背面のため、
-           ツールバー・ステータスバー・コントロールパネル・パレット・?devの確認用ウィンドウは読み込み中も操作できる */
+           ツールバー・ステータスバー・ツールパレット・キャンバスパレット・プロパティパネル・?devの確認用ウィンドウは読み込み中も操作できる */
         .canvas-loading-cover {
             z-index: 5;
             display: flex;
@@ -319,14 +327,16 @@
             display: none;
         }
         /* プロパティパネル（静的に置き常に表示。×なし。.disabledは使わない）。
-           開いた状態のキャンバスパレットの左隣に置く（right: キャンバスパレットのright 252px＋幅240px＋間隔16px＝508px）。
-           コントロールパネル・図形選択パレット（右端から16〜236px）・開いた状態のキャンバスパレット（右端から252〜492px）とは
+           開いた状態のキャンバスパレットの左隣に置く（right: 余白8px＋キャンバスパレット幅240px＋枠2px＋余白8px＝258px）。
+           ツールパレット（左端から8〜54px）・開いた状態のキャンバスパレット（右端から8〜250px）とは
            横方向で離れているため、各ウィンドウの高さによらず重ならない。
-           ?devの確認用ウィンドウ（left: 16px・幅360px＝左端から376px）とは、画面幅が508＋220＋376＝1104px以上なら重ならない。
-           パネル自身は1280×800に収まる（幅は508＋220＝728＜1280、高さは約330px・下端は約345pxで800px未満。「図形」の段約200pxに「重なり順」の段約127pxを足した見積もり） */
+           ?devの確認用ウィンドウ（left: 62px・幅360px＝左端から424px）とは、画面幅が258＋220＋424＝902px以上なら重ならない
+           （プロパティパネルの右端は右端から258〜478px。1280×800ではx 800〜1022で、?devの右端424pxと重ならない）。
+           パネル自身は1280×800に収まる（幅は258＋220＝478＜1280、高さは約330px・y 48〜約378で、ステータスバーの上端772pxより上。
+           「図形」の段約200pxに「重なり順」の段約127pxを足した見積もり） */
         #window-property-panel {
             top: var(--float-window-top);
-            right: 508px;
+            right: 258px;
             width: 220px;
         }
         /* プロパティパネルの段（段ごとに1つの<section>。縦並び） */
@@ -397,10 +407,12 @@
             text-align: center;
             white-space: nowrap;
         }
-        /* 開発者向け確認用ウィンドウ（?dev時のみ表示。右側のコントロールパネル・図形パレットと重ならない左上に置く） */
+        /* 開発者向け確認用ウィンドウ（?dev時のみ表示。ツールパレットの右隣に置く。
+           left: ツールパレットの左の位置に54px（ツールパレット幅44px＋枠2px＋余白8px）を足す。1280×800ではx 62〜424、y 48〜。
+           ツールパレット（x 8〜54）とは重ならない。プロパティパネルとは画面幅が約902px未満で重なり得る（許容） */
         #window-dev-panel {
             top: var(--float-window-top);
-            left: 16px;
+            left: calc(var(--float-window-left) + 54px);
             width: 360px;
         }
         .dev-button-row {
@@ -457,26 +469,20 @@
             </div>
         </div>
     </footer>
-    <div id="window-control-panel" class="float-window">
-        <div class="window-header">
-            <span class="window-title">OZ Vector Editor</span>
-        </div>
+    <div id="window-tool-palette" class="float-window">
+        <div class="window-header"></div>
         <div class="window-body">
-            <button type="button" id="mode-select" class="tool-btn active" title="選択 (V)">🖱 選択</button>
-            <button type="button" id="mode-create" class="tool-btn" title="図形作成 (P)">✏ 図形作成</button>
-            <button type="button" id="mode-pan" class="tool-btn" title="キャンバス移動 (H)">✋ キャンバス移動</button>
-        </div>
-    </div>
-    <div id="window-shape-palette" class="float-window disabled">
-        <div class="window-header">
-            <span class="window-title">図形選択パレット</span>
-        </div>
-        <div class="window-body">
-            <button type="button" id="palette-line" class="tool-btn" title="直線 (1)">／ 直線</button>
-            <button type="button" id="palette-curve" class="tool-btn" title="曲線 (2)">〜 曲線</button>
-            <button type="button" id="palette-arc" class="tool-btn" title="弧 (3)">◠ 弧</button>
-            <button type="button" id="palette-rect" class="tool-btn" title="矩形 (4)">▭ 矩形</button>
-            <button type="button" id="palette-circle" class="tool-btn" title="円 (5)">◯ 円</button>
+            <div class="tool-palette-group">
+                <button type="button" id="tool-select" class="tool-btn icon-btn active" title="選択 (V)">🖱</button>
+                <button type="button" id="tool-pan" class="tool-btn icon-btn" title="キャンバス移動 (H)">✋</button>
+            </div>
+            <div class="tool-palette-group">
+                <button type="button" id="tool-line" class="tool-btn icon-btn" title="直線 (1)">／</button>
+                <button type="button" id="tool-curve" class="tool-btn icon-btn" title="曲線 (2)">〜</button>
+                <button type="button" id="tool-arc" class="tool-btn icon-btn" title="弧 (3)">◠</button>
+                <button type="button" id="tool-rect" class="tool-btn icon-btn" title="矩形 (4)">▭</button>
+                <button type="button" id="tool-circle" class="tool-btn icon-btn" title="円 (5)">◯</button>
+            </div>
         </div>
     </div>
     <div id="window-canvas-palette" class="float-window" hidden>

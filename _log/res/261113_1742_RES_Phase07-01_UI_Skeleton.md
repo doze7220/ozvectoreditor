@@ -271,7 +271,7 @@
         *   コントロールパネルには`#mode-select`・`#mode-create`・`#mode-pan`だけが残る（タスク5で削除）。
         *   CSS：`.icon-btn`・`.status-bar .icon-btn`を`.tool-btn`のルールの後に足す（2章 要件5）。使われなくなる`.view-zoom-row`・`.history-button-row`（＋`.history-button-row .tool-btn`）・`.selection-button-row`（＋`.selection-button-row .tool-btn`）とそのCSSコメントを削除する。`.canvas-name-display`に`min-width: 0`を足し、CSSコメントを「ステータスバーの左側の開いているキャンバスの名前の表示（長い名前は省略表示し、名前全体は`main.js`が`title`属性に設定する）」へ改める。`#window-canvas-palette`のCSSコメントの「呼び出し口`#launcher-canvas`」がコントロールパネル内を前提にしていれば「ツールバーの」へ改める（位置の数値はタスク5）。
         *   `main.js`は変えない（idで解決しているため）。確認：5つのボタンの働きと押せる/押せない、キャンバスパレットの開閉と押し込み、キャンバス名（`⚠ `・読み込み中・省略表示・`title`）、倍率の追従、表示のリセット、狭い幅で1行のまま右側が切れること。
-*   [ ] タスク5: ツールパレットへの切り替えとコントロールパネル・図形選択パレットの削除
+*   [x] タスク5: ツールパレットへの切り替えとコントロールパネル・図形選択パレットの削除
     *   **対象ファイル** :
         *   `./index.html` : 更新
         *   `./js/main.js` : 更新
@@ -352,7 +352,11 @@
 
 ### タスク5: ツールパレットへの切り替えとコントロールパネル・図形選択パレットの削除
 *   **作業内容** :
-    *   (未着手)
+    *   `index.html`：`#window-tool-palette`（`.float-window`の最初。`hidden`・`×`・見出しの文字なし。2つの`.tool-palette-group`に`#tool-select`（`active`）・`#tool-pan`／`#tool-line`・`#tool-curve`・`#tool-arc`・`#tool-rect`・`#tool-circle`。`class="tool-btn icon-btn"`・`title`はキー表記を保持）を追加。`#window-control-panel`・`#window-shape-palette`のマークアップとCSS・`.disabled`を削除、`.tool-btn:disabled`のコメントから`.disabled`への言及を除いた。CSS：`#window-tool-palette`・`#window-tool-palette .window-body`・`.tool-palette-group`・`+`の区切りを追加。既定の位置を要件6(2)の表の値に（キャンバスパレット`right: var(--float-window-margin)`、プロパティパネル`right: 258px`、`?dev`は`left: calc(var(--float-window-left) + 54px)`）。位置の根拠のCSSコメントを書き直し、コントロールパネル・図形選択パレット基準の記述を除いた。
+    *   追加仕様（コメントのみ。CSSの値は変えていない）：`:root`の外側・内側のコメントを「定規を足すときに直すのは`--canvas-area-top`・`--canvas-area-left`の2行で、幅・高さ等はそれに追従する」へ統一。プロパティパネルの位置コメントの旧数値（「下端は約345px」等）を上端48px・下端約378px・比べる相手はステータスバー上端772pxへ改めた。覆い要素のコメントの「コントロールパネル・パレット」も実態へ改めた。
+    *   `main.js`：`PaletteController`のimportを`ToolPalette`・`TOOL_IDS`・`resolveActiveTool`へ。`// 6.`見出しを「ツールバー・ステータスバー配線」にし、`modeButtons`を削除（各コメント・JSDocの「コントロールパネル」→「ツールバー」「ステータスバー」、`resetViewToCenter`のJSDocをキャンバスの領域の中心へ。処理は不変）。`// 7.`を「ツールパレット配線」にし、`toolPalette`・`syncToolPalette`・`applyMode`・`applyShapeType`・`selectShapeTool`・`toolActions`・`selectTool`へ置き換え（JSDoc付き）。`// 8.`の`setShapeType`コールバックは`selectShapeTool(type)`を呼ぶ形へ、`setMode`・`setShapeType`のコメントを改めた。`paletteLaunchers`・起動時初期化のコメントを改めた。
+    *   `node --check js/main.js`成功。`node --test`：tests 986 / pass 986 / fail 0。`index.html`・`main.js`を`Grep`し`コントロールパネル|図形選択|palette-|mode-*|modeButtons`が残っていないことを確認。(c)：ブラウザでの起動・合成イベントによる確認は行っていない（確認項目はテストプレイ）。
+    *   開発資料の更新予定への新規追記：なし（計画済みの内容どおり。`main.js`の行数は最終タスクで実測する）。
 
 ### タスク6: 使われなくなった`PaletteController.js`の削除
 *   **作業内容** :
@@ -392,6 +396,11 @@
 * コントロールパネルは高さが縮むが、`#window-shape-palette`の`top`は一時的な値のまま（タスク5で確定）。
 * 目視推奨：5つのツールバーのボタン・倍率・🎯・キャンバス名（`⚠ `・省略表示・`title`）の働き、アイコンの大きさ・縦位置がそろっていること、狭い幅で1行のまま右側が切れること。
 * 開発資料の更新予定への新規追記：なし。
+
+### タスク5での追記
+* 目視推奨：起動時に`console.warn`が出ないこと、ツールパレット（幅44px）にアイコン32pxのボタンが収まり半透明にならないこと、7つのボタンで常に1つだけが押し込みになること（`V`・`H`・`P`・`1`〜`5`・貼り付け・全選択・キャンバス切り替えで追従）、1280×800で各ウィンドウが重ならずステータスバーに届かないこと。
+* `PaletteController.js`はまだ残る（`main.js`は使わない。削除はタスク6）。`ToolPalette`のルート要素が無い場合の`console.warn`文言はタスク2で新規に定めたもの。
+* 注意：`P`は`applyMode(CREATE)`のみで、最後に選んだ図形（起動直後は直線）のボタンが押し込みになる。
 
 ### テストプレイの確認項目（操作手順 → 期待する結果）
 ※【実ブラウザ】は、実装AIの合成イベントでは確かめられず、実際のブラウザでの確認が要る項目。

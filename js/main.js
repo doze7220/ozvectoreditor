@@ -9,7 +9,8 @@ import { KeyboardShortcuts } from './core/KeyboardShortcuts.js';
 import { WindowManager } from './core/WindowManager.js';
 import { ViewTransform } from './core/ViewTransform.js';
 import { HistoryManager } from './core/HistoryManager.js';
-import { PaletteController } from './palette/PaletteController.js';
+import { ToolPalette } from './palette/ToolPalette.js';
+import { TOOL_IDS, resolveActiveTool } from './core/ToolRules.js';
 import { SHAPE_TYPES } from './core/ShapeFactory.js';
 import { DocumentSerializer } from './io/DocumentSerializer.js';
 import { DevPanel } from './palette/DevPanel.js';
@@ -66,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     /**
-     * 取り消しの操作関数。キーボードショートカット（Ctrl+Z）とコントロールパネルの取り消しボタンの
+     * 取り消しの操作関数。キーボードショートカット（Ctrl+Z）とツールバーの取り消しボタンの
      * 共通経路であり、受理条件・動作はどちらから呼ばれても同一。
      * (1) ドラッグ中（InputTracker.isDragging()が真）なら何もせずfalse（不受理）。
      * (2) 進行中の入力操作を中断し、作成途中の図形を破棄した場合はそれで終了しtrue（履歴は変化させない。Escと同じ結果。
@@ -89,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * やり直しの操作関数。キーボードショートカット（Ctrl+Y／Ctrl+Shift+Z）とコントロールパネルのやり直しボタンの
+     * やり直しの操作関数。キーボードショートカット（Ctrl+Y／Ctrl+Shift+Z）とツールバーのやり直しボタンの
      * 共通経路であり、受理条件・動作はどちらから呼ばれても同一。
      * (1) ドラッグ中（InputTracker.isDragging()が真）なら何もせずfalse（不受理）。
      * (2) 進行中の入力操作を中断する（作成途中の図形があれば破棄する。戻り値は使わない）。
@@ -153,31 +154,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // 5. フロートウィンドウ統治（ドラッグ・最前面化・イベント遮断の一元管理）
     new WindowManager();
 
-    // 6. フロートパネル（コントロールパネル）配線
-    /**
-     * コントロールパネルがownする操作モードボタンを、OperationModeの値でマッピングする汎用テーブル。
-     * モード追加時は、index.htmlへのボタン追加・InputTrackerのOperationModeへの値追加・
-     * 本テーブルへのエントリ追加のみで対応でき、下記のapplyMode本体・クリックリスナー登録ループの
-     * 書き換えは一切不要になる（開閉原則）。
-     * @type {Object<string, HTMLElement>} キー: OperationModeの値、値: 対応するボタン要素
-     */
-    const modeButtons = {
-        [OperationMode.SELECT]: document.getElementById('mode-select'),
-        [OperationMode.CREATE]: document.getElementById('mode-create'),
-        [OperationMode.PAN]: document.getElementById('mode-pan'),
-    };
-
-    // コントロールパネルの倍率表示・リセットボタン（modeButtonsには含めない：.activeの対象外）
+    // 6. ツールバー・ステータスバー配線
+    // ステータスバーの倍率表示・リセットボタン
     const zoomDisplayEl = document.getElementById('view-zoom-display');
     const viewResetBtn = document.getElementById('view-reset');
-    // コントロールパネルの削除ボタン（modeButtonsには含めない：.activeの対象外）
+    // ツールバーの削除ボタン
     const deleteSelectionBtn = document.getElementById('selection-delete');
-    // コントロールパネルの取り消し・やり直しボタン（modeButtonsには含めない：.activeの対象外）
+    // ツールバーの取り消し・やり直しボタン
     const historyUndoBtn = document.getElementById('history-undo');
     const historyRedoBtn = document.getElementById('history-redo');
 
     /**
-     * コントロールパネルの倍率表示（`#view-zoom-display`）を、ViewTransformの現在の倍率に同期する。
+     * ステータスバーの倍率表示（`#view-zoom-display`）を、ViewTransformの現在の倍率に同期する。
      * 倍率は百分率の整数に四捨五入して表示する（例：1.1 → "110%"）。viewTransform.onChangeの
      * コールバックとして登録し、起動時にも明示的に1回呼び出す。表示要素のDOM更新はmain.jsが担い、
      * ViewTransform・CanvasManager・VectorModelはDOMに触れない。
@@ -190,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
     viewTransform.onChange(syncZoomDisplay);
 
     /**
-     * ビュー変換を初期表示（倍率1.0・ワールド原点がキャンバス要素全体の中心）へ戻す。
+     * ビュー変換を初期表示（倍率1.0・ワールド原点がキャンバスの領域（キャンバス要素。ツールバー・ステータスバーを除いた領域）の中心）へ戻す。
      * キャンバス要素の大きさ（CSSピクセル）を使う計算はこの関数（とzoomAtCanvasCenter）に集める。
      * フロートウィンドウに隠れる部分は考慮しない。ウィンドウの大きさ変更には追従しない（呼ばれた時点の大きさのみ使う）。
      * リセットボタン・リセットのショートカット・CanvasLibraryへ注入するresetViewの共通経路。
@@ -205,7 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
     viewResetBtn.addEventListener('click', () => resetViewToCenter());
 
     /**
-     * コントロールパネルの削除ボタン（`#selection-delete`）の押せる/押せない状態を、Modelの選択集合に
+     * ツールバーの削除ボタン（`#selection-delete`）の押せる/押せない状態を、Modelの選択集合に
      * 同期する。選択集合が空なら押せない状態（HTMLの`disabled`属性）にする。model.onChangeの
      * コールバックとして登録し、起動時にも明示的に1回呼び出す（通知の有無に依存しない）。
      * ボタンのDOM更新はmain.jsが担い、VectorModel・InputTrackerはDOMに触れない。
@@ -230,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
         editRecorder: historyManager,
         screenLengthToWorld: (length) => viewTransform.screenLengthToWorld(length),
     });
-    // コントロールパネルの結合ボタン（modeButtonsには含めない：.activeの対象外）
+    // ツールバーの結合ボタン
     const joinSelectionBtn = document.getElementById('selection-join');
 
     /**
@@ -248,7 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * コントロールパネルの結合ボタン（`#selection-join`）の押せる/押せない状態を、現在の選択が結合できるか
+     * ツールバーの結合ボタン（`#selection-join`）の押せる/押せない状態を、現在の選択が結合できるか
      * （pathJoiner.canJoin()）に同期する（HTMLの`disabled`属性）。canJoin()は表示倍率を見ない。
      * model.onChangeのコールバックとして登録し、起動時にも明示的に1回呼び出す。ボタンのDOM更新はmain.jsが担う。
      */
@@ -263,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
     joinSelectionBtn.addEventListener('click', () => performJoin());
 
     /**
-     * コントロールパネルの取り消し・やり直しボタン（`#history-undo`／`#history-redo`）の押せる/押せない状態を
+     * ツールバーの取り消し・やり直しボタン（`#history-undo`／`#history-redo`）の押せる/押せない状態を
      * 同期する（HTMLの`disabled`属性）。
      * 取り消しボタンは「取り消す履歴がなく、作成途中の図形もない」ときに押せない状態にする
      * （作成途中の図形がある間は、取り消しで破棄できるため押せる）。
@@ -287,42 +275,77 @@ document.addEventListener('DOMContentLoaded', () => {
     historyUndoBtn.addEventListener('click', () => performUndo());
     historyRedoBtn.addEventListener('click', () => performRedo());
 
-    // 7. 図形選択パレット配線
-    const shapePaletteEl = document.getElementById('window-shape-palette');
-    // 図形種別一覧は正本（ShapeFactory.js）から直接渡す。パレットのボタンはid`palette-${type}`で照合される
-    const paletteController = new PaletteController(shapePaletteEl, SHAPE_TYPES, applyShapeType);
+    // 7. ツールパレット配線
+    // ツールの識別子一覧はToolRulesのTOOL_IDS（SHAPE_TYPESから導出）。パレットのボタンはid`tool-${toolId}`で照合される
+    const toolPalette = new ToolPalette(document.getElementById('window-tool-palette'), TOOL_IDS, (toolId) => selectTool(toolId));
 
     /**
-     * 操作モードの切り替えを一元的に行う共通関数。コントロールパネル各ボタン（`modeButtons`）の
-     * clickリスナー、および起動時の初期化から呼び出される。InputTrackerへのモード切り替え要求の後、
-     * `inputTracker.getMode()`で実際の内部状態を読み返してから表示を同期する（未知の値が渡され
+     * ツールパレットの押し込みの表示を、InputTrackerの現在の操作モード・図形種別に同期する。
+     * 求める規則はToolRulesのresolveActiveTool。applyMode・applyShapeTypeの中からだけ呼ぶ（専用の同期経路ではない）。
+     */
+    function syncToolPalette() {
+        toolPalette.setActiveTool(resolveActiveTool(inputTracker.getMode(), inputTracker.getShapeType()));
+    }
+
+    /**
+     * 操作モードの切り替えを一元的に行う共通関数。ツールパレットの選択・キャンバス移動のボタン
+     * （`selectTool`経由）、貼り付け・全選択・キャンバスの切り替え・インポート、起動時の初期化から呼び出される。
+     * InputTrackerへのモード切り替え要求の後、切替後に`inputTracker.getMode()`・`getShapeType()`で
+     * 実際の内部状態を読み返し、`resolveActiveTool`で求めたツールを押し込みにする（未知の値が渡され
      * InputTracker側で無視された場合でも、UI表示と内部状態が乖離しないようにするため）。
-     * 表示同期として、`modeButtons`を走査する汎用ループによる`.active`の排他的な付け外し、
-     * パレットの活性制御（図形作成モードのときのみ活性）、および記憶中の図形種別のハイライトを
-     * PaletteControllerへ委譲する。モードごとのif/else分岐は持たない。
      * @param {'select'|'create'|'pan'} mode - 切り替え先の操作モード（OperationModeの値）
      */
     function applyMode(mode) {
         inputTracker.setMode(mode);
-        const currentMode = inputTracker.getMode();
-        Object.entries(modeButtons).forEach(([key, btn]) => btn.classList.toggle('active', key === currentMode));
-        paletteController.setEnabled(currentMode === OperationMode.CREATE);
-        paletteController.setActiveType(inputTracker.getShapeType());
+        syncToolPalette();
     }
 
     /**
-     * 図形種別の切り替えを一元的に行う共通関数。PaletteControllerへ`onTypeSelected`コールバック
-     * として渡され、パレットの各図形種別ボタンのclick時に呼び出される。操作モードは変更しない。
-     * InputTrackerへの図形種別切り替え要求の後、`inputTracker.getShapeType()`で実際の内部状態を
-     * 読み返してパレットのハイライトを同期する（未知の値が無視された場合でもUIと内部状態を一致させるため）。
+     * 図形種別の切り替えを一元的に行う共通関数。操作モードは変更しない。
+     * InputTrackerへの図形種別切り替え要求の後、切替後に`inputTracker.getMode()`・`getShapeType()`で
+     * 実際の内部状態を読み返し、`resolveActiveTool`で求めたツールを押し込みにする
+     * （未知の値が無視された場合でもUIと内部状態を一致させるため）。
      * @param {string} type - 切り替え先の図形種別（`SHAPE_TYPES`のいずれか）
      */
     function applyShapeType(type) {
         inputTracker.setShapeType(type);
-        paletteController.setActiveType(inputTracker.getShapeType());
+        syncToolPalette();
     }
 
-    Object.entries(modeButtons).forEach(([mode, btn]) => btn.addEventListener('click', () => applyMode(mode)));
+    /**
+     * 図形のツールを選ぶ。ツールパレットの図形のボタンと数字キーの共通経路。
+     * 図形作成モード以外では先に図形作成モードへ切り替えてから、図形種別を切り替える。
+     * @param {string} type - 選ぶ図形種別（`SHAPE_TYPES`のいずれか）
+     */
+    function selectShapeTool(type) {
+        if (inputTracker.getMode() !== OperationMode.CREATE) {
+            applyMode(OperationMode.CREATE);
+        }
+        applyShapeType(type);
+    }
+
+    /**
+     * ツールの識別子から操作への対応表。識別子は`TOOL_IDS`と同じ（同じ並び）。
+     * 選択・キャンバス移動は`applyMode`、図形は`selectShapeTool`の経路を通る。
+     * @type {Object<string, function(): void>}
+     */
+    const toolActions = {
+        [OperationMode.SELECT]: () => applyMode(OperationMode.SELECT),
+        [OperationMode.PAN]: () => applyMode(OperationMode.PAN),
+        ...Object.fromEntries(SHAPE_TYPES.map((type) => [type, () => selectShapeTool(type)])),
+    };
+
+    /**
+     * ツールパレットのボタンが押されたときの処理（ToolPaletteへ`onToolSelected`として渡す）。
+     * 対応表に無い識別子は無視する（判定ではなく一覧外の識別子に対する防御のみ）。
+     * @param {string} toolId - 選ばれたツールの識別子（`TOOL_IDS`のいずれか）
+     */
+    function selectTool(toolId) {
+        const action = toolActions[toolId];
+        if (action) {
+            action();
+        }
+    }
 
     // 7.5. クリップボード（コピー・切り取り・貼り付け・複製）配線
     // 処理本体はedit/の新設クラスが持ち、ここは生成と注入のみを行う。
@@ -338,7 +361,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // applyMode・viewTransform・historyManagerの生成後であること（切り替え処理の前提）。
     /**
      * 呼び出し口のボタンと開閉式パレットの対応表（PaletteLauncherへ渡す。唯一の定義箇所）。
-     * 後続のパレットを追加する場合は、index.htmlへ呼び出し口のボタンとパレットのDOM（`hidden`で初期非表示）を
+     * 後続のパレットを追加する場合は、index.htmlのツールバーへ呼び出し口のボタンとパレットのDOM（`hidden`で初期非表示）を
      * 静的に置き、本表へ`{ button, palette }`の1エントリを追加する（PaletteLauncherの変更は不要）。
      * @type {Array<{button: HTMLElement|null, palette: HTMLElement|null}>}
      */
@@ -532,17 +555,14 @@ document.addEventListener('DOMContentLoaded', () => {
     new KeyboardShortcuts({
         // ドラッグ中（パン・左ドラッグ。閾値以前を含む）か。受理判定専用
         isDragging: () => inputTracker.isDragging(),
-        // 操作モード切替（モードボタンと同一経路）
+        // 操作モード切替（ツールパレットの選択・キャンバス移動のボタンと同一経路）
         setMode: (mode) => {
             applyMode(mode);
             return true;
         },
-        // 図形種別切替。図形作成モード以外では先に図形作成モードへ切り替える（パレットと同一経路）
+        // 図形種別切替。図形作成モード以外では先に図形作成モードへ切り替える（ツールパレットの図形のボタンと同一経路）
         setShapeType: (type) => {
-            if (inputTracker.getMode() !== OperationMode.CREATE) {
-                applyMode(OperationMode.CREATE);
-            }
-            applyShapeType(type);
+            selectShapeTool(type);
             return true;
         },
         // 表示中キャンバスの中心基準で拡大・縮小
@@ -633,7 +653,7 @@ document.addEventListener('DOMContentLoaded', () => {
         devPanel.show();
     }
 
-    // 起動時初期化：UIの初期表示（モードボタンの.active・パレットの.disabled・パレット内ハイライト）を
+    // 起動時初期化：UIの初期表示（ツールパレットの押し込みの表示）を
     // InputTrackerの内部状態に同期させる
     applyMode(OperationMode.SELECT);
 
