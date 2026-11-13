@@ -318,7 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
     historyUndoBtn.addEventListener('click', () => performUndo());
     historyRedoBtn.addEventListener('click', () => performRedo());
 
-    // 6.5. 表示配線（ステータスバーの座標・大きさ・グリッドの表示、表示の切り替えのまとまり（アウトライン・背景・グリッド））
+    // 6.5. 表示配線（ステータスバーの座標・大きさ・グリッドの表示、表示の切り替えのまとまり（アウトライン・背景・グリッド）、パレットを隠す）
     // 外枠の照会（選択中の図形の大きさに使う）
     const shapeExtentReader = new ShapeExtentReader({ model });
     const cursorReadoutEl = document.getElementById('cursor-readout');
@@ -372,6 +372,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     displayState.onChange(syncViewToggleGroup);
+
+    // フロートウィンドウをまとめて隠す/出す（🧰。キーTabと同じdisplayStateの操作を呼ぶだけで、判定を持たない）
+    const floatWindowsToggleBtn = document.getElementById('float-windows-toggle');
+    floatWindowsToggleBtn.addEventListener('click', () => displayState.toggleFloatWindows());
+
+    /**
+     * フロートウィンドウの表示の状態（`displayState.isFloatWindowsVisible()`）を、`body`のクラス`float-windows-hidden`
+     * （index.htmlのCSSがすべての`.float-window`を隠す）と🧰の押し込み（表示中＝押し込み）に同期する。
+     * displayState.onChangeに登録し、起動時にも明示的に1回呼び出す（キーで切り替えてもボタンの表示が追従する）。
+     */
+    function syncFloatWindowVisibility() {
+        const visible = displayState.isFloatWindowsVisible();
+        document.body.classList.toggle('float-windows-hidden', !visible);
+        floatWindowsToggleBtn.classList.toggle('active', visible);
+    }
+
+    displayState.onChange(syncFloatWindowVisibility);
 
     // 7. ツールパレット配線
     // ツールの識別子一覧はToolRulesのTOOL_IDS（SHAPE_TYPESから導出）。パレットのボタンはid`tool-${toolId}`で照合される
@@ -466,7 +483,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const paletteLaunchers = [
         { button: document.getElementById('launcher-canvas'), palette: document.getElementById('window-canvas-palette') },
     ];
-    new PaletteLauncher(paletteLaunchers);
+    // 隠している間の📁は、パレットを出して必ず開く（規則はPaletteLauncherが持ち、ここは照会と「出す」の注入のみ）
+    new PaletteLauncher(paletteLaunchers, {
+        isFloatWindowsVisible: () => displayState.isFloatWindowsVisible(),
+        showFloatWindows: () => displayState.setFloatWindowsVisible(true)
+    });
 
     // 切り替え処理の手順1（進行中の入力操作の中断と選択モードへの切り替え）はapplyModeの経路、
     // ビュー変換の初期表示化はresetViewToCenter()（原点をキャンバス中央へ）を注入する（再描画・UI同期は既存のonChange経路に任せる）
@@ -731,6 +752,12 @@ document.addEventListener('DOMContentLoaded', () => {
             displayState.toggleGrid();
             return true;
         },
+        // フロートウィンドウをまとめて隠す/出す（ツールバーの🧰ボタンと同一経路。常にtrue。
+        // bodyのクラス・🧰の押し込みの同期はdisplayState.onChangeの通知で行われる）
+        toggleFloatWindows: () => {
+            displayState.toggleFloatWindows();
+            return true;
+        },
     });
 
     // 9. 開発者向け確認用ウィンドウ配線（URLに`?dev`がある場合のみ。判定結果はグローバルへ公開しない）
@@ -792,6 +819,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // 表示の切り替えのまとまり（▢◐▦）の押し込みも同様に、index.htmlの初期状態やonChange通知に依存させず、
     // 表示の状態の実値で明示的に1回同期する
     syncViewToggleGroup();
+
+    // フロートウィンドウの表示（bodyのクラス・🧰の押し込み）も同様に、index.htmlの初期状態やonChange通知に依存させず、
+    // 表示の状態の実値で明示的に1回同期する
+    syncFloatWindowVisibility();
 
     // 削除ボタンの押せる/押せない状態も同様に、index.htmlの初期disabled属性やonChange通知に
     // 依存させず、Modelの選択集合の実値で明示的に1回同期する

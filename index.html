@@ -179,6 +179,11 @@
             font-family: sans-serif;
             user-select: none;
         }
+        /* フロートウィンドウをまとめて隠す（Tab・🧰）。各ウィンドウのhidden属性・位置・重なり順には触れないため、
+           外すと隠す前の状態（開いていたウィンドウだけが元の位置・重なりで）に戻る */
+        body.float-windows-hidden .float-window {
+            display: none;
+        }
         .window-header {
             display: flex;
             align-items: center;
@@ -417,8 +422,8 @@
             font-size: 12px;
             color: #666;
         }
-        /* オプションバー（スタイル・重なり順の2つのまとまり）の幅の見積もり（1280px幅）：
-           左右の余白16px＋既存3つのまとまり（32、68、68）＋区切り17px×4＋スタイル約218px＋重なり順140px＝約610px。
+        /* ツールバー全体の幅の見積もり（1280px幅）：
+           左右の余白16px＋最初のまとまり68px（ボタン32×2＋間隔4。🧰と📁）＋取り消し/やり直し68px＋削除/結合68px＋区切り17px×4＋スタイル約218px＋重なり順140px＝約646px。
            幅が足りないときは右のまとまりから切れる（.toolbarのoverflow: hidden） */
         /* 開発者向け確認用ウィンドウ（?dev時のみ表示。ツールパレットの右隣に置く。
            left: ツールパレットの左の位置に54px（ツールパレット幅44px＋枠2px＋余白8px）を足す。1280×800ではx 82〜444、y 68〜。
@@ -461,6 +466,7 @@
     <div id="ruler-corner" class="ruler"></div>
     <header id="toolbar" class="toolbar">
         <div class="toolbar-group">
+            <button type="button" id="float-windows-toggle" class="tool-btn icon-btn" title="パレットを隠す／出す (Tab)">🧰</button>
             <button type="button" id="launcher-canvas" class="tool-btn icon-btn" title="キャンバスパレットを開く／閉じる">📁</button>
         </div>
         <div class="toolbar-group">

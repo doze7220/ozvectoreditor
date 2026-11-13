@@ -70,6 +70,7 @@ const ShiftRule = Object.freeze({
  * @property {() => boolean} toggleOutline アウトライン表示を切り替える。表示の状態を切り替えるだけで常にtrue
  * @property {() => boolean} toggleBackground 背景の白/黒を切り替える。表示の状態を切り替えるだけで常にtrue
  * @property {() => boolean} toggleGrid グリッドの表示を切り替える。表示の状態を切り替えるだけで常にtrue
+ * @property {() => boolean} toggleFloatWindows フロートウィンドウをまとめて隠す/出す。表示の状態を切り替えるだけで常にtrue
  */
 
 /**
@@ -84,6 +85,10 @@ const ShiftRule = Object.freeze({
  *   KeyVはctrlの値でV単体（ctrl: false。選択モードへの切り替え）とCtrl+V（ctrl: true。貼り付け）に排他的に区別される。
  *   KeyZ・KeyX・KeyCも同様にctrlの値で区別される（Z・X・C単体＝表示の切り替え：ctrl: false、Ctrl+Z（取り消し）・Ctrl+X（切り取り）・Ctrl+C（コピー）：ctrl: true）。
  *   KeyZのCtrl付きはShiftで取り消し・やり直しに分かれるが、Ctrlなしは単体（FORBIDDEN）のみでShift+Zは一致しない。
+ * ・Tab（フロートウィンドウをまとめて隠す/出す）は、テキスト入力扱いの欄（太さの欄・テキスト欄＝受理判定の手順2）と
+ *   色の欄（手順4）にフォーカスがある間は何もせず、ブラウザのフォーカスの移動になる。ボタン・フォーカスなしでは実行され、
+ *   受理するためpreventDefault()されてフォーカスは移らない。Shift+Tabは一致せず（FORBIDDEN）ブラウザのフォーカスの移動、
+ *   Ctrl+Tabはctrlが一致せず、Alt+Tabは#findBindingがnullを返す。
  * ・index.htmlの各ボタンのtitle属性（例：「選択 (V)」）はこの表と手動で一致させている。
  * @type {ReadonlyArray<Readonly<ShortcutBinding>>}
  */
@@ -125,6 +130,8 @@ const SHORTCUT_BINDINGS = Object.freeze([
     { codes: ['KeyZ'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'toggleOutline' },
     { codes: ['KeyX'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'toggleBackground' },
     { codes: ['KeyC'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'toggleGrid' },
+    // フロートウィンドウをまとめて隠す/出す（キーリピートでは実行しない）
+    { codes: ['Tab'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'toggleFloatWindows' },
 ].map((binding) => Object.freeze(binding)));
 
 /**

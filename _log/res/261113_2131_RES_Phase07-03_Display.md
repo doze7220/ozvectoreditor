@@ -466,7 +466,7 @@
         *   `index.html`：`.status-bar-right`の先頭に`<div id="view-toggle-group" class="status-bar-group">`と3ボタン（2章「要件8」の表）。
         *   `main.js`：`import`（`DisplayState`・`ViewToggleGroup`）。`// 3.2.`で`displayState`の生成。`InputTracker`の生成に第6引数`() => displayState.isOutline()`（コメント：塗った内側を当たりに含めない照会）。`renderCurrentState`に`outline`・`darkBackground`・`showGrid`（`displayState.getState()`から）を渡し、JSDocの経路を4経路へ。`displayState.onChange(renderCurrentState)`。`// 6.5.`に`ViewToggleGroup`の生成（コールバックは`displayState.toggleOutline()`等を呼ぶだけ）・`syncViewToggleGroup()`（JSDoc付き）と`displayState.onChange`への登録。`// 8.`に`toggleOutline`・`toggleBackground`・`toggleGrid`。起動時に`syncViewToggleGroup()`を1回。
         *   完了時点：`Z`・`X`・`C`と▢◐▦で切り替わり、キーで切り替えてもボタンの押し込みが追従する。アウトライン表示の間は塗った内側で選ばれない。`Ctrl`+`Z`・`Ctrl`+`X`・`Ctrl`+`C`は従来どおり。
-*   [ ] タスク24: パレットをまとめて隠す/出す（`KeyboardShortcuts.js`・`index.html`・`main.js`）
+*   [x] タスク24: パレットをまとめて隠す/出す（`KeyboardShortcuts.js`・`index.html`・`main.js`）
     *   **対象ファイル** :
         *   `./js/core/KeyboardShortcuts.js` : 更新（`Tab`のエントリ・typedefの1コールバック・`SHORTCUT_BINDINGS`のJSDoc）
         *   `./index.html` : 更新（🧰のボタン、まとめて隠すCSS、ツールバー全体の幅の見積もりのコメント）
@@ -672,7 +672,12 @@
 
 ### タスク24: パレットをまとめて隠す/出す（`KeyboardShortcuts.js`・`index.html`・`main.js`）
 *   **作業内容** :
-    *   （未記入）
+    *   `KeyboardShortcuts.js`：`SHORTCUT_BINDINGS`の末尾（`KeyC`の後）に`Tab`のエントリ（`ctrl: false`・`FORBIDDEN`・`repeatable: false`・`toggleFloatWindows`）、typedef`ShortcutActions`へ`toggleFloatWindows`、`SHORTCUT_BINDINGS`のJSDocへ`Tab`と入力欄（手順2・4）・`Shift`/`Ctrl`/`Alt`+`Tab`の扱いを追記。手順・既存のエントリは未変更。
+    *   `index.html`：最初のまとまりの📁の左に🧰（`#float-windows-toggle`、`title`は「パレットを隠す／出す (Tab)」）。`body.float-windows-hidden .float-window { display: none; }`（コメント付き）。CSSコメントを「ツールバー全体の幅の見積もり」へ改め約646pxへ。
+    *   `main.js`：`// 6.5.`の見出しのコメントへ「パレットを隠す」を書き足し、🧰の取得・`click`で`displayState.toggleFloatWindows()`・`syncFloatWindowVisibility()`（JSDoc付き。`body`のクラスと🧰の`.active`）・`displayState.onChange`への登録。`// 7.6.`の`new PaletteLauncher(paletteLaunchers, { isFloatWindowsVisible, showFloatWindows })`（コメント付き）。`// 8.`へ`toggleFloatWindows`。起動時に`syncFloatWindowVisibility()`を1回（理由のコメント付き）。
+    *   `node --test`：tests 1106 / pass 1106 / fail 0。`node --check js/main.js`も通過。
+    *   開発資料への影響：計画どおりで追加の差異なし（本体は未修正）。
+    *   目視確認の推奨：確認項目15〜19（`Tab`・🧰・隠している間の📁・入力欄とのフォーカス・隠している間のツールの切り替え）。
 
 ### タスク25: 全体を画面に収める（`index.html`・`main.js`）
 *   **作業内容** :
