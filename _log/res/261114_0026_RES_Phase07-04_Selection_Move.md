@@ -206,7 +206,7 @@
         *   先頭に責務定義（クリック・範囲選択の次の選択と選択の反転の規則を状態を持たない関数として提供。importなし・DOMなし）。
         *   typedef`SelectionChange`、関数`resolveClickSelection(selectedIds, hitId, additive)`・`resolveMarqueeSelection(selectedIds, hitIds, additive)`・`invertSelection(allIds, selectedIds)`を「2. 要件1」のとおりに実装し、JSDocに契約（`additive`偽のときの結果が今の`InputTracker`の呼び出しと1対1であること、引数を書き換えず新しい配列を返すこと）を書く。
         *   テスト：`Ctrl`なしのクリック（本体＝`set([id])`・空白で選択あり＝`clear`・空白で選択なし＝`null`）、`Ctrl`+クリック（未選択＝追加・選択中＝外す・空白＝`null`・ほかの選択が残る・最後の1つを外すと`set([])`）、範囲選択（`Ctrl`なし＝置き換え・0件＝`set([])`、`Ctrl`あり＝追加・重複しない・既存の選択が残る・0件＝`null`）、反転（一部選択・全選択＝空・選択なし＝全部・図形0個＝空・並びは`allIds`の順・`allIds`に無いidが`selectedIds`にあっても結果に出ない）、引数を書き換えないこと・戻り値が引数と別の配列であること。
-*   [ ] タスク2: `InputTracker`の要件1（`Ctrl`+クリック・`Ctrl`+範囲選択）
+*   [x] タスク2: `InputTracker`の要件1（`Ctrl`+クリック・`Ctrl`+範囲選択）
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` : 更新
     *   **作業内容** :
@@ -362,7 +362,10 @@
 
 ### タスク2: `InputTracker`の要件1（`Ctrl`+クリック・`Ctrl`+範囲選択）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/InputTracker.js`：`SelectionRules.js`から`resolveClickSelection`・`resolveMarqueeSelection`をimport。非公開のモジュール関数`hasCtrlModifier(event)`・非公開メソッド`#applySelectionChange(change)`を足した。
+    *   `handleClick`の選択モード：ハンドル上は今のまま`return`、それ以外は`#applySelectionChange(resolveClickSelection(getSelectedIds(), hit.bodyId, hasCtrlModifier(event)))`。`#commitMarquee`：最後の`setSelection(ids)`を`#applySelectionChange(resolveMarqueeSelection(…))`へ替えた（矩形の正規化・`clearSelectionRect()`は今のまま）。
+    *   JSDoc更新：`handleClick`・`#commitMarquee`・`#onLeftDragEnd`の`@param event`・`handleMouseDown`（押下時の分岐は`Ctrl`で変えない旨）・クラスの説明・先頭の責務定義（修飾キーの読み取りは規則の関数へ渡すだけ）。
+    *   `node --test`：tests 1126・pass 1126・fail 0。
 
 ### タスク3: 移動方向の限定の規則（要件2）とテスト
 *   **作業内容** :

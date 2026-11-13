@@ -1,12 +1,13 @@
 /**
  * 責務：ユーザー入力（図形作成・選択・範囲選択・本体ドラッグ・ハンドルドラッグ・パン・ズーム。キーはスペースパンのみ）の解釈と
- * Model・ビュー変換への反映、状態依存の操作（一括削除・取消・全選択・進行中操作の中断）の公開、編集操作の開始・確定の通知（注入された記録先へ）、
+ * Model・ビュー変換への反映（修飾キーの読み取りは選択の規則の関数へ渡すだけ）、状態依存の操作（一括削除・取消・全選択・進行中操作の中断）の公開、編集操作の開始・確定の通知（注入された記録先へ）、
  * および入力状態に応じたカーソル形状のフィードバックを担う。
  */
 
 import { DragTracker } from './DragTracker.js';
 import { SHAPE_TYPES } from './ShapeFactory.js';
 import { classifyPointHit } from './PointHitRules.js';
+import { resolveClickSelection, resolveMarqueeSelection } from './SelectionRules.js';
 
 /**
  * InputTrackerが取りうる内部状態。
@@ -203,6 +204,15 @@ function isSpaceYieldedElement(element) {
 }
 
 /**
+ * マウスイベントでCtrl（macOSの⌘を含む）が押されているかを読み取る（選択の規則の関数へ渡す値。判定そのものは規則側）。
+ * @param {MouseEvent} event
+ * @returns {boolean} ctrlKeyまたはmetaKeyが真ならtrue
+ */
+function hasCtrlModifier(event) {
+    return Boolean(event.ctrlKey || event.metaKey);
+}
+
+/**
  * キャンバスのマウス入力とスペースキー（スペースパン）を解釈し、VectorModelの対応APIを呼び出す状態遷移マシン
  * （IDLE / DRAWING / DRAGGING_HANDLE / MOVING_SELECTION / MARQUEE_SELECTING）。操作モード（currentMode）と
  * 図形種別（currentShapeType）を独立した状態として保持し、操作モード・入力状態・当たり分類（#classifyPoint）に応じて
@@ -213,6 +223,8 @@ function isSpaceYieldedElement(element) {
  * window capture購読による追従/終了・blur時の中断・終了直後のclick抑止）は、本クラスが生成・所有するDragTracker（#drag）へ
  * 委譲し、本クラスはドラッグの意味の解釈（パン量、頂点変形・選択集合の平行移動・範囲選択のModel反映）のみを行う。
  * ズーム・パンによる表示の変更はViewTransformへ委譲する。
+ * 修飾キー（Ctrl＝ctrlKey||metaKey）の読み取りは行うが、クリック・範囲選択の次の選択の決定はSelectionRulesの関数へ渡すだけで本クラスは持たない
+ * （結果の反映は#applySelectionChangeが受け渡す）。
  * Space以外のキー（ショートカット）は解釈しない。削除・取消・全選択・進行中操作の中断は状態依存の公開メソッドとして提供し、
  * 削除ボタン・ショートカット（KeyboardShortcuts）・切り取り（`ClipboardController.cut()`へ`main.js`が注入）・作業データの復元・取り消し/やり直しの前処理からはmain.js経由で呼び出される。
  * 編集操作（図形の作成・一括削除・選択集合の平行移動・ハンドルによる変形）は、変更処理を注入された記録先（EditRecorder）の
@@ -724,6 +736,7 @@ export class InputTracker {
      * ・本体（bodyId）が選択集合外       → 遷移しない（セッションも開始しない。離した後のclickで判定する）
      * ・空白                             → MARQUEE_SELECTING（範囲選択。押下点を#marqueeAnchorに記憶）
      * スペース押下中・中ボタン・キャンバス移動モードは(2)(4)のパン判定が先に成立するため、範囲選択は起きない。
+     * この分岐の表はCtrlで変えない（Ctrlは閾値以内で離した後のclickと範囲選択の確定でのみ見る）。
      * @param {MouseEvent} event
      */
     handleMouseDown(event) {
@@ -786,8 +799,12 @@ export class InputTracker {
      * IDLE状態かつ図形作成モード中の描き始めは、クリック位置で吸い付きを照会し（ホバー状態は参照しない）、
      * 結果を#drawStartSnapに保持・表示し、吸い付いていれば端点の座標、いなければクリック位置でstartDraftする。
      * IDLE状態かつ選択モード中では、クリック位置を#classifyPointで当たり分類し（ホバー状態は参照しない）、
-     * 選択集合の図形のハンドル上なら何もしない（選択集合を維持）、図形の本体上ならその図形のみの単一選択
-     * （setSelection([bodyId])）、空白なら選択集合が空でなければ全解除（clearSelection()）する。
+     * 選択集合の図形のハンドル上なら何もしない（選択集合を維持。Ctrlの有無によらない）。それ以外は、選択集合・当たった本体のid・
+     * Ctrlの有無（hasCtrlModifier。見るのはclickイベント＝確定の時点）をSelectionRulesのresolveClickSelectionへ渡し、結果を#applySelectionChangeで反映する。
+     * Ctrlなし：図形の本体上ならその図形のみの単一選択（setSelection([bodyId])）、空白なら選択集合が空でなければ全解除（clearSelection()）。
+     * Ctrlあり：本体上なら選択集合へ1つ追加、選択中の図形なら外す（ほかの選択は残る）。空白では何もしない（解除しない）。
+     * 押下時の分岐（handleMouseDown）はCtrlで変えないため、選択中の図形をCtrlで押して閾値以内で離すと、このclickで「選択中なら外す」になる
+     * （閾値を超えて動かした場合は移動し、直後のclickは抑止される）。
      * IDLE状態かつ図形作成モード中では、Modelへ新規図形作成の開始を指示してDRAWING状態へ遷移する。
      * 作成する図形のtypeには、現在記憶している図形種別（currentShapeType）をそのまま使用し、
      * 作成開始位置はクリック位置のワールド座標とする。
@@ -825,11 +842,9 @@ export class InputTracker {
             if (hit.handle) {
                 return;
             }
-            if (hit.bodyId) {
-                this.model.setSelection([hit.bodyId]);
-            } else if (this.model.getSelectedIds().length > 0) {
-                this.model.clearSelection();
-            }
+            this.#applySelectionChange(
+                resolveClickSelection(this.model.getSelectedIds(), hit.bodyId, hasCtrlModifier(event)),
+            );
             return;
         }
 
@@ -1054,7 +1069,7 @@ export class InputTracker {
      * #finishLeftDragの前に注入された補助のjoinDraggedEndpoint(#dragEndpoint, #dragSnap)を呼ぶ（結合・閉じる）。
      * この反映は閾値超過時にbeginEdit()済みの編集操作の中で行われ、#finishLeftDragのcommitEdit()で頂点の移動とあわせて1件になる。
      * 吸い付いていなければ従来どおり頂点を動かしただけで終わる（中断の#onLeftDragCancelでは結合しない）。
-     * @param {MouseEvent} event 終了のきっかけとなったイベント（通常はmouseup。buttons検知時はmousemove）
+     * @param {MouseEvent} event 終了のきっかけとなったイベント（通常はmouseup。buttons検知時はmousemove）。範囲選択のCtrlはこのイベントから読む
      * @param {boolean} moved 閾値を超えて動かしたか
      */
     #onLeftDragEnd(event, moved) {
@@ -1083,9 +1098,11 @@ export class InputTracker {
      * 押下点（#marqueeAnchor）と終了位置（イベントのワールド座標。キャンバス外で離してもキャンバス左上基準で求まる）から
      * 選択矩形を正規化し（**矩形の正規化を行う唯一の箇所**。Modelの選択矩形・描画側では正規化しない）、
      * 全図形のshape.intersectsRect(minX, minY, maxX, maxY)（ワールド座標・正規化済み）をポリモーフィックに呼んで、
-     * 輪郭線が矩形に掛かる図形のidで選択集合を置き換える（0件なら全解除）。図形種別の分岐は持たない。
-     * Modelへの変更通知は選択矩形の破棄と選択集合の置き換えの2回（図形数に比例しない）。
-     * @param {MouseEvent} event 範囲選択を終了したイベント（通常はmouseup）
+     * 輪郭線が矩形に掛かる図形のidを求め、選択集合・求めたid・Ctrlの有無（hasCtrlModifier。見るのは終了のイベント＝確定の時点）を
+     * SelectionRulesのresolveMarqueeSelectionへ渡し、結果を#applySelectionChangeで反映する。図形種別の分岐は持たない。
+     * Ctrlなし：選択集合を置き換える（0件なら空集合）。Ctrlあり：選択集合へ追加する（重複しない。0件なら選択を変えない）。
+     * Modelへの変更通知は選択矩形の破棄と選択集合の置き換えの2回（図形数に比例しない。Ctrlありで0件のときは選択の通知なし）。
+     * @param {MouseEvent} event 範囲選択を終了したイベント（通常はmouseup。buttons検知による終了時はmousemove）。Ctrlはこのイベントから読む
      */
     #commitMarquee(event) {
         const anchor = this.#marqueeAnchor;
@@ -1102,7 +1119,24 @@ export class InputTracker {
             .map((shape) => shape.id);
 
         this.model.clearSelectionRect();
-        this.model.setSelection(ids);
+        this.#applySelectionChange(
+            resolveMarqueeSelection(this.model.getSelectedIds(), ids, hasCtrlModifier(event)),
+        );
+    }
+
+    /**
+     * 選択の規則（SelectionRules）が返した結果をModelへ反映する（受け渡しのみ。判定は持たない）。
+     * @param {import('./SelectionRules.js').SelectionChange|null} change nullなら何もしない、'clear'ならclearSelection()、'set'ならsetSelection(change.ids)
+     */
+    #applySelectionChange(change) {
+        if (change === null) {
+            return;
+        }
+        if (change.type === 'clear') {
+            this.model.clearSelection();
+            return;
+        }
+        this.model.setSelection(change.ids);
     }
 
     /**
