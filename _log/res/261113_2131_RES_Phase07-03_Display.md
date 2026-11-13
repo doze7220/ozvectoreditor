@@ -385,7 +385,7 @@
         *   `./test/core/ViewTransform.setView.test.js` : 新規
     *   **作業内容** :
         *   2章「要件9」のとおり`reset`の直後に足す（JSDoc付き）。変換式を書かない。テストは2章「要件11」の観点。
-*   [ ] タスク12: 全体を画面に収める計算（`ViewFitRules.js`）とテスト
+*   [x] タスク12: 全体を画面に収める計算（`ViewFitRules.js`）とテスト
     *   **対象ファイル** :
         *   `./js/core/ViewFitRules.js` : 新規
         *   `./test/core/ViewFitRules.test.js` : 新規
@@ -589,7 +589,8 @@
 
 ### タスク12: 全体を画面に収める計算（`ViewFitRules.js`）とテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/ViewFitRules.js`を新規作成（先頭に単一責務のJSDoc、何もimportしない）。`FIT_VIEW_MARGIN_PX = 40`・typedef`FitBounds`・`computeFitView(bounds, w, h, { minScale, maxScale, margin })`（要件9の手順1〜4。`null`は`{1, w/2, h/2}`、正の軸のみの最小候補、非有限なら1、倍率を収める、中心配置のオフセット）。
+    *   `test/core/ViewFitRules.test.js`を新規作成（13ケース：余白既定、横長・縦長、小さい/大きい、上限・下限、幅0・高さ0・両方0、余白より小さい領域、`null`、`ViewTransform`へ設定して`worldToScreen`が領域の中心、四隅が余白の内側、`margin`指定）。`node --test`：tests 1069 / pass 1069 / fail 0。
 
 ### タスク13: 外枠の公開の入口`SpriteSerializer.computeShapesBounds`とテスト
 *   **作業内容** :
