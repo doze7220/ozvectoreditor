@@ -248,7 +248,7 @@
         *   先頭行に単一責務のJSDoc（3行以内。例：「責務：ツール（選択・キャンバス移動・図形の種別）の一覧と、操作モードと図形種別から押し込みの表示にするツールを求める規則を、状態を持たない関数として提供する。DOMに触れない。」）。`TOOL_IDS`・`resolveActiveTool`にJSDoc（`@param`・`@returns`、`null`を返す条件、ツールの識別子の約束＝選択・キャンバス移動は操作モードの値、図形は図形種別の値、ボタンのid`tool-${toolId}`は`index.html`側の約束であり本ファイルはDOMを知らないこと）。
         *   テストは2章 要件8のケース。先頭行に単一責務のJSDoc、補助関数があればJSDoc。
         *   この時点では`main.js`から使わない（画面は変わらない）。
-*   [ ] タスク2: ツールパレットのUI部品（`ToolPalette`。まだ使わない）
+*   [x] タスク2: ツールパレットのUI部品（`ToolPalette`。まだ使わない）
     *   **対象ファイル** :
         *   `./js/palette/ToolPalette.js` : 新規
     *   **作業内容** :
@@ -333,7 +333,9 @@
 
 ### タスク2: ツールパレットのUI部品（`ToolPalette`。まだ使わない）
 *   **作業内容** :
-    *   (未着手)
+    *   `js/palette/ToolPalette.js`を新規作成。`constructor(rootElement, toolIds, onToolSelected)`・`setActiveTool(toolId)`を実装。importなし。`PaletteController`の照合ロジックを踏襲し、`console.warn`の2文言は計画どおり（対象名のみ変更）。ルート要素が無い場合は`console.warn('ToolPalette: ルート要素が見つかりません。配線しません。')`して配線しない（この文言は計画に指定がなかったため新規に定めた）。`setEnabled`・`.disabled`は持たない。
+    *   先頭の責務JSDoc（3行以内）、`TOOL_BUTTON_ID_PREFIX`・クラス・privateフィールド・コンストラクタ（コールバックの契約`onToolSelected(toolId)`を含む）・`setActiveTool`にJSDocを記述。
+    *   `index.html`・`main.js`からは未使用（画面は変わらない）。`node --test`：tests 986 / pass 986 / fail 0（`js/palette/`は対象外のため件数はタスク1と同じ）。`node --check`で構文確認。(c)は画面・配線に変更がないため該当なし。
 
 ### タスク3: 画面の領域（ツールバー・ステータスバーの枠とキャンバスの領域。既存のウィンドウは残す）
 *   **作業内容** :
