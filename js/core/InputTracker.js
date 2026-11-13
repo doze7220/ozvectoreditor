@@ -1036,9 +1036,9 @@ export class InputTracker {
     /**
      * 左ドラッグ（頂点ハンドルのドラッグ、選択集合の平行移動、または範囲選択）を開始する。handleMouseDownから左ボタン押下時に呼ばれる。
      * DragTrackerのセッションを閾値DRAG_START_THRESHOLD（スクリーンpx）・click抑止'whenMoved'（閾値を超えて動かした場合のみ
-     * 直後のclickを抑止）で開始し、成功した場合のみ押下点を記憶して（MARQUEE_SELECTINGなら#marqueeAnchor、それ以外なら
-     * MOVING_SELECTIONなら押下点#moveOriginと反映済みの移動量#appliedMoveDelta（{ dx: 0, dy: 0 }））、DRAGGING_HANDLEなら操作対象のハンドル名・図形idも記憶してnextStateへ遷移し、
-     * カーソル形状を更新する。閾値以内では図形・選択矩形は変化しない。
+     * 直後のclickを抑止）で開始し、成功した場合のみ次を記憶してnextStateへ遷移し、カーソル形状を更新する。
+     * MARQUEE_SELECTINGなら押下点#marqueeAnchor、MOVING_SELECTIONなら押下点#moveOriginと反映済みの移動量#appliedMoveDelta（{ dx: 0, dy: 0 }）、
+     * DRAGGING_HANDLEなら操作対象のハンドル名・図形id。閾値以内では図形・選択矩形は変化しない。
      * 追従（onMove）は#applyLeftDragUpdate、開始（onStart）は#onLeftDragStart、
      * 終了（onEnd：左ボタンの解放）は#onLeftDragEnd、中断（onCancel：blur・setMode・abortOngoingOperation）は#onLeftDragCancelが担う。
      * DRAGGING_HANDLEで開始できたときは、注入された補助のresolveDragEndpoint(図形id, ハンドル名)で端点のハンドルかを解決し、

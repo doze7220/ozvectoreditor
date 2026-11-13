@@ -448,7 +448,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * 操作モードの切り替えを一元的に行う共通関数。ツールパレットの選択・キャンバス移動のボタン
-     * （`selectTool`経由）、貼り付け・全選択・キャンバスの切り替え・インポート、起動時の初期化から呼び出される。
+     * （`selectTool`経由の`toolActions`）、図形のツール・数字キー（`selectShapeTool`経由）、
+     * キー`V`・`P`・`H`（`KeyboardShortcuts`の`setMode`）、貼り付け・同じ位置に貼り付け・全選択・選択の反転・スポイトの開始
+     * （いずれも`ensureSelectMode`経由）、キャンバスの切り替え（`prepareSwitch`）・インポート（`prepareInsert`）、
+     * 起動時の初期化から呼び出される。
      * InputTrackerへのモード切り替え要求の後、切替後に`inputTracker.getMode()`・`getShapeType()`で
      * 実際の内部状態を読み返し、`resolveActiveTool`で求めたツールを押し込みにする（未知の値が渡され
      * InputTracker側で無視された場合でも、UI表示と内部状態が乖離しないようにするため）。
@@ -464,7 +467,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * 操作モードが選択モード以外なら、先に`applyMode(OperationMode.SELECT)`で選択モードへ切り替える（すでに選択モードなら何もしない）。
-     * 全選択・貼り付け・同じ位置に貼り付け・選択の反転が共通に使う前処理（同じ前処理を各所に書かないため）。
+     * 全選択・貼り付け・同じ位置に貼り付け・選択の反転・スポイトの開始が共通に使う前処理（同じ前処理を各所に書かないため）。
      * 判定は現在の操作モードの照会だけで、切り替えは`applyMode`の経路（作成途中の図形の破棄・選択の全解除・押し込みの同期）に任せる。
      */
     function ensureSelectMode() {
@@ -793,7 +796,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // スポイトの待ち受け中は待ち受けだけをやめる（選択は残す。true）。待ち受けでなければ
         // 作成途中の図形の破棄／選択解除（何もしなかった場合はfalse）。判定はstyleEyedropper.cancelPickingが持つ
         cancel: () => styleEyedropper.cancelPicking(() => inputTracker.cancelDraftOrClearSelection()),
-        // 全選択。選択モード以外では先に選択モードへ切り替える（ensureSelectMode。貼り付け・選択の反転と共通の前処理）。
+        // 全選択。選択モード以外では先に選択モードへ切り替える（ensureSelectMode。共通に使う操作は同関数のJSDoc参照）。
         // 図形0個・非受理でもページ全選択を起こさないよう常にtrueを返す
         selectAll: () => {
             ensureSelectMode();

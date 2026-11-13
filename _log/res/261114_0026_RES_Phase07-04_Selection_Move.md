@@ -334,7 +334,7 @@
         *   2ファイルを同じタスクにする理由：タスク14と同じ。
         *   `KeyboardShortcuts`：`startEyedropper`のエントリ、契約、対応表のJSDoc（`KeyI`は`ctrl`の値で`I`と`Ctrl`+`I`に分かれる）。
         *   `main.js`：`startEyedropper: () => { startEyedropper(); return true; }`とコメント（ボタンと同一経路）。`index.html`の`title`「スポイト (I)」と対応表が一致していることを確かめる。
-*   [ ] タスク18: コメントの整理とJSDocの確認
+*   [x] タスク18: コメントの整理とJSDocの確認
     *   **対象ファイル** :
         *   本作業で変更・新設した`.js`・`index.html`（変更が要る箇所が残っている場合のみ更新）
     *   **作業内容** :
@@ -553,7 +553,19 @@
 
 ### タスク18: コメントの整理とJSDocの確認
 *   **作業内容** :
-    *   （未実施）
+    *   コード（ロジック）は変えていない。「コメントの洗い出し」の各項目を実ファイルで確かめた結果（直したのはコメント・JSDocの2か所だけ）：
+        *   `js/core/InputTracker.js`：先頭の責務定義（3行以内）、クラスの説明（修飾キー・第7引数・待ち受け）、`InputAssist`・`NO_INPUT_ASSIST`、コンストラクタの`@param`、`handleMouseDown`・`handleClick`・`handleWheel`・`#onLeftDragStart`・`#applyLeftDragUpdate`・`#resolveMoveDelta`・`#onLeftDragEnd`・`#commitMarquee`・`#applySelectionChange`・`#finishLeftDrag`・`#resolveCursor`のJSDocは実態と一致（食い違いなし）。`lastCursor`への言及は`js/`・`index.html`・`test/`に無い。**直した内容**：`#beginLeftDrag`のJSDocに、記憶する項目の文が途中で崩れた箇所（「…それ以外なら／MOVING_SELECTIONなら…」）があったため、MARQUEE_SELECTING・MOVING_SELECTION・DRAGGING_HANDLEごとの記憶項目を並べる文に書き直した（意味は変えず）。
+        *   `js/core/KeyboardShortcuts.js`：`ShiftRule`（Ctrl+Shift+Vが`REQUIRED`の例外である旨）、`ShortcutActions`（`pasteInPlace`・`invertSelection`・`resetColors`・`startEyedropper`を含む）、`SHORTCUT_BINDINGS`の説明（`KeyV`・`KeyI`・`KeyD`のctrl・Shiftでの排他）、`#handleKeyDown`・`#findBinding`のJSDocは実装と一致（食い違いなし）。「将来のShift併用操作のために予約」は、`Ctrl`+`Shift`+`V`以外のShift併用が未割り当てであるという現在の実態の記述であり残す（`Shift`+`V`等が一致しない規則は不変）。
+        *   `js/core/ToolRules.js`：先頭の責務定義、`EYEDROPPER_TOOL_ID`、`TOOL_IDS`（識別子の約束・並び＝選択・キャンバス移動・スポイト・図形）、`resolveActiveTool`（第3引数`picking`の`@param`・`@returns`）は実装と一致（食い違いなし）。
+        *   `js/core/VectorModel.js`：`DEFAULT_NEW_SHAPE_STYLE`のコメントが`RESET_COLORS_STYLE`（線あり黒・塗りあり白）との関係（色の値は重なるが別の定義）を正しく述べ、`StylePanelRules.js`側の記述（線あり黒・塗りなし・塗りの色は白）とも合う（食い違いなし）。
+        *   `js/edit/ShapeInserter.js`・`ClipboardController.js`・`ShapeStyleEditor.js`・`StylePanelRules.js`（および新設の`StyleEyedropper.js`）：先頭の責務定義（3行以内）・クラスの説明・追加したメソッド（`insertDocumentWithinEdit`・`pasteInPlace`・`duplicateInPlaceWithinEdit`・`applyStyle`・`resetColors`・`sampleStyleFromShape`・`RESET_COLORS_STYLE`・typedef`StyleApplication`）の`@param`・`@returns`・`@throws`に漏れ・食い違いなし。
+        *   `js/main.js`：「// 4.」（`styleEyedropper`の生成順の制約・第7引数）、`syncToolPalette`（呼ばれる経路は`applyMode`・`applyShapeType`の中と`styleEyedropper.onChange`の2系統。`Grep`で実態と一致を確認）、`toolActions`、`startEyedropper`、「// 7.5.」（`performPaste`）、「// 8.」（貼り付け・`cancel`・`invertSelection`・`pasteInPlace`・`resetColors`・`startEyedropper`のコールバック・`AltKeyGuard`）は実態と一致。**直した内容**：`applyMode`のJSDocの呼び出し元の列挙に、`ensureSelectMode`経由で呼ぶようになった「選択の反転・スポイトの開始」が無かったため足した（「貼り付け・全選択」も`ensureSelectMode`経由である旨を明記）。
+        *   **監査の指摘による修正（3か所。コメントのみ、ロジックは不変）**：先の「`ensureSelectMode`・`selectAll`は実態と一致」は誤りで、食い違いがあり直した。(1) `ensureSelectMode`のJSDocの「共通に使う」ものの列挙へ、`startEyedropper`（スポイトの開始。タスク16で追加）が無かったため足した（`Grep`で呼び出し元＝`applyMode`の他、`performPaste`・`performInvertSelection`・`startEyedropper`・`selectAll`と一致を確認）。(2) `selectAll`のコールバックの行コメントを、個別の列挙をやめ「共通に使う操作は`ensureSelectMode`のJSDoc参照」へ。(3) `applyMode`のJSDocの呼び出し元の列挙に、図形のツール・数字キー（`selectShapeTool`）、キー`V`・`P`・`H`（`KeyboardShortcuts`の`setMode`）、同じ位置に貼り付け、`prepareSwitch`・`prepareInsert`が漏れていたため足した（`applyMode(`の呼び出し箇所を`Grep`で洗い出して一致を確認。図形のツール・`V`/`P`/`H`はPhase 07-01からの経路で、本作業で生じた食い違いではない）。
+        *   `index.html`：ツールパレットのCSSコメントの数値を計算し直して一致を確認（ボタン32px×8＋gap 4px×6＋まとまりの区切り9px＋本体の余白12px＝301px、見出し39px、枠2px、y 68〜410、x 28〜74、確認用ウィンドウ`left`＝28＋54＝82px）。「選択・キャンバス移動・スポイト」と「図形」の2つのまとまりの説明、`#tool-eyedropper`の`title="スポイト (I)"`と対応表（`KeyI`・`ctrl: false`）の一致も確認（変更なし）。
+    *   使われなくなった記述・段取りの記述の`Grep`確認（対象：`js/`・`index.html`・`test/`）：`lastCursor`・`別タスク`・`タスク[0-9]+`・`の中からだけ`・`スポイトはやらない`・`やらない`・`未実装`・`TODO`・`FIXME`は本件に関わるものが無い（`やらない`は無し）。残る「将来」「予約」は、(a) `KeyboardShortcuts.js`の`Shift`併用の予約（現在の実態）、(b) `InputTracker.js#resolveCursor`の「将来のモード追加時の既定値」、(c) `main.js`の描画通知の最適化の注意、(d) 図形クラスのモーフィング用の予約引数で、いずれも本作業と無関係で変更していない。
+    *   `node --test`：tests 1183・pass 1183・fail 0。
+    *   `main.js`の行数：970行 → 973行（`applyMode`のJSDocを3行足したため（先の1行＋監査の指摘による修正の2行）。タスク17完了時の970行からの差）。
+    *   開発資料への影響：なし（コメントのみの変更）。
 
 ### タスク19: 開発資料への反映（固定タスク）
 *   **作業内容** :
@@ -572,6 +584,7 @@
 * **取り込んだ直後のカーソル**：`handleClick`での取り込みの後にカーソルを再評価しない（REQ要件8で`InputTracker`へ足す箇所を照会と受け渡しに限ったため）。取り込んだ後は、次にマウスを動かすまで`cell`のまま。
 * **選択なしで変換できない色を取り込んだときの表示**：オプションバーは覚えている色を斜線なしで表示し、次に描く図形には取り込んだ色（例`'red'`）がそのまま入る（既存の`newShapeColorView`の規則。2章の確認結果）。表示と実際の色が食い違って見えるため、目視で確認してほしい。
 * **`Shift`+ホイール**：ブラウザ・OSによっては`Shift`+ホイールが横スクロール（`deltaY`が0）になり、`handleWheel`の既存の規則でズームしない。ドラッグ中の`Shift`の限定はホイールの追従でも働く設計だが、この場合はズーム自体が起きない（既存の振る舞い）。
+* **タスク18の注意点**：`InputTracker.js#resolveMoveDelta`のJSDocに「Phase 07-05の移動量の丸めもここへ足す」という後続Phaseへの言及が残る（移動量を加工する唯一の箇所である旨の設計の注記として残した。Phase 07-05の作業時に内容を確かめて更新または削除すること）。`index.html`の`.status-bar-group`のコメントにも「Phase 07-05」への言及が既存で残るが本作業と無関係。
 * **`Ctrl`+`I`のブラウザの標準動作**：Firefoxでは`Ctrl`+`I`がページの情報を開くことがある。`preventDefault()`で抑止できるかは実際のブラウザで確かめる。
 
 ### テストプレイで確認すべき項目（操作手順と期待する結果）
