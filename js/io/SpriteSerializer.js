@@ -1,5 +1,5 @@
 /**
- * 責務: スプライトデータ形式（書き出し形式）の定義と判別（識別子・版）、および図形一式からのスプライトデータ（描画要素・外枠・作業データsource）の組み立て・JSON文字列化を担う。
+ * 責務: スプライトデータ形式（書き出し形式）の定義と判別（識別子・版）、および図形一式からのスプライトデータ（描画要素・外枠・作業データsource）の組み立て・JSON文字列化、外枠の照会を担う。
  * DOMに依存しない。
  */
 import { DocumentSerializer } from './DocumentSerializer.js';
@@ -211,6 +211,16 @@ export class SpriteSerializer {
             elements,
             source: DocumentSerializer.serialize(shapes),
         };
+    }
+
+    /**
+     * 図形の配列から外枠を求める（`serialize(shapes).bounds`と同じ値。`serialize`の外枠の計算をそのまま使う）。
+     * @param {Array<Object>} shapes - 図形インスタンスの配列（描画順。引数は書き換えない）
+     * @returns {SpriteBounds|null} 外枠（図形0個ならnull）
+     * @throws {Error} `serialize`の外枠の計算と同じ（未知の`kind`の描画要素が得られた場合、または`toDrawElement`を持たない要素が混ざった場合）
+     */
+    static computeShapesBounds(shapes) {
+        return SpriteSerializer.#computeBounds(shapes.map((shape) => shape.toDrawElement()));
     }
 
     /**

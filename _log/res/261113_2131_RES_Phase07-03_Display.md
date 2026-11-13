@@ -391,7 +391,7 @@
         *   `./test/core/ViewFitRules.test.js` : 新規
     *   **作業内容** :
         *   2章「要件9」のとおり作る（先頭に単一責務のJSDoc。何もimportしない）。テストは2章「要件11」の観点（`ViewTransform`の公開APIで写像を確かめる）。
-*   [ ] タスク13: 外枠の公開の入口`SpriteSerializer.computeShapesBounds`とテスト
+*   [x] タスク13: 外枠の公開の入口`SpriteSerializer.computeShapesBounds`とテスト
     *   **対象ファイル** :
         *   `./js/io/SpriteSerializer.js` : 更新（静的メソッドの追加と先頭の責務定義のみ）
         *   `./test/io/SpriteSerializer.test.js` : 更新（テストの追加のみ）
@@ -594,7 +594,9 @@
 
 ### タスク13: 外枠の公開の入口`SpriteSerializer.computeShapesBounds`とテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `js/io/SpriteSerializer.js`：`serialize`の直後に`static computeShapesBounds(shapes)`を追加（JSDoc付き。`#computeBounds(shapes.map((shape) => shape.toDrawElement()))`を返すのみ）。先頭の責務定義に「外枠の照会」を追記（2行）。`serialize`・`#computeBounds`・他は不変。
+    *   `test/io/SpriteSerializer.test.js`：末尾に`describe('SpriteSerializer.computeShapesBounds')`を追加（3ケース：各種図形で`serialize(shapes).bounds`と同値、図形0個で`null`、引数の配列・図形を書き換えない）。既存の補助関数・ケースは不変。
+    *   `node --test`：tests 1072 / pass 1072 / fail 0。
 
 ### タスク14: 外枠の照会（`edit/ShapeExtentReader.js`）とテスト
 *   **作業内容** :

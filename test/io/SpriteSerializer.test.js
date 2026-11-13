@@ -420,3 +420,34 @@ describe('SpriteSerializer.serialize: 線なしの外枠', () => {
         assertBoundsClose(data.bounds, { minX: -50, minY: -50, maxX: 12, maxY: 12 });
     });
 });
+
+describe('SpriteSerializer.computeShapesBounds', () => {
+    it('各種の図形（線あり・線なし・弧・曲線・パス・複数）でserialize(shapes).boundsと同じ値', () => {
+        const caseList = [
+            [withId(new Line(10, 20, 30, 5, '#000000', 8), 'a')],
+            [withId(new Line(10, 20, 30, 5, null, 8), 'b')],
+            [withId(new Ellipse(0, 0, 20, 10, 'arc', '#000000', 4), 'c')],
+            [withId(new Ellipse(0, 0, 20, 10, 'circle', null, 4, '#ff0000'), 'd')],
+            [makeCurve([{ x: 0, y: 0 }, { x: 50, y: 100 }, { x: 100, y: 0 }])],
+            [makeSquarePath(true, 'e'), makeSquarePath(false, 'f', null)],
+            makeFilledShapes(),
+        ];
+        for (const shapes of caseList) {
+            assert.deepEqual(SpriteSerializer.computeShapesBounds(shapes), SpriteSerializer.serialize(shapes).bounds);
+        }
+    });
+
+    it('図形0個でnull', () => {
+        assert.equal(SpriteSerializer.computeShapesBounds([]), null);
+    });
+
+    it('引数の配列と図形を書き換えない', () => {
+        const shapes = makeFilledShapes();
+        const shapesBefore = [...shapes];
+        const jsonBefore = shapes.map((shape) => shape.toJSON());
+        SpriteSerializer.computeShapesBounds(shapes);
+        assert.equal(shapes.length, shapesBefore.length);
+        shapes.forEach((shape, i) => assert.equal(shape, shapesBefore[i]));
+        assert.deepEqual(shapes.map((shape) => shape.toJSON()), jsonBefore);
+    });
+});
