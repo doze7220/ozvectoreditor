@@ -306,7 +306,7 @@
         *   2ファイルを同じタスクにする理由：対応表のエントリに対応するコールバックが注入されないと起動時に`Error`になるため。
         *   `KeyboardShortcuts`：`invertSelection`・`pasteInPlace`の2エントリ、typedef`ShortcutActions`の2つの契約、`ShiftRule`・対応表・`#findBinding`・`#handleKeyDown`のJSDoc（`KeyV`の3通りの区別、`KeyI`の`Ctrl`付き、`Shift`+`V`は引き続き予約、REQUIREDの例に`Ctrl`+`Shift`+`V`）。
         *   `main.js`：`invertSelection`のimport、`ensureSelectMode()`（「// 7.」）、`performPaste(pasteDocument)`（「// 7.5.」）、`performInvertSelection()`（「// 8.」）を足し、`paste`を`performPaste`経由へ、`selectAll`の前処理を`ensureSelectMode()`へ替え、`invertSelection`・`pasteInPlace`のコールバック（常に`true`）を足す。各関数・コールバックのコメント（契約・同一経路・判定を持たないこと）。
-*   [ ] タスク15: `D`のキー
+*   [x] タスク15: `D`のキー
     *   **対象ファイル** :
         *   `./js/core/KeyboardShortcuts.js` : 更新
         *   `./js/main.js` : 更新
@@ -492,7 +492,7 @@
 
 ### タスク14: 選択の反転（`Ctrl`+`I`）と同じ位置に貼り付け（`Ctrl`+`Shift`+`V`）のキーと操作関数
 *   **作業内容** :
-    *   `KeyboardShortcuts.js`：対応表の末尾（`duplicate`の後）に`pasteInPlace`（`KeyV`・`ctrl: true`・`REQUIRED`・`repeatable: false`）・`invertSelection`（`KeyI`・`ctrl: true`・`FORBIDDEN`・`false`）の2エントリを足した（受理判定・既存エントリは未変更）。
+    *   `KeyboardShortcuts.js`：対応表の`duplicate`の直後（表示の切り替えのエントリ`toggleOutline`等・`toggleFloatWindows`より前。タスク14の監査の指摘により、当初の「対応表の末尾（`duplicate`の後）」の記述を実際の位置へ訂正。コードは動かしていない）に`pasteInPlace`（`KeyV`・`ctrl: true`・`REQUIRED`・`repeatable: false`）・`invertSelection`（`KeyI`・`ctrl: true`・`FORBIDDEN`・`false`）の2エントリを足した（受理判定・既存エントリは未変更）。
     *   `main.js`：`invertSelection`のimport（`./core/SelectionRules.js`）、`ensureSelectMode()`（「// 7.」の`applyShapeType`の前）、`performPaste(pasteDocument)`（「// 7.5.」の`clipboardController`生成の後）、`performInvertSelection()`（「// 8.」の`KeyboardShortcuts`の前）を足し、`paste`を`performPaste`経由へ、`selectAll`の前処理を`ensureSelectMode()`へ替え、`invertSelection`・`pasteInPlace`のコールバック（常に`true`）を足した。
     *   JSDoc・コメントの更新（実ファイルで確認済み）：
         *   `KeyboardShortcuts.js`の`ShiftRule`のJSDoc：FORBIDDENの「Ctrl+Shift+V以外のShift+V等は予約」、REQUIREDに`Ctrl+Shift+V`の同じ位置に貼り付け。
@@ -507,7 +507,16 @@
 
 ### タスク15: `D`のキー
 *   **作業内容** :
-    *   （未実施）
+    *   `KeyboardShortcuts.js`：`resetColors`（`KeyD`・`ctrl: false`・`FORBIDDEN`・`repeatable: false`）の1エントリを、対応表の末尾（最後の`toggleFloatWindows`（`Tab`）の直後、`].map(...)`の直前）にコメント付きで足した（受理判定・既存エントリは未変更）。
+    *   `main.js`：`KeyboardShortcuts`注入の`duplicate`の後・`toggleOutline`の前に`resetColors: () => { shapeStyleEditor.resetColors(); return true; }`を足した。
+    *   JSDoc・コメントの更新（実ファイルで確認済み）：
+        *   typedef`ShortcutActions`：`resetColors`の契約を追記（`duplicate`の後・`toggleOutline`の前。選択あり・なしの動き、太さは変えない、操作モードを切り替えない・どの状態でも働く、常にtrue）。
+        *   `SHORTCUT_BINDINGS`の説明：「`KeyD`は`ctrl`の値で`D`単体（線を黒・塗りを白）と`Ctrl`+`D`（複製）に排他的に分かれる」を`KeyV`・`KeyI`の記述の後に追記。対応表内に`resetColors`用のコメントを追加。
+        *   `main.js`のコールバックのコメント：操作モードを切り替えない・どの状態でも働く・値と判定は`shapeStyleEditor.resetColors()`が持つ・表示は`model.onChange`の既存の同期・常にtrue。
+    *   `node --test`：tests 1181・pass 1181・fail 0（このタスクのテスト追加なし）。
+    *   `main.js`の行数：925行 → 931行。
+    *   開発資料への影響：`_doc/arch/02_main.md`・`07_KeyboardShortcuts.md`（`resetColors`エントリ・`KeyD`の2通り）。資料本体は未変更。
+    *   注意点：`#handleKeyDown`のJSDocは今回変更していない（`D`は`Ctrl`なしで`preventDefault`の列挙の対象外のため）。目視確認の推奨：選択なしで`D`を押した後に新規図形が黒線・白塗りになること、`Ctrl`+`D`の複製が従来どおり動くこと。
 
 ### タスク16: スポイトのボタンと待ち受けの配線
 *   **作業内容** :

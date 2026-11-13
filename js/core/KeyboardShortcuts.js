@@ -73,6 +73,9 @@ const ShiftRule = Object.freeze({
  *     選択モード以外では選択モードへ切り替えた後（選択が空になるため結果は全選択）。編集操作として記録しない。
  *     図形0個でも常にtrue（ブラウザ標準のCtrl+I（Firefoxのページの情報等）を起こさないため）
  * @property {() => boolean} duplicate 選択集合の図形をその場で複製する。ブラウザ標準のブックマーク追加を抑止するため常にtrue
+ * @property {() => boolean} resetColors 線を黒・塗りを白にする（D。選択中の図形があればその全図形へ記録し、直前に使った値も更新する。
+ *     選択がなければ直前に使った値だけ更新して記録しない。太さは変えない）。操作モードは切り替えず、どの状態でも働く。
+ *     ブラウザ標準の動作を起こさないよう常にtrue（ドラッグ中・キーリピートは受理判定により呼ばれない）
  * @property {() => boolean} toggleOutline アウトライン表示を切り替える。表示の状態を切り替えるだけで常にtrue
  * @property {() => boolean} toggleBackground 背景の白/黒を切り替える。表示の状態を切り替えるだけで常にtrue
  * @property {() => boolean} toggleGrid グリッドの表示を切り替える。表示の状態を切り替えるだけで常にtrue
@@ -91,6 +94,7 @@ const ShiftRule = Object.freeze({
  *   KeyVはctrlの値とShift規則でV単体（ctrl: false。選択モードへの切り替え）・Ctrl+V（ctrl: true・FORBIDDEN。貼り付け）・
  *   Ctrl+Shift+V（ctrl: true・REQUIRED。同じ位置に貼り付け）の3通りに排他的に区別される（Shift+V単体はctrl: falseのFORBIDDENと一致せず予約のまま）。
  *   KeyIのCtrl付き（Ctrl+I。選択の反転）もctrl: trueのエントリで、Ctrlなしの（将来の）Iとはctrlの値で区別される。
+ *   KeyDはctrlの値でD単体（ctrl: false。線を黒・塗りを白にする）とCtrl+D（ctrl: true。複製）に排他的に分かれる（いずれもFORBIDDEN）。
  *   KeyZ・KeyX・KeyCも同様にctrlの値で区別される（Z・X・C単体＝表示の切り替え：ctrl: false、Ctrl+Z（取り消し）・Ctrl+X（切り取り）・Ctrl+C（コピー）：ctrl: true）。
  *   KeyZのCtrl付きはShiftで取り消し・やり直しに分かれるが、Ctrlなしは単体（FORBIDDEN）のみでShift+Zは一致しない。
  * ・Tab（フロートウィンドウをまとめて隠す/出す）は、テキスト入力扱いの欄（太さの欄・テキスト欄＝受理判定の手順2）と
@@ -143,6 +147,8 @@ const SHORTCUT_BINDINGS = Object.freeze([
     { codes: ['KeyC'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'toggleGrid' },
     // フロートウィンドウをまとめて隠す/出す（キーリピートでは実行しない）
     { codes: ['Tab'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'toggleFloatWindows' },
+    // 線を黒・塗りを白にする（D。Ctrl+D（複製）とctrlの値で排他的）。キーリピートでは実行しない
+    { codes: ['KeyD'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'resetColors' },
 ].map((binding) => Object.freeze(binding)));
 
 /**

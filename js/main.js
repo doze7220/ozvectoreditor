@@ -800,6 +800,12 @@ document.addEventListener('DOMContentLoaded', () => {
             clipboardController.duplicate();
             return true;
         },
+        // 線を黒・塗りを白にする（D）。選択あり＝選択中の図形へ記録し直前に使った値も更新、選択なし＝直前に使った値だけ。
+        // 操作モードは切り替えず、どの状態でも働く。値と判定はshapeStyleEditor.resetColors()が持ち、表示はmodel.onChangeの既存の同期。常にtrue
+        resetColors: () => {
+            shapeStyleEditor.resetColors();
+            return true;
+        },
         // 表示の切り替え（ステータスバーの▢◐▦ボタンと同一経路。表示の状態を切り替えるだけで常にtrue。
         // ボタンの押し込みの表示・再描画はdisplayState.onChangeの通知で同期される）
         toggleOutline: () => {
