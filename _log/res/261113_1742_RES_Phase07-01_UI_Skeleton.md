@@ -255,7 +255,7 @@
         *   2章 要件4(2)のとおり`ToolPalette`（`constructor(rootElement, toolIds, onToolSelected)`・`setActiveTool(toolId)`）を実装する。importなし。`console.warn`の文言は2章のとおり。
         *   先頭行に単一責務のJSDoc（3行以内。DOM操作専任・操作モード・`VectorModel`・図形データ・選択状態・`InputTracker`に関与しないことを含める）。定数`TOOL_BUTTON_ID_PREFIX`（`'tool-'`）・クラス・privateフィールド・コンストラクタ・`setActiveTool`にJSDoc（コールバック`onToolSelected(toolId)`の契約を含む）。
         *   この時点では`index.html`・`main.js`から使わない（画面は変わらない。`node --test`は`js/palette/`を読まないが件数を記録する）。
-*   [ ] タスク3: 画面の領域（ツールバー・ステータスバーの枠とキャンバスの領域。既存のウィンドウは残す）
+*   [x] タスク3: 画面の領域（ツールバー・ステータスバーの枠とキャンバスの領域。既存のウィンドウは残す）
     *   **対象ファイル** :
         *   `./index.html` : 更新
     *   **作業内容** :
@@ -339,7 +339,10 @@
 
 ### タスク3: 画面の領域（ツールバー・ステータスバーの枠とキャンバスの領域。既存のウィンドウは残す）
 *   **作業内容** :
-    *   (未着手)
+    *   `index.html`のみ更新。`<style>`先頭に`:root`（`--toolbar-height`等）を追加。`#editor-canvas, .canvas-loading-cover`のまとめたルール（`position: fixed`・`top/left/width/height`を変数で指定）に改め、個別ルールから`absolute`・`top/left`・`100vw/100vh`を外した（`z-index`・背景・`display: flex`等は残した）。覆い要素のCSSコメントを「キャンバスの領域だけを覆い」・重なりの順（ツールバー・ステータスバー8を含む）へ改めた。
+    *   `<header id="toolbar" class="toolbar"></header>`と`<footer id="status-bar" class="status-bar">`（空の`.status-bar-side.status-bar-left`・`.status-bar-right`）を覆い要素の直後に追加。CSS：`.toolbar, .status-bar`共通、`.toolbar`、`.toolbar-group`（`+`の区切り含む）、`.status-bar`、`.status-bar-side`・`-left`・`-right`、`.status-bar-group`（`+`の区切り含む）、`.status-bar-left > .status-bar-group`を役割・1行固定のCSSコメント付きで追加。
+    *   既存のフロートウィンドウ（コントロールパネル・キャンバスパレット・プロパティパネル・`?dev`）の`top: 16px`を`var(--float-window-top)`へ、`#window-shape-palette`を`calc(var(--float-window-top) + 424px)`へ変更（コメントに一時的な値である旨を追記）。`right`・`left`・`width`は未変更。
+    *   `main.js`は未変更。`node --test`：tests 986 / pass 986 / fail 0。(c)：ブラウザでの起動・合成イベントによる確認は行っていない（静的な編集のみ。キャンバス領域・座標・リサイズ・覆いの確認はテストプレイ項目A）。
 
 ### タスク4: ツールバー・ステータスバーへのボタンの移設（idを保つ）
 *   **作業内容** :
@@ -377,6 +380,11 @@
 * **ツールバー・ステータスバーの上での`Ctrl`+ホイール**：キャンバスの`wheel`に届かないため、ブラウザ自体の拡大縮小が起きる（従来のフロートウィンドウの上と同じ）。今回は変えない。
 * **既定の位置の高さの見積もり**：キャンバスパレットの下端（約565px）・プロパティパネルの下端（約378px）は文字の大きさ・絵文字の表示に依存する見積もり。1280×800でステータスバー（上端772px）に届かないことを目視で確認してほしい。
 * **持ち越し事項の扱い**（参考）：図形パレットの`.disabled`の件（2章B【Phase02-01/02】）・「コントロールパネルの高さ」（2章C）はツールパレットへの統合・コントロールパネルの削除で解消する見込み。`_doc/COWORK_STATUS.md`は本作業では読まず・直さない（発注者側で外す）。
+
+### タスク3での追記
+* ツールバー・ステータスバーは中身が空の枠のため、この時点では細い帯（40px・28px）として表示される。コントロールパネルの`top`が16px→48pxに下がるため、既存ウィンドウの位置は一時的な値（タスク5で確定）。
+* コントロールパネル基準の位置コメント（`right`の説明等）はタスク5で書き直す前提で、`top`以外は未変更。
+* 目視推奨：ブラウザで開き、キャンバスが帯の間に収まり四隅でカーソルとずれないこと（テストプレイ項目A）。
 
 ### テストプレイの確認項目（操作手順 → 期待する結果）
 ※【実ブラウザ】は、実装AIの合成イベントでは確かめられず、実際のブラウザでの確認が要る項目。

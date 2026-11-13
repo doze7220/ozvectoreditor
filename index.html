@@ -5,19 +5,119 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OZ Vector Editor</title>
     <style>
+        /* 画面の領域の寸法の唯一の定義箇所（ツールバー・ステータスバー・キャンバスの領域・フロートウィンドウの既定の位置の基準）。
+           定規を足すとき（Phase 07-03）は、--canvas-area-top（ツールバー＋定規の高さ）と--canvas-area-left（定規の幅）の2行だけを直す */
+        :root {
+            --toolbar-height: 40px;          /* ツールバーの高さ（1行固定） */
+            --statusbar-height: 28px;        /* ステータスバーの高さ（1行固定） */
+            /* キャンバスの領域（07-03で定規を足すときは、この4行だけを直す） */
+            --canvas-area-top: var(--toolbar-height);
+            --canvas-area-left: 0px;
+            --canvas-area-width: calc(100vw - var(--canvas-area-left));
+            --canvas-area-height: calc(100vh - var(--canvas-area-top) - var(--statusbar-height));
+            /* フロートウィンドウの既定の位置の基準（キャンバスの領域の左上から余白を空ける） */
+            --float-window-margin: 8px;
+            --float-window-top: calc(var(--canvas-area-top) + var(--float-window-margin));
+            --float-window-left: calc(var(--canvas-area-left) + var(--float-window-margin));
+        }
         body {
             margin: 0;
             overflow: hidden;
             background-color: #f9f9f9;
         }
+        /* キャンバスと読み込み中の覆い要素を、同じキャンバスの領域（ツールバーとステータスバーの間）に置く。
+           <canvas>は置換要素のためleftとrightを両方指定しても伸びず、width/heightをCSSで明示する必要がある。
+           キャンバスに枠線・内側の余白を付けてはならない（InputTracker.getScreenCoordinateのclientWidthとrect.widthの比がずれ、座標がずれる） */
+        #editor-canvas, .canvas-loading-cover {
+            position: fixed;
+            top: var(--canvas-area-top);
+            left: var(--canvas-area-left);
+            width: var(--canvas-area-width);
+            height: var(--canvas-area-height);
+        }
         #editor-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
             z-index: 1;
             background-color: #ffffff;
+        }
+        /* ツールバー（上端）とステータスバー（下端）の共通。画面に固定する枠（フロートウィンドウではない）で、1行固定。
+           収まらない右側の項目は画面の外へ切れる（折り返し・横スクロールはしない）。
+           重なりはキャンバス（1）・覆い要素（5）より前面（8）・フロートウィンドウ（10以上）より背面のため、読み込み中も押せ、フロートウィンドウはその上へ動かせる */
+        .toolbar, .status-bar {
+            position: fixed;
+            left: 0;
+            right: 0;
+            box-sizing: border-box;
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            overflow: hidden;
+            white-space: nowrap;
+            z-index: 8;
+            background-color: #f0f0f0;
+            font-family: sans-serif;
+            user-select: none;
+        }
+        /* ツールバー（上端。高さは--toolbar-heightで固定）。項目はまとまり（.toolbar-group）ごとに足す */
+        .toolbar {
+            top: 0;
+            height: var(--toolbar-height);
+            padding: 0 8px;
+            border-bottom: 1px solid #ccc;
+        }
+        /* ツールバーの項目のまとまり（縮まない。収まらないときはまとまりごと右側から切れる） */
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex: none;
+        }
+        /* まとまりの間の区切り（左の罫線と余白。区切りの要素は置かず、まとまりを足すだけで付く） */
+        .toolbar-group + .toolbar-group {
+            border-left: 1px solid #ccc;
+            margin-left: 8px;
+            padding-left: 8px;
+        }
+        /* ステータスバー（下端。高さは--statusbar-heightで固定）。左側・右側（.status-bar-side）を両端に寄せる */
+        .status-bar {
+            bottom: 0;
+            height: var(--statusbar-height);
+            padding: 0 8px;
+            border-top: 1px solid #ccc;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #333;
+        }
+        /* ステータスバーの左側・右側（中に.status-bar-groupを足す） */
+        .status-bar-side {
+            display: flex;
+            align-items: center;
+        }
+        /* 左側：残りの幅を使い、縮められる（キャンバスの名前が省略表示で先に縮む） */
+        .status-bar-left {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        /* 右側：縮まない。収まらないときは画面の外へ切れる */
+        .status-bar-right {
+            flex: none;
+            margin-left: 8px;
+        }
+        /* ステータスバーの項目のまとまり */
+        .status-bar-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        /* まとまりの間の区切り（左の罫線と余白） */
+        .status-bar-group + .status-bar-group {
+            border-left: 1px solid #ccc;
+            margin-left: 8px;
+            padding-left: 8px;
+        }
+        /* 左側のまとまりは縮められる（中の名前が省略表示されるように） */
+        .status-bar-left > .status-bar-group {
+            flex: 0 1 auto;
+            min-width: 0;
         }
         /* 共通フロートウィンドウ規格（WindowManagerの管理対象）: 個々のウィンドウはこのクラス群に準拠する */
         .float-window {
@@ -64,15 +164,16 @@
             gap: 8px;
         }
         #window-control-panel {
-            top: 16px;
+            top: var(--float-window-top);
             right: 16px;
             width: 220px;
         }
         /* topはコントロールパネルのキャンバス名の表示行・呼び出し口ボタンの追加に合わせて368px→440pxへ下げた
            （変更前のパネル下端 約341px＋追加分 約70px（キャンバス名の行18px＋行間8px＋呼び出し口ボタン約36px＋行間8px）
-           ＝新しい下端 約411px。440−411＝約29pxで、余白24px以上を確保するため。自動配置はしない） */
+           ＝新しい下端 約411px。440−411＝約29pxで、余白24px以上を確保するため。自動配置はしない。
+           topはコントロールパネルとの相対の位置（16px＋424px）を保つ一時的な値で、基準はツールバーの下の--float-window-top） */
         #window-shape-palette {
-            top: 440px;
+            top: calc(var(--float-window-top) + 424px);
             right: 16px;
             width: 220px;
         }
@@ -150,7 +251,7 @@
            コントロールパネルの左隣に置く（right: コントロールパネルのright 16px＋幅220px＋間隔16px＝252px）。
            ?devの確認用ウィンドウ（left: 16px・幅360px）とは、画面幅が約870px以上なら重ならない */
         #window-canvas-palette {
-            top: 16px;
+            top: var(--float-window-top);
             right: 252px;
             width: 240px;
         }
@@ -206,16 +307,11 @@
             color: #b00020;
             overflow-wrap: anywhere;
         }
-        /* 読み込み中の覆い要素（キャンバス全面を覆い、読み込み完了までキャンバスへのマウス入力を遮る）。
+        /* 読み込み中の覆い要素（キャンバスの領域だけを覆い、読み込み完了までキャンバスへのマウス入力を遮る。位置と大きさは上のまとめたルール）。
            表示状態で始まり（main.jsの実行前から遮るため）、main.jsのsyncLoadingCover()が読み込み完了でhidden属性を付けて非表示にする。
-           z-index: 5はキャンバス（1）より前面・フロートウィンドウ（10以上。最前面化でも下がらない）より背面のため、
-           コントロールパネル・パレット・?devの確認用ウィンドウは読み込み中も操作できる */
+           z-index: 5はキャンバス（1）より前面・ツールバー・ステータスバー（8）・フロートウィンドウ（10以上。最前面化でも下がらない）より背面のため、
+           ツールバー・ステータスバー・コントロールパネル・パレット・?devの確認用ウィンドウは読み込み中も操作できる */
         .canvas-loading-cover {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
             z-index: 5;
             display: flex;
             align-items: center;
@@ -238,7 +334,7 @@
            ?devの確認用ウィンドウ（left: 16px・幅360px＝左端から376px）とは、画面幅が508＋220＋376＝1104px以上なら重ならない。
            パネル自身は1280×800に収まる（幅は508＋220＝728＜1280、高さは約330px・下端は約345pxで800px未満。「図形」の段約200pxに「重なり順」の段約127pxを足した見積もり） */
         #window-property-panel {
-            top: 16px;
+            top: var(--float-window-top);
             right: 508px;
             width: 220px;
         }
@@ -312,7 +408,7 @@
         }
         /* 開発者向け確認用ウィンドウ（?dev時のみ表示。右側のコントロールパネル・図形パレットと重ならない左上に置く） */
         #window-dev-panel {
-            top: 16px;
+            top: var(--float-window-top);
             left: 16px;
             width: 360px;
         }
@@ -344,6 +440,11 @@
 <body>
     <canvas id="editor-canvas"></canvas>
     <div id="canvas-loading-cover" class="canvas-loading-cover">読み込み中…</div>
+    <header id="toolbar" class="toolbar"></header>
+    <footer id="status-bar" class="status-bar">
+        <div class="status-bar-side status-bar-left"></div>
+        <div class="status-bar-side status-bar-right"></div>
+    </footer>
     <div id="window-control-panel" class="float-window">
         <div class="window-header">
             <span class="window-title">OZ Vector Editor</span>
