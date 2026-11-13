@@ -182,6 +182,27 @@ export function isSpaceOperatedInputElement(element) {
 }
 
 /**
+ * 要素がON/OFFのボタン（標準の属性aria-pressedを持つbutton要素）かを判定する。DOMのid・クラス名は見ない。
+ * HTMLButtonElementは関数の中でだけ参照する（モジュールの最上位でDOMに触れない）。
+ * @param {Element|null} element 判定対象（通常は document.activeElement）
+ * @returns {boolean} aria-pressed属性を持つbutton要素ならtrue
+ */
+function isToggleButtonElement(element) {
+    return element instanceof HTMLButtonElement && element.hasAttribute('aria-pressed');
+}
+
+/**
+ * Spaceをスペースパンに使わず、部品自身の操作に譲る要素かを判定する
+ * （type が checkbox・color の input（isSpaceOperatedInputElement）と、ON/OFFのボタン（isToggleButtonElement））。
+ * Ctrlなしのショートカットを止める判定（KeyboardShortcutsの手順4）には使わない（ON/OFFのボタンではショートカットを働かせるため）。
+ * @param {Element|null} element 判定対象（通常は document.activeElement）
+ * @returns {boolean} Spaceを部品に譲る要素ならtrue
+ */
+function isSpaceYieldedElement(element) {
+    return isSpaceOperatedInputElement(element) || isToggleButtonElement(element);
+}
+
+/**
  * キャンバスのマウス入力とスペースキー（スペースパン）を解釈し、VectorModelの対応APIを呼び出す状態遷移マシン
  * （IDLE / DRAWING / DRAGGING_HANDLE / MOVING_SELECTION / MARQUEE_SELECTING）。操作モード（currentMode）と
  * 図形種別（currentShapeType）を独立した状態として保持し、操作モード・入力状態・当たり分類（#classifyPoint）に応じて
@@ -822,8 +843,9 @@ export class InputTracker {
     /**
      * keyupイベントのハンドラ。documentへ購読する。
      * Spaceキーの解放時のみ、スペース押下状態を解除してカーソル形状を再評価する。
-     * テキスト入力中（isTextInputElement）でもスペースで操作する入力欄（isSpaceOperatedInputElement）でもなければ
-     * preventDefault()する（フォーカス中のボタンのスペース解放による誤クリックの抑止。欄の操作は妨げない）。
+     * テキスト入力中（isTextInputElement）でもSpaceを部品に譲る要素（isSpaceYieldedElement。
+     * checkbox・colorのinputとON/OFFのボタン）でもなければ
+     * preventDefault()する（フォーカス中のボタンのスペース解放による誤クリックの抑止。部品の操作は妨げない）。
      * 欄にフォーカスがあっても押下状態の解除・カーソルの再評価は常に行う（残留防止）。
      * 解放時点でパンのドラッグ中だった場合、そのドラッグはマウスボタンを離すまで継続する
      * （ドラッグ途中で選択・作成の挙動に切り替わる不整合を避けるため）。
@@ -834,7 +856,7 @@ export class InputTracker {
             return;
         }
 
-        if (!isTextInputElement(document.activeElement) && !isSpaceOperatedInputElement(document.activeElement)) {
+        if (!isTextInputElement(document.activeElement) && !isSpaceYieldedElement(document.activeElement)) {
             event.preventDefault();
         }
 
@@ -1138,14 +1160,14 @@ export class InputTracker {
 
     /**
      * handleKeyDownから委譲されるSpaceキー押下の処理。
-     * テキスト入力中（isTextInputElement）、またはスペースで操作する入力欄（isSpaceOperatedInputElement。
-     * checkbox・color）にフォーカスがあるなら、文字入力・欄の操作を妨げないため何もしない（preventDefaultもしない）。
+     * テキスト入力中（isTextInputElement）、またはSpaceを部品に譲る要素（isSpaceYieldedElement。
+     * checkbox・colorのinputとON/OFFのボタン）にフォーカスがあるなら、文字入力・部品の操作を妨げないため何もしない（preventDefaultもしない）。
      * それ以外はpreventDefault()（ページスクロール、およびフォーカス中のボタンのスペース押下による誤クリックの抑止）し、
      * 初回押下時のみスペース押下状態にしてカーソル形状を再評価する（キーリピートでは状態を二重に変えない）。
      * @param {KeyboardEvent} event
      */
     #handleSpaceKeyDown(event) {
-        if (isTextInputElement(document.activeElement) || isSpaceOperatedInputElement(document.activeElement)) {
+        if (isTextInputElement(document.activeElement) || isSpaceYieldedElement(document.activeElement)) {
             return;
         }
 

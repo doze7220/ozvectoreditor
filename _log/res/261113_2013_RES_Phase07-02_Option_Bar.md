@@ -330,7 +330,7 @@
         *   2章「要件2」のとおり、`import`に`nextEnabledOnToggle`を足し、公開メソッド`toggleStrokeEnabled()`・`toggleFillEnabled()`（`setFillEnabled`の直後）と非公開メソッド`#toggleEnabled(target)`（`#setEnabled`の直前）を足す（JSDoc付き）。既存のメソッド・コメントはこのタスクでは変えない。
         *   2章「要件9」の`ShapeStyleEditor.test.js`の7件（6は(a)(b)の2件に分けてよい）を足す。
         *   完了時点で画面の動きは変わらない（まだ使われない）。
-*   [ ] タスク3: `Space`を部品に譲る判定の追加（`InputTracker.js`）
+*   [x] タスク3: `Space`を部品に譲る判定の追加（`InputTracker.js`）
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` : 更新（モジュール関数2つの追加と、`#handleSpaceKeyDown`・`handleKeyUp`の条件の差し替え・そのJSDocの修正のみ）
     *   **作業内容** :
@@ -438,7 +438,8 @@
 
 ### タスク3: `Space`を部品に譲る判定の追加（`InputTracker.js`）
 *   **作業内容** :
-    *   (未実施)
+    *   `js/core/InputTracker.js`：`isSpaceOperatedInputElement`の直後に非公開のモジュール関数`isToggleButtonElement`・`isSpaceYieldedElement`を追加（export なし・JSDoc付き。`HTMLButtonElement`は関数内でのみ参照）。`#handleSpaceKeyDown`・`handleKeyUp`の条件の`isSpaceOperatedInputElement`を`isSpaceYieldedElement`へ置き換え（2か所のみ）、両メソッドのJSDocの説明を改めた。`SPACE_OPERATED_INPUT_TYPES`のJSDocは未変更（タスク9）。クラスに他のロジックは足していない。
+    *   `node --test`：tests 997 / pass 997 / fail 0（件数変化なし。テスト追加なし）。
 
 ### タスク4: オプションバーのスタイルのまとまりのUI部品の新設（`OptionBarStyleGroup.js`）
 *   **作業内容** :
