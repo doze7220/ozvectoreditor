@@ -324,7 +324,7 @@
         *   `./test/core/DisplayState.test.js` : 新規
     *   **作業内容** :
         *   2章「要件1」のとおり作る（JSDoc付き）。テストは2章「要件11」の観点。完了時点では誰もimportしない。
-*   [ ] タスク3: `Line`の`drawOutline`とテスト
+*   [x] タスク3: `Line`の`drawOutline`とテスト
     *   **対象ファイル** :
         *   `./js/shapes/Line.js` : 更新（`drawOutline`の追加、クラスJSDocの契約の列挙のみ）
         *   `./test/shapes/Line.test.js` : 更新（テストの追加のみ）
@@ -535,7 +535,9 @@
 
 ### タスク3: `Line`の`drawOutline`とテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `js/shapes/Line.js`：`drawHover`の直後に`drawOutline(ctx, viewScale = 1, color)`を追加（JSDoc付き。パスは`draw`と同じ、`fill`・図形のスタイルを使わない、`lineWidth = 1 / viewScale`）。クラスJSDocを16メソッド契約（…・hitTestFill・drawOutline）へ。`draw`は不変。
+    *   `test/shapes/Line.test.js`：`describe('Line.drawOutline の描画命令')`を追加（4ケース。命令列・`1 / viewScale`と省略時1・`fill`/`closePath`を呼ばない・線なし/塗りなし/何も描かれない図形でも同じ命令）。既存の補助関数・ケースは不変。
+    *   `node --test`：tests 1027 / pass 1027 / fail 0。
 
 ### タスク4: `Curve`の`drawOutline`とテスト
 *   **作業内容** :

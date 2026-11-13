@@ -13,8 +13,8 @@ const LINE_POINT_COUNT = 2;
 
 /**
  * 直線の図形クラス（図形種別`'line'`）。頂点は`x1, y1`＝始点、`x2, y2`＝終点として保持する。
- * 共通メソッド契約（15メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（16メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline）を自律実装する。座標はすべてワールド座標。
  */
 export class Line {
     /**
@@ -233,6 +233,25 @@ export class Line {
 
         ctx.strokeStyle = 'rgba(74, 144, 226, 0.4)';
         ctx.lineWidth = this.strokeWidth + 6 / viewScale;
+        ctx.stroke();
+    }
+
+    /**
+     * アウトライン表示として、輪郭だけを画面上1pxの細線で描画する（共通メソッド契約の第16メソッド）。
+     * 輪郭のパスは`draw`と同じ（始点→終点の線分）。塗らず（`fill`を呼ばない）、図形のスタイル
+     * （`strokeColor`・`strokeWidth`・`fillColor`）は読まないため、線なし・塗りなしの図形でも描く。
+     * `draw`は変えない（`io/CodeExporter.js`の`DRAW_SOURCE`と手で揃えているため、本メソッドを別に持つ）。
+     * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
+     * @param {number} [viewScale=1] - 現在の表示倍率。線の太さを画面上1pxに保つために用いる（`lineWidth = 1 / viewScale`）
+     * @param {string} color - 輪郭線の色（`strokeStyle`へそのまま渡す）
+     */
+    drawOutline(ctx, viewScale = 1, color) {
+        ctx.beginPath();
+        ctx.moveTo(this.x1, this.y1);
+        ctx.lineTo(this.x2, this.y2);
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1 / viewScale;
         ctx.stroke();
     }
 
