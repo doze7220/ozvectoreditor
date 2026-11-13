@@ -1,6 +1,6 @@
 /**
  * 責務: 作業データ形式のオブジェクトの図形を、平行移動したうえで新しいidで現在のキャンバスの最前面へ追加し、追加した図形だけを選択する
- * 1件の編集操作を担う（貼り付け・複製・インポートの共通処理）。DOMに触れない。
+ * 1件の編集操作を担う（貼り付け・複製・インポートの共通処理）。ほかに、開いている編集操作の中で記録せずに追加する入口を持つ（Alt+ドラッグの複製が使う）。DOMに触れない。
  */
 import { DocumentSerializer } from '../io/DocumentSerializer.js';
 
@@ -26,6 +26,7 @@ import { DocumentSerializer } from '../io/DocumentSerializer.js';
 /**
  * 作業データ形式のオブジェクトの図形を、現在のキャンバスへ新しいidで追加する1件の編集操作を行うクラス。
  * 貼り付け・複製（ClipboardController）と、インポート（Phase 03-05）の共通処理として用いる。
+ * insertDocumentは1件の編集操作として記録し、insertDocumentWithinEditは呼び出し側が開いている編集操作の中で記録せずに追加する。
  *
  * 依存の制約:
  *   - VectorModel・HistoryManagerはimportせず、インスタンスを注入で受け取る。InputTrackerには依存しない。
@@ -35,6 +36,9 @@ import { DocumentSerializer } from '../io/DocumentSerializer.js';
  * 前提（呼び出し側の責務）:
  *   - 選択モードであること（追加した図形を選択するため。選択集合は選択モード以外では常に空という不変条件を呼び出し側が守る）。
  *   - ドラッグ中でないこと・作成途中の図形がないこと（必要なら呼び出し側が先にapplyMode／InputTracker.abortOngoingOperation()を呼ぶ）。
+ *     ただし「ドラッグ中でないこと」はinsertDocumentの前提である。insertDocumentWithinEditは例外で、
+ *     閾値を超えた後の左ドラッグ中に、呼び出し側が開いている編集操作（ドラッグの編集操作）の中で呼ばれる
+ *     （作成途中の図形がないことは同様に前提）。
  *   本クラスは操作モードの切り替え・進行中の入力操作の中断を行わない。
  */
 export class ShapeInserter {
@@ -89,6 +93,34 @@ export class ShapeInserter {
      * @returns {InsertResult} 結果オブジェクト
      */
     insertDocument(documentData, dx = 0, dy = 0) {
+        return this.#insert(documentData, dx, dy, true);
+    }
+
+    /**
+     * insertDocumentと同じ処理順・戻り値で追加するが、editRecorder.beginEdit()／commitEdit()を呼ばず、履歴へ記録しない入口。
+     * 呼び出し側が既に開いている編集操作（例: Alt+ドラッグの閾値超過時にbeginEditした編集操作）の中で呼ぶ前提で、
+     * 追加は呼び出し側の編集操作に含まれて確定時に1件として記録される。
+     * 開いている編集操作の外で呼ぶと、追加は履歴に記録されない（呼び出し側の責務）。
+     *
+     * 前提: 選択モードであること・作成途中の図形がないことは呼び出し側の責務。ドラッグ中でないことは求めない（クラスJSDoc参照）。
+     * @param {*} documentData - 作業データ形式のオブジェクト（insertDocumentと同じ）
+     * @param {number} [dx=0] - 追加する全図形に適用するx方向の平行移動量（ワールド座標）
+     * @param {number} [dy=0] - 追加する全図形に適用するy方向の平行移動量（ワールド座標）
+     * @returns {InsertResult} 結果オブジェクト（insertDocumentと同じ）
+     */
+    insertDocumentWithinEdit(documentData, dx = 0, dy = 0) {
+        return this.#insert(documentData, dx, dy, false);
+    }
+
+    /**
+     * insertDocument・insertDocumentWithinEditの共通の本体（処理順はinsertDocumentのJSDocのとおり）。
+     * @param {*} documentData - 作業データ形式のオブジェクト
+     * @param {number} dx - x方向の平行移動量
+     * @param {number} dy - y方向の平行移動量
+     * @param {boolean} record - trueならbeginEdit/commitEditで1回だけ挟んで記録する。falseなら呼ばない
+     * @returns {InsertResult} 結果オブジェクト
+     */
+    #insert(documentData, dx, dy, record) {
         const result = DocumentSerializer.deserialize(documentData);
         if (!result.ok) {
             return { ok: false, insertedIds: [], skipped: result.skipped, error: result.error };
@@ -103,9 +135,13 @@ export class ShapeInserter {
             shapes.forEach((shape) => shape.translate(dx, dy));
         }
 
-        this.#editRecorder.beginEdit();
+        if (record) {
+            this.#editRecorder.beginEdit();
+        }
         const insertedIds = this.#model.addShapesWithNewIds(shapes);
-        this.#editRecorder.commitEdit();
+        if (record) {
+            this.#editRecorder.commitEdit();
+        }
 
         return { ok: true, insertedIds, skipped: result.skipped, error: null };
     }

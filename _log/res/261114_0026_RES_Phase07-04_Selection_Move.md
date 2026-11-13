@@ -228,7 +228,7 @@
         *   `./MoveDirectionRules.js`から`constrainMoveDirection`をimport。公開フィールド`lastCursor`を廃止し、作業用フィールド`#moveOrigin`・`#appliedMoveDelta`（JSDoc付き。寿命は`MOVING_SELECTION`の押下から`#finishLeftDrag`まで）と非公開メソッド`#resolveMoveDelta(rawDelta, event)`（押した位置からの移動量を加工する唯一の箇所である旨とPhase 07-05の丸めの置き場所である旨をJSDocに書く）を足す。
         *   `#beginLeftDrag`・`#applyLeftDragUpdate`・`#finishLeftDrag`を「2. 要件2」のとおりに替える。`moveShapes`は更新1回につき1回（差分0でも呼ぶ）。
         *   JSDocの更新：`#applyLeftDragUpdate`（移動量の求め方・`Shift`を見る時点・ホイールの追従）、`#beginLeftDrag`（記憶するもの）、`#finishLeftDrag`（消すフィールド）、`handleWheel`（ドラッグ中のホイールでも`Shift`を見る）、クラスの説明。`lastCursor`を説明するコメントを残さない。
-*   [ ] タスク5: 記録しない追加の入口（要件3）
+*   [x] タスク5: 記録しない追加の入口（要件3）
     *   **対象ファイル** :
         *   `./js/edit/ShapeInserter.js` : 更新
     *   **作業内容** :
@@ -383,7 +383,11 @@
 
 ### タスク5: 記録しない追加の入口（要件3）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/edit/ShapeInserter.js`：`insertDocument`の本体を非公開`#insert(documentData, dx, dy, record)`へ移し、`insertDocument`は`#insert(…, true)`を呼ぶだけにした（働き・戻り値・記録の単位は不変）。公開メソッド`insertDocumentWithinEdit(documentData, dx = 0, dy = 0)`（`#insert(…, false)`。`beginEdit()`／`commitEdit()`を呼ばない）を足した。`#insert`は`record`が真のときだけ`beginEdit()`／`commitEdit()`で`addShapesWithNewIds`を挟む。
+    *   JSDoc：両メソッドと`#insert`、ファイル先頭の責務定義（開いている編集操作の中で記録せずに追加する入口がある旨）、クラスの説明を更新。
+    *   追加仕様（監査の指摘）：クラスJSDocの前提で、「ドラッグ中でないこと」は`insertDocument`の前提であり、`insertDocumentWithinEdit`は閾値超過後の左ドラッグ中に呼び出し側が開いている編集操作（ドラッグの編集操作）の中で呼ばれる例外である旨を記述した。
+    *   テストは足していない。`node --test`：tests 1138・pass 1138・fail 0。
+    *   開発資料への影響：`_doc/arch/14_edit.md`の`ShapeInserter.insertDocumentWithinEdit`の記載（計画の「開発資料の更新予定」に既出）。資料本体は未変更。
 
 ### タスク6: 同じ位置に貼り付け（要件6）と`Alt`+ドラッグの複製の手順（要件3）とテスト
 *   **作業内容** :
