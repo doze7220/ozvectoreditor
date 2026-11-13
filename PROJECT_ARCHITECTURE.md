@@ -17,7 +17,7 @@
 
 ```text
 /oz-vector-editor/
-├── index.html                  # スタイルはCSSファイル分割せず<style>タグに内包。フロートウィンドウも静的に置く
+├── index.html                  # スタイルはCSSファイル分割せず<style>タグに内包。フロートウィンドウも静的に置く。上端にツールバー・下端にステータスバー（固定。フロートウィンドウではない）。キャンバスの領域の寸法は<style>の:rootのカスタムプロパティが唯一の定義箇所
 ├── sprite-check.html           # 確認用ページ。index.htmlとは別に開く。スタイルは<style>に内包
 ├── js/
 │   ├── main.js
@@ -27,6 +27,7 @@
 │   │   ├── ViewTransform.js
 │   │   ├── InputTracker.js
 │   │   ├── PointHitRules.js    # 当たり分類の規則（状態なし）。InputTrackerから使う
+│   │   ├── ToolRules.js        # ツールの一覧と押し込みにするツールの規則（状態なし）。main.jsから使う
 │   │   ├── KeyboardShortcuts.js
 │   │   ├── DragTracker.js
 │   │   ├── HistoryManager.js
@@ -43,7 +44,7 @@
 │   │   ├── PathJoinRules.js    # 図形クラスではない。図形をまたぐ規則（結合）。shapes/の外から使う
 │   │   └── EndpointSnapRules.js # 図形クラスではない。図形をまたぐ規則（端点への吸い付き）。shapes/の外から使う
 │   ├── palette/
-│   │   ├── PaletteController.js
+│   │   ├── ToolPalette.js
 │   │   ├── DevPanel.js
 │   │   ├── CanvasPalette.js
 │   │   ├── PropertyShapeSection.js # プロパティパネルの「図形」の段。段ごとに1ファイル
@@ -76,6 +77,7 @@
 │   ├── core/
 │   │   ├── PointHitRules.test.js
 │   │   ├── ShapeFactory.test.js
+│   │   ├── ToolRules.test.js
 │   │   ├── VectorModel.reorderShapes.test.js
 │   │   ├── VectorModel.replaceShape.test.js
 │   │   ├── VectorModel.snapPoint.test.js
@@ -124,16 +126,16 @@
         └── closed/    # フェイズ大番号移行時にアーカイブ済みRESの退避先
 ```
 
-**存在しないもの**：エディタでのJSの実行（スプライトのJSはテキストから取り出すだけ）、本アプリが書き出した形以外のJSの読み込み・スプライトの`elements`からの図形の作り直し（`CodeImporter`は作らない。`_doc/PROJECT_MILESTONE.md`の将来の野望）、確認用ページでの拡大縮小・移動・編集・複数ファイルの同時表示・組み立て用のJSの表示、エディタから確認用ページへのリンク、組み立て用のJSの書き出し（アニメーションエディタモードのPhase）、スプライトのJSON（`<名前>.json`）の出力・読み込み・確認用ページでのJSONの表示（Phase 04-04でやめた。スプライトはJSだけ。`.json`は作業データファイル）、複数キャンバスの一括出力、PNG・SVG等の形式、独自のカラーピッカー（色はブラウザ標準の`<input type="color">`）、プロパティパネルの「頂点」の段（精度のPhase）、重なっている図形だけを数える前へ・後ろへ、離れた選択図形をまとめる重なり順の変更、図形の一覧・ドラッグによる並べ替え（図形の一覧のPhase）、直前に使った値（新しく描く図形のスタイル）の保存・キャンバスごとの既定の色、塗った内側による範囲選択（範囲選択は輪郭のみ）、弧・曲線・直線・開いたパスの塗り（塗れるのは`rect`・`circle`・閉じた`path`のみ）、透明度・グラデーション、ツールバー、レイヤー、グループ化、`package.json`・`node_modules`・ビルド手順、テストの自動実行（保存時・コミット時のフック、CI）、画面の操作や描画のテスト。
+**存在しないもの**：エディタでのJSの実行（スプライトのJSはテキストから取り出すだけ）、本アプリが書き出した形以外のJSの読み込み・スプライトの`elements`からの図形の作り直し（`CodeImporter`は作らない。`_doc/PROJECT_MILESTONE.md`の将来の野望）、確認用ページでの拡大縮小・移動・編集・複数ファイルの同時表示・組み立て用のJSの表示、エディタから確認用ページへのリンク、組み立て用のJSの書き出し（アニメーションエディタモードのPhase）、スプライトのJSON（`<名前>.json`）の出力・読み込み・確認用ページでのJSONの表示（Phase 04-04でやめた。スプライトはJSだけ。`.json`は作業データファイル）、複数キャンバスの一括出力、PNG・SVG等の形式、独自のカラーピッカー（色はブラウザ標準の`<input type="color">`）、プロパティパネルの「頂点」の段（精度のPhase）、重なっている図形だけを数える前へ・後ろへ、離れた選択図形をまとめる重なり順の変更、図形の一覧・ドラッグによる並べ替え（図形の一覧のPhase）、直前に使った値（新しく描く図形のスタイル）の保存・キャンバスごとの既定の色、塗った内側による範囲選択（範囲選択は輪郭のみ）、弧・曲線・直線・開いたパスの塗り（塗れるのは`rect`・`circle`・閉じた`path`のみ）、透明度・グラデーション、ツールバー・ステータスバーの折り返し・横スクロール・項目の省略メニュー（1行固定で、収まらない右側は切れる）、フロートウィンドウの位置・表示状態の保存、フロートウィンドウを動かせる範囲の制限、レイヤー、グループ化、`package.json`・`node_modules`・ビルド手順、テストの自動実行（保存時・コミット時のフック、CI）、画面の操作や描画のテスト。
 
 **フォルダ分割の方針**
-*   `core/`：横断的な処理（入力→状態→描画の複数層にまたがるもの）と、その処理だけが使う状態を持たない規則の関数（`PointHitRules`（当たり分類の規則）。`InputTracker`から使う。DOM・状態に触れない形で`node --test`で確かめるために切り出したもので、`InputTracker`の再分離ではない）。
+*   `core/`：横断的な処理（入力→状態→描画の複数層にまたがるもの）と、その処理だけが使う状態を持たない規則の関数（`PointHitRules`（当たり分類の規則）。`InputTracker`から使う。DOM・状態に触れない形で`node --test`で確かめるために切り出したもので、`InputTracker`の再分離ではない）。加えて、`main.js`から使う、UIの表示の規則（状態なし。`ToolRules`（ツールの一覧と押し込みにするツールの規則））も置く。`ToolRules`を使うのは`main.js`だけで`core/`の処理からは使われないため、`PointHitRules`とは位置づけが違う。置く理由：規則は操作モード（`InputTracker`の`OperationMode`）と図形種別（`ShapeFactory`の`SHAPE_TYPES`）の知識を要し、`edit/`は操作モードを知らない・`palette/`はimportを持たない・`main.js`は判定を持たない・`InputTracker`へは入れない（再分離ではない）ため。
 *   `shapes/`：1種類の図形（図形クラス。種別ごとに1ファイル）と、図形クラスだけが使う共通の関数（幾何の計算・図形データの検証。継承ではなく関数の切り出し。詳細は4章`shapes/`）、図形をまたぐ規則（`PathJoinRules`（結合の規則）・`EndpointSnapRules`（端点への吸い付きの規則）。第3の種類で、`shapes/`の外から使う。3章11.・12.）。`palette/`：1つのUI部品（プロパティパネルは段ごとに1つのUI部品。ウィンドウ自体を配線するクラスは無い）。
 *   `io/`：作業データ形式の変換（`DocumentSerializer`）、IndexedDBへの読み書き（`CanvasStorage`）、作業データファイル・スプライトのJSのブラウザ内での読み書き（`DocumentFileIO`）、スプライト（書き出し形式）の組み立て（`SpriteSerializer`）とスプライトJSのテキストの組み立てと実行しない取り出し（`CodeExporter`）、開く・インポートで選ばれたファイルの中身の判別と作業データの取り出し（`FileContentReader`）のみ。
 *   `check/`：確認用ページ（`sprite-check.html`）専用。DOM・選んだJSの実行・描画を含む。importは`check/`内と`io/`の`SpriteSerializer`のみ。`main.js`・`edit/`・`palette/`・`core/`の状態を持つモジュールをimportせず、`js/`の他のモジュール・`index.html`は`check/`をimportしない。
 *   `edit/`：`io/`・`core/`の機能（結合の手順`PathJoiner`と吸い付きの手順`EndpointSnapper`のみ`shapes/`の規則も）を組み合わせて図形一式を扱う手順（貼り付け・複製、履歴のスナップショットの取得・適用、キャンバス一覧の管理、ファイル操作の組み立て、パスの結合、端点への吸い付きと描き足し、選択中の図形のスタイルの変更（プロパティパネル）、選択中の図形の重なり順の変更）。操作モードを知らない。操作モードに依存する判定・処理は`shouldRestoreSelection`・`prepareSwitch`・`prepareInsert`のような中立な注入関数で受け取る。
 *   `test/`：自動テスト。Node.jsはテストの実行（`node --test`）にのみ使い、エディタのビルド・配信には使わない。依存は`test/ → js/`の一方向で、`index.html`・`js/`は`test/`を参照しない。規則は4章`test/`。
-*   **依存方向**：`main.js → edit → io → core → shapes`の一方向。`core/`は`io/`をimportしない。`core/`・`io/`は`edit/`をimportしない。`edit/PathJoiner`は例外として`shapes/PathJoinRules`を、`edit/EndpointSnapper`は例外として`shapes/EndpointSnapRules`・`shapes/PathJoinRules`をimportする（下向き。`edit/`の他のクラスは`shapes/`をimportしない）。`edit/ShapeStyleEditor`は例外として`edit/StylePanelRules`を（`edit/`内）importする。`edit/ShapeOrderEditor`は例外として`edit/ShapeOrderRules`を（`edit/`内）importする（`ShapeOrderRules`は何もimportしない）。`shapes/EndpointSnapRules`は`shapes/PathJoinRules`をimportする（`shapes/`内。`PathJoinRules`は`Path`のみimportするため循環しない）。`core/InputTracker`は`core/PointHitRules`をimportする（`core/`内。`PointHitRules`は何もimportしない）。`core/InputTracker`は`edit/`をimportせず、`main.js`が注入した`EndpointSnapper`のメソッドを呼ぶだけ（`editRecorder`と同じ形）。`check/ → io`（確認用ページ専用。エディタ本体の依存の列とは独立）。
+*   **依存方向**：`main.js → edit → io → core → shapes`の一方向。`core/`は`io/`をimportしない。`core/`・`io/`は`edit/`をimportしない。`edit/PathJoiner`は例外として`shapes/PathJoinRules`を、`edit/EndpointSnapper`は例外として`shapes/EndpointSnapRules`・`shapes/PathJoinRules`をimportする（下向き。`edit/`の他のクラスは`shapes/`をimportしない）。`edit/ShapeStyleEditor`は例外として`edit/StylePanelRules`を（`edit/`内）importする。`edit/ShapeOrderEditor`は例外として`edit/ShapeOrderRules`を（`edit/`内）importする（`ShapeOrderRules`は何もimportしない）。`shapes/EndpointSnapRules`は`shapes/PathJoinRules`をimportする（`shapes/`内。`PathJoinRules`は`Path`のみimportするため循環しない）。`core/InputTracker`は`core/PointHitRules`をimportする（`core/`内。`PointHitRules`は何もimportしない）。`core/ToolRules`は`core/InputTracker`の`OperationMode`と`core/ShapeFactory`の`SHAPE_TYPES`をimportする（`core/`内。`InputTracker`・`ShapeFactory`は`ToolRules`をimportしない。`ToolRules`をimportするのは`main.js`とテストだけ）。`core/InputTracker`は`edit/`をimportせず、`main.js`が注入した`EndpointSnapper`のメソッドを呼ぶだけ（`editRecorder`と同じ形）。`check/ → io`（確認用ページ専用。エディタ本体の依存の列とは独立）。
 
 ---
 
@@ -243,21 +245,21 @@
 ---
 
 ### 3. 描画・操作フロー（実行サイクル）
-**同期の経路（全機能共通）**：再描画・UI同期は既存の経路（`model.onChange`・`viewTransform.onChange`・`historyManager.onChange`・`canvasLibrary.onChange`・`canvasFileOperations.onChange`、モードと図形種別は`applyMode`・`applyShapeType`）のみで行う。機能専用の再描画・同期処理を足さない。プロパティパネルの表示は`model.onChange`で同期する（直前に使った値の変更も`model.onChange`で通知される。13.）。
+**同期の経路（全機能共通）**：再描画・UI同期は既存の経路（`model.onChange`・`viewTransform.onChange`・`historyManager.onChange`・`canvasLibrary.onChange`・`canvasFileOperations.onChange`、モードと図形種別は`applyMode`・`applyShapeType`。ツールパレットの押し込みの表示もこの2つの中で同期する）のみで行う。機能専用の再描画・同期処理を足さない。プロパティパネルの表示は`model.onChange`で同期する（直前に使った値の変更も`model.onChange`で通知される。13.）。
 
 1.  **起動処理 (`main.js`)**：DOMの読み込み完了後、インスタンス化・依存の注入・イベントバインドを行う（配線は4章`main.js`）。URLに`?dev`があるときのみ`DevPanel`も生成・表示する。
     *   **キャンバスの非同期の読み込み**：初期化の最後に`canvasLibrary.start()`を呼ぶ（`await`しない）。起動直後は空のキャンバスで描画され、読み込み完了時に切り替え処理（8.）で図形一式が入る（倍率100%・選択モード・履歴は空）。
     *   **開くキャンバスの決定**：候補は「最後に開いていたキャンバス（一覧にあれば）→ 残りを最終更新日時の新しい順」。先頭から読み込みを試し、全体として読めた最初の1枚を開く。読めない記録は一覧に残し、保存先からも消さない。形式不正の記録（`id`・`name`・`updatedAt`の型が違う）は一覧から除外し、保存先からは消さない。候補が無い・すべて読めない場合は新しい空のキャンバスを作成して開く（初回起動を含む）。
     *   **保存先を利用できない場合**：保存先へ一切書き込まず、メモリ上だけの空のキャンバス「無題 1」を開く（`'unavailable'`。8.）。
-    *   **読み込み完了前の操作**：`index.html`で表示状態から始まる覆い要素`#canvas-loading-cover`がキャンバスへのマウス入力を遮る（読み込み完了時の切り替えで利用者の操作が消されたり別のキャンバスに保存されたりしないため）。キーボードショートカットとフロートウィンドウ上のボタンは働く。読み込み中は図形0個・クリップボード空・履歴空のため図形一式を変えない（結合・重なり順の変更も、図形0個・選択集合が空のため何もしない。専用の判定は無い）。唯一図形一式を変え得る`?dev`の「復元」は読み込み中は受理しない。`CanvasLibrary`も読み込み中の開く・新規作成等を受理しない。図形一式を変える操作を新しく足す場合は読み込み中の扱いが要る。プロパティパネルは読み込み中も操作でき、選択集合が空のため直前に使った値だけを変える（図形一式を変えない。専用の判定は無い）。
+    *   **読み込み完了前の操作**：`index.html`で表示状態から始まる覆い要素`#canvas-loading-cover`がキャンバスの領域を覆ってキャンバスへのマウス入力を遮る（読み込み完了時の切り替えで利用者の操作が消されたり別のキャンバスに保存されたりしないため）。キーボードショートカットとツールバー・ステータスバー・フロートウィンドウ上のボタンは働く（覆いより手前にある）。読み込み中は図形0個・クリップボード空・履歴空のため図形一式を変えない（結合・重なり順の変更も、図形0個・選択集合が空のため何もしない。専用の判定は無い）。唯一図形一式を変え得る`?dev`の「復元」は読み込み中は受理しない。`CanvasLibrary`も読み込み中の開く・新規作成等を受理しない。図形一式を変える操作を新しく足す場合は読み込み中の扱いが要る。プロパティパネルは読み込み中も操作でき、選択集合が空のため直前に使った値だけを変える（図形一式を変えない。専用の判定は無い）。
 2.  **描画サイクル (`CanvasManager.js`)**：常時ループ（rAF）は持たない。`VectorModel.onChange`・`ViewTransform.onChange`・ウィンドウリサイズの3経路から同一関数`renderCurrentState()`（`main.js`）で同期的に再描画する。描画順は4章`CanvasManager.js`。
 3.  **入力監視 (`InputTracker.js`・`KeyboardShortcuts.js` → `VectorModel.js`)**：状態が更新されると`VectorModel`が更新イベントを発火し、再描画を促す。
     *   **端点への吸い付き**：直線を描くとき、および選択モードで線の端点のハンドルをドラッグするときの吸い付きは12.。
     *   **当たり分類（クリック・押下・ホバー・カーソル）**：規則の正本は`core/PointHitRules.classifyPointHit`（`InputTracker`の`#classifyPoint`は図形配列・選択中かの照会・許容誤差を渡すだけ）。ハンドル（選択集合の図形のみ・手前優先・Phase 06-03前のまま）→ 本体（選択集合の図形の輪郭・手前優先 → それ以外は手前から、輪郭または塗った内側（`hitTestFill`）。選択集合の図形の内側を優先しない）。塗った内側で押しても範囲選択は始まらない。選択集合外の図形は押してそのままドラッグでは動かない（1回クリックで選んでからドラッグ）。範囲選択は輪郭のみ（`intersectsRect`。塗った内側が矩形にかかっても選ばれない）。見えない図形（塗られていない）は輪郭の当たりだけで選ばれる（2026-11-12 発注者の決定）。**Phase 06-03での振る舞いの変化（発注者了承済み）**：塗りのない図形どうしの輪郭の重なる所、および選択集合の図形が複数当たる場合に、今までの奥（図形配列の先頭側）ではなく手前が選ばれるようになった。
     *   **ドラッグのライフサイクル**：左ドラッグ（ハンドルドラッグ・本体ドラッグ・範囲選択）とパンの、押下から解放まで（開始ボタン・移動量閾値・追従/終了検知・中断・終了直後のclick抑止）は`DragTracker`が`window`へのcapture購読で一元管理する。ドラッグの意味の解釈（パン量・頂点変形・選択集合の平行移動・範囲選択）は`InputTracker`が行う。閾値判定のみスクリーン座標で行い、当たり判定・移動量・選択矩形はワールド座標で扱う。
     *   **範囲選択の流れ**：選択モードで空白を左ボタンで押下 → 閾値超過後、押下点と現在のカーソル位置で`VectorModel`の選択矩形を更新（描画は`CanvasManager`）→ 解放時に矩形を正規化し、各図形の`intersectsRect`をポリモーフィックに呼んで掛かった図形で選択集合を置き換え、選択矩形を破棄する（0件なら全解除）。中断（blur・モード切替）時は選択矩形を破棄するのみで確定しない。
-    *   **キーボード操作**：`document`の`keydown`は、`Space`を`InputTracker`（スペースパン）、それ以外のキーを`KeyboardShortcuts`が排他的に担当する（同一キーを二重に解釈しない）。`keyup`は`Space`のみ`InputTracker`が購読する。**入力欄の規則**：テキスト入力扱いの`input`（太さの欄を含む）にフォーカスがあるときはスペースパンとすべてのショートカットが働かない。`type`が`checkbox`・`color`の`input`にフォーカスがあるときは、`Space`のパンをせず`preventDefault()`もしない（部品の標準動作＝チェックの切り替え・ピッカーを開く）、`Ctrl`なしのショートカットは働かず、`Ctrl`付きは働く。判定は`InputTracker.js`の`isTextInputElement`・`isSpaceOperatedInputElement`（部品のidに結びつけず`type`全般に当てる）。操作の実体は`main.js`から注入されたコールバック（`applyMode`/`applyShapeType`/`viewTransform`/`InputTracker`の公開メソッド/`performUndo`・`performRedo`/`ClipboardController`の`copy`・`cut`・`paste`・`duplicate`/`performJoin`/`performShapeOrder`（重なり順の変更。14.））で実行する。
-4.  **座標系とビュー変換 (`ViewTransform.js`)**：図形データが保持する座標を「ワールド座標」、キャンバス要素の左上を原点とするCSSピクセル座標を「スクリーン座標」と呼ぶ。`スクリーン = ワールド × 倍率 ＋ オフセット`。
+    *   **キーボード操作**：`document`の`keydown`は、`Space`を`InputTracker`（スペースパン）、それ以外のキーを`KeyboardShortcuts`が排他的に担当する（同一キーを二重に解釈しない）。数字キーとツールパレットの図形のボタンは、どちらも`main.js`の`selectShapeTool`（同一経路）を呼ぶ。`keyup`は`Space`のみ`InputTracker`が購読する。**入力欄の規則**：テキスト入力扱いの`input`（太さの欄を含む）にフォーカスがあるときはスペースパンとすべてのショートカットが働かない。`type`が`checkbox`・`color`の`input`にフォーカスがあるときは、`Space`のパンをせず`preventDefault()`もしない（部品の標準動作＝チェックの切り替え・ピッカーを開く）、`Ctrl`なしのショートカットは働かず、`Ctrl`付きは働く。判定は`InputTracker.js`の`isTextInputElement`・`isSpaceOperatedInputElement`（部品のidに結びつけず`type`全般に当てる）。操作の実体は`main.js`から注入されたコールバック（`applyMode`/`applyShapeType`/`viewTransform`/`InputTracker`の公開メソッド/`performUndo`・`performRedo`/`ClipboardController`の`copy`・`cut`・`paste`・`duplicate`/`performJoin`/`performShapeOrder`（重なり順の変更。14.））で実行する。
+4.  **座標系とビュー変換 (`ViewTransform.js`)**：図形データが保持する座標を「ワールド座標」、キャンバス要素の左上を原点とするCSSピクセル座標を「スクリーン座標」と呼ぶ。`スクリーン = ワールド × 倍率 ＋ オフセット`。原点は画面の左上ではなくキャンバス要素（キャンバスの領域）の左上。`InputTracker.getScreenCoordinate`が`getBoundingClientRect`で差し引くため、キャンバスの領域が動いても入力の座標は変わらない（そのためキャンバスに枠線・内側の余白を付けない）。
     *   **入力**：`InputTracker`がマウスイベントからスクリーン座標を取得し、`ViewTransform.screenToWorld`でワールド座標へ逆変換して`VectorModel`・当たり判定へ渡す。パン量・ズーム中心はスクリーン座標のまま`ViewTransform`へ渡す。
     *   **描画**：`renderCurrentState()`が`viewTransform.getState()`を`CanvasManager.render()`へ渡し、`CanvasManager`がdprと合成した描画変換を毎回設定する。
 5.  **作業データの変換・`?dev`の復元 (`DocumentSerializer.js` ⇔ `VectorModel.js`)**
@@ -321,7 +323,7 @@
         *   開いているキャンバス：進行中の入力操作の中断 → 保留中の保存の破棄（確定しない）→ 予約の停止（`#isSwitching`）→ 記録の削除。成功したら残りを最終更新日時の新しい順に試して開く（無ければ新しい空のキャンバス）。失敗したら中止して開いているキャンバスのままとし、自動保存を予約し直す。
         *   記録の削除に成功してから切り替えが完了するまでは、`openCanvasName`が`null`で、`openCanvasId`は一覧に無いidを指す。
     *   **処理中の直列化**：ファイルの読み取り中は`CanvasFileOperations`の処理中によりパレットの全操作が押せなくなる。処理中もキャンバスの編集は止めない（確定手順で整合を取る）。
-    *   **保存・読み込みの問題（`issue`）**：アプリは停止せず、最後に起きた問題を1つだけ保持する。種類と解除条件はtypedef`CanvasIssue`。キャンバスパレットの文言（`CanvasPalette`の`ISSUE_MESSAGES`）と、保存の問題（`'unavailable'`・`'writeFailed'`）ではコントロールパネルのキャンバス名の先頭の`⚠ `で示す。`'unavailable'`でも出力（作業ファイル・エンジン用）・インポートは使える（インポートは履歴に記録されるが保存されない）。
+    *   **保存・読み込みの問題（`issue`）**：アプリは停止せず、最後に起きた問題を1つだけ保持する。種類と解除条件はtypedef`CanvasIssue`。キャンバスパレットの文言（`CanvasPalette`の`ISSUE_MESSAGES`）と、保存の問題（`'unavailable'`・`'writeFailed'`）ではステータスバーのキャンバス名の先頭の`⚠ `で示す。`'unavailable'`でも出力（作業ファイル・エンジン用）・インポートは使える（インポートは履歴に記録されるが保存されない）。
 9.  **ファイル入出力（出力（作業ファイル）・出力（エンジン用）・開く（ファイル）・インポート） (`CanvasPalette.js` → `main.js` → `CanvasFileOperations.js` → `DocumentFileIO.js`・`FileContentReader.js`・`DocumentSerializer.js`・`SpriteSerializer.js`・`CodeExporter.js`・`CanvasLibrary.js`・`ShapeInserter.js`・`VectorModel.js`)**：`CanvasFileOperations`（DOMに触れない）が手順の組み立てと通知の状態を担う。ブラウザAPI（`Blob`・`File`）は`DocumentFileIO`（`CanvasFileOperations`へ注入。作業データの中身は解釈しない）に閉じる。読み込みの判定の表・通知の解除条件の正本は`CanvasFileOperations`のクラスJSDoc。
     *   **用語**：**出力（作業ファイル）**（コード上は`exportCanvas`）＝開いているキャンバスを作業データファイルとしてダウンロードする。**出力（エンジン用）**（`exportSprite`）＝開いているキャンバスをスプライトのJS（`<名前>.js`）としてダウンロードする。**開く（ファイル）**＝ファイルを新しいキャンバスとして一覧へ登録し、開いているキャンバスと入れ替える（一覧の行を押す`openCanvas`とは別）。**インポート**＝ファイルの図形を開いているキャンバスへ追加する。
     *   **出力（作業ファイル）**：`serializeToString(model.getShapes())`を`DocumentFileIO.downloadText`へ渡す。図形・選択集合・履歴・ビュー変換・操作モードに触れず、`beginEdit`/`commitEdit`も呼ばないため自動保存の契機にならない。
@@ -338,7 +340,7 @@
     *   **失敗時**：ページは止めず、前の表示（絵・外枠・情報欄）を消してファイル名と「読み込めませんでした：」＋理由を出す。理由の区分は`readFailed`・`notSprite`・`unsupportedVersion`・`importFailed`・`drawFailed`（文言の唯一の定義箇所は`SpriteCheckPage`。`notSprite`はJSONを選んだ場合も含む）。詳細は`console.warn`。
     *   **ウィンドウの大きさの変化**：`window`の`resize`で描画領域の大きさを合わせ、表示中のスプライトがあれば`draw`をもう一度呼んで描き直す（`draw`が例外を投げたら`drawFailed`として表示を消す）。
 
-11. **結合（選択中の線の結合） (`index.html`の`#selection-join`・`KeyboardShortcuts.js` → `main.js` → `edit/PathJoiner.js` → `shapes/PathJoinRules.js`・`VectorModel.js`・`HistoryManager.js`)**：選択モードで選んだ線（直線・開いたパス）を結合する。開いたパス1本（頂点3つ以上）は閉じたパスになり、線2本は1本の開いたパスになる。
+11. **結合（選択中の線の結合） (`index.html`の`#selection-join`（ツールバー）・`KeyboardShortcuts.js` → `main.js` → `edit/PathJoiner.js` → `shapes/PathJoinRules.js`・`VectorModel.js`・`HistoryManager.js`)**：選択モードで選んだ線（直線・開いたパス）を結合する。開いたパス1本（頂点3つ以上）は閉じたパスになり、線2本は1本の開いたパスになる。
     *   **流れ**：ボタン`#selection-join`／キー`J` → `main.js`の`performJoin()`（ドラッグ中は不受理。ボタンとキーは`performJoin()`を呼ぶのみで`pathJoiner.join()`を直接呼ばない）→ `PathJoiner.join()` → `PathJoinRules.planJoin(重なり順の選択図形, 画面上5pxのワールド換算)` → `HistoryManager.beginEdit` → `model.replaceShape` → `commitEdit`。結合できない選択では何もせず記録しない。結合は1件の編集操作で、Undo1回・Redo1回で往復する（6.）。
     *   **押せる/押せないの同期**：`model.onChange`に登録した`syncJoinButtonState`が`PathJoiner.canJoin()`でボタンの`disabled`を更新する。`canJoin`は表示倍率を見ない（受理する選択かの判定のみ）。
     *   **発注者の決定**：
@@ -417,3 +419,4 @@
 | `test/`（自動テスト） | `_doc/arch/16_test.md` |
 | `sprite-check.html`・`check/`（確認用ページ） | `_doc/arch/17_sprite_check.md` |
 | `PointHitRules.js` | `_doc/arch/18_PointHitRules.md` |
+| `ToolRules.js` | `_doc/arch/19_ToolRules.md` |

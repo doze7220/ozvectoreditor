@@ -306,7 +306,7 @@
         *   `KeyboardShortcuts.js`：75行「SHAPE_TYPESの並び＝図形パレットのボタンの並び順」→「ツールパレットの図形のボタンの並び順」。
         *   `ShapeFactory.js`：17行「図形パレット・数字キーに出さず」→「ツールパレット・数字キーに出さず」、24行「図形パレットのボタン順」→「ツールパレットの図形のボタン順」、25行「パレットのボタンは不要」→「ツールパレットのボタンは不要」、26行「index.htmlに`#palette-${type}`のボタンを用意する」→「index.htmlのツールパレットに`#tool-${type}`のボタンを用意する（`ToolRules`の`TOOL_IDS`は`SHAPE_TYPES`から導出されるため変更不要）」、47行「パレットの配線」→「ツールパレットの配線（`ToolRules`の`TOOL_IDS`経由）」。
         *   作業後に`js/`全体を`Grep`（`コントロールパネル|図形選択パレット|図形パレット|図形作成のボタン|palette-|mode-create`）し、残りが無いことを確かめる（`index.html`も同様）。
-*   [ ] タスク9: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映（固定タスク）
+*   [x] タスク9: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映（固定タスク）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` : 更新（1章・3章・4章）
         *   `./_doc/arch/01_index_html.md` : 更新
@@ -376,7 +376,12 @@
 
 ### タスク9: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映（固定タスク）
 *   **作業内容** :
-    *   (未着手)
+    *   更新したファイル：`PROJECT_ARCHITECTURE.md`（1章：`index.html`の説明・`ToolRules.js`・`ToolPalette.js`・`ToolRules.test.js`・「存在しないもの」・`core/`の方針・依存方向、3章：同期の経路・読み込み完了前の操作・キーボード操作・座標系・8.の`issue`・11.の`#selection-join`、4章の一覧に`ToolRules.js`）、`_doc/arch/01_index_html.md`（全面改訂。画面の領域・ツールバー・ステータスバー・ボタンの見た目・`.disabled`の削除・ツールパレット・ウィンドウの既定の位置。旧「選択操作ボタンの行」「図形選択パレットの位置・ボタン」を削除）、`02_main.md`（行数701、主な関数、配線ブロック`// 6.`・`// 7.`、注入の一覧、同一経路、操作モード・図形種別の切替、起動時の同期、`setShapeType`）、`06_InputTracker.md`（`OperationMode`のimport元を1項目追加）、`10_ShapeFactory.md`、`11_WindowManager.md`（管理対象外の項）、`13_palette.md`（`ToolPalette`の項・ツールバーの位置づけ・呼び出し口の追加手順）、`16_test.md`、新規`19_ToolRules.md`。
+    *   追加仕様の反映：`ToolRules`は`PointHitRules`と同じ位置づけとは書かず、`core/`の定義を「`main.js`から使う、UIの表示の規則（状態なし）も置く」へ広げて置き場所の理由を書いた（1章・`19_ToolRules.md`）。`?dev`とプロパティパネルの重なる幅の数値は資料に書かず「CSSコメントを正とする」とした。`:root`の「直すのは2行」を`01_index_html.md`に反映。`.disabled`は「以前あったがPhase 07-01で削除した」と書いた。`ToolPalette`のルート要素なしの警告を`13_palette.md`の契約に含めた。
+    *   `main.js`の行数：`wc -l`で701行を実測。
+    *   要件5のGrep（`コントロールパネル|図形選択パレット|図形パレット|PaletteController|modeButtons|palette-${type}|mode-create|window-shape-palette|window-control-panel`）の残り2か所は、いずれも経緯の説明として意図して残した：`01_index_html.md`のツールパレットの項「旧id`#mode-select`・`#mode-create`・`#mode-pan`・`#palette-${type}`は無い」（旧idが無いことの明記）と、`13_palette.md`の`ToolPalette`の契約「`PaletteController`の`setEnabled`に当たるものは無い」。現在の実態として書かれた古い記述は残っていない。
+    *   ソースコード・`_doc/COWORK_STATUS.md`は変更していない。
+    *   差分監査の指摘による修正（1回目）：①`_doc/arch/13_palette.md`の「呼び出し口の追加手順」で、③の直後の改行が消えて`CanvasPalette.js`の項が同じ行に埋もれていたのを、改行して独立した箇条に戻した。②`_doc/arch/02_main.md`の配線ブロック表で、`// 6.`の行の「キャンバス名・倍率の表示」を「倍率の表示とリセット」に直し、キャンバス名の表示（`#canvas-name-display`・`syncCanvasNameDisplay`）は実コードのある`// 7.6.`の行へ移した。
 
 ## 5. 懸念事項・要確認ポイント
 ### 計画時点の判断・注意点
@@ -405,6 +410,11 @@
 * 目視推奨：起動時に`console.warn`が出ないこと、ツールパレット（幅44px）にアイコン32pxのボタンが収まり半透明にならないこと、7つのボタンで常に1つだけが押し込みになること（`V`・`H`・`P`・`1`〜`5`・貼り付け・全選択・キャンバス切り替えで追従）、1280×800で各ウィンドウが重ならずステータスバーに届かないこと。
 * `PaletteController.js`はまだ残る（`main.js`は使わない。削除はタスク6）。`ToolPalette`のルート要素が無い場合の`console.warn`文言はタスク2で新規に定めたもの。
 * 注意：`P`は`applyMode(CREATE)`のみで、最後に選んだ図形（起動直後は直線）のボタンが押し込みになる。
+
+### タスク9での追記
+* 存在しない`.disabled`クラスへの言及が、ソースのコメントに残っている：`index.html`の`#window-property-panel`のCSSコメント（「.disabledは使わない」）、`js/palette/PropertyShapeSection.js`・`js/palette/CanvasPalette.js`のJSDoc。誤りではないため本作業（資料のみ）では直していない（ソースは変更しない）。
+* 計画書2章の2つの誤記は資料へ書き写していない：要件6(2)の`?dev`とプロパティパネルが重なる画面幅（正しくは約902px未満。資料には数値を書かずCSSコメントを正とした）、要件1(1)のコード例の「4行だけを直す」（正しくは`--canvas-area-top`・`--canvas-area-left`の2行）。計画書本文（2章）は履歴として直していない。
+* `ToolRules`の位置づけ：計画書の「`PointHitRules`と同じ位置づけ」は書き写さず、`core/`の定義を広げて書いた。将来`core/`の方針を読み直すときは、`ToolRules`は`core/`の処理から使われず`main.js`だけが使う点に注意する。
 
 ### テストプレイの確認項目（操作手順 → 期待する結果）
 ※【実ブラウザ】は、実装AIの合成イベントでは確かめられず、実際のブラウザでの確認が要る項目。
