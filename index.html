@@ -36,9 +36,9 @@
             width: var(--canvas-area-width);
             height: var(--canvas-area-height);
         }
+        /* 背景の色はCanvasManagerの配色の組で塗る（CSSでは付けない。色の定義を1か所にするため） */
         #editor-canvas {
             z-index: 1;
-            background-color: #ffffff;
         }
         /* ツールバー（上端）とステータスバー（下端）の共通。画面に固定する枠（フロートウィンドウではない）で、1行固定。
            収まらない右側の項目は画面の外へ切れる（折り返し・横スクロールはしない）。

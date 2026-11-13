@@ -1,6 +1,6 @@
 /**
- * 責務：Canvas要素への純粋な描画処理（背景グリッド・原点表示・選択矩形・吸い付きの表示を含む）のみを担う。
- * 描画変換は引数で受け取ったビュー変換値から毎フレーム設定し、状態は保持しない。
+ * 責務：Canvas要素への純粋な描画処理（背景の塗り・グリッド・原点表示・アウトライン表示・選択矩形・吸い付きの表示を含む）のみを担う。
+ * 描画変換・配色は引数で受け取った値から毎フレーム設定し、状態は保持しない。
  */
 import { computeGridSpacing } from './GridSpacingRules.js';
 
@@ -12,28 +12,41 @@ import { computeGridSpacing } from './GridSpacingRules.js';
 const DEFAULT_VIEW = Object.freeze({ scale: 1, offsetX: 0, offsetY: 0 });
 
 /**
- * 背景グリッドの細線の色。
- * @type {string}
+ * 配色の組（背景の白/黒に対応する2組）。各組は背景・グリッドの細線・太線・軸線・原点マーク・アウトラインの色を持つ。
+ * - `light`：白の背景用（従来の見た目と同じ値）。
+ * - `dark`：黒の背景用（白系は黒の上で薄く見えやすいため透明度を少し上げている）。
+ * 軸線（`originAxis`）はグリッドの太線（`gridMajor`）より濃くして区別する。
+ * @type {Readonly<{light: Readonly<ColorScheme>, dark: Readonly<ColorScheme>}>}
  */
-const GRID_MINOR_COLOR = 'rgba(0, 0, 0, 0.06)';
+const COLOR_SCHEMES = Object.freeze({
+    light: Object.freeze({
+        background: '#ffffff',
+        gridMinor: 'rgba(0, 0, 0, 0.06)',
+        gridMajor: 'rgba(0, 0, 0, 0.14)',
+        originAxis: 'rgba(0, 0, 0, 0.32)',
+        originMark: 'rgba(0, 0, 0, 0.6)',
+        outline: '#000000'
+    }),
+    dark: Object.freeze({
+        background: '#000000',
+        gridMinor: 'rgba(255, 255, 255, 0.10)',
+        gridMajor: 'rgba(255, 255, 255, 0.22)',
+        originAxis: 'rgba(255, 255, 255, 0.45)',
+        originMark: 'rgba(255, 255, 255, 0.75)',
+        outline: '#ffffff'
+    })
+});
 
 /**
- * 背景グリッドの太線（細線間隔の10倍ごと）の色。
- * @type {string}
+ * 配色の組の1組分。
+ * @typedef {Object} ColorScheme
+ * @property {string} background - 背景の塗りの色
+ * @property {string} gridMinor - グリッドの細線の色
+ * @property {string} gridMajor - グリッドの太線（細線間隔の10倍ごと）の色
+ * @property {string} originAxis - 軸線（`x = 0`・`y = 0`の直線）の色
+ * @property {string} originMark - 原点マーク（(0, 0)の十字と円）の色
+ * @property {string} outline - アウトライン表示の線の色
  */
-const GRID_MAJOR_COLOR = 'rgba(0, 0, 0, 0.14)';
-
-/**
- * 軸線（ワールド座標の`x = 0`・`y = 0`の直線）の色。グリッドの太線（`GRID_MAJOR_COLOR`）より濃くして区別する。
- * @type {string}
- */
-const ORIGIN_AXIS_COLOR = 'rgba(0, 0, 0, 0.32)';
-
-/**
- * 原点マーク（ワールド座標(0, 0)の十字と円）の色。
- * @type {string}
- */
-const ORIGIN_MARK_COLOR = 'rgba(0, 0, 0, 0.6)';
 
 /**
  * 原点マークの十字の全長（スクリーン座標のCSSピクセル）。描画時に`÷ view.scale`して画面上一定にする。
@@ -96,7 +109,7 @@ const SNAP_INDICATOR_STROKE_COLOR = '#1f4e8c';
 const SNAP_INDICATOR_LINE_WIDTH = 1.5;
 
 /**
- * Canvasへの描画を行うクラス。render()の引数（図形の配列・表示状態・ビュー変換値）のみから毎回描画し、
+ * Canvasへの描画を行うクラス。render()の引数（図形の配列・表示状態・ビュー変換値・アウトライン/背景/グリッドの表示指定）のみから毎回描画し、
  * 図形データ・選択状態などのアプリケーション状態は保持しない（保持するのはCanvas要素・2Dコンテキスト・dprのみ）。
  */
 export class CanvasManager {
@@ -144,16 +157,18 @@ export class CanvasManager {
     }
 
     /**
-     * 画面をクリアし、背景グリッド・原点表示と指定された図形リストを全て描画する。
-     * 状態の判定は一切行わず、渡された引数（hoveredId / selectedIds / draftShape / selectionRect / view）を
-     * そのまま描画に反映するだけの純粋なレンダラーとして振る舞う。
+     * 背景を配色の組の背景色で塗り、背景グリッド・原点表示と指定された図形リストを全て描画する。
+     * 状態の判定は一切行わず、渡された引数（hoveredId / selectedIds / draftShape / selectionRect / view /
+     * outline / darkBackground / showGrid）をそのまま描画に反映するだけの純粋なレンダラーとして振る舞う。
      * 描画変換は毎フレーム`setTransform`で「dpr × ビュー変換」を明示設定する（累積させない）。
      * 図形・選択矩形はワールド座標で描画される。
-     * 描画順：背景グリッド → 軸線・原点マーク → (1)全図形の draw（＋ホバー中図形の drawHover）
+     * 新しい引数（outline・darkBackground・showGrid）の省略時の値では、従来（白の背景・グリッドあり・通常描画）と同じ見た目になる。
+     * 描画順：背景の塗り → 背景グリッド（showGridが偽なら省略） → 軸線・原点マーク
+     * → (1)全図形の draw（outlineが真なら drawOutline。＋ホバー中図形の drawHover）
      * → (2)選択集合に含まれる図形の drawHandles（図形配列の順。後ろの図形ほど前面）
      * → (3)作成中の図形 → (3-2)吸い付きの表示 → (4)選択矩形。
      * ハンドルを全図形の描画後にまとめて描くのは、複数選択時に前面の図形が背面図形のハンドルを覆い隠さないためである。
-     * @param {Array<Object>} shapes - draw(ctx) / drawHover(ctx, viewScale) / drawHandles(ctx, viewScale) メソッドを持つ図形オブジェクトの配列
+     * @param {Array<Object>} shapes - draw(ctx) / drawOutline(ctx, viewScale, color) / drawHover(ctx, viewScale) / drawHandles(ctx, viewScale) メソッドを持つ図形オブジェクトの配列
      * @param {Object} [state] - 描画状態
      * @param {string|null} [state.hoveredId] - ホバー中の図形id（単一）。一致する図形の drawHover(ctx, viewScale) を追加で呼び出す
      * @param {Array<string>} [state.selectedIds] - 選択集合（選択中の図形idの配列。0個以上）。
@@ -166,13 +181,20 @@ export class CanvasManager {
      *     省略時は倍率1.0・オフセット(0,0)
      * @param {{x: number, y: number}|null} [state.snapPoint] - 端点への吸い付きの表示の点（ワールド座標）。
      *     非nullの場合、作成中の図形の後・選択矩形の前に、画面上一定の大きさの正方形で描画する
+     * @param {boolean} [state.outline] - 真ならアウトライン表示（図形・作成中の図形を drawOutline で描く）。省略時は偽（通常描画）
+     * @param {boolean} [state.darkBackground] - 真なら黒の背景用の配色の組、偽なら白の背景用の配色の組を使う。省略時は偽
+     * @param {boolean} [state.showGrid] - 偽なら背景グリッド（細線・太線）のみ描かない（軸線・原点マークは常に描く）。省略時は真
      */
-    render(shapes, { hoveredId = null, selectedIds = [], draftShape = null, selectionRect = null, view = DEFAULT_VIEW, snapPoint = null } = {}) {
+    render(shapes, { hoveredId = null, selectedIds = [], draftShape = null, selectionRect = null, view = DEFAULT_VIEW, snapPoint = null, outline = false, darkBackground = false, showGrid = true } = {}) {
         const dpr = this.#pixelRatio;
+        const scheme = darkBackground ? COLOR_SCHEMES.dark : COLOR_SCHEMES.light;
 
-        // 1. 変換の影響を受けずに内部バッファ全体をクリアする
+        // 1. 変換の影響を受けずに内部バッファ全体を背景色で塗る（fillStyleを後続へ残さない）
+        this.ctx.save();
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.fillStyle = scheme.background;
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.restore();
 
         // 2. dprとビュー変換を合成した描画変換を明示設定する（以降の描画はワールド座標）
         this.ctx.setTransform(
@@ -182,14 +204,20 @@ export class CanvasManager {
         );
 
         // 3. 背景グリッド（図形の背面）
-        this.#drawGrid(view);
+        if (showGrid) {
+            this.#drawGrid(view, scheme);
+        }
 
-        // 3-2. 軸線・原点マーク（グリッドの前面・図形の背面）
-        this.#drawOrigin(view);
+        // 3-2. 軸線・原点マーク（グリッドの前面・図形の背面。グリッドを隠していても描く）
+        this.#drawOrigin(view, scheme);
 
-        // 4. 各Shapeの通常描画に加え、ホバー中の強調描画をポリモーフィックに呼び出す
+        // 4. 各Shapeの通常描画（アウトライン表示ならアウトライン描画）に加え、ホバー中の強調描画をポリモーフィックに呼び出す
         for (const shape of shapes) {
-            shape.draw(this.ctx);
+            if (outline) {
+                shape.drawOutline(this.ctx, view.scale, scheme.outline);
+            } else {
+                shape.draw(this.ctx);
+            }
             if (shape.id === hoveredId) {
                 shape.drawHover(this.ctx, view.scale);
             }
@@ -208,7 +236,11 @@ export class CanvasManager {
 
         // 6. 作成中のドラフト図形があれば、図形・ハンドルの上に重ねて描画する
         if (draftShape) {
-            draftShape.draw(this.ctx);
+            if (outline) {
+                draftShape.drawOutline(this.ctx, view.scale, scheme.outline);
+            } else {
+                draftShape.draw(this.ctx);
+            }
         }
 
         // 6-2. 吸い付きの表示があれば、作成中の図形の上・選択矩形の下に描画する
@@ -282,9 +314,11 @@ export class CanvasManager {
      * - 間隔は`GridSpacingRules.computeGridSpacing`で求める（定規・ステータスバーと共有）。
      * - 可視範囲は`#getVisibleWorldBounds()`で求める（原点表示と共用）。
      * - スタイル（線幅・色）は`save()`/`restore()`で後続の描画へ残さない。
+     * - 色は配色の組（`scheme.gridMinor`・`scheme.gridMajor`）を使う。
      * @param {{scale: number, offsetX: number, offsetY: number}} view - ビュー変換値（offsetはスクリーン座標）
+     * @param {ColorScheme} scheme - 使う配色の組
      */
-    #drawGrid(view) {
+    #drawGrid(view, scheme) {
         const scale = view.scale;
         if (!(scale > 0) || !Number.isFinite(scale)) {
             return;
@@ -296,8 +330,8 @@ export class CanvasManager {
 
         this.ctx.save();
         this.ctx.lineWidth = 1 / scale;
-        this.#strokeGridLines(minor, bounds, GRID_MINOR_COLOR);
-        this.#strokeGridLines(major, bounds, GRID_MAJOR_COLOR);
+        this.#strokeGridLines(minor, bounds, scheme.gridMinor);
+        this.#strokeGridLines(major, bounds, scheme.gridMajor);
         this.ctx.restore();
     }
 
@@ -309,9 +343,11 @@ export class CanvasManager {
      *   可視範囲外でも描画命令は発行する（数本のパスのみで、はみ出し分はCanvasが切り捨てる）。
      * - 線幅・十字の長さ・円の半径は`÷ view.scale`し、画面上で一定（線幅1px）にする。
      * - スタイル（線幅・色）は`save()`/`restore()`で後続の描画へ残さない。
+     * - 色は配色の組（`scheme.originAxis`・`scheme.originMark`）を使う。
      * @param {{scale: number, offsetX: number, offsetY: number}} view - ビュー変換値（offsetはスクリーン座標）
+     * @param {ColorScheme} scheme - 使う配色の組
      */
-    #drawOrigin(view) {
+    #drawOrigin(view, scheme) {
         const scale = view.scale;
         if (!(scale > 0) || !Number.isFinite(scale)) {
             return;
@@ -331,7 +367,7 @@ export class CanvasManager {
             this.ctx.moveTo(minX, 0);
             this.ctx.lineTo(maxX, 0);
         }
-        this.ctx.strokeStyle = ORIGIN_AXIS_COLOR;
+        this.ctx.strokeStyle = scheme.originAxis;
         this.ctx.stroke();
 
         // 原点マーク（十字＋円。サイズは画面上一定）
@@ -344,7 +380,7 @@ export class CanvasManager {
         this.ctx.lineTo(0, half);
         this.ctx.moveTo(radius, 0);
         this.ctx.arc(0, 0, radius, 0, Math.PI * 2);
-        this.ctx.strokeStyle = ORIGIN_MARK_COLOR;
+        this.ctx.strokeStyle = scheme.originMark;
         this.ctx.stroke();
 
         this.ctx.restore();

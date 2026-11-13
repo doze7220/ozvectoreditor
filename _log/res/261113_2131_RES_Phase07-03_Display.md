@@ -357,7 +357,7 @@
     *   **作業内容** :
         *   タスク3と同じ形（パスは`#tracePath(ctx)`。閉じたパスは`closePath`、開いたパスは閉じない）。テストに開いた・閉じたの両方。
         *   完了後に`js/shapes/`を「15メソッド」で検索し、残りが無いことを記録する。
-*   [ ] タスク8: `CanvasManager`の配色の組・背景の塗り・グリッドの表示・アウトライン表示
+*   [x] タスク8: `CanvasManager`の配色の組・背景の塗り・グリッドの表示・アウトライン表示
     *   **対象ファイル** :
         *   `./js/core/CanvasManager.js` : 更新
         *   `./index.html` : 更新（`#editor-canvas`の`background-color: #ffffff`の削除とそのルールのコメントのみ）
@@ -566,7 +566,9 @@
 
 ### タスク8: `CanvasManager`の配色の組・背景の塗り・グリッドの表示・アウトライン表示
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/CanvasManager.js`：色の定数4つを削除し`COLOR_SCHEMES`（light/dark、`Object.freeze`、typedef`ColorScheme`付き）を追加。`render`へ`outline = false`・`darkBackground = false`・`showGrid = true`を追加。手順1を`save`→恒等変換→`fillRect(scheme.background)`→`restore`へ（`clearRect`を置換）。`showGrid`が偽なら`#drawGrid`のみ省略（`#drawOrigin`は常に描く）。図形・作成途中の図形は`outline`が真なら`drawOutline(ctx, view.scale, scheme.outline)`、偽なら`draw`（種別の分岐なし）。`#drawGrid(view, scheme)`・`#drawOrigin(view, scheme)`は組の色を使う。先頭の責務・クラス・`render`・`#drawGrid`・`#drawOrigin`のJSDocを更新。
+    *   `index.html`：`#editor-canvas`の`background-color: #ffffff;`を削除し、ルールの直前に配色の組で塗る旨のコメントを追加。
+    *   `node --test`：tests 1044 / pass 1044 / fail 0（CanvasManagerはテスト対象外のため件数不変）。
 
 ### タスク9: `classifyPointHit`の第6引数`includeFill`とテスト
 *   **作業内容** :
