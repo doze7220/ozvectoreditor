@@ -239,7 +239,7 @@
 ## 3. タスクリスト
 各タスクの共通の完了条件：(a) 変更・新設したクラス・メソッド・関数・定数・typedefのJSDoc（`@param`・`@returns`・`@throws`）、注入するコールバックの契約、変更したファイルの先頭の責務定義に漏れがないことを確認する。(b) プロジェクトのルートで`node --test`を実行し`fail 0`であること・表示された件数（`tests`・`pass`・`fail`）を「4. 詳細作業内容」に記録する（着手前の基準は`tests 975 / pass 975 / fail 0`）。(c) 起動してこれまでの操作ができ、コンソールにエラーが出ない状態を保つ（合成イベント等で確かめた範囲を記録する）。(d) 「4. 詳細作業内容」の該当欄を記入する。(e) 開発資料に影響があれば資料本体は直さず「開発資料の更新予定」へ追記する。(f) 判断に迷った点・目視確認を推奨する箇所・将来の注意点は「5. 懸念事項・要確認ポイント」へ追記する。
 
-*   [ ] タスク1: ツールの一覧と押し込みにするツールの規則（`ToolRules`）とそのテスト
+*   [x] タスク1: ツールの一覧と押し込みにするツールの規則（`ToolRules`）とそのテスト
     *   **対象ファイル** :
         *   `./js/core/ToolRules.js` : 新規
         *   `./test/core/ToolRules.test.js` : 新規（ソースとそれを直接確かめるテストのため同じタスク）
@@ -326,7 +326,10 @@
 
 ### タスク1: ツールの一覧と押し込みにするツールの規則（`ToolRules`）とそのテスト
 *   **作業内容** :
-    *   (未着手)
+    *   `js/core/ToolRules.js`を新規作成。`TOOL_IDS`（凍結。`[SELECT, PAN, ...SHAPE_TYPES]`）と`resolveActiveTool(mode, shapeType)`を実装。importは`OperationMode`（`./InputTracker.js`）・`SHAPE_TYPES`（`./ShapeFactory.js`）のみ。DOM・状態なし。先頭の責務JSDoc・各JSDoc（`null`の条件、識別子の約束、ボタンid`tool-${toolId}`は`index.html`側の約束でDOMを知らないこと）を記述。JSDocには「`PointHitRules`と同じ位置づけ」の表現を書いていない。
+    *   `test/core/ToolRules.test.js`を新規作成（要件8のケース：凍結・並び・先頭2値・重複なし・全図形を含む／select・pan・create各モードの解決／全モード×全図形で1回ずつ現れる／未知のmode・`'path'`・未知の種別で`null`）。
+    *   `main.js`からは未使用（画面は変わらない）。
+    *   `node --test`：tests 986 / pass 986 / fail 0（基準975＋11）。(c)は画面・配線に変更がないため該当なし。
 
 ### タスク2: ツールパレットのUI部品（`ToolPalette`。まだ使わない）
 *   **作業内容** :
