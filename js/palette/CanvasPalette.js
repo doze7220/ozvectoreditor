@@ -99,7 +99,7 @@ const LOADING_TEXT = '読み込み中…';
  * ■ 表示の規則（`render(state)`）
  *   - `loading`：一覧の代わりに「読み込み中…」を表示する。
  *   - `busy || !canManage || loading`：新規作成・開く（ファイル）・各行のボタンを`disabled`属性で押せない状態にする
- *     （見た目は既存の`.tool-btn:disabled`。`.disabled`クラスは使わない）。
+ *     （見た目は既存の`.tool-btn:disabled`）。
  *   - `busy || loading`：出力（作業ファイル）・出力（エンジン用）・インポートを`disabled`にする。`'unavailable'`（`!canManage`）でも押せる。
  *   - 開いているキャンバス（`isOpen`）の行に`.current`を付ける。行の名前ボタンの`title`に名前全体を設定する。
  *   - 名前は`textContent`のみで設定し、`innerHTML`は使わない（利用者の入力した名前をHTMLとして解釈しないため）。

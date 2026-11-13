@@ -387,7 +387,7 @@
         *   **同じタスクで複数ファイルを変える理由**：いずれもロジックを変えないコメントのみの修正で、互いの前提にならず、タスク6でUI部品の名前が確定した後でまとめて行うのが誤りを生みにくいため。
         *   2章「要件8」の洗い出しのとおり改める。`ShapeStyleEditor.js`は先頭の責務定義・クラスJSDoc・`getPanelView`・`#rememberedColors`のJSDocの「プロパティパネル」「パネル」を「オプションバー」へ改め、クラスJSDocに識別子の「Panel」と「パネルが覚えている色」を表示の部品一般の名前として残す旨を1行で明記する。タスク2で足したメソッドのJSDocも実態に合うか確かめる。
         *   ロジック・識別子・テストのケースは変えない。
-*   [ ] タスク9: `core/`・`palette/`のコメント・JSDocの修正
+*   [x] タスク9: `core/`・`palette/`のコメント・JSDocの修正
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` : 更新（`SPACE_OPERATED_INPUT_TYPES`のJSDocのみ）
         *   `./js/core/KeyboardShortcuts.js` : 更新（コメント・JSDocのみ）
@@ -476,7 +476,10 @@
 
 ### タスク9: `core/`・`palette/`のコメント・JSDocの修正
 *   **作業内容** :
-    *   (未実施)
+    *   `js/core/InputTracker.js`：`SPACE_OPERATED_INPUT_TYPES`のJSDocの「プロパティパネル以外に存在しない」を「オプションバーのスタイルのまとまりの色の欄（color）以外に存在しない」へ。
+    *   `js/core/KeyboardShortcuts.js`：先頭の責務定義（3行のまま）・手順4のJSDoc・手順4のコメントの「チェックボックス・色の欄」を「typeがcheckbox・colorのinput。色の欄」へ。手順4のJSDocに、ON/OFFのボタン（aria-pressedを持つbutton）は手順4の対象外でSpaceの扱いはInputTrackerが決める旨を1行足した。
+    *   `js/palette/CanvasPalette.js`：`.disabled`クラスの記述を削除。`js/palette/PaletteLauncher.js`：「プロパティパネル」を削除。
+    *   コメントのみ。ロジックは未変更。
 
 ### タスク10: 残置とJSDocの最終確認
 *   **作業内容** :

@@ -1,6 +1,6 @@
 /**
  * 責務：キーボードショートカットのキー→操作の対応表と、keydownの受理判定（IME変換中・テキスト入力中・修飾キー・
- * Spaceで操作する入力部品（チェックボックス・色の欄）の操作中・ドラッグ中・キーリピート・preventDefaultの要否）のみを担う。
+ * Spaceで操作する入力部品（typeがcheckbox・colorのinput。色の欄）の操作中・ドラッグ中・キーリピート・preventDefaultの要否）のみを担う。
  * 操作の実体はmain.jsから注入されたコールバックへ委譲する。
  */
 
@@ -152,7 +152,8 @@ export class KeyboardShortcuts {
      * 2. テキスト入力中（isTextInputElement(document.activeElement)）なら何もしない。
      * 3. 対応表から一致エントリを探す（#findBinding）。一致なしなら何もしない。
      * 4. ctrl: falseのエントリで、Spaceで操作する入力部品（isSpaceOperatedInputElement(document.activeElement)。
-     *    チェックボックス・色の欄）にフォーカスがあるなら何もしない（Ctrl付きのエントリは対象外）。
+     *    typeがcheckbox・colorのinput。色の欄）にフォーカスがあるなら何もしない（Ctrl付きのエントリは対象外）。
+     *    ON/OFFのボタン（aria-pressedを持つbutton）はこの手順の対象外（Spaceの扱いはInputTrackerが決める）。
      * 5. ドラッグ中（isDragging()が真）なら実行しない。
      * 6. キーリピート（event.repeat）かつrepeatable: falseのエントリなら実行しない。
      * 7. 注入コールバックactions[binding.action](binding.arg)を呼び、trueが返った場合のみpreventDefault()する。
@@ -177,7 +178,7 @@ export class KeyboardShortcuts {
             return;
         }
 
-        // 手順4：Spaceで操作する入力部品（チェックボックス・色の欄）の操作中は、Ctrlなしのショートカットを働かせない
+        // 手順4：Spaceで操作する入力部品（typeがcheckbox・colorのinput。色の欄）の操作中は、Ctrlなしのショートカットを働かせない
         if (!binding.ctrl && isSpaceOperatedInputElement(document.activeElement)) {
             return;
         }
