@@ -348,7 +348,7 @@
         *   `render(view)`：ON/OFFのボタンの`aria-pressed`（`setAttribute`。`true`→`'true'`・`null`→`'mixed'`・それ以外→`'false'`）と`disabled`、色の欄の`value`（違うときだけ代入）・`disabled`・`title`（`COLOR_TITLE_TEXT[target][colorNote]`。無い値は`''`の列）、包む要素の`data-color-note`（`colorNote`をそのまま）、太さの欄（フォーカスがある間は書き換えない）。表示の対象（選択中：n個等）は扱わない。
         *   クラスJSDocに「■ まとまりの構成」（オプションバーはまとまりごとにUI部品を1つ持つ。ルート要素は自分の`<div id="option-style-group" class="toolbar-group">`。要素はルート要素内の`querySelector('#id')`で解決。後からまとまりを足しても本クラスは変えない。`.disabled`の記述は書かない）と「■ 表示の規則」を書く。
         *   完了時点では誰もimportしないため、画面の動きは変わらない。
-*   [ ] タスク5: オプションバーの重なり順のまとまりのUI部品の新設（`OptionBarOrderGroup.js`）
+*   [x] タスク5: オプションバーの重なり順のまとまりのUI部品の新設（`OptionBarOrderGroup.js`）
     *   **対象ファイル** :
         *   `./js/palette/OptionBarOrderGroup.js` : 新規
     *   **作業内容** :
@@ -449,7 +449,9 @@
 
 ### タスク5: オプションバーの重なり順のまとまりのUI部品の新設（`OptionBarOrderGroup.js`）
 *   **作業内容** :
-    *   (未実施)
+    *   `js/palette/OptionBarOrderGroup.js`を新規作成（旧`PropertyOrderSection.js`は未変更・未削除）。クラス`OptionBarOrderGroup`、typedef`OptionBarOrderGroupActions`・`ShapeOrderAvailability`（形は同じ、二重定義の相手は`edit/ShapeOrderEditor.js`）、`ORDER_BUTTONS`のidを`#option-bring-to-front`・`#option-bring-forward`・`#option-send-backward`・`#option-send-to-back`へ。`console.warn`／`Error`の文言・JSDocの「段」「プロパティパネル」を「まとまり」「オプションバー」へ改め、ルート要素は`<div id="option-order-group" class="toolbar-group">`と記述。`render`・配線の働きは旧と同じ。誰もimportしないため画面の動きは変わらない。
+    *   `node --check`で構文確認。`node --test`：tests 997 / pass 997 / fail 0（件数変化なし）。
+    *   監査の指摘による修正: `OptionBarOrderGroup.js`の`console.warn`の文言から「」を除き、要件7の指定（`OptionBarOrderGroup: 重なり順のまとまりの要素が見つからないため、配線しません。`）に一致させた。`node --test`：tests 997 / pass 997 / fail 0。
 
 ### タスク6: オプションバーへの切り替えと、プロパティパネル・古いUI部品の削除
 *   **作業内容** :
