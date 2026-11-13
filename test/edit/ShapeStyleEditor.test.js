@@ -369,3 +369,96 @@ test('選択中の図形は描画順で扱われ、選択以外の図形は変�
     editor.commitColor('stroke', '#abcdef');
     assert.deepEqual(model.getShapes().map((s) => s.strokeColor), ['#abcdef', '#222222', '#abcdef']);
 });
+
+test('toggleStrokeEnabled・toggleFillEnabled（選択なし）：直前に使った値の有無だけが切り替わり、図形・履歴は変わらない', () => {
+    const { model, history, editor } = setup([makeRect('a'), makeLine('b')], []);
+    const before = dump(model);
+    assert.equal(model.getNewShapeStyle().strokeEnabled, true);
+    assert.equal(editor.toggleStrokeEnabled(), true);
+    assert.equal(model.getNewShapeStyle().strokeEnabled, false);
+    assert.equal(editor.toggleStrokeEnabled(), true);
+    assert.equal(model.getNewShapeStyle().strokeEnabled, true);
+    assert.equal(model.getNewShapeStyle().fillEnabled, false);
+    assert.equal(editor.toggleFillEnabled(), true);
+    assert.equal(model.getNewShapeStyle().fillEnabled, true);
+    assert.deepEqual(dump(model), before);
+    assert.equal(history.canUndo(), false);
+});
+
+test('toggleStrokeEnabled（単一選択）：線がnullになり1件で戻る。もう一度で表示中の色が入る', () => {
+    const { model, history, editor } = setup([makeRect('a', '#ff0000')], ['a']);
+    assert.equal(editor.toggleStrokeEnabled(), true);
+    assert.equal(model.getShapes()[0].strokeColor, null);
+    assert.equal(editor.toggleStrokeEnabled(), true);
+    assert.equal(model.getShapes()[0].strokeColor, '#ff0000');
+    assert.equal(countUndo(history), 2);
+    const second = setup([makeRect('a', '#ff0000')], ['a']);
+    second.editor.toggleStrokeEnabled();
+    assert.equal(second.history.canUndo(), true);
+    second.history.undo();
+    assert.equal(second.model.getShapes()[0].strokeColor, '#ff0000');
+    assert.equal(second.history.canUndo(), false);
+    second.history.redo();
+    assert.equal(second.model.getShapes()[0].strokeColor, null);
+});
+
+test('toggleStrokeEnabled（複数選択・そろっている）：両方nullになり1件', () => {
+    const { model, history, editor } = setup([makeRect('a', '#111111'), makeRect('b', '#222222')], ['a', 'b']);
+    assert.equal(editor.toggleStrokeEnabled(), true);
+    assert.deepEqual(model.getShapes().map((s) => s.strokeColor), [null, null]);
+    assert.equal(countUndo(history), 1);
+});
+
+test('toggleStrokeEnabled（複数選択・そろっていない）：両方線ありになり、色は表示中の色。1件', () => {
+    const { model, history, editor } = setup([makeRect('a', null), makeRect('b', '#0000ff')], ['a', 'b']);
+    assert.equal(editor.getPanelView().stroke.enabled, null);
+    assert.equal(editor.toggleStrokeEnabled(), true);
+    assert.deepEqual(model.getShapes().map((s) => s.strokeColor), ['#0000ff', '#0000ff']);
+    assert.equal(model.getNewShapeStyle().strokeEnabled, true);
+    assert.equal(countUndo(history), 1);
+});
+
+test('toggleFillEnabled（塗れる形が無い選択）：false。図形・履歴・直前に使った値を変えない', () => {
+    const { model, history, editor } = setup([makeLine('b')], ['b']);
+    const before = dump(model);
+    const style = model.getNewShapeStyle();
+    assert.equal(editor.toggleFillEnabled(), false);
+    assert.deepEqual(dump(model), before);
+    assert.deepEqual(model.getNewShapeStyle(), style);
+    assert.equal(history.canUndo(), false);
+});
+
+test('toggleFillEnabled（塗れる形と塗れない形が混ざった選択）(a)：塗りは塗れる形だけで決まり、OFFならONへ。塗れない形のfillColorは保持', () => {
+    const { model, history, editor } = setup([makeRect('a', '#112233', 3, null), makeLine('b', '#445566', 4, '#abcdef')], ['a', 'b']);
+    const shown = editor.getPanelView().fill;
+    assert.equal(shown.enabled, false);
+    assert.equal(editor.toggleFillEnabled(), true);
+    const shapes = dump(model);
+    assert.equal(shapes[0].fillColor, shown.color);
+    assert.equal(shapes[1].fillColor, '#abcdef');
+    assert.equal(countUndo(history), 1);
+});
+
+test('toggleFillEnabled（塗れる形と塗れない形が混ざった選択）(b)：ONと判定され、塗れる形がnullになる。塗れない形はnullのまま', () => {
+    const { model, history, editor } = setup([makeRect('a', '#112233', 3, '#00ff00'), makeLine('b', '#445566', 4, null)], ['a', 'b']);
+    assert.equal(editor.getPanelView().fill.enabled, true);
+    assert.equal(editor.toggleFillEnabled(), true);
+    const shapes = dump(model);
+    assert.equal(shapes[0].fillColor, null);
+    assert.equal(shapes[1].fillColor, null);
+    assert.equal(countUndo(history), 1);
+});
+
+test('toggleStrokeEnabled：ピッカー操作中は先にピッカーの分が確定され、履歴は2件になる', (t) => {
+    const warn = t.mock.method(console, 'warn', () => {});
+    const { model, history, editor } = setup([makeRect('a', '#112233')], ['a']);
+    editor.previewColor('stroke', '#123456');
+    assert.equal(editor.toggleStrokeEnabled(), true);
+    assert.equal(model.getShapes()[0].strokeColor, null);
+    history.undo();
+    assert.equal(model.getShapes()[0].strokeColor, '#123456');
+    history.undo();
+    assert.equal(model.getShapes()[0].strokeColor, '#112233');
+    assert.equal(history.canUndo(), false);
+    assert.equal(warn.mock.calls.length, 0);
+});

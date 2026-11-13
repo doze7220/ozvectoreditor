@@ -322,7 +322,7 @@
         *   先頭の責務定義の1行目の担う内容の列挙の末尾に「・ON/OFFのボタンを押したときの次の有無の規則」を足す（2章「要件8」の`StylePanelRules.js`の項目のとおり。3行のまま。「プロパティパネルの「図形」の段」の文言はタスク7で改めるため、このタスクでは変えない）。他の関数・typedef・コメントはこのタスクでは変えない。
         *   テストの`import`に`nextEnabledOnToggle`を足し、`describe('nextEnabledOnToggle')`で3ケース（`true`→`false`、`false`→`true`、`null`→`true`）を足す。
         *   完了時点で画面の動きは変わらない（まだ使われない）。
-*   [ ] タスク2: 切り替えのメソッド`toggleStrokeEnabled`・`toggleFillEnabled`の追加とテスト
+*   [x] タスク2: 切り替えのメソッド`toggleStrokeEnabled`・`toggleFillEnabled`の追加とテスト
     *   **対象ファイル** :
         *   `./js/edit/ShapeStyleEditor.js` : 更新（メソッドの追加とimportの追加のみ）
         *   `./test/edit/ShapeStyleEditor.test.js` : 更新（テストの追加のみ。既存のケースは変えない）
@@ -432,7 +432,9 @@
 
 ### タスク2: 切り替えのメソッド`toggleStrokeEnabled`・`toggleFillEnabled`の追加とテスト
 *   **作業内容** :
-    *   (未実施)
+    *   `js/edit/ShapeStyleEditor.js`：importに`nextEnabledOnToggle`を追加。`setFillEnabled`の直後に公開メソッド`toggleStrokeEnabled()`・`toggleFillEnabled()`、`#setEnabled`の直前に非公開`#toggleEnabled(target)`を追加（JSDoc付き。`#finishPreview()`→`getPanelView()[target].enabled`に`nextEnabledOnToggle`→`#setEnabled`）。既存のメソッド・コメントは未変更。
+    *   `test/edit/ShapeStyleEditor.test.js`：末尾に要件9の7件（6は(a)(b)の2件、計8テスト）を追加。既存ケース・補助関数は未変更。
+    *   `node --test`：tests 997 / pass 997 / fail 0（タスク1後989＋8）。
 
 ### タスク3: `Space`を部品に譲る判定の追加（`InputTracker.js`）
 *   **作業内容** :

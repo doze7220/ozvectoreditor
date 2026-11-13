@@ -2,7 +2,7 @@
  * 責務: プロパティパネルの変更を、選択中の図形（塗りは塗れる形だけ）と直前に使った値へ反映する編集操作と、
  * 色の欄のピッカー操作中の記録の確定、パネルが覚えている色の保持を担う。DOMに触れない。
  */
-import { buildStylePanelView, parseStrokeWidthInput, toColorInputValue } from './StylePanelRules.js';
+import { buildStylePanelView, nextEnabledOnToggle, parseStrokeWidthInput, toColorInputValue } from './StylePanelRules.js';
 
 /**
  * 色の項目（線・塗り）ごとの対応表。項目による分岐はこの表引きで行う。
@@ -99,6 +99,22 @@ export class ShapeStyleEditor {
     }
 
     /**
+     * 線の有無を切り替える（ON→OFF、OFF・そろっていない→ON）。
+     * @returns {boolean} 受理したか
+     */
+    toggleStrokeEnabled() {
+        return this.#toggleEnabled('stroke');
+    }
+
+    /**
+     * 塗りの有無を切り替える。選択中の図形があるのに塗れる形が無ければ何もせず`false`。
+     * @returns {boolean} 受理したか
+     */
+    toggleFillEnabled() {
+        return this.#toggleEnabled('fill');
+    }
+
+    /**
      * 線の太さを変える（線なしの図形を含む選択中の全図形、図形が無ければ直前に使った値だけ）。
      * @param {string} text - 太さの入力（`<input type="number">`の`value`の形）
      * @returns {boolean} 受理したか（`parseStrokeWidthInput`が`null`なら`false`）
@@ -178,6 +194,18 @@ export class ShapeStyleEditor {
      */
     finishColorPreview() {
         this.#finishPreview();
+    }
+
+    /**
+     * 有無の切り替えの共通処理。ピッカー操作中の記録を先に確定してから、今の表示内容（`getPanelView`）の有無に
+     * `nextEnabledOnToggle`を当てて次の有無を求め、`#setEnabled`と同じ処理で反映する。
+     * @param {string} target - 色の項目（`'stroke'`・`'fill'`）
+     * @returns {boolean} 受理したか
+     */
+    #toggleEnabled(target) {
+        this.#finishPreview();
+        const next = nextEnabledOnToggle(this.getPanelView()[target].enabled);
+        return this.#setEnabled(target, next);
     }
 
     /**
