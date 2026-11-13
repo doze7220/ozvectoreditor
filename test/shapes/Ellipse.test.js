@@ -143,6 +143,71 @@ describe('Ellipse.draw の描画命令', () => {
     });
 });
 
+describe('Ellipse.drawOutline の描画命令', () => {
+    const circleOutline = [
+        ['beginPath'], ['ellipse', 0, 0, 50, 50, 0, 0, Math.PI * 2], ['closePath'],
+        ['set:strokeStyle', '#123456'], ['set:lineWidth', 1], ['stroke'],
+    ];
+    const arcOutline = [
+        ['beginPath'], ['ellipse', 0, 0, 50, 50, 0, Math.PI, Math.PI * 2],
+        ['set:strokeStyle', '#123456'], ['set:lineWidth', 1], ['stroke'],
+    ];
+
+    it('円：パスはdrawと同じ形（closePathあり）で、色・画面上1pxの線・strokeを1回だけ呼ぶ', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Ellipse(0, 0, 50, 50, 'circle', '#111111', 3, '#222222').drawOutline(ctx, 1, '#123456');
+        assert.deepEqual(log, circleOutline);
+    });
+
+    it('弧：パスはdrawと同じ形（closePathなし）で、色・画面上1pxの線・strokeを1回だけ呼ぶ', () => {
+        const { ctx, log } = makeRecordingCtx();
+        new Ellipse(0, 0, 50, 50, 'arc', '#111111', 3, '#222222').drawOutline(ctx, 1, '#123456');
+        assert.deepEqual(log, arcOutline);
+    });
+
+    it('lineWidthは1 / viewScale（viewScale=2で0.5）、省略時は1', () => {
+        const scaled = makeRecordingCtx();
+        makeCircle().drawOutline(scaled.ctx, 2, '#000000');
+        assert.deepEqual(scaled.log.find(([name]) => name === 'set:lineWidth'), ['set:lineWidth', 0.5]);
+        const omitted = makeRecordingCtx();
+        makeArc().drawOutline(omitted.ctx, undefined, '#000000');
+        assert.deepEqual(omitted.log.find(([name]) => name === 'set:lineWidth'), ['set:lineWidth', 1]);
+    });
+
+    it('fill・fillStyleを呼ばない（円・弧とも）', () => {
+        for (const ellipse of [
+            new Ellipse(0, 0, 50, 50, 'circle', '#111111', 3, '#222222'),
+            new Ellipse(0, 0, 50, 50, 'arc', '#111111', 3, '#222222'),
+        ]) {
+            const { ctx, log } = makeRecordingCtx();
+            ellipse.drawOutline(ctx, 1, '#000000');
+            const names = log.map(([name]) => name);
+            assert.equal(names.includes('fill'), false);
+            assert.equal(names.includes('set:fillStyle'), false);
+            assert.equal(names.filter((name) => name === 'stroke').length, 1);
+        }
+    });
+
+    it('線なし・塗りなし・何も描かれない図形でも同じ命令列を出し、図形のスタイルを使わない', () => {
+        for (const type of ['circle', 'arc']) {
+            const expected = [
+                ['beginPath'], ['ellipse', 0, 0, 50, 50, 0, type === 'circle' ? 0 : Math.PI, Math.PI * 2],
+                ...(type === 'circle' ? [['closePath']] : []),
+                ['set:strokeStyle', '#ffffff'], ['set:lineWidth', 0.5], ['stroke'],
+            ];
+            for (const ellipse of [
+                new Ellipse(0, 0, 50, 50, type, null, 5, '#00ff00'),
+                new Ellipse(0, 0, 50, 50, type, '#ff0000', 9, null),
+                new Ellipse(0, 0, 50, 50, type, null, 5, null),
+            ]) {
+                const { ctx, log } = makeRecordingCtx();
+                ellipse.drawOutline(ctx, 2, '#ffffff');
+                assert.deepEqual(log, expected);
+            }
+        }
+    });
+});
+
 describe('Ellipse.hitTest', () => {
     it('円の輪郭線の上（右・上・下・左）は当たる', () => {
         const c = makeCircle();

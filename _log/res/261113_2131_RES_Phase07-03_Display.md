@@ -344,7 +344,7 @@
         *   `./test/shapes/Rect.test.js` : 更新（テストの追加のみ）
     *   **作業内容** :
         *   タスク3と同じ形（パスは4頂点＋`closePath`）。
-*   [ ] タスク6: `Ellipse`の`drawOutline`とテスト
+*   [x] タスク6: `Ellipse`の`drawOutline`とテスト
     *   **対象ファイル** :
         *   `./js/shapes/Ellipse.js` : 更新（`drawOutline`の追加、クラスJSDocの契約の列挙のみ）
         *   `./test/shapes/Ellipse.test.js` : 更新（テストの追加のみ）
@@ -553,7 +553,9 @@
 
 ### タスク6: `Ellipse`の`drawOutline`とテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `js/shapes/Ellipse.js`：`drawHover`の直後に`drawOutline(ctx, viewScale = 1, color)`を追加（JSDoc付き。パスは`draw`と同じ`ctx.ellipse(xc, yc, rx, ry, 0, startAngle, endAngle)`、円のみ`closePath`・弧は閉じない、`fill`・図形のスタイルを使わない、`lineWidth = 1 / viewScale`）。クラスJSDocを16メソッド契約へ。`draw`は不変。
+    *   `test/shapes/Ellipse.test.js`：`describe('Ellipse.drawOutline の描画命令')`を追加（5ケース。円・弧それぞれの命令列、`1 / viewScale`と省略時1、`fill`/`fillStyle`を呼ばない、線なし/塗りなし/何も描かれない図形でも円・弧とも同じ命令）。偽の`ctx`は既に`ellipse`・`closePath`を記録するため補助関数は不変。既存ケースも不変。
+    *   `node --test`：tests 1040 / pass 1040 / fail 0。
 
 ### タスク7: `Path`の`drawOutline`とテスト
 *   **作業内容** :

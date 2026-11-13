@@ -30,8 +30,8 @@ const ELLIPSE_TYPES = Object.freeze(['circle', 'arc']);
 /**
  * 円・弧の図形クラス（図形種別`'circle'`|`'arc'`。`type`で振る舞いを分岐する）。頂点は`points[0]`＝中心、`[1]`＝右端制御点、
  * `[2]`＝上端制御点、`[3]`＝開始角制御点、`[4]`＝終了角制御点。開始角・終了角は`type`から決まり、図形データには保存しない。
- * 共通メソッド契約（15メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（16メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline）を自律実装する。座標はすべてワールド座標。
  */
 export class Ellipse {
     /**
@@ -140,6 +140,32 @@ export class Ellipse {
 
         ctx.strokeStyle = 'rgba(74, 144, 226, 0.4)';
         ctx.lineWidth = this.strokeWidth + 6 / viewScale;
+        ctx.stroke();
+    }
+
+    /**
+     * アウトライン表示として、輪郭だけを画面上1pxの細線で描画する（共通メソッド契約の第16メソッド）。
+     * 輪郭のパスは`draw`と同じ（`ctx.ellipse(xc, yc, rx, ry, 0, startAngle, endAngle)`。円のみ`closePath`、弧は閉じない）。
+     * 塗らず（`fill`を呼ばない）、図形のスタイル（`strokeColor`・`strokeWidth`・`fillColor`）は読まないため、線なしの図形でも描く。
+     * `draw`は変えない（`io/CodeExporter.js`の`DRAW_SOURCE`と手で揃えているため、本メソッドを別に持つ）。
+     * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
+     * @param {number} [viewScale=1] - 現在の表示倍率。線の太さを画面上1pxに保つために用いる（`lineWidth = 1 / viewScale`）
+     * @param {string} color - 輪郭線の色（`strokeStyle`へそのまま渡す）
+     */
+    drawOutline(ctx, viewScale = 1, color) {
+        const xc = this.points[0].x;
+        const yc = this.points[0].y;
+        const rx = Math.abs(this.points[1].x - xc);
+        const ry = Math.abs(this.points[2].y - yc);
+
+        ctx.beginPath();
+        ctx.ellipse(xc, yc, rx, ry, 0, this.startAngle, this.endAngle);
+        if (this.type === 'circle') {
+            ctx.closePath();
+        }
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1 / viewScale;
         ctx.stroke();
     }
 
