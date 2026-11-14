@@ -1,6 +1,6 @@
 /**
  * 責務: パス（Path）の当たり判定（輪郭・内側）・頂点のハンドル・塗れる形（isFillable）・描画命令（塗り・線なし）・
- * fromJSONの不正な図形データのエラー文・図形データと描画要素への変換を、公開APIのみを通して検証する。
+ * fromJSONの不正な図形データのエラー文・図形データと描画要素への変換・ハンドルの位置（getHandlePosition）を、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -995,4 +995,55 @@ describe('Path.drawOutline の描画命令', () => {
             assert.equal(plain.log.filter(([name]) => name === 'stroke').length, 1);
         }
     });
+});
+
+describe('Path.getHandlePosition', () => {
+    for (const closed of [false, true]) {
+        const label = closed ? '閉じたパス' : '開いたパス';
+
+        it(`${label}：各頂点の位置を返す（頂点を動かした後もその頂点の位置）`, () => {
+            const path = makePath(closed);
+            const expected = makePoints();
+            expected.forEach((point, i) => {
+                assert.deepEqual(path.getHandlePosition(`vertex-${i}`), point);
+            });
+            path.setVertex(2, 130, 70);
+            assert.deepEqual(path.getHandlePosition('vertex-2'), { x: 130, y: 70 });
+            assert.deepEqual(path.getHandlePosition('vertex-0'), { x: 0, y: 0 });
+        });
+
+        it(`${label}：'move'・不正名・範囲外の番号・文字列以外はnull`, () => {
+            const path = makePath(closed);
+            for (const name of ['move', 'vertex-4', 'vertex-99', 'vertex--1', 'vertex-01', 'vertex-', 'vertex-1.5', 'unknown', '', null, undefined, 0, 1, {}, [], true]) {
+                assert.doesNotThrow(() => path.getHandlePosition(name));
+                assert.equal(path.getHandlePosition(name), null, String(name));
+            }
+        });
+
+        it(`${label}：Object.prototypeのキー名で例外なくnull`, () => {
+            const path = makePath(closed);
+            for (const name of ['constructor', 'toString', '__proto__', 'hasOwnProperty', 'valueOf']) {
+                assert.doesNotThrow(() => path.getHandlePosition(name));
+                assert.equal(path.getHandlePosition(name), null);
+            }
+        });
+
+        it(`${label}：戻り値を書き換えても図形は変わらず、毎回新しいオブジェクト`, () => {
+            const path = makePath(closed);
+            const pos = path.getHandlePosition('vertex-1');
+            pos.x = 999;
+            pos.y = 999;
+            assert.deepEqual(path.points[1], { x: 100, y: 0 });
+            assert.notEqual(path.getHandlePosition('vertex-1'), path.getHandlePosition('vertex-1'));
+            assert.notEqual(path.getHandlePosition('vertex-1'), path.points[1]);
+        });
+
+        it(`${label}：返した位置をhitTestHandleへ渡すと同じ名前が返る`, () => {
+            const path = makePath(closed);
+            for (let i = 0; i < 4; i++) {
+                const pos = path.getHandlePosition(`vertex-${i}`);
+                assert.equal(path.hitTestHandle(pos.x, pos.y, 1), `vertex-${i}`);
+            }
+        });
+    }
 });

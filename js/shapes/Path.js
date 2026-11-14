@@ -55,8 +55,8 @@ function isPlainObject(value) {
  * パスの図形クラス（図形種別`'path'`）。頂点の並び`points`（開いたパス2点以上・閉じたパス3点以上）、
  * 閉じているかを表す`closed`、区間の並び`segments`を持つ。`segments[i]`は`points[i]`→`points[i+1]`の区間で、
  * 閉じたパスの最後の要素は`points[n-1]`→`points[0]`の区間（要素数は開いたパス`n - 1`、閉じたパス`n`）。区間の要素は`{ kind }`で、`kind`は現在`'line'`のみ。
- * 共通メソッド契約（16メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（17メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition）を自律実装する。座標はすべてワールド座標。
  * パスは`ShapeFactory.create`では作られない（読み込み専用。作る操作はPhase 05-03・05-04）。
  */
 export class Path {
@@ -291,6 +291,23 @@ export class Path {
         }
         const index = Number(match[1]);
         return index < this.points.length ? index : null;
+    }
+
+    /**
+     * ハンドル名（`hitTestHandle`の戻り値）から、そのハンドルの位置を返す（共通メソッド契約の第17メソッド）。
+     * 位置は`hitTestHandle`・`drawHandles`と同じ頂点の写し（`getVertexIndexForHandle`で得た番号の`points[番号]`）。
+     * 番号が範囲内の整数であることを確かめてから写し、ハンドル名でない値（`null`・`undefined`・未知の文字列・文字列以外・
+     * `'move'`・範囲外の番号・`Object.prototype`のキー名）は例外にせず`null`を返す。
+     * 戻り値は新しいオブジェクトで、書き換えても自身は変わらない。
+     * @param {*} handleName - ハンドル名（`'vertex-<i>'`、`<i>`は範囲内の頂点の番号）。任意の値を受け、これ以外は`null`を返す
+     * @returns {{x: number, y: number}|null} ハンドルの位置（ワールド座標）。該当なしはnull
+     */
+    getHandlePosition(handleName) {
+        const index = this.getVertexIndexForHandle(handleName);
+        if (!Number.isInteger(index) || index < 0 || index >= this.points.length) {
+            return null;
+        }
+        return { x: this.points[index].x, y: this.points[index].y };
     }
 
     /**
