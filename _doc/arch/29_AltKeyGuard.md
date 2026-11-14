@@ -1,6 +1,6 @@
 *   **AltKeyGuard.js**：`Alt`キーの単独押下・単独解放でブラウザのメニューへフォーカスが移る標準動作を、`Alt`キー自身の`keydown`・`keyup`の`preventDefault()`で抑止することのみを担う（Phase 07-04で新設。クラス`AltKeyGuard`）。
     *   **公開**：コンストラクタのみ（引数なし。公開メソッドなし）。コンストラクタで`document`の`keydown`・`keyup`を購読し、解除しない（アプリの存続中は有効）。`main.js`が`// 8.`で`new KeyboardShortcuts(…)`の後に`new AltKeyGuard()`を呼び、インスタンスを保持しない。
-    *   **契約**：`event.key === 'Alt'`かつ`event.ctrlKey`が偽かつ`document.activeElement`が`isTextInputElement`でないときだけ`event.preventDefault()`する。**対象外**：`AltGr`（`event.key`が`'AltGraph'`）、`Ctrl`と同時、テキスト入力扱いの欄（太さの欄等）にフォーカスがあるとき、`Alt`+ほかのキー（ほかのキーのイベントの`key`が`'Alt'`でないため奪わない。`Alt`+`←`・`Alt`+`D`・`Alt`+`F4`・`Alt`+`Tab`等はブラウザ・OSのとおり）。状態を持たない。
+    *   **契約**：`event.key === 'Alt'`かつ`event.ctrlKey`が偽かつ`document.activeElement`が`isTextInputElement`でないときだけ`event.preventDefault()`する。**対象外**：`AltGr`（`event.key`が`'AltGraph'`）、`Ctrl`と同時（`event.ctrlKey`だけを見る。`InputTracker`の`hasCtrlModifier`と違い`metaKey`は見ないため、macOSの`⌘`と同時は対象外にならない）、テキスト入力扱いの欄（太さの欄等）にフォーカスがあるとき、`Alt`+ほかのキー（ほかのキーのイベントの`key`が`'Alt'`でないため奪わない。`Alt`+`←`・`Alt`+`D`・`Alt`+`F4`・`Alt`+`Tab`等はブラウザ・OSのとおり）。状態を持たない。
     *   **import**：`core/InputTracker`の`isTextInputElement`のみ（`core/`内）。`InputTracker`は`AltKeyGuard`をimportしない。モジュールの最上位でDOMに触れず、`document`の参照はコンストラクタの中だけ。
     *   **置き場所の理由**：`InputTracker`へ入れない（`Alt`+ドラッグの`Alt`の読み取りとは別の関心事）、`KeyboardShortcuts`へも入れない（`KeyboardShortcuts`は`keyup`を購読せず、「`Alt`押下中は常に不一致」の規則も変えないため）。DOMの購読を含む小さな部品として`core/`に分けた（`CanvasCursorTracker`と同じ理由。1章「フォルダ分割の方針」）。
     *   **知らないこと**：`Alt`+ドラッグ（`InputTracker`の`event.altKey`）・ショートカットの対応表・操作モード・`VectorModel`。

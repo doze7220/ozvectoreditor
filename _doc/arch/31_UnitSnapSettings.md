@@ -5,6 +5,6 @@
     *   **読むもの**：なし（何もimportしない。DOM・`VectorModel`・`InputTracker`・図形を知らない）。
     *   **使う側**：`main.js`だけが1つ生成して持つ（`// 3.3.`。`InputTracker`より前）。`InputTracker`へは注入する照会`getUnitSnapStep: () => unitSnapSettings.getActiveStep()`で刻みだけを渡し、`UnitSnapGroup`へは`toggleEnabled`・`toggleUnit`をコールバックとして渡し（表示は`getState()`を`render`へ）、ステータスバーの座標の表示は`getActiveStep()`で刻みを得る。通知`unitSnapSettings.onChange` → `syncUnitSnapGroup`・`syncCursorReadout`（3章17.）。
     *   **知らないこと／知られないこと**：`VectorModel`・`CanvasManager`・`CanvasLibrary`・`SnapshotAdapter`・`HistoryManager`・`DocumentSerializer`・`DisplayState`・`InputTracker`はこのクラスを知らない。作業データ・スナップショット・書き出し・保存先に含まれず、履歴（取り消し/やり直し）の対象でもない。キャンバスの切り替え・取り消し/やり直し・`?dev`の復元では触れないため保たれ、ページを開き直すと初期値（ON・1px）に戻る。
-    *   **置き場所の理由**：`DisplayState`へ足さず別のクラスにした。`DisplayState`は表示専用の状態（描画と表示の切り替えにだけ効く）だが、スナップの設定は入力の座標を変える設定で、表示専用ではないため。
+    *   **置き場所の理由**：`DisplayState`へ足さず別のクラスにした。`DisplayState`は表示専用の状態（描画と表示の切り替えに効く。アウトライン表示の間の当たり分類＝塗った内側を当たりに含めないことと、フロートウィンドウを隠している間の📁の動きにも効くが、座標は変えない）だが、スナップの設定は入力の座標を変える設定で、表示専用ではないため。
     *   **注意**：項目を足すときは`UnitSnapSettingsSnapshot`と`palette/UnitSnapGroup.js`のtypedef`UnitSnapView`（写し）を揃える。
     *   **テスト**：`test/core/UnitSnapSettings.test.js`。
