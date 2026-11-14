@@ -220,13 +220,17 @@ export class Rect {
     /**
      * ハンドル名（`hitTestHandle`の戻り値）から、そのハンドルの位置を返す（共通メソッド契約の第17メソッド）。
      * 位置は`hitTestHandle`・`drawHandles`と同じ頂点の写し（`getVertexIndexForHandle`で得た番号の`points[番号]`）。
-     * `getVertexIndexForHandle`は対応表を引くため`'constructor'`等では関数などを返し得る。そのため番号が0〜3の整数であることを確かめてから写し、
+     * `getVertexIndexForHandle`は対応表を引くため、添字が文字列へ変換され、`['topLeft']`のような文字列以外の値でも番号が返り得る。そのため先に文字列であることを確かめる。
+     * また`'constructor'`等では関数などを返し得るため、番号が0〜3の整数であることを確かめてから写し、
      * ハンドル名でない値（`null`・`undefined`・未知の文字列・文字列以外・`Object.prototype`のキー名）は例外にせず`null`を返す。
      * 戻り値は新しいオブジェクトで、書き換えても自身は変わらない。
      * @param {*} handleName - ハンドル名（'topLeft'|'topRight'|'bottomRight'|'bottomLeft'）。任意の値を受け、これ以外は`null`を返す
      * @returns {{x: number, y: number}|null} ハンドルの位置（ワールド座標）。該当なしはnull
      */
     getHandlePosition(handleName) {
+        if (typeof handleName !== 'string') {
+            return null;
+        }
         const index = this.getVertexIndexForHandle(handleName);
         if (!Number.isInteger(index) || index < 0 || index >= this.points.length) {
             return null;

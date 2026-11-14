@@ -474,13 +474,13 @@ document.addEventListener('DOMContentLoaded', () => {
     /**
      * ツールパレットの押し込みの表示を、InputTrackerの現在の操作モード・図形種別・スポイトの待ち受けに同期する。
      * 求める規則はToolRulesのresolveActiveTool。呼ばれる経路は、applyMode・applyShapeTypeの中と、
-     * styleEyedropper.onChange（待ち受けの開始・終了・取り込み。applyMode・applyShapeTypeを通らないため）の2系統だけ。
+     * styleEyedropper.onChange（待ち受けの開始・終了（?devの復元でやめる場合を含む）・取り込み。applyMode・applyShapeTypeを通らないため）の2系統だけ。
      */
     function syncToolPalette() {
         toolPalette.setActiveTool(resolveActiveTool(inputTracker.getMode(), inputTracker.getShapeType(), styleEyedropper.isPicking()));
     }
 
-    // スポイトの待ち受けの変化（I・ボタン・Esc・applyModeでのやめる・取り込み）のたびに押し込みを同期する。
+    // スポイトの待ち受けの変化（I・ボタン・Esc・applyModeでのやめる・?devの復元でのやめる・取り込み）のたびに押し込みを同期する。
     // 同期の経路へ足す1つの通知で、キャンバスの再描画はしない
     styleEyedropper.onChange(syncToolPalette);
 
@@ -924,6 +924,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // 再描画・削除ボタンの同期はmodel.onChange経路のみで行い、ここでは呼ばない。
             // 復元は1件の編集操作として履歴に記録する（失敗時は記録しない）。中断を先に行うのは、
             // ドラッグ中だった場合にその中断分が先に1件として確定するため（beginEditは必ず中断の後）。
+            // 成功時はスポイトの待ち受けもやめる（通常のインポートはapplyModeの経路でやめるが、復元はapplyModeを通らないためここで呼ぶ。
+            // 押し込みの同期はstyleEyedropper.onChange経路に任せる）。失敗時は何も変えない
             // 本コールバックから例外を漏らさないこと（DevPanelは捕捉しない）
             // キャンバスの読み込み中（起動時の復元の完了前）は、図形一式・履歴に触れずに失敗として返す
             // （読み込み完了時の切り替え処理で図形一式が入れ替えられ、履歴もリセットされて復元内容が消されるため）
@@ -936,6 +938,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return { ok: false, restoredCount: 0, reassignedCount: 0, skipped: [], error: result.error };
                 }
                 inputTracker.abortOngoingOperation();
+                styleEyedropper.stop();
                 historyManager.beginEdit();
                 const reassignedCount = model.replaceAllShapes(result.shapes);
                 historyManager.commitEdit();

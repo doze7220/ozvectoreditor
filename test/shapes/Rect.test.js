@@ -555,7 +555,8 @@ describe('Rect.getHandlePosition', () => {
 
     it('未知の名前・null・undefined・文字列以外はnull', () => {
         const rect = makeRect();
-        for (const name of ['move', 'start', 'unknown', '', 'TOPLEFT', null, undefined, 0, 1, 2, {}, [], true]) {
+        for (const name of ['move', 'start', 'unknown', '', 'TOPLEFT', null, undefined, 0, 1, 2, {}, [], true,
+            ['topLeft'], new String('topLeft'), { toString() { return 'topLeft'; } }]) {
             assert.equal(rect.getHandlePosition(name), null);
         }
     });
