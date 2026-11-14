@@ -1,6 +1,6 @@
 /**
  * 責務: 直線（Line）の当たり判定・塗れる形か（isFillable）・偽のctxによる描画命令・図形データとの相互変換
- * （fromJSONの受理と不正なデータのエラー文・toJSON・toDrawElement）を、公開APIのみを通して検証する。
+ * （fromJSONの受理と不正なデータのエラー文・toJSON・toDrawElement）・ハンドル位置の照会（getHandlePosition）を、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -442,5 +442,51 @@ describe('Line.toJSON / toDrawElement の fillColor', () => {
         const noStroke = new Line(0, 0, 1, 1, null, 2, '#00ff00').toDrawElement();
         assert.equal(noStroke.strokeColor, null);
         assert.equal(noStroke.fillColor, null);
+    });
+});
+
+describe('Line.getHandlePosition', () => {
+    it("'start'・'end'・'move'（中点）の位置を返す", () => {
+        const line = new Line(10, 20, 50, 100);
+        assert.deepEqual(line.getHandlePosition('start'), { x: 10, y: 20 });
+        assert.deepEqual(line.getHandlePosition('end'), { x: 50, y: 100 });
+        assert.deepEqual(line.getHandlePosition('move'), { x: 30, y: 60 });
+    });
+
+    it('未知の名前・null・undefined・文字列以外はnull', () => {
+        const line = new Line(10, 20, 50, 100);
+        for (const name of ['unknown', '', 'START', null, undefined, 0, 1, {}, [], true, Symbol('start')]) {
+            assert.equal(line.getHandlePosition(name), null);
+        }
+    });
+
+    it("Object.prototypeのキー名（'constructor'・'toString'・'__proto__'等）は例外を投げずnull", () => {
+        const line = new Line(10, 20, 50, 100);
+        for (const name of ['constructor', 'toString', '__proto__', 'hasOwnProperty', 'valueOf']) {
+            assert.doesNotThrow(() => line.getHandlePosition(name));
+            assert.equal(line.getHandlePosition(name), null);
+        }
+    });
+
+    it('返したオブジェクトを書き換えても図形は変わず、呼ぶたびに新しいオブジェクト', () => {
+        const line = new Line(10, 20, 50, 100);
+        for (const name of ['start', 'end', 'move']) {
+            const pos = line.getHandlePosition(name);
+            pos.x = 999;
+            pos.y = -999;
+            assert.notEqual(line.getHandlePosition(name), pos);
+        }
+        assert.equal(line.x1, 10);
+        assert.equal(line.y1, 20);
+        assert.equal(line.x2, 50);
+        assert.equal(line.y2, 100);
+    });
+
+    it('返した位置をhitTestHandleへ渡すとそのハンドル名が返る', () => {
+        const line = new Line(10, 20, 50, 100);
+        for (const name of ['start', 'end', 'move']) {
+            const pos = line.getHandlePosition(name);
+            assert.equal(line.hitTestHandle(pos.x, pos.y, 1), name);
+        }
     });
 });

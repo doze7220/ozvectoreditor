@@ -13,8 +13,8 @@ const LINE_POINT_COUNT = 2;
 
 /**
  * 直線の図形クラス（図形種別`'line'`）。頂点は`x1, y1`＝始点、`x2, y2`＝終点として保持する。
- * 共通メソッド契約（16メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（17メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition）を自律実装する。座標はすべてワールド座標。
  */
 export class Line {
     /**
@@ -95,6 +95,21 @@ export class Line {
         const midY = (this.y1 + this.y2) / 2;
         if (distTo(midX, midY) <= tolerance) return 'move';
 
+        return null;
+    }
+
+    /**
+     * ハンドル名（`hitTestHandle`の戻り値）から、そのハンドルの位置を返す（共通メソッド契約の第17メソッド）。
+     * 位置は`hitTestHandle`・`drawHandles`と同じ式（`'start'`＝始点、`'end'`＝終点、`'move'`＝中点）で求める。
+     * ハンドル名でない値（`null`・`undefined`・未知の文字列・文字列以外・`'constructor'`等の`Object.prototype`のキー名）は`null`。
+     * 戻り値は新しいオブジェクトで、書き換えても自身は変わらない。
+     * @param {string} handleName - ハンドル名（'start'|'end'|'move'）
+     * @returns {{x: number, y: number}|null} ハンドルの位置（ワールド座標）。該当なしはnull
+     */
+    getHandlePosition(handleName) {
+        if (handleName === 'start') return { x: this.x1, y: this.y1 };
+        if (handleName === 'end') return { x: this.x2, y: this.y2 };
+        if (handleName === 'move') return { x: (this.x1 + this.x2) / 2, y: (this.y1 + this.y2) / 2 };
         return null;
     }
 
