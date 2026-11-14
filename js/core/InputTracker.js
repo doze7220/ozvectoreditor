@@ -236,11 +236,13 @@ function isSpaceYieldedElement(element) {
 }
 
 /**
- * マウスイベントでCtrl（macOSの⌘を含む）が押されているかを読み取る（選択の規則の関数へ渡す値。判定そのものは規則側）。
+ * マウスイベントでCtrl（macOSの⌘を含む）が押されているかを読み取る。
+ * 用途は、選択の規則の関数へ渡す値（判定そのものは規則側）、スナップの一時無効（Ctrlの間は丸めない）、端点への吸い付きの省略。
+ * main.jsがCanvasCursorTrackerへ注入するためexportする（Ctrl（⌘を含む）の読み取りを二重に定義しないため）。
  * @param {MouseEvent} event
  * @returns {boolean} ctrlKeyまたはmetaKeyが真ならtrue
  */
-function hasCtrlModifier(event) {
+export function hasCtrlModifier(event) {
     return Boolean(event.ctrlKey || event.metaKey);
 }
 
