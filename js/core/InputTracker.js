@@ -1,6 +1,6 @@
 /**
  * 責務：ユーザー入力（図形作成・選択・範囲選択・本体ドラッグ・ハンドルドラッグ・パン・ズーム。キーはスペースパンのみ）の解釈と
- * Model・ビュー変換への反映（修飾キーの読み取りは選択・移動方向の限定の規則の関数へ渡すだけ。待ち受け中のクリックは図形のidを外へ渡すだけ）、状態依存の操作（一括削除・取消・全選択・進行中操作の中断）の公開、編集操作の開始・確定の通知（注入された記録先へ）、
+ * Model・ビュー変換への反映（修飾キーの読み取りは選択・移動方向の限定・スナップの規則の関数へ渡すだけ。待ち受け中のクリックは図形のidを外へ渡すだけ）、状態依存の操作（一括削除・取消・全選択・進行中操作の中断）の公開、編集操作の開始・確定の通知（注入された記録先へ）、
  * および入力状態に応じたカーソル形状のフィードバックを担う。
  */
 
@@ -9,6 +9,7 @@ import { SHAPE_TYPES } from './ShapeFactory.js';
 import { classifyPointHit } from './PointHitRules.js';
 import { resolveClickSelection, resolveMarqueeSelection } from './SelectionRules.js';
 import { constrainMoveDirection } from './MoveDirectionRules.js';
+import { resolveUnitSnapStep, roundDeltaToUnit, roundConstrainedDeltaToUnit } from './UnitSnapRules.js';
 
 /**
  * InputTrackerが取りうる内部状態。
@@ -141,10 +142,13 @@ const NO_SNAP_ASSIST = Object.freeze({
  *     クリックは当たった図形のidを pickShape へ渡すだけで選択を変えず、カーソルは'cell'になる。既定は常に偽（待ち受けなし）
  * @property {(shapeId: string) => void} pickShape 待ち受け中にクリックした図形のidを外へ渡す（handleClickが当たった本体がある場合だけ呼ぶ）。
  *     既定は何もしない。渡した先で何をするか（待ち受けの終了を含む）は本クラスは知らない
+ * @property {() => (number|null)} getUnitSnapStep スナップ（座標・移動量を刻みの倍数へ丸めること。端点への吸い付きとは別）の今効いている刻みの照会
+ *     （`null`＝丸めない）。追従・クリックのたびに呼ぶ。戻り値は検証せずUnitSnapRulesの関数へ渡す（正の有限の数値以外は丸めない扱い）。
+ *     既定は常に`null`（丸めない）
  */
 
 /**
- * 第7引数の補助が注入されなかった場合の既定値（複製しない・待ち受けなし・図形を渡さない）。
+ * 第7引数の補助が注入されなかった場合の既定値（複製しない・待ち受けなし・図形を渡さない・丸めない）。
  * @type {InputAssist}
  */
 const NO_INPUT_ASSIST = Object.freeze({
@@ -153,6 +157,9 @@ const NO_INPUT_ASSIST = Object.freeze({
         return false;
     },
     pickShape() {},
+    getUnitSnapStep() {
+        return null;
+    },
 });
 
 /**
@@ -250,9 +257,9 @@ function hasCtrlModifier(event) {
  * ズーム・パンによる表示の変更はViewTransformへ委譲する。
  * 修飾キー（Ctrl＝ctrlKey||metaKey）の読み取りは行うが、クリック・範囲選択の次の選択の決定はSelectionRulesの関数へ渡すだけで本クラスは持たない
  * （結果の反映は#applySelectionChangeが受け渡す）。
- * 本体ドラッグ・移動用ハンドルのドラッグ（MOVING_SELECTION）では、追従のたびのイベントのshiftKeyも読み取るが、
- * 移動方向の限定はMoveDirectionRulesの関数へ渡すだけで本クラスは持たない。移動量は、押した位置からの移動量（限定の適用後）と
- * 反映済みの移動量の差分で求める。
+ * 本体ドラッグ・移動用ハンドルのドラッグ（MOVING_SELECTION）では、追従のたびのイベントのshiftKeyとCtrl（hasCtrlModifier）も読み取るが、
+ * 移動方向の限定はMoveDirectionRules、移動量の丸め（スナップ。Ctrlの間は丸めない）はUnitSnapRulesの関数へ渡すだけで本クラスは持たない。
+ * 移動量は、押した位置からの移動量（限定・丸めの適用後）と反映済みの移動量の差分で求める。
  * Space以外のキー（ショートカット）は解釈しない。削除・取消・全選択・進行中操作の中断は状態依存の公開メソッドとして提供し、
  * 削除ボタン・ショートカット（KeyboardShortcuts）・切り取り（`ClipboardController.cut()`へ`main.js`が注入）・作業データの復元・取り消し/やり直しの前処理からはmain.js経由で呼び出される。
  * 編集操作（図形の作成・一括削除・選択集合の平行移動・ハンドルによる変形）は、変更処理を注入された記録先（EditRecorder）の
@@ -264,7 +271,7 @@ function hasCtrlModifier(event) {
  * 図形種別の分岐・図形固有のプロパティ名は持たない。
  * 当たり分類の規則（ハンドル・本体の優先順位）はPointHitRules.classifyPointHitに委ね、#classifyPointは受け渡しのみ行う
  * （塗った内側を当たりに含めるかは、コンストラクタ第6引数で注入された照会に従う）。
- * 入力の解釈の外へ委ねる補助（InputAssist。コンストラクタ第7引数。項目はduplicateSelection・isPickingShape・pickShape）も注入される。
+ * 入力の解釈の外へ委ねる補助（InputAssist。コンストラクタ第7引数。項目はduplicateSelection・isPickingShape・pickShape・getUnitSnapStep）も注入される。
  * Altを押して始めた本体ドラッグ・移動用ハンドルのドラッグで移動量が閾値を超えた時点（beginEdit()の後）に、
  * 注入された複製を呼ぶだけで、複製の仕方・idの採番は知らない。
  * 「クリックした図形を外へ渡す待ち受け」（isPickingShape）の間は、選択モード・IDLEの左ボタンの押下で何も始めず、
@@ -396,8 +403,8 @@ export class InputTracker {
      * @param {() => boolean} [isFillHitExcluded=() => false] - 塗った内側を当たりに含めないかの照会（真なら含めない。
      *     当たり分類のたびに呼ぶ）。省略時は常に含める（従来どおり動作する）。関数でなければ`console.warn`して既定（常に含める）を使う
      * @param {InputAssist} [inputAssist=NO_INPUT_ASSIST] - 入力の解釈の外へ委ねる補助（実体はmain.jsが注入する）。
-     *     項目（duplicateSelection・isPickingShape・pickShape）ごとに、関数でなければ既定へ置き換える（`console.warn`は出さない）。
-     *     省略時は従来どおり動作する（複製しない・図形を渡す待ち受けなし）
+     *     項目（duplicateSelection・isPickingShape・pickShape・getUnitSnapStep）ごとに、関数でなければ既定へ置き換える（`console.warn`は出さない）。
+     *     省略時は従来どおり動作する（複製しない・図形を渡す待ち受けなし・丸めない）
      */
     constructor(canvas, model, viewTransform, editRecorder = NO_EDIT_RECORDER, snapAssist = NO_SNAP_ASSIST, isFillHitExcluded = () => false, inputAssist = NO_INPUT_ASSIST) {
         this.canvas = canvas;
@@ -420,6 +427,9 @@ export class InputTracker {
             pickShape: typeof inputAssist?.pickShape === 'function'
                 ? (shapeId) => inputAssist.pickShape(shapeId)
                 : NO_INPUT_ASSIST.pickShape,
+            getUnitSnapStep: typeof inputAssist?.getUnitSnapStep === 'function'
+                ? () => inputAssist.getUnitSnapStep()
+                : NO_INPUT_ASSIST.getUnitSnapStep,
         };
 
         /**
@@ -988,7 +998,7 @@ export class InputTracker {
      * ズーム中心はスクリーン座標（getScreenCoordinate由来）。ズーム後のホバー・カーソル形状は次のmousemoveで再評価する。
      * 左ドラッグ中（閾値超過後）は、ズーム直後にホイールイベントの座標で#applyLeftDragUpdateを呼び、
      * ドラッグ対象をズーム後のカーソル位置へ追従し直す（パン中・閾値以前は何もしない。本体ドラッグではホイールイベントの
-     * shiftKeyでも移動方向を限定する）。範囲選択中は、押下点のワールド位置を
+     * shiftKeyでも移動方向を限定し、ctrlKey・metaKeyでも丸めを省く）。範囲選択中は、押下点のワールド位置を
      * 固定したまま選択矩形をズーム後のカーソル位置まで伸ばし直す。
      * @param {WheelEvent} event
      */
@@ -1125,6 +1135,7 @@ export class InputTracker {
      * 反映済みの移動量（#appliedMoveDelta）との差分を選択集合の全図形へ一括で渡し（moveShapes。更新1回につき1回で、差分0でも呼ぶ。
      * 変更通知は1回）、反映済みの移動量を目標の移動量へ更新する。閾値分の移動量は閾値超過時の最初の更新でまとめて反映される。
      * Shiftを見るのは追従のたびの本イベント（mousemove・ドラッグ中のwheelのshiftKey。キーの購読はしない）。
+     * Ctrlも同じイベントで見る（#resolveMoveDeltaが丸めを省く）。
      * ズーム直後のwheelでも同じ式で、ズーム後のカーソル位置へ追従し直す（Shiftを押している間は限定されたまま）。
      * MARQUEE_SELECTINGなら押下点（#marqueeAnchor）と現在のカーソル位置（いずれもワールド座標）を対角2点として
      * 選択矩形をModelへ設定する（正規化しない。選択集合は確定時まで変更しない）。
@@ -1132,7 +1143,7 @@ export class InputTracker {
      * （その1図形のみ。選択集合は変更しない）。対象図形が存在しない場合は何もしない。
      * 端点のハンドル（#dragEndpointあり）なら、頂点を渡す前に注入された補助のfindDragSnap(#dragEndpoint, カーソル位置)で
      * 吸い付きを照会して#dragSnapに保持・表示し、吸い付いていればその端点の座標、いなければカーソル位置を頂点の座標にする。
-     * @param {MouseEvent} event カーソル位置とshiftKeyを持つイベント（window captureのmousemove、またはwheel。shiftKeyはMOVING_SELECTIONの移動方向の限定にのみ使う）
+     * @param {MouseEvent} event カーソル位置とshiftKeyを持つイベント（window captureのmousemove、またはwheel。shiftKey・Ctrlの有無はMOVING_SELECTIONの移動方向の限定・丸めにのみ使う）
      */
     #applyLeftDragUpdate(event) {
         if (!this.#isLeftDragState()) {
@@ -1172,18 +1183,21 @@ export class InputTracker {
     }
 
     /**
-     * 本体ドラッグの「押した位置からの移動量」を加工して目標の移動量にする（**押した位置からの移動量を加工する唯一の箇所**。
-     * Phase 07-05の移動量の丸めもここへ足す）。現在はShiftが押されていれば横・縦・斜め45°の直線へ限定する
-     * （MoveDirectionRulesのconstrainMoveDirection）。押されていなければそのまま返す。
+     * 本体ドラッグの「押した位置からの移動量」を加工して目標の移動量にする（**押した位置からの移動量を加工する唯一の箇所**）。
+     * 順序は 移動量 → Shiftなら横・縦・斜め45°の直線へ限定（MoveDirectionRulesのconstrainMoveDirection）→ スナップの丸め。
+     * 丸めの刻みは注入された補助のgetUnitSnapStep()を、Ctrl（hasCtrlModifier。追従のイベントで見る）と組み合わせて
+     * UnitSnapRulesのresolveUnitSnapStepで決める（Ctrlの間は丸めない。Shiftの限定は効く）。
+     * Shift時は限定した直線の上に保つ丸め（roundConstrainedDeltaToUnit）、そうでなければ軸ごとの丸め（roundDeltaToUnit）。
      * @param {{dx: number, dy: number}} rawDelta 押した位置からの移動量（ワールド座標）
-     * @param {MouseEvent} event カーソル位置とshiftKeyを持つ追従のイベント（mousemoveまたはwheel）
+     * @param {MouseEvent} event カーソル位置とshiftKey・ctrlKey・metaKeyを持つ追従のイベント（mousemoveまたはwheel）
      * @returns {{dx: number, dy: number}} 加工後の目標の移動量
      */
     #resolveMoveDelta(rawDelta, event) {
+        const step = resolveUnitSnapStep(this.#inputAssist.getUnitSnapStep(), hasCtrlModifier(event));
         if (event.shiftKey) {
-            return constrainMoveDirection(rawDelta.dx, rawDelta.dy);
+            return roundConstrainedDeltaToUnit(constrainMoveDirection(rawDelta.dx, rawDelta.dy), step);
         }
-        return rawDelta;
+        return roundDeltaToUnit(rawDelta, step);
     }
 
     /**
