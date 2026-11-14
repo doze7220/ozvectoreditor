@@ -9,7 +9,7 @@ import { SHAPE_TYPES } from './ShapeFactory.js';
 import { classifyPointHit } from './PointHitRules.js';
 import { resolveClickSelection, resolveMarqueeSelection } from './SelectionRules.js';
 import { constrainMoveDirection } from './MoveDirectionRules.js';
-import { resolveUnitSnapStep, roundDeltaToUnit, roundConstrainedDeltaToUnit } from './UnitSnapRules.js';
+import { resolveUnitSnapStep, roundDeltaToUnit, roundConstrainedDeltaToUnit, roundPointFromOriginToUnit } from './UnitSnapRules.js';
 
 /**
  * InputTrackerが取りうる内部状態。
@@ -267,7 +267,10 @@ function hasCtrlModifier(event) {
  * 範囲選択・クリック選択・全選択・選択解除・ホバー・パン・ズーム・モード/図形種別の切り替えは編集操作として伝えない。
  * 端点への吸い付きの照会と反映（直線を描くときの描き足し・結合・閉じる）は、注入された補助（EndpointSnapAssist。コンストラクタ第5引数）へ
  * 委ね、本クラスは呼ぶ場面の配線と吸い付きの表示（model.setSnapPoint/clearSnapPoint）の設定・消去のみを行う。
+ * 端点のハンドルのドラッグ中にCtrl（hasCtrlModifier）を押している間は、この吸い付きを照会せず表示も消す。
  * 吸い付きの規則（探索・距離・候補の選び方）・結果の組み立て・描く図形種別の判定は持たない。
+ * 頂点のハンドルのドラッグ（DRAGGING_HANDLE）では、追従のたびにUnitSnapRulesの関数で、押下時のハンドル位置（図形のgetHandlePositionを
+ * 図形種別によらずポリモーフィックに呼んで得る）に丸めた移動量を足した位置を頂点の目標にする（Ctrlの間は丸めない）。
  * 図形種別の分岐・図形固有のプロパティ名は持たない。
  * 当たり分類の規則（ハンドル・本体の優先順位）はPointHitRules.classifyPointHitに委ね、#classifyPointは受け渡しのみ行う
  * （塗った内側を当たりに含めるかは、コンストラクタ第6引数で注入された照会に従う）。
@@ -391,6 +394,15 @@ export class InputTracker {
      * @type {Object|null}
      */
     #dragSnap = null;
+
+    /**
+     * 頂点のハンドルのドラッグ（DRAGGING_HANDLE）を始めた時点の、そのハンドルの位置（ワールド座標。図形がまだ動いていない時点の
+     * shape.getHandlePositionの結果。位置が得られなければnull）。スナップの丸めの基準で、「この位置＋丸めた移動量」を頂点の目標にする。
+     * #beginLeftDragで設定（それ以外の押下ではnull）し、#finishLeftDrag()でnullに戻す。
+     * nullのときは頂点のハンドルを丸めない（丸めの基準がないため、従来どおりポインタ位置のまま変形する）。
+     * @type {{x: number, y: number}|null}
+     */
+    #unitSnapHandleOrigin = null;
 
     /**
      * @param {HTMLCanvasElement} canvas - イベントをリッスンするキャンバス
@@ -1048,7 +1060,9 @@ export class InputTracker {
      * DragTrackerのセッションを閾値DRAG_START_THRESHOLD（スクリーンpx）・click抑止'whenMoved'（閾値を超えて動かした場合のみ
      * 直後のclickを抑止）で開始し、成功した場合のみ次を記憶してnextStateへ遷移し、カーソル形状を更新する。
      * MARQUEE_SELECTINGなら押下点#marqueeAnchor、MOVING_SELECTIONなら押下点#moveOriginと反映済みの移動量#appliedMoveDelta（{ dx: 0, dy: 0 }）、
-     * DRAGGING_HANDLEなら操作対象のハンドル名・図形id。閾値以内では図形・選択矩形は変化しない。
+     * DRAGGING_HANDLEなら操作対象のハンドル名・図形idと、そのハンドルの押下時の位置#unitSnapHandleOrigin
+     * （図形のgetHandlePositionの結果。位置が得られなければnull。DRAGGING_HANDLE以外の押下ではnullにする）。
+     * 閾値以内では図形・選択矩形は変化しない。
      * 追従（onMove）は#applyLeftDragUpdate、開始（onStart）は#onLeftDragStart、
      * 終了（onEnd：左ボタンの解放）は#onLeftDragEnd、中断（onCancel：blur・setMode・abortOngoingOperation）は#onLeftDragCancelが担う。
      * DRAGGING_HANDLEで開始できたときは、注入された補助のresolveDragEndpoint(図形id, ハンドル名)で端点のハンドルかを解決し、
@@ -1084,9 +1098,12 @@ export class InputTracker {
         this.#marqueeAnchor = isMarquee ? point : null;
         this.#dragEndpoint = null;
         this.#dragSnap = null;
+        this.#unitSnapHandleOrigin = null;
         if (nextState === InputState.DRAGGING_HANDLE && target) {
             const end = this.#snapAssist.resolveDragEndpoint(target.shapeId, target.handle);
             this.#dragEndpoint = end ? { shapeId: target.shapeId, end } : null;
+            const shape = this.model.getShapes().find((s) => s.id === target.shapeId);
+            this.#unitSnapHandleOrigin = shape ? shape.getHandlePosition(target.handle) : null;
         }
         this.state = nextState;
         this.#updateCursor();
@@ -1142,8 +1159,11 @@ export class InputTracker {
      * DRAGGING_HANDLEならshape.getVertexIndexForHandle()で頂点インデックスを解決して現在のワールド座標をModelへ渡す
      * （その1図形のみ。選択集合は変更しない）。対象図形が存在しない場合は何もしない。
      * 端点のハンドル（#dragEndpointあり）なら、頂点を渡す前に注入された補助のfindDragSnap(#dragEndpoint, カーソル位置)で
-     * 吸い付きを照会して#dragSnapに保持・表示し、吸い付いていればその端点の座標、いなければカーソル位置を頂点の座標にする。
-     * @param {MouseEvent} event カーソル位置とshiftKeyを持つイベント（window captureのmousemove、またはwheel。shiftKey・Ctrlの有無はMOVING_SELECTIONの移動方向の限定・丸めにのみ使う）
+     * 吸い付きを照会して#dragSnapに保持・表示し、吸い付いていればその端点の座標、いなければカーソル位置を頂点の座標にする（Ctrlの間は照会せず吸い付かない）。
+     * 吸い付かなかったときは、ドラッグを始めた時点のハンドルの位置（#unitSnapHandleOrigin）を基準に、そこからの移動量を
+     * スナップの刻みで丸めた位置（roundPointFromOriginToUnit。Ctrlの間・スナップOFFでは丸めずカーソル位置）を頂点の座標にする。
+     * 位置が得られない（#unitSnapHandleOriginがnull）ときは丸めない。Shiftは頂点のハンドルには効かせない。
+     * @param {MouseEvent} event カーソル位置とshiftKey・ctrlKey・metaKeyを持つイベント（window captureのmousemove、またはwheel。shiftKeyはMOVING_SELECTIONの移動方向の限定にのみ、Ctrlの有無は丸め・端点への吸い付きの省略に使う）
      */
     #applyLeftDragUpdate(event) {
         if (!this.#isLeftDragState()) {
@@ -1170,14 +1190,22 @@ export class InputTracker {
             return;
         }
         const vertexIndex = shape.getVertexIndexForHandle(this.activeHandle);
+        const suppressed = hasCtrlModifier(event);
         let target = { x, y };
+        let snap = null;
         if (this.#dragEndpoint) {
-            const snap = this.#snapAssist.findDragSnap(this.#dragEndpoint, target);
+            snap = suppressed ? null : this.#snapAssist.findDragSnap(this.#dragEndpoint, target);
             this.#dragSnap = snap;
             this.#showSnap(snap);
-            if (snap) {
-                target = snap;
-            }
+        }
+        if (snap) {
+            target = snap;
+        } else if (this.#unitSnapHandleOrigin) {
+            target = roundPointFromOriginToUnit(
+                this.#unitSnapHandleOrigin,
+                target,
+                resolveUnitSnapStep(this.#inputAssist.getUnitSnapStep(), suppressed),
+            );
         }
         this.model.updateVertex(this.activeShapeId, vertexIndex, target.x, target.y);
     }
@@ -1280,7 +1308,7 @@ export class InputTracker {
 
     /**
      * 左ドラッグの終了・中断時の後始末（#onLeftDragEnd・#onLeftDragCancelから呼ばれる）。
-     * IDLE状態へ戻し、作業用フィールド（activeHandle・activeShapeId・#moveOrigin・#appliedMoveDelta・#marqueeAnchor）をnullに、#duplicateOnMoveをfalseにして、
+     * IDLE状態へ戻し、作業用フィールド（activeHandle・activeShapeId・#moveOrigin・#appliedMoveDelta・#marqueeAnchor・#unitSnapHandleOrigin）をnullに、#duplicateOnMoveをfalseにして、
      * カーソル形状を再評価する。ドラッグ中に反映した変更（頂点・位置）は取り消さない。
      * 範囲選択の確定・選択矩形の破棄は呼び出し前に済ませること。click抑止フラグの管理はDragTrackerが担う。
      * 冒頭で、#isEditOpenが立っていれば（閾値超過時にbeginEdit()済みの移動・変形）記録先のcommitEdit()を呼んで下ろす
@@ -1293,6 +1321,7 @@ export class InputTracker {
             this.#isEditOpen = false;
         }
         this.#resetSnapState();
+        this.#unitSnapHandleOrigin = null;
         this.state = InputState.IDLE;
         this.activeHandle = null;
         this.activeShapeId = null;
