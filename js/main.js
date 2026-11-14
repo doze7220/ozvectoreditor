@@ -40,6 +40,7 @@ import { formatCursorReadout, formatSizeReadout, formatGridReadout } from './cor
 import { computeGridSpacing } from './core/GridSpacingRules.js';
 import { computeFitView } from './core/ViewFitRules.js';
 import { DisplayState } from './core/DisplayState.js';
+import { UnitSnapSettings } from './core/UnitSnapSettings.js';
 import { ViewToggleGroup } from './palette/ViewToggleGroup.js';
 
 // DOMが読み込まれた後に初期化を行う
@@ -63,6 +64,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 3.2. DisplayState (表示の状態：アウトライン表示・背景の白/黒・グリッドの表示・フロートウィンドウの表示。表示専用で保存しない)
     const displayState = new DisplayState();
+
+    // 3.3. UnitSnapSettings (スナップの設定：ON/OFF・単位（1px／グリッド10px）。端点への吸い付きとは別。保存せず、履歴・取り消し/やり直しの対象外)
+    // ページを開いたときはON・1px。キャンバスの切り替え・取り消し/やり直し・?devの復元では触れない。
+    // inputTrackerの第7引数が照会で参照するため、inputTrackerより前に生成する（コンストラクタは照会を呼ばないが、後に宣言するとデッドゾーンになるのを避ける）
+    const unitSnapSettings = new UnitSnapSettings();
 
     // 3.5. 履歴（取り消し・やり直し）配線
     // スナップショットの取得・適用の実体はSnapshotAdapter（edit/。core/からio/をimportしないため、DocumentSerializerを使う処理はedit/に置く）が持ち、
@@ -145,13 +151,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // 編集操作の記録先（EditRecorder）としてhistoryManagerを、吸い付きの照会と反映としてendpointSnapperを注入する
     // 第6引数は、塗った内側を当たりに含めないかの照会（アウトライン表示の間は含めない）
     // 第7引数は入力の補助：Alt+ドラッグで選択中の図形を複製する補助（実体はclipboardController.duplicateInPlaceWithinEdit()）と、
-    // スポイトの待ち受けの照会・クリックした図形の受け渡し（実体はstyleEyedropper。InputTrackerはスポイト・スタイルを知らない）
+    // スポイトの待ち受けの照会・クリックした図形の受け渡し（実体はstyleEyedropper。InputTrackerはスポイト・スタイルを知らない）、
+    // スナップの刻みの照会（実体はunitSnapSettings.getActiveStep()。ONなら刻み、OFFならnull＝丸めない。InputTrackerはスナップの設定を知らない）
     const inputTracker = new InputTracker(canvas, model, viewTransform, historyManager, endpointSnapper, () => displayState.isOutline(), {
         // clipboardControllerは後の「// 7.5.」でconst宣言されるが、呼ばれるのはAlt+ドラッグ中（起動完了後）だけで、
         // InputTrackerのコンストラクタはduplicateSelectionを呼ばない（既存のinputTrackerの前方参照と同じ扱い）
         duplicateSelection: () => { clipboardController.duplicateInPlaceWithinEdit(); },
         isPickingShape: () => styleEyedropper.isPicking(),
         pickShape: (shapeId) => { styleEyedropper.pickFrom(shapeId); },
+        // 今効いているスナップの刻み（number|null）。点を打つとき・図形や頂点を動かすときの丸めに使われ、Ctrlの間の一時無効はInputTracker側で扱う
+        getUnitSnapStep: () => unitSnapSettings.getActiveStep(),
     });
 
     /**
