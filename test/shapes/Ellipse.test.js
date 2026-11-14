@@ -1,6 +1,6 @@
 /**
  * 責務: 円・弧（Ellipse）の当たり判定（輪郭（縮退時の分岐を含む）・内側）・塗れる形か（isFillable）・偽のctxによる描画命令・図形データとの相互変換
- * （fromJSONの受理と不正なデータのエラー文・toJSON・toDrawElement）を、公開APIのみを通して検証する。
+ * （fromJSONの受理と不正なデータのエラー文・toJSON・toDrawElement）・ハンドルの位置（getHandlePosition）を、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -712,5 +712,54 @@ describe('Ellipse.toJSON と toDrawElement', () => {
 
     it('toDrawElementのstrokeColor: nullはそのままnull', () => {
         assert.equal(new Ellipse(0, 0, 5, 5, 'circle', null).toDrawElement().strokeColor, null);
+    });
+});
+
+describe('Ellipse.getHandlePosition', () => {
+    it('円・弧それぞれで5つのハンドルの位置（左端・下端は計算上の位置）', () => {
+        for (const type of ['circle', 'arc']) {
+            const ellipse = new Ellipse(10, 20, 40, 60, type);
+            assert.deepEqual(ellipse.getHandlePosition('move'), { x: 10, y: 20 });
+            assert.deepEqual(ellipse.getHandlePosition('right'), { x: 40, y: 20 });
+            assert.deepEqual(ellipse.getHandlePosition('up'), { x: 10, y: -20 });
+            assert.deepEqual(ellipse.getHandlePosition('left'), { x: -20, y: 20 });
+            assert.deepEqual(ellipse.getHandlePosition('down'), { x: 10, y: 60 });
+        }
+    });
+
+    it('ハンドル名でない値はnull（null・undefined・未知の文字列・文字列以外）', () => {
+        const ellipse = new Ellipse(0, 0, 50, 50);
+        for (const value of [null, undefined, 'unknown', '', 0, 1, {}, [], true, Symbol('x')]) {
+            assert.equal(ellipse.getHandlePosition(value), null);
+        }
+    });
+
+    it('Object.prototypeのキー名でも例外にならずnull', () => {
+        const ellipse = new Ellipse(0, 0, 50, 50);
+        for (const name of ['constructor', 'toString', '__proto__', 'hasOwnProperty', 'valueOf']) {
+            assert.doesNotThrow(() => ellipse.getHandlePosition(name));
+            assert.equal(ellipse.getHandlePosition(name), null);
+        }
+    });
+
+    it('返したオブジェクトを書き換えても図形は変わらず、毎回新しいオブジェクト', () => {
+        const ellipse = new Ellipse(0, 0, 50, 50);
+        const before = JSON.stringify(ellipse);
+        const pos = ellipse.getHandlePosition('right');
+        pos.x = 999;
+        pos.y = 999;
+        assert.equal(JSON.stringify(ellipse), before);
+        assert.notEqual(ellipse.getHandlePosition('right'), ellipse.getHandlePosition('right'));
+        assert.deepEqual(ellipse.getHandlePosition('right'), { x: 50, y: 0 });
+    });
+
+    it('返した位置をhitTestHandleへ渡すとそのハンドル名が返る（円・弧）', () => {
+        for (const type of ['circle', 'arc']) {
+            const ellipse = new Ellipse(100, 100, 160, 140, type);
+            for (const name of ['move', 'right', 'up', 'left', 'down']) {
+                const pos = ellipse.getHandlePosition(name);
+                assert.equal(ellipse.hitTestHandle(pos.x, pos.y, 1), name);
+            }
+        }
     });
 });

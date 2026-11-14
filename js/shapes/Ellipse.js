@@ -30,8 +30,8 @@ const ELLIPSE_TYPES = Object.freeze(['circle', 'arc']);
 /**
  * 円・弧の図形クラス（図形種別`'circle'`|`'arc'`。`type`で振る舞いを分岐する）。頂点は`points[0]`＝中心、`[1]`＝右端制御点、
  * `[2]`＝上端制御点、`[3]`＝開始角制御点、`[4]`＝終了角制御点。開始角・終了角は`type`から決まり、図形データには保存しない。
- * 共通メソッド契約（16メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（17メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition）を自律実装する。座標はすべてワールド座標。
  */
 export class Ellipse {
     /**
@@ -236,6 +236,31 @@ export class Ellipse {
         // 下端 ('down')
         if (checkHit(xc, yc + ry)) return 'down';
 
+        return null;
+    }
+
+    /**
+     * ハンドル名（`hitTestHandle`の戻り値）から、そのハンドルの位置を返す（共通メソッド契約の第17メソッド）。
+     * 位置は`hitTestHandle`・`drawHandles`と同じ式（`rx`・`ry`は`hitTestHandle`と同じ求め方）：
+     * 'move'＝中心、'right'＝(xc + rx, yc)、'up'＝(xc, yc − ry)、'left'＝(xc − rx, yc)、'down'＝(xc, yc + ry)。
+     * 'left'・'down'は`points`に実体がなく、中心からの対称位置として計算した位置（ダミーのハンドル）である。
+     * 対応表を引かず`===`の厳密比較で分岐するため、ハンドル名でない値（`null`・`undefined`・未知の文字列・文字列以外・
+     * `Object.prototype`のキー名）は例外にせず`null`を返す。
+     * 戻り値は新しいオブジェクトで、書き換えても自身は変わらない。
+     * @param {*} handleName - ハンドル名（'move'|'right'|'up'|'left'|'down'）。任意の値を受け、これ以外は`null`を返す
+     * @returns {{x: number, y: number}|null} ハンドルの位置（ワールド座標）。該当なしはnull
+     */
+    getHandlePosition(handleName) {
+        const xc = this.points[0].x;
+        const yc = this.points[0].y;
+        const rx = Math.abs(this.points[1].x - xc);
+        const ry = Math.abs(this.points[2].y - yc);
+
+        if (handleName === 'move') return { x: xc, y: yc };
+        if (handleName === 'right') return { x: xc + rx, y: yc };
+        if (handleName === 'up') return { x: xc, y: yc - ry };
+        if (handleName === 'left') return { x: xc - rx, y: yc };
+        if (handleName === 'down') return { x: xc, y: yc + ry };
         return null;
     }
 
