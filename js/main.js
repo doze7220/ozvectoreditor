@@ -6,7 +6,7 @@ import { VectorModel } from './core/VectorModel.js';
 import { CanvasManager } from './core/CanvasManager.js';
 import { RulerRenderer } from './core/RulerRenderer.js';
 import { CanvasCursorTracker } from './core/CanvasCursorTracker.js';
-import { InputTracker, OperationMode, WHEEL_ZOOM_STEP } from './core/InputTracker.js';
+import { InputTracker, OperationMode, WHEEL_ZOOM_STEP, hasCtrlModifier } from './core/InputTracker.js';
 import { KeyboardShortcuts } from './core/KeyboardShortcuts.js';
 import { AltKeyGuard } from './core/AltKeyGuard.js';
 import { invertSelection } from './core/SelectionRules.js';
@@ -41,6 +41,7 @@ import { computeGridSpacing } from './core/GridSpacingRules.js';
 import { computeFitView } from './core/ViewFitRules.js';
 import { DisplayState } from './core/DisplayState.js';
 import { UnitSnapSettings } from './core/UnitSnapSettings.js';
+import { resolveUnitSnapStep, roundPointToUnit } from './core/UnitSnapRules.js';
 import { ViewToggleGroup } from './palette/ViewToggleGroup.js';
 import { UnitSnapGroup } from './palette/UnitSnapGroup.js';
 
@@ -194,10 +195,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // 表示の状態（アウトライン・背景・グリッド）が変化したら、同一経路で再描画する
     displayState.onChange(renderCurrentState);
 
-    // カーソル位置の追跡（キャンバス上の最後のカーソル位置。スクリーン座標の求め方・ワールド座標への変換は既存のものを注入する）
+    // カーソル位置の追跡（キャンバス上の最後のカーソル位置と、その mousemove で Ctrl が押されていたか。
+    // スクリーン座標の求め方・ワールド座標への変換・Ctrl（⌘を含む）の読み取りは既存のものを注入する。座標の表示の丸めの一時無効に使う）
     const cursorTracker = new CanvasCursorTracker(canvas, {
         getScreenPoint: (event) => inputTracker.getScreenCoordinate(event),
-        screenToWorld: (x, y) => viewTransform.screenToWorld(x, y)
+        screenToWorld: (x, y) => viewTransform.screenToWorld(x, y),
+        readCtrlModifier: hasCtrlModifier
     });
 
     /**
@@ -358,10 +361,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * ステータスバーのカーソル位置の座標（`#cursor-readout`）を、最後のカーソル位置から求め直して同期する。
-     * cursorTracker.onChange・viewTransform.onChangeに登録する（ビュー変換が変わったときも求め直す）。
+     * cursorTracker.onChange・viewTransform.onChange・unitSnapSettings.onChangeに登録する
+     * （ビュー変換・スナップの設定が変わったときも求め直す）。
+     * スナップがONで、最後のmousemoveでCtrlが押されていなかったときは、点を打つ位置と同じ規則（resolveUnitSnapStep・roundPointToUnit）で
+     * 丸めた値を表示する。丸めるかの判定は規則の関数が持つ（world === nullの分岐は「位置なし」の受け渡し）。
+     * 端点への吸い付きの結果は反映しない。定規の印（renderRulers）は丸めないカーソル位置のまま。
      */
     function syncCursorReadout() {
-        cursorReadoutEl.textContent = formatCursorReadout(cursorTracker.getWorldPosition());
+        const world = cursorTracker.getWorldPosition();
+        const step = resolveUnitSnapStep(unitSnapSettings.getActiveStep(), cursorTracker.isCtrlPressed());
+        cursorReadoutEl.textContent = formatCursorReadout(world === null ? null : roundPointToUnit(world, step));
     }
 
     /**
@@ -382,6 +391,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     cursorTracker.onChange(syncCursorReadout);
     viewTransform.onChange(syncCursorReadout);
+    unitSnapSettings.onChange(syncCursorReadout);
     model.onChange(syncSelectionSizeReadout);
     viewTransform.onChange(syncGridSizeReadout);
 

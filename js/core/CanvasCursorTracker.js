@@ -1,11 +1,12 @@
 /**
- * 責務：キャンバス上の最後のカーソル位置（スクリーン座標。キャンバスの外なら「なし」）の保持と変更通知のみを担う。
+ * 責務：キャンバス上の最後のカーソル位置（スクリーン座標。キャンバスの外なら「なし」）と、その mousemove で Ctrl が押されていたかの保持と変更通知のみを担う。
  * VectorModel・ViewTransform・図形に依存しない。
  */
 
 /**
- * キャンバス上の最後のカーソル位置を追跡するクラス。
- * スクリーン座標の求め方とワールド座標への変換は注入された関数に任せ、二重に実装しない。
+ * キャンバス上の最後のカーソル位置と、その mousemove で Ctrl が押されていたかを追跡するクラス。
+ * スクリーン座標の求め方・ワールド座標への変換・Ctrl の読み取りは注入された関数に任せ、二重に実装しない。
+ * 通知は、位置も Ctrl の状態も前と同じなら行わない。
  *
  * 実コードで確かめた動き：
  * - ドラッグ中：キャンバス要素のmousemove自体は発火するため、カーソルがキャンバスの上にある間は追跡が続く。
@@ -22,19 +23,27 @@ export class CanvasCursorTracker {
      * @param {Object} deps 注入する関数
      * @param {(event: MouseEvent) => {x: number, y: number}} deps.getScreenPoint マウスイベントからスクリーン座標を求める関数
      * @param {(x: number, y: number) => {x: number, y: number}} deps.screenToWorld スクリーン座標をワールド座標へ変換する関数
-     * @throws {Error} getScreenPoint・screenToWorld が関数でないとき
+     * @param {(event: MouseEvent) => boolean} [deps.readCtrlModifier] マウスイベントで Ctrl（macOS の ⌘ を含む）が押されているかを読み取る関数。省略時は常に偽
+     * @throws {Error} getScreenPoint・screenToWorld が関数でないとき、または readCtrlModifier が指定されていて関数でないとき
      */
-    constructor(canvas, { getScreenPoint, screenToWorld } = {}) {
+    constructor(canvas, { getScreenPoint, screenToWorld, readCtrlModifier } = {}) {
         if (typeof getScreenPoint !== 'function' || typeof screenToWorld !== 'function') {
             throw new Error('CanvasCursorTracker: getScreenPoint・screenToWorld は関数で指定してください');
+        }
+        if (readCtrlModifier !== undefined && typeof readCtrlModifier !== 'function') {
+            throw new Error('CanvasCursorTracker: readCtrlModifier は関数で指定してください');
         }
         /** @type {(event: MouseEvent) => {x: number, y: number}} */
         this._getScreenPoint = getScreenPoint;
         /** @type {(x: number, y: number) => {x: number, y: number}} */
         this._screenToWorld = screenToWorld;
+        /** @type {(event: MouseEvent) => boolean} */
+        this._readCtrlModifier = readCtrlModifier ?? (() => false);
         /** 最後のカーソル位置（スクリーン座標）。キャンバスの外・未取得なら null
          * @type {{x: number, y: number}|null} */
         this._screenPosition = null;
+        /** 最後の mousemove で Ctrl が押されていたか。位置が「なし」なら false */
+        this._ctrlPressed = false;
         /** @type {Array<() => void>} */
         this._listeners = [];
 
@@ -60,8 +69,16 @@ export class CanvasCursorTracker {
     }
 
     /**
+     * 最後の mousemove で Ctrl が押されていたかを返す。
+     * @returns {boolean} 押されていたら true。カーソル位置が「なし」なら false
+     */
+    isCtrlPressed() {
+        return this._ctrlPressed;
+    }
+
+    /**
      * カーソル位置の変更通知のコールバックを登録する。
-     * @param {() => void} callback 位置が変わったとき（「なし」への変化を含む）に呼ばれる。関数以外は無視する
+     * @param {() => void} callback 位置または Ctrl の状態が変わったとき（「なし」への変化を含む）に呼ばれる。関数以外は無視する
      * @returns {void}
      */
     onChange(callback) {
@@ -69,25 +86,28 @@ export class CanvasCursorTracker {
     }
 
     /**
-     * mousemoveで位置を記録し、前と違うときだけ通知する。
+     * mousemoveで位置と Ctrl の状態を記録し、どちらかが前と違うときだけ通知する。
      * @param {MouseEvent} event
      * @returns {void}
      */
     _handleMouseMove(event) {
         const point = this._getScreenPoint(event);
+        const ctrlPressed = Boolean(this._readCtrlModifier(event));
         const prev = this._screenPosition;
-        if (prev && prev.x === point.x && prev.y === point.y) return;
+        if (prev && prev.x === point.x && prev.y === point.y && this._ctrlPressed === ctrlPressed) return;
         this._screenPosition = { x: point.x, y: point.y };
+        this._ctrlPressed = ctrlPressed;
         this._notify();
     }
 
     /**
-     * mouseleaveで位置を「なし」にし、前が「なし」でなければ通知する。
+     * mouseleaveで位置を「なし」にし（Ctrl の状態も偽に戻す）、前が「なし」でなければ通知する。
      * @returns {void}
      */
     _handleMouseLeave() {
         if (this._screenPosition === null) return;
         this._screenPosition = null;
+        this._ctrlPressed = false;
         this._notify();
     }
 
