@@ -135,7 +135,8 @@
             display: contents;
         }
         /* 右側：縮まない。margin-left: autoで右端へ寄せる。padding-leftは左側との最小の間隔。
-           Phase 07-05で右側へまとまりを足すときは、中へ.status-bar-groupを足すだけでよい */
+           右側へまとまりを足すときは、中へ.status-bar-groupを足すだけでよい
+           （表示の切り替え・スナップ（#unit-snap-group）・表示倍率の3つのまとまりが並ぶ） */
         .status-bar-right {
             flex: none;
             margin-left: auto;
@@ -292,6 +293,11 @@
             width: 24px;
             height: 24px;
             font-size: 14px;
+        }
+        /* スナップの単位のボタン（文字は1／10でmain.jsが付ける）。幅は上の.status-bar .icon-btnの24pxで固定のため、
+           文字が1・10で変わってもまわりが動かない。数字の幅をそろえる（tabular-nums） */
+        #unit-snap-unit-toggle {
+            font-variant-numeric: tabular-nums;
         }
         /* ステータスバーの左側の開いているキャンバスの名前の表示。
            長い名前は省略表示し（min-width: 0で縮められる）、名前全体はmain.jsがtitle属性に設定する */
@@ -506,6 +512,10 @@
                 <button type="button" id="view-outline-toggle" class="tool-btn icon-btn" title="アウトライン表示 (Z)">▢</button>
                 <button type="button" id="view-background-toggle" class="tool-btn icon-btn" title="背景の白／黒を切り替え (X)">◐</button>
                 <button type="button" id="view-grid-toggle" class="tool-btn icon-btn" title="グリッドの表示 (C)">▦</button>
+            </div>
+            <div id="unit-snap-group" class="status-bar-group">
+                <button type="button" id="unit-snap-toggle" class="tool-btn icon-btn" title="スナップ">🧲</button>
+                <button type="button" id="unit-snap-unit-toggle" class="tool-btn icon-btn"></button>
             </div>
             <div class="status-bar-group">
                 <span id="view-zoom-display">100%</span>

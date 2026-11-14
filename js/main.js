@@ -42,6 +42,7 @@ import { computeFitView } from './core/ViewFitRules.js';
 import { DisplayState } from './core/DisplayState.js';
 import { UnitSnapSettings } from './core/UnitSnapSettings.js';
 import { ViewToggleGroup } from './palette/ViewToggleGroup.js';
+import { UnitSnapGroup } from './palette/UnitSnapGroup.js';
 
 // DOMが読み込まれた後に初期化を行う
 document.addEventListener('DOMContentLoaded', () => {
@@ -348,7 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
     historyUndoBtn.addEventListener('click', () => performUndo());
     historyRedoBtn.addEventListener('click', () => performRedo());
 
-    // 6.5. 表示配線（ステータスバーの座標・大きさ・グリッドの表示、表示の切り替えのまとまり（アウトライン・背景・グリッド）、パレットを隠す、全体を画面に収める）
+    // 6.5. 表示配線（ステータスバーの座標・大きさ・グリッドの表示、表示の切り替えのまとまり（アウトライン・背景・グリッド）、スナップのまとまり（ON/OFF・単位）、パレットを隠す、全体を画面に収める）
     // 外枠の照会（選択中の図形の大きさに使う）
     const shapeExtentReader = new ShapeExtentReader({ model });
     const cursorReadoutEl = document.getElementById('cursor-readout');
@@ -402,6 +403,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     displayState.onChange(syncViewToggleGroup);
+
+    // スナップのまとまり（🧲・単位のボタン）。表示（ON/OFFの押し込みと単位のボタンの文字・title、押下の通知）はUnitSnapGroup（palette/）が持ち、
+    // ここは生成・注入・同期のみを行う。コールバックはunitSnapSettingsの操作を呼ぶだけで、判定を持たない
+    const unitSnapGroup = new UnitSnapGroup(document.getElementById('unit-snap-group'), {
+        onToggleEnabled: () => unitSnapSettings.toggleEnabled(),
+        onToggleUnit: () => unitSnapSettings.toggleUnit()
+    });
+
+    /**
+     * ステータスバーのスナップのまとまり（🧲・単位のボタン）の表示を、スナップの設定（`unitSnapSettings.getState()`）に同期する
+     * （`unitSnapGroup.render`）。unitSnapSettings.onChangeに登録し、起動時にも明示的に1回呼び出す。
+     * DOMの更新はUnitSnapGroupが担い、ここは橋渡しのみ。
+     */
+    function syncUnitSnapGroup() {
+        unitSnapGroup.render(unitSnapSettings.getState());
+    }
+
+    unitSnapSettings.onChange(syncUnitSnapGroup);
 
     // フロートウィンドウをまとめて隠す/出す（🧰。キーTabと同じdisplayStateの操作を呼ぶだけで、判定を持たない）
     const floatWindowsToggleBtn = document.getElementById('float-windows-toggle');
@@ -943,6 +962,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // 表示の切り替えのまとまり（▢◐▦）の押し込みも同様に、index.htmlの初期状態やonChange通知に依存させず、
     // 表示の状態の実値で明示的に1回同期する
     syncViewToggleGroup();
+
+    // スナップのまとまり（🧲・単位のボタン）の押し込み・単位のボタンの文字とtitleも同様に、index.htmlの初期状態
+    // （押し込み・文字・titleは書いていない）やonChange通知に依存させず、スナップの設定の実値で明示的に1回同期する
+    syncUnitSnapGroup();
 
     // フロートウィンドウの表示（bodyのクラス・🧰の押し込み）も同様に、index.htmlの初期状態やonChange通知に依存させず、
     // 表示の状態の実値で明示的に1回同期する
