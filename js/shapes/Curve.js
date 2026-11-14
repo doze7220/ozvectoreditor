@@ -21,8 +21,8 @@ const CURVE_POINT_COUNT = 3;
 
 /**
  * 2次ベジェ曲線の図形クラス（図形種別`'curve'`）。頂点は`points[0]`＝始点、`[1]`＝制御点、`[2]`＝終点。
- * 共通メソッド契約（16メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（17メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition）を自律実装する。座標はすべてワールド座標。
  */
 export class Curve {
     /**
@@ -196,6 +196,23 @@ export class Curve {
         if (distTo(control.x, control.y) <= tolerance) return 'control';
 
         return null;
+    }
+
+    /**
+     * ハンドル名（`hitTestHandle`の戻り値）から、そのハンドルの位置を返す（共通メソッド契約の第17メソッド）。
+     * 位置は`hitTestHandle`・`drawHandles`と同じ頂点（`'start'`＝`points[0]`、`'control'`＝`points[1]`、`'end'`＝`points[2]`）の写し。
+     * ハンドル名でない値（`null`・`undefined`・未知の文字列・文字列以外・`'move'`・`'constructor'`等の`Object.prototype`のキー名）は`null`。
+     * 戻り値は新しいオブジェクトで、書き換えても自身は変わらない。
+     * @param {*} handleName - ハンドル名（'start'|'control'|'end'）。任意の値を受け、これ以外は`null`を返す
+     * @returns {{x: number, y: number}|null} ハンドルの位置（ワールド座標）。該当なしはnull
+     */
+    getHandlePosition(handleName) {
+        let index;
+        if (handleName === 'start') index = 0;
+        else if (handleName === 'control') index = 1;
+        else if (handleName === 'end') index = 2;
+        else return null;
+        return { x: this.points[index].x, y: this.points[index].y };
     }
 
     /**

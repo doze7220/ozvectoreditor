@@ -1,6 +1,6 @@
 /**
  * 責務: 2次ベジェ曲線（Curve）の当たり判定・塗れる形か（isFillable）・偽のctxによる描画命令・図形データとの相互変換
- * （fromJSONの受理と不正なデータのエラー文・toJSON・toDrawElement）を、公開APIのみを通して検証する。
+ * （fromJSONの受理と不正なデータのエラー文・toJSON・toDrawElement）・ハンドルの位置（getHandlePosition）を、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -456,5 +456,53 @@ describe('Curve.toJSON / toDrawElement の fillColor', () => {
         const noStroke = new Curve(0, 0, 1, 1, null, 2, '#00ff00').toDrawElement();
         assert.equal(noStroke.strokeColor, null);
         assert.equal(noStroke.fillColor, null);
+    });
+});
+
+describe('Curve.getHandlePosition', () => {
+    /** 3頂点が離れた曲線（制御点は中点から外す）を返す。 */
+    function makeCurve() {
+        const curve = new Curve(0, 0, 100, 0);
+        curve.setVertex(1, 50, 80);
+        return curve;
+    }
+
+    it("'start'・'control'・'end'の位置を返す", () => {
+        const curve = makeCurve();
+        assert.deepEqual(curve.getHandlePosition('start'), { x: 0, y: 0 });
+        assert.deepEqual(curve.getHandlePosition('control'), { x: 50, y: 80 });
+        assert.deepEqual(curve.getHandlePosition('end'), { x: 100, y: 0 });
+    });
+
+    it("未知の名前（'move'を含む）・null・undefined・文字列以外はnull", () => {
+        const curve = makeCurve();
+        for (const name of ['move', 'unknown', '', 'START', null, undefined, 0, 1, 2, {}, [], true]) {
+            assert.equal(curve.getHandlePosition(name), null);
+        }
+    });
+
+    it("Object.prototypeのキー名では例外にならずnullを返す", () => {
+        const curve = makeCurve();
+        for (const name of ['constructor', 'toString', '__proto__', 'hasOwnProperty', 'valueOf']) {
+            assert.doesNotThrow(() => curve.getHandlePosition(name));
+            assert.equal(curve.getHandlePosition(name), null);
+        }
+    });
+
+    it('返したオブジェクトを書き換えても図形は変わらず、毎回新しいオブジェクト', () => {
+        const curve = makeCurve();
+        const pos = curve.getHandlePosition('control');
+        pos.x = 999;
+        pos.y = 999;
+        assert.deepEqual(curve.points[1], { x: 50, y: 80 });
+        assert.notEqual(curve.getHandlePosition('control'), curve.getHandlePosition('control'));
+    });
+
+    it('返した位置をhitTestHandleへ渡すと同じハンドル名が返る', () => {
+        const curve = makeCurve();
+        for (const name of ['start', 'control', 'end']) {
+            const { x, y } = curve.getHandlePosition(name);
+            assert.equal(curve.hitTestHandle(x, y, 1), name);
+        }
     });
 });
