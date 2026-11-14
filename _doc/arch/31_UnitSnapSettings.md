@@ -1,0 +1,10 @@
+*   **UnitSnapSettings.js**：スナップ（座標・移動量を単位の倍数へ丸めること。端点への吸い付きとは別）の設定（ON/OFF・単位）の保持・切り替え・変更通知のみを担う（`DisplayState`と同じ形。Phase 07-05で新設）。
+    *   **公開**：export`UnitSnapUnit`（`PIXEL: 'pixel'`・`GRID: 'grid'`）・`UNIT_SNAP_STEPS`・typedef`UnitSnapSettingsSnapshot`（`enabled`・`unit`・`unitStep`）、クラス`UnitSnapSettings`のメソッド`getState()`（呼ぶたびに新しいプレーンオブジェクトを返す。書き換えても内部は変わらない。`unitStep`は今の単位の値でOFFでも入る）・`getActiveStep()`（今効いている刻み。ONなら今の単位の値、OFFなら`null`＝丸めない。`UnitSnapRules`の関数へそのまま渡せる）・`setEnabled(value)`・`toggleEnabled()`・`setUnit(unit)`・`toggleUnit()`・`onChange(callback)`。初期値はON・1px。
+    *   **契約**：`setEnabled`は真偽値でなければ`console.warn`して何もしない。`setUnit`は`UnitSnapUnit`の値でなければ`console.warn`して何もしない。どちらも値が変わらなければ通知しない、変われば1回通知する。`toggleEnabled`は反転して1回通知する。`toggleUnit`は1px⇄グリッドを入れ替えて1回通知する（`setUnit`経由。ON/OFFは変えない。OFFの間も単位だけが変わる）。`onChange`は関数以外を無視し、通知は引数なしで呼ぶ。
+    *   **単位の値の唯一の定義箇所**：`UNIT_SNAP_STEPS`（`pixel: 1`・`grid: 10`。ワールド座標の長さ）。グリッドの10は表示倍率で変わらない固定値で、画面のグリッドの線の間隔の規則（`GridSpacingRules.computeGridSpacing`）とは**別の定義**（表示倍率80%未満では画面の細線は100px間隔になり一致しない）。`GridSpacingRules`をimportしない。
+    *   **読むもの**：なし（何もimportしない。DOM・`VectorModel`・`InputTracker`・図形を知らない）。
+    *   **使う側**：`main.js`だけが1つ生成して持つ（`// 3.3.`。`InputTracker`より前）。`InputTracker`へは注入する照会`getUnitSnapStep: () => unitSnapSettings.getActiveStep()`で刻みだけを渡し、`UnitSnapGroup`へは`toggleEnabled`・`toggleUnit`をコールバックとして渡し（表示は`getState()`を`render`へ）、ステータスバーの座標の表示は`getActiveStep()`で刻みを得る。通知`unitSnapSettings.onChange` → `syncUnitSnapGroup`・`syncCursorReadout`（3章17.）。
+    *   **知らないこと／知られないこと**：`VectorModel`・`CanvasManager`・`CanvasLibrary`・`SnapshotAdapter`・`HistoryManager`・`DocumentSerializer`・`DisplayState`・`InputTracker`はこのクラスを知らない。作業データ・スナップショット・書き出し・保存先に含まれず、履歴（取り消し/やり直し）の対象でもない。キャンバスの切り替え・取り消し/やり直し・`?dev`の復元では触れないため保たれ、ページを開き直すと初期値（ON・1px）に戻る。
+    *   **置き場所の理由**：`DisplayState`へ足さず別のクラスにした。`DisplayState`は表示専用の状態（描画と表示の切り替えにだけ効く）だが、スナップの設定は入力の座標を変える設定で、表示専用ではないため。
+    *   **注意**：項目を足すときは`UnitSnapSettingsSnapshot`と`palette/UnitSnapGroup.js`のtypedef`UnitSnapView`（写し）を揃える。
+    *   **テスト**：`test/core/UnitSnapSettings.test.js`。
