@@ -42,7 +42,8 @@ export class CanvasCursorTracker {
         /** 最後のカーソル位置（スクリーン座標）。キャンバスの外・未取得なら null
          * @type {{x: number, y: number}|null} */
         this._screenPosition = null;
-        /** 最後の mousemove で Ctrl が押されていたか。位置が「なし」なら false */
+        /** 最後の mousemove で Ctrl が押されていたか。位置が「なし」なら false
+         * @type {boolean} */
         this._ctrlPressed = false;
         /** @type {Array<() => void>} */
         this._listeners = [];

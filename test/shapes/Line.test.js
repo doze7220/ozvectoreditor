@@ -468,7 +468,7 @@ describe('Line.getHandlePosition', () => {
         }
     });
 
-    it('返したオブジェクトを書き換えても図形は変わず、呼ぶたびに新しいオブジェクト', () => {
+    it('返したオブジェクトを書き換えても図形は変わらず、呼ぶたびに新しいオブジェクト', () => {
         const line = new Line(10, 20, 50, 100);
         for (const name of ['start', 'end', 'move']) {
             const pos = line.getHandlePosition(name);

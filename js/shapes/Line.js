@@ -103,7 +103,7 @@ export class Line {
      * 位置は`hitTestHandle`・`drawHandles`と同じ式（`'start'`＝始点、`'end'`＝終点、`'move'`＝中点）で求める。
      * ハンドル名でない値（`null`・`undefined`・未知の文字列・文字列以外・`'constructor'`等の`Object.prototype`のキー名）は`null`。
      * 戻り値は新しいオブジェクトで、書き換えても自身は変わらない。
-     * @param {string} handleName - ハンドル名（'start'|'end'|'move'）
+     * @param {*} handleName - ハンドル名（'start'|'end'|'move'）。任意の値を受け、これ以外は`null`を返す
      * @returns {{x: number, y: number}|null} ハンドルの位置（ワールド座標）。該当なしはnull
      */
     getHandlePosition(handleName) {

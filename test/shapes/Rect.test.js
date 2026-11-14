@@ -568,7 +568,7 @@ describe('Rect.getHandlePosition', () => {
         }
     });
 
-    it('戻り値を書き換えても図形は変わず、毎回新しいオブジェクト', () => {
+    it('戻り値を書き換えても図形は変わらず、毎回新しいオブジェクト', () => {
         const rect = makeRect();
         const pos = rect.getHandlePosition('topRight');
         pos.x = 999;
