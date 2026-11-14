@@ -9,7 +9,7 @@ import { SHAPE_TYPES } from './ShapeFactory.js';
 import { classifyPointHit } from './PointHitRules.js';
 import { resolveClickSelection, resolveMarqueeSelection } from './SelectionRules.js';
 import { constrainMoveDirection } from './MoveDirectionRules.js';
-import { resolveUnitSnapStep, roundDeltaToUnit, roundConstrainedDeltaToUnit, roundPointFromOriginToUnit } from './UnitSnapRules.js';
+import { resolveUnitSnapStep, roundPointToUnit, roundDeltaToUnit, roundConstrainedDeltaToUnit, roundPointFromOriginToUnit } from './UnitSnapRules.js';
 
 /**
  * InputTrackerが取りうる内部状態。
@@ -267,8 +267,11 @@ function hasCtrlModifier(event) {
  * 範囲選択・クリック選択・全選択・選択解除・ホバー・パン・ズーム・モード/図形種別の切り替えは編集操作として伝えない。
  * 端点への吸い付きの照会と反映（直線を描くときの描き足し・結合・閉じる）は、注入された補助（EndpointSnapAssist。コンストラクタ第5引数）へ
  * 委ね、本クラスは呼ぶ場面の配線と吸い付きの表示（model.setSnapPoint/clearSnapPoint）の設定・消去のみを行う。
- * 端点のハンドルのドラッグ中にCtrl（hasCtrlModifier）を押している間は、この吸い付きを照会せず表示も消す。
+ * Ctrl（hasCtrlModifier）を押している間は、この吸い付きを照会せず表示も消す（図形作成の描き始めのclick・描いている途中と図形作成モードのIDLEのmousemove、
+ * 端点のハンドルのドラッグ中。照会結果がnullのときと同じ経路を通る）。
  * 吸い付きの規則（探索・距離・候補の選び方）・結果の組み立て・描く図形種別の判定は持たない。
+ * 図形の作成で打つ点（描き始め・描いている途中の終点）は、吸い付かなかったときだけUnitSnapRulesのroundPointToUnitで
+ * スナップの刻みへ丸める（吸い付いたときはその座標をそのまま使う。Ctrlの間・スナップOFFでは丸めない。図形種別の分岐は持たない）。
  * 頂点のハンドルのドラッグ（DRAGGING_HANDLE）では、追従のたびにUnitSnapRulesの関数で、押下時のハンドル位置（図形のgetHandlePositionを
  * 図形種別によらずポリモーフィックに呼んで得る）に丸めた移動量を足した位置を頂点の目標にする（Ctrlの間は丸めない）。
  * 図形種別の分岐・図形固有のプロパティ名は持たない。
@@ -765,9 +768,13 @@ export class InputTracker {
      * IDLE状態かつ選択モード中のみ、カーソル位置を#classifyPointで1回だけ当たり分類し、その結果を
      * ホバー更新（bodyIdがあればModelへホバー登録、なければホバー解除）とカーソル形状の更新で共用する
      * （選択モード以外のIDLE状態では何もしない）。
-     * DRAWING状態では、カーソル位置で吸い付きを照会して#drawEndSnapに保持・表示し、作成中の図形の終点を
-     * 吸い付いていれば端点の座標、いなければカーソル位置に追従させる。
-     * IDLE状態かつ図形作成モード中は、描く図形種別で吸い付きを照会して表示だけを更新する（直線以外では常に表示されない）。
+     * DRAWING状態では、丸めていないカーソル位置で吸い付きを照会して#drawEndSnapに保持・表示し、作成中の図形の終点を
+     * 吸い付いていれば端点の座標をそのまま、吸い付かなかったときだけカーソル位置をスナップの刻みで丸めた位置
+     * （roundPointToUnit。スナップOFFでは丸めずカーソル位置）に追従させる。
+     * Ctrl（hasCtrlModifier）を見るのはこのmousemoveイベント。Ctrlの間は吸い付きを照会せず（照会結果がnullのときと同じ経路で
+     * 保持をnull・表示を消す）、スナップでも丸めない。
+     * IDLE状態かつ図形作成モード中は、描く図形種別で吸い付きを照会して表示だけを更新する（直線以外では常に表示されない。
+     * Ctrlの間は照会せず表示を消す）。
      * Modelへ渡す座標・当たり判定に用いる座標はすべてワールド座標（getWorldCoordinate由来）。
      * ドラッグセッション中（パン・左ドラッグ。閾値以前を含む）は何もしない。追従はDragTrackerのonMoveが担い
      * （パンは#beginPan、左ドラッグは#applyLeftDragUpdate）、ホバー判定・作成途中図形の更新は走らせない。
@@ -781,16 +788,18 @@ export class InputTracker {
         }
 
         if (this.state === InputState.DRAWING) {
-            const { x, y } = this.getWorldCoordinate(event);
-            const snap = this.#snapAssist.findDrawSnap(this.currentShapeType, { x, y });
+            const point = this.getWorldCoordinate(event);
+            const suppressed = hasCtrlModifier(event);
+            const snap = suppressed ? null : this.#snapAssist.findDrawSnap(this.currentShapeType, point);
             this.#drawEndSnap = snap;
             this.#showSnap(snap);
-            this.model.updateDraft(snap ? snap.x : x, snap ? snap.y : y);
+            const end = snap ? snap : roundPointToUnit(point, resolveUnitSnapStep(this.#inputAssist.getUnitSnapStep(), suppressed));
+            this.model.updateDraft(end.x, end.y);
             return;
         }
 
         if (this.state === InputState.IDLE && this.currentMode === OperationMode.CREATE) {
-            this.#showSnap(this.#snapAssist.findDrawSnap(this.currentShapeType, this.getWorldCoordinate(event)));
+            this.#showSnap(hasCtrlModifier(event) ? null : this.#snapAssist.findDrawSnap(this.currentShapeType, this.getWorldCoordinate(event)));
             return;
         }
 
@@ -893,8 +902,10 @@ export class InputTracker {
      * trueなら補助が反映済み（記録も補助側）。falseのときだけ従来どおり、作成中の図形を確定登録する。
      * 確定登録（commitDraft）の直前に記録先のbeginEdit()、直後にcommitEdit()を呼び、図形の作成を1件の編集操作として伝える
      * （作成の開始・作成途中の破棄は伝えない）。その後IDLE状態へ遷移し、#resetSnapState()で吸い付きの状態と表示を消す。
-     * IDLE状態かつ図形作成モード中の描き始めは、クリック位置で吸い付きを照会し（ホバー状態は参照しない）、
-     * 結果を#drawStartSnapに保持・表示し、吸い付いていれば端点の座標、いなければクリック位置でstartDraftする。
+     * IDLE状態かつ図形作成モード中の描き始めは、丸めていないクリック位置で吸い付きを照会し（ホバー状態は参照しない）、
+     * 結果を#drawStartSnapに保持・表示し、吸い付いていれば端点の座標をそのまま、吸い付かなかったときだけクリック位置を
+     * スナップの刻みで丸めた位置（roundPointToUnit。スナップOFFでは丸めずクリック位置）でstartDraftする。
+     * Ctrl（hasCtrlModifier）を見るのはこのclickイベント。Ctrlの間は吸い付きを照会せず（照会結果がnullのときと同じ経路）、丸めもしない。
      * IDLE状態かつ選択モード中では、クリック位置を#classifyPointで当たり分類し（ホバー状態は参照しない）、
      * 当たり分類の直後・ハンドルの判定より前に、注入された補助のisPickingShape()が真（クリックした図形を外へ渡す待ち受け中）なら、
      * 当たった本体のid（hit.bodyId）があればpickShape(bodyId)を呼び、いずれにしても終了する（選択は変えない。Ctrlも見ない。
@@ -955,10 +966,12 @@ export class InputTracker {
         }
 
         if (this.currentMode === OperationMode.CREATE) {
-            const snap = this.#snapAssist.findDrawSnap(this.currentShapeType, { x, y });
+            const suppressed = hasCtrlModifier(event);
+            const snap = suppressed ? null : this.#snapAssist.findDrawSnap(this.currentShapeType, { x, y });
             this.#drawStartSnap = snap;
             this.#showSnap(snap);
-            this.model.startDraft(snap ? snap.x : x, snap ? snap.y : y, this.currentShapeType);
+            const start = snap ? snap : roundPointToUnit({ x, y }, resolveUnitSnapStep(this.#inputAssist.getUnitSnapStep(), suppressed));
+            this.model.startDraft(start.x, start.y, this.currentShapeType);
             this.state = InputState.DRAWING;
         }
     }
