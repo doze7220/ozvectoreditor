@@ -1,6 +1,6 @@
 /**
  * 責務: 矩形（Rect）の当たり判定（輪郭・内側）・塗れる形か（isFillable）・偽のctxによる描画命令・図形データとの相互変換
- * （fromJSONの受理と不正なデータのエラー文・toJSON・toDrawElement）を、公開APIのみを通して検証する。
+ * （fromJSONの受理と不正なデータのエラー文・toJSON・toDrawElement）・ハンドルの位置（getHandlePosition）を、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -536,5 +536,54 @@ describe('Rect.toJSON / toDrawElement の fillColor', () => {
         const noStroke = new Rect(0, 0, 1, 1, null, 2, '#00ff00').toDrawElement();
         assert.equal(noStroke.strokeColor, null);
         assert.equal(noStroke.fillColor, '#00ff00');
+    });
+});
+
+describe('Rect.getHandlePosition', () => {
+    const NAMES = ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'];
+
+    it('4隅の位置を返す（頂点を動かした後もその頂点の位置）', () => {
+        const rect = makeRect();
+        assert.deepEqual(rect.getHandlePosition('topLeft'), { x: 0, y: 0 });
+        assert.deepEqual(rect.getHandlePosition('topRight'), { x: 100, y: 0 });
+        assert.deepEqual(rect.getHandlePosition('bottomRight'), { x: 100, y: 50 });
+        assert.deepEqual(rect.getHandlePosition('bottomLeft'), { x: 0, y: 50 });
+        rect.setVertex(2, 130, 70);
+        assert.deepEqual(rect.getHandlePosition('bottomRight'), { x: 130, y: 70 });
+        assert.deepEqual(rect.getHandlePosition('topLeft'), { x: 0, y: 0 });
+    });
+
+    it('未知の名前・null・undefined・文字列以外はnull', () => {
+        const rect = makeRect();
+        for (const name of ['move', 'start', 'unknown', '', 'TOPLEFT', null, undefined, 0, 1, 2, {}, [], true]) {
+            assert.equal(rect.getHandlePosition(name), null);
+        }
+    });
+
+    it("Object.prototypeのキー名（'constructor'・'toString'・'__proto__'等）で例外なくnull", () => {
+        const rect = makeRect();
+        for (const name of ['constructor', 'toString', '__proto__', 'hasOwnProperty', 'valueOf']) {
+            assert.doesNotThrow(() => rect.getHandlePosition(name));
+            assert.equal(rect.getHandlePosition(name), null);
+        }
+    });
+
+    it('戻り値を書き換えても図形は変わず、毎回新しいオブジェクト', () => {
+        const rect = makeRect();
+        const pos = rect.getHandlePosition('topRight');
+        pos.x = 999;
+        pos.y = 999;
+        assert.deepEqual(rect.points[1], { x: 100, y: 0 });
+        assert.notEqual(rect.getHandlePosition('topRight'), rect.getHandlePosition('topRight'));
+        assert.notEqual(rect.getHandlePosition('topRight'), rect.points[1]);
+    });
+
+    it('返した位置をhitTestHandleへ渡すと同じ名前が返る', () => {
+        const rect = makeRect();
+        rect.setVertex(2, 130, 70);
+        for (const name of NAMES) {
+            const pos = rect.getHandlePosition(name);
+            assert.equal(rect.hitTestHandle(pos.x, pos.y, 1), name);
+        }
     });
 });
