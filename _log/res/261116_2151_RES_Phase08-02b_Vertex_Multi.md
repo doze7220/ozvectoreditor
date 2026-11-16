@@ -383,7 +383,7 @@
         *   リポジトリのルートで`node --test`を実行し、全件通ることを確認する。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク11: 仕上げの確認（JSDoc・不要なコード・全テスト）
+*   [x] タスク11: 仕上げの確認（JSDoc・不要なコード・全テスト）
     *   **対象ファイル** :
         *   （確認のみ。問題が見つかった場合のみ該当ファイルを修正する）
     *   **作業内容** :
@@ -495,11 +495,18 @@
     *   **カーソル**：`js/core/CursorShapeRules.js`の`resolveCursorShape`の頂点の選択モードの枝（判定表(2a)）は、`DRAGGING_HANDLE`→`move`（まとめ移動中も同じ状態・同じ値）、`hit === null`→`default`、`hit.handle`→`move`、`hit.bodyId`→`pointer`、それ以外→`default`。範囲選択中：`InputTracker.handleMouseMove`は`#drag.isActive()`で先に`return`するため範囲選択中は`#updateCursor(hit)`が呼ばれず、`#beginLeftDrag`・`#finishLeftDrag`の`#updateCursor()`（`hit=null`）で`default`のまま。範囲選択の開始が本体の上でも、押下時の`#updateCursor()`は`hit=null`のため`default`になる。以上から、頂点の上は`move`・本体の上は`pointer`・空白は既定・範囲選択中は既定で、要件どおり。`test/core/CursorShapeRules.test.js`の頂点の選択のモードのケース（`vertexInput`）も現状の判定表と一致しており、直す必要はない。
     *   **範囲選択の枠**：`InputTracker`の範囲選択は既存の`model.setSelectionRect`（`#applyLeftDragUpdate`の`MARQUEE_SELECTING`の枝）を使い、`CanvasManager`は既存の`#drawSelectionRect`（最前面・破線＋薄い半透明塗り）で描く。頂点の範囲選択専用の描画の経路・見た目は無い（`CanvasManager`の`selectionRect`の参照は`render`の引数とその描画の1経路のみ）。
     *   **付随の確認**：`CanvasManager.js`・`CursorShapeRules.js`のJSDoc（`render`の`vertexHandles`・`#drawVertexHandles`・`resolveCursorShape`の判定順の説明）は現状と一致し記載漏れなし。両ファイルの`import`（`CursorShapeRules`の`InputState`・`OperationMode`はともに使用）・定数（`VERTEX_HANDLE_*`はすべて使用）に使われなくなったものは無い。到達不能な枝の整理は行っていない。
-    *   `node --test`は変更が無いため再実行していない。開発資料：影響なし（追記なし）。
+    *   `node --test`：ファイルを変更していないため実装AIは再実行していない。実装統括AI（オーケストレータ）がタスク10のコミット前に`node --test`を実行し、1411件全件合格（fail 0）を確認している。開発資料：影響なし（追記なし）。
 
 ### タスク11: 仕上げの確認（JSDoc・不要なコード・全テスト）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   **結論：問題は見つからず、ソース・テストは1つも変更していない（本タスクの変更はRESのみ）。**
+    *   JSDoc：本作業で追加・変更した`VectorModel.updateVertices`/`updateVertex`、`PressActionRules.resolveVertexPressAction`（typedef `VertexPressAction`）、`SelectionRules`の`resolveVertexClickSelection`・`resolveVertexMarqueeSelection`・`isSameVertex`（typedef `VertexSelectionChange`）、`VertexHandleRules.collectVertexHandlesInRect`、`InputTracker`の`#applyVertexSelectionChange`・`#vertexDragOrigins`・`#beginLeftDrag`・`#applyLeftDragUpdate`・`#finishLeftDrag`・`handleMouseDown`・`handleClick`・`#commitMarquee`にJSDocがあり、責務・引数・戻り値の記載漏れは無い。5ファイルの先頭の責務定義（3行以内）は実装と一致している。
+    *   不要なコード：`InputTracker.js`の全importは使用されている（`resolvePressAction`・`isVertexHandle`は残した判定で使用）。`getVertexIndexForHandle`の呼び出しは追従では無くなり、実呼び出しは`js/core/InputTracker.js`の`#beginLeftDrag`（押下時）の1か所のみ。`model.updateVertex`は`js/`全体で呼び出しが0件（定義は`js/core/VectorModel.js`にあり、呼んでいるのは`test/`のみ）。`updateVertex`自体はREQ:55の明示的な指示により残している。使われなくなった関数・定数・コメントは無い。到達不能な枝（各図形の`drawHandles`・`resolvePressAction`のハンドルの枝・`CursorShapeRules`の選択モードのハンドルの枝・`CanvasManager.render`のハンドルを描く段）は残した。
+    *   `git diff`（計画コミット7436816からHEAD）の変更ファイルは`js/core/`の5ファイル（`VectorModel.js`・`PressActionRules.js`・`SelectionRules.js`・`VertexHandleRules.js`・`InputTracker.js`）、`test/core/`の5ファイル（新規`VectorModel.updateVertices.test.js`を含む）、本RESのみで、スコープ外・改名・整形・削除の混入は無い。未追跡の`.vscode/`は本作業の前から存在する環境設定で、本作業の成果物として数えていない。
+    *   既存テストの期待値を変えていないことの確認（`git diff`）：既存のテストファイル4つ（`test/core/PressActionRules.test.js`・`test/core/SelectionRules.test.js`・`test/core/VectorModel.selectedVertices.test.js`・`test/core/VertexHandleRules.test.js`）の削除行は全部で5行のみで、内訳は(a)責務コメントの文言の更新（`SelectionRules.test.js`と`VertexHandleRules.test.js`の2行目）、(b)`import`行への関数の追加（3ファイル）だけである。`assert`の期待値と既存の`it`／`test`の本体には変更が無く、新しいケースはすべて末尾への追記である（REQ:18を満たす）。
+    *   `node --test`（リポジトリのルート）：1411件、pass 1411、fail 0。
+    *   監査指摘の解消：タスク10の詳細作業内容の`node --test`の記述を、オーケストレータが実行して1411件全件合格を確認した事実に合わせて直した。
+    *   開発資料：追記なし（既存の更新予定で足りる）。
 
 ### タスク12: 要件8 テストプレイの確認項目を発注者へ提示する
 *   **作業内容** :
