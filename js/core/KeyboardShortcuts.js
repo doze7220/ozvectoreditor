@@ -101,6 +101,7 @@ const ShiftRule = Object.freeze({
  *   KeyIはctrlの値でI単体（ctrl: false。スポイトの待ち受けを始める）とCtrl+I（ctrl: true。選択の反転）に排他的に分かれる（いずれもFORBIDDEN）。
  *   KeyDはctrlの値でD単体（ctrl: false。線を黒・塗りを白にする）とCtrl+D（ctrl: true。複製）に排他的に分かれる（いずれもFORBIDDEN）。
  *   KeyZ・KeyX・KeyCも同様にctrlの値で区別される（Z・X・C単体＝表示の切り替え：ctrl: false、Ctrl+Z（取り消し）・Ctrl+X（切り取り）・Ctrl+C（コピー）：ctrl: true）。
+ *   KeyAはctrlの値でA単体（ctrl: false。頂点の選択モードへの切り替え）とCtrl+A（ctrl: true。全選択）に排他的に分かれる（いずれもFORBIDDEN）。
  *   KeyZのCtrl付きはShiftで取り消し・やり直しに分かれるが、Ctrlなしは単体（FORBIDDEN）のみでShift+Zは一致しない。
  * ・Tab（フロートウィンドウをまとめて隠す/出す）は、テキスト入力扱いの欄（太さの欄・テキスト欄＝受理判定の手順2）と
  *   色の欄（手順4）にフォーカスがある間は何もせず、ブラウザのフォーカスの移動になる。ボタン・フォーカスなしでは実行され、
@@ -113,6 +114,7 @@ const SHORTCUT_BINDINGS = Object.freeze([
     { codes: ['KeyV'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'setMode', arg: OperationMode.SELECT },
     { codes: ['KeyP'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'setMode', arg: OperationMode.CREATE },
     { codes: ['KeyH'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'setMode', arg: OperationMode.PAN },
+    { codes: ['KeyA'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'setMode', arg: OperationMode.VERTEX },
     ...SHAPE_TYPES.map((type, i) => ({
         codes: [`Digit${i + 1}`, `Numpad${i + 1}`],
         ctrl: false,
