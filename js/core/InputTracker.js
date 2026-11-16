@@ -9,10 +9,10 @@ import { InputState, OperationMode } from './InputModes.js';
 import { isTextInputElement, isSpaceYieldedElement } from './FocusKeyYieldRules.js';
 import { SHAPE_TYPES } from './ShapeFactory.js';
 import { classifyPointHit } from './PointHitRules.js';
-import { isVertexHandle } from './VertexHandleRules.js';
+import { isVertexHandle, collectVertexHandlesInRect } from './VertexHandleRules.js';
 import { resolvePressAction } from './PressActionRules.js';
 import { resolveCursorShape } from './CursorShapeRules.js';
-import { resolveClickSelection, resolveMarqueeSelection } from './SelectionRules.js';
+import { resolveClickSelection, resolveMarqueeSelection, resolveVertexMarqueeSelection } from './SelectionRules.js';
 import { constrainMoveDirection } from './MoveDirectionRules.js';
 import { resolveUnitSnapStep, roundPointToUnit, roundDeltaToUnit, roundConstrainedDeltaToUnit, roundPointFromOriginToUnit } from './UnitSnapRules.js';
 
@@ -153,7 +153,8 @@ export function hasCtrlModifier(event) {
  * 委譲し、本クラスはドラッグの意味の解釈（パン量、頂点変形・選択集合の平行移動・範囲選択のModel反映）のみを行う。
  * ズーム・パンによる表示の変更はViewTransformへ委譲する。
  * 修飾キー（Ctrl＝ctrlKey||metaKey）の読み取りは行うが、クリック・範囲選択の次の選択の決定はSelectionRulesの関数へ渡すだけで本クラスは持たない
- * （結果の反映は#applySelectionChangeが受け渡す）。
+ * （結果の反映は#applySelectionChangeが受け渡す。頂点の選択のモードの範囲選択の確定では、範囲に入る頂点の組の収集をVertexHandleRulesへ、
+ * 頂点の選択の次の状態の決定をSelectionRulesの頂点用の規則へ渡し、結果の反映は#applyVertexSelectionChangeが受け渡す）。
  * 本体ドラッグ・移動用ハンドルのドラッグ（MOVING_SELECTION）では、追従のたびのイベントのshiftKeyとCtrl（hasCtrlModifier）も読み取るが、
  * 移動方向の限定はMoveDirectionRules、移動量の丸め（スナップ。Ctrlの間は丸めない）はUnitSnapRulesの関数へ渡すだけで本クラスは持たない。
  * 移動量は、押した位置からの移動量（限定・丸めの適用後）と反映済みの移動量の差分で求める。
@@ -1212,6 +1213,11 @@ export class InputTracker {
      * SelectionRulesのresolveMarqueeSelectionへ渡し、結果を#applySelectionChangeで反映する。図形種別の分岐は持たない。
      * Ctrlなし：選択集合を置き換える（0件なら空集合）。Ctrlあり：選択集合へ追加する（重複しない。0件なら選択を変えない）。
      * Modelへの変更通知は選択矩形の破棄と選択集合の置き換えの2回（図形数に比例しない。Ctrlありで0件のときは選択の通知なし）。
+     * 頂点の選択のモード（currentModeがOperationMode.VERTEX）では、上記の正規化（本メソッド1箇所のみ）の後、
+     * VertexHandleRulesのcollectVertexHandlesInRect（選択中の図形の頂点だけ）で範囲に入る頂点の組を集め、選択矩形を破棄してから、
+     * 頂点の選択・集めた組・Ctrlの有無をSelectionRulesのresolveVertexMarqueeSelectionへ渡し、結果を#applyVertexSelectionChangeで反映して終わる。
+     * この枝ではintersectsRect・resolveMarqueeSelectionを呼ばず、図形の選択を変えない。
+     * 通知は選択矩形の破棄と頂点の選択の変更（変更がある場合のみ）で、選択モードの枝と同じ最大2回。
      * @param {MouseEvent} event 範囲選択を終了したイベント（通常はmouseup。buttons検知による終了時はmousemove）。Ctrlはこのイベントから読む
      */
     #commitMarquee(event) {
@@ -1222,6 +1228,22 @@ export class InputTracker {
         const maxX = Math.max(anchor.x, end.x);
         const minY = Math.min(anchor.y, end.y);
         const maxY = Math.max(anchor.y, end.y);
+
+        if (this.currentMode === OperationMode.VERTEX) {
+            const handles = collectVertexHandlesInRect(
+                this.model.getShapes(),
+                this.model.getSelectedIds(),
+                minX,
+                minY,
+                maxX,
+                maxY,
+            );
+            this.model.clearSelectionRect();
+            this.#applyVertexSelectionChange(
+                resolveVertexMarqueeSelection(this.model.getSelectedVertices(), handles, hasCtrlModifier(event)),
+            );
+            return;
+        }
 
         const ids = this.model
             .getShapes()
@@ -1247,6 +1269,21 @@ export class InputTracker {
             return;
         }
         this.model.setSelection(change.ids);
+    }
+
+    /**
+     * 頂点の選択の規則（SelectionRulesの頂点用の関数）が返した結果をModelへ反映する（受け渡しのみ。判定は持たない）。
+     * @param {import('./SelectionRules.js').VertexSelectionChange} change nullなら何もしない、'clear'ならclearSelectedVertices()、'set'ならsetSelectedVertices(change.vertices)
+     */
+    #applyVertexSelectionChange(change) {
+        if (change === null) {
+            return;
+        }
+        if (change.type === 'clear') {
+            this.model.clearSelectedVertices();
+            return;
+        }
+        this.model.setSelectedVertices(change.vertices);
     }
 
     /**
