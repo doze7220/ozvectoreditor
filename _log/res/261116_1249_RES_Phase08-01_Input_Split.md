@@ -467,7 +467,7 @@
         *   `InputTracker.js`：`#resolveCursor`を削除し、`#updateCursor(hit = null)`が`resolveCursorShape({ isPanning, isSpacePressed, isLeftDragState, mode, state, isPickingShape, hit, isSelected })`の結果を`this.canvas.style.cursor`へ入れるだけにする。`#updateCursor`を呼ぶ場面・回数・引数を変えない。`#isLeftDragState()`は`InputTracker`に残す（他の2か所でも使う）。区切りコメント`// ---- カーソル形状 ----`は残す。
         *   `node --test`で全件通ることを確認する。
         *   **タスク完了後の記録**：本計画書の『4. 詳細作業内容』の「タスク6: …」の欄へ実際の作業内容（変更したファイル・移した範囲・確認した結果）を記載して完成させ、「3. タスクリスト」の該当タスクを`[x]`にする。開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る点が判明した場合は、資料本体は修正せず『開発資料（`PROJECT_ARCHITECTURE.md`）の更新予定』欄へ追記する（資料本体の修正はタスク12のみ）。
-*   [ ] タスク7: 要件3 `CursorShapeRules`の自動テストを足す
+*   [x] タスク7: 要件3 `CursorShapeRules`の自動テストを足す
     *   **対象ファイル** :
         *   `./test/core/CursorShapeRules.test.js` :（新規）
     *   **作業内容** :
@@ -568,7 +568,9 @@
 
 ### タスク7: 要件3 `CursorShapeRules`の自動テストを足す
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `test/core/CursorShapeRules.test.js`を新規作成（`node:test`・`node:assert/strict`のみ、`InputState`・`OperationMode`をimport）。補助関数`makeInput`（既定の入力を作る。JSDoc付き）。4つのdescribe・28ケース：パン・スペース（パン中が最優先、スペース押下中の'grab'、左ドラッグ状態では効かない）、モード（CREATE・DRAWING中は'crosshair'、PANは'grab'、未知モードは'default'）、選択モード（待ち受け中の'cell'とその優先位置、DRAGGING_HANDLE・MOVING_SELECTIONは'move'、MARQUEE_SELECTINGは'default'、hitがnullは'default'、ハンドル上・選択内本体は'move'、選択外本体は'pointer'、それ以外は'default'）、短絡評価（isPickingShape・isSelectedを呼ぶ場面と回数）と引数不変。
+    *   `js/`配下・既存テストは変更していない。
+    *   `node --test`：tests 1301 / pass 1301 / fail 0（タスク6時点の1273から28件増）。
 
 ### タスク8: 要件4 `main.js`の表示配線を`js/wiring/DisplayWiring.js`へ切り出す
 *   **作業内容** :
