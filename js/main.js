@@ -11,6 +11,7 @@ import { InputTracker, WHEEL_ZOOM_STEP, hasCtrlModifier } from './core/InputTrac
 import { KeyboardShortcuts } from './core/KeyboardShortcuts.js';
 import { AltKeyGuard } from './core/AltKeyGuard.js';
 import { invertSelection } from './core/SelectionRules.js';
+import { collectVertexHandles } from './core/VertexHandleRules.js';
 import { WindowManager } from './core/WindowManager.js';
 import { ViewTransform } from './core/ViewTransform.js';
 import { HistoryManager } from './core/HistoryManager.js';
@@ -170,11 +171,15 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function renderCurrentState() {
         const display = displayState.getState();
-        canvasManager.render(model.getShapes(), {
+        const shapes = model.getShapes();
+        canvasManager.render(shapes, {
             outline: display.outline,
             darkBackground: display.darkBackground,
             showGrid: display.gridVisible,
             selectedIds: model.getSelectedIds(),
+            // 外枠のハンドル（drawHandles）はどのモードでも描かない。去就は変形のPhaseで決める（図形のdrawHandlesは残してある）
+            showHandles: false,
+            vertexHandles: collectVertexHandles(inputTracker.getMode(), shapes, model.getSelectedIds(), model.getSelectedVertices()),
             hoveredId: model.getHoveredId(),
             draftShape: model.getDraftShape(),
             selectionRect: model.getSelectionRect(),

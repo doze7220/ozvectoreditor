@@ -409,7 +409,7 @@
         *   使われなくなった`import`・関数・定数・コメントが残っていないことを確認する（ただし各図形の`drawHandles`は残す）。
         *   新規テストを作り、リポジトリのルートで`node --test`を実行して全件通ることを確認する。
 
-*   [ ] タスク8: 要件6-2・要件3（描画） 頂点のハンドルを描き、選択モードのハンドルを描かない
+*   [x] タスク8: 要件6-2・要件3（描画） 頂点のハンドルを描き、選択モードのハンドルを描かない
     *   **対象ファイル** :
         *   `./js/core/CanvasManager.js` :（更新）
         *   `./js/main.js` :（更新）
@@ -587,7 +587,10 @@
 
 ### タスク8: 要件6-2・要件3（描画） 頂点のハンドルを描き、選択モードのハンドルを描かない
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `CanvasManager.render`の状態オブジェクトへ`showHandles`（既定`true`）・`vertexHandles`（既定`[]`）を追加。JSDoc・描画順の説明を更新。`showHandles`が偽なら`drawHandles`の段を行わない。
+    *   定数5つ（`VERTEX_HANDLE_*`）と非公開メソッド`#drawVertexHandles`を追加（`drawHandles`と同じ位置で描画。倍率の防御・`save/restore`あり）。
+    *   `main.js`の`renderCurrentState`で`shapes`を1回取得し、`showHandles: false`と`collectVertexHandles(...)`の結果を渡す。`VertexHandleRules`をimport。
+    *   `node --test`: 1339件全件合格。
 
 ### タスク9: 要件3（当たり判定） `classifyPointHit`に`includeHandles`を足す
 *   **作業内容** :

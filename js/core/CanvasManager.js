@@ -108,6 +108,21 @@ const SNAP_INDICATOR_STROKE_COLOR = '#1f4e8c';
  */
 const SNAP_INDICATOR_LINE_WIDTH = 1.5;
 
+/** 頂点のハンドルの大きさ（画面上のpx。一辺）。 */
+const VERTEX_HANDLE_SIZE = 8;
+
+/** 頂点のハンドルの枠の線幅（画面上のpx）。 */
+const VERTEX_HANDLE_LINE_WIDTH = 1.5;
+
+/** 選ばれていない頂点のハンドルの塗りの色。 */
+const VERTEX_HANDLE_FILL_COLOR = '#ffffff';
+
+/** 選ばれている頂点のハンドルの塗りの色（枠と同じ青で見分ける）。 */
+const VERTEX_HANDLE_SELECTED_FILL_COLOR = '#4a90e2';
+
+/** 頂点のハンドルの枠の色。 */
+const VERTEX_HANDLE_STROKE_COLOR = '#4a90e2';
+
 /**
  * Canvasへの描画を行うクラス。render()の引数（図形の配列・表示状態・ビュー変換値・アウトライン/背景/グリッドの表示指定）のみから毎回描画し、
  * 図形データ・選択状態などのアプリケーション状態は保持しない（保持するのはCanvas要素・2Dコンテキスト・dprのみ）。
@@ -165,7 +180,8 @@ export class CanvasManager {
      * 新しい引数（outline・darkBackground・showGrid）の省略時の値では、従来（白の背景・グリッドあり・通常描画）と同じ見た目になる。
      * 描画順：背景の塗り → 背景グリッド（showGridが偽なら省略） → 軸線・原点マーク
      * → (1)全図形の draw（outlineが真なら drawOutline。＋ホバー中図形の drawHover）
-     * → (2)選択集合に含まれる図形の drawHandles（図形配列の順。後ろの図形ほど前面）
+     * → (2)選択集合に含まれる図形の drawHandles（図形配列の順。後ろの図形ほど前面。showHandlesが偽なら省略）
+     *   → (2-2)頂点のハンドル（vertexHandles。同じ位置で描く）
      * → (3)作成中の図形 → (3-2)吸い付きの表示 → (4)選択矩形。
      * ハンドルを全図形の描画後にまとめて描くのは、複数選択時に前面の図形が背面図形のハンドルを覆い隠さないためである。
      * @param {Array<Object>} shapes - draw(ctx) / drawOutline(ctx, viewScale, color) / drawHover(ctx, viewScale) / drawHandles(ctx, viewScale) メソッドを持つ図形オブジェクトの配列
@@ -173,6 +189,9 @@ export class CanvasManager {
      * @param {string|null} [state.hoveredId] - ホバー中の図形id（単一）。一致する図形の drawHover(ctx, viewScale) を追加で呼び出す
      * @param {Array<string>} [state.selectedIds] - 選択集合（選択中の図形idの配列。0個以上）。
      *     含まれる図形の drawHandles(ctx, viewScale) を全図形の描画後に呼び出す。省略時は空配列
+     * @param {boolean} [state.showHandles] - 偽なら選択集合の図形の drawHandles の段を行わない。省略時は真
+     * @param {Array<{shapeId: string, handles: Array<{x: number, y: number, selected: boolean}>}>} [state.vertexHandles] -
+     *     描く頂点のハンドル（ワールド座標の位置と、選ばれているか）。全図形の描画後・作成中の図形の前に描く。省略時は空配列
      * @param {Object|null} [state.draftShape] - 作成中の未確定図形。draw(ctx) メソッドを持つ場合、全図形・ハンドルの後に重ねて描画する
      * @param {{x1: number, y1: number, x2: number, y2: number}|null} [state.selectionRect] - 範囲選択中の選択矩形。
      *     ワールド座標の対角2点（正規化不要。幅・高さが負でもよい）。非nullの場合、最前面に描画する
@@ -185,7 +204,7 @@ export class CanvasManager {
      * @param {boolean} [state.darkBackground] - 真なら黒の背景用の配色の組、偽なら白の背景用の配色の組を使う。省略時は偽
      * @param {boolean} [state.showGrid] - 偽なら背景グリッド（細線・太線）のみ描かない（軸線・原点マークは常に描く）。省略時は真
      */
-    render(shapes, { hoveredId = null, selectedIds = [], draftShape = null, selectionRect = null, view = DEFAULT_VIEW, snapPoint = null, outline = false, darkBackground = false, showGrid = true } = {}) {
+    render(shapes, { hoveredId = null, selectedIds = [], draftShape = null, selectionRect = null, view = DEFAULT_VIEW, snapPoint = null, outline = false, darkBackground = false, showGrid = true, showHandles = true, vertexHandles = [] } = {}) {
         const dpr = this.#pixelRatio;
         const scheme = darkBackground ? COLOR_SCHEMES.dark : COLOR_SCHEMES.light;
 
@@ -226,13 +245,16 @@ export class CanvasManager {
         // 5. 選択集合に含まれる図形のハンドルを、全図形の描画後に図形配列の順で描画する
         //    （所属判定用のSetはこのフレーム内の一時値であり、インスタンスには保持しない）
         const selectedSet = new Set(selectedIds);
-        if (selectedSet.size > 0) {
+        if (showHandles && selectedSet.size > 0) {
             for (const shape of shapes) {
                 if (selectedSet.has(shape.id)) {
                     shape.drawHandles(this.ctx, view.scale);
                 }
             }
         }
+
+        // 5-2. 頂点のハンドルを、drawHandlesと同じ位置（全図形の描画後・作成中の図形の前）に描画する
+        this.#drawVertexHandles(vertexHandles, view.scale);
 
         // 6. 作成中のドラフト図形があれば、図形・ハンドルの上に重ねて描画する
         if (draftShape) {
@@ -252,6 +274,36 @@ export class CanvasManager {
         if (selectionRect) {
             this.#drawSelectionRect(selectionRect, view.scale);
         }
+    }
+
+    /**
+     * 頂点のハンドル（画面上一定の大きさの白い四角・青い枠。選ばれている頂点は青の塗り）を描画する。
+     * 呼び出し時点でワールド座標の描画変換が設定済みであることを前提とする。
+     * - 大きさ・線幅は`÷ scale`し、画面上で一定にする。
+     * - 倍率が正の有限値でなければ描かない。
+     * - スタイルは`save()`/`restore()`で後続の描画へ残さない。
+     * @param {Array<{shapeId: string, handles: Array<{x: number, y: number, selected: boolean}>}>} vertexHandles - 描くハンドル
+     * @param {number} scale - ビュー変換の倍率（ワールド長 → スクリーン長の係数）
+     */
+    #drawVertexHandles(vertexHandles, scale) {
+        if (!(scale > 0) || !Number.isFinite(scale)) {
+            return;
+        }
+        const size = VERTEX_HANDLE_SIZE / scale;
+
+        this.ctx.save();
+        this.ctx.lineWidth = VERTEX_HANDLE_LINE_WIDTH / scale;
+        this.ctx.strokeStyle = VERTEX_HANDLE_STROKE_COLOR;
+        for (const entry of vertexHandles) {
+            for (const handle of entry.handles) {
+                this.ctx.fillStyle = handle.selected ? VERTEX_HANDLE_SELECTED_FILL_COLOR : VERTEX_HANDLE_FILL_COLOR;
+                this.ctx.beginPath();
+                this.ctx.rect(handle.x - size / 2, handle.y - size / 2, size, size);
+                this.ctx.fill();
+                this.ctx.stroke();
+            }
+        }
+        this.ctx.restore();
     }
 
     /**
