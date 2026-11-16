@@ -1,5 +1,5 @@
 /**
- * 責務: クリック・範囲選択の次の選択と、選択の反転の結果を、状態を持たない関数として提供する。
+ * 責務: 図形と頂点の、クリック・範囲選択の次の選択と、図形の選択の反転の結果を、状態を持たない関数として提供する。
  * 引数を書き換えず新しい配列を返す。importなし・DOMなし。
  */
 
@@ -69,4 +69,74 @@ export function resolveMarqueeSelection(selectedIds, hitIds, additive) {
  */
 export function invertSelection(allIds, selectedIds) {
     return allIds.filter((id) => !selectedIds.includes(id));
+}
+
+/**
+ * 頂点の選択の変更の指示。`VectorModel`への受け渡しの形を区別するために使う（図形用の`SelectionChange`と同じ約束）。
+ * - `{ type: 'set', vertices }`：`setSelectedVertices(vertices)`へ渡す（置き換え）。
+ * - `{ type: 'clear' }`：`clearSelectedVertices()`を呼ぶ（全解除）。
+ * - `null`：何もしない。
+ * @typedef {({type: 'set', vertices: Array<{shapeId: string, handle: string}>} | {type: 'clear'} | null)} VertexSelectionChange
+ */
+
+/**
+ * 2つの頂点の組が同じ頂点か（図形のidとハンドル名の両方が一致するか）を返す。
+ * @param {{shapeId: string, handle: string}} a 頂点の組
+ * @param {{shapeId: string, handle: string}} b 頂点の組
+ * @returns {boolean} 同じ頂点なら真
+ */
+function isSameVertex(a, b) {
+    return a.shapeId === b.shapeId && a.handle === b.handle;
+}
+
+/**
+ * クリックで当たった頂点から、次の頂点の選択の変更を決める。
+ * `additive`が偽のときは、当たった頂点があればその1つだけで置き換える。当たっていなければ、選んでいる頂点があるときだけ全解除し、無ければ何もしない。
+ * `additive`が真のときは、当たっていなければ何もしない。当たった頂点が選択中なら外し（残りの並びは保つ）、未選択なら末尾へ追加する。
+ * 戻り値は`VectorModel`の`setSelectedVertices`／`clearSelectedVertices`の呼び分けを想定した形。
+ * @param {Array<{shapeId: string, handle: string}>} selectedVertices 現在選んでいる頂点（選んだ順。書き換えない）
+ * @param {{shapeId: string, handle: string}|null} hitVertex クリックした位置の頂点（無ければnull）
+ * @param {boolean} additive 追加・解除モードか（`Ctrl`押下）
+ * @returns {VertexSelectionChange} 頂点の選択の変更（新しい配列を含む）
+ */
+export function resolveVertexClickSelection(selectedVertices, hitVertex, additive) {
+    if (!additive) {
+        if (hitVertex) {
+            return { type: 'set', vertices: [hitVertex] };
+        }
+        return selectedVertices.length > 0 ? { type: 'clear' } : null;
+    }
+    if (!hitVertex) {
+        return null;
+    }
+    if (selectedVertices.some((v) => isSameVertex(v, hitVertex))) {
+        return { type: 'set', vertices: selectedVertices.filter((v) => !isSameVertex(v, hitVertex)) };
+    }
+    return { type: 'set', vertices: [...selectedVertices, hitVertex] };
+}
+
+/**
+ * 範囲選択で当たった頂点から、次の頂点の選択の変更を決める。
+ * `additive`が偽のときは当たった頂点で置き換える（0件でも`set`で空になる）。
+ * `additive`が真のときは既存の選択へ未選択のものだけを足す（重複しない。並びは既存→当たった順）。0件なら何もしない。
+ * 戻り値は`VectorModel`の`setSelectedVertices`を呼ぶ想定の形。
+ * @param {Array<{shapeId: string, handle: string}>} selectedVertices 現在選んでいる頂点（選んだ順。書き換えない）
+ * @param {Array<{shapeId: string, handle: string}>} hitVertices 範囲に入った頂点（書き換えない）
+ * @param {boolean} additive 追加モードか（`Ctrl`押下）
+ * @returns {VertexSelectionChange} 頂点の選択の変更（新しい配列を含む）
+ */
+export function resolveVertexMarqueeSelection(selectedVertices, hitVertices, additive) {
+    if (!additive) {
+        return { type: 'set', vertices: [...hitVertices] };
+    }
+    if (hitVertices.length === 0) {
+        return null;
+    }
+    const merged = [...selectedVertices];
+    for (const v of hitVertices) {
+        if (!merged.some((m) => isSameVertex(m, v))) {
+            merged.push(v);
+        }
+    }
+    return { type: 'set', vertices: merged };
 }
