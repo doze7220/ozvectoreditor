@@ -169,6 +169,8 @@ document.addEventListener('DOMContentLoaded', () => {
      * 再描画を要求するローカル関数。表示の状態（`displayState.getState()`のアウトライン表示・背景の白/黒・グリッドの表示）も
      * あわせて渡す。model.onChange・viewTransform.onChange・displayState.onChangeのコールバックと
      * resizeハンドラの4経路から同一の引数構成で呼び出すことで、再描画トリガーの重複定義を避ける。
+     * 図形の外枠のハンドルは`showHandles: false`で常に描かず、頂点のハンドルは`collectVertexHandles`が現在の操作モード・
+     * 選択中の図形・選択中の頂点から求めた位置の一覧を`vertexHandles`として渡す（頂点の選択のモードのときだけ中身が入る）。
      */
     function renderCurrentState() {
         const display = displayState.getState();
@@ -359,7 +361,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const displayWiring = new DisplayWiring({ model, viewTransform, displayState, unitSnapSettings, cursorTracker, canvas });
 
     // 7. ツールパレット配線
-    // ツールの識別子一覧はToolRulesのTOOL_IDS（選択・キャンバス移動・スポイト・SHAPE_TYPES）。パレットのボタンはid`tool-${toolId}`で照合される
+    // ツールの識別子一覧はToolRulesのTOOL_IDS（選択・頂点の選択・キャンバス移動・スポイト・SHAPE_TYPES）。パレットのボタンはid`tool-${toolId}`で照合される
     const toolPalette = new ToolPalette(document.getElementById('window-tool-palette'), TOOL_IDS, (toolId) => selectTool(toolId));
     drawToolIcons();
 
@@ -377,9 +379,9 @@ document.addEventListener('DOMContentLoaded', () => {
     styleEyedropper.onChange(syncToolPalette);
 
     /**
-     * 操作モードの切り替えを一元的に行う共通関数。ツールパレットの選択・キャンバス移動のボタン
+     * 操作モードの切り替えを一元的に行う共通関数。ツールパレットの選択・頂点の選択・キャンバス移動のボタン
      * （`selectTool`経由の`toolActions`）、図形のツール・数字キー（`selectShapeTool`経由）、
-     * キー`V`・`P`・`H`（`KeyboardShortcuts`の`setMode`）、貼り付け・同じ位置に貼り付け・全選択・選択の反転・スポイトの開始
+     * キー`V`・`A`・`P`・`H`（`KeyboardShortcuts`の`setMode`）、貼り付け・同じ位置に貼り付け・全選択・選択の反転・スポイトの開始
      * （いずれも`ensureSelectMode`経由）、キャンバスの切り替え（`prepareSwitch`）・インポート（`prepareInsert`）、
      * 起動時の初期化から呼び出される。
      * InputTrackerへのモード切り替え要求の後、切替後に`inputTracker.getMode()`・`getShapeType()`で
@@ -704,7 +706,7 @@ document.addEventListener('DOMContentLoaded', () => {
     new KeyboardShortcuts({
         // ドラッグ中（パン・左ドラッグ。閾値以前を含む）か。受理判定専用
         isDragging: () => inputTracker.isDragging(),
-        // 操作モード切替（ツールパレットの選択・キャンバス移動のボタンと同一経路）
+        // 操作モード切替（ツールパレットの選択・頂点の選択・キャンバス移動のボタン・キー`A`と同一経路）
         setMode: (mode) => {
             applyMode(mode);
             return true;
