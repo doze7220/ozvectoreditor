@@ -40,7 +40,7 @@ export class DisplayWiring {
     #viewToggleGroup;
     /** @type {UnitSnapGroup} スナップのまとまり（🧲・単位） */
     #unitSnapGroup;
-    /** @type {HTMLElement} フロートウィンドウをまとめて隠す/出すボタン */
+    /** @type {HTMLButtonElement} フロートウィンドウをまとめて隠す/出すボタン */
     #floatWindowsToggleBtn;
 
     /**

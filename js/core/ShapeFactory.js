@@ -45,7 +45,6 @@ const REGISTRY_BY_TYPE = new Map(SHAPE_REGISTRY.map((entry) => [entry.type, entr
  * 作成できる図形種別一覧（SHAPE_REGISTRYのうちcreateがnullでないエントリから導出。並び順も対応表と同一）。
  * createがnullの読み込み専用の種別（path）は含まない。
  * 図形種別の受理判定・ツールパレットの配線（`ToolRules`の`TOOL_IDS`経由）・数字キーの割り当てはすべてこの値を用いる。
- * InputTracker.jsはこれを再exportしている（既存のimport元を変えないため）。
  * @type {ReadonlyArray<string>}
  */
 export const SHAPE_TYPES = Object.freeze(

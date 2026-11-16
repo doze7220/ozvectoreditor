@@ -497,7 +497,7 @@
         *   `main.js`の先頭の責務定義は「各モジュールの初期化と連携(依存性の注入)」のままとし、配線ブロックの一覧の記述に変更があれば実態に合わせる。
         *   削る以外の改名・整形を行わない。`node --test`で全件通ることを確認する。
         *   **タスク完了後の記録**：本計画書の『4. 詳細作業内容』の「タスク9: …」の欄へ実際の作業内容（変更したファイル・移した範囲・確認した結果）を記載して完成させ、「3. タスクリスト」の該当タスクを`[x]`にする。開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る点が判明した場合は、資料本体は修正せず『開発資料（`PROJECT_ARCHITECTURE.md`）の更新予定』欄へ追記する（資料本体の修正はタスク12のみ）。
-*   [ ] タスク10: 仕上げの確認（JSDoc・テスト・残置）
+*   [x] タスク10: 仕上げの確認（JSDoc・テスト・残置）
     *   **対象ファイル** :
         *   （確認のみ。必要な修正が見つかった場合のみ該当ファイルを更新）
     *   **作業内容** :
@@ -578,7 +578,7 @@
     *   `js/main.js`：`// 6.5.`のブロックを`new DisplayWiring({...})`に置換（位置は不動）、起動時の同期6行を`displayWiring.syncAll();`に置換（`syncZoomDisplay()`の後・`syncDeleteButtonState()`の前）。import6行（`ShapeExtentReader`・`StatusReadoutRules`・`GridSpacingRules`・`ViewFitRules`・`UnitSnapRules`・`ViewToggleGroup`）を削除し、`UnitSnapGroup`のimport行を`DisplayWiring`のimportへ置換。`ViewTransform`のimportは`new ViewTransform()`のため残した。
     *   `grep`で`main.js`に`ShapeExtentReader`・`syncCursorReadout`・`UnitSnapGroup`・`computeFitView`・`MIN_SCALE`が残っていないことを確認。`index.html`・`palette/`・`edit/`・`core/`は未変更。
     *   `node --test`：tests 1301 / pass 1301 / fail 0（テストは足していない）。
-    *   （監査指摘の修正）`DisplayWiring.js`の非公開フィールド12個に`@type`のJSDoc（1行形式）を追記した（コメントのみ。コードのふるまいは不変）。
+    *   （監査指摘の修正）`DisplayWiring.js`の非公開フィールド13個に`@type`のJSDoc（1行形式）を追記した（コメントのみ。コードのふるまいは不変）。
 
 ### タスク9: 要件5 `InputTracker.js`・`main.js`の責務定義と区切りコメントを実態に合わせる
 *   **作業内容** :
@@ -588,7 +588,13 @@
 
 ### タスク10: 仕上げの確認（JSDoc・テスト・残置）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   （発注者判断で対象に追加）`js/core/ShapeFactory.js`のJSDoc内の「InputTracker.jsはこれを再exportしている」の1行を削除（タスク2で再exportを消した結果の古い記述。1行のみ・コードは不変）。計画書では変更しないファイルだったが、発注者の判断により本タスクに限り対象とした。
+    *   `js/wiring/DisplayWiring.js`の`#floatWindowsToggleBtn`の`@type`を`HTMLElement`から`HTMLButtonElement`へ変更（コメントのみ。プロジェクトの慣行にそろえた）。
+    *   本RESのタスク8の記録の「非公開フィールド12個」を実際の13個に訂正。
+    *   確認：新設5ファイルの先頭の責務定義は3行以内・JSDocの記載漏れなし（CursorShapeRulesの分割代入・DisplayWiringの関数内の`const`は文であり対象外）。移動元5ファイル（`InputTracker.js`・`main.js`・`KeyboardShortcuts.js`・`AltKeyGuard.js`・`ToolRules.js`）と新設ファイルに未使用の`import`なし（スクリプトで全import名の本体内使用を確認）。`#resolveCursor`・`syncCursorReadout`等の移した識別子の残置なし。`InputState`・`OperationMode`・`isTextInputElement`・`resolvePressAction`・`resolveCursorShape`等の二重定義なし。再exportなし（`export {`はjs全体で0件）。`js/wiring/`をimportするのは`main.js`のみで循環なし。
+    *   `node --test`：tests 1301 / suites 198 / pass 1301 / fail 0。
+    *   行数の実測：`js/core/InputTracker.js` 1392行、`js/main.js` 888行（新設：InputModes 37、FocusKeyYieldRules 77、PressActionRules 50、CursorShapeRules 101、DisplayWiring 196）。
+    *   (1)〜(3)以外に直すべき点は見つからなかった。
 
 ### タスク11: 要件6のテストプレイの確認項目を発注者へ提示する
 *   **作業内容** :
@@ -614,3 +620,5 @@
 
 * **タスク9の確認**：コメントのみの変更で目視確認は不要。
 * **開発資料の更新予定（タスク9）**：追加の影響なし（既存のタスク12の記載に含まれる）。
+
+* **開発資料の更新予定（タスク10）**：追加の影響なし。ただしタスク12で、`ShapeFactory.js`の`SHAPE_TYPES`の説明に「InputTrackerが再exportする」旨があれば削る（再exportは無い）。
