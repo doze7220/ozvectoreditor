@@ -353,7 +353,7 @@
         *   使われなくなった`import`・関数・定数・コメントが残っていないことを確認する（ただし各図形の`drawHandles`は残す）。
         *   リポジトリのルートで`node --test`を実行し、全件通ることを確認する。
 
-*   [ ] タスク3: 要件1-3 `main.js`のモードの受け口
+*   [x] タスク3: 要件1-3 `main.js`のモードの受け口
     *   **対象ファイル** :
         *   `./js/main.js` :（更新）
     *   **作業内容** :
@@ -559,7 +559,7 @@
 
 ### タスク3: 要件1-3 `main.js`のモードの受け口
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `applyMode`の`@param`へ`'vertex'`を足した。`toolActions`へ`VERTEX`を`SELECT`の次に足し、JSDocの説明も更新した。`shouldRestoreSelection`を選択モードまたは頂点の選択モードで真にし、コメントを更新した。`ensureSelectMode`・`SnapshotAdapter.js`は変更なし。
 
 ### タスク4: 要件4-1 図形の5クラスへ`getVertexHandleNames()`を実装する
 *   **作業内容** :

@@ -72,12 +72,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // ここではその生成とHistoryManagerへの注入に加えて、取り消し・やり直しの操作関数performUndo/performRedoを置く。
     // 取り消し・やり直しボタンの配線は「// 6.」、?devの復元の履歴への記録はonImportで行う。
     // HistoryManagerはInputTrackerのコンストラクタへ注入するため、InputTrackerより先に生成する。
-    // shouldRestoreSelectionの実体：選択モードのときのみ記録時点の選択集合を復元する（選択モード以外では選択集合は空のまま）。
+    // shouldRestoreSelectionの実体：選択モードまたは頂点の選択モードのときのみ記録時点の選択集合を復元する（それ以外のモードでは選択集合は空のまま）。
     // 本体で後に`const`宣言される`inputTracker`を参照するが、この関数が呼ばれるのは起動完了後の
     // 取り消し・やり直しの実行時のみで、生成時には呼ばれないため問題ない。
     const snapshotAdapter = new SnapshotAdapter({
         model,
         shouldRestoreSelection: () => inputTracker.getMode() === OperationMode.SELECT
+            || inputTracker.getMode() === OperationMode.VERTEX
     });
 
     const historyManager = new HistoryManager({
@@ -379,7 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * InputTracker側で無視された場合でも、UI表示と内部状態が乖離しないようにするため）。
      * applyModeを通ったらスポイトの待ち受けは必ずやめる（`styleEyedropper.stop()`）。待ち受け中だったときは
      * stopの通知によるsyncToolPaletteと末尾の呼び出しの2回呼ばれ得るが、同じ結果を設定するだけで害はない。
-     * @param {'select'|'create'|'pan'} mode - 切り替え先の操作モード（OperationModeの値）
+     * @param {'select'|'vertex'|'create'|'pan'} mode - 切り替え先の操作モード（OperationModeの値）
      */
     function applyMode(mode) {
         inputTracker.setMode(mode);
@@ -434,11 +435,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * ツールの識別子から操作への対応表。識別子は`TOOL_IDS`と同じ（同じ並び）。
-     * 選択・キャンバス移動は`applyMode`、スポイトは`startEyedropper`、図形は`selectShapeTool`の経路を通る。
+     * 選択・頂点の選択・キャンバス移動は`applyMode`、スポイトは`startEyedropper`、図形は`selectShapeTool`の経路を通る。
      * @type {Object<string, function(): void>}
      */
     const toolActions = {
         [OperationMode.SELECT]: () => applyMode(OperationMode.SELECT),
+        [OperationMode.VERTEX]: () => applyMode(OperationMode.VERTEX),
         [OperationMode.PAN]: () => applyMode(OperationMode.PAN),
         [EYEDROPPER_TOOL_ID]: () => startEyedropper(),
         ...Object.fromEntries(SHAPE_TYPES.map((type) => [type, () => selectShapeTool(type)])),
