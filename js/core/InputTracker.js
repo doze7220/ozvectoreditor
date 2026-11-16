@@ -1,5 +1,5 @@
 /**
- * 責務：ユーザー入力（図形作成・選択・範囲選択・本体ドラッグ・ハンドルドラッグ・パン・ズーム。キーはスペースパンのみ）の解釈と
+ * 責務：ユーザー入力（図形作成・選択・範囲選択・本体ドラッグ・ハンドルドラッグ・頂点の複数選択とまとめ移動・パン・ズーム。キーはスペースパンのみ）の解釈と
  * Model・ビュー変換への反映（修飾キーの読み取りは、規則の関数へ渡すこと、Altで注入された複製を呼ぶかを決めること、Ctrlの間に端点への吸い付きの照会を省くことにだけ使う。待ち受け中のクリックは図形のidを外へ渡すだけ）、状態依存の操作（一括削除・取消・全選択・進行中操作の中断）の公開、編集操作の開始・確定の通知（注入された記録先へ）、
  * および入力状態に応じたカーソル形状のキャンバスへの適用（形の判定は規則の関数へ渡すだけで本クラスは持たない）を担う。
  */
@@ -10,7 +10,7 @@ import { isTextInputElement, isSpaceYieldedElement } from './FocusKeyYieldRules.
 import { SHAPE_TYPES } from './ShapeFactory.js';
 import { classifyPointHit } from './PointHitRules.js';
 import { isVertexHandle, collectVertexHandlesInRect } from './VertexHandleRules.js';
-import { resolvePressAction } from './PressActionRules.js';
+import { resolvePressAction, resolveVertexPressAction } from './PressActionRules.js';
 import { resolveCursorShape } from './CursorShapeRules.js';
 import { resolveClickSelection, resolveMarqueeSelection, resolveVertexMarqueeSelection } from './SelectionRules.js';
 import { constrainMoveDirection } from './MoveDirectionRules.js';
@@ -309,6 +309,16 @@ export class InputTracker {
     #unitSnapHandleOrigin = null;
 
     /**
+     * 頂点のハンドルのドラッグ（DRAGGING_HANDLE）で動かす頂点それぞれの、押下時の位置と頂点インデックス（アンカー＝押した頂点を含む）。
+     * 押下した頂点が頂点の選択に含まれていればその全体、含まれていなければ押した頂点1つだけを、#beginLeftDragで組み立てる。
+     * 頂点インデックス（shape.getVertexIndexForHandle）と位置（shape.getHandlePosition）は押下の時点に1回だけ求める（追従では求め直さない）。
+     * 図形が見つからない組・位置が得られない組は含めない（ただしアンカーは位置が得られなくても含め、その場合x・yはnull）。
+     * 寿命は#unitSnapHandleOriginと同じ：#beginLeftDragで設定（DRAGGING_HANDLE以外の押下では空配列）し、#finishLeftDrag()で空配列に戻す。
+     * @type {Array<{shapeId: string, handle: string, vertexIndex: *, x: (number|null), y: (number|null)}>}
+     */
+    #vertexDragOrigins = [];
+
+    /**
      * @param {HTMLCanvasElement} canvas - イベントをリッスンするキャンバス
      * @param {Object} model - 図形データを管理するVectorModelインスタンス
      * @param {ViewTransform} viewTransform - スクリーン⇔ワールド変換とズーム・パンを担うビュー変換
@@ -379,7 +389,8 @@ export class InputTracker {
 
         /**
          * DRAGGING_HANDLE状態中に操作している頂点ハンドルの名前（押下時の各図形のhitTestHandleの戻り値。'move'以外）。
-         * 押下時に記憶し、ドラッグの追従（#applyLeftDragUpdate）でshape.getVertexIndexForHandle()により頂点インデックスへ解決する。
+         * 押下時に記憶する（アンカー＝押した頂点のハンドル名）。頂点インデックスへの解決（shape.getVertexIndexForHandle()）は
+         * 追従ではなく押下の時点（#beginLeftDragの#vertexDragOriginsの組み立て）で1回だけ行う。
          * moveハンドルの押下はMOVING_SELECTIONへ遷移するため、ここには記憶しない。
          * IDLE/DRAWING/MOVING_SELECTION/MARQUEE_SELECTING状態では未使用（null）。
          * @type {string|null}
@@ -734,8 +745,10 @@ export class InputTracker {
      * (4)左ボタンでスペース押下中またはキャンバス移動モードならパンを開始する。パンはDRAWING状態・作成途中図形を保持したまま行う。
      * (5)左ボタン以外（右ボタン等）なら何もしない（右ボタンで左ドラッグを開始しない）。
      * (5a)IDLEでなければ何もしない。IDLE状態かつ頂点の選択のモード中は、押下点を#classifyPointで当たり分類し（頂点のハンドルだけに絞り込み済み）、
-     * 頂点のハンドル上ならsetSelectedVertices([そのハンドル])でその頂点だけを頂点の選択にして#beginLeftDragでハンドルのドラッグを開始して終了する
-     * （図形の本体上・空白では何も始めない。isPickingShapeは見ない）。
+     * 何を始めるかはPressActionRules.resolveVertexPressAction（判定表はそのJSDocを参照。Ctrlは頂点が選ばれていないときに何も始めないかの判定にだけ使う）が決め、
+     * dragSelectedVerticesなら#beginLeftDragでハンドルのドラッグ（選んでいる頂点すべて）を開始し、
+     * selectVertexAndDragならsetSelectedVertices([そのハンドル])でその頂点だけを選び直してから同じドラッグを開始し、
+     * marquee（本体の上・空白）なら#beginLeftDragで範囲選択（MARQUEE_SELECTING）を開始し、nullなら何もしない。isPickingShapeは見ない。
      * (5b)頂点の選択のモード・選択モード以外（図形作成モード等）なら何もしない。
      * (5c)IDLE状態かつ選択モード中で、注入された補助のisPickingShape()が真（クリックした図形を外へ渡す待ち受け中）なら、
      * 当たり分類の前に何もせず終了する（左ボタンの押下で何も始めない。(2)(4)のパンは先に判定済みのため働く）。
@@ -779,9 +792,21 @@ export class InputTracker {
         if (this.currentMode === OperationMode.VERTEX) {
             const point = this.getWorldCoordinate(event);
             const hit = this.#classifyPoint(point);
-            if (hit.handle) {
-                this.model.setSelectedVertices([{ shapeId: hit.handle.shapeId, handle: hit.handle.handle }]);
-                this.#beginLeftDrag(event, InputState.DRAGGING_HANDLE, point, hit.handle);
+            const vertexAction = resolveVertexPressAction(
+                hit,
+                (shapeId, handle) => this.model.isVertexSelected(shapeId, handle),
+                hasCtrlModifier(event),
+            );
+            if (vertexAction === null) {
+                return;
+            }
+            if (vertexAction.type === 'dragSelectedVertices') {
+                this.#beginLeftDrag(event, InputState.DRAGGING_HANDLE, point, vertexAction.target);
+            } else if (vertexAction.type === 'selectVertexAndDrag') {
+                this.model.setSelectedVertices([{ shapeId: vertexAction.target.shapeId, handle: vertexAction.target.handle }]);
+                this.#beginLeftDrag(event, InputState.DRAGGING_HANDLE, point, vertexAction.target);
+            } else if (vertexAction.type === 'marquee') {
+                this.#beginLeftDrag(event, InputState.MARQUEE_SELECTING, point);
             }
             return;
         }
@@ -1004,13 +1029,17 @@ export class InputTracker {
      * DragTrackerのセッションを閾値DRAG_START_THRESHOLD（スクリーンpx）・click抑止'whenMoved'（閾値を超えて動かした場合のみ
      * 直後のclickを抑止）で開始し、成功した場合のみ次を記憶してnextStateへ遷移し、カーソル形状を更新する。
      * MARQUEE_SELECTINGなら押下点#marqueeAnchor、MOVING_SELECTIONなら押下点#moveOriginと反映済みの移動量#appliedMoveDelta（{ dx: 0, dy: 0 }）、
-     * DRAGGING_HANDLEなら操作対象のハンドル名・図形idと、そのハンドルの押下時の位置#unitSnapHandleOrigin
-     * （図形のgetHandlePositionの結果。位置が得られなければnull。DRAGGING_HANDLE以外の押下ではnullにする）。
+     * DRAGGING_HANDLEなら操作対象（アンカー）のハンドル名・図形idと、そのハンドルの押下時の位置#unitSnapHandleOrigin
+     * （図形のgetHandlePositionの結果。位置が得られなければnull。DRAGGING_HANDLE以外の押下ではnullにする）、
+     * および動かす頂点すべての押下時の位置と頂点インデックス#vertexDragOrigins（頂点の選択にtargetと同じ組が含まれていればその全体、
+     * 含まれていなければtarget1つだけ。図形が無い組・位置が得られない組は飛ばす。ただしアンカーは位置が得られなくても残す。
+     * DRAGGING_HANDLE以外の押下では空配列にする）。
      * 閾値以内では図形・選択矩形は変化しない。
      * 追従（onMove）は#applyLeftDragUpdate、開始（onStart）は#onLeftDragStart、
      * 終了（onEnd：左ボタンの解放）は#onLeftDragEnd、中断（onCancel：blur・setMode・abortOngoingOperation）は#onLeftDragCancelが担う。
      * DRAGGING_HANDLEで開始できたときは、注入された補助のresolveDragEndpoint(図形id, ハンドル名)で端点のハンドルかを解決し、
      * 端点なら#dragEndpoint（{ shapeId, end }）に、そうでなければnullにする（頂点の番号の規約は補助側が持つ）。
+     * この解決は#vertexDragOriginsが1つだけのときに限る（頂点を2つ以上動かすときは端点への吸い付きをせず、#dragEndpointはnullのまま）。
      * @param {MouseEvent} event ドラッグを開始したmousedownイベント
      * @param {'DRAGGING_HANDLE'|'MOVING_SELECTION'|'MARQUEE_SELECTING'} nextState 遷移先の状態（InputStateの値）
      * @param {{x: number, y: number}} point 押下点（ワールド座標）
@@ -1043,11 +1072,38 @@ export class InputTracker {
         this.#dragEndpoint = null;
         this.#dragSnap = null;
         this.#unitSnapHandleOrigin = null;
+        this.#vertexDragOrigins = [];
         if (nextState === InputState.DRAGGING_HANDLE && target) {
-            const end = this.#snapAssist.resolveDragEndpoint(target.shapeId, target.handle);
-            this.#dragEndpoint = end ? { shapeId: target.shapeId, end } : null;
-            const shape = this.model.getShapes().find((s) => s.id === target.shapeId);
-            this.#unitSnapHandleOrigin = shape ? shape.getHandlePosition(target.handle) : null;
+            const selected = this.model.getSelectedVertices();
+            const group = selected.some((v) => v.shapeId === target.shapeId && v.handle === target.handle)
+                ? selected
+                : [{ shapeId: target.shapeId, handle: target.handle }];
+            const shapes = this.model.getShapes();
+            for (const v of group) {
+                const isAnchor = v.shapeId === target.shapeId && v.handle === target.handle;
+                const shape = shapes.find((s) => s.id === v.shapeId);
+                if (!shape) {
+                    continue;
+                }
+                const position = shape.getHandlePosition(v.handle);
+                if (isAnchor) {
+                    this.#unitSnapHandleOrigin = position;
+                }
+                if (!position && !isAnchor) {
+                    continue;
+                }
+                this.#vertexDragOrigins.push({
+                    shapeId: v.shapeId,
+                    handle: v.handle,
+                    vertexIndex: shape.getVertexIndexForHandle(v.handle),
+                    x: position ? position.x : null,
+                    y: position ? position.y : null,
+                });
+            }
+            if (this.#vertexDragOrigins.length === 1) {
+                const end = this.#snapAssist.resolveDragEndpoint(target.shapeId, target.handle);
+                this.#dragEndpoint = end ? { shapeId: target.shapeId, end } : null;
+            }
         }
         this.state = nextState;
         this.#updateCursor();
@@ -1288,7 +1344,7 @@ export class InputTracker {
 
     /**
      * 左ドラッグの終了・中断時の後始末（#onLeftDragEnd・#onLeftDragCancelから呼ばれる）。
-     * IDLE状態へ戻し、作業用フィールド（activeHandle・activeShapeId・#moveOrigin・#appliedMoveDelta・#marqueeAnchor・#unitSnapHandleOrigin）をnullに、#duplicateOnMoveをfalseにして、
+     * IDLE状態へ戻し、作業用フィールド（activeHandle・activeShapeId・#moveOrigin・#appliedMoveDelta・#marqueeAnchor・#unitSnapHandleOrigin）をnullに、#vertexDragOriginsを空配列に、#duplicateOnMoveをfalseにして、
      * カーソル形状を再評価する。ドラッグ中に反映した変更（頂点・位置）は取り消さない。
      * 範囲選択の確定・選択矩形の破棄は呼び出し前に済ませること。click抑止フラグの管理はDragTrackerが担う。
      * 冒頭で、#isEditOpenが立っていれば（閾値超過時にbeginEdit()済みの移動・変形）記録先のcommitEdit()を呼んで下ろす
@@ -1302,6 +1358,7 @@ export class InputTracker {
         }
         this.#resetSnapState();
         this.#unitSnapHandleOrigin = null;
+        this.#vertexDragOrigins = [];
         this.state = InputState.IDLE;
         this.activeHandle = null;
         this.activeShapeId = null;
