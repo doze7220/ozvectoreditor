@@ -448,7 +448,7 @@
         *   `handleMouseDown`のJSDocの手順(6)の分岐表を`PressActionRules.js`へ移し、`handleMouseDown`側は規則へ渡して振り分けるだけの記述に直す（`#beginMoveSelection`経由で`event.altKey`を記憶する注記は残す）。
         *   `node --test`で全件通ることを確認する。
         *   **タスク完了後の記録**：本計画書の『4. 詳細作業内容』の「タスク4: …」の欄へ実際の作業内容（変更したファイル・移した範囲・確認した結果）を記載して完成させ、「3. タスクリスト」の該当タスクを`[x]`にする。開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る点が判明した場合は、資料本体は修正せず『開発資料（`PROJECT_ARCHITECTURE.md`）の更新予定』欄へ追記する（資料本体の修正はタスク12のみ）。
-*   [ ] タスク5: 要件2 `PressActionRules`の自動テストを足す
+*   [x] タスク5: 要件2 `PressActionRules`の自動テストを足す
     *   **対象ファイル** :
         *   `./test/core/PressActionRules.test.js` :（新規）
     *   **作業内容** :
@@ -556,7 +556,9 @@
 
 ### タスク5: 要件2 `PressActionRules`の自動テストを足す
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `test/core/PressActionRules.test.js`を新規作成（責務定義のJSDoc、`node:test`・`node:assert/strict`のみ）。`hit`は素のオブジェクト、`isSelected`は`Set`を引き呼び出し引数を記録する補助関数`makeIsSelected`（JSDoc付き）で作った。ソース・既存テストは未変更。
+    *   ケース（12件）：moveハンドル→moveSelection／頂点ハンドル→dragHandle（targetは`hit.handle`と同一参照）／ハンドルは本体が選択内でも優先／ハンドルあり（move・頂点）で`isSelected`を呼ばない／ハンドルありで`bodyId`がnullでもハンドル優先／本体が選択内→moveSelection／選択外→null／空白→marquee／本体判定で`isSelected`を`hit.bodyId`で1回だけ呼ぶ／空白で呼ばない／`hit`不変・moveSelection・marqueeが毎回新しいオブジェクト。
+    *   `node --test`：tests 1273 / pass 1273 / fail 0（1261から12件増）。
 
 ### タスク6: 要件3 カーソルの形の規則を`js/core/CursorShapeRules.js`へ切り出す
 *   **作業内容** :
