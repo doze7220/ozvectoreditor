@@ -1,6 +1,7 @@
 /**
  * 責務：図形データ・選択集合・ホバー・作成中図形・選択矩形・吸い付きの表示の点・新しく描く図形のスタイル（直前に使った値）の
  * 状態管理（SSOT：Single Source of Truth）と更新通知を担う。
+ * 頂点の選択（選択集合の図形のid＋ハンドル名の組。保存・履歴・書き出しの対象外の一時的な状態）も保持する。
  */
 import { ShapeFactory, SHAPE_TYPES } from './ShapeFactory.js';
 
@@ -126,6 +127,14 @@ export class VectorModel {
     #snapPoint;
 
     /**
+     * @type {Array<{shapeId: string, handle: string}>}
+     * 頂点の選択（選んだ順）。表示専用で保存しない（作業データ・履歴・書き出しに入れない）。
+     * 常に選択集合に含まれる図形の組だけを含む（#pruneSelectedVerticesで保つ）。
+     * @private
+     */
+    #selectedVertices;
+
+    /**
      * @type {number} 図形id採番用の連番カウンタ（次に#issueId()が発行する連番）。
      * #issueId()による採番（commitDraft・replaceAllShapes・addShapesWithNewIds・replaceShape）で1ずつ増える。
      * 単調増加し、減らさない。replaceAllShapesでは、保持したidのうち採番形式（`shape-<連番>`。
@@ -154,6 +163,7 @@ export class VectorModel {
         this.#draftShape = null;
         this.#selectionRect = null;
         this.#snapPoint = null;
+        this.#selectedVertices = [];
         this.#nextId = 1;
         this.#newShapeStyle = { ...DEFAULT_NEW_SHAPE_STYLE };
     }
@@ -179,6 +189,7 @@ export class VectorModel {
     /**
      * 選択集合を指定したidの集合で置き換え、変更を通知する（1回）。
      * 現存しない図形のidは除外する（選択集合は常に現存図形のidのみを含む）。
+     * 頂点の選択から、選択中でなくなった図形の組を落とす（通知は増やさない）。
      * 単一選択は setSelection([id]) で表現する。
      * @param {Iterable<string>} ids 新しい選択集合とする図形idの集合
      */
@@ -190,14 +201,16 @@ export class VectorModel {
                 this.#selectedIds.add(id);
             }
         }
+        this.#pruneSelectedVertices();
         this.#notifyChange();
     }
 
     /**
-     * 選択集合を空にし、変更を通知する（1回）。
+     * 選択集合を空にし、変更を通知する（1回）。頂点の選択も（選択中の図形が無くなるため）空になる。
      */
     clearSelection() {
         this.#selectedIds.clear();
+        this.#pruneSelectedVertices();
         this.#notifyChange();
     }
 
@@ -218,6 +231,62 @@ export class VectorModel {
      */
     isSelected(id) {
         return this.#selectedIds.has(id);
+    }
+
+    /**
+     * 頂点の選択を、指定した「図形のid＋ハンドル名」の組の配列で置き換える。
+     * 受理するのは、`shapeId`が現在の選択集合に含まれ、かつ`handle`が空でない文字列の組だけ（与えられた順。同じ組の重複は除く）。
+     * 要素は新しいオブジェクトとして持つ（引数のオブジェクトを保持せず、書き換えない）。
+     * 内容（組と順）が変わったときだけ変更を通知する（1回）。
+     * @param {Array<{shapeId: string, handle: string}>} pairs 新しい頂点の選択
+     */
+    setSelectedVertices(pairs) {
+        const next = [];
+        for (const pair of pairs) {
+            if (!pair || typeof pair.handle !== 'string' || pair.handle === '' || !this.#selectedIds.has(pair.shapeId)) {
+                continue;
+            }
+            if (next.some((p) => p.shapeId === pair.shapeId && p.handle === pair.handle)) {
+                continue;
+            }
+            next.push({ shapeId: pair.shapeId, handle: pair.handle });
+        }
+        const unchanged = next.length === this.#selectedVertices.length
+            && next.every((p, i) => p.shapeId === this.#selectedVertices[i].shapeId && p.handle === this.#selectedVertices[i].handle);
+        if (unchanged) {
+            return;
+        }
+        this.#selectedVertices = next;
+        this.#notifyChange();
+    }
+
+    /**
+     * 頂点の選択を全解除する。1つ以上あったときだけ変更を通知する（1回）。
+     */
+    clearSelectedVertices() {
+        if (this.#selectedVertices.length === 0) {
+            return;
+        }
+        this.#selectedVertices = [];
+        this.#notifyChange();
+    }
+
+    /**
+     * 頂点の選択を取得する。
+     * @returns {Array<{shapeId: string, handle: string}>} 新しい配列・新しいオブジェクトのコピー（選んだ順。未選択時は空配列）
+     */
+    getSelectedVertices() {
+        return this.#selectedVertices.map((p) => ({ shapeId: p.shapeId, handle: p.handle }));
+    }
+
+    /**
+     * 指定した頂点が選ばれているかを判定する。
+     * @param {string} shapeId 図形のid
+     * @param {string} handle ハンドル名
+     * @returns {boolean} 頂点の選択に含まれる場合true
+     */
+    isVertexSelected(shapeId, handle) {
+        return this.#selectedVertices.some((p) => p.shapeId === shapeId && p.handle === handle);
     }
 
     /**
@@ -476,7 +545,7 @@ export class VectorModel {
 
     /**
      * 指定したidの集合に含まれる全図形を#shapesから除去する。
-     * 除去した図形のidは選択集合・ホバー状態からも除去する（存在しない図形のidが残留することを防ぐため）。
+     * 除去した図形のidは選択集合・ホバー状態・頂点の選択（その図形の組）からも除去する（存在しない図形のidが残留することを防ぐため）。
      * 存在しないidは無視する。1件以上削除した場合のみ変更を通知する（1回。図形数分は発行しない）。
      * @param {Iterable<string>} ids 削除する図形idの集合
      */
@@ -498,6 +567,7 @@ export class VectorModel {
         if (this.#hoveredId !== null && removedIds.includes(this.#hoveredId)) {
             this.#hoveredId = null;
         }
+        this.#pruneSelectedVertices();
 
         this.#notifyChange();
     }
@@ -510,7 +580,7 @@ export class VectorModel {
      * (3)保持idのうち採番形式（`shape-<連番>`。連番がNumber.isSafeIntegerのもの）の最大連番をnとし、
      *    #nextIdを max(現在値, n + 1) へ繰り上げる（減らさない）。
      * (4)振り直し対象に#issueId()で新しいidを採番する（(3)により保持idとは衝突しない）。
-     * (5)選択集合・ホバー状態・作成中の図形・選択矩形・吸い付きの表示の点をクリアする。
+     * (5)選択集合・頂点の選択・ホバー状態・作成中の図形・選択矩形・吸い付きの表示の点をクリアする。
      * (6)変更を通知する（1回のみ）。
      * 新しく描く図形のスタイル（直前に使った値）には触れない。
      * 進行中の入力操作（ドラッグ・作成途中の図形）の中断は呼び出し側の責務（`InputTracker.abortOngoingOperation()`、または`CanvasLibrary`では`prepareSwitch()`経由の`setMode`）。
@@ -548,6 +618,7 @@ export class VectorModel {
 
         this.#shapes = nextShapes;
         this.#selectedIds.clear();
+        this.#pruneSelectedVertices();
         this.#hoveredId = null;
         this.#draftShape = null;
         this.#selectionRect = null;
@@ -565,7 +636,7 @@ export class VectorModel {
      * (2)重複インスタンスの除外：引数内で2回目以降に現れるインスタンス、および既に#shapesに含まれるインスタンスは、
      *    同じidを持つ2要素を作らないためconsole.warnのうえ追加しない（判定はインスタンス参照で行う）。
      * (3)選択集合を、追加した図形のidの集合で置き換える（追加した図形だけが選択される）。
-     *    ホバー状態・作成中の図形・選択矩形には触れない。
+     *    頂点の選択から、選択中でなくなった図形の組を落とす。ホバー状態・作成中の図形・選択矩形には触れない。
      * (4)1件以上追加した場合のみ変更を通知する（1回。図形数分は発行しない）。0件なら何も変更しない。
      * 受け取ったインスタンスをそのまま保持して`id`を書き換えるため、呼び出し側は追加後にそのインスタンスを他の用途に流用しない。
      * 図形インスタンスには`id`の代入以外で触れない（頂点・図形固有のプロパティ・図形種別を関知しない）。
@@ -593,6 +664,7 @@ export class VectorModel {
         }
 
         this.#selectedIds = new Set(addedIds);
+        this.#pruneSelectedVertices();
         this.#notifyChange();
         return addedIds;
     }
@@ -606,6 +678,7 @@ export class VectorModel {
      *    （`targetId`自身が含まれていても置き換えた位置は除かない。存在しないidは無視。他の図形の前後関係は変えない）。
      * (5)`select`が真なら選択集合を`shape.id`だけにする。偽なら選択集合を新しく作らず、現存しなくなったid
      *    （置き換えで消えた元のid・除いた図形のid）だけを選択集合から外す（作成モードでは空のまま）。
+     *    頂点の選択から、選択中でなくなった図形の組を落とす。
      *    ホバー中のidが現存しなくなればホバーを解除する。作成中の図形・選択矩形には触れない。
      * (6)変更を通知する（1回）。
      * 受け取ったインスタンスをそのまま保持して`id`を書き換えるため、呼び出し側は以後そのインスタンスを他の用途に流用しない。
@@ -646,6 +719,7 @@ export class VectorModel {
         if (this.#hoveredId !== null && !this.#shapes.some((s) => s.id === this.#hoveredId)) {
             this.#hoveredId = null;
         }
+        this.#pruneSelectedVertices();
         this.#notifyChange();
         return shape.id;
     }
@@ -736,6 +810,18 @@ export class VectorModel {
                 shape[key] = style[key];
             }
         }
+    }
+
+    /**
+     * 頂点の選択から、選択集合に含まれない図形の組を落とす（通知はしない。呼び出し側の既存の通知に相乗りする）。
+     * @returns {boolean} 1つ以上落としたらtrue
+     * @private
+     */
+    #pruneSelectedVertices() {
+        const kept = this.#selectedVertices.filter((p) => this.#selectedIds.has(p.shapeId));
+        const pruned = kept.length !== this.#selectedVertices.length;
+        this.#selectedVertices = kept;
+        return pruned;
     }
 
     /**

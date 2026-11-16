@@ -386,7 +386,7 @@
         *   使われなくなった`import`・関数・定数・コメントが残っていないことを確認する（ただし各図形の`drawHandles`は残す）。
         *   リポジトリのルートで`node --test`を実行し、全件通ることを確認する。
 
-*   [ ] タスク6: 要件5 頂点の選択の状態（`VectorModel`）
+*   [x] タスク6: 要件5 頂点の選択の状態（`VectorModel`）
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js` :（更新）
         *   `./test/core/VectorModel.selectedVertices.test.js` :（新規）
@@ -576,7 +576,9 @@
 
 ### タスク6: 要件5 頂点の選択の状態（`VectorModel`）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `VectorModel.js`：非公開`#selectedVertices`（初期は空配列）と、公開4メソッド`setSelectedVertices`・`clearSelectedVertices`・`getSelectedVertices`・`isVertexSelected`を追加。非公開`#pruneSelectedVertices()`を`setSelection`・`clearSelection`・`deleteShapes`・`replaceAllShapes`・`addShapesWithNewIds`・`replaceShape`の`#notifyChange()`の前で呼ぶ（通知回数は増えない）。各JSDocと先頭の責務定義を更新。
+    *   `test/core/VectorModel.selectedVertices.test.js`を新規作成（15ケース）。`node --test`は1331件全件合格。
+    *   保存・履歴・書き出しには入れていない（`DocumentSerializer`・`SnapshotAdapter`・`SpriteSerializer`は未変更）。
 
 ### タスク7: 要件6-1 頂点のハンドルの規則（`VertexHandleRules`）の新設
 *   **作業内容** :
