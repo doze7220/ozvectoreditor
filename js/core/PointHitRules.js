@@ -1,7 +1,7 @@
 /**
  * 責務: 選択モードの当たり分類の規則（ある点が選択集合の図形のハンドル・図形の本体・空白のどれに当たるか）を、
  * 図形の公開メソッドと選択中かの照会だけで判定する、状態を持たない関数として提供する。
- * 塗った内側を当たりに含めるかは引数で受け取る。
+ * 塗った内側・ハンドルを当たりに含めるかは引数で受け取る。
  */
 
 /**
@@ -9,7 +9,7 @@
  * handleもbodyIdもnullの場合は「空白」を表す。
  * @typedef {Object} PointHit
  * @property {{shapeId: string, handle: string} | null} handle
- *     選択集合の図形のハンドル（前面優先）。shapeId：ハンドルが属する図形のid（単一）、handle：hitTestHandleの戻り値
+ *     選択集合の図形のハンドル（前面優先。`includeHandles`が偽のときは常にnull）。shapeId：ハンドルが属する図形のid（単一）、handle：hitTestHandleの戻り値
  * @property {string | null} bodyId
  *     本体の図形のid（単一）。選択集合の図形の輪郭を優先し、それ以外は手前（図形配列の後ろ）から輪郭または塗った内側
  *     （塗った内側は`includeFill`が真のときだけ当たりに含める）
@@ -78,6 +78,7 @@ function findBodyHit(shapes, isSelected, x, y, tolerance, includeFill) {
  * 指定した点の当たり分類を行う。`handle`と`bodyId`は独立に求める（ハンドルが当たっても`bodyId`を求める）。
  * 規則：ハンドル（選択集合・手前優先）→ 本体（選択集合の図形の輪郭・手前優先 → 手前から輪郭、または`includeFill`が真のときの塗った内側）。
  * `includeFill`が偽のとき塗った内側は空白になる（ハンドルと選択集合の図形の輪郭の優先は変わらない）。
+ * `includeHandles`が偽のときは`findHandleHit`を呼ばず`handle`を常にnullにする（`bodyId`・`includeFill`の意味は変わらない）。
  * 使う図形のメンバーは`id`・`hitTestHandle`・`hitTest`・`hitTestFill`のみ。
  * `shapes`は読むだけで書き換えず、`isSelected`は呼ぶだけ。例外を投げない（図形が契約を満たす前提）。
  * @param {Array<Object>} shapes - 図形の配列（描画順。後ろが手前。`model.getShapes()`の戻り値）
@@ -86,11 +87,12 @@ function findBodyHit(shapes, isSelected, x, y, tolerance, includeFill) {
  * @param {number} y - 判定する点のY座標（ワールド座標）
  * @param {number} tolerance - 輪郭・ハンドルの当たりの許容誤差（ワールドの長さ）
  * @param {boolean} [includeFill=true] - 塗った内側を当たりに含めるか。省略時は含める
+ * @param {boolean} [includeHandles=true] - ハンドルを当たりに含めるか。省略時は含める（偽ならhandleは常にnull）
  * @returns {PointHit} 当たり分類の結果（handle・bodyIdともnullなら空白）
  */
-export function classifyPointHit(shapes, isSelected, x, y, tolerance, includeFill = true) {
+export function classifyPointHit(shapes, isSelected, x, y, tolerance, includeFill = true, includeHandles = true) {
     return {
-        handle: findHandleHit(shapes, isSelected, x, y, tolerance),
+        handle: includeHandles ? findHandleHit(shapes, isSelected, x, y, tolerance) : null,
         bodyId: findBodyHit(shapes, isSelected, x, y, tolerance, includeFill),
     };
 }

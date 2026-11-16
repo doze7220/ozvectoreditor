@@ -422,7 +422,7 @@
         *   使われなくなった`import`・関数・定数・コメントが残っていないことを確認する（ただし各図形の`drawHandles`は残す）。
         *   JSDocの記載漏れが無いことを確認し、リポジトリのルートで`node --test`を実行して全件通ることを確認する。
 
-*   [ ] タスク9: 要件3（当たり判定） `classifyPointHit`に`includeHandles`を足す
+*   [x] タスク9: 要件3（当たり判定） `classifyPointHit`に`includeHandles`を足す
     *   **対象ファイル** :
         *   `./js/core/PointHitRules.js` :（更新）
         *   `./test/core/PointHitRules.test.js` :（更新）
@@ -594,7 +594,8 @@
 
 ### タスク9: 要件3（当たり判定） `classifyPointHit`に`includeHandles`を足す
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/core/PointHitRules.js`：`classifyPointHit`の第7引数`includeHandles = true`を足し、偽なら`findHandleHit`を呼ばず`handle`を`null`にした。責務定義・JSDoc・typedef`PointHit`を更新。
+    *   `test/core/PointHitRules.test.js`：`includeHandles`のケース3件（偽でhandleがnull・bodyId不変／true明示＝省略時／includeFillと独立）を追記。
 
 ### タスク10: 要件7-1 カーソルの形の規則に頂点の選択のモードを足す
 *   **作業内容** :

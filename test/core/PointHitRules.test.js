@@ -226,3 +226,36 @@ describe('classifyPointHit: 非破壊', () => {
         assert.equal(shapes[1], before[1]);
     });
 });
+
+describe('classifyPointHit: includeHandles', () => {
+    test('falseのときハンドルはnullで、bodyIdは変わらない', () => {
+        const shapes = [makeRect('a', [0, 0, 100, 100], '#ff0000')];
+        const on = classifyPointHit(shapes, selectedBy(['a']), 0, 0, TOLERANCE, true, true);
+        const off = classifyPointHit(shapes, selectedBy(['a']), 0, 0, TOLERANCE, true, false);
+        assert.notEqual(on.handle, null);
+        assert.equal(off.handle, null);
+        assert.equal(off.bodyId, on.bodyId);
+    });
+
+    test('trueを明示したときは省略時と同じ結果', () => {
+        const shapes = [makeRect('a', [0, 0, 100, 100], '#ff0000'), makeRect('b', [50, 50, 150, 150], '#0000ff')];
+        const points = [[0, 0], [75, 75], [25, 25], [200, 200]];
+        for (const [x, y] of points) {
+            assert.deepEqual(
+                classifyPointHit(shapes, selectedBy(['a']), x, y, TOLERANCE, true, true),
+                classifyPointHit(shapes, selectedBy(['a']), x, y, TOLERANCE)
+            );
+        }
+    });
+
+    test('includeFillと独立に働く', () => {
+        const shapes = [makeRect('a', [0, 0, 100, 100], '#ff0000')];
+        for (const includeFill of [true, false]) {
+            const hit = classifyPointHit(shapes, selectedBy(['a']), 0, 0, TOLERANCE, includeFill, false);
+            assert.equal(hit.handle, null);
+            assert.equal(hit.bodyId, 'a');
+        }
+        assert.equal(classifyPointHit(shapes, selectedBy([]), 50, 50, TOLERANCE, true, false).bodyId, 'a');
+        assert.equal(classifyPointHit(shapes, selectedBy([]), 50, 50, TOLERANCE, false, false).bodyId, null);
+    });
+});
