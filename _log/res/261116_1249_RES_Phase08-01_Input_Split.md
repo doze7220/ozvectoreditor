@@ -456,7 +456,7 @@
         *   2章要件2の自動テストの一覧（各分岐・境界・ハンドル優先・引数不変・`isSelected`の呼び出し回数と引数）を確かめるケースを書く。`hit`は素のオブジェクト、`isSelected`は`Set`による素の関数で作る（ソースは書き換えない）。
         *   `node --test`で全件通ることを確認し、増えた件数を記録する。
         *   **タスク完了後の記録**：本計画書の『4. 詳細作業内容』の「タスク5: …」の欄へ実際の作業内容（変更したファイル・移した範囲・確認した結果）を記載して完成させ、「3. タスクリスト」の該当タスクを`[x]`にする。開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る点が判明した場合は、資料本体は修正せず『開発資料（`PROJECT_ARCHITECTURE.md`）の更新予定』欄へ追記する（資料本体の修正はタスク12のみ）。
-*   [ ] タスク6: 要件3 カーソルの形の規則を`js/core/CursorShapeRules.js`へ切り出す
+*   [x] タスク6: 要件3 カーソルの形の規則を`js/core/CursorShapeRules.js`へ切り出す
     *   **対象ファイル** :
         *   `./js/core/CursorShapeRules.js` :（新規）
         *   `./js/core/InputTracker.js` :（更新）
@@ -562,7 +562,9 @@
 
 ### タスク6: 要件3 カーソルの形の規則を`js/core/CursorShapeRules.js`へ切り出す
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/core/CursorShapeRules.js`を新規作成（責務定義3行、importは`InputModes.js`のみ）。typedef`CursorShapeInput`（8項目）と`resolveCursorShape(input)`を置き、`#resolveCursor`の判定（(0a)〜(10)）を順序・比較条件・結果の文字列を変えずに移した。判定表のJSDocも移し、`isPickingShape`・`isSelected`を関数で受ける理由（短絡評価と呼び出し回数を保つ）を追記した。
+    *   `js/core/InputTracker.js`：`#resolveCursor`を削除し、`#updateCursor(hit = null)`が`resolveCursorShape({...})`の結果を`this.canvas.style.cursor`へ入れるだけにした（`isPickingShape`・`isSelected`はアロー関数で渡す）。`resolveCursorShape`のimportを追加。`#isLeftDragState()`と区切りコメントは残した。`#updateCursor`の呼び出し12か所・引数は変更なし。別メソッドのJSDoc中の`#resolveCursor`への言及1か所を`#updateCursor`へ直した。
+    *   `node --test`：tests 1273 / suites 194 / pass 1273 / fail 0。
 
 ### タスク7: 要件3 `CursorShapeRules`の自動テストを足す
 *   **作業内容** :
@@ -595,3 +597,6 @@
 * **`isSpaceYieldedElement`の公開**：移動に伴い、`InputTracker`から呼ぶために非公開から`export`になる（REQの指示どおり）。関数の中身・判定の条件は変えない。開発資料の「非公開でテストのためにexportしない」という既存の記述は、公開になっても`node --test`で確かめられない（DOMの型に依存する）ことを明記して直す。
 * **`ToolRules`・`KeyboardShortcuts`・`AltKeyGuard`が`InputTracker.js`をimportしなくなること**：本作業の切り出しの結果であり、意図した改善ではない。`ToolRules.test.js`が`InputTracker.js`を間接にimportしなくなるため、開発資料の該当の注記（最上位でDOMに触れる変更をするとテストが壊れる）を実態に合わせて直す必要がある。
 * **ふるまいの確認はテストプレイに依る**：`InputTracker`の配線（`DragTracker`・DOMに依存）と`DisplayWiring`（DOMと購読）は自動テストにできないため、要件2・要件3の規則の関数のテストで判定の中身を機械的に確かめ、残りはタスク11のテストプレイで確かめる。特に、カーソルの形（確認項目5）・押下時の分岐（3・4）・起動時の各表示（1）・キーとボタンの押し込みの追従（10）・ステータスバーの追従（11）を重点的に見ていただきたい。
+
+* **タスク6の確認（目視推奨）**：`#updateCursor`が毎回アロー関数2つを生成するようになった（`mousemove`ごとに呼ばれる）が、判定の呼び出し回数は変わらない。カーソルの形（パン中・スペース押下・各モード・ホバー・図形ピック待ち）を実機で確認するのが望ましい。
+* **開発資料の更新予定（タスク6）**：`#resolveCursor`が無くなり`#updateCursor`がDOMへの適用だけを担うこと、判定表が`CursorShapeRules`へ移ったことは、既存の要件3・タスク12の記載に含まれる。追加の影響なし。

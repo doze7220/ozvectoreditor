@@ -10,6 +10,7 @@ import { isTextInputElement, isSpaceYieldedElement } from './FocusKeyYieldRules.
 import { SHAPE_TYPES } from './ShapeFactory.js';
 import { classifyPointHit } from './PointHitRules.js';
 import { resolvePressAction } from './PressActionRules.js';
+import { resolveCursorShape } from './CursorShapeRules.js';
 import { resolveClickSelection, resolveMarqueeSelection } from './SelectionRules.js';
 import { constrainMoveDirection } from './MoveDirectionRules.js';
 import { resolveUnitSnapStep, roundPointToUnit, roundDeltaToUnit, roundConstrainedDeltaToUnit, roundPointFromOriginToUnit } from './UnitSnapRules.js';
@@ -1302,7 +1303,7 @@ export class InputTracker {
 
     /**
      * 指定位置の当たり分類を行う。ホバー（handleMouseMove）・押下（handleMouseDown）・クリック（handleClick）・
-     * カーソル形状（#resolveCursor）で共通に用いる（クリック時に古いホバー状態へ依存しないため）。
+     * カーソル形状（#updateCursor）で共通に用いる（クリック時に古いホバー状態へ依存しないため）。
      * 規則の正本はPointHitRules.classifyPointHit。本メソッドはモデルの図形配列・選択中かの照会・座標・許容誤差を渡して結果を返すだけで、
      * 図形のメソッド（hitTest・hitTestHandle・hitTestFill）を直接呼ばない。規則の要約：
      * ・ハンドル（今のまま）：選択集合の図形を対象に、図形配列の後ろ（前面）から最初に当たったハンドル。
@@ -1369,84 +1370,20 @@ export class InputTracker {
     // ---- カーソル形状 ----
 
     /**
-     * 現在の操作モード・入力状態・カーソル位置の当たり分類から、キャンバスに適用すべきCSS cursor値を判定する。
-     * DOMには触れない純粋な判定関数。判定順序：
-     * (0a)パンのドラッグ中 → 'grabbing'、
-     * (0b)スペース押下中かつ左ドラッグ状態（DRAGGING_HANDLE/MOVING_SELECTION/MARQUEE_SELECTING）でない → 'grab'
-     * （左ドラッグ中はパンを開始しないため除外し、ドラッグ中のカーソルを維持）、
-     * (1)図形作成モード → 'crosshair'（作成途中を含む）、
-     * (2)キャンバス移動モード → 'grab'、
-     * (3)選択モード以外のモード → 'default'（将来のモード追加時の既定値）、
-     * (3a)クリックした図形を外へ渡す待ち受け中（注入された補助のisPickingShape()が真） → 'cell'（パン中・スペース押下中の
-     * 'grabbing'・'grab'は先に判定されるため優先順は変わらない）、
-     * (4)DRAGGING_HANDLE・MOVING_SELECTION状態 → 'move'、
-     * (5)MARQUEE_SELECTING状態 → 'default'、
-     * (6)当たり分類なし（hit === null。座標不明） → 'default'、
-     * (7)選択集合の図形のハンドル上（hit.handle） → 'move'、
-     * (8)選択集合内の図形の本体上（hit.bodyIdが選択集合内） → 'move'、
-     * (9)それ以外の図形の本体上（hit.bodyId） → 'pointer'、
-     * (10)それ以外 → 'default'。
-     * @param {PointHit | null} hit カーソル位置の当たり分類（#classifyPointの結果）。座標が不明なとき
-     *     （setMode直後・パン開始/終了・左ドラッグ開始/終了・スペース押下/解放等）はnull
-     * @returns {'grabbing'|'grab'|'crosshair'|'cell'|'move'|'pointer'|'default'} 適用すべきCSS cursor値
-     */
-    #resolveCursor(hit) {
-        if (this.#isPanning) {
-            return 'grabbing';
-        }
-
-        if (this.#isSpacePressed && !this.#isLeftDragState()) {
-            return 'grab';
-        }
-
-        if (this.currentMode === OperationMode.CREATE) {
-            return 'crosshair';
-        }
-
-        if (this.currentMode === OperationMode.PAN) {
-            return 'grab';
-        }
-
-        if (this.currentMode !== OperationMode.SELECT) {
-            return 'default';
-        }
-
-        if (this.#inputAssist.isPickingShape()) {
-            return 'cell';
-        }
-
-        if (this.state === InputState.DRAGGING_HANDLE || this.state === InputState.MOVING_SELECTION) {
-            return 'move';
-        }
-
-        if (this.state === InputState.MARQUEE_SELECTING) {
-            return 'default';
-        }
-
-        if (hit === null) {
-            return 'default';
-        }
-
-        if (hit.handle) {
-            return 'move';
-        }
-
-        if (hit.bodyId && this.model.isSelected(hit.bodyId)) {
-            return 'move';
-        }
-
-        if (hit.bodyId) {
-            return 'pointer';
-        }
-
-        return 'default';
-    }
-
-    /**
-     * #resolveCursor(hit)の判定結果をキャンバス要素のCSS cursorへ適用する。
+     * 現在の入力状態を規則（resolveCursorShape）へ渡し、判定結果をキャンバス要素のCSS cursorへ適用する。
+     * 判定表はCursorShapeRules.jsにある。DOMへの適用は本クラスが担う。
      * @param {PointHit | null} [hit=null] カーソル位置の当たり分類（#classifyPointの結果）。座標が不明なときはnull
      */
     #updateCursor(hit = null) {
-        this.canvas.style.cursor = this.#resolveCursor(hit);
+        this.canvas.style.cursor = resolveCursorShape({
+            isPanning: this.#isPanning,
+            isSpacePressed: this.#isSpacePressed,
+            isLeftDragState: this.#isLeftDragState(),
+            mode: this.currentMode,
+            state: this.state,
+            isPickingShape: () => this.#inputAssist.isPickingShape(),
+            hit,
+            isSelected: (id) => this.model.isSelected(id)
+        });
     }
 }
