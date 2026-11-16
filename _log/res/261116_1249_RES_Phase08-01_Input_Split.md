@@ -512,7 +512,7 @@
     *   **作業内容** :
         *   2章「要件6」の一覧（0.強制再読み込みを先頭に含む19項目）をチャットで発注者へ提示する。
         *   **タスク完了後の記録**：本計画書の『4. 詳細作業内容』の「タスク11: …」の欄へ実際の作業内容（提示した確認項目と、発注者のテストプレイの結果）を記載して完成させ、「3. タスクリスト」の該当タスクを`[x]`にする。開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る点が判明した場合は、資料本体は修正せず『開発資料（`PROJECT_ARCHITECTURE.md`）の更新予定』欄へ追記する（資料本体の修正はタスク12のみ）。
-*   [ ] タスク12: 各タスクの『開発資料の更新予定』を開発資料へ反映する（最終固定タスク）
+*   [x] タスク12: 各タスクの『開発資料の更新予定』を開発資料へ反映する（最終固定タスク）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新）
         *   `./_doc/arch/02_main.md`・`06_InputTracker.md`・`07_KeyboardShortcuts.md`・`13_palette.md`・`14_edit.md`・`16_test.md`・`19_ToolRules.md`・`20_DisplayState.md`・`21_GridSpacingRules.md`・`24_CanvasCursorTracker.md`・`25_ViewFitRules.md`・`26_StatusReadoutRules.md`・`29_AltKeyGuard.md`・`30_UnitSnapRules.md`・`31_UnitSnapSettings.md` :（更新）
@@ -605,7 +605,14 @@
 
 ### タスク12: 各タスクの『開発資料の更新予定』を開発資料へ反映する（最終固定タスク）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/`・`test/`は変更していない。変更したのは`PROJECT_ARCHITECTURE.md`と`_doc/arch/`のみ（`COWORK_STATUS*.md`・`PROJECT_MILESTONE.md`・`_log/dir/`は未変更。`COWORK_STATUS_CLOSED.md:321`の「`InputTracker`は再export」は過去Phaseの記録のため触れていない）。
+    *   **`PROJECT_ARCHITECTURE.md`**：1章のフォルダ構造のツリー（`core/`に`InputModes`・`FocusKeyYieldRules`・`PressActionRules`・`CursorShapeRules`の4行、`js/wiring/DisplayWiring.js`、`test/core/`に`CursorShapeRules.test.js`・`PressActionRules.test.js`の2行。既存の1行コメントの「`main.js`から使う」4行（`UnitSnapRules`・`GridSpacingRules`・`ViewFitRules`・`StatusReadoutRules`）を`wiring/DisplayWiring`へ）、「フォルダ分割の方針」（`core/`の項：`OperationMode`の置き場所・`GridSpacingRules`／`ViewFitRules`／`StatusReadoutRules`／`UnitSnapRules`の使う側・Phase 08-01の4ファイルの位置づけを追記、`wiring/`の項を新設）、**依存方向**（`main.js → wiring → palette / edit / core`、`InputTracker`の`core/`内のimportの列、`main.js`の列、`AltKeyGuard`・`ToolRules`のimport元）。3章（15.：表示の状態の持ち主と通知・🧰・⛶・見出し、17.：見出し・モジュールの分担・設定の持ち主と同期の経路・ステータスバーの部品・座標の表示、「同期の経路」の`unitSnapSettings.onChange`の登録先、2.：入力欄の規則の判定の置き場所と`isSpaceYieldedElement`の公開、`aria-pressed`の項の`isToggleButtonElement`の置き場所）。押下時の分岐の表の括弧（3章の3か所）は、正本が`core/PressActionRules.resolvePressAction`であることが分かるよう最小限で直した（内容は変えていない）。4章の一覧に5行（`32`〜`36`）。
+    *   **`_doc/arch/`の新規5ファイル**（実コードを読んで書いた）：`32_InputModes.md`・`33_FocusKeyYieldRules.md`・`34_PressActionRules.md`・`35_CursorShapeRules.md`・`36_DisplayWiring.md`。
+    *   **`_doc/arch/`の更新**：`02_main.md`（行数888、`// 6.5.`の行、「主な関数」から7関数を外す、注入の一覧に`DisplayWiring`の行と`DisplayWiring`が注入する旨、生成順の制約の`#resolveCursor`、同一経路の原則・スナップの配線・起動時の同期）、`06_InputTracker.md`（export・`InputState`／`OperationMode`のimport元・入力欄の規則・押下時の分岐とカーソルの形の委譲の項を新設・`#resolveCursor`の記述・行数1392）、`07_KeyboardShortcuts.md`・`29_AltKeyGuard.md`・`19_ToolRules.md`（importの出どころ。`19_ToolRules.md`はテストのimportの注記も）、`10_ShapeFactory.md`（「`InputTracker`は再export」を削除。同ファイルの「依存の制約」の「`InputTracker`（および経由して`KeyboardShortcuts`）」も実態に合わせた）、`16_test.md`（Phase 08-01の新設分・テストできない箇所の追加・件数、既存の「テストできない箇所」の移動先の書き換え）、`13_palette.md`・`14_edit.md`・`20_DisplayState.md`・`21_GridSpacingRules.md`・`24_CanvasCursorTracker.md`・`25_ViewFitRules.md`・`26_StatusReadoutRules.md`・`30_UnitSnapRules.md`・`31_UnitSnapSettings.md`（`main.js`→`wiring/DisplayWiring`）。更新予定欄に挙がっていなかった`01_index_html.md`も、`InputTracker`の`isToggleButtonElement`の記述3か所・`syncUnitSnapGroup()`が付ける旨・`getElementById`の解決元を実態に合わせた（3章の同じ記述と一致させるため）。
+    *   **実測**：`js/core/InputTracker.js` 1392行、`js/main.js` 888行（新設：`InputModes` 37、`FocusKeyYieldRules` 77、`PressActionRules` 50、`CursorShapeRules` 101、`wiring/DisplayWiring` 196）。`node --test`：tests 1301 / suites 198 / pass 1301 / fail 0。
+    *   **diff監査の反映漏れ3件の修正（実コード`js/wiring/DisplayWiring.js:177,194`で裏取り）**：(1)`_doc/arch/01_index_html.md`8行目「クラス名は`main.js`の`syncFloatWindowVisibility`と2か所だけ」→「`index.html`のCSSと`wiring/DisplayWiring`の`#syncFloatWindowVisibility`の2か所だけ」（`PROJECT_ARCHITECTURE.md:454`と同じ表記）。(2)`_doc/arch/05_ViewTransform.md`3行目「呼び出し元は`main.js`の`fitViewToShapes`」→「`wiring/DisplayWiring`の`#fitViewToShapes()`」（`25_ViewFitRules.md`と同じ表記。同ファイルは本タスクの対象一覧に無いがREQの固定タスクの範囲内）。(3)`_doc/arch/16_test.md`73行目の3つ目に`③`を付与。追加の全文検索（移った識別子・`#resolveCursor`・「再export」を`PROJECT_ARCHITECTURE.md`と`_doc/arch/`全体で検索）では、`main.js`・`InputTracker`の持ち物として残る箇所は他に無かった。
+    *   **再監査の軽微1件の修正（統括が実施）**：`_doc/arch/01_index_html.md`5行目「押し込みの初期状態は`index.html`に書かない（起動時に`main.js`・`wiring/DisplayWiring`の同期関数が付ける…）」の`main.js`・を削った。対象として挙げている▢◐▦（`#view-outline-toggle`等）・🧰（`#float-windows-toggle`）の押し込みを同期するのは`wiring/DisplayWiring`だけで、`js/main.js`にはこれらの要素id・`classList`の記述が1つも無いことを`grep`で確認した（所有者を置換せず併記に広げたための緩さ）。
+    *   **再監査の結果**：合格。`js/`・`test/`は無変更、`node --test`は tests 1301 / suites 198 / pass 1301 / fail 0。
 
 ## 5. 懸念事項・要確認ポイント
 
@@ -625,3 +632,10 @@
 * **開発資料の更新予定（タスク9）**：追加の影響なし（既存のタスク12の記載に含まれる）。
 
 * **開発資料の更新予定（タスク10）**：追加の影響なし。ただしタスク12で、`ShapeFactory.js`の`SHAPE_TYPES`の説明に「InputTrackerが再exportする」旨があれば削る（再exportは無い）。
+
+* **タスク12の確認（今後この箇所を直すときの注意）**：`_doc/arch/`の複数ファイルは行末がCRLF（`PROJECT_ARCHITECTURE.md`・`01`〜`17`・`19`等）とLF（`08`・`18`・`20`〜`31`等）で混在している。書き換えるときは各ファイルの行末を保つこと（今回は保った。新規の`32`〜`36`はLF）。`COWORK_STATUS_CLOSED.md:321`の「`InputTracker`は再export」は過去Phaseの記録のため直していない。3章の押下時の分岐の表の括弧（290・463・484行付近）は「見直さなくても誤りにならない」箇所だったが、正本の場所が分かるよう最小限で足した。
+
+* **本作業の範囲外で見つかった、今後の持ち越し（設計への申し送り。本作業では直していない）**：
+    * `_doc/COWORK_STATUS.md:51`に「`main.js`の`syncSelectionSizeReadout`」という記述が残っている。本作業で`wiring/DisplayWiring`へ移ったため実態と食い違うが、`COWORK_STATUS.md`は現場設計セッションの担当資料のため実装セッションでは触れていない。
+    * `PROJECT_ARCHITECTURE.md:498`（3章17.「本作業の指示書（REQ）で決まっていた点」＝Phase 07-05の記録）に「`main.js`の配線ブロックの切り出しは行わない」が残っている。07-05時点の事実としては正しく、記述の構成・決定事項の内容を変えないという本REQの制約があるため直していないが、Phase 08-01で`wiring/DisplayWiring`を切り出した現在、読み手が現行の制約と取り違える余地がある（1章の`wiring/`の項と`02_main.md:3`の「他の配線ブロックは切り出していない」で実質は補われている）。
+    * `_doc/arch/02_main.md`の「主な関数」の一覧に`resetViewToCenter`が無い（Phase 08-01以前からの欠落で、本作業の変更とは無関係）。
