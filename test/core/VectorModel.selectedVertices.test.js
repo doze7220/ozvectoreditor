@@ -189,3 +189,65 @@ test('他の状態（ホバー・選択矩形・吸い付きの点・直前に�
     assert.deepEqual(model.getSelectedIds(), ['shape-a']);
     assert.deepEqual(model.getShapes(), shapes);
 });
+
+test('3つ以上の組の置き換えで、与えられた並びが保たれ、通知は1回', () => {
+    const { model, notifyCount } = setup();
+    model.setSelection(['shape-a', 'shape-b']);
+    const base = notifyCount();
+    const pairs = [
+        { shapeId: 'shape-b', handle: 'end' },
+        { shapeId: 'shape-a', handle: 'end' },
+        { shapeId: 'shape-b', handle: 'start' },
+        { shapeId: 'shape-a', handle: 'start' },
+    ];
+    model.setSelectedVertices(pairs);
+    assert.deepEqual(model.getSelectedVertices(), pairs);
+    assert.equal(notifyCount(), base + 1);
+    assert.equal(model.isVertexSelected('shape-b', 'start'), true);
+    assert.equal(model.isVertexSelected('shape-a', 'end'), true);
+});
+
+test('同じ図形の複数の頂点が入る', () => {
+    const { model } = setup();
+    model.setSelection(['shape-a']);
+    model.setSelectedVertices([{ shapeId: 'shape-a', handle: 'start' }, { shapeId: 'shape-a', handle: 'end' }]);
+    assert.deepEqual(model.getSelectedVertices(), [
+        { shapeId: 'shape-a', handle: 'start' },
+        { shapeId: 'shape-a', handle: 'end' },
+    ]);
+});
+
+test('同じ組を重ねても1つになり、並びは最初に現れた位置になる', () => {
+    const { model } = setup();
+    model.setSelection(['shape-a', 'shape-b']);
+    model.setSelectedVertices([
+        { shapeId: 'shape-a', handle: 'end' },
+        { shapeId: 'shape-b', handle: 'start' },
+        { shapeId: 'shape-a', handle: 'end' },
+        { shapeId: 'shape-a', handle: 'start' },
+        { shapeId: 'shape-b', handle: 'start' },
+    ]);
+    assert.deepEqual(model.getSelectedVertices(), [
+        { shapeId: 'shape-a', handle: 'end' },
+        { shapeId: 'shape-b', handle: 'start' },
+        { shapeId: 'shape-a', handle: 'start' },
+    ]);
+});
+
+test('選択集合が複数のまま一部の図形が外れると、落ちる組と残る組が分かれ、残る組の並びが保たれる', () => {
+    const { model, notifyCount } = setup();
+    model.setSelection(['shape-a', 'shape-b']);
+    model.setSelectedVertices([
+        { shapeId: 'shape-b', handle: 'end' },
+        { shapeId: 'shape-a', handle: 'start' },
+        { shapeId: 'shape-b', handle: 'start' },
+        { shapeId: 'shape-a', handle: 'end' },
+    ]);
+    const base = notifyCount();
+    model.setSelection(['shape-b']);
+    assert.deepEqual(model.getSelectedVertices(), [
+        { shapeId: 'shape-b', handle: 'end' },
+        { shapeId: 'shape-b', handle: 'start' },
+    ]);
+    assert.equal(notifyCount(), base + 1);
+});
