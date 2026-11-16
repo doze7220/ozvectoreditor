@@ -475,7 +475,7 @@
         *   2章要件3の自動テストの一覧（(0a)〜(10)の各分岐・優先順位（パン中が最優先、スペース押下中は左ドラッグ状態では効かない、待ち受け中の`'cell'`の位置、当たり分類が`null`のとき`'default'`）・短絡評価の保持・引数不変）を確かめるケースを書く。`InputState`・`OperationMode`は`js/core/InputModes.js`からimportして使う。
         *   `node --test`で全件通ることを確認し、増えた件数を記録する。
         *   **タスク完了後の記録**：本計画書の『4. 詳細作業内容』の「タスク7: …」の欄へ実際の作業内容（変更したファイル・移した範囲・確認した結果）を記載して完成させ、「3. タスクリスト」の該当タスクを`[x]`にする。開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る点が判明した場合は、資料本体は修正せず『開発資料（`PROJECT_ARCHITECTURE.md`）の更新予定』欄へ追記する（資料本体の修正はタスク12のみ）。
-*   [ ] タスク8: 要件4 `main.js`の表示配線を`js/wiring/DisplayWiring.js`へ切り出す
+*   [x] タスク8: 要件4 `main.js`の表示配線を`js/wiring/DisplayWiring.js`へ切り出す
     *   **対象ファイル** :
         *   `./js/wiring/DisplayWiring.js` :（新規。フォルダ`js/wiring/`も新規）
         *   `./js/main.js` :（更新）
@@ -574,7 +574,11 @@
 
 ### タスク8: 要件4 `main.js`の表示配線を`js/wiring/DisplayWiring.js`へ切り出す
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/wiring/DisplayWiring.js`を新規作成（クラス`DisplayWiring`）。コンストラクタ（`{ model, viewTransform, displayState, unitSnapSettings, cursorTracker, canvas }`）で`ShapeExtentReader`の生成・3要素の取得・購読5つの登録・`ViewToggleGroup`／`UnitSnapGroup`の生成と登録・🧰の`click`と登録・⛶の`click`を、元の`// 6.5.`と同じ順序（要件4の1〜10）で行う。同期関数6つと`fitViewToShapes`は非公開メソッド、公開は`syncAll()`（座標→大きさ→グリッド→表示の切り替え→スナップ→フロートウィンドウ）のみ。
+    *   `js/main.js`：`// 6.5.`のブロックを`new DisplayWiring({...})`に置換（位置は不動）、起動時の同期6行を`displayWiring.syncAll();`に置換（`syncZoomDisplay()`の後・`syncDeleteButtonState()`の前）。import6行（`ShapeExtentReader`・`StatusReadoutRules`・`GridSpacingRules`・`ViewFitRules`・`UnitSnapRules`・`ViewToggleGroup`）を削除し、`UnitSnapGroup`のimport行を`DisplayWiring`のimportへ置換。`ViewTransform`のimportは`new ViewTransform()`のため残した。
+    *   `grep`で`main.js`に`ShapeExtentReader`・`syncCursorReadout`・`UnitSnapGroup`・`computeFitView`・`MIN_SCALE`が残っていないことを確認。`index.html`・`palette/`・`edit/`・`core/`は未変更。
+    *   `node --test`：tests 1301 / pass 1301 / fail 0（テストは足していない）。
+    *   （監査指摘の修正）`DisplayWiring.js`の非公開フィールド12個に`@type`のJSDoc（1行形式）を追記した（コメントのみ。コードのふるまいは不変）。
 
 ### タスク9: 要件5 `InputTracker.js`・`main.js`の責務定義と区切りコメントを実態に合わせる
 *   **作業内容** :
@@ -602,3 +606,6 @@
 
 * **タスク6の確認（目視推奨）**：`#updateCursor`が毎回アロー関数2つを生成するようになった（`mousemove`ごとに呼ばれる）が、判定の呼び出し回数は変わらない。カーソルの形（パン中・スペース押下・各モード・ホバー・図形ピック待ち）を実機で確認するのが望ましい。
 * **開発資料の更新予定（タスク6）**：`#resolveCursor`が無くなり`#updateCursor`がDOMへの適用だけを担うこと、判定表が`CursorShapeRules`へ移ったことは、既存の要件3・タスク12の記載に含まれる。追加の影響なし。
+
+* **タスク8の確認（目視推奨）**：`onChange`の登録が関数の直接渡しからアロー関数経由（`() => this.#sync...()`）になった（同期関数は引数を使わないため挙動は同じ）。起動時の各表示・🧰・⛶・▢◐▦・🧲・単位のボタン・ステータスバーの座標／大きさ／グリッドの追従を実機で確認するのが望ましい。
+* **開発資料の更新予定（タスク8）**：`DisplayWiring`の新設・`main.js`の`// 6.5.`の縮小は既存のタスク12の記載に含まれる。追加の影響なし。

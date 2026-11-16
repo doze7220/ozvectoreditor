@@ -36,15 +36,9 @@ import { OptionBarStyleGroup } from './palette/OptionBarStyleGroup.js';
 import { ShapeOrderEditor } from './edit/ShapeOrderEditor.js';
 import { ShapeOrderOperation } from './edit/ShapeOrderRules.js';
 import { OptionBarOrderGroup } from './palette/OptionBarOrderGroup.js';
-import { ShapeExtentReader } from './edit/ShapeExtentReader.js';
-import { formatCursorReadout, formatSizeReadout, formatGridReadout } from './core/StatusReadoutRules.js';
-import { computeGridSpacing } from './core/GridSpacingRules.js';
-import { computeFitView } from './core/ViewFitRules.js';
 import { DisplayState } from './core/DisplayState.js';
 import { UnitSnapSettings } from './core/UnitSnapSettings.js';
-import { resolveUnitSnapStep, roundPointToUnit } from './core/UnitSnapRules.js';
-import { ViewToggleGroup } from './palette/ViewToggleGroup.js';
-import { UnitSnapGroup } from './palette/UnitSnapGroup.js';
+import { DisplayWiring } from './wiring/DisplayWiring.js';
 
 // DOMが読み込まれた後に初期化を行う
 document.addEventListener('DOMContentLoaded', () => {
@@ -353,120 +347,9 @@ document.addEventListener('DOMContentLoaded', () => {
     historyUndoBtn.addEventListener('click', () => performUndo());
     historyRedoBtn.addEventListener('click', () => performRedo());
 
-    // 6.5. 表示配線（ステータスバーの座標・大きさ・グリッドの表示、表示の切り替えのまとまり（アウトライン・背景・グリッド）、スナップのまとまり（ON/OFF・単位）、パレットを隠す、全体を画面に収める）
-    // 外枠の照会（選択中の図形の大きさに使う）
-    const shapeExtentReader = new ShapeExtentReader({ model });
-    const cursorReadoutEl = document.getElementById('cursor-readout');
-    const selectionSizeReadoutEl = document.getElementById('selection-size-readout');
-    const gridSizeReadoutEl = document.getElementById('grid-size-readout');
-
-    /**
-     * ステータスバーのカーソル位置の座標（`#cursor-readout`）を、最後のカーソル位置から求め直して同期する。
-     * cursorTracker.onChange・viewTransform.onChange・unitSnapSettings.onChangeに登録する
-     * （ビュー変換・スナップの設定が変わったときも求め直す）。
-     * スナップがONで、最後のmousemoveでCtrlが押されていなかったときは、点を打つ位置と同じ規則（resolveUnitSnapStep・roundPointToUnit）で
-     * 丸めた値を表示する。丸めるかの判定は規則の関数が持つ（world === nullの分岐は「位置なし」の受け渡し）。
-     * 端点への吸い付きの結果は反映しない。定規の印（renderRulers）は丸めないカーソル位置のまま。
-     */
-    function syncCursorReadout() {
-        const world = cursorTracker.getWorldPosition();
-        const step = resolveUnitSnapStep(unitSnapSettings.getActiveStep(), cursorTracker.isCtrlPressed());
-        cursorReadoutEl.textContent = formatCursorReadout(world === null ? null : roundPointToUnit(world, step));
-    }
-
-    /**
-     * ステータスバーの選択中の図形の大きさ（`#selection-size-readout`）を同期する。
-     * model.onChangeに登録する（ドラッグでの移動・変形の途中も追従する）。
-     */
-    function syncSelectionSizeReadout() {
-        selectionSizeReadoutEl.textContent = formatSizeReadout(shapeExtentReader.getSelectedBounds());
-    }
-
-    /**
-     * ステータスバーのグリッド1マスの大きさ（`#grid-size-readout`）を、現在の表示倍率から同期する。
-     * viewTransform.onChangeに登録する（グリッドを非表示にしている間も表示したまま）。
-     */
-    function syncGridSizeReadout() {
-        gridSizeReadoutEl.textContent = formatGridReadout(computeGridSpacing(viewTransform.getScale()).minor);
-    }
-
-    cursorTracker.onChange(syncCursorReadout);
-    viewTransform.onChange(syncCursorReadout);
-    unitSnapSettings.onChange(syncCursorReadout);
-    model.onChange(syncSelectionSizeReadout);
-    viewTransform.onChange(syncGridSizeReadout);
-
-    // 表示の切り替えのまとまり（▢◐▦）。表示（押し込みの付け外しと押下の通知）はViewToggleGroup（palette/）が持ち、
-    // ここは生成・注入・同期のみを行う。コールバックはキー（Z・X・C）と同じdisplayStateの操作を呼ぶだけで、判定を持たない
-    const viewToggleGroup = new ViewToggleGroup(document.getElementById('view-toggle-group'), {
-        onToggleOutline: () => displayState.toggleOutline(),
-        onToggleBackground: () => displayState.toggleBackground(),
-        onToggleGrid: () => displayState.toggleGrid()
-    });
-
-    /**
-     * ステータスバーの表示の切り替えのまとまり（▢◐▦）の押し込みを、表示の状態（`displayState.getState()`）に同期する
-     * （`viewToggleGroup.render`）。displayState.onChangeに登録し、起動時にも明示的に1回呼び出す
-     * （キーで切り替えてもボタンの表示が追従する）。DOMの更新はViewToggleGroupが担い、ここは橋渡しのみ。
-     */
-    function syncViewToggleGroup() {
-        viewToggleGroup.render(displayState.getState());
-    }
-
-    displayState.onChange(syncViewToggleGroup);
-
-    // スナップのまとまり（🧲・単位のボタン）。表示（ON/OFFの押し込みと単位のボタンの文字・title、押下の通知）はUnitSnapGroup（palette/）が持ち、
-    // ここは生成・注入・同期のみを行う。コールバックはunitSnapSettingsの操作を呼ぶだけで、判定を持たない
-    const unitSnapGroup = new UnitSnapGroup(document.getElementById('unit-snap-group'), {
-        onToggleEnabled: () => unitSnapSettings.toggleEnabled(),
-        onToggleUnit: () => unitSnapSettings.toggleUnit()
-    });
-
-    /**
-     * ステータスバーのスナップのまとまり（🧲・単位のボタン）の表示を、スナップの設定（`unitSnapSettings.getState()`）に同期する
-     * （`unitSnapGroup.render`）。unitSnapSettings.onChangeに登録し、起動時にも明示的に1回呼び出す。
-     * DOMの更新はUnitSnapGroupが担い、ここは橋渡しのみ。
-     */
-    function syncUnitSnapGroup() {
-        unitSnapGroup.render(unitSnapSettings.getState());
-    }
-
-    unitSnapSettings.onChange(syncUnitSnapGroup);
-
-    // フロートウィンドウをまとめて隠す/出す（🧰。キーTabと同じdisplayStateの操作を呼ぶだけで、判定を持たない）
-    const floatWindowsToggleBtn = document.getElementById('float-windows-toggle');
-    floatWindowsToggleBtn.addEventListener('click', () => displayState.toggleFloatWindows());
-
-    /**
-     * フロートウィンドウの表示の状態（`displayState.isFloatWindowsVisible()`）を、`body`のクラス`float-windows-hidden`
-     * （index.htmlのCSSがすべての`.float-window`を隠す）と🧰の押し込み（表示中＝押し込み）に同期する。
-     * displayState.onChangeに登録し、起動時にも明示的に1回呼び出す（キーで切り替えてもボタンの表示が追従する）。
-     */
-    function syncFloatWindowVisibility() {
-        const visible = displayState.isFloatWindowsVisible();
-        document.body.classList.toggle('float-windows-hidden', !visible);
-        floatWindowsToggleBtn.classList.toggle('active', visible);
-    }
-
-    displayState.onChange(syncFloatWindowVisibility);
-
-    /**
-     * 全図形の外枠がキャンバスの領域（キャンバス要素）に余白を空けて収まるよう、表示倍率とオフセットを設定する。
-     * 求める規則は`computeFitView`（図形0個のときは表示のリセットと同じ結果）。再描画・倍率表示・定規・座標の表示は
-     * viewTransform.onChangeが追従する。⛶（`#view-fit`）のclickからのみ呼ぶ（キーは割り当てない）。
-     */
-    function fitViewToShapes() {
-        const view = computeFitView(
-            shapeExtentReader.getAllBounds(),
-            canvas.clientWidth,
-            canvas.clientHeight,
-            { minScale: ViewTransform.MIN_SCALE, maxScale: ViewTransform.MAX_SCALE }
-        );
-        viewTransform.setView(view.scale, view.offsetX, view.offsetY);
-    }
-
-    // 全体を画面に収める（⛶。単独のボタン。🎯と同じく判定を持たない）
-    document.getElementById('view-fit').addEventListener('click', () => fitViewToShapes());
+    // 6.5. 表示配線（実体は`wiring/DisplayWiring`。ステータスバーの表示・表示の切り替え・スナップ・パレットを隠す・全体を画面に収めるの購読と`click`の登録を行う）
+    // 同じ通知元（model・viewTransform・displayState）への登録順が通知の呼ばれる順に効くため、この位置（6.の後・7.の前）を動かさないこと
+    const displayWiring = new DisplayWiring({ model, viewTransform, displayState, unitSnapSettings, cursorTracker, canvas });
 
     // 7. ツールパレット配線
     // ツールの識別子一覧はToolRulesのTOOL_IDS（選択・キャンバス移動・スポイト・SHAPE_TYPES）。パレットのボタンはid`tool-${toolId}`で照合される
@@ -967,23 +850,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ViewTransformの実値で明示的に1回同期する
     syncZoomDisplay();
 
-    // 座標・大きさ・グリッドの表示も同様に、index.htmlの空の初期状態やonChange通知に依存させず、実値で明示的に1回ずつ同期する
-    // （カーソル位置は未取得のため座標は「—」）
-    syncCursorReadout();
-    syncSelectionSizeReadout();
-    syncGridSizeReadout();
-
-    // 表示の切り替えのまとまり（▢◐▦）の押し込みも同様に、index.htmlの初期状態やonChange通知に依存させず、
-    // 表示の状態の実値で明示的に1回同期する
-    syncViewToggleGroup();
-
-    // スナップのまとまり（🧲・単位のボタン）の押し込み・単位のボタンの文字とtitleも同様に、index.htmlの初期状態
-    // （押し込み・文字・titleは書いていない）やonChange通知に依存させず、スナップの設定の実値で明示的に1回同期する
-    syncUnitSnapGroup();
-
-    // フロートウィンドウの表示（bodyのクラス・🧰の押し込み）も同様に、index.htmlの初期状態やonChange通知に依存させず、
-    // 表示の状態の実値で明示的に1回同期する
-    syncFloatWindowVisibility();
+    // ステータスバーの各表示（座標・大きさ・グリッド・表示の切り替え・スナップ・フロートウィンドウ）も同様に、
+    // index.htmlの初期状態やonChange通知に依存させず、実値で明示的に1回ずつ同期する
+    displayWiring.syncAll();
 
     // 削除ボタンの押せる/押せない状態も同様に、index.htmlの初期disabled属性やonChange通知に
     // 依存させず、Modelの選択集合の実値で明示的に1回同期する
