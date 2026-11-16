@@ -3,7 +3,7 @@
  * preventDefault()で抑止することのみを担う。状態を持たず、操作の実体（Alt+ドラッグ等）は持たない。
  */
 
-import { isTextInputElement } from './InputTracker.js';
+import { isTextInputElement } from './FocusKeyYieldRules.js';
 
 /**
  * Altキーの単独押下・単独解放の抑止（メニューへのフォーカス移動の防止）。

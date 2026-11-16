@@ -6,7 +6,7 @@
 
 import { OperationMode } from './InputModes.js';
 import { SHAPE_TYPES } from './ShapeFactory.js';
-import { isTextInputElement, isSpaceOperatedInputElement } from './InputTracker.js';
+import { isTextInputElement, isSpaceOperatedInputElement } from './FocusKeyYieldRules.js';
 
 /**
  * 対応表エントリのShift規則（3値）。本ファイル内でのみ用いる（exportしない）。

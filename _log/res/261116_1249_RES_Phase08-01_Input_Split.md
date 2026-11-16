@@ -422,7 +422,7 @@
         *   `grep -rn "SHAPE_TYPES" --include=*.js .`で`InputTracker.js`から取っている箇所が無くなったことを確認する。
         *   `node --test`で全件通ることを確認する。
         *   **タスク完了後の記録**：本計画書の『4. 詳細作業内容』の「タスク2: …」の欄へ実際の作業内容（変更したファイル・移した範囲・確認した結果）を記載して完成させ、「3. タスクリスト」の該当タスクを`[x]`にする。開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る点が判明した場合は、資料本体は修正せず『開発資料（`PROJECT_ARCHITECTURE.md`）の更新予定』欄へ追記する（資料本体の修正はタスク12のみ）。
-*   [ ] タスク3: 要件1(c) フォーカスしている要素の判定を`js/core/FocusKeyYieldRules.js`へ移す
+*   [x] タスク3: 要件1(c) フォーカスしている要素の判定を`js/core/FocusKeyYieldRules.js`へ移す
     *   **対象ファイル** :
         *   `./js/core/FocusKeyYieldRules.js` :（新規）
         *   `./js/core/InputTracker.js` :（更新）
@@ -543,7 +543,9 @@
 
 ### タスク3: 要件1(c) フォーカスしている要素の判定を`js/core/FocusKeyYieldRules.js`へ移す
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/core/FocusKeyYieldRules.js`を新規作成（責務定義3行のJSDoc。importなし・最上位でDOMに触れない）。`InputTracker.js`の`TEXT_INPUT_TYPES`・`isTextInputElement`・`SPACE_OPERATED_INPUT_TYPES`・`isSpaceOperatedInputElement`・`isToggleButtonElement`・`isSpaceYieldedElement`をJSDoc込みでそのまま移した（中身・判定の条件は不変）。`isToggleButtonElement`は非公開のまま、`isSpaceYieldedElement`は`export`に変更。JSDocの本文は参照先が同ファイル内・`KeyboardShortcuts`・`InputTracker`のままで直す箇所がなかった。
+    *   `InputTracker.js`：元の定義を削除し`import { isTextInputElement, isSpaceYieldedElement } from './FocusKeyYieldRules.js';`を追加（再exportなし）。`KeyboardShortcuts.js`（`isTextInputElement`・`isSpaceOperatedInputElement`）・`AltKeyGuard.js`（`isTextInputElement`）のimport元を`FocusKeyYieldRules.js`へ変更。
+    *   grepで該当識別子のimportが`FocusKeyYieldRules.js`のみであることを確認。`node --test`：tests 1261 / pass 1261 / fail 0。
 
 ### タスク4: 要件2 押下で始める操作の規則を`js/core/PressActionRules.js`へ切り出す
 *   **作業内容** :
