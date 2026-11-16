@@ -459,7 +459,7 @@
         *   使われなくなった`import`・関数・定数・コメントが残っていないことを確認する（ただし各図形の`drawHandles`は残す）。
         *   JSDocの記載漏れが無いことを確認し、リポジトリのルートで`node --test`を実行して全件通ることを確認する。
 
-*   [ ] タスク12: 要件2-1 スプライトを描画先へ収める規則（`SpriteFitRules`）の新設
+*   [x] タスク12: 要件2-1 スプライトを描画先へ収める規則（`SpriteFitRules`）の新設
     *   **対象ファイル** :
         *   `./js/core/SpriteFitRules.js` :（新規）
         *   `./test/core/SpriteFitRules.test.js` :（新規）
@@ -612,7 +612,7 @@
 
 ### タスク12: 要件2-1 スプライトを描画先へ収める規則（`SpriteFitRules`）の新設
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/core/SpriteFitRules.js`を新規作成（`computeSpriteFitTransform`、importなし、2章の規則どおり）。`test/core/SpriteFitRules.test.js`を新規作成（16件）。`node --test`全件合格（1365件）。
 
 ### タスク13: 要件2-2 ツールのアイコンのスプライトJSを書き出しの経路で生成する
 *   **作業内容** :
