@@ -1,0 +1,37 @@
+/**
+ * 責務：入力の状態（InputState）と操作モード（OperationMode）の値の定義だけを持つ。
+ * import・DOM・判定を持たない。
+ */
+
+/**
+ * InputTrackerが取りうる内部状態。
+ * IDLE: 待機状態（ホバー判定・クリックによる新規作成/選択待ち）。
+ * DRAWING: 作成中の図形の終点をカーソルに追従させている（始点確定済み）。
+ * DRAGGING_HANDLE: 選択集合内の1図形の頂点ハンドルを押下・ドラッグ中（閾値以前を含む。閾値を超えたかはDragTrackerが保持する）。
+ * MOVING_SELECTION: 選択集合の全図形を平行移動するドラッグを押下・ドラッグ中（moveハンドル・本体ドラッグ。閾値以前を含む）。
+ * MARQUEE_SELECTING: 範囲選択を押下・ドラッグ中（閾値以前を含む）。
+ * @readonly
+ * @enum {string}
+ */
+export const InputState = {
+    IDLE: 'IDLE',
+    DRAWING: 'DRAWING',
+    DRAGGING_HANDLE: 'DRAGGING_HANDLE',
+    MOVING_SELECTION: 'MOVING_SELECTION',
+    MARQUEE_SELECTING: 'MARQUEE_SELECTING',
+};
+
+/**
+ * 操作モード。ツールパレットの「選択」「キャンバス移動」のボタンはSELECT・PANに、図形のボタンはCREATE（と図形種別）に対応する（対応の規則は`ToolRules.js`）。
+ * SELECT: 選択モード（ホバー判定・選択・範囲選択・本体ドラッグ・ハンドルドラッグ・一括削除）。
+ * CREATE: 図形作成モード（currentShapeTypeの図形を新規作成）。
+ * PAN: キャンバス移動モード（左ドラッグでパン）。
+ * モードを追加する際は、ここへ1エントリを追加する（InputTracker.setMode()のバリデーションは本定義の値を正とする）。
+ * @readonly
+ * @enum {string}
+ */
+export const OperationMode = Object.freeze({
+    SELECT: 'select',
+    CREATE: 'create',
+    PAN: 'pan',
+});

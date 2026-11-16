@@ -396,7 +396,7 @@
 
 ## 3. タスクリスト
 
-*   [ ] タスク1: 要件1(a) 操作モードと入力状態の定数を`js/core/InputModes.js`へ移す
+*   [x] タスク1: 要件1(a) 操作モードと入力状態の定数を`js/core/InputModes.js`へ移す
     *   **対象ファイル** :
         *   `./js/core/InputModes.js` :（新規）
         *   `./js/core/InputTracker.js` :（更新）
@@ -530,7 +530,10 @@
 
 ### タスク1: 要件1(a) 操作モードと入力状態の定数を`js/core/InputModes.js`へ移す
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/core/InputModes.js`を新規作成（責務定義3行のJSDoc。import・DOMなし）。`InputTracker.js`の`InputState`（素のオブジェクト）・`OperationMode`（`Object.freeze`）をJSDoc込みでそのまま移した。JSDocは`setMode()`→`InputTracker.setMode()`の1箇所のみ修飾。`PointHit`のtypedefは`InputTracker.js`に残した。
+    *   `InputTracker.js`：元の定義とexportを削除し、`import { InputState, OperationMode } from './InputModes.js';`を追加（再exportなし）。
+    *   import元を`InputModes.js`へ変更：`ToolRules.js`、`test/core/ToolRules.test.js`、`KeyboardShortcuts.js`（`OperationMode`のみ分離。`SHAPE_TYPES`・`isTextInputElement`・`isSpaceOperatedInputElement`は従来どおり`InputTracker.js`から。タスク2・3の対象）、`main.js`（`OperationMode`のみ分離。`InputTracker`・`WHEEL_ZOOM_STEP`・`hasCtrlModifier`は`InputTracker.js`のまま）。
+    *   grepで取り込み側に漏れがないことを確認（`InputState`は`InputTracker.js`のみ）。`node --test`：tests 1261 / pass 1261 / fail 0。
 
 ### タスク2: 要件1(b) `SHAPE_TYPES`の再exportを消す
 *   **作業内容** :

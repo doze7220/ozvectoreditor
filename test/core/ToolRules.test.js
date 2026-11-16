@@ -4,7 +4,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { TOOL_IDS, EYEDROPPER_TOOL_ID, resolveActiveTool } from '../../js/core/ToolRules.js';
-import { OperationMode } from '../../js/core/InputTracker.js';
+import { OperationMode } from '../../js/core/InputModes.js';
 import { SHAPE_TYPES } from '../../js/core/ShapeFactory.js';
 
 /** 図形種別の入力として試す値（全種別・図形ではない値・未知の値・未定義）。 */

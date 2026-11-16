@@ -4,7 +4,8 @@
  * 操作の実体はmain.jsから注入されたコールバックへ委譲する。
  */
 
-import { OperationMode, SHAPE_TYPES, isTextInputElement, isSpaceOperatedInputElement } from './InputTracker.js';
+import { OperationMode } from './InputModes.js';
+import { SHAPE_TYPES, isTextInputElement, isSpaceOperatedInputElement } from './InputTracker.js';
 
 /**
  * 対応表エントリのShift規則（3値）。本ファイル内でのみ用いる（exportしない）。

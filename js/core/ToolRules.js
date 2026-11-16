@@ -2,7 +2,7 @@
  * 責務: ツール（選択・キャンバス移動・スポイト・図形の種別）の識別子と、操作モード・図形種別・スポイトの待ち受けから
  * 押し込みの表示にするツールを求める規則を、状態を持たない関数として提供する。DOMに触れない。
  */
-import { OperationMode } from './InputTracker.js';
+import { OperationMode } from './InputModes.js';
 import { SHAPE_TYPES } from './ShapeFactory.js';
 
 /**
