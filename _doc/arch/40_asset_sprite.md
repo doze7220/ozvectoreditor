@@ -1,0 +1,6 @@
+*   **asset/sprite/**：ツールのアイコンの**仮の**スプライトJS（Phase 08-02aで新設）。`select-arrow.js`（黒い矢印＝選択のアイコン）と`vertex-arrow.js`（白い矢印＝頂点の選択のアイコン。Photoshopと同じ色の約束）の2本。後日、本アプリで描き直して差し替える前提で、矢印の形（頂点の座標）も仮のもの。
+    *   **本アプリの書き出しが作った生成物**：2本とも、`Path.fromJSON`（7頂点の閉じたパス1つ）→ `SpriteSerializer.serialize` → `CodeExporter.toModuleText`の経路で生成したテキストをそのまま置いたもの（書き出し形式の版2。作業データの版も2）。生成は1回限りの手作業で、生成スクリプト・ビルド手順はリポジトリに無い（`package.json`・ビルドを足さない方針）。**手で書き換えない**。差し替えるときは、本アプリで描いて書き出したJSで置き換える。
+    *   **先頭のコメントは`CodeExporter`の固定のヘッダコメント**（`OZ Vector Editor が出力したスプライト（ESモジュール）。…`）であり、**「責務:」の語を含まない**。これは憲法3章の「すべての`.js`の最先頭行に単一の責務をJSDocで書く」とは別の、書き出しの形のコメントである（生成物であり手で書き換えないため、責務の記載を足さない。**監査時に責務の記載漏れの違反と誤検知しないこと**）。
+    *   **形**：既定のexportのみ（`export default { ...spriteData, draw };`。スプライトデータの全キー`format`・`formatVersion`・`bounds`・`elements`・`source`と`draw(ctx)`）。何もimportしない葉のモジュール。`draw(ctx)`は`ctx`の現在の変換の上に原点(0, 0)を基準に描く（2章「JSの形」）。
+    *   **使う側**：`wiring/ToolIconWiring`だけ（`bounds`と`draw`を使う）。`core/`・`edit/`・`io/`・`palette/`は`asset/`をimportしない。エンジンへは渡さない（本アプリ自身のUI用。**書き出し形式の版は上げておらず、エンジンへの連絡票は不要**）。
+    *   **テスト**：なし（生成物。確認はテストプレイでアイコンが描かれること。`_doc/arch/16_test.md`）。

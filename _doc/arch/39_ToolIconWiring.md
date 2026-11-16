@@ -1,0 +1,9 @@
+*   **wiring/ToolIconWiring.js**：ツールパレットの選択・頂点の選択のボタンへ、スプライトJS（`asset/sprite/`）の絵を描いた`<canvas>`を入れる配線のみを担う（Phase 08-02aで新設。関数`drawToolIcons()`）。判定・計算の規則は持たない（収める計算は`core/SpriteFitRules`、絵はスプライトJSの`draw`）。
+    *   **公開**：`drawToolIcons()`（引数なし）のみ。`main.js`が`// 7.`で`ToolPalette`の生成の直後に、起動時に1回だけ呼ぶ。
+    *   **処理（ボタン1つあたり）**：`document.getElementById`で`tool-${OperationMode.SELECT}`・`tool-${OperationMode.VERTEX}`を取る（無ければ`console.warn`してそのボタンだけ配線しない。`palette/`のUI部品と同じ扱い）→ ボタンの中身を空にして`<canvas>`を1つ入れる → `devicePixelRatio`に合わせた内部バッファ（`canvas.width`・`height`）とCSSの大きさ（20px）を設定する（`CanvasManager.resize`と同じ考え方）→ `computeSpriteFitTransform(sprite.bounds, 20, 20, 1)`が`null`なら描かない → `ctx.setTransform(dpr × scale, 0, 0, dpr × scale, dpr × offsetX, dpr × offsetY)`のうえで`sprite.draw(ctx)`。定数`ICON_CANVAS_SIZE`（20）・`ICON_CANVAS_PADDING`（1）は本ファイルが唯一の定義箇所（ボタンは32×32のまま）。
+    *   **import**：`asset/sprite/select-arrow.js`・`asset/sprite/vertex-arrow.js`（既定のexport）・`core/SpriteFitRules`の`computeSpriteFitTransform`・`core/InputModes`の`OperationMode`（ボタンのidを組み立て、識別子を二重に書かないため）。**`wiring/ → asset/sprite/*.js`は本作業で新しくできた依存の向き**（`asset/`は何もimportしない葉。`core/`は`asset/`をimportしない）。
+    *   **使う側**：`main.js`だけ。`js/`の他のフォルダは`wiring/`をimportしない。
+    *   **知らないこと**：`VectorModel`・`InputTracker`・`ToolPalette`・表示の状態・スプライトJSの中身（`bounds`と`draw`だけを使う）。購読を持たず、押し込みに応じた描き分けをしない。
+    *   **やらないこと**：`devicePixelRatio`の変化・ウィンドウの移動での描き直し（別解像度のディスプレイへ移すとアイコンだけがぼやけたままになる。再読み込みで直る）、他のボタンのアイコンの差し替え。
+    *   **注意**：`index.html`の`#tool-select`・`#tool-vertex`は中身が空で、起動時にここが`<canvas>`を入れる（`index.html`の「アイコンはボタンの中身の1か所だけに書く」の例外。絵の定義はスプライトJS。`_doc/arch/01_index_html.md`）。ボタンのidの規則（`tool-${toolId}`）を変えると食い違う。
+    *   **テスト**：なし（DOM・Canvasに依存。`_doc/arch/16_test.md`の「テストできない箇所（08-02aの追加）」）。テストプレイで、アイコンがつぶれず・ぼやけず描かれることを確かめる（発注者のテストプレイ：全項目OK）。

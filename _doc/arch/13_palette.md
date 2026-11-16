@@ -3,6 +3,7 @@
         *   **公開メソッド**：`setActiveTool`。
         *   **注入**：`main.js`がルート要素・ツールの識別子の一覧（`ToolRules`の`TOOL_IDS`）・`onToolSelected`（`selectTool`）を渡す。importは持たず、`InputTracker`・`ShapeFactory`・`ToolRules`へ直接依存しない。
         *   **契約**：ボタンはid規則`tool-${toolId}`で解決する。不整合（一覧にあるのにボタンが無い／一覧に無い`tool-`の要素）は`console.warn`で報告して、その要素を配線しない。照合はコンストラクタの1回のみ。`setActiveTool(toolId)`は一致する配線済みのボタン1つだけに`.active`を付け、他は外す（一致しなければ`null`を含めすべて外す）。ルート要素が無いと`console.warn`（`ToolPalette: ルート要素が見つかりません。配線しません。`）して何も配線しない（`setActiveTool`は何もしない）。操作モードの知識は持たない（押し込みにするツールは`main.js`が`ToolRules`で求めて渡す）。ウィンドウ全体を非活性にするクラスは無く、ツールパレットは常に押せる。`Tab`・ツールバーの🧰では他のフロートウィンドウとまとめて隠される（隠す仕組みは`index.html`のCSS（`body.float-windows-hidden .float-window`）と`wiring/DisplayWiring`で、本クラスは関与しない。`PaletteController`の`setEnabled`に当たるものは無い）。
+        *   **アイコンの`<canvas>`との関係（Phase 08-02a）**：選択のボタン`#tool-select`・頂点の選択のボタン`#tool-vertex`の中身の`<canvas>`（スプライトJSの絵）は`wiring/ToolIconWiring`が起動時に入れる（`_doc/arch/39_ToolIconWiring.md`）。`ToolPalette`は関与せず、ボタンの中身を書き換えない（id・`.active`・クリックの配線だけを担う）。`#tool-vertex`は`TOOL_IDS`に`'vertex'`があるため照合で配線される。
     *   **DevPanel.js**：開発者向け確認用ウィンドウ（`#window-dev-panel`）。
         *   **公開メソッド**：`show`。
         *   **知らないこと**：作業データの中身。importを持たず、`VectorModel`・`InputTracker`・`DocumentSerializer`・図形インスタンスを参照しない（受け取るのは文字列と要約`ImportSummary`のみ）。

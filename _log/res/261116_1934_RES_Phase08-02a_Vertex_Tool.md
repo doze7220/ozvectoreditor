@@ -528,7 +528,7 @@
         *   17. **線の上の強調表示（これでよいか答えてほしい）**：頂点の選択（`A`）で図形を1つ選び、その図形や別の図形の線の上にマウスを乗せる。選択（`V`）のときと同じように線が強調される（色が変わる）。**頂点の選択のときもこの強調表示を出したままでよいか**（出さない方がよければ指示がほしい）。
         *   18. **削除ボタンの見た目（これでよいか答えてほしい）**：頂点の選択（`A`）で図形を1つ選ぶと、ツールバーの削除ボタンが押せる見た目（薄くならない状態）のままになる。押しても図形は消えない。**この見た目のままでよいか**（押せない見た目にしたければ指示がほしい）。
 
-*   [ ] タスク17: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
+*   [x] タスク17: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新）
         *   `./_doc/arch/01_index_html.md` `./_doc/arch/02_main.md` `./_doc/arch/03_VectorModel.md` `./_doc/arch/04_CanvasManager.md` `./_doc/arch/06_InputTracker.md` `./_doc/arch/07_KeyboardShortcuts.md` `./_doc/arch/12_shapes.md` `./_doc/arch/13_palette.md` `./_doc/arch/16_test.md` `./_doc/arch/18_PointHitRules.md` `./_doc/arch/19_ToolRules.md` `./_doc/arch/32_InputModes.md` `./_doc/arch/35_CursorShapeRules.md` :（更新）
@@ -641,7 +641,11 @@
 
 ### タスク17: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `PROJECT_ARCHITECTURE.md`：1章（フォルダ構造の`SpriteFitRules`・`VertexHandleRules`・`wiring/ToolIconWiring`・`asset/sprite/`・テスト3ファイル、フォルダ分割の方針・依存方向、「存在しないもの」のPhase 08-02aの分）、2章（図形メソッド契約18、スプライト：本アプリ自身のツールのアイコン、選択状態：不変条件を「選択モード・頂点の選択モード以外では空」へ・頂点の選択の項、保存しないものへの追記）、3章（当たり分類の`includeHandles`、キーボード操作の`A`、履歴の適用の`shouldRestoreSelection`、新しい節「18. 頂点の選択」＝ツール・操作モードの一覧・操作の規則・モジュールの分担・表示・`drawHandles`が呼ばれなくなること・履歴/保存・アイコン・発注者の決定（テストプレイで承認された2点を(7)(8)として記録）・やらないこと・注意・テストプレイの結果）、4章の一覧へ4行。
+    *   `_doc/arch/`：更新＝`01_index_html`・`02_main`・`03_VectorModel`・`04_CanvasManager`・`06_InputTracker`・`07_KeyboardShortcuts`・`12_shapes`・`13_palette`・`16_test`・`18_PointHitRules`・`19_ToolRules`・`32_InputModes`・`35_CursorShapeRules`。新規＝`37_SpriteFitRules`・`38_VertexHandleRules`・`39_ToolIconWiring`・`40_asset_sprite`（生成物の先頭コメントが「責務:」の語を含まないことを明記）。
+    *   計画の欄に無かったが、実コードと食い違う記述を残さないため次の2点も直した：`_doc/arch/10_ShapeFactory.md`の「17メソッド契約」→18、`_doc/arch/14_edit.md`の不変条件の文言。
+    *   実コードで確かめた値：`main.js`899行・`InputTracker.js`1445行・`node --test`は1365件（suites 208）全件合格。ソースは変更していない。
+    *   監査の指摘で追記修正：`PROJECT_ARCHITECTURE.md`1章の`InputModes.js`行のコメントの利用者の一覧に、`VertexHandleRules`・`wiring/ToolIconWiring`を加えた（実コードの`OperationMode`のimport元と一致）。
 
 ## 5. 懸念事項・要確認ポイント
 
@@ -659,3 +663,5 @@
 10. **既存のテストの書き換え**：`test/core/ToolRules.test.js`の`TOOL_IDS`の並び・`EYEDROPPER_TOOL_ID`の位置・先頭の値のケースのみ、REQが明示的に変更を求めているふるまい（ツールの並び）に合わせて期待値を直す。`test/core/PressActionRules.test.js`・`CursorShapeRules.test.js`の既存ケース・`test/core/PointHitRules.test.js`の既存ケースは変えない（いずれも既定値のまま通る）。
 11. **頂点の選択のモードのクリックで変更通知が2回出ること**：頂点の選択（`A`）で図形の本体・空白をクリックすると、頂点の選択の解除（`clearSelectedVertices`）と選択集合の変更（`#applySelectionChange`）で`#notifyChange()`が2回出る（再描画も2回）。既存の経路だけを使い、**機能専用の経路を足さないこと**を優先した結果であり、見た目・結果に違いは出ない（REQの「性能の改善を目的とした変更を行わない」にも沿う）。1回にまとめるには`VectorModel`へ専用のメソッドを足すことになるため、本作業では行わない。
 12. **`asset/sprite/`の生成されるJSの先頭のコメント**：書き出しの経路（`CodeExporter`）で作るため、生成されるJSの先頭には`CodeExporter`の固定のヘッダコメントが入り、**「責務:」の語は含まれない**（憲法3章の「すべての`.js`の最先頭行に責務を書く」との関係で、監査時に違反と誤検知されやすい）。生成物であり手で書き換えないものなので、その旨を資料（`_doc/arch/40_asset_sprite.md`）側に明記する（最終タスクの作業内容に含めた）。
+13. **（タスク17）テストプレイの結果と、要確認だった2点の決着**：発注者の回答（2026-11-16）は全項目OK。懸念事項1の削除ボタン（押せる見た目のまま・押しても何も起きない・`main.js`に操作モードの判定を足さない）と、懸念事項2のホバーの強調（頂点の選択でも選択と同じに出す）は、現状のままでよいと承認された。開発資料3章18.の「発注者の決定」の(7)(8)に記録した。将来、削除ボタンを押せない見た目にする・頂点の選択でホバーの強調を消す場合は、この決定の変更になる（発注者の指示が要る。前者は`main.js`の`syncDeleteButtonState`への判定の追加になり「`main.js`に判定を持たせない」方針と衝突するため、操作モードの照会を`InputTracker`側に持たせる設計を先に決めること）。
+14. **（タスク17）資料の記述の根拠**：資料の数値（行数・件数）は実コードと`node --test`で確かめた値（`main.js`899行・`InputTracker.js`1445行・1365件）。RESの更新予定の欄に無かった`_doc/arch/10_ShapeFactory.md`（17メソッド→18）と`14_edit.md`（不変条件の文言）も、古い記述を残さないために直した。次に本Phaseの後半（複数の頂点の選択）で資料を直すときは、3章18.・`_doc/arch/38_VertexHandleRules.md`・`03_VectorModel.md`の「最大1つしか入らない」「`setSelectedVertices([hit.handle])`」の記述を見直すこと。
