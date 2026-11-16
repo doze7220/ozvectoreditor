@@ -471,7 +471,7 @@
         *   使われなくなった`import`・関数・定数・コメントが残っていないことを確認する（ただし各図形の`drawHandles`は残す）。
         *   リポジトリのルートで`node --test`を実行し、全件通ることを確認する。
 
-*   [ ] タスク13: 要件2-2 ツールのアイコンのスプライトJSを書き出しの経路で生成する
+*   [x] タスク13: 要件2-2 ツールのアイコンのスプライトJSを書き出しの経路で生成する
     *   **対象ファイル** :
         *   `./asset/sprite/select-arrow.js` :（新規）
         *   `./asset/sprite/vertex-arrow.js` :（新規）
@@ -616,7 +616,8 @@
 
 ### タスク13: 要件2-2 ツールのアイコンのスプライトJSを書き出しの経路で生成する
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   スクラッチパッドの使い捨てスクリプトで、`Path.fromJSON`（全キー・7頂点・segments 7件）→`SpriteSerializer.serialize`→`CodeExporter.toModuleText`の経路により`asset/sprite/select-arrow.js`（黒・線なし・太さ2）と`asset/sprite/vertex-arrow.js`（白塗り・黒線・太さ1）を生成した。スクリプトはリポジトリに残していない。`io/`・`shapes/`は無変更。
+    *   生成物の`export default { ...spriteData, draw };`と`format`・`formatVersion`(2)・`bounds`・`elements`・`source`の存在を確認した。`node --test`は1365件全件合格。
 
 ### タスク14: 要件2-3 ツールのアイコンの配線
 *   **作業内容** :
