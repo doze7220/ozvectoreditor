@@ -137,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
         screenLengthToWorld: (length) => viewTransform.screenLengthToWorld(length)
     });
     // スポイトの待ち受けの状態と取り込みの手順（edit/StyleEyedropper。DOM・操作モード・InputTrackerを知らない）。
-    // 生成順の制約：InputTrackerのコンストラクタが#updateCursor() → #resolveCursor → isPickingShape()を呼ぶため、
+    // 生成順の制約：InputTrackerのコンストラクタが#updateCursor()でisPickingShape()を呼ぶ（resolveCursorShapeへ渡す）ため、
     // inputTrackerより前に生成する（後に宣言すると一時的デッドゾーンでReferenceError）。
     // shapeStyleEditorは後の「// 7.7.」でconst宣言されるが、applyStyleが呼ばれるのは取り込み時（起動完了後）だけで、
     // StyleEyedropperのコンストラクタはapplyStyleを呼ばない（既存のinputTrackerの前方参照と同じ扱い）

@@ -1,7 +1,7 @@
 /**
  * 責務：ユーザー入力（図形作成・選択・範囲選択・本体ドラッグ・ハンドルドラッグ・パン・ズーム。キーはスペースパンのみ）の解釈と
  * Model・ビュー変換への反映（修飾キーの読み取りは、規則の関数へ渡すこと、Altで注入された複製を呼ぶかを決めること、Ctrlの間に端点への吸い付きの照会を省くことにだけ使う。待ち受け中のクリックは図形のidを外へ渡すだけ）、状態依存の操作（一括削除・取消・全選択・進行中操作の中断）の公開、編集操作の開始・確定の通知（注入された記録先へ）、
- * および入力状態に応じたカーソル形状のフィードバックを担う。
+ * および入力状態に応じたカーソル形状のキャンバスへの適用（形の判定は規則の関数へ渡すだけで本クラスは持たない）を担う。
  */
 
 import { DragTracker } from './DragTracker.js';
@@ -139,9 +139,12 @@ export function hasCtrlModifier(event) {
 
 /**
  * キャンバスのマウス入力とスペースキー（スペースパン）を解釈し、VectorModelの対応APIを呼び出す状態遷移マシン
- * （IDLE / DRAWING / DRAGGING_HANDLE / MOVING_SELECTION / MARQUEE_SELECTING）。操作モード（currentMode）と
- * 図形種別（currentShapeType）を独立した状態として保持し、操作モード・入力状態・当たり分類（#classifyPoint）に応じて
- * キャンバスのカーソル形状を更新する。当たり分類はホバー・押下・クリック・カーソル形状の判定で共用する。
+ * （IDLE / DRAWING / DRAGGING_HANDLE / MOVING_SELECTION / MARQUEE_SELECTING。値の定義はInputModes.js）。操作モード（currentMode）と
+ * 図形種別（currentShapeType）を独立した状態として保持し、操作モード・入力状態・当たり分類（#classifyPoint）を
+ * CursorShapeRules.resolveCursorShapeへ渡して得た形をキャンバスのカーソルへ適用する（形の判定表は本クラスは持たない）。
+ * 当たり分類はホバー・押下・クリック・カーソル形状の判定で共用する。
+ * 押下時の分岐（何を始めるか）はPressActionRules.resolvePressActionの関数へ渡すだけで本クラスは持たない。
+ * フォーカスしている要素の判定（テキスト入力中・Spaceを部品に譲る要素）はFocusKeyYieldRulesの関数へ渡すだけで本クラスは持たない。
  * パン（中ボタンドラッグ・スペース＋左ドラッグ・キャンバス移動モードの左ドラッグ）は、DRAWINGを保持したまま
  * 行えるよう、InputStateとは直交するprivateフラグ（パン中：#isPanning、スペース押下中：#isSpacePressed）で表現する。
  * パンと左ドラッグ（ハンドルドラッグ・本体ドラッグ・範囲選択）のライフサイクル（開始ボタン・移動量閾値・直前位置・
