@@ -22,10 +22,11 @@ export const InputState = {
 };
 
 /**
- * 操作モード。ツールパレットの「選択」「キャンバス移動」のボタンはSELECT・PANに、図形のボタンはCREATE（と図形種別）に対応する（対応の規則は`ToolRules.js`）。
+ * 操作モード。ツールパレットの「選択」「頂点の選択」「キャンバス移動」のボタンはSELECT・VERTEX・PANに、図形のボタンはCREATE（と図形種別）に対応する（対応の規則は`ToolRules.js`）。
  * SELECT: 選択モード（ホバー判定・選択・範囲選択・本体ドラッグ・ハンドルドラッグ・一括削除）。
  * CREATE: 図形作成モード（currentShapeTypeの図形を新規作成）。
  * PAN: キャンバス移動モード（左ドラッグでパン）。
+ * VERTEX: 頂点の選択モード（選択中の図形の頂点を選んで動かす）。
  * モードを追加する際は、ここへ1エントリを追加する（InputTracker.setMode()のバリデーションは本定義の値を正とする）。
  * @readonly
  * @enum {string}
@@ -34,4 +35,5 @@ export const OperationMode = Object.freeze({
     SELECT: 'select',
     CREATE: 'create',
     PAN: 'pan',
+    VERTEX: 'vertex',
 });

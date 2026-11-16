@@ -327,7 +327,7 @@
 
 ## 3. タスクリスト
 
-*   [ ] タスク1: 要件1-1 操作モードとツールの識別子を足す
+*   [x] タスク1: 要件1-1 操作モードとツールの識別子を足す
     *   **対象ファイル** :
         *   `./js/core/InputModes.js` :（更新）
         *   `./js/core/ToolRules.js` :（更新）
@@ -546,7 +546,10 @@
 
 ### タスク1: 要件1-1 操作モードとツールの識別子を足す
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `InputModes.js`：`OperationMode`へ`VERTEX: 'vertex'`を足し、JSDocに1行加えた。
+    *   `ToolRules.js`：`TOOL_IDS`を`[SELECT, VERTEX, PAN, EYEDROPPER_TOOL_ID, ...SHAPE_TYPES]`にし、`resolveActiveTool`へ`VERTEX`の分岐（選択の次）を足し、JSDocを更新した。新しい定数は無い。
+    *   `ToolRules.test.js`：並び・`EYEDROPPER_TOOL_ID`の位置（4番目）・先頭3つのケースを直し、頂点の選択モードのケースを足した。
+    *   `node --test`：1302件全て合格。
 
 ### タスク2: 要件1-2 ツールパレットのボタンとキー`A`
 *   **作業内容** :

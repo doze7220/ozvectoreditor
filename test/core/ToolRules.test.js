@@ -15,18 +15,19 @@ describe('TOOL_IDS', () => {
         assert.ok(Object.isFrozen(TOOL_IDS));
     });
 
-    test('並びが select, pan, eyedropper, ...SHAPE_TYPES である', () => {
-        assert.deepEqual([...TOOL_IDS], ['select', 'pan', 'eyedropper', ...SHAPE_TYPES]);
+    test('並びが select, vertex, pan, eyedropper, ...SHAPE_TYPES である', () => {
+        assert.deepEqual([...TOOL_IDS], ['select', 'vertex', 'pan', 'eyedropper', ...SHAPE_TYPES]);
     });
 
-    test('EYEDROPPER_TOOL_ID が TOOL_IDS の3番目に含まれる', () => {
-        assert.equal(TOOL_IDS[2], EYEDROPPER_TOOL_ID);
+    test('EYEDROPPER_TOOL_ID が TOOL_IDS の4番目に含まれる', () => {
+        assert.equal(TOOL_IDS[3], EYEDROPPER_TOOL_ID);
         assert.ok(TOOL_IDS.includes(EYEDROPPER_TOOL_ID));
     });
 
-    test('先頭2つが OperationMode.SELECT・PAN と同じ値である', () => {
+    test('先頭3つが OperationMode.SELECT・VERTEX・PAN と同じ値である', () => {
         assert.equal(TOOL_IDS[0], OperationMode.SELECT);
-        assert.equal(TOOL_IDS[1], OperationMode.PAN);
+        assert.equal(TOOL_IDS[1], OperationMode.VERTEX);
+        assert.equal(TOOL_IDS[2], OperationMode.PAN);
     });
 
     test('重複がない', () => {
@@ -44,6 +45,12 @@ describe('resolveActiveTool', () => {
     test('選択モードは図形種別によらず select', () => {
         for (const type of SHAPE_TYPE_INPUTS) {
             assert.equal(resolveActiveTool(OperationMode.SELECT, type), 'select');
+        }
+    });
+
+    test('頂点の選択モードは図形種別によらず vertex', () => {
+        for (const type of SHAPE_TYPE_INPUTS) {
+            assert.equal(resolveActiveTool(OperationMode.VERTEX, type), 'vertex');
         }
     });
 
