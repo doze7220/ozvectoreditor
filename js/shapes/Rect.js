@@ -14,8 +14,8 @@ const RECT_POINT_COUNT = 4;
 
 /**
  * 矩形の図形クラス（図形種別`'rect'`）。頂点は`points[0]`＝topLeft、`[1]`＝topRight、`[2]`＝bottomRight、`[3]`＝bottomLeft（4頂点独立）。
- * 共通メソッド契約（17メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（18メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames）を自律実装する。座標はすべてワールド座標。
  */
 export class Rect {
     /**
@@ -236,6 +236,18 @@ export class Rect {
             return null;
         }
         return { x: this.points[index].x, y: this.points[index].y };
+    }
+
+    /**
+     * 頂点として扱えるハンドル名の一覧を返す（共通メソッド契約の第18メソッド）。
+     * 4つの角（`points`の並びと同じ）。
+     * 並びは`getVertexIndexForHandle`が返す頂点の番号の昇順。一覧の各名前は`hitTestHandle`が返しうる名前で、
+     * `getVertexIndexForHandle`が番号を、`getHandlePosition`が位置を返す。
+     * 戻り値は毎回新しい配列で、書き換えても自身は変わらない。
+     * @returns {string[]} 頂点のハンドル名の配列
+     */
+    getVertexHandleNames() {
+        return ['topLeft', 'topRight', 'bottomRight', 'bottomLeft'];
     }
 
     /**

@@ -55,8 +55,8 @@ function isPlainObject(value) {
  * パスの図形クラス（図形種別`'path'`）。頂点の並び`points`（開いたパス2点以上・閉じたパス3点以上）、
  * 閉じているかを表す`closed`、区間の並び`segments`を持つ。`segments[i]`は`points[i]`→`points[i+1]`の区間で、
  * 閉じたパスの最後の要素は`points[n-1]`→`points[0]`の区間（要素数は開いたパス`n - 1`、閉じたパス`n`）。区間の要素は`{ kind }`で、`kind`は現在`'line'`のみ。
- * 共通メソッド契約（17メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（18メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames）を自律実装する。座標はすべてワールド座標。
  * パスは`ShapeFactory.create`では作られない（読み込み専用。作る操作はPhase 05-03・05-04）。
  */
 export class Path {
@@ -308,6 +308,18 @@ export class Path {
             return null;
         }
         return { x: this.points[index].x, y: this.points[index].y };
+    }
+
+    /**
+     * 頂点として扱えるハンドル名の一覧を返す（共通メソッド契約の第18メソッド）。
+     * `points`の頂点の数だけ`'vertex-<i>'`（頂点が0個なら空配列）。
+     * 並びは`getVertexIndexForHandle`が返す頂点の番号の昇順。一覧の各名前は`hitTestHandle`が返しうる名前で、
+     * `getVertexIndexForHandle`が番号を、`getHandlePosition`が位置を返す。
+     * 戻り値は毎回新しい配列で、書き換えても自身は変わらない。
+     * @returns {string[]} 頂点のハンドル名の配列
+     */
+    getVertexHandleNames() {
+        return Array.from({ length: this.points.length }, (_, i) => `${VERTEX_HANDLE_PREFIX}${i}`);
     }
 
     /**

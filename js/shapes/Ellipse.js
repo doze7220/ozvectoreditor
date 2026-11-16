@@ -30,8 +30,8 @@ const ELLIPSE_TYPES = Object.freeze(['circle', 'arc']);
 /**
  * 円・弧の図形クラス（図形種別`'circle'`|`'arc'`。`type`で振る舞いを分岐する）。頂点は`points[0]`＝中心、`[1]`＝右端制御点、
  * `[2]`＝上端制御点、`[3]`＝開始角制御点、`[4]`＝終了角制御点。開始角・終了角は`type`から決まり、図形データには保存しない。
- * 共通メソッド契約（17メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（18メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames）を自律実装する。座標はすべてワールド座標。
  */
 export class Ellipse {
     /**
@@ -262,6 +262,18 @@ export class Ellipse {
         if (handleName === 'left') return { x: xc - rx, y: yc };
         if (handleName === 'down') return { x: xc, y: yc + ry };
         return null;
+    }
+
+    /**
+     * 頂点として扱えるハンドル名の一覧を返す（共通メソッド契約の第18メソッド）。
+     * 円・弧は頂点として扱えるハンドルを持たないため常に空配列（`'move'`・`'right'`・`'up'`・`'left'`・`'down'`も含めない）。
+     * 並びは`getVertexIndexForHandle`が返す頂点の番号の昇順。一覧の各名前は`hitTestHandle`が返しうる名前で、
+     * `getVertexIndexForHandle`が番号を、`getHandlePosition`が位置を返す。
+     * 戻り値は毎回新しい配列で、書き換えても自身は変わらない。
+     * @returns {string[]} 頂点のハンドル名の配列
+     */
+    getVertexHandleNames() {
+        return [];
     }
 
     /**

@@ -21,8 +21,8 @@ const CURVE_POINT_COUNT = 3;
 
 /**
  * 2次ベジェ曲線の図形クラス（図形種別`'curve'`）。頂点は`points[0]`＝始点、`[1]`＝制御点、`[2]`＝終点。
- * 共通メソッド契約（17メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（18メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames）を自律実装する。座標はすべてワールド座標。
  */
 export class Curve {
     /**
@@ -213,6 +213,18 @@ export class Curve {
         else if (handleName === 'end') index = 2;
         else return null;
         return { x: this.points[index].x, y: this.points[index].y };
+    }
+
+    /**
+     * 頂点として扱えるハンドル名の一覧を返す（共通メソッド契約の第18メソッド）。
+     * 始点・制御点・終点の3つ。
+     * 並びは`getVertexIndexForHandle`が返す頂点の番号の昇順。一覧の各名前は`hitTestHandle`が返しうる名前で、
+     * `getVertexIndexForHandle`が番号を、`getHandlePosition`が位置を返す。
+     * 戻り値は毎回新しい配列で、書き換えても自身は変わらない。
+     * @returns {string[]} 頂点のハンドル名の配列
+     */
+    getVertexHandleNames() {
+        return ['start', 'control', 'end'];
     }
 
     /**

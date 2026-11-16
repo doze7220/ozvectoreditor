@@ -365,7 +365,7 @@
         *   使われなくなった`import`・関数・定数・コメントが残っていないことを確認する（ただし各図形の`drawHandles`は残す）。
         *   リポジトリのルートで`node --test`を実行し、全件通ることを確認する。
 
-*   [ ] タスク4: 要件4-1 図形の5クラスへ`getVertexHandleNames()`を実装する
+*   [x] タスク4: 要件4-1 図形の5クラスへ`getVertexHandleNames()`を実装する
     *   **対象ファイル** :
         *   `./js/shapes/Line.js` `./js/shapes/Curve.js` `./js/shapes/Rect.js` `./js/shapes/Ellipse.js` `./js/shapes/Path.js` :（更新）
     *   **作業内容** :
@@ -563,7 +563,10 @@
 
 ### タスク4: 要件4-1 図形の5クラスへ`getVertexHandleNames()`を実装する
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `Line`（`['start','end']`）・`Curve`（`['start','control','end']`）・`Rect`（4つの角）・`Ellipse`（`[]`）・`Path`（`points`の数だけ`'vertex-<i>'`）へ、`getHandlePosition`の次に`getVertexHandleNames()`をJSDoc付きで足した。毎回新しい配列を返す。
+    *   5クラスのクラスJSDocの契約の列挙を17メソッド → 18メソッドにし、末尾へ`getVertexHandleNames`を足した。既存のメソッド・`test/shapes/`は変更なし。
+    *   `node --test`：1302件全て合格。
+    *   監査指摘の修正：`Path.getVertexHandleNames()`のハンドル名を文字列リテラルから既存の定数`VERTEX_HANDLE_PREFIX`へ一本化した（挙動は変更なし）。
 
 ### タスク5: 要件4-2 図形の5つのテストへ`getVertexHandleNames()`のテストを足す
 *   **作業内容** :

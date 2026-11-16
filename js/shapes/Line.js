@@ -13,8 +13,8 @@ const LINE_POINT_COUNT = 2;
 
 /**
  * 直線の図形クラス（図形種別`'line'`）。頂点は`x1, y1`＝始点、`x2, y2`＝終点として保持する。
- * 共通メソッド契約（17メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（18メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames）を自律実装する。座標はすべてワールド座標。
  */
 export class Line {
     /**
@@ -111,6 +111,18 @@ export class Line {
         if (handleName === 'end') return { x: this.x2, y: this.y2 };
         if (handleName === 'move') return { x: (this.x1 + this.x2) / 2, y: (this.y1 + this.y2) / 2 };
         return null;
+    }
+
+    /**
+     * 頂点として扱えるハンドル名の一覧を返す（共通メソッド契約の第18メソッド）。
+     * 始点・終点の2つ（`'move'`＝中点は頂点ではないため含めない）。
+     * 並びは`getVertexIndexForHandle`が返す頂点の番号の昇順。一覧の各名前は`hitTestHandle`が返しうる名前で、
+     * `getVertexIndexForHandle`が番号を、`getHandlePosition`が位置を返す。
+     * 戻り値は毎回新しい配列で、書き換えても自身は変わらない。
+     * @returns {string[]} 頂点のハンドル名の配列
+     */
+    getVertexHandleNames() {
+        return ['start', 'end'];
     }
 
     /**
