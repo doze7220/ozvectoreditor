@@ -1,6 +1,6 @@
 ---
 name: oz-implementer
-description: OZ Vector Editor の「実装AI」。REQ/RES（作業計画書）に従って計画立案または1タスク分の実装を行う。オーケストレータ（現場設計AI）がREQ/RESのパスとタスク番号を渡して起動する。1タスクごとに新規起動すること。既定モデルは sonnet（タスク実装用）。計画立案・計画書の修正で起動するときは、オーケストレータが model に opus を指定する。
+description: OZ Vector Editor の「実装AI」。REQ/RES（作業計画書）に従って計画立案または1タスク分の実装を行う。オーケストレータ（実装セッションの実装統括AI）がREQ/RESのパスとタスク番号を渡して起動する。1タスクごとに新規起動すること。既定モデルは sonnet（タスク実装用）。計画立案・計画書の修正で起動するときは、オーケストレータが model に opus を指定する。
 tools: Read, Grep, Glob, Edit, Write, Bash
 model: sonnet
 ---

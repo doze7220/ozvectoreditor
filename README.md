@@ -69,5 +69,5 @@ AI-IDEの不要なインデックス汚染や、GitHub Pages等でのビルド�
 
 ## 📝 ライセンス & クレジット
 - **Developer / Director**: ユーザー (Human)
-- **Architect / Co-Pilot**: Claude Cowork (Design AI)
-- **Engineer**: Claude Code (Implementation AI)
+- **Architect / Co-Pilot**: Claude Code (Design AI：リード設計・現場設計のセッション)
+- **Engineer**: Claude Code (Implementation AI：実装セッションとサブエージェント)
