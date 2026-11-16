@@ -40,6 +40,7 @@ import { OptionBarOrderGroup } from './palette/OptionBarOrderGroup.js';
 import { DisplayState } from './core/DisplayState.js';
 import { UnitSnapSettings } from './core/UnitSnapSettings.js';
 import { DisplayWiring } from './wiring/DisplayWiring.js';
+import { drawToolIcons } from './wiring/ToolIconWiring.js';
 
 // DOMが読み込まれた後に初期化を行う
 document.addEventListener('DOMContentLoaded', () => {
@@ -360,6 +361,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 7. ツールパレット配線
     // ツールの識別子一覧はToolRulesのTOOL_IDS（選択・キャンバス移動・スポイト・SHAPE_TYPES）。パレットのボタンはid`tool-${toolId}`で照合される
     const toolPalette = new ToolPalette(document.getElementById('window-tool-palette'), TOOL_IDS, (toolId) => selectTool(toolId));
+    drawToolIcons();
 
     /**
      * ツールパレットの押し込みの表示を、InputTrackerの現在の操作モード・図形種別・スポイトの待ち受けに同期する。

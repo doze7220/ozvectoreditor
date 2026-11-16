@@ -288,6 +288,9 @@
             line-height: 1;
             text-align: center;
         }
+        .icon-btn canvas {
+            display: block;
+        }
         /* ステータスバー（高さ28px）の中のアイコンのボタンは24×24 */
         .status-bar .icon-btn {
             width: 24px;
@@ -528,7 +531,7 @@
         <div class="window-header"></div>
         <div class="window-body">
             <div class="tool-palette-group">
-                <button type="button" id="tool-select" class="tool-btn icon-btn active" title="選択 (V)">🖱</button>
+                <button type="button" id="tool-select" class="tool-btn icon-btn active" title="選択 (V)"></button>
                 <button type="button" id="tool-vertex" class="tool-btn icon-btn" title="頂点の選択 (A)"></button>
                 <button type="button" id="tool-pan" class="tool-btn icon-btn" title="キャンバス移動 (H)">✋</button>
                 <button type="button" id="tool-eyedropper" class="tool-btn icon-btn" title="スポイト (I)">💉</button>

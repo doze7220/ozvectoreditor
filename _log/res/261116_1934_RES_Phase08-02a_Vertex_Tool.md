@@ -482,7 +482,7 @@
         *   使われなくなった`import`・関数・定数・コメントが残っていないことを確認する（ただし各図形の`drawHandles`は残す）。
         *   リポジトリのルートで`node --test`を実行し、全件通ることを確認する（`asset/`は`test/`の対象外）。
 
-*   [ ] タスク14: 要件2-3 ツールのアイコンの配線
+*   [x] タスク14: 要件2-3 ツールのアイコンの配線
     *   **対象ファイル** :
         *   `./js/wiring/ToolIconWiring.js` :（新規）
         *   `./js/main.js` :（更新）
@@ -621,7 +621,10 @@
 
 ### タスク14: 要件2-3 ツールのアイコンの配線
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/wiring/ToolIconWiring.js`（新規）：`drawToolIcons()`を実装（定数`ICON_CANVAS_SIZE`=20・`ICON_CANVAS_PADDING`=1。要素が無ければ`console.warn`。dprに合わせた`<canvas>`、`computeSpriteFitTransform`の結果で`setTransform`、`sprite.draw(ctx)`。fitが`null`なら描かない）。
+    *   `js/main.js`：importを足し、`// 7.`の`ToolPalette`生成の直後で`drawToolIcons()`を1回呼ぶ。
+    *   `index.html`：`#tool-select`の`🖱`を削除。`.icon-btn`の後に`.icon-btn canvas { display: block; }`を足した。
+    *   不要なimport等は無し。`node --test`は1365件全件合格。
 
 ### タスク15: 仕上げの確認（JSDoc・不要なコード・全テスト）
 *   **作業内容** :
