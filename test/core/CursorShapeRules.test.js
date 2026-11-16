@@ -158,6 +158,45 @@ describe('resolveCursorShape：選択モード', () => {
     });
 });
 
+describe('resolveCursorShape：頂点の選択モード', () => {
+    const vertexInput = (overrides = {}) => makeInput({ mode: OperationMode.VERTEX, ...overrides });
+
+    it('DRAGGING_HANDLEはmove（hitがnullでも）', () => {
+        assert.equal(resolveCursorShape(vertexInput({ state: InputState.DRAGGING_HANDLE, hit: null })), 'move');
+    });
+
+    it('hitがnullならdefault', () => {
+        assert.equal(resolveCursorShape(vertexInput({ hit: null })), 'default');
+    });
+
+    it('頂点のハンドル上はmove', () => {
+        const hit = { handle: { shapeId: 's1', handle: 'v0' }, bodyId: 's1' };
+        assert.equal(resolveCursorShape(vertexInput({ hit })), 'move');
+    });
+
+    it('図形の本体上はpointer（選択中でも）', () => {
+        const hit = { handle: null, bodyId: 's1' };
+        assert.equal(resolveCursorShape(vertexInput({ hit, isSelected: () => true })), 'pointer');
+    });
+
+    it('何にも当たらなければdefault', () => {
+        assert.equal(resolveCursorShape(vertexInput()), 'default');
+    });
+
+    it('パン中はgrabbing、スペース押下中はgrab', () => {
+        assert.equal(resolveCursorShape(vertexInput({ isPanning: true })), 'grabbing');
+        assert.equal(resolveCursorShape(vertexInput({ isSpacePressed: true })), 'grab');
+    });
+
+    it('isPickingShape・isSelectedを呼ばない', () => {
+        let calls = 0;
+        const fn = () => { calls++; return true; };
+        resolveCursorShape(vertexInput({ isPickingShape: fn, isSelected: fn, hit: { handle: null, bodyId: 's1' } }));
+        resolveCursorShape(vertexInput({ isPickingShape: fn, isSelected: fn, hit: { handle: { shapeId: 's1', handle: 'v0' }, bodyId: 's1' } }));
+        assert.equal(calls, 0);
+    });
+});
+
 describe('resolveCursorShape：短絡評価と引数不変', () => {
     it('パン中はisPickingShape・isSelectedを呼ばない', () => {
         let calls = 0;

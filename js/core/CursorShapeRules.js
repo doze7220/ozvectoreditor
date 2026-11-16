@@ -33,7 +33,9 @@ import { InputState, OperationMode } from './InputModes.js';
  * （左ドラッグ中はパンを開始しないため除外し、ドラッグ中のカーソルを維持）、
  * (1)図形作成モード → 'crosshair'（作成途中を含む）、
  * (2)キャンバス移動モード → 'grab'、
- * (3)選択モード以外のモード → 'default'（将来のモード追加時の既定値）、
+ * (2a)頂点の選択モード → DRAGGING_HANDLE状態なら'move'、hit === nullなら'default'、hit.handle（頂点のハンドル上）なら'move'、
+ * hit.bodyId（図形の本体上。選択中かは見ない）なら'pointer'、それ以外は'default'（isPickingShape・isSelectedは呼ばない）、
+ * (3)選択モード・頂点の選択モード以外のモード → 'default'（将来のモード追加時の既定値）、
  * (3a)クリックした図形を外へ渡す待ち受け中（isPickingShape()が真） → 'cell'（パン中・スペース押下中の
  * 'grabbing'・'grab'は先に判定されるため優先順は変わらない）、
  * (4)DRAGGING_HANDLE・MOVING_SELECTION状態 → 'move'、
@@ -63,6 +65,26 @@ export function resolveCursorShape(input) {
 
     if (mode === OperationMode.PAN) {
         return 'grab';
+    }
+
+    if (mode === OperationMode.VERTEX) {
+        if (state === InputState.DRAGGING_HANDLE) {
+            return 'move';
+        }
+
+        if (hit === null) {
+            return 'default';
+        }
+
+        if (hit.handle) {
+            return 'move';
+        }
+
+        if (hit.bodyId) {
+            return 'pointer';
+        }
+
+        return 'default';
     }
 
     if (mode !== OperationMode.SELECT) {

@@ -433,7 +433,7 @@
         *   使われなくなった`import`・関数・定数・コメントが残っていないことを確認する（ただし各図形の`drawHandles`は残す）。
         *   リポジトリのルートで`node --test`を実行し、全件通ることを確認する。
 
-*   [ ] タスク10: 要件7-1 カーソルの形の規則に頂点の選択のモードを足す
+*   [x] タスク10: 要件7-1 カーソルの形の規則に頂点の選択のモードを足す
     *   **対象ファイル** :
         *   `./js/core/CursorShapeRules.js` :（更新）
         *   `./test/core/CursorShapeRules.test.js` :（更新）
@@ -599,7 +599,8 @@
 
 ### タスク10: 要件7-1 カーソルの形の規則に頂点の選択のモードを足す
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `CursorShapeRules.js`：キャンバス移動モードの次・「選択モード以外 → default」の前に`OperationMode.VERTEX`の分岐（DRAGGING_HANDLE→move、hit null→default、hit.handle→move、hit.bodyId→pointer、他→default。`isPickingShape`・`isSelected`は呼ばない）を追加し、JSDocの判定表を(2a)として更新。typedefは不変。
+    *   `CursorShapeRules.test.js`：頂点の選択モードのテスト（上記5通り・パン中/Space優先・関数を呼ばないこと）を追加。
 
 ### タスク11: 要件7-2 `InputTracker`に頂点の選択の操作を配線する
 *   **作業内容** :
