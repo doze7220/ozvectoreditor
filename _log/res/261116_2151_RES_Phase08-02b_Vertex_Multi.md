@@ -370,7 +370,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク10: 要件7 表示とカーソルを変える必要があるかを実コードで確かめる
+*   [x] タスク10: 要件7 表示とカーソルを変える必要があるかを実コードで確かめる
     *   **対象ファイル** :
         *   （確認のみ。変更が必要と判断した場合に限り`./js/core/CanvasManager.js`または`./js/core/CursorShapeRules.js`＋`./test/core/CursorShapeRules.test.js`）
     *   **作業内容** :
@@ -490,7 +490,12 @@
 
 ### タスク10: 要件7 表示とカーソルを変える必要があるかを実コードで確かめる
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   **結論：`CanvasManager.js`・`CursorShapeRules.js`・`CursorShapeRules.test.js`のいずれも変更不要。ファイルは1つも変更していない。** 根拠は次の実コードの読み取り。
+    *   **複数の頂点の見分け**：`js/core/VertexHandleRules.js`の`collectVertexHandles`（18-34行）は、`selectedIds`の図形ごとに`getVertexHandleNames()`の全ハンドルを走査し、各ハンドルへ`selectedVertices.some(pair => pair.shapeId === shape.id && pair.handle === name)`で`selected`を個別に付ける。選択中の頂点の数に上限・単一前提の処理は無く、2つ以上でも該当する全ハンドルが`selected: true`になる。`js/main.js`の`renderCurrentState`（175-192行）は`model.getSelectedVertices()`をそのまま渡すだけで、1件に絞る処理は無い。`CanvasManager`の`#drawVertexHandles`（288行〜）は全`entry`・全`handle`を回し、ハンドルごとに`handle.selected`で塗り（青`#4a90e2`／白`#ffffff`）を切り替える。状態・図形種別の分岐・図形固有のプロパティは持たず、値は`render`の引数`vertexHandles`で受けている。よって複数選択でも選ばれた頂点すべてが青で見分けられる。
+    *   **カーソル**：`js/core/CursorShapeRules.js`の`resolveCursorShape`の頂点の選択モードの枝（判定表(2a)）は、`DRAGGING_HANDLE`→`move`（まとめ移動中も同じ状態・同じ値）、`hit === null`→`default`、`hit.handle`→`move`、`hit.bodyId`→`pointer`、それ以外→`default`。範囲選択中：`InputTracker.handleMouseMove`は`#drag.isActive()`で先に`return`するため範囲選択中は`#updateCursor(hit)`が呼ばれず、`#beginLeftDrag`・`#finishLeftDrag`の`#updateCursor()`（`hit=null`）で`default`のまま。範囲選択の開始が本体の上でも、押下時の`#updateCursor()`は`hit=null`のため`default`になる。以上から、頂点の上は`move`・本体の上は`pointer`・空白は既定・範囲選択中は既定で、要件どおり。`test/core/CursorShapeRules.test.js`の頂点の選択のモードのケース（`vertexInput`）も現状の判定表と一致しており、直す必要はない。
+    *   **範囲選択の枠**：`InputTracker`の範囲選択は既存の`model.setSelectionRect`（`#applyLeftDragUpdate`の`MARQUEE_SELECTING`の枝）を使い、`CanvasManager`は既存の`#drawSelectionRect`（最前面・破線＋薄い半透明塗り）で描く。頂点の範囲選択専用の描画の経路・見た目は無い（`CanvasManager`の`selectionRect`の参照は`render`の引数とその描画の1経路のみ）。
+    *   **付随の確認**：`CanvasManager.js`・`CursorShapeRules.js`のJSDoc（`render`の`vertexHandles`・`#drawVertexHandles`・`resolveCursorShape`の判定順の説明）は現状と一致し記載漏れなし。両ファイルの`import`（`CursorShapeRules`の`InputState`・`OperationMode`はともに使用）・定数（`VERTEX_HANDLE_*`はすべて使用）に使われなくなったものは無い。到達不能な枝の整理は行っていない。
+    *   `node --test`は変更が無いため再実行していない。開発資料：影響なし（追記なし）。
 
 ### タスク11: 仕上げの確認（JSDoc・不要なコード・全テスト）
 *   **作業内容** :
@@ -519,3 +524,4 @@
 * **タスク7（押下の配線）**：頂点の選択のモードで範囲選択が始まるようになったため、タスク6の確定の枝が通る。目視確認はタスク8・9の後にまとめて行うのが望ましい。`#beginLeftDrag`で図形が見つからないアンカーは記憶されず`#unitSnapHandleOrigin`は`null`のままで、このとき端点の解決も行わない（追従は図形が無ければ何もしない）。
 * **タスク8（追従）**：アンカーの組が`#vertexDragOrigins`に無い（図形が無い等）ときは何もしない。ほかの頂点の`x`・`y`は位置が得られた組だけが入るため`null`にならない。複数頂点の目視確認はタスク9の後に。`#vertexDragOrigins`の更新配列のキーは`updateVertices`の仕様どおり`id`。
 * **タスク9（クリック）**：`Ctrl`＋選択中の頂点を押して閾値以内で離すと選択から外れるのは仕様どおり（ガード無し）。頂点の選択のモードのクリックで、頂点上の`Ctrl`なしは頂点を単一選択へ置き換える（前半と同じ）。目視確認（`Ctrl`クリックでの追加・解除、`Ctrl`＋本体クリックでの図形の追加・解除）は発注者のテストプレイで。
+* **タスク10（表示・カーソル）**：変更不要と確認（根拠は詳細作業内容）。カーソルは範囲選択中に`default`のままになるが、これは範囲選択中は`mousemove`が`#updateCursor`を呼ばない既存の構造による。目視確認は発注者のテストプレイで（複数の頂点が青で並ぶこと・範囲選択の枠の見た目）。
