@@ -1,6 +1,6 @@
 /**
  * 責務: 円・弧（Ellipse）の当たり判定（輪郭（縮退時の分岐を含む）・内側）・塗れる形か（isFillable）・偽のctxによる描画命令・図形データとの相互変換
- * （fromJSONの受理と不正なデータのエラー文・toJSON・toDrawElement）・ハンドルの位置（getHandlePosition）を、公開APIのみを通して検証する。
+ * （fromJSONの受理と不正なデータのエラー文・toJSON・toDrawElement）・ハンドルの位置（getHandlePosition）・頂点のハンドル名の一覧（getVertexHandleNames）を、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -761,5 +761,22 @@ describe('Ellipse.getHandlePosition', () => {
                 assert.equal(ellipse.hitTestHandle(pos.x, pos.y, 1), name);
             }
         }
+    });
+});
+
+describe('Ellipse.getVertexHandleNames', () => {
+    it('円・弧のどちらでも空の配列を返す', () => {
+        assert.deepEqual(new Ellipse(0, 0, 50, 50, 'circle').getVertexHandleNames(), []);
+        assert.deepEqual(new Ellipse(0, 0, 50, 50, 'arc').getVertexHandleNames(), []);
+    });
+
+    it('毎回新しい配列を返し、書き換えても図形は変わらない', () => {
+        const e = new Ellipse(0, 0, 50, 50, 'circle');
+        const before = JSON.stringify(e.toJSON());
+        const names = e.getVertexHandleNames();
+        names.push('extra');
+        assert.notEqual(e.getVertexHandleNames(), names);
+        assert.deepEqual(e.getVertexHandleNames(), []);
+        assert.equal(JSON.stringify(e.toJSON()), before);
     });
 });

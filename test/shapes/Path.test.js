@@ -1,6 +1,6 @@
 /**
  * 責務: パス（Path）の当たり判定（輪郭・内側）・頂点のハンドル・塗れる形（isFillable）・描画命令（塗り・線なし）・
- * fromJSONの不正な図形データのエラー文・図形データと描画要素への変換・ハンドルの位置（getHandlePosition）を、公開APIのみを通して検証する。
+ * fromJSONの不正な図形データのエラー文・図形データと描画要素への変換・ハンドルの位置（getHandlePosition）・頂点のハンドル名の一覧（getVertexHandleNames）を、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -1046,4 +1046,37 @@ describe('Path.getHandlePosition', () => {
             }
         });
     }
+});
+
+describe('Path.getVertexHandleNames', () => {
+    it('頂点数ぶんの vertex-<i> を番号順に返す（開いた・閉じた・頂点数違い）', () => {
+        assert.deepEqual(makePath(false).getVertexHandleNames(), ['vertex-0', 'vertex-1', 'vertex-2', 'vertex-3']);
+        assert.deepEqual(makePath(true).getVertexHandleNames(), ['vertex-0', 'vertex-1', 'vertex-2', 'vertex-3']);
+        const five = new Path([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 20, y: 5 }, { x: 10, y: 20 }, { x: 0, y: 10 }], true);
+        assert.deepEqual(five.getVertexHandleNames(), ['vertex-0', 'vertex-1', 'vertex-2', 'vertex-3', 'vertex-4']);
+        const two = new Path([{ x: 0, y: 0 }, { x: 10, y: 0 }], false);
+        assert.deepEqual(two.getVertexHandleNames(), ['vertex-0', 'vertex-1']);
+    });
+
+    it('毎回新しい配列を返し、書き換えても図形は変わらない', () => {
+        const p = makePath(false);
+        const before = JSON.stringify(p.toJSON());
+        const names = p.getVertexHandleNames();
+        names.push('extra');
+        names.length = 0;
+        assert.notEqual(p.getVertexHandleNames(), names);
+        assert.equal(p.getVertexHandleNames().length, 4);
+        assert.equal(JSON.stringify(p.toJSON()), before);
+    });
+
+    it('一覧の各名前が頂点の番号と位置に解決できる', () => {
+        for (const closed of [false, true]) {
+            const p = makePath(closed);
+            const base = makePoints();
+            p.getVertexHandleNames().forEach((name, i) => {
+                assert.equal(p.getVertexIndexForHandle(name), i);
+                assert.deepEqual(p.getHandlePosition(name), base[i]);
+            });
+        }
+    });
 });

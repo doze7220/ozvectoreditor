@@ -1,6 +1,6 @@
 /**
  * 責務: 矩形（Rect）の当たり判定（輪郭・内側）・塗れる形か（isFillable）・偽のctxによる描画命令・図形データとの相互変換
- * （fromJSONの受理と不正なデータのエラー文・toJSON・toDrawElement）・ハンドルの位置（getHandlePosition）を、公開APIのみを通して検証する。
+ * （fromJSONの受理と不正なデータのエラー文・toJSON・toDrawElement）・ハンドルの位置（getHandlePosition）・頂点のハンドル名の一覧（getVertexHandleNames）を、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -586,5 +586,33 @@ describe('Rect.getHandlePosition', () => {
             const pos = rect.getHandlePosition(name);
             assert.equal(rect.hitTestHandle(pos.x, pos.y, 1), name);
         }
+    });
+});
+
+describe('Rect.getVertexHandleNames', () => {
+    it('頂点のハンドル名の一覧を決まった並びで返す', () => {
+        assert.deepEqual(new Rect(0, 0, 100, 50).getVertexHandleNames(), ['topLeft', 'topRight', 'bottomRight', 'bottomLeft']);
+    });
+
+    it('毎回新しい配列を返し、書き換えても図形は変わらない', () => {
+        const shape = new Rect(0, 0, 100, 50);
+        const before = JSON.stringify(shape.toJSON());
+        const names = shape.getVertexHandleNames();
+        names.push('extra');
+        names.length = 0;
+        assert.notEqual(shape.getVertexHandleNames(), names);
+        assert.deepEqual(shape.getVertexHandleNames(), ['topLeft', 'topRight', 'bottomRight', 'bottomLeft']);
+        assert.equal(JSON.stringify(shape.toJSON()), before);
+    });
+
+    it('一覧の各名前が頂点の番号と位置に解決できる', () => {
+        const shape = new Rect(0, 0, 100, 50);
+        shape.getVertexHandleNames().forEach((name, i) => {
+            assert.equal(shape.getVertexIndexForHandle(name), i);
+            const pos = shape.getHandlePosition(name);
+            assert.notEqual(pos, null);
+            assert.equal(typeof pos.x, 'number');
+            assert.equal(typeof pos.y, 'number');
+        });
     });
 });

@@ -377,7 +377,7 @@
         *   使われなくなった`import`・関数・定数・コメントが残っていないことを確認する（ただし各図形の`drawHandles`は残す）。
         *   リポジトリのルートで`node --test`を実行し、全件通ることを確認する（既存のテストが落ちないこと）。
 
-*   [ ] タスク5: 要件4-2 図形の5つのテストへ`getVertexHandleNames()`のテストを足す
+*   [x] タスク5: 要件4-2 図形の5つのテストへ`getVertexHandleNames()`のテストを足す
     *   **対象ファイル** :
         *   `./test/shapes/Line.test.js` `./test/shapes/Curve.test.js` `./test/shapes/Rect.test.js` `./test/shapes/Ellipse.test.js` `./test/shapes/Path.test.js` :（更新）
     *   **作業内容** :
@@ -570,7 +570,9 @@
 
 ### タスク5: 要件4-2 図形の5つのテストへ`getVertexHandleNames()`のテストを足す
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `Line`・`Curve`・`Rect`の各テストへ、一覧の内容と並び・毎回新しい配列で書き換えても図形（`toJSON`）が変わらないこと・各名前が`getVertexIndexForHandle`で番号（並びの添字）に、`getHandlePosition`で位置に解決できることのテストを足した。`Ellipse`は円・弧とも空配列であることと、新しい配列・不変のテスト。`Path`は開いた・閉じた・頂点数2/4/5の一覧、新しい配列・不変、番号・位置の解決のテスト。
+    *   5ファイルの先頭の責務定義へ`getVertexHandleNames`を足した。`js/`は変更なし。
+    *   `node --test`：1316件全て合格。
 
 ### タスク6: 要件5 頂点の選択の状態（`VectorModel`）
 *   **作業内容** :
