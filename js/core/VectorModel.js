@@ -501,23 +501,38 @@ export class VectorModel {
 
     /**
      * 指定したidの図形の、指定した頂点インデックスの座標を絶対座標で更新する。
-     * 該当図形が存在しない場合は何もしない。頂点インデックスと図形固有プロパティとの
-     * 対応関係は関知せず、更新処理自体はshape.setVertex(vertexIndex, x, y)へポリモー
-     * フィックに委譲する（図形種別を問わず同一の呼び出しで動作する）。
+     * 実処理は updateVertices へ委譲する（shape.setVertexを呼ぶ箇所はupdateVerticesの1か所のみ）。
+     * 該当図形が存在しない場合は何もしない（通知もしない）。
      * @param {string} id 対象図形のid（単一）
      * @param {number} vertexIndex 更新する頂点のインデックス（各図形のgetVertexIndexForHandleの規約に従う頂点インデックス）
      * @param {number} x 更新後のX座標（ワールド座標）
      * @param {number} y 更新後のY座標（ワールド座標）
      */
     updateVertex(id, vertexIndex, x, y) {
-        const shape = this.#shapes.find((s) => s.id === id);
-        if (!shape) {
-            return;
+        this.updateVertices([{ id, vertexIndex, x, y }]);
+    }
+
+    /**
+     * 複数の頂点の座標を絶対座標でまとめて更新する。各組を配列の順にshape.setVertex(vertexIndex, x, y)へ
+     * ポリモーフィックに委譲する（図形種別を問わず同一の呼び出しで動作する）。頂点インデックスと図形固有プロパティとの
+     * 対応関係は関知しない。存在しないidの組は無視する。1件以上更新した場合のみ変更を通知する（1回。組の数分は発行しない）。
+     * 空の配列では何もしない。引数の配列・要素は書き換えない。
+     * @param {Array<{ id: string, vertexIndex: number, x: number, y: number }>} updates 更新する頂点の組（ワールド座標の絶対値）
+     */
+    updateVertices(updates) {
+        let updated = false;
+        for (const { id, vertexIndex, x, y } of updates) {
+            const shape = this.#shapes.find((s) => s.id === id);
+            if (!shape) {
+                continue;
+            }
+            shape.setVertex(vertexIndex, x, y);
+            updated = true;
         }
 
-        shape.setVertex(vertexIndex, x, y);
-
-        this.#notifyChange();
+        if (updated) {
+            this.#notifyChange();
+        }
     }
 
     /**

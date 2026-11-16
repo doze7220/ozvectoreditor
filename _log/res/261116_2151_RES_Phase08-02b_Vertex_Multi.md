@@ -235,7 +235,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク2: 要件2 複数の頂点の座標をまとめて更新するメソッド（`updateVertices`）
+*   [x] タスク2: 要件2 複数の頂点の座標をまとめて更新するメソッド（`updateVertices`）
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js` :（更新）
         *   `./test/core/VectorModel.updateVertices.test.js` :（新規）
@@ -437,7 +437,8 @@
 
 ### タスク2: 要件2 複数の頂点の座標をまとめて更新するメソッド（`updateVertices`）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/core/VectorModel.js`：`updateVertices(updates)`を`updateVertex`の直後に追加（存在しないidは無視・1件以上更新で通知1回・空配列は何もしない・引数は書き換えない）。`updateVertex`は`updateVertices([{...}])`へ委譲する形に変更（JSDocに委譲と`setVertex`の呼び出し箇所が1か所であることを記載）。クラス先頭の責務定義は変更不要。
+    *   `test/core/VectorModel.updateVertices.test.js`（新規）：8ケース（複数図形・同一図形の複数頂点・混在・全て不在・空配列・引数不変・`updateVertex`の従来動作と不在id）。`node --test`全件合格（1377件）。
 
 ### タスク3: 要件3 頂点の選択のモードの押下の判定表（`resolveVertexPressAction`）
 *   **作業内容** :
