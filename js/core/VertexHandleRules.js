@@ -1,5 +1,5 @@
 /**
- * 責務: 頂点の選択モードで描く頂点のハンドルの一覧と、ハンドル名が頂点のハンドルかの判定を、
+ * 責務: 頂点の選択モードで描く頂点のハンドルの一覧、ハンドル名が頂点のハンドルかの判定、範囲に入る頂点を集めることを、
  * 図形の共通メソッドだけを使う状態を持たない関数として提供する。DOMに触れない。
  */
 import { OperationMode } from './InputModes.js';
@@ -42,4 +42,35 @@ export function collectVertexHandles(mode, shapes, selectedIds, selectedVertices
 export function isVertexHandle(shape, handleName) {
     if (!shape || typeof shape.getVertexHandleNames !== 'function') return false;
     return shape.getVertexHandleNames().includes(handleName);
+}
+
+/**
+ * 矩形の中にある頂点を、選択中の図形から集める。対象は`selectedIds`に含まれる図形だけ（頂点が出ている図形）。
+ * `shapes`の並び（描画順）→ その図形の`getVertexHandleNames()`の順に`getHandlePosition(name)`で位置を求め（`null`は飛ばす）、
+ * 境界の上も含めて`minX <= x <= maxX`かつ`minY <= y <= maxY`なら集める。
+ * 図形の当たり（`intersectsRect`）ではなく頂点の位置で判定するため、`intersectsRect`は使わない。
+ * 矩形の正規化はここでは行わない。正規化済み（`min <= max`）の値を受け取る前提（正規化は`InputTracker`の範囲選択の確定が行う）。
+ * 引数は書き換えず、例外も投げない前提で共通メソッドを呼ぶ。
+ * @param {Array<Object>} shapes 図形の並び（描画順）
+ * @param {Iterable<string>|Array<string>} selectedIds 選択中の図形のid
+ * @param {number} minX 矩形の左端（正規化済み）
+ * @param {number} minY 矩形の上端（正規化済み）
+ * @param {number} maxX 矩形の右端（正規化済み）
+ * @param {number} maxY 矩形の下端（正規化済み）
+ * @returns {Array<{shapeId: string, handle: string}>} 矩形に入った頂点の組（新しい配列）
+ */
+export function collectVertexHandlesInRect(shapes, selectedIds, minX, minY, maxX, maxY) {
+    const idSet = new Set(selectedIds);
+    const result = [];
+    for (const shape of shapes) {
+        if (!idSet.has(shape.id)) continue;
+        for (const name of shape.getVertexHandleNames()) {
+            const position = shape.getHandlePosition(name);
+            if (!position) continue;
+            if (position.x >= minX && position.x <= maxX && position.y >= minY && position.y <= maxY) {
+                result.push({ shapeId: shape.id, handle: name });
+            }
+        }
+    }
+    return result;
 }

@@ -203,6 +203,7 @@
 ### 開発資料（`PROJECT_ARCHITECTURE.md`）の更新予定
 （資料本体の修正は最終タスク（タスク13）でのみ行う。個別の実装タスク内では書き換えず、判明した点はこの欄へ追記する）
 
+* **1章 フォルダ構造**：`VertexHandleRules.js`の一行説明（現状「頂点の選択モードで描く頂点のハンドルの一覧と、ハンドル名が頂点のハンドルかの規則（状態なし）。InputTracker・main.jsから使う」）を、範囲に入る頂点を集める規則（`collectVertexHandlesInRect`）も提供することに合わせて直す。また1章の`core/`説明（Phase 08-02aの`VertexHandleRules`の記述）にも同趣旨を足すか確認する。
 * **1章 フォルダ構造**：`test/core/`の一覧へ`VectorModel.updateVertices.test.js`を1行足す。
 * **1章 フォルダ構造**：`PressActionRules.js`の一行説明（現状「選択モードでマウスを押したときに何を始めるかの規則（状態なし）。InputTrackerから使う」）を、頂点の選択のモードの押下の判定表も提供することに合わせて直す。
 * **1章 フォルダ構造**：`SelectionRules.js`の一行説明（現状「クリック・範囲選択の次の選択と選択の反転の規則（状態なし）。InputTracker・main.jsから使う」）を、図形と頂点の両方のクリック・範囲選択の次の選択の規則と、**選択の反転は図形のみ**であることが読み取れる文言へ直す。
@@ -284,7 +285,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク5: 要件5 範囲に入った頂点を集める規則（`collectVertexHandlesInRect`）
+*   [x] タスク5: 要件5 範囲に入った頂点を集める規則（`collectVertexHandlesInRect`）
     *   **対象ファイル** :
         *   `./js/core/VertexHandleRules.js` :（更新）
         *   `./test/core/VertexHandleRules.test.js` :（更新）
@@ -454,7 +455,9 @@
 
 ### タスク5: 要件5 範囲に入った頂点を集める規則（`collectVertexHandlesInRect`）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/core/VertexHandleRules.js`：`collectVertexHandlesInRect(shapes, selectedIds, minX, minY, maxX, maxY)`を末尾へ追加（選択中の図形だけ・描画順→ハンドル名の順・`null`は飛ばす・境界を含む・毎回新しい配列）。既存の`collectVertexHandles`・`isVertexHandle`は無変更で、走査は共有していない。JSDocに、正規化済み矩形を受け取る前提・境界を含むこと・対象が選択中の図形だけであること・`intersectsRect`を使わない理由を記載。importは`OperationMode`のみのまま。**ファイル先頭の責務定義**を「頂点のハンドルの一覧、ハンドル名が頂点のハンドルかの判定、範囲に入る頂点を集めること」を提供する内容へ書き直した（2行）。
+    *   `test/core/VertexHandleRules.test.js`：importへ追加し、`describe('collectVertexHandlesInRect')`に9ケースを末尾へ追加（既存8件は不変）。`node --test`全件合格（1410件）。
+    *   **監査後の修正**：`test/core/VertexHandleRules.test.js`へ`test('弧は0件')`を追加（`new Ellipse(..., 'arc')`で選択しても0件）。ファイル先頭の責務定義を「一覧・ハンドル名の判定・範囲に入る頂点を集めること」へ更新（2行）。
 
 ### タスク6: 要件6 範囲選択の確定に頂点の選択の枝を足す（`#commitMarquee`）
 *   **作業内容** :
