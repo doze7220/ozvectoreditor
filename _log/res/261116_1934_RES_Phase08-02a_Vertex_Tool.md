@@ -398,7 +398,7 @@
         *   使われなくなった`import`・関数・定数・コメントが残っていないことを確認する（ただし各図形の`drawHandles`は残す）。
         *   新規テストを作り、リポジトリのルートで`node --test`を実行して全件通ることを確認する。
 
-*   [ ] タスク7: 要件6-1 頂点のハンドルの規則（`VertexHandleRules`）の新設
+*   [x] タスク7: 要件6-1 頂点のハンドルの規則（`VertexHandleRules`）の新設
     *   **対象ファイル** :
         *   `./js/core/VertexHandleRules.js` :（新規）
         *   `./test/core/VertexHandleRules.test.js` :（新規）
@@ -582,7 +582,8 @@
 
 ### タスク7: 要件6-1 頂点のハンドルの規則（`VertexHandleRules`）の新設
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/core/VertexHandleRules.js`を新規作成（`collectVertexHandles`・`isVertexHandle`。importは`OperationMode`のみ、状態・DOM・図形種別の分岐なし）。
+    *   `test/core/VertexHandleRules.test.js`を新規作成（実物の図形5種別）。`node --test`全件合格（1339件）。
 
 ### タスク8: 要件6-2・要件3（描画） 頂点のハンドルを描き、選択モードのハンドルを描かない
 *   **作業内容** :
