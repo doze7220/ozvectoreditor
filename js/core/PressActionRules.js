@@ -1,5 +1,6 @@
 /**
- * 責務: 選択モードでマウスを押したとき、当たり分類の結果から「何の操作を始めるか」を決める規則を、状態を持たない関数として提供する。
+ * 責務: 選択モードと頂点の選択のモードのそれぞれで、マウスを押したときの当たり分類の結果から「何の操作を始めるか」を決める判定表を、
+ * 状態を持たない関数として提供する。
  * 引数を書き換えない。importなし・DOMなし。
  */
 
@@ -47,4 +48,40 @@ export function resolvePressAction(hit, isSelected) {
     }
 
     return null;
+}
+
+/**
+ * 頂点の選択モードで押下したときに始める操作の指示。`InputTracker`が今の非公開メソッドへ振り分けるために使う。
+ * - `{ type: 'dragSelectedVertices', target }`：選んでいる頂点すべてのドラッグを始める。`target`は`hit.handle`そのもの。
+ * - `{ type: 'selectVertexAndDrag', target }`：その頂点だけを選び直してドラッグを始める。`target`は`hit.handle`そのもの。
+ * - `{ type: 'marquee' }`：範囲選択を始める。
+ * - `null`：何もしない（離した後のclickで選択へ追加・解除する）。
+ * @typedef {({type: 'dragSelectedVertices', target: {shapeId: string, handle: string}} | {type: 'selectVertexAndDrag', target: {shapeId: string, handle: string}} | {type: 'marquee'} | null)} VertexPressAction
+ */
+
+/**
+ * 頂点の選択モードで、押下点の当たり分類の結果から、始める操作を決める。以下の順に判定する。
+ * ・ハンドルあり・その頂点が選ばれている                 → dragSelectedVertices（選んでいる頂点すべてのドラッグ）
+ * ・ハンドルあり・選ばれていない・additiveが偽            → selectVertexAndDrag（その頂点だけを選び直してドラッグ）
+ * ・ハンドルあり・選ばれていない・additiveが真            → null（何も始めない。離した後のclickで追加・解除する）
+ * ・ハンドルなし（本体の上・空白のどちらでも）            → marquee（範囲選択）
+ * isVertexSelectedを呼ぶのはhit.handleがあるときだけで1回（引数はhit.handle.shapeId・hit.handle.handle）。
+ * 'move'ハンドルの除外はここでは行わない（頂点のハンドルだけに絞り込むのは呼び出し側の責務）。
+ * @param {import('./PointHitRules.js').PointHit} hit 押下点の当たり分類の結果（書き換えない）
+ * @param {(shapeId: string, handle: string) => boolean} isVertexSelected その頂点が選ばれているかの照会
+ * @param {boolean} additive Ctrl（⌘）が押されているか（真偽値として読むだけ）
+ * @returns {VertexPressAction} 始める操作（新しいオブジェクト。targetだけはhit.handleそのもの）
+ */
+export function resolveVertexPressAction(hit, isVertexSelected, additive) {
+    if (hit.handle) {
+        if (isVertexSelected(hit.handle.shapeId, hit.handle.handle)) {
+            return { type: 'dragSelectedVertices', target: hit.handle };
+        }
+        if (!additive) {
+            return { type: 'selectVertexAndDrag', target: hit.handle };
+        }
+        return null;
+    }
+
+    return { type: 'marquee' };
 }

@@ -3,7 +3,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolvePressAction } from '../../js/core/PressActionRules.js';
+import { resolvePressAction, resolveVertexPressAction } from '../../js/core/PressActionRules.js';
 
 /**
  * 選択集合（Set）を引く照会関数と、呼び出しの記録を作る。
@@ -104,5 +104,96 @@ describe('resolvePressAction：引数不変・新しいオブジェクト', () =
         assert.notEqual(resolvePressAction(hit, isSelected), resolvePressAction(hit, isSelected));
         const blank = { handle: null, bodyId: null };
         assert.notEqual(resolvePressAction(blank, isSelected), resolvePressAction(blank, isSelected));
+    });
+});
+
+/**
+ * 頂点の選択状態（組のSet）を引く照会関数と、呼び出しの記録を作る。
+ * @param {Array<[string, string]>} pairs 選択中の頂点（[shapeId, handle]）
+ * @returns {{isVertexSelected: (shapeId: string, handle: string) => boolean, calls: Array<[string, string]>}} 照会関数と引数の記録
+ */
+function makeIsVertexSelected(pairs) {
+    const set = new Set(pairs.map(([s, h]) => `${s}|${h}`));
+    const calls = [];
+    return {
+        isVertexSelected: (shapeId, handle) => {
+            calls.push([shapeId, handle]);
+            return set.has(`${shapeId}|${handle}`);
+        },
+        calls,
+    };
+}
+
+describe('resolveVertexPressAction：ハンドルあり', () => {
+    it('選ばれている頂点 → dragSelectedVertices（additiveに関わらず）', () => {
+        const hit = { handle: { shapeId: 's1', handle: 'start' }, bodyId: 's1' };
+        for (const additive of [false, true]) {
+            const { isVertexSelected } = makeIsVertexSelected([['s1', 'start']]);
+            const action = resolveVertexPressAction(hit, isVertexSelected, additive);
+            assert.deepEqual(action, { type: 'dragSelectedVertices', target: hit.handle });
+            assert.equal(action.target, hit.handle);
+        }
+    });
+
+    it('選ばれていない・additive偽 → selectVertexAndDrag', () => {
+        const hit = { handle: { shapeId: 's1', handle: 'end' }, bodyId: 's1' };
+        const { isVertexSelected } = makeIsVertexSelected([['s1', 'start']]);
+        const action = resolveVertexPressAction(hit, isVertexSelected, false);
+        assert.deepEqual(action, { type: 'selectVertexAndDrag', target: hit.handle });
+        assert.equal(action.target, hit.handle);
+    });
+
+    it('選ばれていない・additive真 → null', () => {
+        const hit = { handle: { shapeId: 's1', handle: 'end' }, bodyId: 's1' };
+        const { isVertexSelected } = makeIsVertexSelected([]);
+        assert.equal(resolveVertexPressAction(hit, isVertexSelected, true), null);
+    });
+
+    it('別の図形の同名の頂点は選ばれていない扱い', () => {
+        const { isVertexSelected } = makeIsVertexSelected([['s1', 'start']]);
+        const other = { handle: { shapeId: 's2', handle: 'start' }, bodyId: 's2' };
+        assert.equal(resolveVertexPressAction(other, isVertexSelected, false).type, 'selectVertexAndDrag');
+    });
+
+    it('isVertexSelectedは1回だけ、hit.handleの組で呼ぶ', () => {
+        const hit = { handle: { shapeId: 's1', handle: 'end' }, bodyId: 's1' };
+        const { isVertexSelected, calls } = makeIsVertexSelected([]);
+        resolveVertexPressAction(hit, isVertexSelected, false);
+        assert.deepEqual(calls, [['s1', 'end']]);
+    });
+});
+
+describe('resolveVertexPressAction：ハンドルなし', () => {
+    it('本体の上・空白のどちらでも marquee（additiveに関わらず）で、isVertexSelectedは呼ばない', () => {
+        const hits = [
+            { handle: null, bodyId: 's1' },
+            { handle: null, bodyId: null },
+        ];
+        for (const hit of hits) {
+            for (const additive of [false, true]) {
+                const { isVertexSelected, calls } = makeIsVertexSelected([['s1', 'start']]);
+                assert.deepEqual(resolveVertexPressAction(hit, isVertexSelected, additive), { type: 'marquee' });
+                assert.equal(calls.length, 0);
+            }
+        }
+    });
+});
+
+describe('resolveVertexPressAction：引数不変・新しいオブジェクト', () => {
+    it('hitを書き換えない', () => {
+        const { isVertexSelected } = makeIsVertexSelected([]);
+        const hit = { handle: { shapeId: 's1', handle: 'start' }, bodyId: 's1' };
+        const snapshot = JSON.parse(JSON.stringify(hit));
+        resolveVertexPressAction(hit, isVertexSelected, false);
+        assert.deepEqual(hit, snapshot);
+    });
+
+    it('marqueeは呼ぶたびに新しいオブジェクト', () => {
+        const { isVertexSelected } = makeIsVertexSelected([]);
+        const hit = { handle: null, bodyId: null };
+        assert.notEqual(
+            resolveVertexPressAction(hit, isVertexSelected, false),
+            resolveVertexPressAction(hit, isVertexSelected, false),
+        );
     });
 });
