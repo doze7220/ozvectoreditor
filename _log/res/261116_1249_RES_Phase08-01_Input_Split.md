@@ -436,7 +436,7 @@
         *   `grep -rn "isTextInputElement\|isSpaceOperatedInputElement\|isSpaceYieldedElement\|isToggleButtonElement\|TEXT_INPUT_TYPES\|SPACE_OPERATED_INPUT_TYPES" --include=*.js .`で漏れと残置がないことを確認する。
         *   自動テストは足さない（開発資料の「テストできない箇所」への追記はタスク12）。`node --test`で全件通ることを確認する。
         *   **タスク完了後の記録**：本計画書の『4. 詳細作業内容』の「タスク3: …」の欄へ実際の作業内容（変更したファイル・移した範囲・確認した結果）を記載して完成させ、「3. タスクリスト」の該当タスクを`[x]`にする。開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る点が判明した場合は、資料本体は修正せず『開発資料（`PROJECT_ARCHITECTURE.md`）の更新予定』欄へ追記する（資料本体の修正はタスク12のみ）。
-*   [ ] タスク4: 要件2 押下で始める操作の規則を`js/core/PressActionRules.js`へ切り出す
+*   [x] タスク4: 要件2 押下で始める操作の規則を`js/core/PressActionRules.js`へ切り出す
     *   **対象ファイル** :
         *   `./js/core/PressActionRules.js` :（新規）
         *   `./js/core/InputTracker.js` :（更新）
@@ -549,7 +549,10 @@
 
 ### タスク4: 要件2 押下で始める操作の規則を`js/core/PressActionRules.js`へ切り出す
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/core/PressActionRules.js`を新規作成（責務定義3行のJSDoc。importなし・DOMなし・引数を書き換えない）。typedef`PressAction`と`resolvePressAction(hit, isSelected)`を、2章要件2の判定1〜5の順で実装（`hit.bodyId === null`の書き方も同じ）。`'move'`はモジュール内の定数`MOVE_HANDLE_NAME`（非export）で比較1か所。`PointHit`の型参照はJSDocの`import('./PointHitRules.js').PointHit`のみ。
+    *   `InputTracker.js`：`handleMouseDown`末尾の分岐を`resolvePressAction(hit, (id) => this.model.isSelected(id))`の呼び出しと振り分け（`#beginMoveSelection(event, point)`／`#beginLeftDrag(event, InputState.DRAGGING_HANDLE, point, action.target)`／`#beginLeftDrag(event, InputState.MARQUEE_SELECTING, point)`／null・他は何もしない）に置換。`PressActionRules.js`のimportを追加。手順(1)〜(5a)は不変。JSDoc手順(6)の分岐表は`PressActionRules.js`へ移し、`handleMouseDown`側は規則へ委ねて振り分ける記述に直した（`event.altKey`を記憶する注記は残した）。
+    *   `InputTracker.js`に`'move'`との比較は残っていない。`#dragHandleName`のJSDoc（「'move'以外」）と`#resolveCursor`のJSDoc・戻り値の`'move'`は触っていない。
+    *   `node --test`：tests 1261 / pass 1261 / fail 0。
 
 ### タスク5: 要件2 `PressActionRules`の自動テストを足す
 *   **作業内容** :

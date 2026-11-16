@@ -9,6 +9,7 @@ import { InputState, OperationMode } from './InputModes.js';
 import { isTextInputElement, isSpaceYieldedElement } from './FocusKeyYieldRules.js';
 import { SHAPE_TYPES } from './ShapeFactory.js';
 import { classifyPointHit } from './PointHitRules.js';
+import { resolvePressAction } from './PressActionRules.js';
 import { resolveClickSelection, resolveMarqueeSelection } from './SelectionRules.js';
 import { constrainMoveDirection } from './MoveDirectionRules.js';
 import { resolveUnitSnapStep, roundPointToUnit, roundDeltaToUnit, roundConstrainedDeltaToUnit, roundPointFromOriginToUnit } from './UnitSnapRules.js';
@@ -719,15 +720,11 @@ export class InputTracker {
      * (5)左ボタン以外（右ボタン等）なら何もしない（右ボタンで左ドラッグを開始しない）。
      * (5a)IDLE状態かつ選択モード中で、注入された補助のisPickingShape()が真（クリックした図形を外へ渡す待ち受け中）なら、
      * 当たり分類の前に何もせず終了する（左ボタンの押下で何も始めない。(2)(4)のパンは先に判定済みのため働く）。
-     * (6)IDLE状態かつ選択モード中のみ、押下点（ワールド座標）を#classifyPointで当たり分類し、以下の表で分岐する
-     * （左ドラッグは#beginLeftDragで開始し、閾値以内で離した場合は離した後のclickで判定する。
-     * MOVING_SELECTIONの2か所は#beginMoveSelection経由で開始し、開始できたときに押した時点のevent.altKeyを記憶する
-     * （Alt+ドラッグの複製の判定。Altを見るのは押した時点だけで、頂点のハンドル・範囲選択では記憶しない））：
-     * ・ハンドルあり・'move'            → MOVING_SELECTION（moveハンドル。選択集合の全図形を平行移動。#beginMoveSelection経由）
-     * ・ハンドルあり・それ以外（頂点）   → DRAGGING_HANDLE（そのハンドルが属する1図形の頂点のみ変形）
-     * ・本体（bodyId）が選択集合内       → MOVING_SELECTION（本体ドラッグ。単一選択でも有効。#beginMoveSelection経由）
-     * ・本体（bodyId）が選択集合外       → 遷移しない（セッションも開始しない。離した後のclickで判定する）
-     * ・空白                             → MARQUEE_SELECTING（範囲選択。押下点を#marqueeAnchorに記憶）
+     * (6)IDLE状態かつ選択モード中のみ、押下点（ワールド座標）を#classifyPointで当たり分類し、何を始めるかの分岐はPressActionRules.resolvePressActionが決める。
+     * 結果を今の非公開メソッドへ振り分ける（左ドラッグは#beginLeftDragで開始し、閾値以内で離した場合は離した後のclickで判定する。
+     * MOVING_SELECTIONは#beginMoveSelection経由で開始し、開始できたときに押した時点のevent.altKeyを記憶する
+     * （Alt+ドラッグの複製の判定。Altを見るのは押した時点だけで、頂点のハンドル・範囲選択では記憶しない））。
+     * 分岐の表（moveハンドル・頂点のハンドル・選択集合内の本体・選択集合外の本体・空白）はPressActionRules.resolvePressActionのJSDocを参照。
      * スペース押下中・中ボタン・キャンバス移動モードは(2)(4)のパン判定が先に成立するため、範囲選択は起きない。
      * この分岐の表はCtrlで変えない（Ctrlは閾値以内で離した後のclickと範囲選択の確定でのみ見る）。
      * @param {MouseEvent} event
@@ -767,21 +764,16 @@ export class InputTracker {
         const point = this.getWorldCoordinate(event);
         const hit = this.#classifyPoint(point);
 
-        if (hit.handle) {
-            if (hit.handle.handle === 'move') {
-                this.#beginMoveSelection(event, point);
-            } else {
-                this.#beginLeftDrag(event, InputState.DRAGGING_HANDLE, point, hit.handle);
-            }
+        const action = resolvePressAction(hit, (id) => this.model.isSelected(id));
+        if (action === null) {
             return;
         }
 
-        if (hit.bodyId && this.model.isSelected(hit.bodyId)) {
+        if (action.type === 'moveSelection') {
             this.#beginMoveSelection(event, point);
-            return;
-        }
-
-        if (hit.bodyId === null) {
+        } else if (action.type === 'dragHandle') {
+            this.#beginLeftDrag(event, InputState.DRAGGING_HANDLE, point, action.target);
+        } else if (action.type === 'marquee') {
             this.#beginLeftDrag(event, InputState.MARQUEE_SELECTING, point);
         }
     }
