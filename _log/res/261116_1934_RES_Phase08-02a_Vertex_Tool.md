@@ -444,7 +444,7 @@
         *   使われなくなった`import`・関数・定数・コメントが残っていないことを確認する（ただし各図形の`drawHandles`は残す）。
         *   リポジトリのルートで`node --test`を実行し、全件通ることを確認する。
 
-*   [ ] タスク11: 要件7-2 `InputTracker`に頂点の選択の操作を配線する
+*   [x] タスク11: 要件7-2 `InputTracker`に頂点の選択の操作を配線する
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` :（更新）
     *   **作業内容** :
@@ -604,7 +604,11 @@
 
 ### タスク11: 要件7-2 `InputTracker`に頂点の選択の操作を配線する
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/core/InputTracker.js`のみ変更。`isVertexHandle`をimport。`#classifyPoint`は`includeHandles`に頂点の選択のモードか（`OperationMode.VERTEX`）を渡し、頂点の選択のモードでは頂点のハンドルでなければ`{ handle: null, bodyId }`へ絞り込む（図形は`getShapes().find`で取得）。
+    *   `handleMouseMove`のIDLE分岐を選択モードまたは頂点の選択のモードへ広げた。`handleMouseDown`は複合ガードを「IDLEでなければreturn」と「モードごとの分岐」に割り、頂点の選択のモードの枝（頂点上なら`setSelectedVertices`＋`#beginLeftDrag(DRAGGING_HANDLE)`、それ以外は何もしない）を足した。`isPickingShape`のearly returnは選択モードの枝に残した。
+    *   `handleClick`に頂点の選択のモードの分岐（頂点→`setSelectedVertices([hit.handle])`、本体・空白→`clearSelectedVertices`＋`resolveClickSelection(…, false)`）を足した。`cancelDraftOrClearSelection`に頂点の選択だけを空にする分岐を足し、全解除のモード条件を選択モードまたは頂点の選択のモードへ広げた。
+    *   JSDoc（`setMode`／`getMode`の型・各ハンドラの判定順・`#classifyPoint`）を更新。`node --test`は1349件全件合格。
+    *   追記: 監査指摘を受け、クラス先頭の責務定義・`handleMouseDown`の判定順・`handleClick`のJSDocを実装（頂点の選択のモード、`#classifyPoint`のincludeHandles／isVertexHandle絞り込み）に合わせて修正した（ロジック変更なし）。
 
 ### タスク12: 要件2-1 スプライトを描画先へ収める規則（`SpriteFitRules`）の新設
 *   **作業内容** :

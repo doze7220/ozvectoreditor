@@ -9,6 +9,7 @@ import { InputState, OperationMode } from './InputModes.js';
 import { isTextInputElement, isSpaceYieldedElement } from './FocusKeyYieldRules.js';
 import { SHAPE_TYPES } from './ShapeFactory.js';
 import { classifyPointHit } from './PointHitRules.js';
+import { isVertexHandle } from './VertexHandleRules.js';
 import { resolvePressAction } from './PressActionRules.js';
 import { resolveCursorShape } from './CursorShapeRules.js';
 import { resolveClickSelection, resolveMarqueeSelection } from './SelectionRules.js';
@@ -171,8 +172,11 @@ export function hasCtrlModifier(event) {
  * 頂点のハンドルのドラッグ（DRAGGING_HANDLE）では、追従のたびにUnitSnapRulesの関数で、押下時のハンドル位置（図形のgetHandlePositionを
  * 図形種別によらずポリモーフィックに呼んで得る）に丸めた移動量を足した位置を頂点の目標にする（Ctrlの間は丸めない）。
  * 図形種別の分岐・図形固有のプロパティ名は持たない。
- * 当たり分類の規則（ハンドル・本体の優先順位）はPointHitRules.classifyPointHitに委ね、#classifyPointは受け渡しのみ行う
+ * 当たり分類の規則（ハンドル・本体の優先順位）はPointHitRules.classifyPointHitに委ねる。#classifyPointは、操作モードからハンドルを当たりに含めるか
+ * （includeHandles。頂点の選択のモードのみ真）を決めて渡し、頂点の選択のモードでは当たったハンドルをVertexHandleRules.isVertexHandleで頂点のハンドルに絞り込む
  * （塗った内側を当たりに含めるかは、コンストラクタ第6引数で注入された照会に従う）。
+ * 頂点の選択のモード（OperationMode.VERTEX）では、頂点のハンドルのクリックでその頂点だけを頂点の選択にし、頂点のハンドルのドラッグで頂点を変形する
+ * （図形の選択の更新はクリック時にSelectionRulesへ渡す）。
  * 入力の解釈の外へ委ねる補助（InputAssist。コンストラクタ第7引数。項目はduplicateSelection・isPickingShape・pickShape・getUnitSnapStep）も注入される。
  * Altを押して始めた本体ドラッグ・移動用ハンドルのドラッグで移動量が閾値を超えた時点（beginEdit()の後）に、
  * 注入された複製を呼ぶだけで、複製の仕方・idの採番は知らない。
@@ -433,7 +437,7 @@ export class InputTracker {
      * 中断処理の共通化に伴い、作成途中の図形の破棄（cancelDraftの変更通知）は選択集合・ホバーのクリアより前に行われる
      * （従来はクリアの後。最終状態は同一）。
      * 図形種別（currentShapeType）は変更しない。
-     * @param {'select'|'create'|'pan'} mode 切り替え先の操作モード（OperationModeの値）
+     * @param {'select'|'create'|'pan'|'vertex'} mode 切り替え先の操作モード（OperationModeの値）
      */
     setMode(mode) {
         if (!Object.values(OperationMode).includes(mode)) {
@@ -479,7 +483,7 @@ export class InputTracker {
 
     /**
      * 現在の操作モードを返す。UI側がバリデーション後の実際の内部状態を読み返して表示を同期するために用いる。
-     * @returns {'select'|'create'|'pan'} 現在の操作モード（OperationModeの値）
+     * @returns {'select'|'create'|'pan'|'vertex'} 現在の操作モード（OperationModeの値）
      */
     getMode() {
         return this.currentMode;
@@ -536,9 +540,10 @@ export class InputTracker {
      * (1)ドラッグ中（パン・左ドラッグ。閾値以前を含む）なら何もしない。
      * (2)DRAWING状態なら、cancelDraft()で作成途中の図形を破棄してIDLE状態へ戻し、#resetSnapState()で吸い付きの状態と表示を消す
      * （変更通知はcancelDraftに従う）。
-     * (3)選択モード かつ IDLE状態 かつ 選択集合が空でなければ、clearSelection()で全解除する（変更通知1回）。
-     * (4)それ以外は何もしない。
-     * @returns {boolean} (2)(3)を実行したらtrue。falseの場合、呼び出し側はpreventDefault()しない
+     * (3)頂点の選択が1つ以上あれば、clearSelectedVertices()で頂点の選択だけを空にする（図形の選択・頂点の表示はそのまま）。
+     * (4)選択モードまたは頂点の選択のモード かつ IDLE状態 かつ 選択集合が空でなければ、clearSelection()で全解除する（変更通知1回）。
+     * (5)それ以外は何もしない。
+     * @returns {boolean} (2)(3)(4)を実行したらtrue。falseの場合、呼び出し側はpreventDefault()しない
      */
     cancelDraftOrClearSelection() {
         if (this.#drag.isActive()) {
@@ -552,8 +557,13 @@ export class InputTracker {
             return true;
         }
 
+        if (this.model.getSelectedVertices().length > 0) {
+            this.model.clearSelectedVertices();
+            return true;
+        }
+
         if (
-            this.currentMode === OperationMode.SELECT &&
+            (this.currentMode === OperationMode.SELECT || this.currentMode === OperationMode.VERTEX) &&
             this.state === InputState.IDLE &&
             this.model.getSelectedIds().length > 0
         ) {
@@ -661,9 +671,9 @@ export class InputTracker {
 
     /**
      * mousemoveイベントのハンドラ。
-     * IDLE状態かつ選択モード中のみ、カーソル位置を#classifyPointで1回だけ当たり分類し、その結果を
+     * IDLE状態かつ選択モードまたは頂点の選択のモード中のみ、カーソル位置を#classifyPointで1回だけ当たり分類し、その結果を
      * ホバー更新（bodyIdがあればModelへホバー登録、なければホバー解除）とカーソル形状の更新で共用する
-     * （選択モード以外のIDLE状態では何もしない）。
+     * （それ以外のモードのIDLE状態では何もしない）。
      * DRAWING状態では、丸めていないカーソル位置で吸い付きを照会して#drawEndSnapに保持・表示し、作成中の図形の終点を
      * 吸い付いていれば端点の座標をそのまま、吸い付かなかったときだけカーソル位置をスナップの刻みで丸めた位置
      * （roundPointToUnit。スナップOFFでは丸めずカーソル位置）に追従させる。
@@ -699,7 +709,7 @@ export class InputTracker {
             return;
         }
 
-        if (this.state !== InputState.IDLE || this.currentMode !== OperationMode.SELECT) {
+        if (this.state !== InputState.IDLE || (this.currentMode !== OperationMode.SELECT && this.currentMode !== OperationMode.VERTEX)) {
             return;
         }
 
@@ -722,7 +732,11 @@ export class InputTracker {
      * (3)ドラッグセッション中（パン・左ドラッグ。閾値以前を含む）なら何もしない（セッションは同時に1つのみ）。
      * (4)左ボタンでスペース押下中またはキャンバス移動モードならパンを開始する。パンはDRAWING状態・作成途中図形を保持したまま行う。
      * (5)左ボタン以外（右ボタン等）なら何もしない（右ボタンで左ドラッグを開始しない）。
-     * (5a)IDLE状態かつ選択モード中で、注入された補助のisPickingShape()が真（クリックした図形を外へ渡す待ち受け中）なら、
+     * (5a)IDLEでなければ何もしない。IDLE状態かつ頂点の選択のモード中は、押下点を#classifyPointで当たり分類し（頂点のハンドルだけに絞り込み済み）、
+     * 頂点のハンドル上ならsetSelectedVertices([そのハンドル])でその頂点だけを頂点の選択にして#beginLeftDragでハンドルのドラッグを開始して終了する
+     * （図形の本体上・空白では何も始めない。isPickingShapeは見ない）。
+     * (5b)頂点の選択のモード・選択モード以外（図形作成モード等）なら何もしない。
+     * (5c)IDLE状態かつ選択モード中で、注入された補助のisPickingShape()が真（クリックした図形を外へ渡す待ち受け中）なら、
      * 当たり分類の前に何もせず終了する（左ボタンの押下で何も始めない。(2)(4)のパンは先に判定済みのため働く）。
      * (6)IDLE状態かつ選択モード中のみ、押下点（ワールド座標）を#classifyPointで当たり分類し、何を始めるかの分岐はPressActionRules.resolvePressActionが決める。
      * 結果を今の非公開メソッドへ振り分ける（左ドラッグは#beginLeftDragで開始し、閾値以内で離した場合は離した後のclickで判定する。
@@ -757,7 +771,21 @@ export class InputTracker {
             return;
         }
 
-        if (this.state !== InputState.IDLE || this.currentMode !== OperationMode.SELECT) {
+        if (this.state !== InputState.IDLE) {
+            return;
+        }
+
+        if (this.currentMode === OperationMode.VERTEX) {
+            const point = this.getWorldCoordinate(event);
+            const hit = this.#classifyPoint(point);
+            if (hit.handle) {
+                this.model.setSelectedVertices([{ shapeId: hit.handle.shapeId, handle: hit.handle.handle }]);
+                this.#beginLeftDrag(event, InputState.DRAGGING_HANDLE, point, hit.handle);
+            }
+            return;
+        }
+
+        if (this.currentMode !== OperationMode.SELECT) {
             return;
         }
 
@@ -803,10 +831,13 @@ export class InputTracker {
      * Ctrlあり：本体上なら選択集合へ1つ追加、選択中の図形なら外す（ほかの選択は残る）。空白では何もしない（解除しない）。
      * 押下時の分岐（handleMouseDown）はCtrlで変えないため、選択中の図形をCtrlで押して閾値以内で離すと、このclickで「選択中なら外す」になる
      * （閾値を超えて動かした場合は移動し、直後のclickは抑止される）。
+     * IDLE状態かつ頂点の選択のモード中では、クリック位置を#classifyPointで当たり分類し（Ctrlは見ない）、頂点のハンドル上ならsetSelectedVertices([hit.handle])
+     * （図形の選択は変えない）、本体上ならclearSelectedVertices()の後にresolveClickSelection(選択集合, bodyId, false)の結果を#applySelectionChangeで反映し、
+     * 空白ならclearSelectedVertices()の後にresolveClickSelection(選択集合, null, false)の結果を反映する。
      * IDLE状態かつ図形作成モード中では、Modelへ新規図形作成の開始を指示してDRAWING状態へ遷移する。
      * 作成する図形のtypeには、現在記憶している図形種別（currentShapeType）をそのまま使用し、
      * 作成開始位置はクリック位置のワールド座標とする。
-     * 選択モード・図形作成モード以外のモードでは、IDLE状態のクリックを無視する。
+     * 選択モード・頂点の選択のモード・図形作成モード以外のモード（キャンバス移動モード等）では、IDLE状態のクリックを無視する。
      * 左ボタンのパン（スペース＋左ドラッグ・キャンバス移動モード）終了直後、および閾値を超えて動かした左ドラッグの
      * 終了直後のclickは、DragTrackerのclick抑止フラグをconsumeSuppressedClick()で消費したうえで1回だけ無視する
      * （作成開始・確定・選択・選択解除を起こさない）。左ドラッグを閾値以内で離した場合のclickは抑止せず、上記の通常処理を行う
@@ -849,6 +880,17 @@ export class InputTracker {
             this.#applySelectionChange(
                 resolveClickSelection(this.model.getSelectedIds(), hit.bodyId, hasCtrlModifier(event)),
             );
+            return;
+        }
+
+        if (this.currentMode === OperationMode.VERTEX) {
+            const hit = this.#classifyPoint({ x, y });
+            if (hit.handle) {
+                this.model.setSelectedVertices([{ shapeId: hit.handle.shapeId, handle: hit.handle.handle }]);
+                return;
+            }
+            this.model.clearSelectedVertices();
+            this.#applySelectionChange(resolveClickSelection(this.model.getSelectedIds(), hit.bodyId, false));
             return;
         }
 
@@ -1312,19 +1354,30 @@ export class InputTracker {
      * ・ハンドル（今のまま）：選択集合の図形を対象に、図形配列の後ろ（前面）から最初に当たったハンドル。
      * ・本体：選択集合の図形の輪郭を手前優先で優先し、なければ手前から輪郭または塗った内側（選択集合の内側を優先しない）。
      *   塗った内側を当たりに含めるかは、注入された照会（#isFillHitExcluded）の否定をそのまま渡して決める（含めないときは輪郭だけ）。
+     * ・ハンドルを当たりに含めるのは頂点の選択のモードだけ（includeHandles。選択モードでは含めず、handleは常にnull）。
+     *   頂点の選択のモードでは、当たったハンドルがその図形の頂点のハンドル（isVertexHandle）でなければ、handleをnullにしてbodyIdだけを返す。
      * 許容誤差は#getWorldHitTolerance()（画面上hitTolerance pxのワールド換算値）。
      * @param {{x: number, y: number}} point 判定位置（ワールド座標）
      * @returns {PointHit} 当たり分類の結果（handle・bodyIdともnullなら空白）
      */
     #classifyPoint(point) {
-        return classifyPointHit(
+        const isVertexMode = this.currentMode === OperationMode.VERTEX;
+        const hit = classifyPointHit(
             this.model.getShapes(),
             (id) => this.model.isSelected(id),
             point.x,
             point.y,
             this.#getWorldHitTolerance(),
-            !this.#isFillHitExcluded()
+            !this.#isFillHitExcluded(),
+            isVertexMode
         );
+        if (isVertexMode && hit.handle) {
+            const shape = this.model.getShapes().find((s) => s.id === hit.handle.shapeId);
+            if (!isVertexHandle(shape, hit.handle.handle)) {
+                return { handle: null, bodyId: hit.bodyId };
+            }
+        }
+        return hit;
     }
 
     // ---- 座標取得 ----
