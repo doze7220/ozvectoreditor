@@ -12,7 +12,7 @@ import { classifyPointHit } from './PointHitRules.js';
 import { isVertexHandle, collectVertexHandlesInRect } from './VertexHandleRules.js';
 import { resolvePressAction, resolveVertexPressAction } from './PressActionRules.js';
 import { resolveCursorShape } from './CursorShapeRules.js';
-import { resolveClickSelection, resolveMarqueeSelection, resolveVertexMarqueeSelection } from './SelectionRules.js';
+import { resolveClickSelection, resolveMarqueeSelection, resolveVertexMarqueeSelection, resolveVertexClickSelection } from './SelectionRules.js';
 import { constrainMoveDirection } from './MoveDirectionRules.js';
 import { resolveUnitSnapStep, roundPointToUnit, roundDeltaToUnit, roundConstrainedDeltaToUnit, roundPointFromOriginToUnit } from './UnitSnapRules.js';
 
@@ -857,9 +857,17 @@ export class InputTracker {
      * Ctrlあり：本体上なら選択集合へ1つ追加、選択中の図形なら外す（ほかの選択は残る）。空白では何もしない（解除しない）。
      * 押下時の分岐（handleMouseDown）はCtrlで変えないため、選択中の図形をCtrlで押して閾値以内で離すと、このclickで「選択中なら外す」になる
      * （閾値を超えて動かした場合は移動し、直後のclickは抑止される）。
-     * IDLE状態かつ頂点の選択のモード中では、クリック位置を#classifyPointで当たり分類し（Ctrlは見ない）、頂点のハンドル上ならsetSelectedVertices([hit.handle])
-     * （図形の選択は変えない）、本体上ならclearSelectedVertices()の後にresolveClickSelection(選択集合, bodyId, false)の結果を#applySelectionChangeで反映し、
-     * 空白ならclearSelectedVertices()の後にresolveClickSelection(選択集合, null, false)の結果を反映する。
+     * IDLE状態かつ頂点の選択のモード中では、クリック位置を#classifyPointで当たり分類し（ホバー状態は参照しない）、
+     * Ctrlの有無（hasCtrlModifier。見るのはこのclickイベント＝確定の時点）を読む。判定の順は次のとおり。
+     * 頂点のハンドル上なら、現在の頂点の選択・当たった頂点・CtrlをSelectionRulesのresolveVertexClickSelectionへ渡し、結果を#applyVertexSelectionChangeで反映する
+     * （図形の選択は変えない。Ctrlなし：その頂点のみの単一選択。Ctrlあり：未選択なら頂点の選択へ追加、選択中なら外す）。
+     * ハンドル上でなくCtrlありなら、resolveClickSelection(選択集合, bodyId, true)の結果を#applySelectionChangeで反映して終わる
+     * （本体上なら図形の選択へ追加・解除、空白なら規則がnullを返し何もしない。頂点の選択は空にしない）。
+     * ハンドル上でなくCtrlなしなら、clearSelectedVertices()の後にresolveClickSelection(選択集合, bodyId, false)の結果を#applySelectionChangeで反映する
+     * （本体上ならその図形のみの単一選択、空白なら選択集合が空でなければ全解除）。
+     * 図形の選択から外れた図形の頂点は、VectorModelが頂点の選択から落とす。通知は頂点の選択の変更と図形の選択の変更で別々に起こり得る（最大2回）。
+     * 押下の判定表（PressActionRules）はCtrlで変えないため、選ばれている頂点をCtrlで押して閾値以内で離すと、このclickで選択から外れる。
+     * REQどおりの正しいふるまいであり、ガード処理を足さない（閾値を超えて動かした場合は移動し、直後のclickはconsumeSuppressedClick()で抑止されるため選択は変わらない）。
      * IDLE状態かつ図形作成モード中では、Modelへ新規図形作成の開始を指示してDRAWING状態へ遷移する。
      * 作成する図形のtypeには、現在記憶している図形種別（currentShapeType）をそのまま使用し、
      * 作成開始位置はクリック位置のワールド座標とする。
@@ -911,8 +919,19 @@ export class InputTracker {
 
         if (this.currentMode === OperationMode.VERTEX) {
             const hit = this.#classifyPoint({ x, y });
+            const additive = hasCtrlModifier(event);
             if (hit.handle) {
-                this.model.setSelectedVertices([{ shapeId: hit.handle.shapeId, handle: hit.handle.handle }]);
+                this.#applyVertexSelectionChange(
+                    resolveVertexClickSelection(
+                        this.model.getSelectedVertices(),
+                        { shapeId: hit.handle.shapeId, handle: hit.handle.handle },
+                        additive,
+                    ),
+                );
+                return;
+            }
+            if (additive) {
+                this.#applySelectionChange(resolveClickSelection(this.model.getSelectedIds(), hit.bodyId, true));
                 return;
             }
             this.model.clearSelectedVertices();
