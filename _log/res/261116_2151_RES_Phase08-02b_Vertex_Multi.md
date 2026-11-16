@@ -419,10 +419,11 @@
         *   17. **ほかの操作**：図形の作成（1〜5）・パン（`H`・スペース・中ボタン）・ズーム・表示の切り替え・スタイル・重なり順・結合（`J`）・クリップボード・キャンバスパレット・ファイル操作・入力欄との競合（太さ・色の欄にフォーカスがある間は`A`・`V`が働かない）が今までどおり。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ提示した内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク13: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
+*   [x] タスク13: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新）
         *   `./_doc/arch/03_VectorModel.md` `./_doc/arch/06_InputTracker.md` `./_doc/arch/16_test.md` `./_doc/arch/27_SelectionRules.md` `./_doc/arch/34_PressActionRules.md` `./_doc/arch/38_VertexHandleRules.md` :（更新）
+        *   `./js/core/InputTracker.js` :（更新。クラス先頭のJSDocのみ。監査後の修正）
         *   （要件7で変更が生じた場合のみ）`./_doc/arch/04_CanvasManager.md` `./_doc/arch/35_CursorShapeRules.md` :（更新）
     *   **作業内容** :
         *   本計画書の『開発資料（`PROJECT_ARCHITECTURE.md`）の更新予定』欄と、各タスクで追記された更新予定をすべて反映する。
@@ -534,7 +535,19 @@
 
 ### タスク13: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   開発資料へ、本計画書の『開発資料の更新予定』欄の全項目を反映した（ソース・テストは変更していない）。
+        *   `PROJECT_ARCHITECTURE.md`：1章（`PressActionRules`・`SelectionRules`・`VertexHandleRules`の一行説明、`test/core/`へ`VectorModel.updateVertices.test.js`、`core/`説明へ`collectVertexHandlesInRect`、「存在しないもの」から後半へ回した記述を外し08-02bのやらないことを追加）、2章（頂点の選択：「最大1つ」を「2つ以上の組が入る」へ）、3章3.（範囲選択の流れ・クリックの解釈・頂点のドラッグの打つ点（アンカー・`updateVertices`1回・端点への吸い付きは1つだけ））、3章18.（クリック・押下の判定表・まとめ移動・範囲選択・モジュールの分担・発注者の決定の訂正と08-02bの6点・やらないこと・注意(a)・前半の記述の訂正・テストプレイの結果）。
+        *   `_doc/arch/03_VectorModel.md`（`updateVertices`・`updateVertex`の委譲・頂点の選択に2つ以上入ること）、`06_InputTracker.md`（押下・クリック・`#vertexDragOrigins`・追従・範囲選択の確定・`#applyVertexSelectionChange`・端点の解決・import・`Ctrl`の読み取り・行数1579）、`34_PressActionRules.md`（頂点の選択のモードの判定表4通り・テスト20件）、`27_SelectionRules.md`（責務の一文・頂点用の2関数と`VertexSelectionChange`・同一性・テスト36件）、`38_VertexHandleRules.md`（`collectVertexHandlesInRect`・テスト18件）、`16_test.md`（08-02bの新設・追加分・テストできない箇所・件数 tests 1411 / suites 216）。
+        *   `04_CanvasManager.md`・`35_CursorShapeRules.md`は、タスク10で変更不要と確認したため触れていない。
+        *   `node --test`：tests 1411 / suites 216 / pass 1411 / fail 0（資料のみの変更後に実行して確認）。
+    *   **監査後の修正**（要修正：重大3・軽微3）：
+        *   重大1：`_doc/arch/06_InputTracker.md`（配線の場面・`#unitSnapHandleOrigin`の段）と`PROJECT_ARCHITECTURE.md`3章12.の`updateVertex`を、実コードの経路（`model.updateVertices`へ組の配列を1回で渡す）へ直した。
+        *   重大2：`06_InputTracker.md`の`#unitSnapHandleOrigin`の記憶の順を、実態（`#vertexDragOrigins`の組み立てのループの中でアンカーのとき代入 → ループの後に1つだけのとき`resolveDragEndpoint`）へ直した。
+        *   重大3：`js/core/InputTracker.js`のクラス先頭のJSDocのみを直した（頂点の選択モードの記述を`Ctrl`で足す・外す・選び直す／範囲選択でまとめて選ぶ／まとめて動かす へ、頂点のハンドルのドラッグにアンカー基準の移動量・`updateVertices`1回を追記）。`06_InputTracker.md`の当該記述（14行目付近）も実態に合わせ、行数の記録を1579行へ更新した。
+        *   軽微4：`PROJECT_ARCHITECTURE.md`の3章3.（クリックの解釈）・16章・17章の3箇所に「選択モードの」を足した。
+        *   軽微5：3章18.の見出しのモジュール一覧へ`core/SelectionRules.js`・`core/PressActionRules.js`を足した。
+        *   軽微6：3章3.の当たり分類の範囲選択の記述へ、頂点の選択モードは`intersectsRect`を呼ばず頂点の位置で判定する旨と18.への参照を足した。
+        *   `node --test`：tests 1411 / pass 1411 / fail 0。
 
 ## 5. 懸念事項・要確認ポイント
 
@@ -552,3 +565,4 @@
 * **タスク8（追従）**：アンカーの組が`#vertexDragOrigins`に無い（図形が無い等）ときは何もしない。ほかの頂点の`x`・`y`は位置が得られた組だけが入るため`null`にならない。複数頂点の目視確認はタスク9の後に。`#vertexDragOrigins`の更新配列のキーは`updateVertices`の仕様どおり`id`。
 * **タスク9（クリック）**：`Ctrl`＋選択中の頂点を押して閾値以内で離すと選択から外れるのは仕様どおり（ガード無し）。頂点の選択のモードのクリックで、頂点上の`Ctrl`なしは頂点を単一選択へ置き換える（前半と同じ）。目視確認（`Ctrl`クリックでの追加・解除、`Ctrl`＋本体クリックでの図形の追加・解除）は発注者のテストプレイで。
 * **タスク10（表示・カーソル）**：変更不要と確認（根拠は詳細作業内容）。カーソルは範囲選択中に`default`のままになるが、これは範囲選択中は`mousemove`が`#updateCursor`を呼ばない既存の構造による。目視確認は発注者のテストプレイで（複数の頂点が青で並ぶこと・範囲選択の枠の見た目）。
+* **タスク13（資料の反映）**：`_doc/arch/06_InputTracker.md`の行数の記録は1579行（実測）。`PROJECT_ARCHITECTURE.md`3章18.は08-02a・08-02bの記述が同じ章に並ぶ構成のまま追記した（前半の記述は「訂正」の項と各項の注記で現状と食い違わないようにした）。`CanvasManager`・`CursorShapeRules`・`main.js`は08-02bで変えていないため資料の該当項目は変えていない。将来、変形のPhaseでこの章を整理するときは、08-02a・08-02bの2段の書き方を1つにまとめ直してよい。

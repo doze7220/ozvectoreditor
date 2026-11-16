@@ -171,13 +171,16 @@ export function hasCtrlModifier(event) {
  * 図形の作成で打つ点（描き始め・描いている途中の終点）は、吸い付かなかったときだけUnitSnapRulesのroundPointToUnitで
  * スナップの刻みへ丸める（吸い付いたときはその座標をそのまま使う。Ctrlの間・スナップOFFでは丸めない。図形種別の分岐は持たない）。
  * 頂点のハンドルのドラッグ（DRAGGING_HANDLE）では、追従のたびにUnitSnapRulesの関数で、押下時のハンドル位置（図形のgetHandlePositionを
- * 図形種別によらずポリモーフィックに呼んで得る）に丸めた移動量を足した位置を頂点の目標にする（Ctrlの間は丸めない）。
+ * 図形種別によらずポリモーフィックに呼んで得る）に丸めた移動量を足した位置を、押したハンドル（アンカー）の目標にする（Ctrlの間は丸めない）。
+ * 頂点の数によらず（1つのときも）、アンカーの移動量（目標−押下時の位置）を、押下時に組み立てた各頂点の押下時の位置へ足して、
+ * 全頂点の更新をmodel.updateVerticesへ1回で渡す（updateVertexは使わない。端点への吸い付きはドラッグする頂点が1つのときだけ）。
  * 図形種別の分岐・図形固有のプロパティ名は持たない。
  * 当たり分類の規則（ハンドル・本体の優先順位）はPointHitRules.classifyPointHitに委ねる。#classifyPointは、操作モードからハンドルを当たりに含めるか
  * （includeHandles。頂点の選択のモードのみ真）を決めて渡し、頂点の選択のモードでは当たったハンドルをVertexHandleRules.isVertexHandleで頂点のハンドルに絞り込む
  * （塗った内側を当たりに含めるかは、コンストラクタ第6引数で注入された照会に従う）。
- * 頂点の選択のモード（OperationMode.VERTEX）では、頂点のハンドルのクリックでその頂点だけを頂点の選択にし、頂点のハンドルのドラッグで頂点を変形する
- * （図形の選択の更新はクリック時にSelectionRulesへ渡す）。
+ * 頂点の選択のモード（OperationMode.VERTEX）では、頂点のハンドルのクリックでCtrlの有無により頂点の選択へ足す・外す・その頂点だけに選び直し、
+ * 範囲選択（MARQUEE_SELECTING）で範囲に入る頂点をまとめて選び、選んだ頂点のハンドルのドラッグで選んだ頂点をまとめて動かす
+ * （選択の次の状態の決定はSelectionRules、押下時の分岐はPressActionRulesへ渡す）。
  * 入力の解釈の外へ委ねる補助（InputAssist。コンストラクタ第7引数。項目はduplicateSelection・isPickingShape・pickShape・getUnitSnapStep）も注入される。
  * Altを押して始めた本体ドラッグ・移動用ハンドルのドラッグで移動量が閾値を超えた時点（beginEdit()の後）に、
  * 注入された複製を呼ぶだけで、複製の仕方・idの採番は知らない。
