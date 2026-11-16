@@ -19,13 +19,6 @@ import { resolveUnitSnapStep, roundPointToUnit, roundDeltaToUnit, roundConstrain
  */
 
 /**
- * 図形作成モードで作成可能な図形種別の一覧（ReadonlyArray<string>）。正本はShapeFactory.js（SHAPE_REGISTRYから導出）。
- * 既存のimport元（KeyboardShortcuts.js）を変えないための再export。本ファイルでは setShapeType() の引数バリデーション
- * （includes()による受理判定）と currentShapeType の初期値（先頭要素）にのみ用い、図形種別ごとの分岐には用いない。
- */
-export { SHAPE_TYPES };
-
-/**
  * ホイール1刻みあたりのズーム倍率（無次元）。拡大時はこの値を、縮小時はその逆数を
  * ViewTransform.zoomAt()のfactorとして渡す。
  * キーボードショートカットの拡大・縮小（main.js）でも同値を用いる（刻み幅を重複定義しないため共有する）。

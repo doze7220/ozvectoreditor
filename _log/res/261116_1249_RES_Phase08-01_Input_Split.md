@@ -412,7 +412,7 @@
         *   `grep -rn "InputState\|OperationMode" --include=*.js .`で取り込み側の漏れがないことを確認する。
         *   `node --test`で全件通ることを確認する。
         *   **タスク完了後の記録**：本計画書の『4. 詳細作業内容』の「タスク1: …」の欄へ実際の作業内容（変更したファイル・移した範囲・確認した結果）を記載して完成させ、「3. タスクリスト」の該当タスクを`[x]`にする。開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る点が判明した場合は、資料本体は修正せず『開発資料（`PROJECT_ARCHITECTURE.md`）の更新予定』欄へ追記する（資料本体の修正はタスク12のみ）。
-*   [ ] タスク2: 要件1(b) `SHAPE_TYPES`の再exportを消す
+*   [x] タスク2: 要件1(b) `SHAPE_TYPES`の再exportを消す
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` :（更新）
         *   `./js/core/KeyboardShortcuts.js` :（更新）
@@ -537,7 +537,9 @@
 
 ### タスク2: 要件1(b) `SHAPE_TYPES`の再exportを消す
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `InputTracker.js`：`export { SHAPE_TYPES };`と直前のJSDoc（計6行）、およびその後ろの空行1行を削除。`import { SHAPE_TYPES } from './ShapeFactory.js';`と`setShapeType`・`currentShapeType`での使用は残した。
+    *   `KeyboardShortcuts.js`：`SHAPE_TYPES`を`./ShapeFactory.js`から取るようimportを分割（`isTextInputElement`・`isSpaceOperatedInputElement`は`InputTracker.js`のまま。タスク3の対象）。
+    *   grepで`InputTracker.js`から`SHAPE_TYPES`をimportする箇所が無いことを確認。`node --test`全件合格。
 
 ### タスク3: 要件1(c) フォーカスしている要素の判定を`js/core/FocusKeyYieldRules.js`へ移す
 *   **作業内容** :
