@@ -314,7 +314,7 @@ export class InputTracker {
      * 頂点インデックス（shape.getVertexIndexForHandle）と位置（shape.getHandlePosition）は押下の時点に1回だけ求める（追従では求め直さない）。
      * 図形が見つからない組・位置が得られない組は含めない（ただしアンカーは位置が得られなくても含め、その場合x・yはnull）。
      * 寿命は#unitSnapHandleOriginと同じ：#beginLeftDragで設定（DRAGGING_HANDLE以外の押下では空配列）し、#finishLeftDrag()で空配列に戻す。
-     * @type {Array<{shapeId: string, handle: string, vertexIndex: *, x: (number|null), y: (number|null)}>}
+     * @type {Array<{shapeId: string, handle: string, vertexIndex: (number|null), x: (number|null), y: (number|null)}>}
      */
     #vertexDragOrigins = [];
 
@@ -1156,13 +1156,19 @@ export class InputTracker {
      * ズーム直後のwheelでも同じ式で、ズーム後のカーソル位置へ追従し直す（Shiftを押している間は限定されたまま）。
      * MARQUEE_SELECTINGなら押下点（#marqueeAnchor）と現在のカーソル位置（いずれもワールド座標）を対角2点として
      * 選択矩形をModelへ設定する（正規化しない。選択集合は確定時まで変更しない）。
-     * DRAGGING_HANDLEならshape.getVertexIndexForHandle()で頂点インデックスを解決して現在のワールド座標をModelへ渡す
-     * （その1図形のみ。選択集合は変更しない）。対象図形が存在しない場合は何もしない。
+     * DRAGGING_HANDLEなら、押下時に#vertexDragOriginsへ記憶した頂点インデックス・位置を使い（追従では解決し直さない）、
+     * 動かす頂点すべてをmodel.updateVertices()へ1回で渡す（変更通知は1回。選択集合は変更しない）。
+     * 対象図形が存在しない、またはアンカー（押した頂点）が#vertexDragOriginsに無い場合は何もしない。
+     * アンカー（押した頂点）の行き先は以下のとおり求め、アンカーにはその行き先そのものを渡す（移動量の足し算を通さない。
+     * origin+(target-origin)は浮動小数でtargetと厳密に一致しないため。頂点が1つだけのときの結果が前半と完全に同じになる要点）。
+     * ほかの頂点には、アンカーの移動量（アンカーの行き先-#unitSnapHandleOrigin。#unitSnapHandleOriginがnullなら0）を
+     * それぞれの押下時の位置へ足した座標を渡す（選んでいる頂点すべてが同じだけ動く）。
      * 端点のハンドル（#dragEndpointあり）なら、頂点を渡す前に注入された補助のfindDragSnap(#dragEndpoint, カーソル位置)で
      * 吸い付きを照会して#dragSnapに保持・表示し、吸い付いていればその端点の座標、いなければカーソル位置を頂点の座標にする（Ctrlの間は照会せず吸い付かない）。
      * 吸い付かなかったときは、ドラッグを始めた時点のハンドルの位置（#unitSnapHandleOrigin）を基準に、そこからの移動量を
      * スナップの刻みで丸めた位置（roundPointFromOriginToUnit。Ctrlの間・スナップOFFでは丸めずカーソル位置）を頂点の座標にする。
      * 位置が得られない（#unitSnapHandleOriginがnull）ときは丸めない。Shiftは頂点のハンドルには効かせない。
+     * 端点への吸い付きは頂点が1つだけのとき（#dragEndpointがあるとき）にしか起きない。
      * @param {MouseEvent} event カーソル位置とshiftKey・ctrlKey・metaKeyを持つイベント（window captureのmousemove、またはwheel。shiftKeyはMOVING_SELECTIONの移動方向の限定にのみ、Ctrlの有無は丸め・端点への吸い付きの省略に使う）
      */
     #applyLeftDragUpdate(event) {
@@ -1189,7 +1195,10 @@ export class InputTracker {
         if (!shape) {
             return;
         }
-        const vertexIndex = shape.getVertexIndexForHandle(this.activeHandle);
+        const anchor = this.#vertexDragOrigins.find((o) => o.shapeId === this.activeShapeId && o.handle === this.activeHandle);
+        if (!anchor) {
+            return;
+        }
         const suppressed = hasCtrlModifier(event);
         let target = { x, y };
         let snap = null;
@@ -1207,7 +1216,16 @@ export class InputTracker {
                 resolveUnitSnapStep(this.#inputAssist.getUnitSnapStep(), suppressed),
             );
         }
-        this.model.updateVertex(this.activeShapeId, vertexIndex, target.x, target.y);
+        const delta = this.#unitSnapHandleOrigin
+            ? { dx: target.x - this.#unitSnapHandleOrigin.x, dy: target.y - this.#unitSnapHandleOrigin.y }
+            : { dx: 0, dy: 0 };
+        const updates = this.#vertexDragOrigins.map((o) => {
+            if (o === anchor) {
+                return { id: o.shapeId, vertexIndex: o.vertexIndex, x: target.x, y: target.y };
+            }
+            return { id: o.shapeId, vertexIndex: o.vertexIndex, x: o.x + delta.dx, y: o.y + delta.dy };
+        });
+        this.model.updateVertices(updates);
     }
 
     /**

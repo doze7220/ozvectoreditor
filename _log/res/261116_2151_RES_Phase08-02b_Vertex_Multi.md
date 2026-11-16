@@ -218,6 +218,7 @@
   * `_doc/arch/03_VectorModel.md`：公開メソッドの一覧へ`updateVertices`を足し、`updateVertex`が`updateVertices`へ委譲すること（`setVertex`を呼ぶ箇所の一本化）・通知1回の約束・存在しないidと空の配列の扱いを書く。頂点の選択の項の「最大1つ」等の前半の前提を直し、2つ以上の組が入ることと落とし方（変更なし）を書く。
   * `_doc/arch/06_InputTracker.md`：頂点の選択のモードの押下（判定表の委譲先と4通り）・追従（まとめ移動の式・`updateVertices`へ1回・アンカーの扱い）・範囲選択の確定（頂点の組の集め方と図形の選択を変えないこと）・クリック（`Ctrl`の約束）・新しい作業用フィールド`#vertexDragOrigins`の寿命・端点の解決を1つのときだけ行うこと・`#applyVertexSelectionChange`・importの追加・行数を更新する。
     * （タスク7で判明）`06_InputTracker.md`・`PROJECT_ARCHITECTURE.md`3章の入力監視へ：作業用フィールド`#vertexDragOrigins`（押下時の位置と頂点インデックスを押下の時点に1回だけ求める・寿命は`#unitSnapHandleOrigin`と同じ）、フィールド`activeHandle`の頂点インデックス解決が追従から押下時へ移ったこと、端点への吸い付きの解決は記憶した頂点が1つのときだけであること、クラス先頭の責務定義に頂点の複数選択とまとめ移動を足したこと。
+    * （タスク8で判明）`06_InputTracker.md`の追従の記述：`#applyLeftDragUpdate`は頂点インデックスを解決せず`#vertexDragOrigins`の記憶値を使い、`updateVertices`へ`{id, vertexIndex, x, y}`の配列を1回で渡す（アンカーは行き先そのもの）。
   * `_doc/arch/34_PressActionRules.md`：`resolveVertexPressAction`と`VertexPressAction`の判定の表（4通り）・照会の呼び方・選択モードの表を変えていないこと・テストの件数を足す。
   * `_doc/arch/27_SelectionRules.md`：頂点用の2つの関数と`VertexSelectionChange`・頂点の同一性（図形のidとハンドル名の両方一致）・`additive`の約束・テストの件数を足す。あわせて、同資料の冒頭の責務の一文（現状「クリック・範囲選択の次の選択の指示と、選択の反転の結果を…」）を、実コードの先頭の責務定義（図形と頂点の両方・選択の反転は図形のみ）に合わせて書き直す。
   * `_doc/arch/38_VertexHandleRules.md`：`collectVertexHandlesInRect`（対象は選択中の図形だけ・境界を含む・並び・正規化済みの矩形を受け取る前提・`intersectsRect`を使わない理由）とテストの件数を足す。
@@ -335,7 +336,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク8: 要件6 追従（まとめ移動。`#applyLeftDragUpdate`）
+*   [x] タスク8: 要件6 追従（まとめ移動。`#applyLeftDragUpdate`）
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` :（更新）
     *   **作業内容** :
@@ -477,7 +478,9 @@
 
 ### タスク8: 要件6 追従（まとめ移動。`#applyLeftDragUpdate`）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/core/InputTracker.js`：`#applyLeftDragUpdate`の`DRAGGING_HANDLE`を、図形の早期`return`→`#vertexDragOrigins`からアンカーの組を引く（無ければ`return`）→アンカーの行き先を従来どおり求める→移動量（`#unitSnapHandleOrigin`が`null`なら0）→アンカーは行き先そのもの・ほかは`押下時の位置＋移動量`で更新配列（`{id, vertexIndex, x, y}`）を作り`model.updateVertices`へ1回で渡す、に直した。追従での`getVertexIndexForHandle`呼び出しを廃止し記憶値へ置換。
+    *   JSDoc：`#applyLeftDragUpdate`をまとめ移動・アンカーに足し算を通さないこと・通知1回・端点への吸い付きは1頂点のみ・`Shift`不使用に合わせて書き直した。`#vertexDragOrigins`の`vertexIndex`の型を`(number|null)`へ修正。`activeHandle`のJSDocはタスク7で直済みで追従の実装と一致。
+    *   `node --test`全件合格（1411件）。
 
 ### タスク9: 要件6 クリック（`handleClick`の`Ctrl`の約束）
 *   **作業内容** :
@@ -512,3 +515,4 @@
 * **範囲選択で頂点が0件のとき**：`Ctrl`なしの範囲選択は0件でも置き換える（頂点の選択が空になる）。`Ctrl`ありの0件は選択を変えない。図形用の範囲選択と同じ約束で、REQの要件4のとおり。
 * **タスク6（`#commitMarquee`の頂点の枝）**：タスク7まで頂点の選択のモードで範囲選択が始まらないため、新しい枝は未到達（計画どおり）。目視確認はタスク7以降で行う。ファイル先頭の責務定義の括弧へ頂点の範囲選択の委譲を追記した。`InputTracker.js`の1章の一行説明は、タスク6の範囲では影響なし（全体の見直しは最終タスクで判断）。
 * **タスク7（押下の配線）**：頂点の選択のモードで範囲選択が始まるようになったため、タスク6の確定の枝が通る。目視確認はタスク8・9の後にまとめて行うのが望ましい。`#beginLeftDrag`で図形が見つからないアンカーは記憶されず`#unitSnapHandleOrigin`は`null`のままで、このとき端点の解決も行わない（追従は図形が無ければ何もしない）。
+* **タスク8（追従）**：アンカーの組が`#vertexDragOrigins`に無い（図形が無い等）ときは何もしない。ほかの頂点の`x`・`y`は位置が得られた組だけが入るため`null`にならない。複数頂点の目視確認はタスク9の後に。`#vertexDragOrigins`の更新配列のキーは`updateVertices`の仕様どおり`id`。
