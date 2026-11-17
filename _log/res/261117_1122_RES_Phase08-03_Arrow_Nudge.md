@@ -340,7 +340,7 @@
 * **`_doc/arch/07_KeyboardShortcuts.md`**：「矢印キーでの微調整のキー（Phase 08-03）」の項を足す（8エントリの作り方・`ctrl: false`のみ・`Shift`で1px／10px・`repeatable: true`・コールバックは`nudgeSelection`の1つ・動く量と4方向の定義が同ファイルの1か所であること）。`Shift`の規則の説明（`REQUIRED`は`Ctrl+Shift+Z`と`Ctrl+Shift+V`のみ／`Shift`併用は予約）を実態に合わせて直す。
 * **`_doc/arch/08_HistoryManager.md`**：`commitEdit`の省略できる「まとめの鍵」の引数、畳む条件、往復でエントリが消えること、鍵を忘れる契機、畳んだとき・取り除いたときも通知すること、戻り値の意味、呼び出し元に`edit/NudgeEditor`を追記（鍵を渡すのは`NudgeEditor`だけ）。
 * **`_doc/arch/14_edit.md`**：`NudgeEditor.js`の項（責務・公開メソッド`nudge`・依存（`model`の使うメソッド・`editRecorder`・`getMode`）・契約（対象なし／0件では記録先に触れない・通知1回・取り消し1件・ビュー変換を読まない・スナップと吸い付きを通さない）・例外として`core/NudgeTargetRules`をimportすること・操作モードの値を解釈せず規則へ渡すだけであること）。「依存」の段落へ`core/`のimportの例外を追記。
-* **`_doc/arch/02_main.md`**：配線ブロックの表へ`// 7.9.`（微調整の配線）、注入の一覧へ`NudgeEditor`（`model`・`editRecorder`＝`historyManager`・`getMode`＝`() => inputTracker.getMode()`）、`KeyboardShortcuts`の注入へ`nudgeSelection`、行数の更新（現在899行）。
+* **`_doc/arch/02_main.md`**：配線ブロックの表へ`// 7.9.`（微調整の配線）、注入の一覧へ`NudgeEditor`（`model`・`editRecorder`＝`historyManager`・`getMode`＝`() => inputTracker.getMode()`）、`KeyboardShortcuts`の注入へ`nudgeSelection`、行数の更新（実測は899行→908行（タスク4で+9行。最終タスクで再確認））。
 * **`_doc/arch/03_VectorModel.md`**：`moveShapes`・`updateVertices`の呼び出し元に`edit/NudgeEditor`が加わったこと（`updateVertices`の「呼び出し元は`InputTracker`の頂点のドラッグ」の記述を更新）。
 * **`_doc/arch/32_InputModes.md`**：使う側（import元）へ`core/NudgeTargetRules`（`OperationMode`）を追記。
 * **`_doc/arch/16_test.md`**：「Phase 08-03の新設・追加分」（新設4ファイルと検証範囲）、「テストできない箇所（08-03の追加）」（`KeyboardShortcuts`の矢印キーの受理判定全般、`main.js`の`// 7.9.`の配線と`nudgeSelection`のコールバック）、「書き換えた既存のテスト（08-03）」（無し）、件数（08-03前は1411件）、`test/edit/NudgeEditor.test.js`が実物の`VectorModel`を使う例外の条件を追記。
@@ -420,7 +420,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク5: 仕上げの確認（JSDoc・不要なコード・全テスト・スコープ）
+*   [x] タスク5: 仕上げの確認（JSDoc・不要なコード・全テスト・スコープ）
     *   **対象ファイル** :
         *   （原則として変更なし。漏れが見つかった場合のみ、タスク1〜4で触れたファイルを直す）
     *   **作業内容** :
@@ -487,7 +487,11 @@
 
 ### タスク5: 仕上げの確認（JSDoc・不要なコード・全テスト・スコープ）
 *   **作業内容** :
-    *   （未実施）
+    *   JSDoc確認：新規・更新の全ファイルの先頭責務（3行以内）と関数・メソッド・typedefのJSDocを確認。漏れは`test/core/NudgeTargetRules.test.js`のインライン補助関数`k`（2か所）のみで、`@param`・`@returns`つきのJSDocを追記（テストの中身は不変）。
+    *   不要コード確認：未使用のimport・関数・定数は無し（`NudgeTargetRules`のimportは`InputModes`のみ、`NudgeEditor`のimportは`NudgeTargetRules`の2関数のみ）。
+    *   変更範囲：`git diff --name-status`で、変更は計画書の対象ファイル（`js/core/HistoryManager.js`・`KeyboardShortcuts.js`・`NudgeTargetRules.js`・`js/edit/NudgeEditor.js`・`js/main.js`・テスト4件・本RES）のみ。`InputTracker`・`VectorModel`等の禁止対象は無変更。既存テストファイルの変更なし。
+    *   『開発資料の更新予定』欄：`02_main.md`の行数を899→908へ訂正。（タスク4）の更新予定の内容は既に同欄で網羅済みのため重複追記せず。
+    *   `node --test`：tests 1457 / suites 221 / pass 1457 / fail 0（08-03前は tests 1411 / suites 216）。
 
 ### タスク6: 要件6 テストプレイの確認項目を発注者へ提示する
 *   **作業内容** :

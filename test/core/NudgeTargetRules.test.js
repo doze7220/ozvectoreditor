@@ -100,11 +100,23 @@ describe('buildNudgeGroupKey', () => {
         );
     });
     it('同じ図形の別のハンドル名・別の図形の同じハンドル名で別の鍵', () => {
+        /**
+         * 頂点1つだけの対象から、まとめの鍵を作る。
+         * @param {string} s - 図形のid
+         * @param {string} h - ハンドル名
+         * @returns {string} まとめの鍵
+         */
         const k = (s, h) => buildNudgeGroupKey({ type: 'vertices', vertices: [v(s, h)] });
         assert.notEqual(k('a', 'p0'), k('a', 'p1'));
         assert.notEqual(k('a', 'p0'), k('b', 'p0'));
     });
     it('区切り文字を含むid・ハンドル名でも衝突しない', () => {
+        /**
+         * 頂点1つだけの対象から、まとめの鍵を作る。
+         * @param {string} s - 図形のid
+         * @param {string} h - ハンドル名
+         * @returns {string} まとめの鍵
+         */
         const k = (s, h) => buildNudgeGroupKey({ type: 'vertices', vertices: [v(s, h)] });
         assert.notEqual(k('a-b', 'c'), k('a', 'b-c'));
     });
