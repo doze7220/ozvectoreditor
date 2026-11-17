@@ -498,7 +498,7 @@ moveShapesBy(moves)   // moves: Array<{ id: string, dx: number, dy: number }>
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク7: 要件7 配線（`main.js`の`// 7.11.`）
+*   [x] タスク7: 要件7 配線（`main.js`の`// 7.11.`）
     *   **対象ファイル** :
         *   `./js/main.js` :（更新）
     *   **作業内容** :
@@ -593,7 +593,10 @@ moveShapesBy(moves)   // moves: Array<{ id: string, dx: number, dy: number }>
 
 ### タスク7: 要件7 配線（`main.js`の`// 7.11.`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/main.js`：importを2つ（`ShapeAlignEditor`・`OptionBarAlignGroup`。`OptionBarPositionGroup`の後。`ShapeAlignOperation`はimportしない）。`// 7.10.`の後・`// 8.`の前に`// 7.11.`ブロックを追加（`ShapeAlignEditor`の生成は`// 7.10.`の`shapeExtentReader`を渡す＝3つ目は生成しない／`performShapeAlign`（ドラッグ中は`false`、それ以外は`apply`の結果を返すだけ。JSDoc付き）／`OptionBarAlignGroup`の生成（`onAlign`は`performShapeAlign`の戻り値をそのまま返す）／`syncOptionBarAlignGroup`（JSDoc付き。橋渡しのみ）と`model.onChange`への登録）。起動時の同期に`syncOptionBarPositionGroup();`の後で`syncOptionBarAlignGroup();`を1回追加。`// 8.`・`DisplayWiring.js`・`document`購読は不変。
+    *   追従の確認：`setSelection`・`clearSelection`・`updateShapeStyles`・`updateVertices`・`moveShapes`・`moveShapesBy`・`replaceAllShapes`がいずれも`#notifyChange()`を呼ぶことをコードで確認（新しい通知は足していない）。
+    *   `node --test`：tests 1543 / suites 230 / pass 1543 / fail 0。
+    *   開発資料の更新予定への追記：`main.js`の行数は988行（`02_main.md`更新時に反映）。他は既存の予定欄の記述どおり。
 
 ### タスク8: 仕上げの確認（JSDoc・不要なコード・全テスト・スコープ）
 *   **作業内容** :

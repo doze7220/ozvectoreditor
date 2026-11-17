@@ -41,6 +41,8 @@ import { ShapeExtentReader } from './edit/ShapeExtentReader.js';
 import { ShapeOrderOperation } from './edit/ShapeOrderRules.js';
 import { OptionBarOrderGroup } from './palette/OptionBarOrderGroup.js';
 import { OptionBarPositionGroup } from './palette/OptionBarPositionGroup.js';
+import { ShapeAlignEditor } from './edit/ShapeAlignEditor.js';
+import { OptionBarAlignGroup } from './palette/OptionBarAlignGroup.js';
 import { DisplayState } from './core/DisplayState.js';
 import { UnitSnapSettings } from './core/UnitSnapSettings.js';
 import { DisplayWiring } from './wiring/DisplayWiring.js';
@@ -716,6 +718,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
     model.onChange(syncOptionBarPositionGroup);
 
+    // 7.11. オプションバー（整列・分布のまとまり）配線
+    // 表示（8ボタンの押せる/押せない）はOptionBarAlignGroup（palette/）が、変更の手順（1件の編集操作と各操作で動くかの照会）は
+    // ShapeAlignEditor（edit/）が、移動量の規則はShapeAlignRules（edit/）が、外枠の照会は7.10.で生成した同じshapeExtentReaderが持つ。
+    // ここは生成・注入・同期のみを行う（判定・計算を書かない）。表示の同期はmodel.onChangeのみで行う（機能専用の同期経路は足さない）。
+    // キーボードショートカットは割り当てない（ボタンのみ）。
+    const shapeAlignEditor = new ShapeAlignEditor({ model, editRecorder: historyManager, shapeExtentReader });
+
+    /**
+     * 選択中の図形を整列・分布する。オプションバーの整列・分布のボタンの経路（キーは割り当てない）。
+     * (1) ドラッグ中（InputTracker.isDragging()が真）なら何もせずfalse（不受理）。ボタンはショートカット以外の
+     *     呼び出し元のため、中ボタンのパン中に左クリックで押される場合に備えてここで判定する。
+     * (2) それ以外はshapeAlignEditor.apply(operation)の結果を返す。
+     * @param {string} operation - ShapeAlignOperationの値
+     * @returns {boolean} 図形を動かした場合のみtrue（不受理・動かない操作ではfalse）
+     */
+    function performShapeAlign(operation) {
+        if (inputTracker.isDragging()) {
+            return false;
+        }
+        return shapeAlignEditor.apply(operation);
+    }
+
+    // 操作の文字列をそのまま渡し、戻り値をそのまま返すだけ
+    const optionBarAlignGroup = new OptionBarAlignGroup(document.getElementById('option-align-group'), {
+        onAlign: (operation) => performShapeAlign(operation)
+    });
+
+    /**
+     * オプションバーの整列・分布のまとまりの8ボタンの押せる/押せない状態を、現在の選択と図形の外枠で各操作により
+     * 図形が動くか（shapeAlignEditor.getAvailability()）に同期する（optionBarAlignGroup.render）。
+     * model.onChangeのコールバックとして登録し、起動時にも明示的に1回呼び出す。DOMの更新はOptionBarAlignGroupが担い、ここは橋渡しのみ。
+     */
+    function syncOptionBarAlignGroup() {
+        optionBarAlignGroup.render(shapeAlignEditor.getAvailability());
+    }
+
+    model.onChange(syncOptionBarAlignGroup);
+
     // 8. キーボードショートカット配線
     /**
      * 表示中キャンバスの中心を基準に、ホイール1刻みと同じ刻み幅（WHEEL_ZOOM_STEP）で拡大・縮小する。
@@ -929,6 +969,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // オプションバーの位置のまとまりのX・Yの欄も同様に、index.htmlの初期状態やonChange通知に依存させず、
     // 選択・操作モード・図形の実値で明示的に1回同期する
     syncOptionBarPositionGroup();
+
+    // オプションバーの整列・分布のまとまりの8ボタンの押せる/押せない状態も同様に、index.htmlの初期disabled属性や
+    // onChange通知に依存させず、選択集合と図形の外枠の実値で明示的に1回同期する
+    syncOptionBarAlignGroup();
 
     // キャンバス名の表示・読み込み中の覆い要素・キャンバスパレットも同様に、onChange通知に依存させず
     // 状態の実値で明示的に1回同期する（名前の表示・覆い要素はCanvasLibrary、パレットはCanvasFileOperationsの状態。
