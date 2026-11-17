@@ -533,7 +533,7 @@ moveShapesBy(moves)   // moves: Array<{ id: string, dx: number, dy: number }>
         *   自動テストで確かめられない箇所（`OptionBarAlignGroup`のDOMのふるまい、`main.js`の`// 7.11.`の配線、`index.html`の見た目と1280px幅での収まり、記号の見分けやすさ）を、特に確かめてほしい項目として添える。記号は`index.html`の1か所で差し替えられることを添える。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ提示した内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク10: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
+*   [x] タスク10: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新）
         *   `./_doc/arch/01_index_html.md`・`02_main.md`・`03_VectorModel.md`・`13_palette.md`・`14_edit.md`・`16_test.md` :（更新）
@@ -632,7 +632,10 @@ moveShapesBy(moves)   // moves: Array<{ id: string, dx: number, dy: number }>
 
 ### タスク10: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
 *   **作業内容** :
-    *   （未実施）
+    *   `PROJECT_ARCHITECTURE.md`：1章（ファイル一覧に`ShapeAlignRules`・`ShapeAlignEditor`・`OptionBarAlignGroup`と新設テスト3ファイル（`VectorModel.moveShapesBy.test.js`・`ShapeAlignRules.test.js`・`ShapeAlignEditor.test.js`）を追加、`ShapeExtentReader`の説明、「存在しないもの」にPhase 08-05の分を追加し過去の「整列と分布」は当時の記録として残して実装済みを示す、フォルダ分割の方針の`edit/`と依存方向に08-05の分を追加）、3章（冒頭の同期の経路にオプションバーの整列・分布を追加、6.の記録する操作に整列・分布を追加、13.のまとまりの列挙に`#option-align-group`を追加、19.・20.の「やらないこと」に08-05で入った旨を追記、**21.「整列・分布」を新設**）。4章の一覧の表は行を増やしていない。
+    *   `_doc/arch/`：`01_index_html.md`（`#option-align-group`と8ボタンのid・初期`disabled`・`title`にキーなし・記号は仮、まとまりを4つに、幅の見積もり約1138px）、`02_main.md`（行数988・`// 7.11.`・主な関数・注入の一覧・同一経路・押せる/押せない・起動時の同期・`ShapeExtentReader`の使い手）、`03_VectorModel.md`（`moveShapesBy`）、`13_palette.md`（`OptionBarAlignGroup`の項目・冒頭と位置づけの列挙）、`14_edit.md`（`ShapeAlignRules`・`ShapeAlignEditor`の項目・`ShapeExtentReader.getSelectedBoundsPerShape`・依存の例外の列挙）、`16_test.md`（新設3ファイルと既存1ファイルへの追加・書き換えた既存テストは無し・テストできない箇所・件数 tests 1543 / suites 230）。`36_DisplayWiring.md`は変更していない。
+    *   ソースコード（`js/`・`test/`・`index.html`）は変更していない。コード・JSDocと資料の食い違いの新規発見はなし。
+    *   diff監査の指摘で修正：`13_palette.md`の`OptionBarAlignGroup`の注入の記述（要素が1つでも欠ければ配線せず以後の`render`も何もしない）と、`PROJECT_ARCHITECTURE.md`の`ShapeAlignEditor.js`の説明の述語（`beginEdit`／`commitEdit`の対で行う）を直した。
 
 ## 5. 懸念事項・要確認ポイント
 * **（計画時点）`ShapeExtentReader`のクラスJSDocの記述が実態と食い違っている**：クラスのJSDocに「main.jsが1つだけ生成する」とあるが、実際には`wiring/DisplayWiring`の内部と`main.js`の`// 7.10.`の2か所で生成している（Phase 08-04から。開発資料の`14_edit.md`は2か所と正しく書いている）。本作業の要件1は「照会の追加と先頭の責務定義への追記のみ」のため**このJSDocは直さない**。直すなら別のREQで扱う。
