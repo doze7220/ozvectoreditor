@@ -483,7 +483,7 @@ moveShapesBy(moves)   // moves: Array<{ id: string, dx: number, dy: number }>
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク6: 要件6 UI部品（`palette/OptionBarAlignGroup`）
+*   [x] タスク6: 要件6 UI部品（`palette/OptionBarAlignGroup`）
     *   **対象ファイル** :
         *   `./js/palette/OptionBarAlignGroup.js` :（新規）
     *   **作業内容** :
@@ -587,7 +587,9 @@ moveShapesBy(moves)   // moves: Array<{ id: string, dx: number, dy: number }>
 
 ### タスク6: 要件6 UI部品（`palette/OptionBarAlignGroup`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/palette/OptionBarAlignGroup.js`（新規・importなし）：先頭の責務定義、typedef`ShapeAlignAvailability`（`ShapeAlignEditor`との二重定義の旨を明記）・`OptionBarAlignGroupActions`（`onAlign`1つ）、凍結した対応表`ALIGN_BUTTONS`（`{ operation, id }`×8。`ShapeAlignOperation`との二重定義の旨を明記）、`OptionBarAlignGroup`クラス（コンストラクタ：`onAlign`が関数でなければ`Error`／要素欠けで`console.warn`して配線しない／`click`で`onAlign(operation)`。`render(view)`：8つの`disabled`を`!(view && view[operation] === true)`で毎回当てる。押せない判定は`click`側に無い）。`OptionBarOrderGroup`の作りにそろえた。テストは置かない（DOM依存）。
+    *   `node --test`：tests 1543 / suites 230 / pass 1543 / fail 0。
+    *   開発資料の更新予定への追記：なし（既存の予定欄の記述どおり）。
 
 ### タスク7: 要件7 配線（`main.js`の`// 7.11.`）
 *   **作業内容** :
