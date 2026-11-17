@@ -538,7 +538,7 @@ model.onChange(syncOptionBarPositionGroup);
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない。`main.js`の行数も控える）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク8: 仕上げの確認（JSDoc・不要なコード・全テスト・スコープ）
+*   [x] タスク8: 仕上げの確認（JSDoc・不要なコード・全テスト・スコープ）
     *   **対象ファイル** :
         *   （原則として変更なし。漏れが見つかった場合のみ、タスク1〜7で触れたファイルを直す）
     *   **作業内容** :
@@ -622,10 +622,17 @@ model.onChange(syncOptionBarPositionGroup);
     *   `syncOptionBarPositionGroup()`（JSDoc付き・橋渡しのみ）を`model.onChange`へ登録し、起動時の同期の並び（`syncOptionBarOrderGroup()`の後）へコメント付きで1回呼び出しを追加。専用の再描画経路・`document`購読は足していない。`DisplayWiring.js`は未変更。
     *   既存の通知経路の確認（コードを追って確認、新しい通知は不要）：モード切替＝`applyMode`→`InputTracker.setMode`→`model.clearSelection()`（無条件に通知）／選択の変更＝`setSelection`・`clearSelection`が通知／頂点の選択＝`setSelectedVertices`が変化時に通知（変化なしは表示も不変）／図形の移動＝`moveShapes`・`updateVertices`が通知／線の太さ＝`updateShapeStyles`が1件以上で通知。取り消し／やり直しはスナップショット適用でモデルを更新する既存経路。
     *   `node --test`：1496件全件合格。
+    *   **`js/main.js`の行数：944行**（タスク8時点。タスク10で`_doc/arch/02_main.md`の行数の更新に使う）。
 
 ### タスク8: 仕上げの確認（JSDoc・不要なコード・全テスト・スコープ）
 *   **作業内容** :
-    *   （未実施）
+    *   ソースの変更なし（確認のみ）。新規4ファイル（`PositionInputRules.js`・`PositionInputEditor.js`・`OptionBarPositionGroup.js`と各テスト）・更新ファイルの先頭の責務定義とJSDocに漏れなし。`PositionInputEditor.js`・`PositionInputRules.js`のimportはすべて使用されている。
+    *   `git diff --stat 720550d HEAD -- js test index.html asset`：変更は`index.html`・`StatusReadoutRules.js`（責務定義のみ）・`VertexHandleRules.js`・`NudgeEditor.js`・`PositionInputEditor.js`・`PositionInputRules.js`・`main.js`・`OptionBarPositionGroup.js`と、`VertexHandleRules.test.js`・`NudgeEditor.test.js`・`PositionInputEditor.test.js`・`PositionInputRules.test.js`だけ。禁止リストのファイルと`asset/`は無変更。
+    *   既存テストの削除行は、`VertexHandleRules.test.js`のimport行・JSDoc行（追加に伴う書き直し）と`NudgeEditor.test.js`の共有ヘルパの`commitEdit`1行（可変長引数化）のみ。既存ケースの期待値の変更なし。
+    *   `node --test`：**tests 1496 / suites 222 / pass 1496 / fail 0**（08-04前は 1457 / 221）。タスク10の`16_test.md`へこの件数を書く。
+    *   `js/main.js`は944行（タスク7の項に記録）。
+    *   未追跡の`.vscode/`は無関係のため触っていない。
+    *   開発資料への新たな影響はなし（既存の更新予定のとおり）。
 
 ### タスク9: 要件8 テストプレイの確認項目を発注者へ提示する
 *   **作業内容** :
@@ -646,6 +653,7 @@ model.onChange(syncOptionBarPositionGroup);
 * **`ShapeExtentReader`が2つできること**：`wiring/DisplayWiring`は内部で1つ持ち、本作業では`main.js`がもう1つ生成する（`DisplayWiring`を変更しないというREQの指示に従った）。状態を持たない照会なので値は同じだが、資料には「2か所で生成している」ことを残す（将来1つにまとめるなら`DisplayWiring`の構成を触るPhaseで行う）。
 * **線の太さを変えるとX・Yの表示が変わること**：発注者の決定1のとおりの仕様。要件8の確認項目6で確かめる（不具合として直さない）。
 * **（タスク3）`NudgeEditor`の内部構成**：計画の`#applyMove`に加え、鍵の有無の分岐を非公開`#commit(target, grouped)`へ置いた（`commitEdit`を引数なしで呼ぶ／鍵付きで呼ぶを分けるため）。将来`nudge`系を変えるときは両経路が`#applyMove`を共有していることに注意。資料（`14_edit.md`）の`NudgeEditor`項目には非公開メソッドの記載は不要だが、`nudgeWithoutGrouping`と責務の書き直しは上記「開発資料の更新予定」のとおり。
-* **（タスク5）幅の見積もりの値**：計画書の本文は起点を実測637px＋191px＝約828pxとしているが、`index.html`の既存コメントの見積もりは約646pxだったため、コメントは646＋191＝約837pxと記した（どちらも1280pxに収まる）。実測は要件8の確認項目0で確認する。開発資料（`_doc/arch/01_index_html.md`）の位置のまとまりの記述は既存の更新予定に含まれる。
+* **（タスク5）幅の見積もりの値**：計画書の本文は起点を実測637px＋191px＝約828pxとしているが、`index.html`の既存コメントの見積もりは約646pxだったため、コメントは646＋191＝約837pxと記した（どちらも1280pxに収まる）。**差9pxの理由**：実測637pxに対しCSSコメントの約646pxは右padding8px＋端数ぶん大きい見積もりで、起点が違うだけで**どちらも誤りではない**（`_doc/COWORK_STATUS.md`自身が実測637pxとCSSコメント約646pxの両方を併記している）。実測は要件8の確認項目0で確認する。開発資料（`_doc/arch/01_index_html.md`）の位置のまとまりの記述は既存の更新予定に含まれる。
 * **（タスク4）`PositionInputEditor`の内部構成**：対象と範囲の解決を非公開`#resolveTargetAndBounds`（`{target, bounds}`を返す）に括った。`getSelectedBounds`が`null`を返す場合（図形が選択集合にあるがモデルに無い等）は`buildPositionInputView`／`resolvePositionDelta`が`null`として扱うため、`PositionInputEditor`側に追加の判定は無い。資料（`14_edit.md`）には`PositionInputEditor`の項目を足す必要がある（タスク10）。
 * **（タスク7）配線**：開発資料への影響は既存の『開発資料の更新予定』（`02_main.md`：`// 7.10.`・`syncOptionBarPositionGroup`・注入の一覧・起動時の同期・行数）のとおりで、追加の項目なし。`OptionBarPositionGroup`は起動時の1回同期と`model.onChange`で描画され、`onPositionChange`が`false`を返した場合の書き戻しはUI部品側が担う。`ShapeExtentReader`の2つ目のインスタンスは`main.js`の`// 7.10.`内にあり、将来`DisplayWiring`の構成を触る際に1つへまとめられる。目視確認は要件8（`change`／`blur`／矢印の挙動、1280px幅）で行う。
+* **（タスク8）仕上げの確認**：ソースの修正は不要だった。件数は tests 1496 / suites 222。`main.js`は944行。
