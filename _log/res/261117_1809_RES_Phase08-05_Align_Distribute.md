@@ -425,7 +425,7 @@ moveShapesBy(moves)   // moves: Array<{ id: string, dx: number, dy: number }>
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク2: 要件2 整列・分布の規則（`edit/ShapeAlignRules`）
+*   [x] タスク2: 要件2 整列・分布の規則（`edit/ShapeAlignRules`）
     *   **対象ファイル** :
         *   `./js/edit/ShapeAlignRules.js` :（新規）
         *   `./test/edit/ShapeAlignRules.test.js` :（新規）
@@ -559,7 +559,10 @@ moveShapesBy(moves)   // moves: Array<{ id: string, dx: number, dy: number }>
 
 ### タスク2: 要件2 整列・分布の規則（`edit/ShapeAlignRules`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/edit/ShapeAlignRules.js`（新規・importなし）：`ShapeAlignOperation`（8操作・凍結）、typedef`AlignItem`・`AlignMove`、非公開の`assertKnownOperation`・`ZERO_MOVE_EPSILON`（1e-9。理由をJSDocに記載）・件数の下限（整列2／分布3）・操作ごとの定義の表`OPERATION_DEFS`・軸のキーの表`AXIS_KEYS`・軸1つ分の移動量を求める`computeAxisMoves`（X・Yを共通化）。公開`computeAlignMoves`（手順1〜6）・`canApplyAlign`（`computeAlignMoves(...).length > 0`）。
+    *   `test/edit/ShapeAlignRules.test.js`（新規）：列挙・8操作の移動量・件数不足・すでにそろっている・両端不動とすき間均等・負のすき間・同じminの順・入れ子・極小誤差・未知の操作・引数不変・新しい配列を確認。
+    *   `node --test`：tests 1522 / suites 228 / pass 1522 / fail 0。
+    *   開発資料の更新予定への追記：なし（既存の予定欄の記述どおり）。
 
 ### タスク3: 要件3 図形ごとに違う移動量をまとめて当てる入口（`core/VectorModel.moveShapesBy`）
 *   **作業内容** :
