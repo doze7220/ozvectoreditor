@@ -402,7 +402,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク4: 要件4・要件5 矢印キーの8エントリと配線（`core/KeyboardShortcuts`・`main.js`）
+*   [x] タスク4: 要件4・要件5 矢印キーの8エントリと配線（`core/KeyboardShortcuts`・`main.js`）
     *   **対象ファイル** :
         *   `./js/core/KeyboardShortcuts.js` :（更新）
         *   `./js/main.js` :（更新）
@@ -479,7 +479,11 @@
 
 ### タスク4: 要件4・要件5 矢印キーの8エントリと配線（`core/KeyboardShortcuts`・`main.js`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/KeyboardShortcuts.js`：非公開の定数`NUDGE_STEPS`・`NUDGE_DIRECTIONS`（要素も凍結）を1か所に追加し、対応表の末尾へ`flatMap`で8エントリ（`ctrl: false`・`Shift`なし`FORBIDDEN`／あり`REQUIRED`・`repeatable: true`・`action: 'nudgeSelection'`・凍結した`arg {dx, dy}`）を追加。エントリの直前に方向・量・`Ctrl`／`Alt`付きは一致しないことのコメントを記載。
+    *   JSDoc更新：`ShiftRule`の`FORBIDDEN`・`REQUIRED`、`SHORTCUT_BINDINGS`の修飾キー規則、`#findBinding`の`REQUIRED`の説明を矢印キーが加わった実態へ修正。`ShortcutActions`のtypedefへ`nudgeSelection`を追加。ファイル先頭の責務・受理判定・既存エントリは変更なし。
+    *   `js/main.js`：`NudgeEditor`のimport、`// 7.9. 微調整（矢印キー）配線`ブロック（`NudgeEditor`生成）を`// 7.8.`の後・`// 8.`の前に追加、`KeyboardShortcuts`注入へ`nudgeSelection`を`startEyedropper`の後に追加。既存の順序・`onChange`の登録順は不変。
+    *   `test/core/KeyboardShortcuts.test.js`を新規作成（`{}`での`Error`と文言、`nudgeSelection`だけを欠いたときの欠落名。`Proxy`使用、補助関数にJSDocあり）。
+    *   `node --test`：1457件全件合格。
 
 ### タスク5: 仕上げの確認（JSDoc・不要なコード・全テスト・スコープ）
 *   **作業内容** :
@@ -507,4 +511,6 @@
 * **`Ctrl`＋矢印・`Alt`＋矢印**は意図的に一致させない（ブラウザ・OSの操作をそのまま通す）。`Shift`＋矢印は本作業で「10px動かす」の意味を持つため、将来`Shift`＋矢印に別の操作（方向の限定等）を割り当てることはできなくなる。
 
 * **（タスク3）頂点の組み立てでは、位置が`null`の組に加え頂点インデックスが`null`の組（線の`'move'`＝中点。位置は返るがインデックスは無い）も飛ばした**。計画の「位置が求まらない組は飛ばす」の趣旨（`updateVertices`へ不正な組を渡さない）に沿う安全側の判断。通常`getVertexHandleNames()`由来の頂点の選択では起きない。
+* **（タスク4）矢印キーのエントリの直前の説明は、既存の流儀に合わせ行コメント（`//`）で書いた**（JSDocへ書く指示のあった項目は`ShiftRule`・`SHORTCUT_BINDINGS`・`#findBinding`・`ShortcutActions`のJSDocに反映済み）。実際の矢印キーの動き（1px／10px・`Ctrl`／`Alt`での不一致・キーリピート・入力欄／ドラッグ中の見送り・実物の`HistoryManager`との結合での取り消し1件）はテストプレイで確認すること。
+* **（タスク4）開発資料の更新予定**：`KeyboardShortcuts`の対応表に矢印キー8エントリ（`nudgeSelection`）が加わったこと、`main.js`に`// 7.9.`の配線と`NudgeEditor`が加わったこと、`test/core/KeyboardShortcuts.test.js`が新設されたこと（資料本体は未修正。タスク7で反映）。
 * **（タスク3）テストの偽物は`editRecorder`・`getMode`のみ**。実物の`HistoryManager`との結合（畳み・取り消し1件）はタスク4以降／テストプレイで確認する。

@@ -10,9 +10,9 @@ import { isTextInputElement, isSpaceOperatedInputElement } from './FocusKeyYield
 
 /**
  * 対応表エントリのShift規則（3値）。本ファイル内でのみ用いる（exportしない）。
- * ・FORBIDDEN：shiftKeyが偽であること（通常のショートカット。Ctrl+Shift+V以外のShift+V等は将来のShift併用操作のために予約）
+ * ・FORBIDDEN：shiftKeyが偽であること（通常のショートカット。Ctrl+Shift+V・Shift+矢印以外のShift+V等は将来のShift併用操作のために予約）
  * ・ANY：shiftKeyを問わない（拡大・縮小。JIS配列のCtrl+Shift+;、US配列のCtrl+Shift+=に対応するため）
- * ・REQUIRED：shiftKeyが真であること（Ctrl+Shift+Zのやり直し、Ctrl+Shift+Vの同じ位置に貼り付け）
+ * ・REQUIRED：shiftKeyが真であること（Ctrl+Shift+Zのやり直し、Ctrl+Shift+Vの同じ位置に貼り付け、Shift+矢印キーの10px微調整）
  * @readonly
  * @enum {string}
  */
@@ -85,7 +85,28 @@ const ShiftRule = Object.freeze({
  * @property {() => boolean} startEyedropper スポイトの待ち受けを始める（I。ツールパレットのスポイトのボタンと同一経路）。
  *     選択モード以外では選択モードへ切り替えた後に始める。すでに待ち受け中でも何も変わらず、常にtrue
  *     （ドラッグ中・キーリピートは受理判定により呼ばれない）
+ * @property {(delta: {dx: number, dy: number}) => boolean} nudgeSelection 選んでいる図形または頂点を、受け取った移動量（ワールド座標のpx）だけ動かす。
+ *     動かした場合のみtrue（動かす対象がないときはfalse＝ブラウザ側の既定の動きを妨げない）
  */
+
+/**
+ * 矢印キーによる微調整の1回あたりの移動量（ワールド座標のpx）。Shiftなしが1px、Shiftありが10px。
+ * スナップの設定には関係しない。矢印キーのエントリの組み立て（NUDGE_DIRECTIONSとの組み合わせ）でのみ用いる（exportしない）。
+ * @type {Readonly<{normal: number, shift: number}>}
+ */
+const NUDGE_STEPS = Object.freeze({ normal: 1, shift: 10 });
+
+/**
+ * 矢印キーの4方向（event.codeと移動の符号）。上が縦方向のマイナス、下が縦方向のプラス、左が横方向のマイナス、
+ * 右が横方向のプラスで、画面の見た目と一致する。矢印キーのエントリの組み立てでのみ用いる（exportしない）。
+ * @type {ReadonlyArray<Readonly<{code: string, x: number, y: number}>>}
+ */
+const NUDGE_DIRECTIONS = Object.freeze([
+    Object.freeze({ code: 'ArrowLeft', x: -1, y: 0 }),
+    Object.freeze({ code: 'ArrowRight', x: 1, y: 0 }),
+    Object.freeze({ code: 'ArrowUp', x: 0, y: -1 }),
+    Object.freeze({ code: 'ArrowDown', x: 0, y: 1 }),
+]);
 
 /**
  * ショートカットの対応表（キー→操作の対応はここ1箇所のみで定義する）。
@@ -95,7 +116,9 @@ const ShiftRule = Object.freeze({
  * ・同一のcode・修飾キーの組み合わせに一致するエントリが2件以上存在しないこと（#findBindingは最初の一致を返す）。
  * ・新しいショートカットはエントリの追加（＋必要なら注入コールバックの追加）で対応する。
  * ・修飾キー規則：Shiftはshiftプロパティの3値（ShiftRule）で指定する。通常はFORBIDDEN、拡大・縮小のみANY、
- *   やり直しのCtrl+Shift+Zと同じ位置に貼り付けのCtrl+Shift+VのみREQUIRED。KeyZはShiftの有無で取り消し（FORBIDDEN）とやり直し（REQUIRED）に排他的に分かれる。
+ *   やり直しのCtrl+Shift+Zと同じ位置に貼り付けのCtrl+Shift+V、10px微調整のShift+矢印キー（4つ）のみREQUIRED。
+ *   矢印キー（ArrowLeft・ArrowRight・ArrowUp・ArrowDown）はShiftの有無で1px（FORBIDDEN）と10px（REQUIRED）に排他的に分かれる
+ *   （ctrl: falseのみ。Ctrl付き・Alt付きの矢印キーは一致せず、ブラウザ・OSの操作のまま）。KeyZはShiftの有無で取り消し（FORBIDDEN）とやり直し（REQUIRED）に排他的に分かれる。
  *   KeyVはctrlの値とShift規則でV単体（ctrl: false。選択モードへの切り替え）・Ctrl+V（ctrl: true・FORBIDDEN。貼り付け）・
  *   Ctrl+Shift+V（ctrl: true・REQUIRED。同じ位置に貼り付け）の3通りに排他的に区別される（Shift+V単体はctrl: falseのFORBIDDENと一致せず予約のまま）。
  *   KeyIはctrlの値でI単体（ctrl: false。スポイトの待ち受けを始める）とCtrl+I（ctrl: true。選択の反転）に排他的に分かれる（いずれもFORBIDDEN）。
@@ -158,6 +181,20 @@ const SHORTCUT_BINDINGS = Object.freeze([
     { codes: ['KeyD'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'resetColors' },
     // スポイトの待ち受けを始める（I。Ctrl+I（選択の反転）とctrlの値で排他的）。キーリピートでは実行しない
     { codes: ['KeyI'], ctrl: false, shift: ShiftRule.FORBIDDEN, repeatable: false, action: 'startEyedropper' },
+    // 矢印キーによる微調整（選んでいる図形・頂点を動かす）。Shiftなしが1px、Shift併用が10px（NUDGE_STEPS）。
+    // 左・右が横方向のマイナス・プラス、上・下が縦方向のマイナス・プラス（NUDGE_DIRECTIONS）。押しっぱなしで連続して動くようrepeatable: true。
+    // コールバックは方向によらずnudgeSelection1つで、移動量をargで渡す。Ctrl（⌘）付きのエントリは作らず（ブラウザ・OSの操作を通す）、Alt付きは#findBindingが常に不一致
+    ...NUDGE_DIRECTIONS.flatMap((direction) => [
+        { step: NUDGE_STEPS.normal, shift: ShiftRule.FORBIDDEN },
+        { step: NUDGE_STEPS.shift, shift: ShiftRule.REQUIRED },
+    ].map(({ step, shift }) => ({
+        codes: [direction.code],
+        ctrl: false,
+        shift,
+        repeatable: true,
+        action: 'nudgeSelection',
+        arg: Object.freeze({ dx: direction.x * step, dy: direction.y * step }),
+    }))),
 ].map((binding) => Object.freeze(binding)));
 
 /**
@@ -246,7 +283,7 @@ export class KeyboardShortcuts {
      * ・Meta（⌘）はCtrlと同一視する（macOS対応）。ctrl: trueはctrlKey || metaKeyが真、ctrl: falseは両方が偽であること。
      * ・Shift：エントリのshift（ShiftRule）の3値で判定する。FORBIDDENはshiftKeyが偽であること、
      *   ANY（拡大・縮小のみ）はshiftKeyを問わない（JIS配列のCtrl+Shift+;、US配列のCtrl+Shift+=に対応するため）、
-     *   REQUIRED（やり直しのCtrl+Shift+Zと同じ位置に貼り付けのCtrl+Shift+Vのみ）はshiftKeyが真であること。
+     *   REQUIRED（やり直しのCtrl+Shift+Zと同じ位置に貼り付けのCtrl+Shift+V、10px微調整のShift+矢印キーのみ）はshiftKeyが真であること。
      *   上記以外のShift+V等は引き続き不一致であり、将来のShift併用操作のために予約する。
      * @param {KeyboardEvent} event
      * @returns {Readonly<ShortcutBinding> | null} 一致したエントリ（なければnull）

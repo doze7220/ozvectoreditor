@@ -35,6 +35,7 @@ import { ShapeStyleEditor } from './edit/ShapeStyleEditor.js';
 import { StyleEyedropper } from './edit/StyleEyedropper.js';
 import { OptionBarStyleGroup } from './palette/OptionBarStyleGroup.js';
 import { ShapeOrderEditor } from './edit/ShapeOrderEditor.js';
+import { NudgeEditor } from './edit/NudgeEditor.js';
 import { ShapeOrderOperation } from './edit/ShapeOrderRules.js';
 import { OptionBarOrderGroup } from './palette/OptionBarOrderGroup.js';
 import { DisplayState } from './core/DisplayState.js';
@@ -678,6 +679,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     model.onChange(syncOptionBarOrderGroup);
 
+    // 7.9. 微調整（矢印キー）配線
+    // 動かす対象の決定とまとめの鍵はNudgeTargetRules（core/）が、動かす1件の編集操作はNudgeEditor（edit/）が持ち、
+    // ここは生成・注入のみを行う（判定・計算を書かない）。再描画・UI同期は既存のmodel.onChange・historyManager.onChangeの経路のみで行う。
+    const nudgeEditor = new NudgeEditor({ model, editRecorder: historyManager, getMode: () => inputTracker.getMode() });
+
     // 8. キーボードショートカット配線
     /**
      * 表示中キャンバスの中心を基準に、ホイール1刻みと同じ刻み幅（WHEEL_ZOOM_STEP）で拡大・縮小する。
@@ -801,6 +807,9 @@ document.addEventListener('DOMContentLoaded', () => {
             startEyedropper();
             return true;
         },
+        // 矢印キーによる微調整（選んでいる図形・頂点をワールド座標のpxで動かす。動かした場合のみtrue。
+        // 動かす対象がないときはfalseを返し、ブラウザ側の既定の動きを妨げない）
+        nudgeSelection: (delta) => nudgeEditor.nudge(delta.dx, delta.dy),
     });
 
     // Altキーの単独押下・単独解放でブラウザのメニューへフォーカスが移らないようにする（AltKeyGuardが
