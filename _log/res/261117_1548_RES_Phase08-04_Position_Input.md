@@ -558,7 +558,7 @@ model.onChange(syncOptionBarPositionGroup);
         *   自動テストで確かめられない箇所（`OptionBarPositionGroup`のDOMのふるまい、`main.js`の`// 7.10.`の配線、`index.html`の見た目と1280px幅での収まり、`type="number"`の`change`／`blur`／矢印の操作）を、特に確かめてほしい項目として添える。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ提示した内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク10: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
+*   [x] タスク10: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新）
         *   `./_doc/arch/01_index_html.md`・`02_main.md`・`13_palette.md`・`14_edit.md`・`16_test.md`・`26_StatusReadoutRules.md`・`38_VertexHandleRules.md` :（更新）
@@ -643,7 +643,17 @@ model.onChange(syncOptionBarPositionGroup);
 
 ### タスク10: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
 *   **作業内容** :
-    *   （未実施）
+    *   ソース（`js/`・`index.html`・`test/`）は変更していない。更新予定欄の全項目を、次のとおり資料へ反映した。
+    *   `PROJECT_ARCHITECTURE.md`：
+        *   1章：ファイルの一覧に`edit/PositionInputRules.js`・`edit/PositionInputEditor.js`・`palette/OptionBarPositionGroup.js`を追加、`core/VertexHandleRules.js`・`core/StatusReadoutRules.js`の説明を更新、テスト一覧に`PositionInputRules.test.js`・`PositionInputEditor.test.js`を追加（**実ファイルは両方`test/edit/`**。`VertexHandleRules.test.js`は既存へ追記）。「存在しないもの」にPhase 08-04の分を追加（整列と分布・大きさ／角度の欄・基準点・変形・頂点の追加削除・位置の欄でのスナップ／吸い付き・欄の値の保存は無い）。フォルダ分割の方針（`core/`・`edit/`）と依存方向に08-04の追記（`edit → core`のimportが3ファイルになったこと、`ShapeExtentReader`が`DisplayWiring`と`main.js`の2か所で生成されること）。
+        *   3章：**20.「位置の数値入力」を新設**（流れ（表示・入力）、モジュールの分担、位置の定義（外枠＝線の太さを含む／頂点は範囲の左上／円・弧も外枠）、数字の形と丸め、確定の契機、確定1回＝取り消し1件、押せない条件、キーとの関係、ドラッグ中は拒まない、発注者の決定、やらないこと、確認の状況）。13.（まとまりの列挙に位置を追加・「やらないこと」・数値の欄の追加方針）、19.（`NudgeEditor`の呼び出し元が2つ）、履歴の記録の項目・まとめの鍵の項目（位置の数値入力は鍵を渡さない）を更新。
+        *   4章の一覧の表：新しい行は増えないことを確認（変更なし）。
+    *   `_doc/arch/`：`01_index_html.md`（位置のまとまりのid・マークアップ・CSSの共用・`.option-unit`の使い回し・幅の見積もり約837px。位置の欄が`type="number"`でテキスト入力扱いになり、フォーカス中は**すべてのショートカットが働かない**旨）／`02_main.md`（行数944行、主な関数、配線ブロック表に`// 7.10.`、注入の一覧に`PositionInputEditor`・`OptionBarPositionGroup`と`ShapeExtentReader`の2か所生成、起動時の同期）／`13_palette.md`（`OptionBarPositionGroup`の項目新設、冒頭・ツールバーの位置づけの列挙）／`14_edit.md`（`PositionInputRules`・`PositionInputEditor`の項目新設、`NudgeEditor`の`nudgeWithoutGrouping`と呼び出し元2つ、冒頭「依存」の`edit → core`の例外の列挙、`ShapeExtentReader`の2か所生成）／`16_test.md`（新設2ファイルと既存2ファイルへの追加の検証範囲、書き換えた既存のテスト＝期待値の書き換え無し・共有ヘルパの可変長引数化のみ、テストできない箇所（08-04）、件数 tests 1496 / suites 222）／`26_StatusReadoutRules.md`（使う側に`edit/PositionInputRules`、`—`は呼び出し側が先に弾くこと）／`38_VertexHandleRules.md`（`computeVertexHandlesBounds`の公開・契約・使う側・テスト26件）。`36_DisplayWiring.md`は変更なし。
+    *   `NudgeEditor`の非公開の構成は資料に書いていない（公開メソッドの契約のみ）。キーの受理は実コードどおり「テキスト入力扱いの欄にフォーカスがある間はすべてのショートカットが働かない（`KeyboardShortcuts`の手順2）」と書いた。
+    *   `node --test`：tests 1496 / suites 222 / pass 1496 / fail 0。
+    *   **監査（要修正）後の修正**：`14_edit.md`の依存の箇条で`edit/`から`core/`をimportするクラスを`NudgeEditor`・`PositionInputRules`・`PositionInputEditor`の3つと1か所にまとめ、旧文（他のクラスは`core/`をimportしない）の矛盾と`NudgeEditor`の二重記載を解消。`PROJECT_ARCHITECTURE.md`1章の「存在しないもの」を図形の大きさ・角度の数値の欄だけに直し、フォルダ木の`NudgeEditor.js`の説明を呼び出し元2つに合わせた。
+    *   **再監査の軽微な指摘への修正**：Phase 08-03の前例（`890fd23`）に合わせ、`PROJECT_ARCHITECTURE.md`1章「存在しないもの」のPhase 08-02b段・Phase 08-03段から「位置の数値入力」を削除し（整列と分布ほかは残した）、3章「やらないこと（08-02b）」へ「（Phase 08-04で「位置の数値入力」は入った。20.）」を追記した（19.の「やらないこと」には既に注記があるため重複させていない）。ソースは変更していない。`node --test`：tests 1496 / suites 222 / pass 1496 / fail 0。
+    *   **整合取りの修正**：上記で1章のPhase 08-03段から「位置の数値入力」を消したのに合わせ、`PROJECT_ARCHITECTURE.md`3章19.の「やらないこと」（569行目）の括弧内の列挙からも「位置の数値入力」を削除し、末尾の注記を前例（`890fd23`）と3章「やらないこと（08-02b）」と同じ形の「（Phase 08-04で「位置の数値入力」は入った。20.）」にそろえた。この1か所のみの修正で、ソースは変更していない。「位置の数値入力」を未実装として挙げる記述は資料に残っていないことを`grep`で確認した（1章のPhase 08-04段・3章20.の「本作業で行った」旨の記述は正しいため残している）。`node --test`：tests 1496 / suites 222 / pass 1496 / fail 0。
 
 ---
 

@@ -1,7 +1,7 @@
-*   **StatusReadoutRules.js**：ステータスバーの座標・大きさ・グリッドの表示の文字列の規則を、状態を持たない関数として提供する。文言・記号（`X:`・`Y:`・`W:`・`H:`・`グリッド:`・`—`・項目の間の半角空白2つ）の唯一の定義箇所（Phase 07-03で新設）。
+*   **StatusReadoutRules.js**：ステータスバーの座標・大きさ・グリッドの表示の文字列の規則を、状態を持たない関数として提供する。文言・記号（`X:`・`Y:`・`W:`・`H:`・`グリッド:`・`—`・項目の間の半角空白2つ）の唯一の定義箇所（Phase 07-03で新設）。数字の形`formatReadoutNumber`（小数第1位）は、ステータスバーに加えてオプションバーの位置の欄にも使う（Phase 08-04。責務定義はこの旨に書き直した。関数・文言は変えていない）。
     *   **公開**：`formatReadoutNumber(value)`（有限の数でなければ`—`。それ以外は小数第1位に丸めて固定の小数第1位。`-0`・`-0.04`は`0.0`）・`formatCursorReadout(point)`（`X: 120.5  Y: -40.0`。`null`なら`X: —  Y: —`）・`formatSizeReadout(bounds)`（幅＝`maxX − minX`・高さ＝`maxY − minY`。`W: 120.0  H: 80.0`。`null`なら`W: —  H: —`）・`formatGridReadout(spacing)`（`グリッド: 10px`。整数のまま。有限の数でなければ`グリッド: —`）。文言は非公開の`Object.freeze`した定数。
     *   **読むもの**：なし（何もimportしない）。
-    *   **使う側**：`wiring/DisplayWiring`だけ（`#syncCursorReadout`・`#syncSelectionSizeReadout`・`#syncGridSizeReadout`。`ToolRules`と同じ「`main.js`側の配線から使うUIの表示の規則」の位置づけ）。
+    *   **使う側**：`wiring/DisplayWiring`（`#syncCursorReadout`・`#syncSelectionSizeReadout`・`#syncGridSizeReadout`。`ToolRules`と同じ「`main.js`側の配線から使うUIの表示の規則」の位置づけ）と、`edit/PositionInputRules`（`formatReadoutNumber`だけ。オプションバーの位置の欄の数字の形。Phase 08-04。`edit/`から`core/`への下向きの依存）。数字の形の正本が1か所のため、位置の欄とステータスバーの座標・大きさは同じ形（`-0`・`-0.04`は`0.0`）になる。
     *   **知らないこと**：DOM・座標の求め方・外枠の求め方（値は引数で受け取る）。
-    *   **注意**：大きさを座標と同じ固定の小数第1位にしているのは、桁が変わって右側の項目が揺れないため。整数だけで表示したい場合は`formatSizeReadout`の1か所を変える。
+    *   **注意**：`formatReadoutNumber`が有限でない数に返す`—`は`<input type="number">`の欄に入れられないため、位置の欄では呼び出し側（`PositionInputRules.buildPositionInputView`）が先に弾いて空にする（この関数の戻り値は変えない）。大きさを座標と同じ固定の小数第1位にしているのは、桁が変わって右側の項目が揺れないため。整数だけで表示したい場合は`formatSizeReadout`の1か所を変える。
     *   **テスト**：`test/core/StatusReadoutRules.test.js`。

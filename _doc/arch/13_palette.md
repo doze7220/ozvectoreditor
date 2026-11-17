@@ -1,4 +1,4 @@
-*   **palette/**：自己完結するUI部品。いずれもDOM操作専任で、`VectorModel`・図形データ・選択状態に関与しない（受け取るのは注入された値とコールバックのみ）。独自のカラーピッカーは未実装（色はブラウザ標準の`<input type="color">`）。ツールバー・ステータスバーは`index.html`の静的な要素。ツールバーの操作のボタンとステータスバーの配線は`main.js`（Phase 08-01で、座標・大きさ・グリッドの表示、表示の切り替え・スナップのまとまり、⛶、🧰の配線は`wiring/DisplayWiring`へ切り出した）、ツールバーのオプションバーのまとまりは`palette/`のUI部品（`OptionBarStyleGroup`・`OptionBarOrderGroup`）。ステータスバーでは、複数のボタンのまとまり（表示の切り替え・スナップ）は`palette/`のUI部品（`ViewToggleGroup`・`UnitSnapGroup`）、単独のボタン（⛶・🎯）と文字の表示（座標・大きさ・グリッド・倍率）は`main.js`側の配線（⛶・座標・大きさ・グリッドの表示と、ツールバーにある🧰の配線は`wiring/DisplayWiring`、🎯・倍率は`main.js`）（Phase 07-03で決めた分け方。配線の置き場所はPhase 08-01で`main.js`の一部を`wiring/DisplayWiring`へ移した）。
+*   **palette/**：自己完結するUI部品。いずれもDOM操作専任で、`VectorModel`・図形データ・選択状態に関与しない（受け取るのは注入された値とコールバックのみ）。独自のカラーピッカーは未実装（色はブラウザ標準の`<input type="color">`）。ツールバー・ステータスバーは`index.html`の静的な要素。ツールバーの操作のボタンとステータスバーの配線は`main.js`（Phase 08-01で、座標・大きさ・グリッドの表示、表示の切り替え・スナップのまとまり、⛶、🧰の配線は`wiring/DisplayWiring`へ切り出した）、ツールバーのオプションバーのまとまりは`palette/`のUI部品（`OptionBarStyleGroup`・`OptionBarOrderGroup`・`OptionBarPositionGroup`）。ステータスバーでは、複数のボタンのまとまり（表示の切り替え・スナップ）は`palette/`のUI部品（`ViewToggleGroup`・`UnitSnapGroup`）、単独のボタン（⛶・🎯）と文字の表示（座標・大きさ・グリッド・倍率）は`main.js`側の配線（⛶・座標・大きさ・グリッドの表示と、ツールバーにある🧰の配線は`wiring/DisplayWiring`、🎯・倍率は`main.js`）（Phase 07-03で決めた分け方。配線の置き場所はPhase 08-01で`main.js`の一部を`wiring/DisplayWiring`へ移した）。
     *   **ToolPalette.js**：ツールパレット（`#window-tool-palette`）のツールのボタンの配線。
         *   **公開メソッド**：`setActiveTool`。
         *   **注入**：`main.js`がルート要素・ツールの識別子の一覧（`ToolRules`の`TOOL_IDS`）・`onToolSelected`（`selectTool`）を渡す。importは持たず、`InputTracker`・`ShapeFactory`・`ToolRules`へ直接依存しない。
@@ -32,7 +32,15 @@
         *   **注入**：コンストラクタでまとまりのルート要素とコールバック4つ（`onBringToFront`・`onBringForward`・`onSendBackward`・`onSendToBack`）を受け取る。コールバックが関数でなければ`Error`、要素が欠ければ`console.warn`して配線しない（`render`は何もしない）。`main.js`がコールバックを`performShapeOrder(ShapeOrderOperation.…)`へつなぐ。
         *   **知らないこと**：importを持たず、`VectorModel`・選択集合・図形データ・`ShapeOrderEditor`・規則・操作の値（`ShapeOrderOperation`）を参照しない（受け取るのは`view`とコールバックのみ）。
         *   **二重定義**：typedef`ShapeOrderAvailability`は`edit/ShapeOrderEditor.js`と同じ内容を持つ。形を変える場合は両方を揃える。
-    *   **ツールバーの位置づけ**：頻繁に使う操作（削除・結合・取り消し/やり直し等）と、他のパレットの**呼び出し口**（開閉ボタン）を置く場所である。続けてオプションバー（選択中の図形・新しく描く図形のスタイルと重なり順）を置く（ビューのリセット・倍率・キャンバス名はステータスバー）。頻繁には使わない機能はパレットに分け、呼び出し口から開閉する。項目は`<div class="toolbar-group">`のまとまりごとに足し、既存のまとまりは変えない（`_doc/arch/01_index_html.md`）。
+    *   **OptionBarPositionGroup.js**：オプションバーの位置のまとまり（`#option-position-group`）のX・Yの数値の欄（`#option-position-x`・`#option-position-y`）のDOMの配線（`render(view)`で欄の値と押せる/押せないを表示し、欄の確定をコールバックへ通知。Phase 08-04で新設）。流れは3章20.。
+        *   **公開メソッド**：`render`。
+        *   **注入**：コンストラクタでまとまりのルート要素とコールバック`onPositionChange(axis, text)`を受け取る（戻り値が`false`＝受理されなかったときは、最後に表示した内容で欄を書き戻す）。コールバックが関数でなければ`Error`、要素が欠ければ`console.warn`して配線しない（`render`は何もしない）。`main.js`がコールバックを`positionInputEditor.setPosition(axis, text)`へつなぐ（戻り値をそのまま返すだけ）。
+        *   **表示の規則**：`disabled`は`render`のたびに当てる。欄の値は、その欄にフォーカスがある間は書き換えない（打ち込み途中の値が`model.onChange`で消えないため。太さの欄と同じ考え方）。`blur`でも最後の表示で書き戻す。
+        *   **`input`を購読しない理由**：1文字打つごとに図形が動いたり、取り消しの記録が増えたりしないようにするため。確定は`change`（`Enter`・欄から出たとき・欄の上下の矢印の操作）のみ。
+        *   **知らないこと**：importを持たず、`VectorModel`・選択集合・図形データ・`PositionInputEditor`・規則を参照しない（受け取るのは`view`とコールバックのみ）。
+        *   **二重定義**：typedef`PositionInputView`は`edit/PositionInputRules.js`と同じ内容を持つ。軸の文字列`'x'`・`'y'`も同ファイルの`POSITION_AXIS`との二重定義（`palette/`はimportを持たない約束のため）。形・値を変える場合は両方を揃える。
+        *   **テスト対象外**：DOMに依存するため自動テストは無く、テストプレイで確かめる（`_doc/arch/16_test.md`の08-04の追加）。
+    *   **ツールバーの位置づけ**：頻繁に使う操作（削除・結合・取り消し/やり直し等）と、他のパレットの**呼び出し口**（開閉ボタン）を置く場所である。続けてオプションバー（選択中の図形・新しく描く図形のスタイルと重なり順、選択中の図形・頂点の位置の数値入力）を置く（ビューのリセット・倍率・キャンバス名はステータスバー）。頻繁には使わない機能はパレットに分け、呼び出し口から開閉する。項目は`<div class="toolbar-group">`のまとまりごとに足し、既存のまとまりは変えない（`_doc/arch/01_index_html.md`）。
     *   **PaletteLauncher.js**：呼び出し口のボタンと開閉式パレットの対応づけと開閉。フロートウィンドウをまとめて隠している間の呼び出し口の規則も持つ。
         *   **公開メソッド**：なし（コンストラクタのみ）。
         *   **注入**：第1引数は対応表、第2引数`options = {}`は`{ isFloatWindowsVisible, showFloatWindows }`（表示中かの照会と、出す通知。既定は`() => true`・`() => {}`で、省略時は今までと同じ動き）。**第2引数は省略でき、関数でない値は`Error`ではなく`console.warn`して既定を使う**。これは`palette/`のUI部品の規約（コールバックが関数でなければ`Error`）の**例外**で、省略時に今と同じ動きにするための既定値を持つ引数だから（`PaletteLauncher`は以前から対応表の不正も`Error`ではなく`console.warn`で扱っている）。実体は`main.js`が`displayState.isFloatWindowsVisible()`・`displayState.setFloatWindowsVisible(true)`を注入する。
