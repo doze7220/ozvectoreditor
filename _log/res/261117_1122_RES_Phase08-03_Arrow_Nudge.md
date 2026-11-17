@@ -440,7 +440,7 @@
         *   自動テストで確かめられない箇所（`KeyboardShortcuts`の矢印キーの受理判定・`main.js`の配線）を、特に確かめてほしい項目として添える。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ提示した内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク7: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
+*   [x] タスク7: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新）
         *   `./_doc/arch/41_NudgeTargetRules.md` :（新規）
@@ -501,7 +501,11 @@
 
 ### タスク7: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
 *   **作業内容** :
-    *   （未実施）
+    *   `PROJECT_ARCHITECTURE.md`：1章のファイル一覧（`NudgeTargetRules.js`・`NudgeEditor.js`・テスト4件）、「存在しないもの」（08-02a・08-02bの「矢印キーでの微調整」を外し、Phase 08-03の分を追記）、「フォルダ分割の方針」（`core/`の`NudgeTargetRules`・`edit/`の`NudgeEditor`）、「依存方向」（`main.js → edit/NudgeEditor`・`edit/NudgeEditor → core/NudgeTargetRules`（`edit/`から`core/`への最初の例）・`core/NudgeTargetRules → core/InputModes`、循環なし）、3章6.（記録する操作へ微調整、「まとめの鍵」の約束）、3章17.（丸めないものへ微調整）、3章18.（やらないこと2か所へ追記）、3章19.の新設（流れ・分担・対象の決め方・受理しないこと・まとめの区切り・スナップと無関係・キーリピート・キーの受理・発注者の決定・やらないこと・確認の状況）、4章の一覧へ`41_NudgeTargetRules.md`の行。
+    *   `_doc/arch/41_NudgeTargetRules.md`を新規作成。`07_KeyboardShortcuts.md`（矢印キーのキーの項、`Shift`規則の説明を実態へ修正）・`08_HistoryManager.md`（まとめの鍵）・`14_edit.md`（`NudgeEditor`の項、`core/`のimportの例外）・`02_main.md`（`// 7.9.`・注入の一覧・行数908行）・`03_VectorModel.md`（`moveShapes`・`updateVertices`の呼び出し元）・`32_InputModes.md`（使う側）・`16_test.md`（新設4ファイル・テストできない箇所・書き換えた既存のテスト無し・件数 tests 1457 / suites 221、`NudgeEditor.test.js`が実物の`VectorModel`と図形クラスを使う例外）を更新。
+    *   書く前に`js/core/NudgeTargetRules.js`・`js/edit/NudgeEditor.js`・`js/core/KeyboardShortcuts.js`・`js/core/HistoryManager.js`・`js/main.js`・各テストのimportと件数を読んで裏を取った。ソースコード（`js/`・`test/`）は変更していない。`node --test`は再実行していない（件数はタスク5で控えた値）。
+    *   （追記）テストプレイの回答（2026-11-17、要件6の0〜17すべて問題なし）を受け、`PROJECT_ARCHITECTURE.md`3章19.の「確認の状況」と`_doc/arch/16_test.md`の「未反映」の記述を「全項目問題なし」に直した。他の`_doc/arch/`に同趣旨の記述は無かった。
+    *   （追記）diff監査の軽微3件を修正：(1) `PROJECT_ARCHITECTURE.md`3章17.「丸めないもの」の句読点の重複（「。、」）を直し、新しい項目の文末に句点を足した。(2) `32_InputModes.md`のテストの列挙へ`test/core/NudgeTargetRules.test.js`・`test/edit/NudgeEditor.test.js`を足した（`VertexHandleRules.test.js`の既存の抜けは本作業のスコープ外のため触れていない）。(3) 3章16.「修飾キーを見る時点」へ、矢印キーの`Shift`（`keydown`の`event.shiftKey`で1px／10pxが決まる。19.参照）を足した。ソースコードは変更していない。
 
 ---
 
@@ -520,3 +524,8 @@
 * **（タスク4）矢印キーのエントリの直前の説明は、既存の流儀に合わせ行コメント（`//`）で書いた**（JSDocへ書く指示のあった項目は`ShiftRule`・`SHORTCUT_BINDINGS`・`#findBinding`・`ShortcutActions`のJSDocに反映済み）。実際の矢印キーの動き（1px／10px・`Ctrl`／`Alt`での不一致・キーリピート・入力欄／ドラッグ中の見送り・実物の`HistoryManager`との結合での取り消し1件）はテストプレイで確認すること。
 * **（タスク4）開発資料の更新予定**：`KeyboardShortcuts`の対応表に矢印キー8エントリ（`nudgeSelection`）が加わったこと、`main.js`に`// 7.9.`の配線と`NudgeEditor`が加わったこと、`test/core/KeyboardShortcuts.test.js`が新設されたこと（資料本体は未修正。タスク7で反映）。
 * **（タスク3）テストの偽物は`editRecorder`・`getMode`のみ**。実物の`HistoryManager`との結合（畳み・取り消し1件）はタスク4以降／テストプレイで確認する。
+
+* **（タスク7）テストプレイの結果は資料へ反映済み**：発注者のテストプレイ（2026-11-17）で要件6の0〜17のすべてが問題なしだった。`PROJECT_ARCHITECTURE.md`3章19.の「確認の状況」と`16_test.md`の「テストできない箇所（08-03の追加）」へ反映した。
+* **（タスク7）まとめの区切り「選ぶ対象の変更」の実態**：鍵は微調整の時点の対象だけで判定し、選択の変更そのものは`HistoryManager`に届かない。別の対象を選んでから元の対象を選び直し、間に別の編集操作が挟まらなければ、直前のまとまりへ畳まれる。資料（3章19.）にその旨を書いた。発注者の決定の趣旨（対象が変われば区切る）と合うかは、テストプレイの確認項目（区切り3種）で確かめること。
+* **（タスク7）`Shift`＋矢印キーは「10px動かす」に占められた**：将来、方向の限定などをこの組み合わせに割り当てられない（`PROJECT_ARCHITECTURE.md`1章「存在しないもの」と`07_KeyboardShortcuts.md`に記載）。
+* **（タスク7）`02_main.md`の行数の行は、タスク7の着手前から全角括弧の開閉が1つ合っていない**（既存の状態）。今回足した分は括弧を閉じたが、既存の不整合は直していない。
