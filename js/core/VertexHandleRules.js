@@ -1,6 +1,6 @@
 /**
- * 責務: 頂点の選択モードで描く頂点のハンドルの一覧、ハンドル名が頂点のハンドルかの判定、範囲に入る頂点を集めることを、
- * 図形の共通メソッドだけを使う状態を持たない関数として提供する。DOMに触れない。
+ * 責務: 頂点の選択モードで描く頂点のハンドルの一覧、ハンドル名が頂点のハンドルかの判定、範囲に入る頂点を集めること、
+ * 選んでいる頂点の範囲を求めることを、図形の共通メソッドだけを使う状態を持たない関数として提供する。DOMに触れない。
  */
 import { OperationMode } from './InputModes.js';
 
@@ -73,4 +73,35 @@ export function collectVertexHandlesInRect(shapes, selectedIds, minX, minY, maxX
         }
     }
     return result;
+}
+
+/**
+ * 選んでいる頂点（図形idとハンドル名の組）の位置の範囲（最小・最大のX・Y）を求める。
+ * 各組について`shapes`から`id`が一致する図形を引き（無ければ飛ばす）、`getHandlePosition(handle)`で位置を求め（`null`は飛ばす）、
+ * 位置が求まった組だけから最小・最大を求める。線の太さは見ない（頂点の位置だけ）。頂点1つなら最小と最大が同じ値になる。
+ * ハンドルが頂点として扱えるかの判定はしない（選択の時点で済んでいる前提）。
+ * `collectVertexHandles`・`collectVertexHandlesInRect`とは集める条件と戻り値の形が違うため、走査を共有しない。
+ * 引数は書き換えない。
+ * @param {Array<Object>} shapes 図形の配列（並びは結果に影響しない）
+ * @param {Array<{shapeId: string, handle: string}>} vertices 選んでいる頂点の組
+ * @returns {{minX: number, minY: number, maxX: number, maxY: number}|null} 範囲。位置が求まる組が1つも無ければ`null`
+ */
+export function computeVertexHandlesBounds(shapes, vertices) {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    let found = false;
+    for (const pair of vertices) {
+        const shape = shapes.find((s) => s.id === pair.shapeId);
+        if (!shape) continue;
+        const position = shape.getHandlePosition(pair.handle);
+        if (!position) continue;
+        found = true;
+        minX = Math.min(minX, position.x);
+        minY = Math.min(minY, position.y);
+        maxX = Math.max(maxX, position.x);
+        maxY = Math.max(maxY, position.y);
+    }
+    return found ? { minX, minY, maxX, maxY } : null;
 }

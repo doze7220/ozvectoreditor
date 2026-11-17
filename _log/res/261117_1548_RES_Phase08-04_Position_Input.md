@@ -415,7 +415,7 @@ model.onChange(syncOptionBarPositionGroup);
 
 ## 3. タスクリスト
 
-*   [ ] タスク1: 要件1 選んでいる頂点の範囲を求める規則（`core/VertexHandleRules`）
+*   [x] タスク1: 要件1 選んでいる頂点の範囲を求める規則（`core/VertexHandleRules`）
     *   **対象ファイル** :
         *   `./js/core/VertexHandleRules.js` :（更新）
         *   `./test/core/VertexHandleRules.test.js` :（更新）
@@ -577,7 +577,10 @@ model.onChange(syncOptionBarPositionGroup);
 
 ### タスク1: 要件1 選んでいる頂点の範囲を求める規則（`core/VertexHandleRules`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/VertexHandleRules.js`に`computeVertexHandlesBounds(shapes, vertices)`を追加（既存3関数・importは無変更、JSDoc・先頭の責務定義を更新）。
+    *   `test/core/VertexHandleRules.test.js`に`describe('computeVertexHandlesBounds')`を8ケース追加（頂点1つ／同一図形の複数／複数図形／存在しないid／未知のハンドル名／0件／円のgetHandlePosition／非破壊）。既存ケースは無変更。
+    *   `node --test`：tests 1465 / suites 222 / fail 0。
+    *   監査指摘の修正：非破壊ケースを既存ケースと同じ強度（`shapes`は`toJSON`まで、`vertices`も中身をJSON比較）へそろえた。`node --test`全件通過。
 
 ### タスク2: 要件2 位置の欄に出す内容と入力から移動量を求める規則（`edit/PositionInputRules`）
 *   **作業内容** :

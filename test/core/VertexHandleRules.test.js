@@ -1,10 +1,10 @@
 /**
  * 責務: VertexHandleRules（頂点のハンドルの一覧、ハンドル名が頂点のハンドルかの判定、
- * 範囲に入る頂点を集めること）の振る舞いを実物の図形クラスで検証する。
+ * 範囲に入る頂点を集めること、選んでいる頂点の範囲を求めること）の振る舞いを実物の図形クラスで検証する。
  */
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { collectVertexHandles, collectVertexHandlesInRect, isVertexHandle } from '../../js/core/VertexHandleRules.js';
+import { collectVertexHandles, collectVertexHandlesInRect, computeVertexHandlesBounds, isVertexHandle } from '../../js/core/VertexHandleRules.js';
 import { OperationMode } from '../../js/core/InputModes.js';
 import { Line } from '../../js/shapes/Line.js';
 import { Curve } from '../../js/shapes/Curve.js';
@@ -160,5 +160,81 @@ describe('collectVertexHandlesInRect', () => {
         const b = collectVertexHandlesInRect(list, ids, -1, -1, 50, 50);
         assert.notEqual(a, b);
         assert.equal(JSON.stringify([ids, list.map((s) => s.toJSON())]), before);
+    });
+});
+
+describe('computeVertexHandlesBounds', () => {
+    const line = withId(new Line(0, 0, 10, 20), 'l');
+    const rect = withId(new Rect(30, 40, 50, 70), 'r');
+    const circle = withId(new Ellipse(0, 0, 10, 20), 'e');
+    const shapes = [line, rect, circle];
+
+    test('頂点1つは最小と最大が同じ値', () => {
+        const pos = line.getHandlePosition('end');
+        assert.deepEqual(
+            computeVertexHandlesBounds(shapes, [{ shapeId: 'l', handle: 'end' }]),
+            { minX: pos.x, minY: pos.y, maxX: pos.x, maxY: pos.y }
+        );
+    });
+
+    test('同じ図形の複数の頂点', () => {
+        const a = line.getHandlePosition('start');
+        const b = line.getHandlePosition('end');
+        assert.deepEqual(
+            computeVertexHandlesBounds(shapes, [{ shapeId: 'l', handle: 'start' }, { shapeId: 'l', handle: 'end' }]),
+            { minX: Math.min(a.x, b.x), minY: Math.min(a.y, b.y), maxX: Math.max(a.x, b.x), maxY: Math.max(a.y, b.y) }
+        );
+    });
+
+    test('複数の図形にまたがる頂点', () => {
+        const a = line.getHandlePosition('start');
+        const names = rect.getVertexHandleNames();
+        const b = rect.getHandlePosition(names[0]);
+        const result = computeVertexHandlesBounds(shapes, [
+            { shapeId: 'l', handle: 'start' },
+            { shapeId: 'r', handle: names[0] }
+        ]);
+        assert.deepEqual(result, {
+            minX: Math.min(a.x, b.x), minY: Math.min(a.y, b.y), maxX: Math.max(a.x, b.x), maxY: Math.max(a.y, b.y)
+        });
+    });
+
+    test('存在しない図形のidは飛ばす', () => {
+        const pos = line.getHandlePosition('end');
+        assert.deepEqual(
+            computeVertexHandlesBounds(shapes, [{ shapeId: 'none', handle: 'end' }, { shapeId: 'l', handle: 'end' }]),
+            { minX: pos.x, minY: pos.y, maxX: pos.x, maxY: pos.y }
+        );
+    });
+
+    test('未知のハンドル名は飛ばす。全部そうなら null', () => {
+        const pos = line.getHandlePosition('end');
+        assert.deepEqual(
+            computeVertexHandlesBounds(shapes, [{ shapeId: 'l', handle: 'nope' }, { shapeId: 'l', handle: 'end' }]),
+            { minX: pos.x, minY: pos.y, maxX: pos.x, maxY: pos.y }
+        );
+        assert.equal(computeVertexHandlesBounds(shapes, [{ shapeId: 'l', handle: 'nope' }]), null);
+    });
+
+    test('0件で null', () => {
+        assert.equal(computeVertexHandlesBounds(shapes, []), null);
+    });
+
+    test('円・弧は getVertexHandleNames が空でも、渡されたハンドル名の位置が求まる', () => {
+        assert.deepEqual(circle.getVertexHandleNames(), []);
+        const pos = circle.getHandlePosition('right');
+        assert.deepEqual(
+            computeVertexHandlesBounds(shapes, [{ shapeId: 'e', handle: 'right' }]),
+            { minX: pos.x, minY: pos.y, maxX: pos.x, maxY: pos.y }
+        );
+    });
+
+    test('引数を書き換えない', () => {
+        const vertices = [{ shapeId: 'l', handle: 'start' }, { shapeId: 'r', handle: rect.getVertexHandleNames()[0] }];
+        const verticesBefore = JSON.stringify(vertices);
+        const before = JSON.stringify([shapes.map((s) => s.id), shapes.map((s) => s.toJSON())]);
+        computeVertexHandlesBounds(shapes, vertices);
+        assert.equal(JSON.stringify(vertices), verticesBefore);
+        assert.equal(JSON.stringify([shapes.map((s) => s.id), shapes.map((s) => s.toJSON())]), before);
     });
 });
