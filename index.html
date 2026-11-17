@@ -420,19 +420,22 @@
                     #e00000 calc(50% + 1px), transparent calc(50% + 1px)),
                 #c8c8c8;
         }
-        /* 線の太さの欄（.toolbarのuser-select: noneは変えず、この欄に限り文字の選択を許可する） */
-        #option-stroke-width {
+        /* 線の太さの欄・位置の欄（.toolbarのuser-select: noneは変えず、これらの欄に限り文字の選択を許可する） */
+        #option-stroke-width,
+        #option-position-x,
+        #option-position-y {
             box-sizing: border-box;
             width: 56px;
             height: 24px;
             user-select: text;
         }
+        /* 単位と欄の見出し（px・X:・Y:）に使う小さな添え字 */
         .option-unit {
             font-size: 12px;
             color: #666;
         }
         /* ツールバー全体の幅の見積もり（1280px幅）：
-           左右の余白16px＋最初のまとまり68px（ボタン32×2＋間隔4。🧰と📁）＋取り消し/やり直し68px＋削除/結合68px＋区切り17px×4＋スタイル約218px＋重なり順140px＝約646px。
+           左右の余白16px＋最初のまとまり68px（ボタン32×2＋間隔4。🧰と📁）＋取り消し/やり直し68px＋削除/結合68px＋区切り17px×4＋スタイル約218px＋重なり順140px＋区切り17px＋位置約174px（X:約15px＋欄56px＋Y:約15px＋欄56px＋px約16px＋gap4px×4）＝約837px。
            幅が足りないときは右のまとまりから切れる（.toolbarのoverflow: hidden） */
         /* 開発者向け確認用ウィンドウ（?dev時のみ表示。ツールパレットの右隣に置く。
            left: ツールパレットの左の位置に54px（ツールパレット幅44px＋枠2px＋余白8px）を足す。1280×800ではx 82〜444、y 68〜。
@@ -499,6 +502,13 @@
             <button type="button" id="option-bring-forward" class="tool-btn icon-btn" title="前へ (PageUp)" disabled>🔼</button>
             <button type="button" id="option-send-backward" class="tool-btn icon-btn" title="後ろへ (PageDown)" disabled>🔽</button>
             <button type="button" id="option-send-to-back" class="tool-btn icon-btn" title="最背面へ (End)" disabled>⏬</button>
+        </div>
+        <div id="option-position-group" class="toolbar-group">
+            <span class="option-unit">X:</span>
+            <input type="number" id="option-position-x" step="any" title="選択の外枠の左上のX座標（線の太さを含む。頂点の選択では選んだ頂点の左上）">
+            <span class="option-unit">Y:</span>
+            <input type="number" id="option-position-y" step="any" title="選択の外枠の左上のY座標（線の太さを含む。頂点の選択では選んだ頂点の左上）">
+            <span class="option-unit">px</span>
         </div>
     </header>
     <footer id="status-bar" class="status-bar">

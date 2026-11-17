@@ -487,7 +487,7 @@ model.onChange(syncOptionBarPositionGroup);
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク5: 要件5 オプションバーの位置のまとまり（`index.html`のHTMLとCSS）
+*   [x] タスク5: 要件5 オプションバーの位置のまとまり（`index.html`のHTMLとCSS）
     *   **対象ファイル** :
         *   `./index.html` :（更新）
     *   **作業内容** :
@@ -604,7 +604,10 @@ model.onChange(syncOptionBarPositionGroup);
 
 ### タスク5: 要件5 オプションバーの位置のまとまり（`index.html`のHTMLとCSS）
 *   **作業内容** :
-    *   （未実施）
+    *   `index.html`の`#option-order-group`の後ろに`#option-position-group`（`.toolbar-group`）を追加。中身は`X:`・`#option-position-x`・`Y:`・`#option-position-y`・`px`（`type="number"`・`step="any"`・`min`/`max`/`value`/`disabled`なし、`title`は要件5のとおりでキーなし）。`X:`・`Y:`・`px`は既存`.option-unit`を使用。
+    *   CSS：`#option-stroke-width`のルールのセレクタへ`#option-position-x`・`#option-position-y`を加え、コメントを「線の太さの欄・位置の欄」に変更（宣言の値は不変）。`.option-unit`に「単位と欄の見出し」のコメントを追加（宣言は不変）。
+    *   「ツールバー全体の幅の見積もり」コメントを、区切り17px＋位置約174pxを加えて「約837px」に更新（元コメントの約646pxに約191pxを足した値。1280pxに収まる）。
+    *   `node --test`：1496件全件合格。
 
 ### タスク6: 要件6 UI部品（`palette/OptionBarPositionGroup`）
 *   **作業内容** :
@@ -637,4 +640,5 @@ model.onChange(syncOptionBarPositionGroup);
 * **`ShapeExtentReader`が2つできること**：`wiring/DisplayWiring`は内部で1つ持ち、本作業では`main.js`がもう1つ生成する（`DisplayWiring`を変更しないというREQの指示に従った）。状態を持たない照会なので値は同じだが、資料には「2か所で生成している」ことを残す（将来1つにまとめるなら`DisplayWiring`の構成を触るPhaseで行う）。
 * **線の太さを変えるとX・Yの表示が変わること**：発注者の決定1のとおりの仕様。要件8の確認項目6で確かめる（不具合として直さない）。
 * **（タスク3）`NudgeEditor`の内部構成**：計画の`#applyMove`に加え、鍵の有無の分岐を非公開`#commit(target, grouped)`へ置いた（`commitEdit`を引数なしで呼ぶ／鍵付きで呼ぶを分けるため）。将来`nudge`系を変えるときは両経路が`#applyMove`を共有していることに注意。資料（`14_edit.md`）の`NudgeEditor`項目には非公開メソッドの記載は不要だが、`nudgeWithoutGrouping`と責務の書き直しは上記「開発資料の更新予定」のとおり。
+* **（タスク5）幅の見積もりの値**：計画書の本文は起点を実測637px＋191px＝約828pxとしているが、`index.html`の既存コメントの見積もりは約646pxだったため、コメントは646＋191＝約837pxと記した（どちらも1280pxに収まる）。実測は要件8の確認項目0で確認する。開発資料（`_doc/arch/01_index_html.md`）の位置のまとまりの記述は既存の更新予定に含まれる。
 * **（タスク4）`PositionInputEditor`の内部構成**：対象と範囲の解決を非公開`#resolveTargetAndBounds`（`{target, bounds}`を返す）に括った。`getSelectedBounds`が`null`を返す場合（図形が選択集合にあるがモデルに無い等）は`buildPositionInputView`／`resolvePositionDelta`が`null`として扱うため、`PositionInputEditor`側に追加の判定は無い。資料（`14_edit.md`）には`PositionInputEditor`の項目を足す必要がある（タスク10）。
