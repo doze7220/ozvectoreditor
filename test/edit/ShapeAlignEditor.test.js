@@ -14,10 +14,9 @@ import { Rect } from '../../js/shapes/Rect.js';
  * 実物のモデル・外枠の照会と、呼び出しを記録する偽の記録先でエディタを組む。
  * @param {Array<Rect>} shapes 追加する図形（描画順）
  * @param {number[]} selectedIndexes 選択する図形の添字
- * @param {Object} [reader] 外枠の照会の差し替え（省略時は実物）
  * @returns {{ model: VectorModel, editor: ShapeAlignEditor, calls: Array<Array<*>>, ids: string[], reader: ShapeExtentReader, notifications: () => number }} 組み合わせた実物と記録
  */
-function setup(shapes, selectedIndexes, reader) {
+function setup(shapes, selectedIndexes) {
     const model = new VectorModel();
     const ids = model.addShapesWithNewIds(shapes);
     model.setSelection(selectedIndexes.map((i) => ids[i]));
@@ -28,9 +27,9 @@ function setup(shapes, selectedIndexes, reader) {
         beginEdit: (...args) => calls.push(['beginEdit', ...args]),
         commitEdit: (...args) => calls.push(['commitEdit', ...args])
     };
-    const realReader = new ShapeExtentReader({ model });
-    const editor = new ShapeAlignEditor({ model, editRecorder, shapeExtentReader: reader ?? realReader });
-    return { model, editor, calls, ids, reader: realReader, notifications: () => count };
+    const reader = new ShapeExtentReader({ model });
+    const editor = new ShapeAlignEditor({ model, editRecorder, shapeExtentReader: reader });
+    return { model, editor, calls, ids, reader, notifications: () => count };
 }
 
 /**

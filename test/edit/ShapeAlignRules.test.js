@@ -99,8 +99,6 @@ describe('ShapeAlignRules.computeAlignMoves: 分布の移動量', () => {
     it('横方向: 両端は動かず、間の図形だけが動いてすき間が等しくなる', () => {
         const moves = computeAlignMoves(sample(), ShapeAlignOperation.DISTRIBUTE_HORIZONTAL);
         assert.deepEqual(toMap(moves), { B: [20, 0] });
-        // 移動後: A 0-10, B 40-70, C 100-120 → すき間は 30 と 30
-        assert.equal(40 - 10, 100 - 70);
     });
 
     it('縦方向', () => {

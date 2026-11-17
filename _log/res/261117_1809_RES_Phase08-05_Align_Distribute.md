@@ -513,7 +513,7 @@ moveShapesBy(moves)   // moves: Array<{ id: string, dx: number, dy: number }>
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない。`main.js`の行数も控える）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク8: 仕上げの確認（JSDoc・不要なコード・全テスト・スコープ）
+*   [x] タスク8: 仕上げの確認（JSDoc・不要なコード・全テスト・スコープ）
     *   **対象ファイル** :
         *   （原則として変更なし。漏れが見つかった場合のみ、タスク1〜7で触れたファイルを直す）
     *   **作業内容** :
@@ -600,7 +600,10 @@ moveShapesBy(moves)   // moves: Array<{ id: string, dx: number, dy: number }>
 
 ### タスク8: 仕上げの確認（JSDoc・不要なコード・全テスト・スコープ）
 *   **作業内容** :
-    *   （未実施）
+    *   監査の軽微な指摘2点を修正：`test/edit/ShapeAlignEditor.test.js`の`setup`の未使用の第3引数`reader`（と`reader ?? realReader`の枝・JSDocの`@param`）を取り除き、`test/edit/ShapeAlignRules.test.js`の定数どうしを比べるだけの`assert.equal(40 - 10, 100 - 70);`（とその説明コメント）を取り除いた。ケース・期待値は変えていない。
+    *   `git status`：変更は上記2ファイルのみ（これまでのタスク分はコミット済み。`.vscode/`は既存の未追跡物）。
+    *   `node --test`：tests 1543 / suites 230 / pass 1543 / fail 0。
+    *   開発資料の更新予定への追記：なし。
 
 ### タスク9: 要件8 テストプレイの確認項目を発注者へ提示する
 *   **作業内容** :
