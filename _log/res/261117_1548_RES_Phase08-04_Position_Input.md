@@ -521,7 +521,7 @@ model.onChange(syncOptionBarPositionGroup);
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク7: 要件7 配線（`main.js`の`// 7.10.`）
+*   [x] タスク7: 要件7 配線（`main.js`の`// 7.10.`）
     *   **対象ファイル** :
         *   `./js/main.js` :（更新）
     *   **作業内容** :
@@ -617,7 +617,11 @@ model.onChange(syncOptionBarPositionGroup);
 
 ### タスク7: 要件7 配線（`main.js`の`// 7.10.`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/main.js`のみ変更。importを3つ追加（`PositionInputEditor`・`ShapeExtentReader`は`NudgeEditor`の次、`OptionBarPositionGroup`は`OptionBarOrderGroup`の次）。
+    *   `// 7.9.`の後・`// 8.`の前に`// 7.10. オプションバー（位置のまとまり）配線`を追加。`ShapeExtentReader`を1つ生成、`PositionInputEditor`へ`model`・`getMode`・`shapeExtentReader`・`// 7.9.`の同じ`nudgeEditor`を渡した。`OptionBarPositionGroup`の`onPositionChange`は`positionInputEditor.setPosition(axis, text)`の戻り値をそのまま返すのみ（`isDragging()`は見ない）。
+    *   `syncOptionBarPositionGroup()`（JSDoc付き・橋渡しのみ）を`model.onChange`へ登録し、起動時の同期の並び（`syncOptionBarOrderGroup()`の後）へコメント付きで1回呼び出しを追加。専用の再描画経路・`document`購読は足していない。`DisplayWiring.js`は未変更。
+    *   既存の通知経路の確認（コードを追って確認、新しい通知は不要）：モード切替＝`applyMode`→`InputTracker.setMode`→`model.clearSelection()`（無条件に通知）／選択の変更＝`setSelection`・`clearSelection`が通知／頂点の選択＝`setSelectedVertices`が変化時に通知（変化なしは表示も不変）／図形の移動＝`moveShapes`・`updateVertices`が通知／線の太さ＝`updateShapeStyles`が1件以上で通知。取り消し／やり直しはスナップショット適用でモデルを更新する既存経路。
+    *   `node --test`：1496件全件合格。
 
 ### タスク8: 仕上げの確認（JSDoc・不要なコード・全テスト・スコープ）
 *   **作業内容** :
@@ -644,3 +648,4 @@ model.onChange(syncOptionBarPositionGroup);
 * **（タスク3）`NudgeEditor`の内部構成**：計画の`#applyMove`に加え、鍵の有無の分岐を非公開`#commit(target, grouped)`へ置いた（`commitEdit`を引数なしで呼ぶ／鍵付きで呼ぶを分けるため）。将来`nudge`系を変えるときは両経路が`#applyMove`を共有していることに注意。資料（`14_edit.md`）の`NudgeEditor`項目には非公開メソッドの記載は不要だが、`nudgeWithoutGrouping`と責務の書き直しは上記「開発資料の更新予定」のとおり。
 * **（タスク5）幅の見積もりの値**：計画書の本文は起点を実測637px＋191px＝約828pxとしているが、`index.html`の既存コメントの見積もりは約646pxだったため、コメントは646＋191＝約837pxと記した（どちらも1280pxに収まる）。実測は要件8の確認項目0で確認する。開発資料（`_doc/arch/01_index_html.md`）の位置のまとまりの記述は既存の更新予定に含まれる。
 * **（タスク4）`PositionInputEditor`の内部構成**：対象と範囲の解決を非公開`#resolveTargetAndBounds`（`{target, bounds}`を返す）に括った。`getSelectedBounds`が`null`を返す場合（図形が選択集合にあるがモデルに無い等）は`buildPositionInputView`／`resolvePositionDelta`が`null`として扱うため、`PositionInputEditor`側に追加の判定は無い。資料（`14_edit.md`）には`PositionInputEditor`の項目を足す必要がある（タスク10）。
+* **（タスク7）配線**：開発資料への影響は既存の『開発資料の更新予定』（`02_main.md`：`// 7.10.`・`syncOptionBarPositionGroup`・注入の一覧・起動時の同期・行数）のとおりで、追加の項目なし。`OptionBarPositionGroup`は起動時の1回同期と`model.onChange`で描画され、`onPositionChange`が`false`を返した場合の書き戻しはUI部品側が担う。`ShapeExtentReader`の2つ目のインスタンスは`main.js`の`// 7.10.`内にあり、将来`DisplayWiring`の構成を触る際に1つへまとめられる。目視確認は要件8（`change`／`blur`／矢印の挙動、1280px幅）で行う。
