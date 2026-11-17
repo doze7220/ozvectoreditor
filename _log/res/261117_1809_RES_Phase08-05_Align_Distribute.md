@@ -456,7 +456,7 @@ moveShapesBy(moves)   // moves: Array<{ id: string, dx: number, dy: number }>
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク4: 要件4 整列・分布の編集操作（`edit/ShapeAlignEditor`）
+*   [x] タスク4: 要件4 整列・分布の編集操作（`edit/ShapeAlignEditor`）
     *   **対象ファイル** :
         *   `./js/edit/ShapeAlignEditor.js` :（新規）
         *   `./test/edit/ShapeAlignEditor.test.js` :（新規）
@@ -573,7 +573,10 @@ moveShapesBy(moves)   // moves: Array<{ id: string, dx: number, dy: number }>
 
 ### タスク4: 要件4 整列・分布の編集操作（`edit/ShapeAlignEditor`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/edit/ShapeAlignEditor.js`（新規・importは`./ShapeAlignRules.js`のみ）：typedef`ShapeAlignAvailability`（8キー。`OptionBarAlignGroup`との二重定義の旨を明記）、`ShapeAlignEditor`クラス（コンストラクタ`{ model, editRecorder, shapeExtentReader }`・非公開フィールド3つ・`apply(operation)`（処理順1〜5をJSDocに番号付きで記載。可否が偽なら記録先に触れず`false`、動くときは`beginEdit`→`moveShapesBy`1回→`commitEdit()`鍵なし）・`getAvailability()`（照会は1回だけ））。クラスJSDocに依存の制約・前提を記載。
+    *   `test/edit/ShapeAlignEditor.test.js`（新規）：整列・分布の実際のそろい、線の太さを含む外枠でのそろい、押せないとき（0・1個・分布2個・すでにそろっている）に記録先を呼ばない・通知0、対1回・鍵なし・通知1回、非選択は動かない、`getAvailability`（8キー・2個と3個の違い・副作用なし・照会1回）、未知の操作でError。
+    *   `node --test`：tests 1543 / suites 230 / pass 1543 / fail 0。
+    *   開発資料の更新予定への追記：なし（既存の予定欄の記述どおり）。
 
 ### タスク5: 要件5 オプションバーの整列・分布のまとまり（`index.html`）
 *   **作業内容** :
@@ -603,4 +606,5 @@ moveShapesBy(moves)   // moves: Array<{ id: string, dx: number, dy: number }>
 * **（計画時点）`ShapeExtentReader`のクラスJSDocの記述が実態と食い違っている**：クラスのJSDocに「main.jsが1つだけ生成する」とあるが、実際には`wiring/DisplayWiring`の内部と`main.js`の`// 7.10.`の2か所で生成している（Phase 08-04から。開発資料の`14_edit.md`は2か所と正しく書いている）。本作業の要件1は「照会の追加と先頭の責務定義への追記のみ」のため**このJSDocは直さない**。直すなら別のREQで扱う。
 * **（計画時点）記号の見え方**：`⬅`・`➡`・`⬆`・`⬇`は環境によって絵文字（色付き）で表示され、`↔`・`↕`・`⋯`・`⋮`は文字の表示になるため、8つの見た目の大きさ・太さがそろわない可能性がある。記号は`index.html`の1か所だけで決まるので、見分けにくければ発注者の判断で差し替える（要件8の確認項目0）。
 * **（計画時点）同期の回数**：`syncOptionBarAlignGroup`は既存のオプションバーの同期と同じく、`model.onChange`のたび（ホバー・ドラッグ中の移動を含む）に選択中の図形の外枠を1回ずつ求める（8操作分は使い回す）。REQの方針（性能の改善を目的とした変更を行わない・同期の回数を今のままにする）どおり、間引きの仕組みは足さない。30個程度の選択での体感は要件8の確認項目16で見てもらう。
+* **（タスク4）テストの図形の作り方**：`Rect`のコンストラクタは`(x1, y1, x2, y2, strokeColor, strokeWidth, fillColor)`（幅・高さではなく対角の座標）。テストの補助関数`box(x, y, w, h)`で変換している。分布の縦方向で「すでにそろっている」偶然の配置（すき間が負で等しい）になりうるため、テストデータの座標には注意。
 * **（計画時点）分布で「並べた末尾」が全体の右端の図形でない場合**：入れ子などで`maxX`が最大の図形が`minX`の順で末尾にならないとき、要件2の手順どおり末尾の図形が動いて右端が全体の右端にそろい、`maxX`が最大だった図形は動く場合がある（REQの定義どおり。発注者の決定1の「両端の図形は動かさず」は、図形が横に並んでいる通常の場合に成り立つ）。
