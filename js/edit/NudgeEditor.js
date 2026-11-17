@@ -1,16 +1,18 @@
 /**
- * 責務: 矢印キーの微調整として、選んでいる図形または頂点を指定の移動量だけ動かす1件の編集操作を担う。
+ * 責務: 選んでいる図形または頂点を指定の移動量だけ動かす1件の編集操作を担う（矢印キーでの微調整と位置の数値入力の両方が使う）。
  * 動かす対象の決定と続けた微調整をまとめる鍵は`core/NudgeTargetRules`に任せ、DOM・操作モードの解釈・スナップを持たない。
  */
 // 依存の向き: `edit/`から`core/`への下向きの依存（`main.js → edit → io → core → shapes`の一方向に沿い、`NudgeTargetRules`は`core/InputModes`しか読まないため循環しない）。
 import { resolveNudgeTarget, buildNudgeGroupKey } from '../core/NudgeTargetRules.js';
 
 /**
- * 矢印キーの微調整（選んでいる図形・頂点を決まった量だけ動かす）を1件の編集操作として行うクラス。
+ * 選んでいる図形・頂点を指定の移動量だけ動かす1件の編集操作を行うクラス（呼び出し元は2つ）。
+ * - `nudge`：矢印キーの微調整用。まとめの鍵を渡すので、続けて同じ対象を動かした分は直前の1件へ畳まれる。
+ * - `nudgeWithoutGrouping`：位置の数値入力用。鍵を渡さないので、1回ごとに取り消し1件になる。
  *
  * - 移動量`dx`・`dy`は**ワールド座標のpx**として扱う（表示倍率・スクロールは読まない。倍率が変わっても1pxは1px）。
  * - **スナップ（丸め）・端点への吸い付きを通さない**（発注者の決定。座標が小数の図形は小数のまま動く）。
- * - 動かしたときは、モデルの変更通知が1回、取り消しが1件（続けて同じ対象を動かした分は`HistoryManager`が直前の1件へ畳む）。
+ * - 動かしたときは、モデルの変更通知が1回、取り消しが1件（`nudge`で続けて同じ対象を動かした分は`HistoryManager`が直前の1件へ畳む）。
  * - 動かす対象がない（何も選んでいない・頂点が0件に絞られた等）ときは、`beginEdit`も`commitEdit`も呼ばず記録先に一切触れない。
  *
  * 依存の制約:
@@ -52,25 +54,48 @@ export class NudgeEditor {
     }
 
     /**
-     * 選んでいる図形（または頂点）を`(dx, dy)`だけ動かす。
+     * 選んでいる図形（または頂点）を`(dx, dy)`だけ動かす（矢印キーの微調整用。まとめの鍵あり）。
      * 動かす対象がない場合（頂点が1件も組み立てられない場合を含む）は記録先に一切触れず`false`を返す。
-     * 動かしたときは`beginEdit()` → モデルの変更（通知1回） → `commitEdit(まとめの鍵)`の順に呼ぶ（取り消し1件）。
+     * 動かしたときは`beginEdit()` → モデルの変更（通知1回） → `commitEdit(まとめの鍵)`の順に呼ぶ。
+     * 同じ対象を続けて動かした分は`HistoryManager`が直前の1件へ畳む。
      * 移動量はワールド座標のpx。スナップ・端点への吸い付きは通さない。
      * @param {number} dx X方向の移動量（ワールド座標のpx）
      * @param {number} dy Y方向の移動量（ワールド座標のpx）
      * @returns {boolean} 動かしたらtrue、動かさなかったらfalse（キーを受理したかの判定に使う）
      */
     nudge(dx, dy) {
+        return this.#applyMove(dx, dy, true);
+    }
+
+    /**
+     * 選んでいる図形（または頂点）を`(dx, dy)`だけ動かす（位置の数値入力用。まとめの鍵なし）。
+     * `nudge`との違いは、`commitEdit()`を引数なしで呼ぶことだけ。続けて呼んでも直前の1件へ畳まれず、1回ごとに取り消し1件になる。
+     * 対象の解決・動かし方・対象なしのときに記録先へ触れず`false`を返すことは`nudge`と同じ。
+     * @param {number} dx X方向の移動量（ワールド座標のpx）
+     * @param {number} dy Y方向の移動量（ワールド座標のpx）
+     * @returns {boolean} 動かしたらtrue、動かさなかったらfalse
+     */
+    nudgeWithoutGrouping(dx, dy) {
+        return this.#applyMove(dx, dy, false);
+    }
+
+    /**
+     * 対象を解決して動かし、記録先へ1件として記録する（`nudge`・`nudgeWithoutGrouping`の共通処理）。
+     * @param {number} dx X方向の移動量（ワールド座標のpx）
+     * @param {number} dy Y方向の移動量（ワールド座標のpx）
+     * @param {boolean} grouped trueならまとめの鍵を渡して記録し、falseなら鍵を渡さずに記録する
+     * @returns {boolean} 動かしたらtrue、動かさなかったらfalse
+     */
+    #applyMove(dx, dy, grouped) {
         const target = resolveNudgeTarget(this.#getMode(), this.#model.getSelectedIds(), this.#model.getSelectedVertices());
         if (target === null) {
             return false;
         }
-        const groupKey = buildNudgeGroupKey(target);
 
         if (target.type === 'shapes') {
             this.#editRecorder.beginEdit();
             this.#model.moveShapes(target.shapeIds, dx, dy);
-            this.#editRecorder.commitEdit(groupKey);
+            this.#commit(target, grouped);
             return true;
         }
 
@@ -80,8 +105,22 @@ export class NudgeEditor {
         }
         this.#editRecorder.beginEdit();
         this.#model.updateVertices(updates);
-        this.#editRecorder.commitEdit(groupKey);
+        this.#commit(target, grouped);
         return true;
+    }
+
+    /**
+     * 記録を確定する。鍵ありのときだけ鍵を組み立てて渡し、そうでなければ引数なしで呼ぶ。
+     * @param {Object} target `resolveNudgeTarget`が返した対象
+     * @param {boolean} grouped 鍵を渡すか
+     * @returns {void}
+     */
+    #commit(target, grouped) {
+        if (grouped) {
+            this.#editRecorder.commitEdit(buildNudgeGroupKey(target));
+        } else {
+            this.#editRecorder.commitEdit();
+        }
     }
 
     /**

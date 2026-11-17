@@ -41,6 +41,7 @@ function makeLine(id, x1, y1, x2, y2) {
 /**
  * 実物のモデルと偽の依存で手順を組み立てる。
  * 偽のeditRecorderの呼び出しとモデルの変更通知は、同じ`calls`へ呼ばれた順に記録する。
+ * 引数は渡された分だけ記録する（`commitEdit`の記録の長さ-1が引数の個数。鍵なしは`['commitEdit']`、鍵ありは`['commitEdit', 鍵]`）。
  * @param {Array<Object>} shapes モデルへ入れる図形（idは代入済み）
  * @param {string} initialMode 初期の操作モード
  * @returns {{ editor: NudgeEditor, model: VectorModel, calls: Array<Array<*>>, setMode: function(string): void }} 手順・モデル・呼び出しの記録・モードの差し替え関数
@@ -54,7 +55,7 @@ function setup(shapes, initialMode) {
     let mode = initialMode;
     const editRecorder = {
         beginEdit: () => calls.push(['beginEdit']),
-        commitEdit: (key) => calls.push(['commitEdit', key])
+        commitEdit: (...args) => calls.push(['commitEdit', ...args])
     };
     const editor = new NudgeEditor({ model, editRecorder, getMode: () => mode });
     model.onChange(() => calls.push(['change']));
@@ -228,4 +229,78 @@ test('NudgeEditor: 移動量はワールド座標のpxで、受け取る依存�
     editor.nudge(10, 0);
     editor.nudge(10, 0);
     assert.equal(a.points[0].x, 20);
+});
+
+test('NudgeEditor.nudgeWithoutGrouping: 図形が動き、trueを返し、通知は1回', () => {
+    const a = makeRect('a', 0, 0);
+    const b = makeRect('b', 50, 50);
+    const { editor, model, calls } = setup([a, b], OperationMode.SELECT);
+    model.setSelection(['a']);
+    calls.length = 0;
+
+    assert.equal(editor.nudgeWithoutGrouping(3, 4), true);
+    assert.equal(a.points[0].x, 3);
+    assert.equal(a.points[0].y, 4);
+    assert.equal(b.points[0].x, 50);
+    assert.equal(only(calls, 'change').length, 1);
+});
+
+test('NudgeEditor.nudgeWithoutGrouping: 頂点の選択モードで選んだ頂点が動く', () => {
+    const rect = makeRect('r', 0, 0);
+    const { editor, model } = setup([rect], OperationMode.VERTEX);
+    model.setSelection(['r']);
+    model.setSelectedVertices([{ shapeId: 'r', handle: 'topLeft' }]);
+
+    assert.equal(editor.nudgeWithoutGrouping(5, 6), true);
+    assert.deepEqual(rect.getHandlePosition('topLeft'), { x: 5, y: 6 });
+    assert.deepEqual(rect.getHandlePosition('bottomRight'), { x: 10, y: 10 });
+});
+
+test('NudgeEditor.nudgeWithoutGrouping: commitEditへ鍵（引数）が渡らない。nudgeは鍵を渡し続ける', () => {
+    const a = makeRect('a', 0, 0);
+    const { editor, model, calls } = setup([a], OperationMode.SELECT);
+    model.setSelection(['a']);
+    calls.length = 0;
+
+    editor.nudgeWithoutGrouping(1, 0);
+    const commits = only(calls, 'commitEdit');
+    assert.equal(commits.length, 1);
+    assert.equal(commits[0].length - 1, 0);
+
+    calls.length = 0;
+    editor.nudge(1, 0);
+    const grouped = only(calls, 'commitEdit');
+    assert.equal(grouped[0].length - 1, 1);
+    assert.equal(typeof grouped[0][1], 'string');
+});
+
+test('NudgeEditor.nudgeWithoutGrouping: 続けて2回呼ぶとbeginEdit・commitEditの対が2回記録される', () => {
+    const a = makeRect('a', 0, 0);
+    const { editor, model, calls } = setup([a], OperationMode.SELECT);
+    model.setSelection(['a']);
+    calls.length = 0;
+
+    editor.nudgeWithoutGrouping(1, 0);
+    editor.nudgeWithoutGrouping(1, 0);
+    assert.deepEqual(names(calls), ['beginEdit', 'change', 'commitEdit', 'beginEdit', 'change', 'commitEdit']);
+    assert.equal(a.points[0].x, 2);
+});
+
+test('NudgeEditor.nudgeWithoutGrouping: 対象なし（選択なし・CREATE・PAN・頂点0件）はfalseで記録先に触れない', () => {
+    const a = makeRect('a', 0, 0);
+    const { editor, model, calls, setMode } = setup([a], OperationMode.SELECT);
+
+    assert.equal(editor.nudgeWithoutGrouping(1, 1), false);
+    model.setSelection(['a']);
+    calls.length = 0;
+    for (const mode of [OperationMode.CREATE, OperationMode.PAN]) {
+        setMode(mode);
+        assert.equal(editor.nudgeWithoutGrouping(1, 1), false);
+    }
+    setMode(OperationMode.VERTEX);
+    model.setSelectedVertices([{ shapeId: 'a', handle: 'noSuchHandle' }]);
+    calls.length = 0;
+    assert.equal(editor.nudgeWithoutGrouping(1, 1), false);
+    assert.deepEqual(calls, []);
+    assert.equal(a.points[0].x, 0);
 });

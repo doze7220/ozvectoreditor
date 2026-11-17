@@ -449,7 +449,7 @@ model.onChange(syncOptionBarPositionGroup);
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク3: 要件3 移動量を当てる入口の追加（`edit/NudgeEditor`）
+*   [x] タスク3: 要件3 移動量を当てる入口の追加（`edit/NudgeEditor`）
     *   **対象ファイル** :
         *   `./js/edit/NudgeEditor.js` :（更新）
         *   `./test/edit/NudgeEditor.test.js` :（更新）
@@ -591,7 +591,9 @@ model.onChange(syncOptionBarPositionGroup);
 
 ### タスク3: 要件3 移動量を当てる入口の追加（`edit/NudgeEditor`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/edit/NudgeEditor.js`：対象の解決と移動を非公開`#applyMove(dx, dy, grouped)`へ括り出し、`nudge`（鍵あり）・新規`nudgeWithoutGrouping`（`commitEdit()`を引数なしで呼ぶ）がそれを呼ぶ形にした。鍵の有無の分岐は非公開`#commit`に置き、`buildNudgeGroupKey`は鍵ありのときだけ呼ぶ。`#buildVertexUpdates`・importは無変更。先頭の責務定義・クラス／メソッドのJSDocを更新。
+    *   `test/edit/NudgeEditor.test.js`：`setup()`の偽の`commitEdit`を可変長引数へ広げ（JSDoc補足あり）、`nudgeWithoutGrouping`のケースを5件追加（図形／頂点／鍵が渡らない＋`nudge`は鍵を渡す／2回で対が2回／対象なし・頂点0件）。既存ケースは無変更。
+    *   `node --test`：tests 1485 / fail 0。
 
 ### タスク4: 要件4 位置の数値入力の編集操作（`edit/PositionInputEditor`）
 *   **作業内容** :
@@ -631,3 +633,4 @@ model.onChange(syncOptionBarPositionGroup);
 * **表示の丸めと実際の位置**：欄は小数第1位までの表示なので、座標が`10.04`の図形では欄に`10.0`と出る。この状態で`10`を入れて確定すると`0.04`動いてちょうど`10.0`になり、見た目の表示は変わらないのに取り消しが1件増える（実際に位置が変わっているため）。発注者の決定4（小数第1位の表示）と「入れた値そのものへ動かす」を両立させた結果であり、不具合ではない。気になる場合は次のPhaseで扱う。
 * **`ShapeExtentReader`が2つできること**：`wiring/DisplayWiring`は内部で1つ持ち、本作業では`main.js`がもう1つ生成する（`DisplayWiring`を変更しないというREQの指示に従った）。状態を持たない照会なので値は同じだが、資料には「2か所で生成している」ことを残す（将来1つにまとめるなら`DisplayWiring`の構成を触るPhaseで行う）。
 * **線の太さを変えるとX・Yの表示が変わること**：発注者の決定1のとおりの仕様。要件8の確認項目6で確かめる（不具合として直さない）。
+* **（タスク3）`NudgeEditor`の内部構成**：計画の`#applyMove`に加え、鍵の有無の分岐を非公開`#commit(target, grouped)`へ置いた（`commitEdit`を引数なしで呼ぶ／鍵付きで呼ぶを分けるため）。将来`nudge`系を変えるときは両経路が`#applyMove`を共有していることに注意。資料（`14_edit.md`）の`NudgeEditor`項目には非公開メソッドの記載は不要だが、`nudgeWithoutGrouping`と責務の書き直しは上記「開発資料の更新予定」のとおり。
