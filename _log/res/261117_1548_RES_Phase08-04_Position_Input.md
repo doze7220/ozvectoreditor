@@ -466,7 +466,7 @@ model.onChange(syncOptionBarPositionGroup);
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク4: 要件4 位置の数値入力の編集操作（`edit/PositionInputEditor`）
+*   [x] タスク4: 要件4 位置の数値入力の編集操作（`edit/PositionInputEditor`）
     *   **対象ファイル** :
         *   `./js/edit/PositionInputEditor.js` :（新規）
         *   `./test/edit/PositionInputEditor.test.js` :（新規）
@@ -597,7 +597,10 @@ model.onChange(syncOptionBarPositionGroup);
 
 ### タスク4: 要件4 位置の数値入力の編集操作（`edit/PositionInputEditor`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/edit/PositionInputEditor.js`を新規作成（`getPositionView`・`setPosition`。対象と範囲の解決は非公開`#resolveTargetAndBounds`1つに括り両メソッドで共有。importは`resolveNudgeTarget`・`computeVertexHandlesBounds`・`buildPositionInputView`・`resolvePositionDelta`。`HistoryManager`は受け取らない）。
+    *   `test/edit/PositionInputEditor.test.js`を新規作成。組み方A（実物の`NudgeEditor`＋素の偽の記録先。補助関数`setupWithRealNudge`）で図形1つ／複数／頂点1つ／複数・軸ごとの非変更・線の太さでの表示変化・`disabled`の切り替え・`getPositionView`の非破壊（図形は`toJSON`、選択は中身までJSON比較）、組み方B（偽の`nudgeEditor`。補助関数`setupWithFakeNudge`）で対象なし・受理しない入力・移動量と戻り値の素通しを確認。テスト名の先頭`A:`／`B:`でどちらかが分かる。
+    *   `node --test`：tests 1496 / fail 0。
+    *   監査指摘の修正：`PositionInputEditor.js`へ「依存の向き」コメントを足し、クラスJSDocへ「図形固有のプロパティ名を持たない・スナップ／端点吸着を通さない」を追記（ふるまいは不変）。
 
 ### タスク5: 要件5 オプションバーの位置のまとまり（`index.html`のHTMLとCSS）
 *   **作業内容** :
@@ -634,3 +637,4 @@ model.onChange(syncOptionBarPositionGroup);
 * **`ShapeExtentReader`が2つできること**：`wiring/DisplayWiring`は内部で1つ持ち、本作業では`main.js`がもう1つ生成する（`DisplayWiring`を変更しないというREQの指示に従った）。状態を持たない照会なので値は同じだが、資料には「2か所で生成している」ことを残す（将来1つにまとめるなら`DisplayWiring`の構成を触るPhaseで行う）。
 * **線の太さを変えるとX・Yの表示が変わること**：発注者の決定1のとおりの仕様。要件8の確認項目6で確かめる（不具合として直さない）。
 * **（タスク3）`NudgeEditor`の内部構成**：計画の`#applyMove`に加え、鍵の有無の分岐を非公開`#commit(target, grouped)`へ置いた（`commitEdit`を引数なしで呼ぶ／鍵付きで呼ぶを分けるため）。将来`nudge`系を変えるときは両経路が`#applyMove`を共有していることに注意。資料（`14_edit.md`）の`NudgeEditor`項目には非公開メソッドの記載は不要だが、`nudgeWithoutGrouping`と責務の書き直しは上記「開発資料の更新予定」のとおり。
+* **（タスク4）`PositionInputEditor`の内部構成**：対象と範囲の解決を非公開`#resolveTargetAndBounds`（`{target, bounds}`を返す）に括った。`getSelectedBounds`が`null`を返す場合（図形が選択集合にあるがモデルに無い等）は`buildPositionInputView`／`resolvePositionDelta`が`null`として扱うため、`PositionInputEditor`側に追加の判定は無い。資料（`14_edit.md`）には`PositionInputEditor`の項目を足す必要がある（タスク10）。
