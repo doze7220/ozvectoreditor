@@ -17,7 +17,7 @@
 | 発注者 | ユーザー（人間） | `_doc/PROJECT_README.md` |
 | リード設計AI | リード設計セッション（DIR策定・方針変更。ソースは読まない。子は起動しない） | `.claude/skills/oz-dir-session/SKILL.md` |
 | 現場設計AI | 現場設計セッション（Phase の間ずっと生きる。発注者が DIR を渡して新しく開く。REQ を1つずつ作り、実装セッションを起動・完了確認し、DIR の進行状態を更新する） | `.claude/skills/oz-req-session/SKILL.md` |
-| 実装統括AI | 実装セッション（現場設計セッションから新規コンテキストで起動。1 REQ = 1セッション。DIR は読まない） | `.claude/skills/oz-impl-session/SKILL.md` |
+| 実装統括AI | 実装セッション（現場設計セッションから新規コンテキスト・モデル opus で起動。1 REQ = 1セッション。DIR は読まない） | `.claude/skills/oz-impl-session/SKILL.md` |
 | 実装AI | サブエージェント `oz-implementer`（1タスクごとに新規起動） | `.claude/agents/oz-implementer.md` |
 | 監査（チェック0/1/2・diff監査） | サブエージェント `oz-auditor`（読み取り専用。計画書の監査は plan モードで3観点を1回の起動、diff監査は1タスクごとに新規起動） | `.claude/agents/oz-auditor.md` |
 
