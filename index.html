@@ -435,7 +435,7 @@
             color: #666;
         }
         /* ツールバー全体の幅の見積もり（1280px幅）：
-           左右の余白16px＋最初のまとまり68px（ボタン32×2＋間隔4。🧰と📁）＋取り消し/やり直し68px＋削除/結合68px＋区切り17px×4＋スタイル約218px＋重なり順140px＋区切り17px＋位置約174px（X:約15px＋欄56px＋Y:約15px＋欄56px＋px約16px＋gap4px×4）＝約837px。
+           左右の余白16px＋最初のまとまり68px（ボタン32×2＋間隔4。🧰と📁）＋取り消し/やり直し68px＋削除/結合68px＋区切り17px×4＋スタイル約218px＋重なり順140px＋区切り17px＋位置約174px（X:約15px＋欄56px＋Y:約15px＋欄56px＋px約16px＋gap4px×4）＋区切り17px＋整列・分布284px（ボタン32×8＋間隔4×7）＝約1138px。
            幅が足りないときは右のまとまりから切れる（.toolbarのoverflow: hidden） */
         /* 開発者向け確認用ウィンドウ（?dev時のみ表示。ツールパレットの右隣に置く。
            left: ツールパレットの左の位置に54px（ツールパレット幅44px＋枠2px＋余白8px）を足す。1280×800ではx 82〜444、y 68〜。
@@ -509,6 +509,16 @@
             <span class="option-unit">Y:</span>
             <input type="number" id="option-position-y" step="any" title="選択の外枠の左上のY座標（線の太さを含む。頂点の選択では選んだ頂点の左上）">
             <span class="option-unit">px</span>
+        </div>
+        <div id="option-align-group" class="toolbar-group">
+            <button type="button" id="option-align-left" class="tool-btn icon-btn" title="左へそろえる" disabled>⬅</button>
+            <button type="button" id="option-align-horizontal-center" class="tool-btn icon-btn" title="左右中央へそろえる" disabled>↔</button>
+            <button type="button" id="option-align-right" class="tool-btn icon-btn" title="右へそろえる" disabled>➡</button>
+            <button type="button" id="option-align-top" class="tool-btn icon-btn" title="上へそろえる" disabled>⬆</button>
+            <button type="button" id="option-align-vertical-center" class="tool-btn icon-btn" title="上下中央へそろえる" disabled>↕</button>
+            <button type="button" id="option-align-bottom" class="tool-btn icon-btn" title="下へそろえる" disabled>⬇</button>
+            <button type="button" id="option-distribute-horizontal" class="tool-btn icon-btn" title="横方向に均等に並べる" disabled>⋯</button>
+            <button type="button" id="option-distribute-vertical" class="tool-btn icon-btn" title="縦方向に均等に並べる" disabled>⋮</button>
         </div>
     </header>
     <footer id="status-bar" class="status-bar">

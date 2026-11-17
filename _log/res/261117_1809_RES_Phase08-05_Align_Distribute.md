@@ -471,7 +471,7 @@ moveShapesBy(moves)   // moves: Array<{ id: string, dx: number, dy: number }>
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク5: 要件5 オプションバーの整列・分布のまとまり（`index.html`）
+*   [x] タスク5: 要件5 オプションバーの整列・分布のまとまり（`index.html`）
     *   **対象ファイル** :
         *   `./index.html` :（更新。まとまりの追加と幅の見積もりのコメントのみ）
     *   **作業内容** :
@@ -580,7 +580,10 @@ moveShapesBy(moves)   // moves: Array<{ id: string, dx: number, dy: number }>
 
 ### タスク5: 要件5 オプションバーの整列・分布のまとまり（`index.html`）
 *   **作業内容** :
-    *   （未実施）
+    *   `index.html`：`#option-position-group`の後ろ（`</header>`の前）に`<div id="option-align-group" class="toolbar-group">`と8ボタン（左・左右中央・右・上・上下中央・下・横均等・縦均等。上表のid・記号・`title`、`type="button"`・`class="tool-btn icon-btn"`・初期`disabled`、`title`にキーなし）を追加。CSS宣言は足さず変えず、幅の見積もりコメントの末尾に`＋区切り17px＋整列・分布284px（ボタン32×8＋間隔4×7）＝約1138px`を追記（旧「＝約837px」を置換）。
+    *   検算：`.icon-btn`の`width:32px`（border-box）・`.toolbar-group`の`gap:4px`・`.toolbar-group + .toolbar-group`の区切り17px（1+8+8）を読み直し、足す分301pxで1280px幅に収まる見込み（停止不要）。
+    *   `node --test`：tests 1543 / suites 230 / pass 1543 / fail 0。
+    *   開発資料の更新予定への追記：なし（既存の予定欄の記述どおり）。
 
 ### タスク6: 要件6 UI部品（`palette/OptionBarAlignGroup`）
 *   **作業内容** :
