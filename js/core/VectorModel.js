@@ -559,6 +559,32 @@ export class VectorModel {
     }
 
     /**
+     * 図形ごとに違う相対差分(dx, dy)で、複数の図形をまとめて平行移動する（用途：整列・分布）。
+     * moveShapes は指定した図形すべてを同じ量だけ動かすのに対し、moveShapesBy は図形ごとに違う量で動かす。
+     * updateVertices が頂点の絶対座標の更新であるのに対し、moveShapesBy は図形の相対移動である。
+     * 各組を配列の順にshape.translate(dx, dy)へポリモーフィックに委譲する（図形種別を問わず同一の呼び出しで動作する）。
+     * 同じidが複数回現れた場合は配列の順にそれぞれ当てる。存在しないidの組は無視する。
+     * 1件以上移動した場合のみ変更を通知する（1回。組の数分は発行しない）。空の配列では何もしない。
+     * 引数の配列・要素は書き換えない。選択集合・ホバー・頂点の選択・並びには触れない。
+     * @param {Array<{ id: string, dx: number, dy: number }>} moves 移動する図形idと移動量の組（ワールド座標の差分）
+     */
+    moveShapesBy(moves) {
+        let moved = false;
+        for (const { id, dx, dy } of moves) {
+            const shape = this.#shapes.find((s) => s.id === id);
+            if (!shape) {
+                continue;
+            }
+            shape.translate(dx, dy);
+            moved = true;
+        }
+
+        if (moved) {
+            this.#notifyChange();
+        }
+    }
+
+    /**
      * 指定したidの集合に含まれる全図形を#shapesから除去する。
      * 除去した図形のidは選択集合・ホバー状態・頂点の選択（その図形の組）からも除去する（存在しない図形のidが残留することを防ぐため）。
      * 存在しないidは無視する。1件以上削除した場合のみ変更を通知する（1回。図形数分は発行しない）。

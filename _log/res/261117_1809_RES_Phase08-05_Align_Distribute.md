@@ -442,7 +442,7 @@ moveShapesBy(moves)   // moves: Array<{ id: string, dx: number, dy: number }>
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク3: 要件3 図形ごとに違う移動量をまとめて当てる入口（`core/VectorModel.moveShapesBy`）
+*   [x] タスク3: 要件3 図形ごとに違う移動量をまとめて当てる入口（`core/VectorModel.moveShapesBy`）
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js` :（更新。`moveShapesBy`の追加のみ）
         *   `./test/core/VectorModel.moveShapesBy.test.js` :（新規）
@@ -566,7 +566,10 @@ moveShapesBy(moves)   // moves: Array<{ id: string, dx: number, dy: number }>
 
 ### タスク3: 要件3 図形ごとに違う移動量をまとめて当てる入口（`core/VectorModel.moveShapesBy`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/VectorModel.js`：`moveShapes`の直後に`moveShapesBy(moves)`を追加（`updateVertices`と同じ書き方。`shape.translate`へ委譲・存在しないidは飛ばす・1件以上動かしたときだけ通知1回）。JSDocに`moveShapes`／`updateVertices`との違い・同じidは順に当てる・引数不変・選択集合等に触れないことを記載。既存メソッド・先頭の責務定義・importは不変。
+    *   `test/core/VectorModel.moveShapesBy.test.js`（新規）：図形ごとに違う量・存在しないid混在・通知1回・同じidの順次適用・全部存在しないで通知0・空配列・引数不変・選択集合と頂点の選択不変・既存`moveShapes`のふるまいを確認。
+    *   `node --test`：tests 1532 / suites 228 / pass 1532 / fail 0。
+    *   開発資料の更新予定への追記：なし（既存の予定欄の記述どおり）。
 
 ### タスク4: 要件4 整列・分布の編集操作（`edit/ShapeAlignEditor`）
 *   **作業内容** :
