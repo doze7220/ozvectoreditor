@@ -504,7 +504,7 @@ model.onChange(syncOptionBarPositionGroup);
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク6: 要件6 UI部品（`palette/OptionBarPositionGroup`）
+*   [x] タスク6: 要件6 UI部品（`palette/OptionBarPositionGroup`）
     *   **対象ファイル** :
         *   `./js/palette/OptionBarPositionGroup.js` :（新規）
     *   **作業内容** :
@@ -611,7 +611,9 @@ model.onChange(syncOptionBarPositionGroup);
 
 ### タスク6: 要件6 UI部品（`palette/OptionBarPositionGroup`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/palette/OptionBarPositionGroup.js`を新規作成。importなし・`#lastView`のみ保持。コンストラクタで`onPositionChange`が関数でなければ`Error`、要素欠落は`console.warn`して配線しない。
+    *   `render(view)`：`disabled`を毎回当て、値はフォーカス中の欄以外だけ書き換える。X・Yの`change`で`onPositionChange(軸, 文字列)`を呼び、`false`なら最後のviewで書き戻す。`blur`でも書き戻す。`input`は購読しない（理由はJSDoc）。
+    *   軸の文字列`'x'`・`'y'`は`POSITION_AXIS`との二重定義（JSDocに明記）。
 
 ### タスク7: 要件7 配線（`main.js`の`// 7.10.`）
 *   **作業内容** :
