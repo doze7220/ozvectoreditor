@@ -350,7 +350,7 @@
 
 ## 3. タスクリスト
 
-*   [ ] タスク1: 要件1 動かす対象を決める規則（`core/NudgeTargetRules`）
+*   [x] タスク1: 要件1 動かす対象を決める規則（`core/NudgeTargetRules`）
     *   **対象ファイル** :
         *   `./js/core/NudgeTargetRules.js` :（新規）
         *   `./test/core/NudgeTargetRules.test.js` :（新規）
@@ -460,7 +460,9 @@
 
 ### タスク1: 要件1 動かす対象を決める規則（`core/NudgeTargetRules`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/NudgeTargetRules.js`を新規作成（`resolveNudgeTarget`・`buildNudgeGroupKey`・typedef`NudgeTarget`。importは`InputModes`の`OperationMode`のみ）。
+    *   `test/core/NudgeTargetRules.test.js`を新規作成（要件1のテスト観点を網羅）。
+    *   `node --test`：1427件全件合格。
 
 ### タスク2: 要件2 履歴の記録の入口に「まとめの鍵」を足す（`core/HistoryManager`）
 *   **作業内容** :
