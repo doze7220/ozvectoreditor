@@ -73,6 +73,73 @@ describe('ShapeExtentReader.getAllBounds', () => {
     });
 });
 
+describe('ShapeExtentReader.getSelectedBoundsPerShape', () => {
+    it('選択なしで空配列', () => {
+        const { reader } = setup();
+        assert.deepEqual(reader.getSelectedBoundsPerShape(), []);
+    });
+
+    it('1つ選択すると要素1件で、idが一致しboundsがgetSelectedBounds()と同じ', () => {
+        const { model, reader, ids } = setup();
+        model.setSelection([ids[1]]);
+        const entries = reader.getSelectedBoundsPerShape();
+        assert.equal(entries.length, 1);
+        assert.equal(entries[0].id, ids[1]);
+        assert.deepEqual(entries[0].bounds, reader.getSelectedBounds());
+    });
+
+    it('複数選択すると描画順のまま、各要素の外枠が正本（図形1つのcomputeShapesBounds）と同じ', () => {
+        const { model, reader, ids } = setup();
+        model.setSelection([ids[2], ids[0], ids[1]]);
+        const entries = reader.getSelectedBoundsPerShape();
+        assert.deepEqual(entries.map((entry) => entry.id), ids);
+        model.getShapes().forEach((shape, i) => {
+            assert.deepEqual(entries[i].bounds, SpriteSerializer.computeShapesBounds([shape]));
+        });
+        assert.notDeepEqual(entries[0].bounds, entries[1].bounds);
+        assert.notDeepEqual(entries[1].bounds, entries[2].bounds);
+    });
+
+    it('線を描く図形は線の太さの半分だけ外側へ広がり、線なしは形の範囲のまま', () => {
+        const model = new VectorModel();
+        const ids = model.addShapesWithNewIds([
+            new Rect(0, 0, 10, 10, '#000000', 4, null),
+            new Rect(0, 0, 10, 10, null, 4, '#ff0000'),
+        ]);
+        model.setSelection(ids);
+        const reader = new ShapeExtentReader({ model });
+        const entries = reader.getSelectedBoundsPerShape();
+        assert.equal(entries[0].bounds.minX, -2);
+        assert.equal(entries[0].bounds.maxX, 12);
+        assert.equal(entries[1].bounds.minX, 0);
+        assert.equal(entries[1].bounds.maxX, 10);
+    });
+
+    it('選択中でない図形は含まない', () => {
+        const { model, reader, ids } = setup();
+        model.setSelection([ids[0], ids[2]]);
+        assert.deepEqual(reader.getSelectedBoundsPerShape().map((entry) => entry.id), [ids[0], ids[2]]);
+    });
+
+    it('モデルを変えず、onChangeを呼ばない', () => {
+        const { model, reader, ids } = setup();
+        model.setSelection([ids[0], ids[2]]);
+        const shapesBefore = model.getShapes();
+        const jsonBefore = shapesBefore.map((shape) => shape.toJSON());
+        const selectedBefore = model.getSelectedIds();
+        let changeCount = 0;
+        model.onChange(() => { changeCount += 1; });
+
+        reader.getSelectedBoundsPerShape();
+
+        const shapesAfter = model.getShapes();
+        shapesAfter.forEach((shape, i) => assert.equal(shape, shapesBefore[i]));
+        assert.deepEqual(shapesAfter.map((shape) => shape.toJSON()), jsonBefore);
+        assert.deepEqual(model.getSelectedIds(), selectedBefore);
+        assert.equal(changeCount, 0);
+    });
+});
+
 describe('ShapeExtentReader の副作用', () => {
     it('図形・選択集合を変えず、onChangeを呼ばない', () => {
         const { model, reader, ids } = setup();

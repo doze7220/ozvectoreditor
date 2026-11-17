@@ -409,7 +409,7 @@ moveShapesBy(moves)   // moves: Array<{ id: string, dx: number, dy: number }>
 
 **タスクの分け方**：要件1〜7をそれぞれ別のタスクにする。要件5（HTML）・6（UI部品）・7（配線）は分けたままとする（まとめない）。理由：途中の段階でも、HTMLのボタンは初期値の`disabled`のため押せず、UI部品はどこからもimportされないだけで、アプリのふるまいも`node --test`の結果も壊れない（Phase 08-04の位置のまとまりと同じ分け方で、1タスクのスコープを1ファイルに保てる）。
 
-*   [ ] タスク1: 要件1 選んでいる図形1つずつの外枠の照会（`edit/ShapeExtentReader`）
+*   [x] タスク1: 要件1 選んでいる図形1つずつの外枠の照会（`edit/ShapeExtentReader`）
     *   **対象ファイル** :
         *   `./js/edit/ShapeExtentReader.js` :（更新。照会の追加と先頭の責務定義への追記のみ）
         *   `./test/edit/ShapeExtentReader.test.js` :（更新。`describe`の追加のみ）
@@ -552,7 +552,10 @@ moveShapesBy(moves)   // moves: Array<{ id: string, dx: number, dy: number }>
 
 ### タスク1: 要件1 選んでいる図形1つずつの外枠の照会（`edit/ShapeExtentReader`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/edit/ShapeExtentReader.js`：`getSelectedBoundsPerShape()`を追加（描画順に走査し選択中の図形だけ`computeShapesBounds([shape])`、nullは除外、新しい配列・オブジェクトで返す）。typedef`ShapeBoundsEntry`を追加（`AlignItem`との二重定義の旨を明記）。先頭の責務定義に「選択中の図形1つずつ」を追記。既存メソッド・コンストラクタ・importは不変。
+    *   `test/edit/ShapeExtentReader.test.js`：`describe('ShapeExtentReader.getSelectedBoundsPerShape')`を追加（空配列／1つ／複数で描画順・正本との一致・要素どうしが異なる／線の太さ（-2・12）と線なし／非選択を含まない／副作用なし）。既存ケース・`setup()`は不変。
+    *   `node --test`：tests 1502 / suites 223 / pass 1502 / fail 0。
+    *   開発資料の更新予定への追記：なし（既存の予定欄の記述どおり）。
 
 ### タスク2: 要件2 整列・分布の規則（`edit/ShapeAlignRules`）
 *   **作業内容** :
