@@ -431,7 +431,7 @@ model.onChange(syncOptionBarPositionGroup);
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク2: 要件2 位置の欄に出す内容と入力から移動量を求める規則（`edit/PositionInputRules`）
+*   [x] タスク2: 要件2 位置の欄に出す内容と入力から移動量を求める規則（`edit/PositionInputRules`）
     *   **対象ファイル** :
         *   `./js/edit/PositionInputRules.js` :（新規）
         *   `./js/core/StatusReadoutRules.js` :（更新。**先頭の責務定義の書き直しのみ**）
@@ -584,7 +584,10 @@ model.onChange(syncOptionBarPositionGroup);
 
 ### タスク2: 要件2 位置の欄に出す内容と入力から移動量を求める規則（`edit/PositionInputRules`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/edit/PositionInputRules.js`を新規作成（`POSITION_AXIS`・typedef`PositionInputView`・`buildPositionInputView`・`resolvePositionDelta`。importは`formatReadoutNumber`のみ。スナップ・吸い付きなし、移動量は丸めない）。
+    *   `js/core/StatusReadoutRules.js`の先頭の責務定義のみ書き直し（オプションバーの位置の欄も使う旨）。関数・文言は無変更。
+    *   `test/edit/PositionInputRules.test.js`を新規作成（要件2の観点を網羅。非破壊は`target`・`bounds`を中身までdeepEqualで比較）。
+    *   `node --test`：tests 1480 / fail 0。
 
 ### タスク3: 要件3 移動量を当てる入口の追加（`edit/NudgeEditor`）
 *   **作業内容** :
