@@ -41,6 +41,7 @@ export const HISTORY_LIMIT = 100;
  * - 履歴は「エントリ（`{ before, after }`）の配列」と「適用済みエントリ数（位置）」で保持する。
  *   取り消し可能 ⇔ 位置 > 0、やり直し可能 ⇔ 位置 < エントリ数。
  * - `model.onChange`ごとの記録は行わず、`beginEdit()`／`commitEdit()`の明示呼び出しでのみ記録する。
+ * - 同じ鍵（まとめの鍵）で続けて記録された編集操作は、新しいエントリを足さず直前の1件へ畳む（beforeは据え置き、afterのみ更新）。
  * - スナップショットの取得・適用は注入された`capture`／`restore`へ委譲する。
  * - DOMに触れない。図形種別・図形固有のプロパティ名を持たない（作業データの中身を解釈しない）。
  * - 進行中の入力操作の中断は呼び出し側の責務（本クラスは行わない）。
@@ -78,6 +79,16 @@ export class HistoryManager {
     #pendingBefore = null;
 
     /**
+     * 直前に記録したエントリの「まとめの鍵」（畳める相手がいなければnull）。
+     * 不変条件：鍵を覚えている（null以外の）間は常に「位置＝エントリ数」（直前に記録したエントリが末尾で、やり直しの履歴が無い）。
+     * 畳む処理がやり直しの履歴の破棄・`HISTORY_LIMIT`の判定を行わないのはこの条件に依存する。
+     * `undo`・`redo`・`clear`・鍵なしの記録で必ず忘れる（位置を動かす操作はすべて鍵を忘れる）。
+     * @type {string|null}
+     * @private
+     */
+    #lastGroupKey = null;
+
+    /**
      * @type {Array<Function>} 履歴の状態変化時に呼び出すリスナーの配列
      * @private
      */
@@ -112,14 +123,23 @@ export class HistoryManager {
      * 編集操作の確定を宣言する。
      * この時点のスナップショットを「後の状態」として取得し、前後の作業データ部分（`document`）を
      * `JSON.stringify`の結果で比較する（選択集合は比較しない：選択の変更のみは編集操作ではないため）。
-     * - 同一なら記録せず`false`を返す（やり直しの履歴も破棄しない。変更通知もしない）。
-     * - 異なれば、やり直しの履歴（位置より後のエントリ）を破棄してから1件のエントリとして記録し、
-     *   上限（HISTORY_LIMIT）を超えた分を最古から破棄して、変更通知し`true`を返す。
+     * - 同一なら記録せず`false`を返す（やり直しの履歴も破棄しない。変更通知もしない。覚えている鍵も変えない）。
+     * - 畳む条件（`groupKey`が空でない文字列・直前の記録の鍵と同じ・位置 > 0）を満たせば、
+     *   新しいエントリを足さず直前のエントリの`after`だけを今回の後の状態に置き換える（`before`はまとまりの先頭のまま）。
+     *   置き換えた結果`before`と`after`の作業データが同一（往復して元へ戻った）なら、そのエントリを取り除き位置を1つ戻して
+     *   鍵を忘れる。畳んだとき・取り除いたときも変更通知する。
+     * - それ以外は、やり直しの履歴（位置より後のエントリ）を破棄してから1件のエントリとして記録し、
+     *   上限（HISTORY_LIMIT）を超えた分を最古から破棄して、変更通知する。
+     *   このとき覚える鍵は、`groupKey`が空でない文字列ならその値、そうでなければ`null`。
      * - 記録中の編集操作がない（beginEditが呼ばれていない）場合は`console.warn`して`false`を返す。
      * いずれの場合も、記録中の「前の状態」を破棄する。
-     * @returns {boolean} 1件のエントリとして記録したか
+     * 不変条件：鍵を覚えている間は常に「位置＝エントリ数」であり、畳む処理はこれに依存して
+     * やり直しの履歴の破棄・上限の判定を行わない。
+     * @param {string} [groupKey] まとめの鍵。省略時・空文字列は畳まない（既存の呼び出しのふるまいは変わらない）
+     * @returns {boolean} 履歴に記録として残ったか（新しいエントリ・畳んで残ったエントリなら`true`。
+     *     `beginEdit`なし・前後が同じ・畳んだ結果エントリが消えた場合は`false`）
      */
-    commitEdit() {
+    commitEdit(groupKey) {
         const before = this.#pendingBefore;
         this.#pendingBefore = null;
         if (before === null) {
@@ -132,6 +152,23 @@ export class HistoryManager {
             return false;
         }
 
+        const hasKey = typeof groupKey === 'string' && groupKey !== '';
+        if (hasKey && this.#lastGroupKey === groupKey && this.#cursor > 0) {
+            const prev = this.#entries[this.#cursor - 1];
+            const merged = Object.freeze({ before: prev.before, after });
+            if (JSON.stringify(merged.before.document) === JSON.stringify(merged.after.document)) {
+                // 往復して元へ戻った：エントリを取り除く。鍵を残すと次が無関係な前のエントリへ畳まれるため忘れる
+                this.#entries.splice(this.#cursor - 1, 1);
+                this.#cursor -= 1;
+                this.#lastGroupKey = null;
+                this.#notifyChange();
+                return false;
+            }
+            this.#entries[this.#cursor - 1] = merged;
+            this.#notifyChange();
+            return true;
+        }
+
         // やり直しの履歴を破棄してから追加する
         this.#entries.length = this.#cursor;
         this.#entries.push(Object.freeze({ before, after }));
@@ -140,6 +177,7 @@ export class HistoryManager {
             this.#entries.splice(0, this.#entries.length - HISTORY_LIMIT);
         }
         this.#cursor = this.#entries.length;
+        this.#lastGroupKey = hasKey ? groupKey : null;
 
         this.#notifyChange();
         return true;
@@ -156,6 +194,7 @@ export class HistoryManager {
      */
     undo() {
         this.#discardPendingWithWarning('undo');
+        this.#lastGroupKey = null;
         if (!this.canUndo()) {
             return false;
         }
@@ -178,6 +217,7 @@ export class HistoryManager {
      */
     redo() {
         this.#discardPendingWithWarning('redo');
+        this.#lastGroupKey = null;
         if (!this.canRedo()) {
             return false;
         }
@@ -216,6 +256,7 @@ export class HistoryManager {
         this.#entries = [];
         this.#cursor = 0;
         this.#pendingBefore = null;
+        this.#lastGroupKey = null;
         if (hadAnything) {
             this.#notifyChange();
         }

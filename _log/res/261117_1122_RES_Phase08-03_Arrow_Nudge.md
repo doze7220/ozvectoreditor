@@ -366,7 +366,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク2: 要件2 履歴の記録の入口に「まとめの鍵」を足す（`core/HistoryManager`）
+*   [x] タスク2: 要件2 履歴の記録の入口に「まとめの鍵」を足す（`core/HistoryManager`）
     *   **対象ファイル** :
         *   `./js/core/HistoryManager.js` :（更新）
         *   `./test/core/HistoryManager.test.js` :（新規）
@@ -466,7 +466,10 @@
 
 ### タスク2: 要件2 履歴の記録の入口に「まとめの鍵」を足す（`core/HistoryManager`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/HistoryManager.js`：`commitEdit(groupKey)`（省略可）と非公開`#lastGroupKey`を追加。畳み・往復で消える場合の取り除き（鍵を忘れる）・`undo`/`redo`冒頭と`clear`での鍵の忘却を実装。戻り値の意味をJSDocに明記。不変条件「鍵を覚えている間は位置＝エントリ数」を`#lastGroupKey`と`commitEdit`のJSDocに記載。
+    *   `test/core/HistoryManager.test.js`を新規作成（鍵つきの畳み・各区切り・往復消去・通知・引数なしの既存ふるまい・上限・警告）。補助関数にJSDocあり。
+    *   `node --test`：1444件全件合格。
+    *   （監査指摘対応）`HistoryManager`クラスのJSDocの箇条書きへ「同じ鍵で続けた記録は直前の1件へ畳む」旨の1行を追記（コメントのみ。ふるまい変更なし）。
 
 ### タスク3: 要件3 微調整の実体（`edit/NudgeEditor`）
 *   **作業内容** :
