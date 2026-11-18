@@ -16,7 +16,7 @@
         *   **重ね順**：背景（白）→ 外枠の矩形（青系の1pxの破線。`bounds`の値をそのまま使い再計算しない）→ 原点の印（赤系の1pxの実線の十字）→ スプライトの`draw(ctx)`。印・外枠を絵より先に描くため絵は隠れない。`draw`は`save`・`try/finally`・`restore`で囲む。`draw`の例外は捕捉せず投げる（`SpriteCheckPage`が`drawFailed`にする）。色・線種の値は`SpriteCheckCanvas.js`の定数が唯一の定義箇所。
     *   **SpriteCheckInspector.js**：本アプリのスプライトかの判定（JSの既定のexport）、JSONかの見分け、情報欄の要約を担う静的メソッドのみのクラス。DOMに依存しない。
         *   **公開メソッド**：`parseText`・`inspectModuleExport`・`summarize`。呼び出し元は`SpriteCheckPage`のみ。
-        *   **判定の条件**：JSの既定のexportは、`null`でない`object`で、`checkFormat`が`'supported'`、かつ`draw`が関数。識別子・版の条件は`checkFormat`に任せ、定数を重複して持たない。
+        *   **判定の条件**：JSの既定のexportは、`null`でない`object`で、`checkFormat`が`'supported'`、かつ`draw`が関数。識別子・版の条件は`checkFormat`に任せ、定数を重複して持たない。書き出し形式が版3になっても（Phase 09-01a。曲線のパスの描画要素`bezierPath`）、版3のスプライトは`checkFormat`で受理され、書き出したJSの`draw`で描かれる（`check/`・`sprite-check.html`のコードは変更なし。版の値は直書きされていない）。外枠の矩形は書き出しの`bounds`の値をそのまま使う。
         *   **知らないこと**：DOM・`import`・描画。importは`io/SpriteSerializer`のみ。
         *   **テスト**：`test/check/SpriteCheckInspector.test.js`（4章`test/`）。`SpriteCheckPage`・`SpriteCheckCanvas`は自動テストの対象外（テストプレイで確かめる）。
     *   **io/から使うもの**：`SpriteSerializer.checkFormat`（判定）のみ。

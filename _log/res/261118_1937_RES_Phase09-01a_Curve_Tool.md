@@ -377,7 +377,7 @@
         *   自動テストで確かめられない箇所（要件Jの末尾）を、特に確かめてほしい項目として添える。本計画書の「5. 懸念事項」のうち発注者に目視で確かめてほしい点も添える。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ提示した内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク12: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
+*   [x] タスク12: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新）
         *   `./_doc/arch/02_main.md`・`03_VectorModel.md`・`06_InputTracker.md`・`07_KeyboardShortcuts.md`・`10_ShapeFactory.md`・`12_shapes.md`・`14_edit.md`・`15_io.md`・`16_test.md`・`17_sprite_check.md`・`40_asset_sprite.md` :（更新）
@@ -490,7 +490,11 @@
 
 ### タスク12: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
 *   **作業内容** :
-    *   （未記入）
+    *   `PROJECT_ARCHITECTURE.md`：1章（`shapes/`の`PathJoinRules`コメント、「存在しないもの」の曲線の連続作成の削除と09-01b・09-02・09-03・09-04等の追記・塗りの記述・制御点の丸めの記述、フォルダ分割の方針の`shapes/`）、2章（`path`の区間の種類`'smooth'`・作られる操作・形の決め方の式と連なり・作業データの版は2のまま、書き出し形式を版3へ・`bezierPath`・読む側の規則・外枠・エンジンへの連絡票が未送付・版の履歴・ツールのアイコンの生成物は版2のまま）、3章3.・6.・11.・12.・16.・17.・22.（直線・曲線のツールへ。結合できる線の定義・曲線のパスの対象外・曲線のツールの吸い付き・線を引いている途中の判定が`isDrawnLineShape`になったこと）を更新。4章の一覧の表は変更なし（新しいモジュールは無い）。
+    *   `_doc/arch/`：`02_main.md`・`03_VectorModel.md`・`06_InputTracker.md`・`07_KeyboardShortcuts.md`（JSDocのみ。`InputTracker.js` 1729行・`main.js` 1010行のまま）、`10_ShapeFactory.md`、`12_shapes.md`、`14_edit.md`、`15_io.md`、`16_test.md`（追加85件の内訳・書き換えた既存のテスト・件数 tests 1719 / suites 268）、`17_sprite_check.md`、`40_asset_sprite.md`を更新。
+    *   ソース（`js/`・`test/`・`index.html`）・`_doc/`のarch以外は変更していない。
+    *   **diff監査の指摘による修正**：(1) `16_test.md`の`ShapeGeometry.test.js`の2か所（16行目・18行目）に、09-01aで`cubicBezierPoint`・`computeSmoothSegmentControls`を追加した旨を添えた。(2) 09-01aの内訳は`ShapeFactory.test.js`（+2件・書き換え1件）が133行目に既にあり、10+14+16+5+7+1+7+11+2+2+10＝85件で見出しと一致することを確認（変更なし。it +3/−1のうち1件は書き換えで純増は+2）。(3) 「期待値を変えたのは3件」を「計5ケース（Pathの3・SpriteSerializerの1・ShapeFactoryの1）」に直した。(4) `cubicAxisRange`を別に定義した理由を、実コードのJSDocに合わせ「`io/`は`shapes/`をimportできず、`quadraticAxisRange`と同じ扱い」に直した（`PROJECT_ARCHITECTURE.md`・`12_shapes.md`）。(5) `PROJECT_ARCHITECTURE.md` 3章22.の「`ShapeFactory`は変えていない」を「09-01aで変えたのは`curve`の`create`だけ」に直した。(6) 3章12.の括弧書きを、弧・矩形・円の`mousemove`も`findDrawSnap`を呼び、`isSnapDrawShapeType`が`'line'`でないとき`null`を返すため吸い付かない、という実コードどおりに直し、「上の発注者の決定」を「下の」に直した（449行目「流れ（描いている途中。直線・曲線のツール以外）」）。再監査の指摘により、450行目「流れ（描き終え）」の括弧書きの「上の発注者の決定」も「下の」に直した（指す決定は下の「発注者の決定」の項にある）。3章12.の節のほかの位置の参照（461行目「上の「流れ（描き終え）」」・462行目「（上記）」）は、指す項がいずれも上にあることを確認し、変更していない。
+    *   開発資料への影響：本タスクで反映済み。
 
 ## 5. 懸念事項・要確認ポイント
 *   **（計画時）曲線のツールの点1つの間の作成途中の図形**：REQの設計の方針の括弧書き「点1つの間は直線」を、`Line`のインスタンスではなく「頂点2つ・区間1つの曲線のパス」（形は直線と同じ）で満たす（理由は2章「全体の方針」）。見た目・操作は直線と同じだが、`ShapeFactory.create('curve', …)`の戻り値の`type`が`'path'`になる。
@@ -499,3 +503,4 @@
 *   **（計画時）当たり判定の計算量**：曲線の区間1つにつき100分割の折れ線で当たり・範囲選択・塗りの内側を判定する（今の曲線と同程度）。区間の多い曲線のパスが多数あると、ホバーのたびの計算が増える（性能の改善は本作業の範囲外）。
 *   **（計画時）書き出しの描画要素の名前**：曲線のパスの描画要素の`kind`は`"bezierPath"`、区間の種類は`'line'`・`'cubic'`とした（作業データの`'smooth'`とは別の語彙。Phase 09-03で今の曲線・弧を3次ベジェの区間として表すため、Catmull-Romの規則を書き出しに出さない）。エンジンへの連絡票は Phase 09-04 で出す（エンジンは`draw(ctx)`だけを読むため、版3のJSもエンジンのコードの変更なしで描ける見込み）。
 *   **（計画時）式の性質**：打った点の間隔が大きく違うと曲線が膨らむ・小さな輪ができることがある（REQで許容済み。発注者に伝え済み）。
+*   **（タスク12）資料の記述の根拠と目視推奨**：`16_test.md`の追加テストの内訳はタスク1〜8の記録とテストファイルのdescribe/it名（git diff）で裏取りしたが、`test/edit/EndpointSnapper.test.js`・`DocumentSerializer.roundtrip.test.js`の件数の内訳（7件・10件）はRESの記録に従った（`it`の名前の細部は資料に書いていない）。今後、区間の直線⇔曲線の切り替え（09-02）・曲線のパスの結合（09-01b）を足すときは、`PROJECT_ARCHITECTURE.md`の2章`path`・3章11.・12.・22.と`12_shapes.md`の`isJoinableLine`の項を見直すこと（この箇所に「後半で外す予定」と書いてある）。`PROJECT_ARCHITECTURE.md`の3章16.・17.・22.のうち、当時の決定（Phase 07-05の「曲線の制御点は丸めない」等）は履歴として残し、括弧で09-01aでの変化を添えた。
