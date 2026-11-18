@@ -231,7 +231,7 @@ Phase 8 のクローズに伴う開発資料の整合確認（Survey。`./_log/r
         *   34:22（`isVertexSelected` を呼ぶ条件）と No.58 が合うこと、`_doc/arch/12_shapes.md` 33行（タスク4で直した `MOVE_HANDLE_NAME` の記述）と No.57 が合うことを確かめる。
         *   行末（LF）と `git diff --stat` を確かめ、詳細作業内容に記録する。
 
-*   [ ] タスク9: 要件11 `js/edit/ShapeExtentReader.js` のクラスJSDoc（No.27。1件。本作業で唯一のソース修正）
+*   [x] タスク9: 要件11 `js/edit/ShapeExtentReader.js` のクラスJSDoc（No.27。1件。本作業で唯一のソース修正）
     *   **対象ファイル** :
         *   `./js/edit/ShapeExtentReader.js` :（更新。17行のクラスJSDocのコメント1行だけ。LF）
     *   **作業内容** :
@@ -418,7 +418,9 @@ Phase 8 のクローズに伴う開発資料の整合確認（Survey。`./_log/r
 
 ### タスク9: 要件11 `js/edit/ShapeExtentReader.js` のクラスJSDoc
 *   **作業内容** :
-    *   （未実施）
+    *   17行のクラスJSDocを「図形の外枠の照会クラス。main.jsの`// 7.10.`とwiring/DisplayWiringの内部の2か所で生成する。」に直した（事実：main.js:697・DisplayWiring.js:65）。実行されるコード・ほかのJSDoc・先頭の責務定義は不変。
+    *   `node --check js/edit/ShapeExtentReader.js` は成功。`git diff --stat`：1 file changed, 1 insertion / 1 deletion（17行のみ）。
+    *   行末（LF）：CR数＝0、`git ls-files --eol` は w/lf。
 
 ### タスク10: 要件13 確認
 *   **作業内容** :

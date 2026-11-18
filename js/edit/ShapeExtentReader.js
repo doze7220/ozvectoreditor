@@ -14,7 +14,7 @@ import { SpriteSerializer } from '../io/SpriteSerializer.js';
  */
 
 /**
- * 図形の外枠の照会クラス。main.jsが1つだけ生成する。
+ * 図形の外枠の照会クラス。main.jsの`// 7.10.`とwiring/DisplayWiringの内部の2か所で生成する。
  * 外枠の求め方は`SpriteSerializer.computeShapesBounds`に任せ、本クラスは対象の図形の絞り込みだけを持つ。
  */
 export class ShapeExtentReader {
