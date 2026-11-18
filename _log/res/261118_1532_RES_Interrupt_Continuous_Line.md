@@ -373,7 +373,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク3: 要件2 始点への吸い付きと描き始めの端点の除外（`shapes/EndpointSnapRules`）
+*   [x] タスク3: 要件2 始点への吸い付きと描き始めの端点の除外（`shapes/EndpointSnapRules`）
     *   **対象ファイル** :
         *   `./js/shapes/EndpointSnapRules.js` :（更新。importの追加・定数・typedef・2関数の追加・走査の非公開関数への切り出し・先頭の責務定義の更新）
         *   `./test/shapes/EndpointSnapRules.test.js` :（更新。`describe`の追加と、必要なimportの追加のみ）
@@ -512,7 +512,9 @@
 
 ### タスク3: 要件2 始点への吸い付きと描き始めの端点の除外（`shapes/EndpointSnapRules`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/shapes/EndpointSnapRules.js`：先頭の責務定義を更新、`canCloseDrawnLine`をimport、`DRAWN_START_SNAP_KIND`・typedef`DrawnStartSnap`・`isDrawnStartSnap`・`findDrawnLineSnapTarget`を追加（JSDoc付き）。`findSnapTarget`の走査を非公開の`findNearestEndpoint(shapes, point, tolerance, isExcluded)`へ切り出して共有（`findSnapTarget`の名前・引数・結果・JSDocは不変。除外の条件は元と同じ）。
+    *   `test/shapes/EndpointSnapRules.test.js`：importに3つ追加、補助関数`makeDrawn`（JSDoc付き）と`describe`4つを末尾に追加（種類の値・`isDrawnStartSnap`・描き始めの端点の除外・始点の条件・距離の境界・近い方／同距離なら端点・結果の形・引数を書き換えない）。既存のケースは不変。
+    *   `node --test`：tests 1589 / suites 249 / pass 1589 / fail 0（タスク2後の1575から+14）。
 
 ### タスク4: 要件3 `Shift`で限定した向きを保つ丸め（`core/UnitSnapRules`）
 *   **作業内容** :

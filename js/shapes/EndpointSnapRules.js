@@ -1,8 +1,8 @@
 /**
- * 責務: 端点への吸い付きの規則（吸い付く対象の端点・候補の選び方・吸い付く距離・描く図形種別と端点のハンドルの判定）を、
- * 状態を持たない関数と定数として提供する。表示倍率・モデルを知らず、ワールド座標の許容距離を引数で受け取る。
+ * 責務: 端点への吸い付きの規則（吸い付く対象の端点・候補の選び方・吸い付く距離・描く図形種別と端点のハンドルの判定、
+ * 線を引いている途中の吸い付き＝描き始めの端点を除く端点と作成途中の線の始点）を、状態を持たない関数と定数として提供する。表示倍率・モデルを知らない。
  */
-import { isJoinableLine, canCloseByMergingEnds } from './PathJoinRules.js';
+import { isJoinableLine, canCloseByMergingEnds, canCloseDrawnLine } from './PathJoinRules.js';
 
 /**
  * 端点へ吸い付く距離（画面上のpx）。唯一の定義箇所。
@@ -19,6 +19,22 @@ export const SNAP_TOLERANCE_SCREEN_PX = 8;
  * @property {'start'|'end'} end 'start'＝始点（頂点の先頭）／'end'＝終点（頂点の末尾）
  * @property {number} x 端点のワールド座標x
  * @property {number} y 端点のワールド座標y
+ */
+
+/**
+ * 始点への吸い付き（作成途中の線の自分の始点へ吸い付くこと）の結果の種類の値。唯一の定義箇所。
+ * @type {string}
+ */
+export const DRAWN_START_SNAP_KIND = 'drawnStart';
+
+/**
+ * 始点へ吸い付いた結果。`shapeId`・`end`を持たないため`PathJoinRules`のtypedef`EndpointRef`を満たさない。
+ * `planDrawnLineJoin`・`planEndpointDragJoin`へ渡してはならない（呼び出し側が`isDrawnStartSnap`で先に区別する）。
+ * `SnapTarget`とは`kind`の有無で区別する（`SnapTarget`には`kind`を足さない）。
+ * @typedef {Object} DrawnStartSnap
+ * @property {'drawnStart'} kind 結果の種類（`DRAWN_START_SNAP_KIND`）
+ * @property {number} x 始点のワールド座標x
+ * @property {number} y 始点のワールド座標y
  */
 
 /**
@@ -62,20 +78,35 @@ export function resolveEndpointHandle(shape, handleName) {
  * @returns {SnapTarget|null} 吸い付く端点。無ければnull
  */
 export function findSnapTarget(shapes, point, tolerance, dragged = null) {
+    return findNearestEndpoint(shapes, point, tolerance, (shape, end) => {
+        if (dragged === null || shape.id !== dragged.shapeId) return false;
+        return end === dragged.end || !canCloseByMergingEnds(shape);
+    }).target;
+}
+
+/**
+ * 結合できる線の端点のうち、`point`にいちばん近い端点を選ぶ走査。`findSnapTarget`と`findDrawnLineSnapTarget`が共有する（候補の選び方の唯一の箇所）。
+ * 図形を`shapes`の末尾（前面）から先頭へ、各図形は始点→終点の順に調べ、距離が`tolerance`以下で、かつ厳密に小さいときだけ更新する。
+ * `isExcluded`が真を返す端点は対象にしない。引数を書き換えない。
+ * @param {Array<Object>} shapes 図形の配列（奥が先）
+ * @param {{x: number, y: number}} point 照会する点（ワールド座標）
+ * @param {number} tolerance ワールド座標の許容距離
+ * @param {function(Object, 'start'|'end'): boolean} isExcluded 図形と端点を受け取り、対象から除くなら真を返す関数
+ * @returns {{target: SnapTarget|null, distance: number}} 選んだ端点とその距離。無ければ`target`はnullで`distance`は`Infinity`
+ */
+function findNearestEndpoint(shapes, point, tolerance, isExcluded) {
     let best = null;
     let bestDist = Infinity;
     for (let i = shapes.length - 1; i >= 0; i--) {
         const shape = shapes[i];
         if (!isJoinableLine(shape)) continue;
         const points = shape.toJSON().points;
-        const isDragged = dragged !== null && shape.id === dragged.shapeId;
-        const canCloseSelf = isDragged && canCloseByMergingEnds(shape);
         const ends = [
             { end: 'start', p: points[0] },
             { end: 'end', p: points[points.length - 1] }
         ];
         for (const { end, p } of ends) {
-            if (isDragged && (end === dragged.end || !canCloseSelf)) continue;
+            if (isExcluded(shape, end)) continue;
             const d = Math.hypot(p.x - point.x, p.y - point.y);
             if (d <= tolerance && d < bestDist) {
                 best = { shapeId: shape.id, end, x: p.x, y: p.y };
@@ -83,5 +114,42 @@ export function findSnapTarget(shapes, point, tolerance, dragged = null) {
             }
         }
     }
-    return best;
+    return { target: best, distance: bestDist };
+}
+
+/**
+ * 結果が始点への吸い付き（`DrawnStartSnap`）か。照会の結果と反映の取り違えを防ぐ判定の唯一の箇所。
+ * @param {*} snap 吸い付きの結果（`SnapTarget`・`DrawnStartSnap`・null・undefined）
+ * @returns {boolean} `null`・`undefined`でなく`snap.kind === DRAWN_START_SNAP_KIND`なら真
+ */
+export function isDrawnStartSnap(snap) {
+    return snap !== null && snap !== undefined && snap.kind === DRAWN_START_SNAP_KIND;
+}
+
+/**
+ * 線を引いている途中の吸い付く先を1つ選ぶ。
+ * 1. 端点：`findSnapTarget`と同じ対象・走査順・選び方。ただし`startSnap`が`null`でなければ、その図形のその端点だけを対象にしない
+ *    （同じ図形のもう一方の端点は頂点の数によらず対象。`canCloseByMergingEnds`は使わない）。
+ * 2. 始点：`startSnap`が`null`で`canCloseDrawnLine(drawn)`（打った点が3つ以上）のときだけ、`drawn`の始点（`toJSON().points[0]`）を候補にする。
+ *    距離が`tolerance`以下で、かつ1.の結果が無いか1.の距離より厳密に小さいときだけ選ぶ（同距離なら端点が残る）。
+ * 結果の`DrawnStartSnap`は`PathJoinRules`の計画へ渡してはならない（`isDrawnStartSnap`で先に区別する）。引数を書き換えない。
+ * @param {Array<Object>} shapes 図形の配列（`model.getShapes()`の並び。奥が先。作成途中の図形は含まない）
+ * @param {Object} drawn 作成途中の線
+ * @param {{x: number, y: number}} point 照会する点（ワールド座標）
+ * @param {number} tolerance ワールド座標の許容距離（長さ）
+ * @param {{shapeId: *, end: 'start'|'end'}|null} startSnap 描き始めに吸い付いた端点。無ければnull
+ * @returns {SnapTarget|DrawnStartSnap|null} 端点なら`SnapTarget`、始点なら`DrawnStartSnap`、無ければnull
+ */
+export function findDrawnLineSnapTarget(shapes, drawn, point, tolerance, startSnap) {
+    const nearest = findNearestEndpoint(shapes, point, tolerance, (shape, end) =>
+        startSnap !== null && shape.id === startSnap.shapeId && end === startSnap.end
+    );
+    if (startSnap === null && canCloseDrawnLine(drawn)) {
+        const start = drawn.toJSON().points[0];
+        const d = Math.hypot(start.x - point.x, start.y - point.y);
+        if (d <= tolerance && (nearest.target === null || d < nearest.distance)) {
+            return { kind: DRAWN_START_SNAP_KIND, x: start.x, y: start.y };
+        }
+    }
+    return nearest.target;
 }

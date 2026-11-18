@@ -9,6 +9,9 @@ import {
     isSnapDrawShapeType,
     resolveEndpointHandle,
     findSnapTarget,
+    DRAWN_START_SNAP_KIND,
+    isDrawnStartSnap,
+    findDrawnLineSnapTarget,
 } from '../../js/shapes/EndpointSnapRules.js';
 import { JOIN_TOLERANCE_SCREEN_PX } from '../../js/shapes/PathJoinRules.js';
 import { Line } from '../../js/shapes/Line.js';
@@ -233,5 +236,137 @@ describe('EndpointSnapRules 引数の非破壊', () => {
         assert.deepEqual(shapes.map((s) => s.id), ids);
         assert.deepEqual(point, { x: 1, y: 1 });
         assert.deepEqual(dragged, { shapeId: 'P', end: 'start' });
+    });
+});
+
+/**
+ * 作成途中の線（開いたパス）を作る。最後の頂点は付いてくる線の先。
+ * @param {number[][]} coords - [x, y] の並び（打った点＋付いてくる線の先）
+ * @returns {Path} 作成途中の線
+ */
+function makeDrawn(coords) {
+    return makePath(coords);
+}
+
+describe('EndpointSnapRules DRAWN_START_SNAP_KIND と isDrawnStartSnap', () => {
+    it('DRAWN_START_SNAP_KIND は drawnStart', () => {
+        assert.equal(DRAWN_START_SNAP_KIND, 'drawnStart');
+    });
+
+    it('null・undefined・SnapTarget は偽、DrawnStartSnap は真', () => {
+        assert.equal(isDrawnStartSnap(null), false);
+        assert.equal(isDrawnStartSnap(undefined), false);
+        assert.equal(isDrawnStartSnap({ shapeId: 'L', end: 'start', x: 0, y: 0 }), false);
+        assert.equal(isDrawnStartSnap({ kind: DRAWN_START_SNAP_KIND, x: 0, y: 0 }), true);
+    });
+});
+
+describe('EndpointSnapRules findDrawnLineSnapTarget 描き始めの端点の除外', () => {
+    it('startSnap が null なら findSnapTarget と同じ結果', () => {
+        const shapes = [withId(new Line(0, 0, 100, 0), 'L'), withId(new Line(0, 5, 100, 5), 'M')];
+        const drawn = makeDrawn([[50, 50], [60, 60]]);
+        const point = { x: 2, y: 4 };
+        assert.deepEqual(findDrawnLineSnapTarget(shapes, drawn, point, 8, null), findSnapTarget(shapes, point, 8));
+    });
+
+    it('描き始めの端点だけを除き、同じ直線のもう一方の端点は対象', () => {
+        const shapes = [withId(new Line(0, 0, 100, 0), 'L')];
+        const drawn = makeDrawn([[0, 0], [30, 30]]);
+        const startSnap = { shapeId: 'L', end: 'start' };
+        assert.equal(findDrawnLineSnapTarget(shapes, drawn, { x: 0, y: 0 }, 8, startSnap), null);
+        assert.deepEqual(
+            findDrawnLineSnapTarget(shapes, drawn, { x: 100, y: 0 }, 8, startSnap),
+            { shapeId: 'L', end: 'end', x: 100, y: 0 }
+        );
+    });
+
+    it('別の図形の端点は通常どおり対象', () => {
+        const shapes = [withId(new Line(0, 0, 100, 0), 'L'), withId(new Line(0, 3, 100, 3), 'M')];
+        const drawn = makeDrawn([[0, 0], [30, 30]]);
+        const startSnap = { shapeId: 'L', end: 'start' };
+        assert.deepEqual(
+            findDrawnLineSnapTarget(shapes, drawn, { x: 0, y: 0 }, 8, startSnap),
+            { shapeId: 'M', end: 'start', x: 0, y: 3 }
+        );
+    });
+});
+
+describe('EndpointSnapRules findDrawnLineSnapTarget 始点', () => {
+    const start = { x: 200, y: 200 };
+
+    it('打った点が3つ以上（頂点4つ）で近ければ始点を返す', () => {
+        const drawn = makeDrawn([[200, 200], [300, 200], [300, 300], [250, 250]]);
+        assert.deepEqual(
+            findDrawnLineSnapTarget([], drawn, { x: 203, y: 204 }, 8, null),
+            { kind: DRAWN_START_SNAP_KIND, x: start.x, y: start.y }
+        );
+    });
+
+    it('打った点が2つ（頂点3つ）では候補にならない', () => {
+        const drawn = makeDrawn([[200, 200], [300, 200], [250, 250]]);
+        assert.equal(findDrawnLineSnapTarget([], drawn, { x: 200, y: 200 }, 8, null), null);
+    });
+
+    it('startSnap があれば始点は候補にならない', () => {
+        const drawn = makeDrawn([[200, 200], [300, 200], [300, 300], [250, 250]]);
+        const startSnap = { shapeId: 'X', end: 'start' };
+        assert.equal(findDrawnLineSnapTarget([], drawn, { x: 200, y: 200 }, 8, startSnap), null);
+    });
+
+    it('距離の境界：ちょうど8を含み、超えると対象外', () => {
+        const drawn = makeDrawn([[200, 200], [300, 200], [300, 300], [250, 250]]);
+        assert.notEqual(findDrawnLineSnapTarget([], drawn, { x: 208, y: 200 }, 8, null), null);
+        assert.equal(findDrawnLineSnapTarget([], drawn, { x: 208.01, y: 200 }, 8, null), null);
+    });
+
+    it('端点と始点では距離が厳密に小さい方を選ぶ', () => {
+        const drawn = makeDrawn([[200, 200], [300, 200], [300, 300], [250, 250]]);
+        const nearEnd = [withId(new Line(204, 200, 400, 400), 'E')];
+        assert.deepEqual(
+            findDrawnLineSnapTarget(nearEnd, drawn, { x: 203, y: 200 }, 8, null),
+            { shapeId: 'E', end: 'start', x: 204, y: 200 }
+        );
+        const farEnd = [withId(new Line(207, 200, 400, 400), 'E')];
+        assert.deepEqual(
+            findDrawnLineSnapTarget(farEnd, drawn, { x: 203, y: 200 }, 8, null),
+            { kind: DRAWN_START_SNAP_KIND, x: 200, y: 200 }
+        );
+    });
+
+    it('同距離なら端点が残る', () => {
+        const drawn = makeDrawn([[200, 200], [300, 200], [300, 300], [250, 250]]);
+        const shapes = [withId(new Line(206, 200, 400, 400), 'E')];
+        assert.deepEqual(
+            findDrawnLineSnapTarget(shapes, drawn, { x: 203, y: 200 }, 8, null),
+            { shapeId: 'E', end: 'start', x: 206, y: 200 }
+        );
+    });
+});
+
+describe('EndpointSnapRules findDrawnLineSnapTarget 結果の形と非破壊', () => {
+    it('端点の結果は SnapTarget と同じキーだけ（kind を持たない）', () => {
+        const shapes = [withId(new Line(0, 0, 100, 0), 'L')];
+        const drawn = makeDrawn([[50, 50], [60, 60]]);
+        const result = findDrawnLineSnapTarget(shapes, drawn, { x: 1, y: 1 }, 8, null);
+        assert.deepEqual(Object.keys(result).sort(), ['end', 'shapeId', 'x', 'y']);
+    });
+
+    it('始点の結果は kind・x・y だけ', () => {
+        const drawn = makeDrawn([[200, 200], [300, 200], [300, 300], [250, 250]]);
+        const result = findDrawnLineSnapTarget([], drawn, { x: 200, y: 200 }, 8, null);
+        assert.deepEqual(Object.keys(result).sort(), ['kind', 'x', 'y']);
+    });
+
+    it('引数を書き換えない', () => {
+        const shapes = [withId(new Line(0, 0, 100, 0), 'L')];
+        const drawn = makeDrawn([[200, 200], [300, 200], [300, 300], [250, 250]]);
+        const before = JSON.stringify([...shapes.map((s) => s.toJSON()), drawn.toJSON()]);
+        const point = { x: 1, y: 1 };
+        const startSnap = { shapeId: 'L', end: 'start' };
+        findDrawnLineSnapTarget(shapes, drawn, point, 8, startSnap);
+        findDrawnLineSnapTarget(shapes, drawn, point, 8, null);
+        assert.equal(JSON.stringify([...shapes.map((s) => s.toJSON()), drawn.toJSON()]), before);
+        assert.deepEqual(point, { x: 1, y: 1 });
+        assert.deepEqual(startSnap, { shapeId: 'L', end: 'start' });
     });
 });
