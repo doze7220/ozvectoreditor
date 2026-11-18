@@ -121,3 +121,21 @@ export function roundPointFromOriginToUnit(origin, target, step) {
     const y = origin.y + d.dy;
     return { x: x === 0 ? 0 : x, y: y === 0 ? 0 : y };
 }
+
+/**
+ * (e) 基準点`origin`に、向きを限定した移動量`delta`を丸めた移動量を足した位置を返す（線を引く途中の`Shift`が使う）。
+ * `delta`は`MoveDirectionRules.constrainMoveDirection`の結果を想定し、`roundConstrainedDeltaToUnit`で丸める（限定した向きが崩れない）。
+ * 基準点が刻みの倍数なら結果も刻みの倍数になる。基準点が小数の座標でも小数の部分が保たれる。
+ * 刻みが正の有限の数値でないとき（`null`＝スナップOFF・`Ctrl`の間を含む）は丸めず`origin + delta`を返す。
+ * 結果に`-0`は含めない。引数を書き換えない。`MoveDirectionRules`をimportしない。
+ * @param {{x: number, y: number}} origin 基準点（最後に打った点）
+ * @param {{dx: number, dy: number}} delta 方向を限定した移動量
+ * @param {number|null} step 刻み
+ * @returns {{x: number, y: number}} 丸めた位置（新しいオブジェクト）
+ */
+export function roundConstrainedPointFromOriginToUnit(origin, delta, step) {
+    const d = roundConstrainedDeltaToUnit(delta, step);
+    const x = origin.x + d.dx;
+    const y = origin.y + d.dy;
+    return { x: x === 0 ? 0 : x, y: y === 0 ? 0 : y };
+}

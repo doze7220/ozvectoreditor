@@ -388,7 +388,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク4: 要件3 `Shift`で限定した向きを保つ丸め（`core/UnitSnapRules`）
+*   [x] タスク4: 要件3 `Shift`で限定した向きを保つ丸め（`core/UnitSnapRules`）
     *   **対象ファイル** :
         *   `./js/core/UnitSnapRules.js` :（更新。`roundConstrainedPointFromOriginToUnit`の追加のみ）
         *   `./test/core/UnitSnapRules.test.js` :（更新。`describe`の追加と、必要なimportの追加のみ）
@@ -518,7 +518,10 @@
 
 ### タスク4: 要件3 `Shift`で限定した向きを保つ丸め（`core/UnitSnapRules`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/UnitSnapRules.js`：`roundConstrainedPointFromOriginToUnit(origin, delta, step)`を末尾（`roundPointFromOriginToUnit`の後）に追加（JSDoc(e)付き。中で`roundConstrainedDeltaToUnit`を使い、`origin + 丸めた移動量`、`-0`は0へ。刻みが無効なら`origin + delta`）。責務定義・import・既存関数は不変。
+    *   `test/core/UnitSnapRules.test.js`：importに1つ追加、`describe`を末尾に追加（横・縦・斜め45°・基準点が倍数／小数・刻みが無効・移動量0・`-0`なし・引数を書き換えない）。既存のケースは不変。
+    *   `node --test`：tests 1597 / suites 250 / pass 1597 / fail 0（タスク3後の1589から+8）。
+    *   開発資料への影響：2章の更新予定の記載のとおりで、追加は無い。
 
 ### タスク5: 要件4 作成途中の図形の置き換え（`core/VectorModel.replaceDraft`）
 *   **作業内容** :

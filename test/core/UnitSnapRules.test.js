@@ -8,7 +8,8 @@ import {
     roundPointToUnit,
     roundDeltaToUnit,
     roundConstrainedDeltaToUnit,
-    roundPointFromOriginToUnit
+    roundPointFromOriginToUnit,
+    roundConstrainedPointFromOriginToUnit
 } from '../../js/core/UnitSnapRules.js';
 
 describe('roundPointToUnit：丸める', () => {
@@ -216,5 +217,58 @@ describe('resolveUnitSnapStep', () => {
         assert.equal(resolveUnitSnapStep(1, false), 1);
         assert.equal(resolveUnitSnapStep(10, false), 10);
         assert.equal(resolveUnitSnapStep(null, false), null);
+    });
+});
+
+describe('roundConstrainedPointFromOriginToUnit：限定した向きを保って基準点から丸める', () => {
+    it('横・縦：限定した軸だけ丸める', () => {
+        assert.deepEqual(roundConstrainedPointFromOriginToUnit({ x: 10, y: 20 }, { dx: 3.6, dy: 0 }, 1), { x: 14, y: 20 });
+        assert.deepEqual(roundConstrainedPointFromOriginToUnit({ x: 10, y: 20 }, { dx: 0, dy: -3.6 }, 1), { x: 10, y: 16 });
+    });
+
+    it('斜め：必ず45度になる', () => {
+        const r = roundConstrainedPointFromOriginToUnit({ x: 10, y: 20 }, { dx: 2.4, dy: -2.6 }, 1);
+        assert.deepEqual(r, { x: 13, y: 17 });
+    });
+
+    it('基準点が刻みの倍数なら結果も倍数', () => {
+        const r = roundConstrainedPointFromOriginToUnit({ x: 20, y: 30 }, { dx: 13, dy: 13 }, 10);
+        assert.deepEqual(r, { x: 30, y: 40 });
+    });
+
+    it('基準点が小数なら小数の部分が保たれる', () => {
+        const r = roundConstrainedPointFromOriginToUnit({ x: 1.5, y: 2.5 }, { dx: 3.6, dy: 0 }, 1);
+        assert.deepEqual(r, { x: 5.5, y: 2.5 });
+    });
+
+    it('刻みが無効（null・0・負・NaN・非数値）なら丸めず origin + delta', () => {
+        for (const step of [null, 0, -1, NaN, Infinity, '1', undefined]) {
+            assert.deepEqual(roundConstrainedPointFromOriginToUnit({ x: 1, y: 2 }, { dx: 3.3, dy: 0 }, step), { x: 4.3, y: 2 });
+        }
+    });
+
+    it('移動量が0なら基準点と同じ', () => {
+        assert.deepEqual(roundConstrainedPointFromOriginToUnit({ x: 5, y: 6 }, { dx: 0, dy: 0 }, 1), { x: 5, y: 6 });
+        assert.deepEqual(roundConstrainedPointFromOriginToUnit({ x: 5, y: 6 }, { dx: 0, dy: 0 }, null), { x: 5, y: 6 });
+    });
+
+    it('結果に -0 を含めない', () => {
+        const a = roundConstrainedPointFromOriginToUnit({ x: -3, y: -3 }, { dx: 3, dy: 0 }, 1);
+        assert.ok(Object.is(a.x, 0) && Object.is(a.y, -3));
+        const b = roundConstrainedPointFromOriginToUnit({ x: -3, y: -3 }, { dx: 3, dy: 3 }, null);
+        assert.ok(Object.is(b.x, 0) && Object.is(b.y, 0));
+        const c = roundConstrainedPointFromOriginToUnit({ x: -0, y: -0 }, { dx: 0, dy: 0 }, 1);
+        assert.ok(Object.is(c.x, 0) && Object.is(c.y, 0));
+    });
+
+    it('引数を書き換えない・新しいオブジェクト・同じ入力に同じ結果', () => {
+        const o = { x: 1.5, y: 2.5 };
+        const d = { dx: 2.4, dy: 2.6 };
+        const a = roundConstrainedPointFromOriginToUnit(o, d, 1);
+        const b = roundConstrainedPointFromOriginToUnit(o, d, 1);
+        assert.deepEqual(o, { x: 1.5, y: 2.5 });
+        assert.deepEqual(d, { dx: 2.4, dy: 2.6 });
+        assert.notEqual(a, o);
+        assert.deepEqual(a, b);
     });
 });
