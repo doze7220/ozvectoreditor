@@ -459,7 +459,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない。変更後の`main.js`の行数を控える）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク9: 仕上げの確認（JSDoc・不要なコード・全テスト・スコープ）
+*   [x] タスク9: 仕上げの確認（JSDoc・不要なコード・全テスト・スコープ）
     *   **対象ファイル** :
         *   （原則として変更なし。漏れが見つかった場合のみ、タスク1〜8で触れたファイルを直す）
     *   **作業内容** :
@@ -550,11 +550,18 @@
     *   `js/core/KeyboardShortcuts.js`：typedef`ShortcutActions`の`setMode`・`setShapeType`・`cancel`・`deleteSelection`・`undo`のJSDocのみ更新（コードは不変）。
     *   経路確認：ツールパレットの全ボタン（`selectTool`→`toolActions`→`selectModeTool`/`startEyedropper`/`selectShapeTool`）・数字キー・`V`/`A`/`P`/`H`/`I`は`finishLineDrawing()`を先に通る。`ensureSelectMode`・`prepareSwitch`・`prepareInsert`・`performRedo`・`onImport`は通らない。`selectTool`はドラッグ中を見ないため、パン中のボタン押下でも`finishLineDrawing()`の後に`setMode`がパンを中断する。
     *   `node --test`：tests 1631 / suites 250 / pass 1631 / fail 0（変化なし）。
-    *   開発資料への影響：`main.js`の行数は1010行（変更前から+31ほど。更新前の値は未計測）。新関数`selectModeTool`（ツール切り替えの共通経路）、`performUndo`の手順、`KeyboardShortcuts`の`deleteSelection`注入先の変更を資料へ反映する。
+    *   開発資料への影響：`main.js`の行数は988行→1010行（+22）。新関数`selectModeTool`（ツール切り替えの共通経路）、`performUndo`の手順、`KeyboardShortcuts`の`deleteSelection`注入先の変更を資料へ反映する。
 
 ### タスク9: 仕上げの確認（JSDoc・不要なコード・全テスト・スコープ）
 *   **作業内容** :
-    *   （未実施）
+    *   監査の軽微な指摘の反映（ふるまいは不変）：`js/shapes/PathJoinRules.js`の`planCloseWithPoints`・`planJoinWithPoints`のJSDocへ「引数を書き換えず、結果は引数と頂点を共有しない」を追記。`js/edit/EndpointSnapper.js`のクラスJSDocの「通知の回数」を、開いたまま終える場合は`finishDrawnLine(startSnap)`に任せる実態（吸い付きなし=`replaceDraft`+`commitDraft`、描き始めが端点=`cancelDraft`+`replaceShape`、点が始点だけ=`cancelDraft`のみ）へ直した。
+    *   テストの追加（既存ケースは不変）：`test/core/UnitSnapRules.test.js`に刻み10の横・縦のケース。`test/edit/EndpointSnapper.test.js`に、描き始めが端点でなく描き終えだけ別の線の端点の実物のケース（1本の開いたパス・元のid`b`・履歴1件・undoで元に戻る）と、前後に別の図形を置いた「両端とも別の線」の実物のケース（位置の確認、下記）を新設。既存のケース（「両端とも別の線」を含む）へのassertの追加はしていない。
+    *   計画書タスク8の`main.js`の行数の記述を「988行→1010行（+22）」に直した。
+    *   `git status`の変更ファイルは上記4ファイルとRESのみ（前タスクまではコミット済み）。禁止ファイルに変更なし。
+    *   「両端とも別の線」の実物のケースの位置の確認：既存のケースは図形が1本になり位置を検証できないため、既存のケースは変えず、前後に別の図形を置いた実物のケース（`[back, a, mid, b, front]`）を新設し、結果が`[back, 新id, mid, front]`（基準の線aの位置に新しいid・もう一方b除去・他の並び不変）になることをassertした。
+    *   全面的な確認（`git diff c3263ee --stat`の変更15ファイル）：(1)使われなくなったimport・非公開関数・定数を、スクリプトで全jsファイルを走査して確認し、0件。到達不能な枝は残した。(2)JSDoc：全jsファイルの関数・メソッドの直前のJSDoc、先頭の責務定義を走査して確認し、漏れ0件（`InputTracker`のtypedefの`@property`列は`@property`でJSDocあり）。`planDrawnLineJoin`・`commitDrawnLine`・`performUndo`・`applyMode`・`selectShapeTool`・`startEyedropper`・`ShortcutActions`の各項目・`Path.updateDraftEnd`・`VectorModel`の`replaceDraft`等のJSDocが実態に合うことをdiffで確認した。テストの補助関数のJSDocも漏れなし。(3)処理を変えないと直せない点：なし。コード・コメントの追加修正も不要だった。
+    *   `node --test`：tests 1634 / suites 250 / pass 1634 / fail 0（既存のケースを変えず新設2件を足した後の件数。監査指摘で既存ケースへ足したassertを取り除いても件数は変わらない）。
+    *   開発資料への影響：なし（`16_test.md`の件数はtests 1634 / suites 250を使う）。
 
 ### タスク10: 要件9 テストプレイの確認項目を発注者へ提示する
 *   **作業内容** :

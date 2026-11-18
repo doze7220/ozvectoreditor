@@ -279,6 +279,7 @@ function extendWithPoints(shape, end, points, tolerance) {
 
 /**
  * 同じ線の両端に吸い付いた場合に、打った点を加えて閉じる計画を作る（非公開）。元のidと位置を保つ（スタイルは元の線）。
+ * 引数を書き換えず、結果は引数と頂点を共有しない。
  * @param {Array<Object>} shapes 重なり順の図形の配列
  * @param {EndpointRef} ref 描き始めが吸い付いた端点
  * @param {Array<{x: number, y: number}>} interior 打った途中の点（描き始めの次から描き終えの手前まで）
@@ -298,6 +299,7 @@ function planCloseWithPoints(shapes, ref, interior, tolerance) {
  * 別々の2本の端点に吸い付いた場合に、打った点を間に入れて1本にする計画を作る（非公開）。
  * 基準＝`shapes`で奥（先）の方（`planJoinAt`と同じ）。基準が描き始めの側なら`interior`の順、描き終えの側なら逆順の写しで、基準の端点のすぐ隣から足す。
  * 基準の位置に新しいidで結果を置き、もう一方を除く（向き・スタイルは基準の線）。
+ * 引数を書き換えず、結果は引数と頂点を共有しない。
  * @param {Array<Object>} shapes 重なり順（奥が先）の図形の配列
  * @param {EndpointRef} startRef 描き始めが吸い付いた端点
  * @param {EndpointRef} endRef 描き終えが吸い付いた端点（`shapeId`は`startRef`と異なる）

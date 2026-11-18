@@ -42,7 +42,8 @@ import {
  *   - `joinDraggedEndpoint`は呼び出し側が開いた編集操作の中で、選択モードのときに呼ぶ（記録の確定も呼び出し側）。
  *
  * 通知の回数: `commitDrawnLine`は`cancelDraft`（1回）と`replaceShape`（1回）。`joinDraggedEndpoint`は`replaceShape`（1回）。
- *   `clickDrawnLine`は点を打つとき`replaceDraft`（1回）、閉じる・開いたまま終えるとき`replaceDraft`と`commitDraft`（各1回）、つながって終えるとき`commitDrawnLine`と同じ。
+ *   `clickDrawnLine`は点を打つとき`replaceDraft`（1回）、閉じるとき`replaceDraft`と`commitDraft`（各1回）、つながって終えるとき`commitDrawnLine`と同じ。
+ *   開いたまま終えるときは`finishDrawnLine(startSnap)`に任せるため、下の`finishDrawnLine`の行と同じ（吸い付きなしなら`replaceDraft`と`commitDraft`、描き始めが端点なら`cancelDraft`と`replaceShape`、打った点が始点だけなら`cancelDraft`のみ）。
  *   `finishDrawnLine`は点が始点だけのとき`cancelDraft`（1回）、吸い付きなしで終えるとき`replaceDraft`と`commitDraft`（各1回）、描き始めが端点のとき`cancelDraft`と`replaceShape`（各1回）。
  *   `removeDrawnLinePoint`は`replaceDraft`（1回）または`cancelDraft`（1回）。
  */

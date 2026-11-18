@@ -706,6 +706,54 @@ test('実物の組み合わせ: 両端とも別の線 → 3本が1本・もう�
     assert.equal(model.getShapes().some((s) => s.id === 'b'), false);
 });
 
+test('実物の組み合わせ: 両端とも別の線（前後に別の図形がある） → 新しいidの線が奥（基準の線）の位置に入る', () => {
+    const back = makeLine('back', 0, 200, 50, 200);
+    const a = makeLine('a', 0, 0, 100, 0);
+    const mid = makeLine('mid', 0, 300, 50, 300);
+    const b = makeLine('b', 300, 0, 400, 0);
+    const front = makeLine('front', 0, 400, 50, 400);
+    const { model, snapper } = setupReal([back, a, mid, b, front]);
+    const startSnap = { shapeId: 'a', end: 'end' };
+    model.startDraft(100, 0, 'line');
+    model.updateDraft(200, 50);
+    snapper.clickDrawnLine(startSnap, null);
+    model.updateDraft(300, 0);
+    snapper.clickDrawnLine(startSnap, { shapeId: 'b', end: 'start', x: 300, y: 0 });
+    const ids = model.getShapes().map((s) => s.id);
+    assert.equal(ids.length, 4);
+    assert.equal(ids[0], 'back');
+    assert.notEqual(ids[1], 'a');
+    assert.notEqual(ids[1], 'b');
+    assert.equal(model.getShapes()[1].toJSON().type, 'path');
+    assert.deepEqual(ids.slice(2), ['mid', 'front']);
+});
+
+test('実物の組み合わせ: 描き始めが端点でなく、描き終えだけ別の線の端点 → 1本の開いたパス・元のid・履歴1件・undoで元に戻る', () => {
+    const a = makeLine('a', 0, 0, 100, 0);
+    const b = makeLine('b', 300, 0, 400, 0);
+    const { model, history, snapper } = setupReal([a, b]);
+    const original = dump(model);
+    model.startDraft(200, 50, 'line');
+    model.updateDraft(250, 80);
+    assert.equal(snapper.clickDrawnLine(null, null), true);
+    model.updateDraft(300, 0);
+    const endSnap = snapper.findDrawnLineSnap(null, { x: 303, y: 0 });
+    assert.deepEqual(endSnap, { shapeId: 'b', end: 'start', x: 300, y: 0 });
+    assert.equal(snapper.clickDrawnLine(null, endSnap), false);
+    const shapes = dump(model);
+    assert.equal(shapes.length, 2);
+    assert.equal(shapes[1].id, 'b');
+    assert.equal(shapes[1].type, 'path');
+    assert.deepEqual(
+        shapes[1].points,
+        [{ x: 200, y: 50 }, { x: 250, y: 80 }, { x: 300, y: 0 }, { x: 400, y: 0 }]
+    );
+    assert.equal(history.canUndo(), true);
+    assert.equal(history.undo(), true);
+    assert.deepEqual(dump(model), original);
+    assert.equal(history.canUndo(), false);
+});
+
 test('実物の組み合わせ: 既存の線の端点から引き始め、そのもう一方の端点で閉じる → 元のidの閉じたパス', () => {
     const a = makeLine('a', 0, 0, 100, 0);
     const { model, history, snapper } = setupReal([a]);

@@ -226,6 +226,11 @@ describe('roundConstrainedPointFromOriginToUnit：限定した向きを保って
         assert.deepEqual(roundConstrainedPointFromOriginToUnit({ x: 10, y: 20 }, { dx: 0, dy: -3.6 }, 1), { x: 10, y: 16 });
     });
 
+    it('横・縦（刻み10）：限定した軸だけ丸める', () => {
+        assert.deepEqual(roundConstrainedPointFromOriginToUnit({ x: 20, y: 30 }, { dx: 36, dy: 0 }, 10), { x: 60, y: 30 });
+        assert.deepEqual(roundConstrainedPointFromOriginToUnit({ x: 20, y: 30 }, { dx: 0, dy: -36 }, 10), { x: 20, y: -10 });
+    });
+
     it('斜め：必ず45度になる', () => {
         const r = roundConstrainedPointFromOriginToUnit({ x: 10, y: 20 }, { dx: 2.4, dy: -2.6 }, 1);
         assert.deepEqual(r, { x: 13, y: 17 });
