@@ -221,7 +221,7 @@ Phase 8 のクローズに伴う開発資料の整合確認（Survey。`./_log/r
         *   `test/` の全 `*.test.js` をファイルごとに `node --test` で実測し、16_test.md の各節の「（N件）」と照合した結果を、ファイルごとの表（実測件数・資料の記述・照合結果）と合計件数として詳細作業内容に記録する（手順は要件9の「件数の確かめ」）。直した節の「（N件）」と列挙が矛盾しないことも確かめる（件数の数字は、食い違いを見つけたときだけ実測で直す）。全体の件数はタスク10で確かめる。
         *   行末（CRLF）と `git diff --stat` を確かめ、詳細作業内容に記録する。
 
-*   [ ] タスク8: 要件10 `_doc/arch/32_InputModes.md`・`33_FocusKeyYieldRules.md`・`34_PressActionRules.md`（No.53・54・55・56・57・58。6件）
+*   [x] タスク8: 要件10 `_doc/arch/32_InputModes.md`・`33_FocusKeyYieldRules.md`・`34_PressActionRules.md`（No.53・54・55・56・57・58。6件）
     *   **対象ファイル** :
         *   `./_doc/arch/32_InputModes.md` :（更新。4・6・8行の中だけ。LF）
         *   `./_doc/arch/33_FocusKeyYieldRules.md` :（更新。5・6行の中だけ。LF）
@@ -407,7 +407,14 @@ Phase 8 のクローズに伴う開発資料の整合確認（Survey。`./_log/r
 
 ### タスク8: 要件10 `_doc/arch/32_InputModes.md`・`33_FocusKeyYieldRules.md`・`34_PressActionRules.md`
 *   **作業内容** :
-    *   （未実施）
+    *   事実確認：`grep -rln "InputModes.js" test` は6件、`Ellipse.js:259`・`Line.js:112` のみが `=== 'move'`、`PressActionRules.js:70-76` の引数は計画どおり。Survey と食い違いなし。
+    *   No.53（32:4・8）：4行の末尾に VertexHandleRules.test.js・PositionInputEditor.test.js（各`OperationMode`）を足し、8行の「値を使う」テストを6件に拡張した。
+    *   No.54（33:5）：参照先を「3章3.「入力監視」の「キーボード操作」の「入力欄の規則」」に直した。
+    *   No.55（32:6）：「`ToolRules`が値だけのために、`KeyboardShortcuts`が値と判定の関数の両方のために…importしていたうち、値の分をなくすため（判定の関数の分は`core/FocusKeyYieldRules`。33_FocusKeyYieldRules.md）」に直した。
+    *   No.56（33:6）：「`AltKeyGuard`が判定の関数だけのために、`KeyboardShortcuts`が値と判定の関数の両方のために`InputTracker.js`をimportしていた（値の分は`core/InputModes`。32_InputModes.md）」に直した。No.55 と言い回し・対応関係をそろえた。後続の文は不変。
+    *   No.57（34:2）：「`core/`での`'move'`との比較はここ1か所だけ（図形クラスでは`Line`・`Ellipse`の`getHandlePosition`も`'move'`と比較する）」に直した。12_shapes.md 33行（`MOVE_HANDLE_NAME`と比較して分岐、`InputTracker`は比較しない）と矛盾しない。
+    *   No.58（34:23）：読むものに `resolvePressAction` の `isSelected`、`resolveVertexPressAction` の `isVertexSelected`・`additive` を明記した。22行（`isVertexSelected`は`hit.handle`があるときだけ呼ぶ・`additive`は真偽値として読むだけ）と合う。
+    *   行末（LF）：3ファイルとも CR数＝0。`git diff --stat`：32は3行、33は2行、34は2行の差分（直した行のみ。計7 insertions / 7 deletions）。
 
 ### タスク9: 要件11 `js/edit/ShapeExtentReader.js` のクラスJSDoc
 *   **作業内容** :
