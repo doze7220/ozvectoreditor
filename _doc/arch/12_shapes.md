@@ -4,16 +4,16 @@
         *   `import`するのは`shapes/`の図形クラスのみ（`core/`・`io/`等からは使わない）。共通モジュールは`shapes/`の外および互いを`import`しない。
         *   式を変えると複数の図形の当たり判定・検証が同時に変わるため、変えるときは`test/shapes/`の全テストを確かめる。
         *   置き換えなかった重複（やらないと決めたこと）：`Ellipse.#distanceToOutline`は`Math.hypot`版の点と線分の距離を自前で持つ（`distanceToSegment`と式が異なり、統一すると値が変わり得るため）。`Curve`の分割数・サンプリングのループ・早期棄却は`Curve`側にある（`hitTest`の分割数`100`の直書きと`CURVE_INTERSECT_SEGMENTS`の違いも残っている）。
-    *   **PathJoinRules.js**：図形をまたぐ規則（結合）。図形クラスではなく、共通モジュールとも異なる第3の種類。状態を持たない`export`した関数と定数のみ。流れは3章11.、規則の詳細の正本はJSDoc。
-        *   **公開**：`JOIN_TOLERANCE_SCREEN_PX`・`isJoinableLine`・`classifyJoin`・`buildClosedPath`・`buildJoinedPath`・`planJoin`。Phase 05-04の追加：`buildJoinedPathAt`・`buildExtendedPath`・`canCloseByMergingEnds`・`planDrawnLineJoin`・`planEndpointDragJoin`、typedef`EndpointRef`。
-        *   **読むもの**：図形の`type`・公開プロパティ`id`・`toJSON()`の図形データだけ。図形クラスの内部プロパティを読まない。importは`./Path.js`のみ（共通モジュールはimportしない。結果は`Path`のコンストラクタで作る）。
+    *   **PathJoinRules.js**：図形をまたぐ規則（結合と、続けて引く線の点の並び）。図形クラスではなく、共通モジュールとも異なる第3の種類。状態を持たない`export`した関数と定数のみ。流れは3章11.・22.、規則の詳細の正本はJSDoc。
+        *   **公開**：`JOIN_TOLERANCE_SCREEN_PX`・`isJoinableLine`・`classifyJoin`・`buildClosedPath`・`buildJoinedPath`・`planJoin`。Phase 05-04の追加：`buildJoinedPathAt`・`buildExtendedPath`・`canCloseByMergingEnds`・`planDrawnLineJoin`・`planEndpointDragJoin`、typedef`EndpointRef`。直線のツールで線を続けて引く作業の追加（3章22.）：`addDrawnPoint`・`removeLastDrawnPoint`・`buildFinishedDrawnLine`・`getLastDrawnPoint`・`isOnLastDrawnPoint`・`canCloseDrawnLine`（作成途中の線＝頂点が「打った点＋付いてくる線の先」の`Line`／開いた`Path`を扱う。頂点2つ未満は約束外で`null`／`false`）。
+        *   **読むもの**：図形の`type`・公開プロパティ`id`・`toJSON()`の図形データだけ。図形クラスの内部プロパティを読まない。importは`./Line.js`・`./Path.js`のみ（共通モジュールはimportしない。結果は`Path`・`Line`のコンストラクタで作る。`Line`のimportは`ShapeGeometry`・`ShapeDataValidation`だけで循環しない）。
         *   **使う側**：`edit/PathJoiner`・`edit/EndpointSnapper`・`shapes/EndpointSnapRules`（`core/`は使わない。`InputTracker`は`EndpointSnapper`を注入で呼ぶ）。図形クラスは使わない。
         *   **知らないこと**：表示倍率・`ViewTransform`・`VectorModel`・履歴・DOM・操作モード・idの形式（idは不透明な値として読み写すだけ）。許容距離はワールドの長さで引数に受け取る。`try/catch`を持たない。結果は元の図形と配列・頂点を共有しない。
         *   **結果の塗り**：結果の`fillColor`は基準の線A（描き足し・閉じるは元の線）のもの（`toJSON()`の図形データから読む）。開いたパスを閉じると塗れる形になり持っていた塗りが現れる。直線の`fillColor`は描かれないが結果のパスに引き継がれる。
-        *   **注意**：`JOIN_TOLERANCE_SCREEN_PX`と`InputTracker`の`hitTolerance`は同じ5pxだが別の定義（どちらを変えても他方は変わらない）。頂点の並べ方・まとめ方は非公開の組み立て関数が共有しているため、規則を変えると`buildJoinedPath`・`buildJoinedPathAt`・`buildExtendedPath`が同時に変わる（`test/shapes/PathJoinRules.test.js`の全ケースで確かめる）。`planDrawnLineJoin`の`startSnap`/`endSnap`は`null`で渡す前提（`undefined`は未対応。`planEndpointDragJoin`の`snap`のみ`undefined`も`null`として扱う）。同じ線を閉じる計画は`planDrawnLineJoin`と`planEndpointDragJoin`が非公開の`planCloseOf`で共有する。
+        *   **注意**：`JOIN_TOLERANCE_SCREEN_PX`と`InputTracker`の`hitTolerance`は同じ5pxだが別の定義（どちらを変えても他方は変わらない）。頂点の並べ方・まとめ方は非公開の組み立て関数が共有しているため、規則を変えると`buildJoinedPath`・`buildJoinedPathAt`・`buildExtendedPath`が同時に変わる（`test/shapes/PathJoinRules.test.js`の全ケースで確かめる）。`planDrawnLineJoin`の`startSnap`/`endSnap`は`null`で渡す前提（`undefined`は未対応。`planEndpointDragJoin`の`snap`のみ`undefined`も`null`として扱う）。同じ線を閉じる計画は`planDrawnLineJoin`と`planEndpointDragJoin`が非公開の`planCloseOf`で共有する。**直線とパスの作り分け（点2つの開いた線は`Line`、それ以外は`Path`）は非公開の`buildLineOrPath`の唯一の箇所**（`ShapeFactory`へは置かない理由は3章22.）。非公開の`extendWithPoints`は`buildExtendedPath`を点ごとに繰り返し（端点と重なる点は足さない）、`planCloseWithPoints`・`planJoinWithPoints`は途中の点があるときの閉じる・つながるの計画。`planDrawnLineJoin`は`drawn`の頂点が3つ以上（途中の点がある）へ拡張した：描き始めだけが端点＝描き始め側へ描き足し、描き終えだけ＝描き終え側へ描き足し、同じ線の両端＝閉じる、別の線の両端＝つながる。途中の点が無い（頂点2つ）場合は従来の`planCloseOf`・`planJoinAt`・単点の描き足しを同じ入力のまま呼び、結果は従来と同じ。作成途中の線の組み立てはいずれも引数を書き換えず、結果は引数と頂点を共有しない。
     *   **EndpointSnapRules.js**：図形をまたぐ規則（端点への吸い付き）。`PathJoinRules`と同じ第3の種類で、状態を持たない`export`した関数と定数のみ。流れは3章12.、規則の詳細の正本はJSDoc。
-        *   **公開**：`SNAP_TOLERANCE_SCREEN_PX`・`isSnapDrawShapeType`・`resolveEndpointHandle`・`findSnapTarget`、typedef`SnapTarget`。
-        *   **読むもの**：図形の`type`（`isJoinableLine`経由）・公開プロパティ`id`・`toJSON()`・`getVertexIndexForHandle`。importは`./PathJoinRules.js`のみ（`isJoinableLine`・`canCloseByMergingEnds`）。
+        *   **公開**：`SNAP_TOLERANCE_SCREEN_PX`・`isSnapDrawShapeType`・`resolveEndpointHandle`・`findSnapTarget`、typedef`SnapTarget`。直線のツールで線を続けて引く作業の追加（3章22.）：`DRAWN_START_SNAP_KIND`（`'drawnStart'`）・`isDrawnStartSnap`・`findDrawnLineSnapTarget`、typedef`DrawnStartSnap`（始点への吸い付きの結果は`kind`で端点への吸い付きと区別する）。`findDrawnLineSnapTarget`は描き始めの端点を候補から除き、描き始めが端点でなく打った点が3つ以上のとき自分の始点も候補にし、同距離なら端点を優先する。走査は`findSnapTarget`と非公開の`findNearestEndpoint`で共有する（`findSnapTarget`の名前・引数・結果は不変）。
+        *   **読むもの**：図形の`type`（`isJoinableLine`経由）・公開プロパティ`id`・`toJSON()`・`getVertexIndexForHandle`。importは`./PathJoinRules.js`のみ（`isJoinableLine`・`canCloseByMergingEnds`・`canCloseDrawnLine`）。
         *   **使う側**：`edit/EndpointSnapper`のみ。
         *   **知らないこと**：表示倍率・`ViewTransform`・`VectorModel`・履歴・DOM・操作モード・idの形式。許容距離はワールドの長さで引数に受け取る。`try/catch`を持たない。
         *   **注意**：`resolveEndpointHandle`は「頂点の番号`i`＝図形データの`points[i]`」に依る。結合できる線の種類を足すとき、`Line`・`Path`の頂点の番号の約束を変えるときは見直す。`SNAP_TOLERANCE_SCREEN_PX`（8）は`JOIN_TOLERANCE_SCREEN_PX`（5）とも`hitTolerance`とも別の定義。
@@ -61,8 +61,8 @@
         *   回転は表現できない（回転角は0固定）。
         *   `hitTest`は他4クラス（`Path`を含む）と異なり`strokeWidth/2`を許容誤差に足す。
         *   弧の塗り（弓形・扇形）・回転を入れるときは、`hitTestFill`の式（回転を含まない軸平行の楕円の式）と`isFillable()`を見直すこと。
-    *   **Path.js**：パス（折れ線）。頂点数可変の`points`・`closed`・`segments`で保持する（約束は2章「図形データ」）。`ShapeFactory.create`では作られない（読み込み専用。作る操作は結合・描き足し・閉じる（`PathJoinRules`がコンストラクタで作る。3章11.・12.）。
-        *   `hitTestHandle`の戻り値は`'vertex-<i>'`（`<i>`は頂点の番号の10進表記・先頭の0なし）か`null`。番号の小さい順の先着1件。`move`ハンドルは持たない（本体のドラッグで移動）。`getVertexIndexForHandle`は`'vertex-<i>'`を範囲内の番号へ解決し、それ以外は`null`。`setVertex`は範囲外・整数でない番号では何もしない。`updateDraftEnd`は終点を動かす（現在は呼ばれない）。 `getVertexHandleNames()`は頂点の数だけ`'vertex-0'`〜（頂点0個で`[]`）。
+    *   **Path.js**：パス（折れ線）。頂点数可変の`points`・`closed`・`segments`で保持する（約束は2章「図形データ」）。`ShapeFactory.create`では作られない（読み込み専用。作る操作は結合・描き足し・閉じる・直線のツールで点を3つ以上打って終える（`PathJoinRules`がコンストラクタで作る。3章11.・12.・22.）。
+        *   `hitTestHandle`の戻り値は`'vertex-<i>'`（`<i>`は頂点の番号の10進表記・先頭の0なし）か`null`。番号の小さい順の先着1件。`move`ハンドルは持たない（本体のドラッグで移動）。`getVertexIndexForHandle`は`'vertex-<i>'`を範囲内の番号へ解決し、それ以外は`null`。`setVertex`は範囲外・整数でない番号では何もしない。`updateDraftEnd`は最後の頂点を動かす（直線のツールで線を引いている途中の作成途中の線＝開いた`Path`の付いてくる線の先の追従で呼ばれる。`VectorModel.updateDraft`経由）。 `getVertexHandleNames()`は頂点の数だけ`'vertex-0'`〜（頂点0個で`[]`）。
         *   `hitTest`は`strokeWidth`を許容誤差に足さない。閉じたパスは終点→始点の区間も描画・当たり判定・範囲選択の対象。
         *   曲線の区間を足すときは`hitTestFill`（内側の判定の頂点の並び）にも分岐が要る（曲線の区間を折れ線で近似した並びにする等。`#tracePath`・`#someSegment`と揃える）。
         *   区間の要素数の不変条件は、頂点の追加・削除・閉じる/開く操作を足すときに保つこと。

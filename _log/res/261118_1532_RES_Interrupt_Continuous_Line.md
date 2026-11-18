@@ -480,10 +480,10 @@
         *   自動テストで確かめられない箇所（要件9の末尾）を、特に確かめてほしい項目として添える。本計画書の「5. 懸念事項」のうち発注者に目視で確かめてほしい点も添える。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ提示した内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク11: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
+*   [x] タスク11: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新）
-        *   `./_doc/arch/02_main.md`・`03_VectorModel.md`・`06_InputTracker.md`・`07_KeyboardShortcuts.md`・`12_shapes.md`・`14_edit.md`・`16_test.md`・`28_MoveDirectionRules.md`・`30_UnitSnapRules.md` :（更新）
+        *   `./_doc/arch/02_main.md`・`03_VectorModel.md`・`06_InputTracker.md`・`07_KeyboardShortcuts.md`・`10_ShapeFactory.md`・`12_shapes.md`・`14_edit.md`・`16_test.md`・`28_MoveDirectionRules.md`・`30_UnitSnapRules.md` :（更新）
     *   **作業内容** :
         *   本計画書の『開発資料（`PROJECT_ARCHITECTURE.md`）の更新予定』欄の全項目（各タスクでの追記を含む）を確認し、資料へ反映する。とくに3章の「キーボード操作」（`Esc`・`Backspace`/`Delete`の意味）、6.「履歴」（記録する操作と時点・取り消しの適用の流れ）、12.「端点への吸い付きと描き足し」（流れ・表示を消す箇所・やらないこと）、17.「スナップ」（打つ点・`Shift`との組み合わせ）、修飾キーの`Shift`の用途（3.・16.・17.と`_doc/arch/06_InputTracker.md`の修飾キーの項。`InputTracker.js`先頭の責務定義とあわせて3か所が揃っていること）を見直す。3章へ新しい節を足すか12.へまとめるかを決めて反映する。
         *   1章（フォルダ構造の`test/`・「存在しないもの」・フォルダ分割の方針・依存方向）・2章（`path`・新しく描く図形のスタイル）を更新する。4章の一覧の表に新しい行が増えない（新しいモジュールは無い）ことを確認する。
@@ -594,7 +594,11 @@
 
 ### タスク11: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
 *   **作業内容** :
-    *   （未実施）
+    *   `PROJECT_ARCHITECTURE.md`：1章（フォルダ構造の`test/core/`へ`VectorModel.replaceDraft.test.js`、`shapes/`の`PathJoinRules`の注記、「存在しないもの」へ連続引きのやらないこと、フォルダ分割の方針の`shapes/`、依存方向(2)の`Line`・`Path`のimport）、2章（`path`の項、直前に使った値の当てる場所＝`startDraft`と`replaceDraft`・当てないもの）、3章（3.の`Esc`・`Backspace`/`Delete`・`Ctrl`+`Z`の意味・移動量の`Shift`の例外・打つ点、6.の記録する操作・削除・適用の流れの1b.・記録しない操作、12.の流れ（直線のツールの描いている途中と描き終え・表示を消す箇所・発注者の決定）、16.の`Shift`を見る時点と発注者の決定、17.の丸める箇所・`Shift`との組み合わせ・`Ctrl`を見る時点・関数の列）を更新。**3章へ新しい節22.「直線のツールで線を続けて引く」を足した**（用語・状態の持ち主・モジュールの分担と作り分けの置き場所の理由・操作ごとの流れ・クリックの判定の順・記録・`replaceDraft`の約束・発注者の決定・現場設計セッションが決めた点・注意・確認の状況・やらないこと）。12.には要点と22.への参照を置いた。4章の一覧の表に新しい行は足していない（新しいモジュールは無いことを確認）。
+    *   `_doc/arch/`：`02_main.md`（行数1010行・`selectModeTool`・同一経路の原則・`performUndo`の手順・`KeyboardShortcuts`の注入の表）、`03_VectorModel.md`（`replaceDraft`）、`06_InputTracker.md`（公開メソッド3つ・線を引く配線・`Shift`・`EndpointSnapAssist`の6項目・行数1729行）、`07_KeyboardShortcuts.md`、`10_ShapeFactory.md`（作り分けはここに無い旨を1項目）、`12_shapes.md`（`PathJoinRules`・`EndpointSnapRules`・`Path`）、`14_edit.md`（`EndpointSnapper`）、`16_test.md`（新設1ファイルと既存4ファイルの追加・既存のケースの書き換え無し・件数）、`28_MoveDirectionRules.md`、`30_UnitSnapRules.md`を更新。
+    *   件数・行数は実測：`node --test`は tests 1634 / suites 250 / pass 1634 / fail 0（作業前1543 / 230）。ファイル別の追加件数は`git diff c3263ee`の追加`it`数で確認（`PathJoinRules` +32、`EndpointSnapRules` +14、`UnitSnapRules` +9、`replaceDraft`新設11、`EndpointSnapper` +25。合計+91＝1634−1543）。`main.js`は1010行、`InputTracker.js`は1729行（`wc -l`）。
+    *   `js/`・`test/`・`index.html`は変更していない。
+    *   diff監査の指摘による修正（資料とRESだけを直した。`js/`・`test/`は変更していない）：`06_InputTracker.md`の修飾キーの項を責務定義と同じ4つの用途（`Shift`で線を引いている途中の向きを限定するかを決めること）へ／`03_VectorModel.md`の`replaceDraft`の警告を「`#shapes`の図形が渡されたときだけ」へ（作成途中の図形が無いときは警告なしで`false`）／パン中のツールの切り替え（`PROJECT_ARCHITECTURE.md`の22.・`06_InputTracker.md`）を「`setMode`が中断するのはモードが変わる経路だけ、`selectShapeTool`は中断せずパンは離すまで続く」へ／12.「流れ（描き終え）」を`commitDrawnLine`は`endSnap`が`null`でないときだけ呼ばれ`commitDraft`は直線以外の`handleClick`の経路だと分かる書き方へ／22.の閉じる条件（3頂点以上の開いたパスは途中の点なしでも閉じる。途中の点が要るのは相手が直線のとき）／22.「やらないこと」を「新しいソースのファイル」へ／古くなった既存の記述（`02_main.md`の`P`、1章「存在しないもの」の`Shift`、17.の「`EndpointSnapper`は変えていない」を07-05の時点の記述と明記）／12.「モジュールの分担」へ22.への参照を追加／タスク11の対象ファイルへ`10_ShapeFactory.md`を追加。
 
 ## 5. 懸念事項・要確認ポイント
 *   **直線とパスの作り分けの置き場所**：`ShapeFactory`ではなく`shapes/PathJoinRules`に置いた（理由は2章「全体の流れ」）。これに伴い`PathJoinRules`の責務定義が「結合の規則」から「結合の規則と、続けて引く線の点の並びの規則」へ広がり、`./Line.js`のimportが増える（依存方向の(2)の記述を最終タスクで直す）。別ファイルへ分けなかった理由は、閉じたパスの頂点数の下限・結合できる線の判定・描き足しの組み立てを共有し、二重定義を避けるため。
@@ -609,3 +613,4 @@
 *   **既存のテストの期待値**：変える既存のケースは無い見込み（`planDrawnLineJoin`・`commitDrawnLine`・`findSnapTarget`は頂点2つの線・今の引数で結果が変わらない作り）。変える必要が出た場合はタスクの作業を止めて報告する。
 *   **REQに挙がっていないファイル**：変更は不要の見込み（`CanvasManager`は作成途中の図形をポリモーフィックに描くため、`Path`の作成途中の図形もそのまま描かれる）。必要が出た場合は実装を止めて発注者の判断を仰ぐ。
 *   **（タスク1の記録）`removeLastDrawnPoint`・`getLastDrawnPoint`・`isOnLastDrawnPoint`の頂点数の下限**：頂点が2つ未満の入力（作成途中の線の約束外）は`null`／`false`にした。`PathJoinRules`の責務定義の文面と`Line`のimportは、タスク2の分を含む最終の形に更新済み（タスク2で責務定義・importを変えない）。開発資料への影響は最終タスク（依存方向(2)の記述）で扱う予定のとおりで、追加の更新予定は無い。
+*   **（タスク11の記録）開発資料の記述**：3章の新しい節22.を立てた（12.へまとめなかった理由：流れ・判定の順・記録・決定事項が多く、12.の既存の項目（直線以外・端点のハンドルのドラッグ）と混ざるため。12.・16.・17.・6.・3.からは22.へ参照を置く）。`_doc/arch/10_ShapeFactory.md`は作り分けがここに無い旨だけを足した。開発資料のファイルは作業ツリーでCRLFの行が混在していた箇所を、リポジトリの形（LF）にそろえた（内容の行の増減は無い）。目視確認を推奨する箇所は無し（記述は実コードのJSDoc・`main.js`・各RESの記録と突き合わせた）。
