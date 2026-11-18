@@ -389,3 +389,51 @@ describe('FileContentReader.deserializeFromText: 塗り・線なしを含むス�
         result.shapes.forEach((shape) => assert.equal(shape.fillColor, null));
     });
 });
+
+describe('FileContentReader.deserializeFromText: 曲線のパスを含むスプライト（書き出し形式の版3）', () => {
+    /**
+     * 曲線のパス（開いた・閉じた・混在）と既存の図形を混在させた図形一式を作る。
+     * @returns {Array<object>} 図形
+     */
+    function sampleShapesWithSmoothPaths() {
+        const pts = [{ x: 0, y: 0 }, { x: 100, y: 20 }, { x: 150, y: 100 }, { x: 40, y: 120 }];
+        const mixed = Path.fromJSON({
+            type: 'path', id: 'x', points: pts, closed: true,
+            segments: [{ kind: 'smooth' }, { kind: 'line' }, { kind: 'smooth' }, { kind: 'line' }],
+            strokeColor: '#112233', strokeWidth: 3, fillColor: '#abcdef',
+        });
+        const shapes = [
+            new Path(pts, false, '#ff0000', 3, null, 'smooth'),
+            new Path(pts, true, '#00aa00', 6, '#fedcba', 'smooth'),
+            mixed,
+            new Rect(10, 20, 50, 80, '#0000ff', 4),
+        ];
+        shapes.forEach((shape, index) => {
+            shape.id = `shape-${index}`;
+        });
+        return shapes;
+    }
+
+    it('版3のJS・CRLFのJSから曲線のパスを含む全図形が元どおり（区間の種類も）戻る', (t) => {
+        t.mock.method(console, 'warn', () => {});
+        const shapes = sampleShapesWithSmoothPaths();
+        const data = SpriteSerializer.serialize(shapes);
+        assert.equal(data.formatVersion, 3);
+        const text = CodeExporter.toModuleText(data);
+        for (const source of [text, text.replace(/\n/g, '\r\n')]) {
+            const result = FileContentReader.deserializeFromText(source);
+            assertRestored(result, shapes);
+            assertPathsRestored(result.shapes, shapes);
+        }
+    });
+
+    it('formatVersionを2に書き換えた同じJSも読める', (t) => {
+        t.mock.method(console, 'warn', () => {});
+        const shapes = sampleShapesWithSmoothPaths();
+        const data = SpriteSerializer.serialize(shapes);
+        data.formatVersion = 2;
+        const result = FileContentReader.deserializeFromText(CodeExporter.toModuleText(data));
+        assertRestored(result, shapes);
+        assertPathsRestored(result.shapes, shapes);
+    });
+});

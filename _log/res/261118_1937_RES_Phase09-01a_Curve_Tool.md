@@ -314,7 +314,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク7: 要件F（後半） 書き出したJSの描画処理（`io/CodeExporter`）と読み込みの確認
+*   [x] タスク7: 要件F（後半） 書き出したJSの描画処理（`io/CodeExporter`）と読み込みの確認
     *   **対象ファイル** :
         *   `./js/io/CodeExporter.js` :（更新。`DRAW_SOURCE`の`bezierPath`の枝・塗りの条件・関連するJSDocのみ）
         *   `./test/io/CodeExporter.test.js` :（更新。`describe`の追加、`createRecordingCtx`の命令の名前への`'bezierCurveTo'`の追加、必要なimportの追加のみ）
@@ -433,7 +433,10 @@
 
 ### タスク7: 要件F（後半） 書き出したJSの描画処理（`io/CodeExporter`）と読み込みの確認
 *   **作業内容** :
-    *   （未記入）
+    *   `js/io/CodeExporter.js`：`DRAW_SOURCE`へ`case 'bezierPath'`（形の項目＝点2つ以上・`segments`の要素数・各区間の`kind`・`cubic`の`control1`/`control2`の確認をパス組み立ての前に行い、足りなければ`return`。`beginPath`→`moveTo`→区間ごとに`bezierCurveTo`／`lineTo`（閉じた要素の最後の区間が`line`なら`lineTo`なし）→`closed`なら`closePath`）を追加。塗りの条件に`bezierPath`を追加し、`drawElement`のJSDocの塗りの規則を更新。`HEADER_COMMENT`・宣言の行・`toModuleText`・`extractSpriteDataText`は不変。
+    *   読み込みの確認：`js/io/FileContentReader.js`・`js/check/`・`sprite-check.html`に版の値（`formatVersion`の数値）の直書きは無く、版は`SpriteSerializer.checkFormat`の定数による（変更なし）。
+    *   `test/io/CodeExporter.test.js`：`createRecordingCtx`の命令名へ`bezierCurveTo`、importへ`SEGMENT_KIND_SMOOTH`を追加。`describe`を2つ追加（曲線のパスの見た目の一致8件、手で組み立てた`bezierPath`の規則3件）。`test/io/FileContentReader.test.js`：版3の曲線のパスを含むJS（LF・CRLF）が読み込めるテスト1件と、`formatVersion`を2に書き換えた同じJSも読めるテスト1件の計2件の`describe`を追加。`node --test`は tests 1707 / suites 267 / pass 1707 / fail 0。
+    *   開発資料への影響：`CodeExporter`の`DRAW_SOURCE`の`bezierPath`・塗りの`kind`の記載に影響（資料本体は未修正。タスク12で反映）。
 
 ### タスク8: 要件G 曲線のツールの作成途中の図形（`core/ShapeFactory`）と既存のテストの図形の作り方
 *   **作業内容** :

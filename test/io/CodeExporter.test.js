@@ -9,7 +9,7 @@ import { Line } from '../../js/shapes/Line.js';
 import { Curve } from '../../js/shapes/Curve.js';
 import { Rect } from '../../js/shapes/Rect.js';
 import { Ellipse } from '../../js/shapes/Ellipse.js';
-import { Path } from '../../js/shapes/Path.js';
+import { Path, SEGMENT_KIND_SMOOTH } from '../../js/shapes/Path.js';
 
 /**
  * スプライトデータからJSのテキストを組み立て、動的importして既定のexportを返す。
@@ -29,7 +29,7 @@ async function importSprite(spriteData) {
 function createRecordingCtx() {
     const log = [];
     const ctx = {};
-    for (const name of ['beginPath', 'moveTo', 'lineTo', 'quadraticCurveTo', 'ellipse', 'closePath', 'fill', 'stroke', 'save', 'restore', 'setLineDash']) {
+    for (const name of ['beginPath', 'moveTo', 'lineTo', 'quadraticCurveTo', 'bezierCurveTo', 'ellipse', 'closePath', 'fill', 'stroke', 'save', 'restore', 'setLineDash']) {
         ctx[name] = (...args) => {
             log.push([name, ...args]);
         };
@@ -575,5 +575,119 @@ describe('CodeExporter.extractSpriteDataText', () => {
         assert.equal(CodeExporter.extractSpriteDataText(null), null);
         assert.equal(CodeExporter.extractSpriteDataText(123), null);
         assert.equal(CodeExporter.extractSpriteDataText({}), null);
+    });
+});
+
+describe('CodeExporter.toModuleText: 見た目の一致（曲線のパス）', () => {
+    const pts = [{ x: 0, y: 0 }, { x: 100, y: 20 }, { x: 150, y: 100 }, { x: 40, y: 120 }];
+
+    /**
+     * 区間の種類を指定して`Path`を作る（`fromJSON`で混在させる）。
+     * @param {Array<{x: number, y: number}>} points - 頂点
+     * @param {boolean} closed - 閉じるか
+     * @param {Array<string>} kinds - 区間ごとの種類
+     * @param {string|null} fillColor - 塗り色
+     * @returns {Path} 作ったパス
+     */
+    function makeMixed(points, closed, kinds, fillColor) {
+        return Path.fromJSON({
+            type: 'path', id: 'm', points, closed, segments: kinds.map((kind) => ({ kind })),
+            strokeColor: '#112233', strokeWidth: 3, fillColor,
+        });
+    }
+
+    it('開いた曲線のパス', async () => {
+        const path = new Path(pts, false, '#ff0000', 4, null, SEGMENT_KIND_SMOOTH);
+        await assertSameAsEditor([path]);
+        assert.ok(recordEditorDraw([path]).some((entry) => entry[0] === 'bezierCurveTo'));
+    });
+
+    it('閉じた全区間曲線のパス', async () => {
+        await assertSameAsEditor([new Path(pts, true, '#00ff00', 2, null, SEGMENT_KIND_SMOOTH)]);
+    });
+
+    it('塗った閉じた曲線のパス', async () => {
+        const path = new Path(pts, true, '#00ff00', 2, '#abcdef', SEGMENT_KIND_SMOOTH);
+        await assertSameAsEditor([path]);
+        assert.ok(recordEditorDraw([path]).some((entry) => entry[0] === 'fill'));
+    });
+
+    it('線なしで塗りだけの曲線のパス', async () => {
+        await assertSameAsEditor([new Path(pts, true, null, 2, '#abcdef', SEGMENT_KIND_SMOOTH)]);
+    });
+
+    it('直線と曲線の混在（閉じる区間が直線）', async () => {
+        const path = makeMixed(pts, true, ['smooth', 'line', 'smooth', 'line'], '#fedcba');
+        await assertSameAsEditor([path]);
+        const names = recordEditorDraw([path]).map((entry) => entry[0]);
+        assert.equal(names.filter((name) => name === 'lineTo').length, 1);
+    });
+
+    it('直線と曲線の混在（閉じる区間が曲線）', async () => {
+        await assertSameAsEditor([makeMixed(pts, true, ['line', 'smooth', 'line', 'smooth'], null)]);
+    });
+
+    it('頂点を動かした曲線のパス', async () => {
+        const path = new Path(pts, false, '#123456', 2, null, SEGMENT_KIND_SMOOTH);
+        path.setVertex(1, 90, 60);
+        await assertSameAsEditor([path]);
+    });
+
+    it('既存の図形との混在（描画順を保つ）', async () => {
+        await assertSameAsEditor([
+            new Rect(0, 0, 5, 5, '#111111', 1),
+            new Path(pts, true, '#222222', 6, '#999999', SEGMENT_KIND_SMOOTH),
+            new Line(0, 0, 10, 10, '#333333', 7),
+            new Path(pts, true, '#444444', 3),
+            new Curve(0, 0, 30, 30),
+        ]);
+    });
+});
+
+describe('CodeExporter.toModuleText: bezierPathの規則（手で組み立てた描画要素）', () => {
+    const points = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }];
+    const cubic = { kind: 'cubic', control1: { x: 1, y: 1 }, control2: { x: 2, y: 2 } };
+    const base = { kind: 'bezierPath', id: 'b', points, strokeColor: '#000000', strokeWidth: 2, fillColor: '#00ff00' };
+
+    /**
+     * 描画要素を書き出したJSの`draw`で描いた記録のうち、前置きとrestoreを除いた部分を返す。
+     * @param {Array<object>} elements - 描画要素
+     * @returns {Promise<Array<Array<*>>>} 記録
+     */
+    async function recordElements(elements) {
+        const sprite = await importSprite(dataWithElements(elements));
+        const log = recordExportedDraw(sprite);
+        return log.slice(5, log.length - 1);
+    }
+
+    it('形の項目が足りない要素は何も呼ばない', async () => {
+        const log = await recordElements([
+            { ...base, points: [{ x: 0, y: 0 }], closed: false, segments: [] },
+            { ...base, closed: false, segments: [cubic] },
+            { ...base, closed: true, segments: [cubic, cubic] },
+            { ...base, closed: false, segments: [cubic, { kind: 'unknown' }] },
+            { ...base, closed: false, segments: [cubic, { kind: 'cubic', control2: { x: 1, y: 1 } }] },
+            { ...base, closed: false, segments: [cubic, null] },
+            { ...base, closed: false },
+        ]);
+        assert.deepStrictEqual(log, []);
+    });
+
+    it('closedがtrueでなければ塗らない', async () => {
+        const log = await recordElements([{ ...base, closed: false, segments: [cubic, { kind: 'line' }] }]);
+        assert.ok(!log.some((entry) => entry[0] === 'fill'));
+        assert.ok(log.some((entry) => entry[0] === 'stroke'));
+    });
+
+    it('closedがtrueなら塗り、閉じる区間がlineならlineToなしでclosePath', async () => {
+        const log = await recordElements([{ ...base, closed: true, segments: [cubic, { kind: 'line' }, { kind: 'line' }] }]);
+        assert.deepStrictEqual(log.slice(0, 6), [
+            ['beginPath'],
+            ['moveTo', 0, 0],
+            ['bezierCurveTo', 1, 1, 2, 2, 10, 0],
+            ['lineTo', 10, 10],
+            ['closePath'],
+            ['set:fillStyle', '#00ff00'],
+        ]);
     });
 });
