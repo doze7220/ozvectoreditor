@@ -261,7 +261,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク3: 要件C 結合できる線と、続けて引く線の点の並び（`shapes/PathJoinRules`）
+*   [x] タスク3: 要件C 結合できる線と、続けて引く線の点の並び（`shapes/PathJoinRules`）
     *   **対象ファイル** :
         *   `./js/shapes/PathJoinRules.js` :（更新）
         *   `./test/shapes/PathJoinRules.test.js` :（更新。`describe`の追加と、必要なimportの追加のみ）
@@ -407,7 +407,9 @@
 
 ### タスク3: 要件C 結合できる線と、続けて引く線の点の並び（`shapes/PathJoinRules`）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/shapes/PathJoinRules.js`：importへ`SEGMENT_KIND_LINE`を追加。`isDrawnLineShape`（`export`）を新設し、`isJoinableLine`は**追加仕様に従い`isDrawnLineShape(shape)`が真、かつ（パスなら）`segments`がすべて`SEGMENT_KIND_LINE`**として定義（「直線、または閉じていないパス」の条件は`isDrawnLineShape`1か所。JSDocに「結合できる線は続けて引く線の形のうち区間がすべて直線のもの」を記載）。`classifyJoin`（1本の枝）・`buildClosedPath`・`canCloseByMergingEnds`を`isJoinableLine`に従わせた。非公開`drawnSegmentKind`・`buildDrawnDraft`を追加、`buildLineOrPath`に第4引数`segmentKind`を追加（作り分けは`buildLineOrPath`の1か所のまま）。作成途中の線の規則の6関数の受け付け条件を`isDrawnLineShape`へ、`addDrawnPoint`・`removeLastDrawnPoint`は`buildDrawnDraft`、`buildFinishedDrawnLine`は`buildLineOrPath(…, drawnSegmentKind(data))`で組み立てるよう変更。先頭の責務定義・関連JSDocを更新。
+    *   `test/shapes/PathJoinRules.test.js`：`isDrawnLineShape`のimportと、曲線のパス・続けて引く線の形・結合の対象外・曲線のパスの作成途中の線の`describe`を追加（補助関数`makeKindPath`・`makeMixedPath`）。既存のケースは不変。`node --test`は tests 1674 / pass 1674 / fail 0。
+    *   開発資料への影響：`PathJoinRules`の責務・公開関数（`isDrawnLineShape`の追加、`isJoinableLine`の意味の変更）の記載に影響（資料本体は未修正。タスク12で反映）。
 
 ### タスク4: 要件D 曲線のツールは既存の線の端点に吸い付かない（`shapes/EndpointSnapRules`）
 *   **作業内容** :

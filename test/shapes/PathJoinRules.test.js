@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import {
     JOIN_TOLERANCE_SCREEN_PX,
     isJoinableLine,
+    isDrawnLineShape,
     classifyJoin,
     buildClosedPath,
     buildJoinedPath,
@@ -1210,6 +1211,169 @@ describe('planDrawnLineJoin 続けて引いた線（点が複数）への拡張'
             ];
             for (const plan of plans) plan.path.translate(1000, 1000);
             assert.equal(JSON.stringify([a.toJSON(), b.toJSON(), drawn.toJSON(), startSnap, endSnap]), before);
+        });
+    });
+});
+
+/**
+ * 区間の種類を指定して開いたパスを作る（頂点2つ以上。全区間が同じ種類）。
+ * @param {number[][]} coords - [x, y] の並び
+ * @param {string} kind - 全区間の種類（`'line'`か`'smooth'`）
+ * @param {boolean} [closed=false] - 閉じたパスか
+ * @returns {Path} パス
+ */
+function makeKindPath(coords, kind, closed = false) {
+    return new Path(pts(coords), closed, '#112233', 5, '#445566', kind);
+}
+
+/**
+ * 区間の種類が混ざったパスを作る（`toJSON`→`fromJSON`で区間を差し替える）。
+ * @param {number[][]} coords - [x, y] の並び
+ * @param {string[]} kinds - 区間ごとの種類（開いたパスは頂点数`- 1`個）
+ * @returns {Path} パス
+ */
+function makeMixedPath(coords, kinds) {
+    const data = makePath(coords).toJSON();
+    data.segments = kinds.map((kind) => ({ kind }));
+    return Path.fromJSON(data);
+}
+
+describe('PathJoinRules 曲線のパスと続けて引く線の形（Phase 09-01a）', () => {
+    const FOUR = [[0, 0], [10, 0], [10, 10], [0, 10]];
+
+    describe('isJoinableLine', () => {
+        it('曲線の区間を持つ開いたパス（全区間・混在・頂点2つ）は偽', () => {
+            assert.equal(isJoinableLine(makeKindPath(FOUR, 'smooth')), false);
+            assert.equal(isJoinableLine(makeMixedPath(FOUR, ['line', 'smooth', 'line'])), false);
+            assert.equal(isJoinableLine(makeKindPath([[0, 0], [10, 0]], 'smooth')), false);
+        });
+        it('直線と、直線の区間だけの開いたパスは真', () => {
+            assert.equal(isJoinableLine(makeLine(0, 0, 10, 0)), true);
+            assert.equal(isJoinableLine(makeKindPath(FOUR, 'line')), true);
+        });
+        it('閉じたパス・曲線の閉じたパスは偽', () => {
+            assert.equal(isJoinableLine(makeKindPath(FOUR, 'line', true)), false);
+            assert.equal(isJoinableLine(makeKindPath(FOUR, 'smooth', true)), false);
+        });
+    });
+
+    describe('isDrawnLineShape', () => {
+        it('直線と開いたパス（区間の種類によらない）は真', () => {
+            assert.equal(isDrawnLineShape(makeLine(0, 0, 10, 0)), true);
+            assert.equal(isDrawnLineShape(makeKindPath(FOUR, 'line')), true);
+            assert.equal(isDrawnLineShape(makeKindPath(FOUR, 'smooth')), true);
+            assert.equal(isDrawnLineShape(makeMixedPath(FOUR, ['line', 'smooth', 'line'])), true);
+        });
+        it('閉じたパス・今の曲線・矩形・円・弧は偽', () => {
+            assert.equal(isDrawnLineShape(makeKindPath(FOUR, 'smooth', true)), false);
+            for (const kind of UNJOINABLE_KINDS) {
+                assert.equal(isDrawnLineShape(makeUnjoinable(kind)), false, kind);
+            }
+        });
+        it('結合できる線は続けて引く線の形のうち区間がすべて直線のもの', () => {
+            const shapes = [
+                makeLine(0, 0, 10, 0), makeKindPath(FOUR, 'line'), makeKindPath(FOUR, 'smooth'),
+                makeMixedPath(FOUR, ['line', 'smooth', 'line']), makeKindPath(FOUR, 'line', true),
+                ...UNJOINABLE_KINDS.map(makeUnjoinable),
+            ];
+            for (const shape of shapes) {
+                const allLine = shape.type === 'line'
+                    || (shape.type === 'path' && shape.toJSON().segments.every((s) => s.kind === 'line'));
+                assert.equal(isJoinableLine(shape), isDrawnLineShape(shape) && allLine);
+            }
+        });
+    });
+
+    describe('結合・閉じる（曲線のパスは対象外）', () => {
+        it('classifyJoin・planJoin：曲線のパス1本・曲線のパスと直線の2本はnull', () => {
+            const smooth = makeKindPath(FOUR, 'smooth');
+            const line = makeLine(0, 0, 10, 0);
+            assert.equal(classifyJoin([smooth]), null);
+            assert.equal(classifyJoin([smooth, line]), null);
+            assert.equal(classifyJoin([line, smooth]), null);
+            assert.equal(planJoin([smooth], 0.1), null);
+            assert.equal(planJoin([smooth, line], 0.1), null);
+        });
+        it('classifyJoin：直線の区間だけのパス1本は今までどおり close', () => {
+            assert.equal(classifyJoin([makeKindPath(FOUR, 'line')]), 'close');
+        });
+        it('buildClosedPath・canCloseByMergingEnds：曲線のパスはnull／false', () => {
+            const smooth = makeKindPath([[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], 'smooth');
+            assert.equal(buildClosedPath(smooth, 0.1), null);
+            assert.equal(canCloseByMergingEnds(smooth), false);
+            const line = makeKindPath([[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], 'line');
+            assert.notEqual(buildClosedPath(line, 0.1), null);
+            assert.equal(canCloseByMergingEnds(line), true);
+        });
+    });
+
+    describe('作成途中の線が曲線のパスのとき', () => {
+        const STYLE = { strokeColor: '#112233', strokeWidth: 5, fillColor: '#445566' };
+
+        /**
+         * 全区間の種類と区間の数を確かめる。
+         * @param {Path} path - 検証するパス
+         * @param {string} kind - 期待する種類
+         * @param {number} count - 期待する区間の数
+         */
+        function assertSegments(path, kind, count) {
+            const segments = path.toJSON().segments;
+            assert.equal(segments.length, count);
+            assert.ok(segments.every((s) => s.kind === kind));
+        }
+
+        it('addDrawnPointは全区間smoothの開いたパス（スタイルを引き継ぐ）', () => {
+            const r = addDrawnPoint(makeKindPath([[0, 0], [10, 0]], 'smooth'));
+            assert.equal(r.type, 'path');
+            assert.equal(r.toJSON().closed, false);
+            assert.deepEqual(coordsOf(r.toJSON().points), [[0, 0], [10, 0], [10, 0]]);
+            assertSegments(r, 'smooth', 2);
+            assert.equal(r.toJSON().strokeColor, STYLE.strokeColor);
+            assert.equal(r.toJSON().fillColor, STYLE.fillColor);
+        });
+        it('removeLastDrawnPointは頂点3つ→頂点2つの曲線のパス（Lineにならない）・頂点2つ→null', () => {
+            const r = removeLastDrawnPoint(makeKindPath([[0, 0], [10, 0], [20, 5]], 'smooth'));
+            assert.equal(r.type, 'path');
+            assert.deepEqual(coordsOf(r.toJSON().points), [[0, 0], [20, 5]]);
+            assertSegments(r, 'smooth', 1);
+            assert.equal(removeLastDrawnPoint(makeKindPath([[0, 0], [10, 0]], 'smooth')), null);
+        });
+        it('buildFinishedDrawnLineは打った点2つでLine・3つで全区間smoothの開いたパス', () => {
+            const two = buildFinishedDrawnLine(makeKindPath([[0, 0], [10, 0], [10, 0]], 'smooth'));
+            assert.equal(two.type, 'line');
+            assert.deepEqual(coordsOf(two.toJSON().points), [[0, 0], [10, 0]]);
+            const three = buildFinishedDrawnLine(makeKindPath([[0, 0], [10, 0], [10, 10], [10, 10]], 'smooth'));
+            assert.equal(three.type, 'path');
+            assert.equal(three.toJSON().closed, false);
+            assertSegments(three, 'smooth', 2);
+        });
+        it('buildFinishedDrawnLineは閉じて3つで全区間smooth（区間3つ）の閉じたパス', () => {
+            const r = buildFinishedDrawnLine(makeKindPath([[0, 0], [10, 0], [10, 10], [10, 10]], 'smooth'), true);
+            assert.equal(r.type, 'path');
+            assert.equal(r.toJSON().closed, true);
+            assert.deepEqual(coordsOf(r.toJSON().points), [[0, 0], [10, 0], [10, 10]]);
+            assertSegments(r, 'smooth', 3);
+        });
+        it('getLastDrawnPoint・isOnLastDrawnPoint・canCloseDrawnLineは直線の作成途中の線と同じ規則', () => {
+            const drawn = makeKindPath([[0, 0], [10, 0], [10, 10], [10, 10]], 'smooth');
+            assert.deepEqual(getLastDrawnPoint(drawn), { x: 10, y: 10 });
+            assert.equal(isOnLastDrawnPoint(drawn, 0.1), true);
+            assert.equal(canCloseDrawnLine(drawn), true);
+            const two = makeKindPath([[0, 0], [10, 0]], 'smooth');
+            assert.equal(canCloseDrawnLine(two), false);
+            assert.equal(isOnLastDrawnPoint(makeKindPath([[0, 0], [10, 0], [20, 0]], 'smooth'), 0.1), false);
+        });
+        it('引数を書き換えず、結果と頂点を共有しない', () => {
+            const drawn = makeKindPath([[0, 0], [10, 0], [10, 10], [10, 10]], 'smooth');
+            const before = JSON.stringify(drawn.toJSON());
+            const results = [addDrawnPoint(drawn), removeLastDrawnPoint(drawn), buildFinishedDrawnLine(drawn), buildFinishedDrawnLine(drawn, true)];
+            assert.equal(JSON.stringify(drawn.toJSON()), before);
+            for (const r of results) r.translate(1000, 1000);
+            assert.equal(JSON.stringify(drawn.toJSON()), before);
+        });
+        it('続けて引く線の形でない図形は受け付けない（addDrawnPointがnull）', () => {
+            assert.equal(addDrawnPoint(makeKindPath(FOUR, 'smooth', true)), null);
+            assert.equal(addDrawnPoint(new Rect(0, 0, 5, 5)), null);
         });
     });
 });
