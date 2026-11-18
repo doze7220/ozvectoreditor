@@ -193,7 +193,7 @@ Phase 8 のクローズに伴う開発資料の整合確認（Survey。`./_log/r
         *   「全タスクに共通の約束」と「要件7（タスク4）」を読み、文案のとおりに直す。No.48 はタスク2の詳細作業内容に記録されたNo.16の文（`PROJECT_ARCHITECTURE.md` 554行）と同じ2項目を同じ位置に足す。
         *   行末（CRLF）と `git diff --stat` を確かめ、詳細作業内容に記録する。
 
-*   [ ] タスク5: 要件8・12 `_doc/arch/06_InputTracker.md`・`08_HistoryManager.md`・`13_palette.md`（No.18・20・37・38・64＋06:40の行数の行。5件＋1）
+*   [x] タスク5: 要件8・12 `_doc/arch/06_InputTracker.md`・`08_HistoryManager.md`・`13_palette.md`（No.18・20・37・38・64＋06:40の行数の行。5件＋1）
     *   **対象ファイル** :
         *   `./_doc/arch/06_InputTracker.md` :（更新。4・27・30・40行の中だけ。LF）
         *   `./_doc/arch/08_HistoryManager.md` :（更新。11行の中だけ。CRLF）
@@ -313,7 +313,14 @@ Phase 8 のクローズに伴う開発資料の整合確認（Survey。`./_log/r
 
 ### タスク5: 要件8・12 `_doc/arch/06_InputTracker.md`・`08_HistoryManager.md`・`13_palette.md`
 *   **作業内容** :
-    *   （未実施）
+    *   `wc -l js/core/InputTracker.js`＝1579を確認。文案どおりに6行（06:4・27・30・40、08:11、13:1）を完全一致置換で直した。
+    *   No.37（06:4）：`OperationMode`のimport元に`core/NudgeTargetRules`・`core/VertexHandleRules`・`wiring/ToolIconWiring`を追加。
+    *   No.38（06:27）：「唯一の定義」を外し、タスク1のNo.11（`PROJECT_ARCHITECTURE.md` 528行）と同じ内容にした。書いた文（該当部分）：「**マウスのイベントの`Ctrl`（`⌘`を含む）の読み取りはこの関数に寄せ、二重に書かない**（`main.js`が`CanvasCursorTracker`へ注入する）。キーボードの`Ctrl`は`hasCtrlModifier`を使わず別に読む（`KeyboardShortcuts`の`#findBinding`は同じ式、`AltKeyGuard`は`event.ctrlKey`だけを`Alt`の抑止を除く条件に）」。同じ行のほかの文は不変。
+    *   No.64（06:30）：「`handleMouseDown`は`resolvePressAction`の結果が`moveSelection`（moveハンドル・選択中の図形の本体）の枝の1か所で非公開の`#beginMoveSelection(event, point)`を呼ぶ」。06:13・06:27（`#beginMoveSelection`の1か所）と合う。
+    *   06:40（要件12）：行数の行を「1579行（…増えた。再分離は行っていない）。行数の推移は`_log/res/`の各RESとgitの履歴が正本。再分離の候補は`_doc/COWORK_STATUS.md`2章A。」にした（以前の記録と07-05の見込みを落とした）。全角の`（`＝1、`）`＝1で等しい。
+    *   No.18（08:11）：呼び出し元の列挙の末尾に「、`ShapeAlignEditor`（整列・分布。鍵なし）」、注入先の列挙の`NudgeEditor`の後に「・`ShapeAlignEditor`」を追加。「まとめの鍵を渡すのは`NudgeEditor`だけ」は残した。
+    *   No.20（13:1）：文字の表示に「キャンバス名」を足し、`main.js`側に「キャンバス名（`#canvas-name-display`の`syncCanvasNameDisplay`）」を追加。
+    *   行末：06は`wc -l`＝40・CR数＝0（LF維持）、08は14・14、13は61・61（CRLF維持）。`git diff --stat`：06は4行・08は1行・13は1行（直した行のみ、計6 insertions / 6 deletions）。
 
 ### タスク6: 要件8 `_doc/arch/14_edit.md`・`38_VertexHandleRules.md`・`41_NudgeTargetRules.md`
 *   **作業内容** :
