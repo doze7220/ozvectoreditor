@@ -155,7 +155,7 @@ Phase 8 のクローズに伴う開発資料の整合確認（Survey。`./_log/r
 
 **タスクの分け方**：資料のファイル単位で分け、1タスク3ファイル・相違10件までにした。「2か所をそろえる」組は、先に書く側を前のタスクに置き、後のタスクがその記録に合わせる（No.11→No.38＝タスク1→5、No.16→No.48＝タスク2→4、No.24→No.35＝タスク2→3。No.55↔No.56 はタスク8の中）。
 
-*   [ ] タスク1: 要件1・2・5 `PROJECT_ARCHITECTURE.md` の1章構成図と3章3.・12.・15.・16.・17.（No.1・2・9・10・11・12・13・59・60・61。10件）
+*   [x] タスク1: 要件1・2・5 `PROJECT_ARCHITECTURE.md` の1章構成図と3章3.・12.・15.・16.・17.（No.1・2・9・10・11・12・13・59・60・61。10件）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新。29・42・323・332・439・484・506・511・528行の中だけ。CRLF）
     *   **作業内容** :
@@ -260,7 +260,16 @@ Phase 8 のクローズに伴う開発資料の整合確認（Survey。`./_log/r
 
 ### タスク1: 要件1・2・5 `PROJECT_ARCHITECTURE.md` の1章構成図と3章3.・12.・15.・16.・17.
 *   **作業内容** :
-    *   （未実施）
+    *   実コードの事実（`KeyboardShortcuts.js:295`、`main.js:809・884`、`AltKeyGuard.js:31`、`main.js` の `showHandles: false`、`InputTracker` の `pickShape`）を確かめ、Survey と一致。文案どおりに9行（29・42・323・332・439・484・506・511・528）を `Edit` 相当の完全一致置換で直した（No.59・60は別行、計10件）。
+    *   No.1（29行）：`VertexHandleRules`の後に`NudgeTargetRules`を追加。No.2（42行）：「`edit/NudgeEditor`・`edit/PositionInputEditor`から使う」。
+    *   No.9・10（332行）：`InputTracker`の公開メソッドの直後に`Esc`の実体の括弧（`styleEyedropper.cancelPicking`・`fallback`・16.）、列挙末尾に`/nudgeSelection`（実体は`nudgeEditor.nudge`。19.）を追加。
+    *   No.12（511行）：「照会`isPickingShape`と、注入された`pickShape`の呼び出しで関わるだけ」。330行の「注入された補助`isPickingShape`・`pickShape`だけで関わり」と合う。
+    *   No.13（506行）：`Ctrl`の項を時点の種類（選択の確定・頂点の選択モードの押下`mousedown`・スナップ/吸い付きの読み取り・キーボード）で書き直した。`Shift`・矢印キーの`Shift`・`Alt`の文は不変。
+    *   No.11（528行）：書いた文（見出しの括弧）：「（`event.ctrlKey || event.metaKey`。**マウスのイベントの`Ctrl`（`⌘`を含む）の読み取りは`InputTracker.js`が`export`する`hasCtrlModifier`に寄せ、二重に書かない**（`main.js`が`CanvasCursorTracker`へ注入する）。キーボードの`Ctrl`は`hasCtrlModifier`を使わず別に読む（`KeyboardShortcuts`の`#findBinding`は同じ式、`AltKeyGuard`は`event.ctrlKey`だけを`Alt`の抑止を除く条件に）。キーの購読は足さない）」（タスク5のNo.38はこの文に合わせる）。
+    *   No.59・60（323・439行）：「頂点の」選択モードに。
+    *   No.61（484行）：「**現在`drawHandles`はどのモードからも呼ばれない**（`main.js`が`render`の`showHandles`へ常に`false`を渡すため。去就は変形のPhaseで決める。18.）。」を追記（元の記述は残した）。553行（`drawHandles`が呼ばれなくなること）と矛盾なし。
+    *   矛盾確認：330行・544〜545行（頂点の押下の`Ctrl`）・553行と矛盾しない。長さの差し引き：332・506・528行は伸びたが、情報を失わずに削れる重複表現は見当たらず削っていない。
+    *   行末：`wc -l`＝657、`tr -cd '\r'`の数＝657（CRLF維持）。`git diff --stat`：9 insertions / 9 deletions（変更は直した9行のみ）。
 
 ### タスク2: 要件3・4 `PROJECT_ARCHITECTURE.md` の3章18.〜21.
 *   **作業内容** :
