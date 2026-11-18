@@ -9,7 +9,7 @@ import { VectorModel } from '../../js/core/VectorModel.js';
 import { HistoryManager } from '../../js/core/HistoryManager.js';
 import { SnapshotAdapter } from '../../js/edit/SnapshotAdapter.js';
 import { Line } from '../../js/shapes/Line.js';
-import { Path } from '../../js/shapes/Path.js';
+import { Path, SEGMENT_KIND_SMOOTH } from '../../js/shapes/Path.js';
 import { Curve } from '../../js/shapes/Curve.js';
 
 /**
@@ -290,5 +290,28 @@ test('実物の組み合わせ: 結合できない選択でjoinしても履歴�
 
     assert.equal(history.canUndo(), false);
     assert.equal(history.canRedo(), false);
+    assert.deepEqual(dump(model), original);
+});
+
+test('canJoin・join（曲線のパスを含む選択）: 曲線のパス1本・曲線のパスと直線では結合できず、何もしない・記録しない', () => {
+    const smooth = new Path([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }], false, '#445566', 3, null, SEGMENT_KIND_SMOOTH);
+    smooth.id = 's';
+    const line = makeLine('a', 10, 10, 30, 10);
+
+    const one = setupFake([smooth], ['s']);
+    assert.equal(one.joiner.canJoin(), false);
+    assert.equal(one.joiner.join(), false);
+    assert.deepEqual(one.calls, []);
+
+    const two = setupFake([smooth, line], ['s', 'a'], { tolerance: 5 });
+    assert.equal(two.joiner.canJoin(), false);
+    assert.equal(two.joiner.join(), false);
+    assert.deepEqual(two.calls, []);
+
+    const { model, history, joiner } = setupReal([smooth, line]);
+    model.setSelection(['s', 'a']);
+    const original = dump(model);
+    assert.equal(joiner.join(), false);
+    assert.equal(history.canUndo(), false);
     assert.deepEqual(dump(model), original);
 });

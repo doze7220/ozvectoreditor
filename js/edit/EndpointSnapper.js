@@ -1,6 +1,6 @@
 /**
  * 責務: 端点への吸い付きの照会（直線を描くとき・端点のハンドルのドラッグ中。線を引いている途中は作成途中の線の始点も）と、
- * 吸い付いた端点での描き足し・結合・閉じる操作、および直線のツールで続けて引く線の点を打つ・最後の点を消す・終える操作の
+ * 吸い付いた端点での描き足し・結合・閉じる操作、および直線・曲線のツールで続けて引く線の点を打つ・最後の点を消す・終える操作の
  * モデルへの反映を、規則（`shapes/EndpointSnapRules`・`shapes/PathJoinRules`）に従って行う手順を担う。DOMに触れない。
  */
 import {
@@ -15,7 +15,7 @@ import {
     JOIN_TOLERANCE_SCREEN_PX,
     planDrawnLineJoin,
     planEndpointDragJoin,
-    isJoinableLine,
+    isDrawnLineShape,
     addDrawnPoint,
     removeLastDrawnPoint,
     buildFinishedDrawnLine,
@@ -185,14 +185,15 @@ export class EndpointSnapper {
     }
 
     /**
-     * 線を引いている途中か（作成途中の図形が結合できる線＝直線・開いたパスか）を返す。
-     * 直線のツールの作成途中の図形は常に直線か開いたパスで、ほかのツール（曲線・弧・矩形・円）の作成途中の図形は結合できる線ではない。
+     * 線を引いている途中か（作成途中の図形が続けて引く線の形＝直線、または区間の種類によらず開いたパスか）を返す。
+     * 直線のツールの作成途中の線は直線か直線の区間だけの開いたパス、曲線のツールの作成途中の線は曲線の区間の開いたパス
+     * （打った点が1つの間も頂点2つの曲線のパス）。弧・矩形・円の作成途中の図形は当たらない。
      * モデル・記録先を変えない。
      * @returns {boolean} 線を引いている途中ならtrue
      */
     isDrawingLine() {
         const drawn = this.#model.getDraftShape();
-        return drawn !== null && drawn !== undefined && isJoinableLine(drawn);
+        return drawn !== null && drawn !== undefined && isDrawnLineShape(drawn);
     }
 
     /**

@@ -288,7 +288,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク5: 要件E 線を引いている途中かの判定（`edit/EndpointSnapper`。`PathJoiner`はテストのみ）
+*   [x] タスク5: 要件E 線を引いている途中かの判定（`edit/EndpointSnapper`。`PathJoiner`はテストのみ）
     *   **対象ファイル** :
         *   `./js/edit/EndpointSnapper.js` :（更新。`isDrawingLine`の判定とimportの置き換え、JSDocの更新のみ）
         *   `./test/edit/EndpointSnapper.test.js` :（更新。テストの追加と、必要なimport・新しい補助関数の追加のみ）
@@ -419,7 +419,11 @@
 
 ### タスク5: 要件E 線を引いている途中かの判定（`edit/EndpointSnapper`。`PathJoiner`はテストのみ）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/edit/EndpointSnapper.js`：importの`isJoinableLine`を`isDrawnLineShape`へ置き換え、`isDrawingLine`の判定を`isDrawnLineShape(drawn)`へ。`isDrawingLine`のJSDocを要件Eの文言へ、先頭の責務定義の「直線のツールで続けて引く線」を「直線・曲線のツールで…」へ。他のメソッド・コンストラクタ・フィールドのコードは不変。`isJoinableLine`はほかに使っておらずimportから除去済み。
+    *   `test/edit/EndpointSnapper.test.js`：`SEGMENT_KIND_SMOOTH`のimportと補助関数（`makeSmoothDraft`・`startSmoothDraft`）、曲線のツールの作成途中の線のテスト7件（`isDrawingLine`、点を打つ、点2つで終える→line、点3つ→開いた曲線のパス、始点で閉じる、`removeDrawnLinePoint`、`findDrawnLineSnap`が端点を返さない）を追加。既存は不変。
+    *   `test/edit/PathJoiner.test.js`：`SEGMENT_KIND_SMOOTH`のimportと、曲線のパスを含む選択は`canJoin`が偽・`join`が何もしない・記録しないテスト1件を追加。`js/edit/PathJoiner.js`は不変。
+    *   `node --test`は tests 1687 / pass 1687 / fail 0。
+    *   開発資料への影響：`EndpointSnapper.isDrawingLine`の判定（`isDrawnLineShape`）の記載に影響（資料本体は未修正。タスク12で反映）。
 
 ### タスク6: 要件F（前半） 書き出し形式の版3と`bezierPath`の外枠（`io/SpriteSerializer`）
 *   **作業内容** :

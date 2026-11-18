@@ -9,7 +9,7 @@ import { VectorModel } from '../../js/core/VectorModel.js';
 import { HistoryManager } from '../../js/core/HistoryManager.js';
 import { SnapshotAdapter } from '../../js/edit/SnapshotAdapter.js';
 import { Line } from '../../js/shapes/Line.js';
-import { Path } from '../../js/shapes/Path.js';
+import { Path, SEGMENT_KIND_SMOOTH } from '../../js/shapes/Path.js';
 import { Curve } from '../../js/shapes/Curve.js';
 
 /**
@@ -800,4 +800,119 @@ test('実物の組み合わせ: 新しく引いた線のスタイルは直前に
     assert.equal(shapes.length, 1);
     assert.equal(shapes[0].strokeColor, '#abcdef');
     assert.equal(shapes[0].strokeWidth, 7);
+});
+
+/**
+ * 区間がすべて曲線のパス（曲線のツールの作成途中の線の形）を作る。idは代入しない。
+ * @param {Array<{x:number,y:number}>} points 頂点（付いてくる線の先を含む）
+ * @returns {Path} 曲線の区間の開いたパス
+ */
+function makeSmoothDraft(points) {
+    return new Path(points, false, undefined, undefined, undefined, SEGMENT_KIND_SMOOTH);
+}
+
+/**
+ * 実物のモデルで曲線のツールの作成途中の線（頂点2つの曲線のパス）がある状態にする。
+ * @param {VectorModel} model モデル
+ * @param {Array<{x:number,y:number}>} points 作成途中の線の頂点
+ */
+function startSmoothDraft(model, points) {
+    model.startDraft(points[0].x, points[0].y, 'line');
+    model.replaceDraft(makeSmoothDraft(points));
+}
+
+test('isDrawingLine（曲線のツール）: 曲線の区間の開いたパスでtrue、今の曲線（Curve）・閉じた曲線のパスでfalse。記録先に触れない', () => {
+    const open = setupFakeDrawing([], makeSmoothDraft([{ x: 0, y: 0 }, { x: 10, y: 0 }]));
+    assert.equal(open.snapper.isDrawingLine(), true);
+    assert.deepEqual(open.calls, []);
+    assert.deepEqual(open.lengths, []);
+    assert.equal(setupFakeDrawing([], makeCurve(null)).snapper.isDrawingLine(), false);
+    const closed = new Path([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }], true, undefined, undefined, undefined, SEGMENT_KIND_SMOOTH);
+    assert.equal(setupFakeDrawing([], closed).snapper.isDrawingLine(), false);
+});
+
+test('clickDrawnLine（曲線のツール・点を打つ）: 全区間smoothのままreplaceDraftだけ。記録先に触れない', () => {
+    const draft = makeSmoothDraft([{ x: 0, y: 0 }, { x: 100, y: 0 }]);
+    const { snapper, calls } = setupFakeDrawing([], draft, 5);
+    assert.equal(snapper.clickDrawnLine(null, null), true);
+    assert.deepEqual(names(calls), ['replaceDraft']);
+    const data = calls[0][1].toJSON();
+    assert.equal(data.type, 'path');
+    assert.equal(data.points.length, 3);
+    assert.deepEqual(data.segments, [{ kind: 'smooth' }, { kind: 'smooth' }]);
+});
+
+test('実物の組み合わせ（曲線のツール）: 点2つで終える → line1件・履歴1件', () => {
+    const { model, history, snapper } = setupReal([]);
+    startSmoothDraft(model, [{ x: 0, y: 0 }, { x: 100, y: 0 }]);
+    assert.equal(snapper.clickDrawnLine(null, null), true);
+    assert.equal(history.canUndo(), false);
+    snapper.finishDrawnLine(null);
+    const shapes = dump(model);
+    assert.equal(shapes.length, 1);
+    assert.equal(shapes[0].type, 'line');
+    assert.equal(history.canUndo(), true);
+    assert.equal(history.undo(), true);
+    assert.deepEqual(dump(model), []);
+});
+
+test('実物の組み合わせ（曲線のツール）: 点3つで終える → 全区間smoothの開いた曲線のパス・履歴1件', () => {
+    const { model, history, snapper } = setupReal([]);
+    startSmoothDraft(model, [{ x: 0, y: 0 }, { x: 100, y: 0 }]);
+    assert.equal(snapper.clickDrawnLine(null, null), true);
+    model.updateDraft(100, 100);
+    assert.equal(snapper.clickDrawnLine(null, null), true);
+    assert.equal(history.canUndo(), false);
+    model.updateDraft(100, 100);
+    assert.equal(snapper.clickDrawnLine(null, null), false);
+    const shapes = dump(model);
+    assert.equal(shapes.length, 1);
+    assert.equal(shapes[0].type, 'path');
+    assert.equal(shapes[0].closed, false);
+    assert.deepEqual(shapes[0].points, [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }]);
+    assert.deepEqual(shapes[0].segments, [{ kind: 'smooth' }, { kind: 'smooth' }]);
+    assert.equal(history.canUndo(), true);
+    assert.equal(history.undo(), true);
+    assert.equal(history.canUndo(), false);
+});
+
+test('実物の組み合わせ（曲線のツール）: 始点へ吸い付いて閉じる → 全区間smoothの閉じた曲線のパス・履歴1件', () => {
+    const { model, history, snapper } = setupReal([]);
+    startSmoothDraft(model, [{ x: 0, y: 0 }, { x: 100, y: 0 }]);
+    for (const p of [{ x: 100, y: 0 }, { x: 100, y: 100 }]) {
+        model.updateDraft(p.x, p.y);
+        snapper.clickDrawnLine(null, null);
+    }
+    model.updateDraft(0, 2);
+    const snap = snapper.findDrawnLineSnap(null, { x: 0, y: 2 });
+    assert.deepEqual(snap, { kind: 'drawnStart', x: 0, y: 0 });
+    assert.equal(snapper.clickDrawnLine(null, snap), false);
+    const shapes = dump(model);
+    assert.equal(shapes.length, 1);
+    assert.equal(shapes[0].type, 'path');
+    assert.equal(shapes[0].closed, true);
+    assert.deepEqual(shapes[0].segments, shapes[0].points.map(() => ({ kind: 'smooth' })));
+    assert.equal(history.canUndo(), true);
+    assert.equal(history.undo(), true);
+    assert.equal(history.canUndo(), false);
+});
+
+test('removeDrawnLinePoint（曲線のツール）: 曲線のパスのまま点が減り、始点だけならやめる。記録先に触れない', () => {
+    const multi = setupFakeDrawing([], makeSmoothDraft([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 20, y: 5 }]));
+    assert.equal(multi.snapper.removeDrawnLinePoint(), true);
+    assert.deepEqual(names(multi.calls), ['replaceDraft']);
+    const data = multi.calls[0][1].toJSON();
+    assert.deepEqual(data.points, [{ x: 0, y: 0 }, { x: 20, y: 5 }]);
+    assert.deepEqual(data.segments, [{ kind: 'smooth' }]);
+
+    const one = setupFakeDrawing([], makeSmoothDraft([{ x: 0, y: 0 }, { x: 10, y: 0 }]));
+    assert.equal(one.snapper.removeDrawnLinePoint(), false);
+    assert.deepEqual(names(one.calls), ['cancelDraft']);
+});
+
+test('findDrawnLineSnap（曲線のツール）: 既存の線の端点の近くでもnull（吸い付かない）', () => {
+    const a = makeLine('a', 0, 0, 100, 0);
+    const draft = makeSmoothDraft([{ x: 200, y: 0 }, { x: 105, y: 0 }]);
+    const { snapper } = setupFakeDrawing([a], draft, 10);
+    assert.equal(snapper.findDrawnLineSnap(null, { x: 105, y: 0 }), null);
 });
