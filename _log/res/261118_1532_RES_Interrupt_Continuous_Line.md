@@ -445,7 +445,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない。変更後の`InputTracker.js`の行数を控える）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク8: 要件7 ツールの切り替え・`Backspace`/`Delete`・取り消しの配線（`main.js`・`KeyboardShortcuts`のtypedef）
+*   [x] タスク8: 要件7 ツールの切り替え・`Backspace`/`Delete`・取り消しの配線（`main.js`・`KeyboardShortcuts`のtypedef）
     *   **対象ファイル** :
         *   `./js/main.js` :（更新）
         *   `./js/core/KeyboardShortcuts.js` :（更新。typedef`ShortcutActions`のJSDocのみ。対応表・コードは変えない）
@@ -546,7 +546,11 @@
 
 ### タスク8: 要件7 ツールの切り替え・`Backspace`/`Delete`・取り消しの配線（`main.js`・`KeyboardShortcuts`のtypedef）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/main.js`：`performUndo`に`removeLastLinePoint()`の分岐を`isDragging()`の次へ追加しJSDocを更新（`performRedo`は不変）。`selectModeTool(mode)`を`selectShapeTool`の前に追加（`finishLineDrawing()` → `applyMode(mode)`）。`selectShapeTool`・`startEyedropper`の先頭に`inputTracker.finishLineDrawing();`を追加しJSDocを更新（`ensureSelectMode`は不変）。`toolActions`のSELECT/VERTEX/PANを`selectModeTool`経由へ。`KeyboardShortcuts`注入の`setMode`を`selectModeTool`経由、`deleteSelection`を`inputTracker.deleteLastLinePointOrSelection()`へ（コメント更新）。`applyMode`のJSDocの呼び出し元を`selectModeTool`経由に合わせた。
+    *   `js/core/KeyboardShortcuts.js`：typedef`ShortcutActions`の`setMode`・`setShapeType`・`cancel`・`deleteSelection`・`undo`のJSDocのみ更新（コードは不変）。
+    *   経路確認：ツールパレットの全ボタン（`selectTool`→`toolActions`→`selectModeTool`/`startEyedropper`/`selectShapeTool`）・数字キー・`V`/`A`/`P`/`H`/`I`は`finishLineDrawing()`を先に通る。`ensureSelectMode`・`prepareSwitch`・`prepareInsert`・`performRedo`・`onImport`は通らない。`selectTool`はドラッグ中を見ないため、パン中のボタン押下でも`finishLineDrawing()`の後に`setMode`がパンを中断する。
+    *   `node --test`：tests 1631 / suites 250 / pass 1631 / fail 0（変化なし）。
+    *   開発資料への影響：`main.js`の行数は1010行（変更前から+31ほど。更新前の値は未計測）。新関数`selectModeTool`（ツール切り替えの共通経路）、`performUndo`の手順、`KeyboardShortcuts`の`deleteSelection`注入先の変更を資料へ反映する。
 
 ### タスク9: 仕上げの確認（JSDoc・不要なコード・全テスト・スコープ）
 *   **作業内容** :

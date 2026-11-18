@@ -98,9 +98,11 @@ document.addEventListener('DOMContentLoaded', () => {
      * 取り消しの操作関数。キーボードショートカット（Ctrl+Z）とツールバーの取り消しボタンの
      * 共通経路であり、受理条件・動作はどちらから呼ばれても同一。
      * (1) ドラッグ中（InputTracker.isDragging()が真）なら何もせずfalse（不受理）。
-     * (2) 進行中の入力操作を中断し、作成途中の図形を破棄した場合はそれで終了しtrue（履歴は変化させない。Escと同じ結果。
-     *     (1)でドラッグ中でないことを確認済みのため、ここで中断し得るのは作成途中の図形のみ）。
-     * (3) それ以外は履歴の取り消しを行いtrue。
+     * (2) 直線のツールで線を引いている途中なら、最後の点を消して終了しtrue（始点だけならやめる。履歴は変化させない。
+     *     判定は`inputTracker.removeLastLinePoint()`が持つ）。
+     * (3) 進行中の入力操作を中断し、作成途中の図形を破棄した場合はそれで終了しtrue（履歴は変化させない。Escと同じ結果。
+     *     (1)でドラッグ中でないことを確認済みのため、ここで中断し得るのは直線のツール以外の作成途中の図形のみ）。
+     * (4) それ以外は履歴の取り消しを行いtrue。
      * 戻り値の方針：ドラッグ中でなければ、取り消せる履歴がなくても常にtrue（ブラウザ標準のCtrl+Zを起こさないため）。
      * 本体で後に`const`宣言される`inputTracker`を参照するが、本関数が呼ばれるのは起動完了後のみのため問題ない
      * （8.の注入・6.のボタン登録より前で宣言しており、関数宣言の巻き上げには頼らない）。
@@ -109,6 +111,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function performUndo() {
         if (inputTracker.isDragging()) {
             return false;
+        }
+        if (inputTracker.removeLastLinePoint()) {
+            return true;
         }
         if (inputTracker.abortOngoingOperation()) {
             return true;
@@ -386,8 +391,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * 操作モードの切り替えを一元的に行う共通関数。ツールパレットの選択・頂点の選択・キャンバス移動のボタン
-     * （`selectTool`経由の`toolActions`）、図形のツール・数字キー（`selectShapeTool`経由）、
-     * キー`V`・`A`・`P`・`H`（`KeyboardShortcuts`の`setMode`）、貼り付け・同じ位置に貼り付け・全選択・選択の反転・スポイトの開始
+     * （`selectTool`経由の`toolActions`から`selectModeTool`経由）、図形のツール・数字キー（`selectShapeTool`経由）、
+     * キー`V`・`A`・`P`・`H`（`KeyboardShortcuts`の`setMode`から`selectModeTool`経由）、貼り付け・同じ位置に貼り付け・全選択・選択の反転・スポイトの開始
      * （いずれも`ensureSelectMode`経由）、キャンバスの切り替え（`prepareSwitch`）・インポート（`prepareInsert`）、
      * 起動時の初期化から呼び出される。
      * InputTrackerへのモード切り替え要求の後、切替後に`inputTracker.getMode()`・`getShapeType()`で
@@ -427,11 +432,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
+     * ツールの切り替えでモードを選ぶ（ツールパレットの選択・頂点の選択・キャンバス移動のボタンと、キー`V`・`A`・`P`・`H`の共通経路）。
+     * 線を引いている途中なら描いた分を残して終えてから（`inputTracker.finishLineDrawing()`。判定は`InputTracker`が持つ）
+     * `applyMode`で切り替える。貼り付け・全選択・キャンバスの切り替え等の`applyMode`の経路は通らない（今どおり捨てる）。
+     * @param {'select'|'vertex'|'create'|'pan'} mode - 切り替え先の操作モード（OperationModeの値）
+     */
+    function selectModeTool(mode) {
+        inputTracker.finishLineDrawing();
+        applyMode(mode);
+    }
+
+    /**
      * 図形のツールを選ぶ。ツールパレットの図形のボタンと数字キーの共通経路。
+     * 先に、線を引いている途中なら描いた分を残して終える（`inputTracker.finishLineDrawing()`。同じ直線のツールを選び直したときも含む）。
      * 図形作成モード以外では先に図形作成モードへ切り替えてから、図形種別を切り替える。
      * @param {string} type - 選ぶ図形種別（`SHAPE_TYPES`のいずれか）
      */
     function selectShapeTool(type) {
+        inputTracker.finishLineDrawing();
         if (inputTracker.getMode() !== OperationMode.CREATE) {
             applyMode(OperationMode.CREATE);
         }
@@ -440,23 +458,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * スポイトの待ち受けを始める（ツールパレットのスポイトのボタンとキー`I`の同一経路。どちらもこの関数を呼ぶ）。
+     * 先に、線を引いている途中なら描いた分を残して終える（`inputTracker.finishLineDrawing()`）。
      * 選択モード以外なら先に選択モードへ切り替え（`ensureSelectMode`。待ち受けは切り替えの後に始まる）、
      * 待ち受けを始める。すでに待ち受け中なら何も変わらない。判定は持たない。
      */
     function startEyedropper() {
+        inputTracker.finishLineDrawing();
         ensureSelectMode();
         styleEyedropper.start();
     }
 
     /**
      * ツールの識別子から操作への対応表。識別子は`TOOL_IDS`と同じ（同じ並び）。
-     * 選択・頂点の選択・キャンバス移動は`applyMode`、スポイトは`startEyedropper`、図形は`selectShapeTool`の経路を通る。
+     * 選択・頂点の選択・キャンバス移動は`selectModeTool`、スポイトは`startEyedropper`、図形は`selectShapeTool`の経路を通る。
      * @type {Object<string, function(): void>}
      */
     const toolActions = {
-        [OperationMode.SELECT]: () => applyMode(OperationMode.SELECT),
-        [OperationMode.VERTEX]: () => applyMode(OperationMode.VERTEX),
-        [OperationMode.PAN]: () => applyMode(OperationMode.PAN),
+        [OperationMode.SELECT]: () => selectModeTool(OperationMode.SELECT),
+        [OperationMode.VERTEX]: () => selectModeTool(OperationMode.VERTEX),
+        [OperationMode.PAN]: () => selectModeTool(OperationMode.PAN),
         [EYEDROPPER_TOOL_ID]: () => startEyedropper(),
         ...Object.fromEntries(SHAPE_TYPES.map((type) => [type, () => selectShapeTool(type)])),
     };
@@ -784,9 +804,10 @@ document.addEventListener('DOMContentLoaded', () => {
     new KeyboardShortcuts({
         // ドラッグ中（パン・左ドラッグ。閾値以前を含む）か。受理判定専用
         isDragging: () => inputTracker.isDragging(),
-        // 操作モード切替（ツールパレットの選択・頂点の選択・キャンバス移動のボタン・キー`A`と同一経路）
+        // 操作モード切替（ツールパレットの選択・頂点の選択・キャンバス移動のボタンと同一経路のselectModeTool。
+        // 線を引いている途中なら描いた分を残して終えてから切り替える）
         setMode: (mode) => {
-            applyMode(mode);
+            selectModeTool(mode);
             return true;
         },
         // 図形種別切替。図形作成モード以外では先に図形作成モードへ切り替える（ツールパレットの図形のボタンと同一経路）
@@ -820,8 +841,9 @@ document.addEventListener('DOMContentLoaded', () => {
             performInvertSelection();
             return true;
         },
-        // 選択集合の削除（削除ボタンと同一経路。受理条件はdeleteSelection()のみが判定する）
-        deleteSelection: () => inputTracker.deleteSelection(),
+        // 線を引いている途中は最後の点を消し、それ以外は選択集合の削除（削除ボタンと同一経路の`deleteSelection()`）。
+        // 判定はInputTrackerが持つ
+        deleteSelection: () => inputTracker.deleteLastLinePointOrSelection(),
         // 選択中の線の結合（結合ボタンと同一経路。結合した場合のみtrue）
         join: performJoin,
         // 重なり順の変更（ボタンと同一経路。並びを変えた場合のみtrue）
