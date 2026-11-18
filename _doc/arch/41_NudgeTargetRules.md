@@ -4,6 +4,6 @@
     *   **`buildNudgeGroupKey`**：対象が`null`なら`null`、そうでなければ対象の`JSON.stringify`。同じ対象（種類・図形の並び・頂点の並び）を続けて動かしたときだけ同じ鍵になる。区切り文字を自前で決めないのは、図形のidの形・ハンドル名の文字（`-`等）を知らないまま文字の衝突を起こさないため。鍵の約束（畳む条件・往復で消える・鍵を忘れる契機）は`HistoryManager`側（`_doc/arch/08_HistoryManager.md`）。
     *   **読むもの**：渡された配列と`InputModes`の`OperationMode`だけ。importは`core/InputModes`のみ。頂点の位置・頂点インデックスは求めない（図形を知らないため。`edit/NudgeEditor`が求める）。ハンドル名は文字列として運ぶだけ。
     *   **知らないこと**：DOM・`VectorModel`・図形クラス・図形種別・図形固有のプロパティ名・履歴・表示倍率・スナップの設定・移動量。
-    *   **使う側**：`edit/NudgeEditor`だけ（`nudge`の手順①②）。`main.js`・`KeyboardShortcuts`は使わない。
+    *   **使う側**：`edit/NudgeEditor`（`nudge`の手順①②）と`edit/PositionInputEditor`（位置の数値入力の対象の決定。Phase 08-04）。`main.js`・`KeyboardShortcuts`は使わない。
     *   **置き場所の理由**：対象の決定は操作モードの知識を要し、`edit/`は操作モードを知らない約束のため`edit/`には置けない。`main.js`は判定を持たず、`InputTracker`は矢印キーの経路に関わらない。そこで状態を持たない規則として`core/`に置いた（`edit/NudgeEditor`は`getMode`の戻り値を解釈せずこの規則へ渡すだけ）。`edit/`から`core/`をimportする最初の例だが、`main.js → edit → io → core → shapes`の下向きに沿い、循環しない。
     *   **テスト**：`test/core/NudgeTargetRules.test.js`（16件。`resolveNudgeTarget`＝各モードと選択の組合せ・対象なし・並びを保つ・引数を書き換えず新しい値を返す、`buildNudgeGroupKey`＝`null`・同じ内容で同じ鍵・並びや種類やハンドル名の違いで別の鍵・区切り文字を含むid／ハンドル名でも衝突しない）。

@@ -203,7 +203,7 @@ Phase 8 のクローズに伴う開発資料の整合確認（Survey。`./_log/r
         *   06:40 は書く前に `wc -l js/core/InputTracker.js` で1579行を確かめ、書いた後に全角括弧の開閉の数を確かめる。
         *   行末（06はLF、08・13はCRLF）と `git diff --stat` を確かめ、詳細作業内容に記録する。
 
-*   [ ] タスク6: 要件8 `_doc/arch/14_edit.md`・`38_VertexHandleRules.md`・`41_NudgeTargetRules.md`（No.14・17・25・26。4件）
+*   [x] タスク6: 要件8 `_doc/arch/14_edit.md`・`38_VertexHandleRules.md`・`41_NudgeTargetRules.md`（No.14・17・25・26。4件）
     *   **対象ファイル** :
         *   `./_doc/arch/14_edit.md` :（更新。3・6行の中だけ。CRLF）
         *   `./_doc/arch/38_VertexHandleRules.md` :（更新。8行の中だけ。LF）
@@ -324,7 +324,12 @@ Phase 8 のクローズに伴う開発資料の整合確認（Survey。`./_log/r
 
 ### タスク6: 要件8 `_doc/arch/14_edit.md`・`38_VertexHandleRules.md`・`41_NudgeTargetRules.md`
 *   **作業内容** :
-    *   （未実施）
+    *   実コードの事実（`InputTracker.js:12・1329`、`PositionInputEditor.js:80`、`DisplayWiring.js:137・189`、`main.js:495・846-849`、`new ShapeExtentReader` の2件）を確かめ、Survey と一致。文案どおりに4件を完全一致置換で直した。
+    *   No.25（14:6）：呼び出し元を`getSelectedBounds`（`DisplayWiring`の`#syncSelectionSizeReadout`と`PositionInputEditor`）・`getAllBounds`（`#fitViewToShapes`）に分け、生成の文を「`DisplayWiring`が行う（Phase 08-01）が、`PositionInputEditor`のために`main.js`の`// 7.10.`でも別に1つ生成する」に1か所へまとめた。括弧の中以降は不変。
+    *   No.26（14:3）：前提「選択モードであること」に`duplicate`の例外（`ensureSelectMode()`を通らず頂点の選択モードでも実行される。`paste`・`pasteInPlace`は`performPaste`が満たす）を括弧で追加。後続の文は不変。コードは未変更。
+    *   No.14（38:8）：`#commitMarquee`の頂点の選択モードの枝が`collectVertexHandlesInRect`で矩形に入る頂点を集める、を追加。No.17（41:7）：使う側に`edit/PositionInputEditor`（位置の数値入力の対象の決定。Phase 08-04）を追加し「だけ」を外した。
+    *   矛盾確認：`PROJECT_ARCHITECTURE.md` 549行（複製は頂点の選択モードでも働く）・581行（`ShapeExtentReader`の生成）と矛盾しない。
+    *   行末：14は`wc -l`＝98・CR数＝98（CRLF維持）、38は12・0、41は9・0（LF維持）。`git diff --stat`：14は2行・38は1行・41は1行（直した行のみ、計4 insertions / 4 deletions）。
 
 ### タスク7: 要件9 `_doc/arch/16_test.md`
 *   **作業内容** :
