@@ -1,6 +1,7 @@
 /**
  * 責務: 図形クラスが当たり判定・範囲選択で共通に使う幾何の計算（点と線分の距離・線分と軸平行矩形の交差・2次ベジェ曲線の点・
- * 多角形の内側の判定（nonzero））を、状態を持たない関数として提供する。
+ * 3次ベジェ曲線の点・多角形の内側の判定（nonzero））と、パスの曲線の区間（点を通るなめらかな曲線）の形の決め方（制御点）を、
+ * 状態を持たない関数として提供する。
  */
 
 /**
@@ -91,6 +92,74 @@ export function quadraticBezierPoint(p0, p1, p2, t) {
         x: oneMinusT * oneMinusT * p0.x + 2 * oneMinusT * t * p1.x + t * t * p2.x,
         y: oneMinusT * oneMinusT * p0.y + 2 * oneMinusT * t * p1.y + t * t * p2.y,
     };
+}
+
+/**
+ * 3次ベジェ曲線 B(t) = (1−t)^3 P0 + 3(1−t)^2 t P1 + 3(1−t) t^2 P2 + t^3 P3 上の点を求める。
+ * tは0〜1を想定するが、範囲外も式どおりに計算し検査しない。例外は投げない。
+ * @param {{x: number, y: number}} p0 - 始点
+ * @param {{x: number, y: number}} p1 - 制御点1
+ * @param {{x: number, y: number}} p2 - 制御点2
+ * @param {{x: number, y: number}} p3 - 終点
+ * @param {number} t - 曲線上の位置（0〜1を想定）
+ * @returns {{x: number, y: number}} 曲線上の点（呼び出しごとに新しいオブジェクト）
+ */
+export function cubicBezierPoint(p0, p1, p2, p3, t) {
+    const u = 1 - t;
+    const w0 = u * u * u;
+    const w1 = 3 * u * u * t;
+    const w2 = 3 * u * t * t;
+    const w3 = t * t * t;
+    return {
+        x: w0 * p0.x + w1 * p1.x + w2 * p2.x + w3 * p3.x,
+        y: w0 * p0.y + w1 * p1.y + w2 * p2.y + w3 * p3.y,
+    };
+}
+
+/**
+ * パスの曲線の区間（頂点を通るなめらかな曲線。一様なCatmull-Romを3次ベジェに直したもの）の、区間ごとの制御点2つを求める。
+ * 区間iは points[i] → points[(i+1) % n]。曲線の区間iの a = P[i]、b = P[(i+1) % n] について、
+ * 前の区間（閉じたパスは (i−1+m) % m、開いたパスは i−1 で i=0 なら無い）が存在し、iと別の区間で、かつ曲線の区間なら
+ * Q0 = その区間の始点の頂点、そうでなければ Q0 = 2a − b（折り返した仮の点）。
+ * 次の区間（閉じたパスは (i+1) % m、開いたパスは i+1 で m に達すれば無い）が存在し、iと別の区間で、かつ曲線の区間なら
+ * Q3 = その区間の終点の頂点、そうでなければ Q3 = 2b − a。
+ * control1 = a + (b − Q0) / 6、control2 = b − (Q3 − a) / 6。
+ * 性質：制御点は頂点の座標の1次式（頂点を拡大縮小（縦横別を含む）・回転・平行移動すると制御点も同じ変換を受ける）。
+ * 連なり（曲線の区間が途切れず続く部分）の区間が1つだけなら両側が仮の点で、制御点は a + (b−a)/3・b − (b−a)/3（直線と同じ形）。
+ * 直線の区間との境目は曲線の側を連なりの端として扱う（角が立つ）。閉じたパスで全区間が曲線なら1周がひとつの連なり。
+ * 打った点の間隔が大きく違うと膨らむ・小さな輪ができることがあるのは式の性質（許容）。
+ * 引数を書き換えず、戻り値は呼び出しごとに新しいオブジェクト。例外は投げない。
+ * @param {Array<{x: number, y: number}>} points - 頂点の並び（n個）
+ * @param {boolean[]} smoothFlags - 区間ごとの「曲線の区間か」（開いたパスn−1・閉じたパスn個）
+ * @param {boolean} closed - 閉じたパスか
+ * @returns {Array<{control1: {x: number, y: number}, control2: {x: number, y: number}}|null>}
+ *   区間ごとの制御点（要素数は smoothFlags と同じ。曲線の区間でない区間は null）
+ */
+export function computeSmoothSegmentControls(points, smoothFlags, closed) {
+    const n = points.length;
+    const m = smoothFlags.length;
+    return smoothFlags.map((isSmooth, i) => {
+        if (!isSmooth) return null;
+        const a = points[i];
+        const b = points[(i + 1) % n];
+
+        const prevIndex = closed ? (i - 1 + m) % m : i - 1;
+        const hasPrev = prevIndex >= 0 && prevIndex !== i && smoothFlags[prevIndex];
+        const q0 = hasPrev
+            ? points[prevIndex]
+            : { x: 2 * a.x - b.x, y: 2 * a.y - b.y };
+
+        const nextIndex = closed ? (i + 1) % m : i + 1;
+        const hasNext = nextIndex < m && nextIndex !== i && smoothFlags[nextIndex];
+        const q3 = hasNext
+            ? points[(nextIndex + 1) % n]
+            : { x: 2 * b.x - a.x, y: 2 * b.y - a.y };
+
+        return {
+            control1: { x: a.x + (b.x - q0.x) / 6, y: a.y + (b.y - q0.y) / 6 },
+            control2: { x: b.x - (q3.x - a.x) / 6, y: b.y - (q3.y - a.y) / 6 },
+        };
+    });
 }
 
 /**

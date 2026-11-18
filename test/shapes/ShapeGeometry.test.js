@@ -1,9 +1,9 @@
 /**
- * 責務: 共通モジュールShapeGeometryのうち多角形の内側の判定（isPointInPolygonNonzero）を、公開APIのみを通して検証する。
+ * 責務: 共通モジュールShapeGeometryのうち多角形の内側の判定（isPointInPolygonNonzero）・3次ベジェの点・曲線の区間の制御点を、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { isPointInPolygonNonzero } from '../../js/shapes/ShapeGeometry.js';
+import { isPointInPolygonNonzero, cubicBezierPoint, computeSmoothSegmentControls } from '../../js/shapes/ShapeGeometry.js';
 
 /**
  * 頂点の座標の組から点の配列を作る。
@@ -128,5 +128,125 @@ describe('isPointInPolygonNonzero', () => {
         isPointInPolygonNonzero(0, 0, input);
         assert.equal(JSON.stringify(input), snapshot);
         assert.equal(input.length, 4);
+    });
+});
+
+/**
+ * 2つの点が許容誤差内で一致することを検証する。
+ * @param {{x: number, y: number}} actual - 実際の点
+ * @param {{x: number, y: number}} expected - 期待する点
+ */
+function assertPointClose(actual, expected) {
+    assert.ok(Math.abs(actual.x - expected.x) < 1e-9, `x: ${actual.x} != ${expected.x}`);
+    assert.ok(Math.abs(actual.y - expected.y) < 1e-9, `y: ${actual.y} != ${expected.y}`);
+}
+
+describe('cubicBezierPoint', () => {
+    const p0 = { x: 0, y: 0 };
+    const p1 = { x: 0, y: 10 };
+    const p2 = { x: 10, y: 10 };
+    const p3 = { x: 10, y: 0 };
+
+    it('t=0で始点、t=1で終点になる', () => {
+        assert.deepEqual(cubicBezierPoint(p0, p1, p2, p3, 0), { x: 0, y: 0 });
+        assert.deepEqual(cubicBezierPoint(p0, p1, p2, p3, 1), { x: 10, y: 0 });
+    });
+
+    it('t=0.5で式どおりの点になる', () => {
+        assertPointClose(cubicBezierPoint(p0, p1, p2, p3, 0.5), { x: 5, y: 7.5 });
+    });
+
+    it('呼び出しごとに新しいオブジェクトを返し、引数を書き換えない', () => {
+        const a = cubicBezierPoint(p0, p1, p2, p3, 0.3);
+        const b = cubicBezierPoint(p0, p1, p2, p3, 0.3);
+        assert.notEqual(a, b);
+        assert.deepEqual(p1, { x: 0, y: 10 });
+    });
+});
+
+describe('computeSmoothSegmentControls', () => {
+    const P4 = pts([[0, 0], [60, 0], [60, 60], [120, 60]]);
+
+    it('開いた2点1区間（曲線）は直線の1/3・2/3の点になる', () => {
+        const r = computeSmoothSegmentControls(pts([[0, 0], [30, 60]]), [true], false);
+        assert.equal(r.length, 1);
+        assertPointClose(r[0].control1, { x: 10, y: 20 });
+        assertPointClose(r[0].control2, { x: 20, y: 40 });
+    });
+
+    it('開いた4点3区間すべて曲線：中央の区間は前後の実の頂点を使い、両端の区間は仮の点を使う', () => {
+        const r = computeSmoothSegmentControls(P4, [true, true, true], false);
+        // 区間1: a=P1, b=P2, Q0=P0, Q3=P3
+        assertPointClose(r[1].control1, { x: 60 + (60 - 0) / 6, y: 0 + (60 - 0) / 6 });
+        assertPointClose(r[1].control2, { x: 60 - (120 - 60) / 6, y: 60 - (60 - 0) / 6 });
+        // 区間0: Q0 = 2a - b = (-60, 0), Q3 = P2
+        assertPointClose(r[0].control1, { x: 0 + (60 + 60) / 6, y: 0 });
+        assertPointClose(r[0].control2, { x: 60 - (60 - 0) / 6, y: 0 - (60 - 0) / 6 });
+        // 区間2: Q0 = P1, Q3 = 2b - a = (180, 60)
+        assertPointClose(r[2].control1, { x: 60 + (120 - 60) / 6, y: 60 + (60 - 0) / 6 });
+        assertPointClose(r[2].control2, { x: 120 - (180 - 60) / 6, y: 60 - 0 });
+    });
+
+    it('直線の区間はnull、その隣の曲線の区間は仮の点を使う（連なりの区切り）', () => {
+        const r = computeSmoothSegmentControls(P4, [true, false, true], false);
+        assert.equal(r[1], null);
+        // 区間0: 1区間だけの連なり→直線と同じ形
+        assertPointClose(r[0].control1, { x: 20, y: 0 });
+        assertPointClose(r[0].control2, { x: 40, y: 0 });
+        assertPointClose(r[2].control1, { x: 60 + 20, y: 60 });
+        assertPointClose(r[2].control2, { x: 60 + 40, y: 60 });
+    });
+
+    it('閉じたパスで全区間が曲線なら番号が一周する', () => {
+        const sq = pts([[0, 0], [60, 0], [60, 60], [0, 60]]);
+        const r = computeSmoothSegmentControls(sq, [true, true, true, true], true);
+        assert.equal(r.length, 4);
+        // 区間0: Q0 = P[3], Q3 = P[2]
+        assertPointClose(r[0].control1, { x: 0 + (60 - 0) / 6, y: 0 + (0 - 60) / 6 });
+        assertPointClose(r[0].control2, { x: 60 - (60 - 0) / 6, y: 0 - (60 - 0) / 6 });
+        // 最後の区間3（P3→P0）: Q0 = P[2], Q3 = P[1]
+        assertPointClose(r[3].control1, { x: 0 + (0 - 60) / 6, y: 60 + (0 - 60) / 6 });
+        assertPointClose(r[3].control2, { x: 0 - (60 - 0) / 6, y: 0 - (0 - 60) / 6 });
+    });
+
+    it('閉じたパスで閉じる区間だけが直線なら、区間0のQ0と最後の曲線の区間のQ3が仮の点になる', () => {
+        const sq = pts([[0, 0], [60, 0], [60, 60], [0, 60]]);
+        const r = computeSmoothSegmentControls(sq, [true, true, true, false], true);
+        assert.equal(r[3], null);
+        // 区間0: Q0 = 2a - b = (-60, 0), Q3 = P[2]
+        assertPointClose(r[0].control1, { x: 0 + (60 + 60) / 6, y: 0 });
+        // 区間2（P2→P3）: Q0 = P[1], Q3 = 2b - a = (-60, 60)
+        assertPointClose(r[2].control2, { x: 0 - (-60 - 60) / 6, y: 60 - (60 - 60) / 6 });
+    });
+
+    it('頂点の拡大縮小（縦横別）・平行移動と制御点の変換が可換（1次式）', () => {
+        const flags = [true, true, false, true];
+        const src = pts([[0, 0], [60, 10], [70, 70], [10, 90]]);
+        const sx = 2;
+        const sy = 0.5;
+        const dx = 13;
+        const dy = -7;
+        const tf = (p) => ({ x: p.x * sx + dx, y: p.y * sy + dy });
+        const base = computeSmoothSegmentControls(src, flags, true);
+        const moved = computeSmoothSegmentControls(src.map(tf), flags, true);
+        base.forEach((c, i) => {
+            if (c === null) {
+                assert.equal(moved[i], null);
+                return;
+            }
+            assertPointClose(moved[i].control1, tf(c.control1));
+            assertPointClose(moved[i].control2, tf(c.control2));
+        });
+    });
+
+    it('引数を書き換えず、毎回新しいオブジェクトを返す', () => {
+        const flags = [true, true, true];
+        const snapshot = JSON.stringify([P4, flags]);
+        const a = computeSmoothSegmentControls(P4, flags, false);
+        const b = computeSmoothSegmentControls(P4, flags, false);
+        assert.equal(JSON.stringify([P4, flags]), snapshot);
+        assert.notEqual(a, b);
+        assert.notEqual(a[0], b[0]);
+        assert.notEqual(a[0].control1, b[0].control1);
     });
 });

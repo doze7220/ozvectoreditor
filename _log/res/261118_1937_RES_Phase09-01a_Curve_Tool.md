@@ -233,7 +233,7 @@
 *   到達不能な枝（各図形の`drawHandles`・`CanvasManager.render`のハンドルを描く段など）・`Curve`のコードは**残す**。
 *   性能の改善を目的とした変更をしない。書き出しの際の座標の丸めをしない。作業データ形式の版を上げない。
 
-*   [ ] タスク1: 要件A 形の決め方の式（`shapes/ShapeGeometry`）
+*   [x] タスク1: 要件A 形の決め方の式（`shapes/ShapeGeometry`）
     *   **対象ファイル** :
         *   `./js/shapes/ShapeGeometry.js` :（更新。`cubicBezierPoint`・`computeSmoothSegmentControls`の追加と、先頭の責務定義の更新のみ）
         *   `./test/shapes/ShapeGeometry.test.js` :（更新。`describe`の追加と、必要なimportの追加のみ）
@@ -395,7 +395,8 @@
 
 ### タスク1: 要件A 形の決め方の式（`shapes/ShapeGeometry`）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/shapes/ShapeGeometry.js`に`cubicBezierPoint`・`computeSmoothSegmentControls`を追加（既存4関数は不変）。先頭の責務定義に3次ベジェの点・曲線の区間の制御点を追記。JSDocに式・性質を記載。
+    *   `test/shapes/ShapeGeometry.test.js`に`cubicBezierPoint`・`computeSmoothSegmentControls`のdescribeを追加（観点(1)〜(7)）。同ファイル単体は20件合格。全体の`node --test`は未実行（オーケストレータ担当）。
 
 ### タスク2: 要件B パスの曲線の区間（`shapes/Path`・`shapes/ShapeDataValidation`）
 *   **作業内容** :
