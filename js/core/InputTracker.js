@@ -1,6 +1,6 @@
 /**
- * 責務：ユーザー入力（図形作成・選択・範囲選択・本体ドラッグ・ハンドルドラッグ・頂点の複数選択とまとめ移動・パン・ズーム。キーはスペースパンのみ）の解釈と
- * Model・ビュー変換への反映（修飾キーの読み取りは、規則の関数へ渡すこと、Altで注入された複製を呼ぶかを決めること、Ctrlの間に端点への吸い付きの照会を省くことにだけ使う。待ち受け中のクリックは図形のidを外へ渡すだけ）、状態依存の操作（一括削除・取消・全選択・進行中操作の中断）の公開、編集操作の開始・確定の通知（注入された記録先へ）、
+ * 責務：ユーザー入力（図形作成（直線のツールでは点を打って続けて引く）・選択・範囲選択・本体ドラッグ・ハンドルドラッグ・頂点の複数選択とまとめ移動・パン・ズーム。キーはスペースパンのみ）の解釈と
+ * Model・ビュー変換への反映（修飾キーの読み取りは、規則の関数へ渡すこと、Altで注入された複製を呼ぶかを決めること、Ctrlの間に端点への吸い付きの照会を省くこと、Shiftで線を引いている途中の向きを限定するかを決めることにだけ使う。待ち受け中のクリックは図形のidを外へ渡すだけ）、状態依存の操作（一括削除・取消・全選択・進行中操作の中断・線を引いている途中の最後の点の削除と終える）の公開、編集操作の開始・確定の通知（注入された記録先へ）、
  * および入力状態に応じたカーソル形状のキャンバスへの適用（形の判定は規則の関数へ渡すだけで本クラスは持たない）を担う。
  */
 
@@ -14,7 +14,7 @@ import { resolvePressAction, resolveVertexPressAction } from './PressActionRules
 import { resolveCursorShape } from './CursorShapeRules.js';
 import { resolveClickSelection, resolveMarqueeSelection, resolveVertexMarqueeSelection, resolveVertexClickSelection } from './SelectionRules.js';
 import { constrainMoveDirection } from './MoveDirectionRules.js';
-import { resolveUnitSnapStep, roundPointToUnit, roundDeltaToUnit, roundConstrainedDeltaToUnit, roundPointFromOriginToUnit } from './UnitSnapRules.js';
+import { resolveUnitSnapStep, roundPointToUnit, roundDeltaToUnit, roundConstrainedDeltaToUnit, roundPointFromOriginToUnit, roundConstrainedPointFromOriginToUnit } from './UnitSnapRules.js';
 
 /**
  * 当たり分類（#classifyPoint）の結果。ホバー・押下・クリック・カーソル形状の判定で共通に用いる。
@@ -72,11 +72,21 @@ const NO_EDIT_RECORDER = Object.freeze({
  *     描き終えを反映する（両方nullなら何もせずfalse。それ以外は作成途中の図形を破棄して反映しtrue）
  * @property {(dragged: {shapeId: string, end: string}, snap: Object) => boolean} joinDraggedEndpoint
  *     ドラッグした端点の結合・閉じるを反映する（開いている編集操作の中で行い、記録は呼び出し側）
+ * @property {() => boolean} isDrawingLine 線を引いている途中か（作成途中の図形が直線のツールの線か）。既定は常にfalse
+ *     （補助が注入されないときは今の2クリックの直線のまま動き、以下の項目は呼ばれない）
+ * @property {(startSnap: Object|null, point: {x: number, y: number}) => ({x: number, y: number}|null)} findDrawnLineSnap
+ *     線を引いている途中の吸い付きを照会する（描き始めの端点を除き、条件を満たせば作成途中の線の始点も対象）。既定はnull。
+ *     結果の種類の項目（kind）は解釈せず、そのまま補助へ返す
+ * @property {() => ({x: number, y: number}|null)} getDrawnLineLastPoint 最後に打った点（Shiftで向きを限定する基準点）。なければnull。既定はnull
+ * @property {(startSnap: Object|null, endSnap: Object|null) => boolean} clickDrawnLine
+ *     線を引いている途中のクリックを反映する。点を打って引き続けるならtrue、終えた（閉じる・開いたまま・つながる）ならfalse。既定はfalse
+ * @property {(startSnap: Object|null) => void} finishDrawnLine 線を開いたまま終える（Esc・ツールの切り替え）。既定は何もしない
+ * @property {() => boolean} removeDrawnLinePoint 最後の点を消す。引き続けるならtrue、始点だけだったのでやめたならfalse。既定はfalse
  */
 
 /**
  * 吸い付きの補助が注入されなかった場合の既定値（吸い付かない）。InputTrackerのコンストラクタ第5引数の省略時に用いる。
- * 照会は常にnull、commitDrawnLine・joinDraggedEndpointは常にfalse。
+ * 照会は常にnull、commitDrawnLine・joinDraggedEndpointは常にfalse、線を引いている途中かは常にfalse（今の2クリックの直線のまま）。
  * @type {EndpointSnapAssist}
  */
 const NO_SNAP_ASSIST = Object.freeze({
@@ -93,6 +103,22 @@ const NO_SNAP_ASSIST = Object.freeze({
         return false;
     },
     joinDraggedEndpoint() {
+        return false;
+    },
+    isDrawingLine() {
+        return false;
+    },
+    findDrawnLineSnap() {
+        return null;
+    },
+    getDrawnLineLastPoint() {
+        return null;
+    },
+    clickDrawnLine() {
+        return false;
+    },
+    finishDrawnLine() {},
+    removeDrawnLinePoint() {
         return false;
     },
 });
@@ -158,7 +184,13 @@ export function hasCtrlModifier(event) {
  * 本体ドラッグ・移動用ハンドルのドラッグ（MOVING_SELECTION）では、追従のたびのイベントのshiftKeyとCtrl（hasCtrlModifier）も読み取るが、
  * 移動方向の限定はMoveDirectionRules、移動量の丸め（スナップ。Ctrlの間は丸めない）はUnitSnapRulesの関数へ渡すだけで本クラスは持たない。
  * 移動量は、押した位置からの移動量（限定・丸めの適用後）と反映済みの移動量の差分で求める。
- * Space以外のキー（ショートカット）は解釈しない。削除・取消・全選択・進行中操作の中断は状態依存の公開メソッドとして提供し、
+ * 直線のツールで線を引いている途中（DRAWINGで、注入された補助のisDrawingLine()が真）は、mousemove・click・Escの枝で補助の線を引く手順
+ * （findDrawnLineSnap・getDrawnLineLastPoint・clickDrawnLine・finishDrawnLine・removeDrawnLinePoint）を呼ぶだけで、打った点の並び・終える／閉じる／最後の点かの判定は
+ * 持たない（点の並びはVectorModelの作成途中の図形だけが持ち、作業用フィールドも足さない）。付いてくる線の先は、吸い付けば端点の座標、吸い付かずShiftなら
+ * 最後の点を基準にMoveDirectionRulesで限定した移動量をUnitSnapRulesのroundConstrainedPointFromOriginToUnitで丸めた位置、それ以外は今のroundPointToUnit。
+ * Shiftを見るのはそのmousemoveイベント（キーの購読なし）。
+ * Space以外のキー（ショートカット）は解釈しない。削除・取消・全選択・進行中操作の中断・線を引いている途中の終える／最後の点の削除は状態依存の公開メソッド
+ * （finishLineDrawing・removeLastLinePoint・deleteLastLinePointOrSelectionを含む）として提供し、
  * 削除ボタン・ショートカット（KeyboardShortcuts）・切り取り（`ClipboardController.cut()`へ`main.js`が注入）・作業データの復元・取り消し/やり直しの前処理からはmain.js経由で呼び出される。
  * 編集操作（図形の作成・一括削除・選択集合の平行移動・ハンドルによる変形）は、変更処理を注入された記録先（EditRecorder）の
  * beginEdit()／commitEdit()で挟んで開始・確定を伝える（履歴の保持・適用は行わない。記録先はコンストラクタ第4引数）。
@@ -553,8 +585,9 @@ export class InputTracker {
     /**
      * 作成途中の図形の破棄、または選択解除を行う。Escショートカットの実体。以下の順に判定する。
      * (1)ドラッグ中（パン・左ドラッグ。閾値以前を含む）なら何もしない。
-     * (2)DRAWING状態なら、cancelDraft()で作成途中の図形を破棄してIDLE状態へ戻し、#resetSnapState()で吸い付きの状態と表示を消す
-     * （変更通知はcancelDraftに従う）。
+     * (2)DRAWING状態なら、線を引いている途中（直線のツール）は注入された補助のfinishDrawnLine(#drawStartSnap)で開いたまま終えて残し
+     * （打った点が始点だけなら何も残さない）、それ以外はcancelDraft()で作成途中の図形を破棄する。どちらもIDLE状態へ戻し、
+     * #resetSnapState()で吸い付きの状態と表示を消す（変更通知は補助・cancelDraftに従う）。
      * (3)頂点の選択が1つ以上あれば、clearSelectedVertices()で頂点の選択だけを空にする（図形の選択・頂点の表示はそのまま）。
      * (4)選択モードまたは頂点の選択のモード かつ IDLE状態 かつ 選択集合が空でなければ、clearSelection()で全解除する（変更通知1回）。
      * (5)それ以外は何もしない。
@@ -566,6 +599,10 @@ export class InputTracker {
         }
 
         if (this.state === InputState.DRAWING) {
+            if (this.#snapAssist.isDrawingLine()) {
+                this.#finishDrawnLine();
+                return true;
+            }
             this.model.cancelDraft();
             this.state = InputState.IDLE;
             this.#resetSnapState();
@@ -619,13 +656,65 @@ export class InputTracker {
      * 変更しないもの：操作モード・図形種別・選択集合・ホバー状態（これらのクリアは呼び出し側・replaceAllShapesの責務）、
      * スペース押下状態（キーの物理状態であり進行中操作ではないため）。
      * 最後にカーソル形状を再評価する。
-     * `performUndo`（`main.js`）がこの戻り値で作成途中の図形の破棄を判定している。中断する対象を増やす場合は`performUndo`の判定を見直す。
+     * `performUndo`は先に`removeLastLinePoint()`を呼ぶため、線を引いている途中にここへは来ない。ここで捨てた作成途中の図形（直線のツール以外）の有無を
+     * `performUndo`（`main.js`）がこの戻り値で判定している。中断する対象を増やす場合は`performUndo`の判定を見直す。
      * @returns {boolean} 何かを中断したらtrue（何も進行していなければfalse）
      */
     abortOngoingOperation() {
         const aborted = this.#abortOngoingOperation();
         this.#updateCursor();
         return aborted;
+    }
+
+    /**
+     * ツールの切り替えの前処理。線を引いている途中（#isDrawingLine()）なら、描いた分を開いたまま残して終える（#finishDrawnLine()。
+     * 打った点が始点だけなら何も残さない）。そうでなければ何もしない。
+     * ドラッグ中かは見ない：線を引いている途中のドラッグはDRAWINGを保ったままのパンだけで、ツールパレットのボタンの経路
+     * （main.jsのselectTool → toolActions）はドラッグ中かを見ないため、パン中に押されても描いた分を残すためである。
+     * パンのドラッグそのものは中断しない（続くsetModeの#abortOngoingOperationがDragTracker.cancel()で中断し、#finishPan()が走る。
+     * 図形作成モードのまま図形のツールを選ぶ経路はsetModeを通らないため、パンは離すまで続く）。
+     * カーソルは再評価しない（続くsetMode、またはパンの終わりの#finishPan()が再評価する）。
+     * 呼び出し元はmain.jsのツールの切り替えの経路だけ。ほかの中断（setMode・abortOngoingOperation）は今までどおり捨てる。
+     * @returns {boolean} 線を引いている途中で終えたらtrue（それ以外は何もせずfalse）
+     */
+    finishLineDrawing() {
+        if (!this.#isDrawingLine()) {
+            return false;
+        }
+        this.#finishDrawnLine();
+        return true;
+    }
+
+    /**
+     * 線を引いている途中の最後の点を消す（取り消しとBackspace/Deleteの共通）。
+     * ドラッグ中、または線を引いている途中でなければ何もせずfalse（ドラッグ中を除くのは、取り消しはperformUndoが、キーはKeyboardShortcutsが
+     * ドラッグ中は受け付けないため、パン中に点を消す経路はもともと無いことによる）。
+     * 注入された補助のremoveDrawnLinePoint()が真（引き続ける）なら、#drawEndSnapをnull・表示を消す（消した点に合わせた照会結果が古くなるため。
+     * 次のmousemoveで照会し直す）。偽（始点だけだったのでやめた）ならIDLE状態へ戻し#resetSnapState()で消す。記録先には触れない。
+     * 呼び出し元はmain.jsのperformUndoとdeleteLastLinePointOrSelection。
+     * @returns {boolean} 最後の点を消した（または引くのをやめた）ならtrue
+     */
+    removeLastLinePoint() {
+        if (this.#drag.isActive() || !this.#isDrawingLine()) {
+            return false;
+        }
+        if (this.#snapAssist.removeDrawnLinePoint()) {
+            this.#drawEndSnap = null;
+            this.#showSnap(null);
+        } else {
+            this.state = InputState.IDLE;
+            this.#resetSnapState();
+        }
+        return true;
+    }
+
+    /**
+     * Backspace/Deleteキー（KeyboardShortcutsのdeleteSelection）の実体。線を引いている途中なら最後の点を消し（removeLastLinePoint）、
+     * それ以外は選択集合の一括削除（deleteSelection）へ進む。deleteSelection()の中身は変えない（削除ボタン・切り取りと共有する唯一の削除経路のため）。
+     * @returns {boolean} 受理したらtrue（呼び出し側はtrueのときのみpreventDefault()する）
+     */
+    deleteLastLinePointOrSelection() {
+        return this.removeLastLinePoint() || this.deleteSelection();
     }
 
     /**
@@ -671,6 +760,43 @@ export class InputTracker {
     }
 
     /**
+     * 線を引いている途中か。DRAWING状態で、かつ注入された補助のisDrawingLine()が真（作成途中の図形が直線のツールの線）。
+     * @returns {boolean} 線を引いている途中ならtrue
+     */
+    #isDrawingLine() {
+        return this.state === InputState.DRAWING && this.#snapAssist.isDrawingLine();
+    }
+
+    /**
+     * 線を開いたまま終える（EscとfinishLineDrawingが共有）。補助のfinishDrawnLine(#drawStartSnap)を呼び、IDLE状態へ戻して
+     * #resetSnapState()で吸い付きの状態と表示を消す。
+     */
+    #finishDrawnLine() {
+        this.#snapAssist.finishDrawnLine(this.#drawStartSnap);
+        this.state = InputState.IDLE;
+        this.#resetSnapState();
+    }
+
+    /**
+     * 線を引いている途中の、吸い付かなかったときの付いてくる線の先を求める。刻みはresolveUnitSnapStep(getUnitSnapStep(), suppressed)。
+     * Shiftが押されていて最後の点（補助のgetDrawnLineLastPoint()）があれば、最後の点を基準にMoveDirectionRulesのconstrainMoveDirectionで
+     * 限定した移動量をroundConstrainedPointFromOriginToUnitで丸めた位置（Ctrlの間も限定は働き、丸めだけが止まる）。
+     * それ以外は今までどおりroundPointToUnit。Shiftを見るのはこのmousemoveイベント（キーの購読は足さない）。
+     * @param {{x: number, y: number}} point 丸めていないカーソル位置（ワールド座標）
+     * @param {MouseEvent} event mousemoveイベント（shiftKeyを読む）
+     * @param {boolean} suppressed Ctrlが押されているか（真なら丸めない）
+     * @returns {{x: number, y: number}} 付いてくる線の先（ワールド座標）
+     */
+    #resolveDrawnLineEnd(point, event, suppressed) {
+        const step = resolveUnitSnapStep(this.#inputAssist.getUnitSnapStep(), suppressed);
+        const origin = event.shiftKey ? this.#snapAssist.getDrawnLineLastPoint() : null;
+        if (origin) {
+            return roundConstrainedPointFromOriginToUnit(origin, constrainMoveDirection(point.x - origin.x, point.y - origin.y), step);
+        }
+        return roundPointToUnit(point, step);
+    }
+
+    /**
      * 吸い付きの作業用フィールド（#drawStartSnap・#drawEndSnap・#dragEndpoint・#dragSnap）をnullに戻し、
      * 表示もmodel.clearSnapPoint()で消す。
      */
@@ -694,6 +820,9 @@ export class InputTracker {
      * （roundPointToUnit。スナップOFFでは丸めずカーソル位置）に追従させる。
      * Ctrl（hasCtrlModifier）を見るのはこのmousemoveイベント。Ctrlの間は吸い付きを照会せず（照会結果がnullのときと同じ経路で
      * 保持をnull・表示を消す）、スナップでも丸めない。
+     * 線を引いている途中（直線のツール。補助のisDrawingLine()が真）は、先頭の枝で補助のfindDrawnLineSnap(#drawStartSnap, 丸めていないカーソル位置)を照会して
+     * #drawEndSnapに保持・表示し、付いてくる線の先を、吸い付けばその座標、吸い付かなければ#resolveDrawnLineEnd（Shiftなら最後の点を基準に
+     * 向きを限定して丸める。それ以外は今のroundPointToUnit）に追従させる。吸い付いたときは限定もスナップもしない。Shiftを見るのはこのmousemoveイベント。
      * IDLE状態かつ図形作成モード中は、描く図形種別で吸い付きを照会して表示だけを更新する（直線以外では常に表示されない。
      * Ctrlの間は照会せず表示を消す）。
      * Modelへ渡す座標・当たり判定に用いる座標はすべてワールド座標（getWorldCoordinate由来）。
@@ -711,6 +840,14 @@ export class InputTracker {
         if (this.state === InputState.DRAWING) {
             const point = this.getWorldCoordinate(event);
             const suppressed = hasCtrlModifier(event);
+            if (this.#snapAssist.isDrawingLine()) {
+                const lineSnap = suppressed ? null : this.#snapAssist.findDrawnLineSnap(this.#drawStartSnap, point);
+                this.#drawEndSnap = lineSnap;
+                this.#showSnap(lineSnap);
+                const lineEnd = lineSnap ? lineSnap : this.#resolveDrawnLineEnd(point, event, suppressed);
+                this.model.updateDraft(lineEnd.x, lineEnd.y);
+                return;
+            }
             const snap = suppressed ? null : this.#snapAssist.findDrawSnap(this.currentShapeType, point);
             this.#drawEndSnap = snap;
             this.#showSnap(snap);
@@ -841,7 +978,10 @@ export class InputTracker {
 
     /**
      * clickイベントのハンドラ。
-     * DRAWING状態では、まず注入された吸い付きの補助のcommitDrawnLine(#drawStartSnap, #drawEndSnap)を呼ぶ
+     * DRAWING状態で線を引いている途中（直線のツール。補助のisDrawingLine()が真）は、補助のclickDrawnLine(#drawStartSnap, #drawEndSnap)へ委ねる
+     * （閉じる・開いたまま終える・つながる・点を打つの判定と反映・記録は補助側）。戻り値が偽（終えた）ならIDLE状態へ戻して#resetSnapState()、
+     * 真（点を打って引き続ける）なら#drawEndSnapをnull・表示を消す（次のmousemoveで照会し直す）。次の段落以降は直線のツール以外のDRAWING状態の説明。
+     * DRAWING状態（直線のツール以外）では、まず注入された吸い付きの補助のcommitDrawnLine(#drawStartSnap, #drawEndSnap)を呼ぶ
      * （描き終えの端点は、クリック位置で取り直さず直前のmousemoveで照会した#drawEndSnapを使う）。
      * trueなら補助が反映済み（記録も補助側）。falseのときだけ従来どおり、作成中の図形を確定登録する。
      * 確定登録（commitDraft）の直前に記録先のbeginEdit()、直後にcommitEdit()を呼び、図形の作成を1件の編集操作として伝える
@@ -887,6 +1027,16 @@ export class InputTracker {
         }
 
         if (this.state === InputState.DRAWING) {
+            if (this.#snapAssist.isDrawingLine()) {
+                if (this.#snapAssist.clickDrawnLine(this.#drawStartSnap, this.#drawEndSnap)) {
+                    this.#drawEndSnap = null;
+                    this.#showSnap(null);
+                } else {
+                    this.state = InputState.IDLE;
+                    this.#resetSnapState();
+                }
+                return;
+            }
             if (!this.#snapAssist.commitDrawnLine(this.#drawStartSnap, this.#drawEndSnap)) {
                 this.#editRecorder.beginEdit();
                 this.model.commitDraft();

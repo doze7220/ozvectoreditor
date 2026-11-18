@@ -431,7 +431,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク7: 要件6 入力の配線（`core/InputTracker`）
+*   [x] タスク7: 要件6 入力の配線（`core/InputTracker`）
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` :（更新）
     *   **作業内容** :
@@ -539,7 +539,10 @@
 
 ### タスク7: 要件6 入力の配線（`core/InputTracker`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/InputTracker.js`：importへ`roundConstrainedPointFromOriginToUnit`を追加。typedef`EndpointSnapAssist`と`NO_SNAP_ASSIST`へ6項目（`isDrawingLine`・`findDrawnLineSnap`・`getDrawnLineLastPoint`・`clickDrawnLine`・`finishDrawnLine`・`removeDrawnLinePoint`）を追加。非公開`#isDrawingLine`・`#finishDrawnLine`・`#resolveDrawnLineEnd`、公開`finishLineDrawing`・`removeLastLinePoint`・`deleteLastLinePointOrSelection`を追加（JSDoc付き）。`handleMouseMove`・`handleClick`・`cancelDraftOrClearSelection`の`DRAWING`の枝へ線を引いている途中の分岐を追加（直線以外の枝は不変）。
+    *   ファイル先頭の責務定義（3行のまま）・クラスのJSDoc・`handleMouseMove`・`handleClick`・`cancelDraftOrClearSelection`・`abortOngoingOperation`のJSDocを更新。作業用フィールド・`#resetSnapState`・`setMode`・`setShapeType`・`#abortOngoingOperation`・`deleteSelection`等は不変。
+    *   `node --test`：tests 1631 / suites 250 / pass 1631 / fail 0（タスク6後と同じ。`InputTracker`のテストは置かない）。
+    *   開発資料への影響：`InputTracker.js`の行数は1579行→1729行。ほかは2章の更新予定の記載のとおり。
 
 ### タスク8: 要件7 ツールの切り替え・`Backspace`/`Delete`・取り消しの配線（`main.js`・`KeyboardShortcuts`のtypedef）
 *   **作業内容** :
