@@ -302,7 +302,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク6: 要件F（前半） 書き出し形式の版3と`bezierPath`の外枠（`io/SpriteSerializer`）
+*   [x] タスク6: 要件F（前半） 書き出し形式の版3と`bezierPath`の外枠（`io/SpriteSerializer`）
     *   **対象ファイル** :
         *   `./js/io/SpriteSerializer.js` :（更新）
         *   `./test/io/SpriteSerializer.test.js` :（更新。`describe`の追加、要件Iの3.の期待値1件の書き換え、必要なimportの追加のみ）
@@ -427,7 +427,9 @@
 
 ### タスク6: 要件F（前半） 書き出し形式の版3と`bezierPath`の外枠（`io/SpriteSerializer`）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/io/SpriteSerializer.js`：`SPRITE_FORMAT_VERSION`を3へ（版を上げる理由をJSDocへ）。非公開`cubicAxisRange`・`bezierPathRange`と`SHAPE_RANGE_BY_KIND`の`bezierPath`項目を追加（`cubicAxisRange`は`ShapeGeometry.cubicBezierPoint`と別の定義であることをJSDocに明記）。typedef`DrawElement`・`SpriteData`のJSDocへ`bezierPath`（キー列・区間の形）と版3を記載。`serialize`・`computeShapesBounds`・`stringify`・`checkFormat`の中身は不変。
+    *   `test/io/SpriteSerializer.test.js`：`formatVersion`の期待値2→3の書き換え1件、`SEGMENT_KIND_SMOOTH`・`cubicBezierPoint`のimportと補助関数2つ、`describe('SpriteSerializer: 版3・bezierPath')`（7件）を追加。`node --test`は tests 1694 / pass 1694 / fail 0。
+    *   開発資料への影響：`SpriteSerializer`の版3・`bezierPath`の範囲・`cubicAxisRange`の記載に影響（資料本体は未修正。タスク12で反映）。
 
 ### タスク7: 要件F（後半） 書き出したJSの描画処理（`io/CodeExporter`）と読み込みの確認
 *   **作業内容** :

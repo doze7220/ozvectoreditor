@@ -12,9 +12,10 @@ const SPRITE_FORMAT = 'oz-vector-editor-sprite';
 
 /**
  * スプライトデータ形式（書き出し形式）の現行版番号（唯一の定義箇所）。作業データの版（`source.version`）とは別。
+ * 版3: 曲線のパスの描画要素`bezierPath`を足した。古い読み手は未知の`kind`として描かず正しく描けないため版を上げた（`checkFormat`は版1〜3を受理する）。
  * @type {number}
  */
-const SPRITE_FORMAT_VERSION = 2;
+const SPRITE_FORMAT_VERSION = 3;
 
 /**
  * 線の太さの既定値（px）。`strokeWidth`が正の有限の数値でない要素はこの値として扱う（唯一の定義箇所。`CodeExporter`が埋め込みに使う）。
@@ -33,10 +34,11 @@ export const DEFAULT_STROKE_WIDTH = 2;
 
 /**
  * 描画要素（図形1つ分）。共通のキーは`kind`・`id`・`strokeColor`・`strokeWidth`・`fillColor`（`fillColor`は各`kind`のキー列の最後）。
- * `kind`ごとの追加のキー: `polyline`＝`points`・`closed`／`quadratic`＝`points`／`ellipse`＝`x`・`y`・`radiusX`・`radiusY`・`startAngle`・`endAngle`・`closed`。
- * キー列: `polyline`＝`kind, id, points, closed, strokeColor, strokeWidth, fillColor`／`quadratic`＝`kind, id, points, strokeColor, strokeWidth, fillColor`（`fillColor`は常に`null`）／`ellipse`＝`kind, id, x, y, radiusX, radiusY, startAngle, endAngle, closed, strokeColor, strokeWidth, fillColor`。
+ * `kind`ごとの追加のキー: `polyline`＝`points`・`closed`／`bezierPath`＝`points`・`closed`・`segments`／`quadratic`＝`points`／`ellipse`＝`x`・`y`・`radiusX`・`radiusY`・`startAngle`・`endAngle`・`closed`。
+ * `bezierPath`の`segments[i]`は`points[i]`→`points[(i + 1) % points.length]`の区間で、直線は`{kind: 'line'}`、3次ベジェは`{kind: 'cubic', control1: {x, y}, control2: {x, y}}`。
+ * キー列: `polyline`＝`kind, id, points, closed, strokeColor, strokeWidth, fillColor`／`bezierPath`＝`kind, id, points, closed, segments, strokeColor, strokeWidth, fillColor`／`quadratic`＝`kind, id, points, strokeColor, strokeWidth, fillColor`（`fillColor`は常に`null`）／`ellipse`＝`kind, id, x, y, radiusX, radiusY, startAngle, endAngle, closed, strokeColor, strokeWidth, fillColor`。
  * @typedef {Object} DrawElement
- * @property {string} kind 描き方の種類（'polyline'|'quadratic'|'ellipse'）
+ * @property {string} kind 描き方の種類（'polyline'|'bezierPath'|'quadratic'|'ellipse'）
  * @property {*} id 図形のID
  * @property {string|null} strokeColor 線の色（nullは線なし）
  * @property {number} strokeWidth 線の太さ
@@ -44,10 +46,10 @@ export const DEFAULT_STROKE_WIDTH = 2;
  */
 
 /**
- * スプライトデータ（書き出し形式・版2）の最上位の形。
+ * スプライトデータ（書き出し形式・版3）の最上位の形。
  * @typedef {Object} SpriteData
  * @property {string} format 書き出し形式の識別子（'oz-vector-editor-sprite'）
- * @property {number} formatVersion 書き出し形式の版（現行は2。1以上の整数）
+ * @property {number} formatVersion 書き出し形式の版（現行は3。1以上の整数）
  * @property {SpriteBounds|null} bounds 外枠（図形0個ならnull）
  * @property {Array<DrawElement>} elements 描画データ（描画順）
  * @property {Object} source 作業データ（`DocumentSerializer.serialize`の戻り値）
@@ -109,6 +111,71 @@ function quadraticRange(element) {
 }
 
 /**
+ * 3次ベジェ曲線の1軸分の最小・最大（始点・終点と、内部の極値）。制御点そのものは含めない。
+ * この3次ベジェの計算は`shapes/ShapeGeometry`の`cubicBezierPoint`とは別の定義（`io/`は`shapes/`をimportできない。`quadraticAxisRange`と同じ扱い）。
+ * @param {number} p0 - 始点の値
+ * @param {number} c1 - 制御点1の値
+ * @param {number} c2 - 制御点2の値
+ * @param {number} p3 - 終点の値
+ * @returns {{min: number, max: number}} 最小・最大
+ */
+function cubicAxisRange(p0, c1, c2, p3) {
+    let min = Math.min(p0, p3);
+    let max = Math.max(p0, p3);
+    const a = -p0 + 3 * c1 - 3 * c2 + p3;
+    const b = 2 * (p0 - 2 * c1 + c2);
+    const c = c1 - p0;
+    /** @type {Array<number>} */
+    const roots = [];
+    if (a === 0) {
+        if (b !== 0) {
+            roots.push(-c / b);
+        }
+    } else {
+        const discriminant = b * b - 4 * a * c;
+        if (discriminant >= 0) {
+            const root = Math.sqrt(discriminant);
+            roots.push((-b + root) / (2 * a), (-b - root) / (2 * a));
+        }
+    }
+    for (const t of roots) {
+        if (t > 0 && t < 1) {
+            const u = 1 - t;
+            const value = u * u * u * p0 + 3 * u * u * t * c1 + 3 * u * t * t * c2 + t * t * t * p3;
+            min = Math.min(min, value);
+            max = Math.max(max, value);
+        }
+    }
+    return { min, max };
+}
+
+/**
+ * `bezierPath`の形の範囲（全頂点の最小・最大と、`kind`が`'cubic'`の区間ごとの各軸の極値の和。制御点そのものは含めない）。
+ * 区間`i`の始点は`points[i]`、終点は`points[(i + 1) % points.length]`。
+ * @param {DrawElement} element - `kind`が`bezierPath`の描画要素
+ * @returns {ShapeRange} 形の範囲
+ */
+function bezierPathRange(element) {
+    const { points, segments } = element;
+    const range = polylineRange(element);
+    let { minX, minY, maxX, maxY } = range;
+    segments.forEach((segment, i) => {
+        if (segment.kind !== 'cubic') {
+            return;
+        }
+        const a = points[i];
+        const b = points[(i + 1) % points.length];
+        const xr = cubicAxisRange(a.x, segment.control1.x, segment.control2.x, b.x);
+        const yr = cubicAxisRange(a.y, segment.control1.y, segment.control2.y, b.y);
+        minX = Math.min(minX, xr.min);
+        maxX = Math.max(maxX, xr.max);
+        minY = Math.min(minY, yr.min);
+        maxY = Math.max(maxY, yr.max);
+    });
+    return { minX, minY, maxX, maxY };
+}
+
+/**
  * `ellipse`の形の範囲（弧の両端の点と、弧が通る軸上の端の点の最小・最大。弦は範囲に影響しない）。
  * @param {DrawElement} element - `kind`が`ellipse`の描画要素
  * @returns {ShapeRange} 形の範囲
@@ -150,6 +217,7 @@ function ellipseRange(element) {
  */
 const SHAPE_RANGE_BY_KIND = Object.freeze({
     polyline: polylineRange,
+    bezierPath: bezierPathRange,
     quadratic: quadraticRange,
     ellipse: ellipseRange,
 });

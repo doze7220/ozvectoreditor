@@ -9,7 +9,8 @@ import { Line } from '../../js/shapes/Line.js';
 import { Curve } from '../../js/shapes/Curve.js';
 import { Rect } from '../../js/shapes/Rect.js';
 import { Ellipse } from '../../js/shapes/Ellipse.js';
-import { Path } from '../../js/shapes/Path.js';
+import { Path, SEGMENT_KIND_SMOOTH } from '../../js/shapes/Path.js';
+import { cubicBezierPoint } from '../../js/shapes/ShapeGeometry.js';
 
 /**
  * 図形へ文字列のidを代入して返す。
@@ -52,7 +53,7 @@ describe('SpriteSerializer.serialize: 描画要素', () => {
         const data = SpriteSerializer.serialize([withId(new Line(0, 0, 10, 10), 'a')]);
         assert.deepEqual(Object.keys(data), ['format', 'formatVersion', 'bounds', 'elements', 'source']);
         assert.equal(data.format, 'oz-vector-editor-sprite');
-        assert.equal(data.formatVersion, 2);
+        assert.equal(data.formatVersion, 3);
         assert.equal('version' in data, false);
         assert.equal(data.source.version, 2);
         assert.equal(data.source.format, 'oz-vector-editor');
@@ -449,5 +450,128 @@ describe('SpriteSerializer.computeShapesBounds', () => {
         assert.equal(shapes.length, shapesBefore.length);
         shapes.forEach((shape, i) => assert.equal(shape, shapesBefore[i]));
         assert.deepEqual(shapes.map((shape) => shape.toJSON()), jsonBefore);
+    });
+});
+
+/**
+ * 曲線の区間だけのパスを作る（idつき）。
+ * @param {Array<{x: number, y: number}>} points - 頂点
+ * @param {boolean} closed - 閉じるか
+ * @param {string|null} [strokeColor='#000000'] - 線の色
+ * @param {number} [strokeWidth=2] - 線の太さ
+ * @param {string|null} [fillColor=null] - 塗りの色
+ * @returns {Path} 曲線のパス
+ */
+function makeSmoothPathShape(points, closed, strokeColor = '#000000', strokeWidth = 2, fillColor = null) {
+    return withId(new Path(points, closed, strokeColor, strokeWidth, fillColor, SEGMENT_KIND_SMOOTH), 'sp');
+}
+
+/**
+ * 描画要素の区間を細かくサンプリングして外接矩形を求める（形の範囲の検算用）。
+ * @param {object} element - `bezierPath`の描画要素
+ * @returns {{minX: number, minY: number, maxX: number, maxY: number}} 外接矩形
+ */
+function sampleBezierPathRange(element) {
+    const { points, segments } = element;
+    const xs = points.map((p) => p.x);
+    const ys = points.map((p) => p.y);
+    segments.forEach((segment, i) => {
+        if (segment.kind !== 'cubic') {
+            return;
+        }
+        const a = points[i];
+        const b = points[(i + 1) % points.length];
+        for (let k = 0; k <= 2000; k++) {
+            const p = cubicBezierPoint(a, segment.control1, segment.control2, b, k / 2000);
+            xs.push(p.x);
+            ys.push(p.y);
+        }
+    });
+    return { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) };
+}
+
+describe('SpriteSerializer: 版3・bezierPath', () => {
+    const openPoints = [{ x: 0, y: 0 }, { x: 50, y: 80 }, { x: 100, y: 0 }, { x: 150, y: 60 }];
+
+    it('曲線のパスは bezierPath の形・キー順で、区間がすべて直線のパスは polyline', () => {
+        const open = SpriteSerializer.serialize([makeSmoothPathShape(openPoints, false)]).elements[0];
+        assert.equal(open.kind, 'bezierPath');
+        assert.deepEqual(Object.keys(open), ['kind', 'id', 'points', 'closed', 'segments', 'strokeColor', 'strokeWidth', 'fillColor']);
+        assert.equal(open.segments.length, 3);
+        assert.deepEqual(Object.keys(open.segments[0]), ['kind', 'control1', 'control2']);
+        assert.equal(open.segments[0].kind, 'cubic');
+        assert.equal(open.fillColor, null);
+
+        const closed = SpriteSerializer.serialize([makeSmoothPathShape(openPoints, true, '#000000', 2, '#ff0000')]).elements[0];
+        assert.equal(closed.kind, 'bezierPath');
+        assert.equal(closed.segments.length, 4);
+        assert.equal(closed.fillColor, '#ff0000');
+
+        const line = SpriteSerializer.serialize([makeSquarePath(true, 'e')]).elements[0];
+        assert.equal(line.kind, 'polyline');
+    });
+
+    it('直線と曲線が混在するパスの区間は line と cubic', () => {
+        const path = makeSmoothPathShape(openPoints, false);
+        path.segments[1] = { kind: 'line' };
+        const element = SpriteSerializer.serialize([path]).elements[0];
+        assert.deepEqual(element.segments.map((s) => s.kind), ['cubic', 'line', 'cubic']);
+        assert.deepEqual(Object.keys(element.segments[1]), ['kind']);
+    });
+
+    it('外枠は曲線の膨らみ（極値）を含み、制御点を含まない', () => {
+        for (const closed of [false, true]) {
+            const shape = makeSmoothPathShape(openPoints, closed, null);
+            const data = SpriteSerializer.serialize([shape]);
+            const expected = sampleBezierPathRange(data.elements[0]);
+            assertBoundsClose(data.bounds, expected, 1e-3);
+            const vertexXs = openPoints.map((p) => p.x);
+            const vertexYs = openPoints.map((p) => p.y);
+            const hasBulge = data.bounds.minX < Math.min(...vertexXs) || data.bounds.maxX > Math.max(...vertexXs)
+                || data.bounds.minY < Math.min(...vertexYs) || data.bounds.maxY > Math.max(...vertexYs);
+            assert.ok(hasBulge);
+            const controls = data.elements[0].segments.flatMap((s) => [s.control1, s.control2]);
+            const controlMaxY = Math.max(...controls.map((c) => c.y));
+            assert.ok(data.bounds.maxY <= controlMaxY + 1e-9);
+        }
+    });
+
+    it('線の太さの半分だけ広げ、線なしなら広げない', () => {
+        const noStroke = SpriteSerializer.serialize([makeSmoothPathShape(openPoints, false, null)]).bounds;
+        const stroke = SpriteSerializer.serialize([makeSmoothPathShape(openPoints, false, '#000000', 10)]).bounds;
+        assertBoundsClose(stroke, {
+            minX: noStroke.minX - 5, minY: noStroke.minY - 5, maxX: noStroke.maxX + 5, maxY: noStroke.maxY + 5,
+        });
+    });
+
+    it('3次ベジェの極値: 手計算の例（p0=0,c1=0,c2=100,p3=100の対角でなく山なりの形）', () => {
+        const element = {
+            kind: 'bezierPath',
+            id: 'x',
+            points: [{ x: 0, y: 0 }, { x: 30, y: 0 }],
+            closed: false,
+            segments: [{ kind: 'cubic', control1: { x: 0, y: 40 }, control2: { x: 30, y: 40 } }],
+            strokeColor: null,
+            strokeWidth: 2,
+            fillColor: null,
+        };
+        const shape = { toDrawElement: () => element };
+        const bounds = SpriteSerializer.computeShapesBounds([shape]);
+        // y(t) = 3(1-t)^2 t*40 + 3(1-t) t^2*40 = 120 t (1-t) → t=0.5 で最大 30
+        assertBoundsClose(bounds, { minX: 0, minY: 0, maxX: 30, maxY: 30 });
+    });
+
+    it('computeShapesBounds は serialize(shapes).bounds と同じ値', () => {
+        const shapes = [makeSmoothPathShape(openPoints, true, '#000000', 6), makeSquarePath(true, 'e')];
+        assert.deepEqual(SpriteSerializer.computeShapesBounds(shapes), SpriteSerializer.serialize(shapes).bounds);
+    });
+
+    it('checkFormat は版3・2・1を supported、4を unsupportedVersion とする', () => {
+        const base = SpriteSerializer.serialize([]);
+        assert.equal(base.formatVersion, 3);
+        for (const formatVersion of [3, 2, 1]) {
+            assert.equal(SpriteSerializer.checkFormat({ ...base, formatVersion }), 'supported');
+        }
+        assert.equal(SpriteSerializer.checkFormat({ ...base, formatVersion: 4 }), 'unsupportedVersion');
     });
 });
