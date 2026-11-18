@@ -164,7 +164,7 @@ Phase 8 のクローズに伴う開発資料の整合確認（Survey。`./_log/r
         *   330行（スポイトの待ち受け中の入力）・544〜545行（頂点の押下の`Ctrl`）・553行（`drawHandles`）と直した記述が矛盾しないことを確かめる。
         *   行末（CRLF）と `git diff --stat` を確かめ、詳細作業内容に番号ごとの前後の要点を書く。
 
-*   [ ] タスク2: 要件3・4 `PROJECT_ARCHITECTURE.md` の3章18.〜21.（No.15・16・19・21・22・23・24。7件）
+*   [x] タスク2: 要件3・4 `PROJECT_ARCHITECTURE.md` の3章18.〜21.（No.15・16・19・21・22・23・24。7件）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新。551・554・571・575・578・581・593・596行の中だけ。CRLF）
     *   **作業内容** :
@@ -273,7 +273,15 @@ Phase 8 のクローズに伴う開発資料の整合確認（Survey。`./_log/r
 
 ### タスク2: 要件3・4 `PROJECT_ARCHITECTURE.md` の3章18.〜21.
 *   **作業内容** :
-    *   （未実施）
+    *   実コードの事実（`CanvasLibrary.js:950` の `historyManager.clear()`、`main.js:736-741` の `performShapeAlign`、`VertexHandleRules.js:89` の `computeVertexHandlesBounds`）を確かめ、Survey と一致。文案どおりに8行（551・554・571・575・578・581・593・596）を完全一致置換で直した（7件）。
+    *   No.15（551行）：「矩形に入る頂点の収集・頂点の範囲は`core/VertexHandleRules`（…・`computeVertexHandlesBounds`（Phase 08-04。20.）。状態なし。」
+    *   No.16（554行）：書いた文（該当部分）：「頂点の選択は、取り消し・やり直し・削除・キャンバスの切り替え・結合・端点への吸い付きの確定・貼り付け・複製（`Ctrl`+`D`）・`?dev`の復元・`setMode`で、選択集合から図形が消えたときに`VectorModel`が落とす（取り残さない）。」（タスク4のNo.48はこの2項目を「結合」の後・「貼り付け」の後に足す）。
+    *   No.19（571・575行）：571行は「(3)…（`undo`・`redo`が鍵を忘れる）(4)**キャンバスの切り替え**（`CanvasLibrary`の切り替え処理が`HistoryManager.clear()`で履歴と鍵を空にする。6.）。」（(3)の句点を(4)の末尾へ移し1文）。575行は決定の文言を残し「（キャンバスの切り替えも`HistoryManager.clear()`で区切りになる）」を括弧で追加。
+    *   No.21（578行）：依存の矢印の末尾に`・`core/NudgeTargetRules.js``。No.22（581行）：「対象の決定＝`core/NudgeTargetRules.resolveNudgeTarget`（19.と同じ規則）。」を「頂点の範囲＝…」の直前に追加。
+    *   No.23（593行）：矢印の末尾に「、`main.js` → `core/InputTracker.js`（ドラッグ中の判定）・`core/VectorModel.js`（同期の購読）」を追加。
+    *   No.24（596行）：書いた文（該当部分）：「配線＝`main.js`の`// 7.11.`（生成・注入・同期と、`performShapeAlign`のドラッグ中の受理判定（`inputTracker.isDragging()`なら`false`）。そのほかの判定・計算を持たない）」（タスク3のNo.35はこの趣旨にそろえる）。
+    *   矛盾確認：580行の①（`resolveNudgeTarget`）・595行・603行（ドラッグ中は受理しない。`performShapeAlign`が`inputTracker.isDragging()`を見て`false`）と矛盾しない。
+    *   行末：`wc -l`＝657、`tr -cd '\r'`の数＝657（CRLF維持）。`git diff --stat`：8 insertions / 8 deletions（直した8行のみ）。
 
 ### タスク3: 要件6・12 `_doc/arch/01_index_html.md`・`02_main.md`・`36_DisplayWiring.md`
 *   **作業内容** :
