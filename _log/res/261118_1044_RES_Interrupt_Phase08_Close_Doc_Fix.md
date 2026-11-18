@@ -184,7 +184,7 @@ Phase 8 のクローズに伴う開発資料の整合確認（Survey。`./_log/r
         *   `index.html` は変更しない（No.28 は資料だけを直し、CSSコメントが古い旨を1文添える）。
         *   行末（01・02はCRLF、36はLF）と `git diff --stat` を確かめ、詳細作業内容に記録する。
 
-*   [ ] タスク4: 要件7 `_doc/arch/03_VectorModel.md`・`10_ShapeFactory.md`・`12_shapes.md`（No.47・48・49・50・51・52・62・63。8件）
+*   [x] タスク4: 要件7 `_doc/arch/03_VectorModel.md`・`10_ShapeFactory.md`・`12_shapes.md`（No.47・48・49・50・51・52・62・63。8件）
     *   **対象ファイル** :
         *   `./_doc/arch/03_VectorModel.md` :（更新。4・5・6・8行の中だけ。CRLF）
         *   `./_doc/arch/10_ShapeFactory.md` :（更新。6行の中だけ。CRLF）
@@ -299,7 +299,17 @@ Phase 8 のクローズに伴う開発資料の整合確認（Survey。`./_log/r
 
 ### タスク4: 要件7 `_doc/arch/03_VectorModel.md`・`10_ShapeFactory.md`・`12_shapes.md`
 *   **作業内容** :
-    *   （未実施）
+    *   事実確認：`import.*ShapeFactory` は js/ の6件（InputTracker・KeyboardShortcuts・ToolRules・VectorModel・io/DocumentSerializer・main.js）、`getSelectedVertices` を読むのは main.js:191・NudgeEditor.js:90・PositionInputEditor.js:77、`PressActionRules.js:11・36` が `MOVE_HANDLE_NAME`、`InputTracker.js` の `'move'` はコメント（394行）だけ。いずれもSurveyと一致。
+    *   No.47（03:4）：呼び出し元に `edit/NudgeEditor`・`edit/PositionInputEditor`（`resolveNudgeTarget` の引数に渡す）を足した。
+    *   No.48（03:4）：「結合」の後に「端点への吸い付きの確定」、「貼り付け」の後に「複製（`Ctrl`+`D`）」を足した。タスク2のNo.16（`PROJECT_ARCHITECTURE.md` 554行）の2項目と同じ内容・同じ位置。既存の項目の順は変えていない。
+    *   No.49（03:5）：頂点の移動の呼び出し元を「矢印キーの微調整 `nudge` と位置の数値入力から届く `nudgeWithoutGrouping`」、Phase 08-03・08-04、3章19.・20. に直した。
+    *   No.50（03:6）：図形の移動の呼び出し元を同様に直した（見出しと後続の文は不変）。
+    *   No.63（03:8）：「選択モードまたは頂点の選択モードであることは呼び出し側の保証」に直した。
+    *   No.51（10:6）：importしている側を6件に直した（循環importの理由の後半は残した）。
+    *   No.52（12:28）：使う側に範囲選択での頂点の収集（`collectVertexHandlesInRect`。Phase 08-02b）を足した。
+    *   No.62（12:33）：`core/PressActionRules` が `MOVE_HANDLE_NAME` と比較して分岐し、`InputTracker` は比較しない、に直した。
+    *   矛盾確認：03:4 の6メソッド列挙とNo.48は合う。34_PressActionRules.md 2行（タスク8で直す）とNo.62は同内容になる想定。
+    *   行末：03は `wc -l`＝14・CR数＝14、10は7・7、12は69・69（CRLF維持）。`git diff --stat`：03は4行・10は1行・12は2行（直した行のみ、計7 insertions / 7 deletions）。
 
 ### タスク5: 要件8・12 `_doc/arch/06_InputTracker.md`・`08_HistoryManager.md`・`13_palette.md`
 *   **作業内容** :
