@@ -328,7 +328,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク8: 要件G 曲線のツールの作成途中の図形（`core/ShapeFactory`）と既存のテストの図形の作り方
+*   [x] タスク8: 要件G 曲線のツールの作成途中の図形（`core/ShapeFactory`）と既存のテストの図形の作り方
     *   **対象ファイル** :
         *   `./js/core/ShapeFactory.js` :（更新。`curve`のエントリの`create`・importへの`SEGMENT_KIND_SMOOTH`の追加・JSDocのみ）
         *   `./test/core/ShapeFactory.test.js` :（更新。要件Iの1.の書き換えと、テストの追加のみ）
@@ -440,7 +440,11 @@
 
 ### タスク8: 要件G 曲線のツールの作成途中の図形（`core/ShapeFactory`）と既存のテストの図形の作り方
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/ShapeFactory.js`：importを`{ Path, SEGMENT_KIND_SMOOTH }`へ。`curve`の`create`を頂点2つ・開いた・`SEGMENT_KIND_SMOOTH`のパスへ変更（`fromJSON`・ほかのエントリ・並び・メソッドのコードは不変）。typedefの`create`・`SHAPE_REGISTRY`・`ShapeFactory.create`の`@returns`のJSDocを更新。
+    *   `test/core/ShapeFactory.test.js`：type一致のケースを`curve`以外に限定して書き換え、`curve`が開いた`Path`（`type:'path'`・頂点2つ・`segments`が`[{kind:'smooth'}]`）を返すケースと、`fromJSON`が`curve`を`Curve`で復元するケースを追加（`Curve`をimport）。
+    *   `test/io/DocumentSerializer.roundtrip.test.js`：`statesFor`の`mk`の`curve`の枝と`makeMixed`・`makeMixedWithPaths`の`curve`を`new Curve(...)`へ置き換え（期待値不変）。`describe('曲線のパスの往復')`（開いた・閉じた・直線と曲線の混在・頂点を動かした・塗り付き×2経路＝10件）を追加（`SEGMENT_KIND_SMOOTH`をimport）。`DocumentSerializer.errors.test.js`・`CanvasFileOperations.test.js`：`curve`を`new Curve(...)`へ置き換え、`Curve`をimport。
+    *   `node --test`は tests 1719 / suites 268 / pass 1719 / fail 0。
+    *   開発資料への影響：`10_ShapeFactory.md`・`16_test.md`（計画どおり。タスク12で反映）。
 
 ### タスク9: 要件H 意味が広がったJSDocの文言（`core/InputTracker`・`main.js`・`core/KeyboardShortcuts`・`core/VectorModel`。コードは変えない）
 *   **作業内容** :

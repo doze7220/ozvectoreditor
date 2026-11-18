@@ -6,6 +6,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { DocumentSerializer } from '../../js/io/DocumentSerializer.js';
 import { ShapeFactory } from '../../js/core/ShapeFactory.js';
+import { Curve } from '../../js/shapes/Curve.js';
 
 /**
  * console.warn を、そのテストの終了時に自動で元へ戻るモックへ置き換えて抑止する。
@@ -31,7 +32,7 @@ function currentVersion() {
 function makeValidShapes() {
     const shapes = [
         ShapeFactory.create('line', 10, 20, 110, 70),
-        ShapeFactory.create('curve', 0, 0, 100, 40),
+        new Curve(0, 0, 100, 40),
         ShapeFactory.create('rect', 10, 10, 90, 60),
         ShapeFactory.create('arc', 50, 50, 80, 20),
         ShapeFactory.create('circle', 50, 50, 80, 20),

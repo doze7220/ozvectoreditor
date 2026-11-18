@@ -10,7 +10,7 @@ import { Line } from '../../js/shapes/Line.js';
 import { Curve } from '../../js/shapes/Curve.js';
 import { Rect } from '../../js/shapes/Rect.js';
 import { Ellipse } from '../../js/shapes/Ellipse.js';
-import { Path } from '../../js/shapes/Path.js';
+import { Path, SEGMENT_KIND_SMOOTH } from '../../js/shapes/Path.js';
 
 /** 種別ごとの頂点数（開発資料4章 shapes/）。 */
 const POINT_COUNTS = { line: 2, curve: 3, rect: 4, arc: 5, circle: 5 };
@@ -87,11 +87,11 @@ const ROUTES = [
  */
 function statesFor(type) {
     /**
-     * 対象の種別の図形を ShapeFactory で作る。
-     * @param {...number} args - ShapeFactory.create へ渡す座標引数
+     * 対象の種別の図形を作る（curve は今の曲線 Curve を直接、ほかは ShapeFactory で作る）。
+     * @param {...number} args - 図形の生成へ渡す座標引数
      * @returns {object} 図形インスタンス
      */
-    const mk = (...args) => ShapeFactory.create(type, ...args);
+    const mk = (...args) => (type === 'curve' ? new Curve(...args) : ShapeFactory.create(type, ...args));
     /**
      * 生成後に図形を動かす状態（build）と、動かす前の図形を作る関数（baseline）を持つ定義を作る。
      * @param {number[]} args - 図形の生成引数
@@ -180,7 +180,7 @@ describe('混在・図形0個・補足の検証', () => {
         const line = ShapeFactory.create('line', 10, 20, 110, 70);
         const circle = ShapeFactory.create('circle', 50, 50, 80, 20);
         circle.translate(7, -9);
-        const curve = ShapeFactory.create('curve', 0, 0, 100, 40);
+        const curve = new Curve(0, 0, 100, 40);
         curve.setVertex(1, 30, -80);
         const shapes = [rect, arc, line, circle, curve];
         shapes.forEach((s, i) => { s.id = `shape-${i + 1}`; });
@@ -346,6 +346,47 @@ describe('path の往復', () => {
     }
 });
 
+/**
+ * 区間の種類を指定して曲線のパスを作る（kinds の長さは頂点数-1。closed なら頂点数）。
+ * @param {{x: number, y: number}[]} points - 頂点の並び
+ * @param {boolean} closed - 閉じているか
+ * @param {string[]} kinds - 区間ごとの種類（'line' または 'smooth'）
+ * @param {(string|null)} [fillColor=null] - 塗りの色
+ * @returns {Path} 区間の種類を設定したパス
+ */
+function makeSmoothPath(points, closed, kinds, fillColor = null) {
+    const data = new Path(points, closed, '#102030', 3, fillColor, SEGMENT_KIND_SMOOTH).toJSON();
+    data.segments = kinds.map((kind) => ({ kind }));
+    return Path.fromJSON(data);
+}
+
+describe('曲線のパスの往復', () => {
+    const states = [
+        { name: '開いた曲線のパス', build: () => makeSmoothPath(PATH_POINTS, false, ['smooth', 'smooth', 'smooth']) },
+        { name: '閉じた曲線のパス', build: () => makeSmoothPath(PATH_POINTS, true, ['smooth', 'smooth', 'smooth', 'smooth']) },
+        { name: '直線と曲線の混在', build: () => makeSmoothPath(PATH_POINTS, false, ['line', 'smooth', 'line']) },
+        {
+            name: '頂点を動かした',
+            build: () => { const p = makeSmoothPath(PATH_POINTS, true, ['smooth', 'line', 'smooth', 'smooth']); p.setVertex(1, 130.25, -15.5); return p; },
+        },
+        { name: '塗りを付けた', build: () => makeSmoothPath(PATH_POINTS, true, ['smooth', 'smooth', 'smooth', 'smooth'], '#ffcc00') },
+    ];
+    for (const state of states) {
+        for (const route of ROUTES) {
+            it(`${state.name}（${route.name}）`, (t) => {
+                const warn = silenceWarn(t);
+                const path = state.build();
+                path.id = 'path-1';
+                assert.ok(path.segments.some((segment) => segment.kind === 'smooth'));
+                assertRestoredWithPaths(route.run([path]), [path]);
+                const restored = route.run([path]).shapes[0];
+                assert.deepStrictEqual(restored.segments, path.segments);
+                assert.equal(warn.mock.callCount(), 0);
+            });
+        }
+    }
+});
+
 describe('パスと既存の5種の混在の往復', () => {
     /**
      * 既存の5種とパス（開いた・閉じた）が混在する図形を作る。
@@ -359,7 +400,7 @@ describe('パスと既存の5種の混在の往復', () => {
         const closedPath = makePath(PATH_POINTS, true);
         closedPath.translate(30, -10);
         const circle = ShapeFactory.create('circle', 50, 50, 80, 20);
-        const curve = ShapeFactory.create('curve', 0, 0, 100, 40);
+        const curve = new Curve(0, 0, 100, 40);
         const arc = ShapeFactory.create('arc', 50, 50, 80, 20);
         const shapes = [rect, openPath, line, closedPath, circle, curve, arc];
         shapes.forEach((s, i) => { s.id = `shape-${i + 1}`; });

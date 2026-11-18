@@ -6,6 +6,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { ShapeFactory, SHAPE_TYPES } from '../../js/core/ShapeFactory.js';
 import { Path } from '../../js/shapes/Path.js';
+import { Curve } from '../../js/shapes/Curve.js';
 
 /**
  * 正常なパスの図形データを新しく作る。
@@ -30,11 +31,20 @@ describe('SHAPE_TYPES', () => {
 });
 
 describe('ShapeFactory.create', () => {
-    it('SHAPE_TYPESの各種別でtypeが一致する図形を返す', () => {
-        for (const type of SHAPE_TYPES) {
+    it('curve以外のSHAPE_TYPESの各種別でtypeが一致する図形を返す', () => {
+        for (const type of SHAPE_TYPES.filter((t) => t !== 'curve')) {
             const shape = ShapeFactory.create(type, 0, 0, 10, 10);
             assert.equal(shape.type, type);
         }
+    });
+
+    it('curveは頂点2つ・区間1つの開いたPath（区間はsmooth）を返す', () => {
+        const shape = ShapeFactory.create('curve', 1, 2, 30, 40);
+        assert.ok(shape instanceof Path);
+        assert.equal(shape.type, 'path');
+        assert.equal(shape.closed, false);
+        assert.deepEqual(shape.toJSON().points, [{ x: 1, y: 2 }, { x: 30, y: 40 }]);
+        assert.deepEqual(shape.segments, [{ kind: 'smooth' }]);
     });
 
     it('pathは作れず、未知の種別と同じ形のErrorをthrowする', () => {
@@ -50,6 +60,14 @@ describe('ShapeFactory.create', () => {
 });
 
 describe('ShapeFactory.fromJSON', () => {
+    it('curveの図形データからCurveを復元する', () => {
+        const data = new Curve(0, 0, 100, 40).toJSON();
+        const shape = ShapeFactory.fromJSON(data);
+        assert.ok(shape instanceof Curve);
+        assert.equal(shape.type, 'curve');
+        assert.deepEqual(shape.toJSON(), data);
+    });
+
     it('開いたパスの図形データからPathを復元する', () => {
         const data = makePathData(false);
         const shape = ShapeFactory.fromJSON(data);

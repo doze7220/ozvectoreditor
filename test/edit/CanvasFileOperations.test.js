@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { CanvasFileOperations } from '../../js/edit/CanvasFileOperations.js';
 import { DocumentSerializer } from '../../js/io/DocumentSerializer.js';
 import { ShapeFactory } from '../../js/core/ShapeFactory.js';
+import { Curve } from '../../js/shapes/Curve.js';
 import { SpriteSerializer } from '../../js/io/SpriteSerializer.js';
 import { CodeExporter } from '../../js/io/CodeExporter.js';
 
@@ -138,7 +139,7 @@ function makeUnreadableFile(name) {
 function makeShapes() {
     const shapes = [
         ShapeFactory.create('line', 10, 20, 110, 70),
-        ShapeFactory.create('curve', 0, 0, 100, 40),
+        new Curve(0, 0, 100, 40),
         ShapeFactory.create('rect', 10, 10, 90, 60),
         ShapeFactory.create('arc', 50, 50, 80, 20),
         ShapeFactory.create('circle', 50, 50, 80, 20),

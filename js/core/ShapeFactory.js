@@ -6,14 +6,15 @@ import { Line } from '../shapes/Line.js';
 import { Curve } from '../shapes/Curve.js';
 import { Rect } from '../shapes/Rect.js';
 import { Ellipse } from '../shapes/Ellipse.js';
-import { Path } from '../shapes/Path.js';
+import { Path, SEGMENT_KIND_SMOOTH } from '../shapes/Path.js';
 
 /**
  * 図形種別の対応表の1エントリ。
  * @typedef {Object} ShapeRegistryEntry
  * @property {string} type 図形種別（各図形クラスのtypeプロパティ・図形データのtypeと一致）
  * @property {((x1: number, y1: number, x2: number, y2: number) => Object) | null} create
- *     始点・終点（ワールド座標）から図形インスタンスを新規生成する。
+ *     ツールで描き始めたときの作成途中の図形を、始点・終点（ワールド座標）から新規生成する。
+ *     curveのツールは頂点2つ・区間1つの曲線のパス（typeは'path'）を作り、今の曲線（Curve）はfromJSONでのみ作られる。
  *     nullは「作れない種別」（読み込み専用。ツールパレット・数字キーに出さず、createもできない。fromJSONでのみ復元される）
  * @property {(data: Object) => Object} fromJSON
  *     図形データから図形インスタンスを復元する（各図形クラスのstatic fromJSONへ委譲。不正なデータではErrorをthrowする）
@@ -22,13 +23,14 @@ import { Path } from '../shapes/Path.js';
 /**
  * 図形種別の対応表（図形種別一覧の正本）。
  * 並び順＝ツールパレットの図形のボタン順＝数字キー（1〜）の割り当て順（KeyboardShortcutsがこの並びを前提とする）。
+ * curveのcreateは曲線のパス（Path）を作るため、createの戻り値のtypeはcurveでは種別と一致しない。
  * この並びの意味はcreateがnullでないエントリについてのもの。createがnullの読み込み専用のエントリ（path）は末尾に置き、ツールパレットのボタンは不要。
  * 作成できる図形種別を追加する際は、ここへ1エントリを追加し、index.htmlのツールパレットに`#tool-${type}`のボタンを用意する（`ToolRules`の`TOOL_IDS`は`SHAPE_TYPES`から導出されるため変更不要）。
  * @type {ReadonlyArray<Readonly<ShapeRegistryEntry>>}
  */
 const SHAPE_REGISTRY = Object.freeze([
     Object.freeze({ type: 'line',   create: (x1, y1, x2, y2) => new Line(x1, y1, x2, y2),              fromJSON: (data) => Line.fromJSON(data) }),
-    Object.freeze({ type: 'curve',  create: (x1, y1, x2, y2) => new Curve(x1, y1, x2, y2),             fromJSON: (data) => Curve.fromJSON(data) }),
+    Object.freeze({ type: 'curve',  create: (x1, y1, x2, y2) => new Path([{ x: x1, y: y1 }, { x: x2, y: y2 }], false, undefined, undefined, undefined, SEGMENT_KIND_SMOOTH), fromJSON: (data) => Curve.fromJSON(data) }),
     Object.freeze({ type: 'arc',    create: (x1, y1, x2, y2) => new Ellipse(x1, y1, x2, y2, 'arc'),    fromJSON: (data) => Ellipse.fromJSON(data) }),
     Object.freeze({ type: 'rect',   create: (x1, y1, x2, y2) => new Rect(x1, y1, x2, y2),              fromJSON: (data) => Rect.fromJSON(data) }),
     Object.freeze({ type: 'circle', create: (x1, y1, x2, y2) => new Ellipse(x1, y1, x2, y2, 'circle'), fromJSON: (data) => Ellipse.fromJSON(data) }),
@@ -63,7 +65,7 @@ export class ShapeFactory {
      * @param {number} y1 - 始点のY座標
      * @param {number} x2 - 終点のX座標
      * @param {number} y2 - 終点のY座標
-     * @returns {Line|Curve|Rect|Ellipse} 生成された図形インスタンス
+     * @returns {Line|Path|Rect|Ellipse} 生成された図形インスタンス（curveは頂点2つ・区間1つの開いた曲線のパス）
      * @throws {Error} SHAPE_TYPESに含まれない未知のtype、またはcreateがnullの種別（'path'）が渡された場合
      */
     static create(type, x1, y1, x2, y2) {
