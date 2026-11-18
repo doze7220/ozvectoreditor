@@ -16,6 +16,12 @@ import {
     canCloseByMergingEnds,
     planDrawnLineJoin,
     planEndpointDragJoin,
+    addDrawnPoint,
+    removeLastDrawnPoint,
+    buildFinishedDrawnLine,
+    getLastDrawnPoint,
+    isOnLastDrawnPoint,
+    canCloseDrawnLine,
 } from '../../js/shapes/PathJoinRules.js';
 import { Line } from '../../js/shapes/Line.js';
 import { Curve } from '../../js/shapes/Curve.js';
@@ -881,5 +887,161 @@ describe('PathJoinRules 塗り（fillColor）の引き継ぎ（Phase 06-01）', 
         assert.equal(closed.path.toJSON().fillColor, '#ff0000');
         const joined = planEndpointDragJoin([L, M], ref('M', 'start'), ref('L', 'end'), 1);
         assert.equal(joined.path.toJSON().fillColor, '#ff0000');
+    });
+});
+
+/**
+ * 作成途中の線（頂点の並び＋スタイル）を作る。頂点2つは`Line`、3つ以上は開いた`Path`。
+ * @param {number[][]} coords - [x, y] の並び（末尾＝付いてくる線の先）
+ * @returns {Line|Path} 作成途中の線
+ */
+function makeDrawn(coords) {
+    if (coords.length === 2) {
+        return new Line(coords[0][0], coords[0][1], coords[1][0], coords[1][1], '#112233', 5, '#445566');
+    }
+    return new Path(pts(coords), false, '#112233', 5, '#445566');
+}
+
+describe('作成途中の線の点の並びの規則', () => {
+    const STYLE = { strokeColor: '#112233', strokeWidth: 5, fillColor: '#445566' };
+
+    /**
+     * 結果のスタイルとidを確かめる。
+     * @param {Object} shape - 結果の図形
+     */
+    function assertStyle(shape) {
+        const d = shape.toJSON();
+        assert.equal(d.strokeColor, STYLE.strokeColor);
+        assert.equal(d.strokeWidth, STYLE.strokeWidth);
+        assert.equal(d.fillColor, STYLE.fillColor);
+        assert.equal(d.id, null);
+    }
+
+    describe('addDrawnPoint', () => {
+        it('Lineから頂点3つの開いたPathを作り、末尾2つが同じ座標になる', () => {
+            const r = addDrawnPoint(makeDrawn([[0, 0], [10, 0]]));
+            assert.equal(r.type, 'path');
+            assert.equal(r.toJSON().closed, false);
+            assert.deepEqual(coordsOf(r.toJSON().points), [[0, 0], [10, 0], [10, 0]]);
+            assertStyle(r);
+        });
+        it('Pathは頂点が1つ増える', () => {
+            const r = addDrawnPoint(makeDrawn([[0, 0], [10, 0], [10, 5]]));
+            assert.deepEqual(coordsOf(r.toJSON().points), [[0, 0], [10, 0], [10, 5], [10, 5]]);
+            assertStyle(r);
+        });
+        it('閉じたパス・曲線・矩形ではnull', () => {
+            assert.equal(addDrawnPoint(makePath([[0, 0], [10, 0], [10, 10]], true)), null);
+            assert.equal(addDrawnPoint(new Rect(0, 0, 5, 5)), null);
+            assert.equal(addDrawnPoint(new Curve(0, 0, 5, 5)), null);
+        });
+    });
+
+    describe('removeLastDrawnPoint', () => {
+        it('頂点4つのPathは最後の点だけが消え、付いてくる線の先は残る', () => {
+            const r = removeLastDrawnPoint(makeDrawn([[0, 0], [10, 0], [10, 5], [20, 5]]));
+            assert.equal(r.type, 'path');
+            assert.deepEqual(coordsOf(r.toJSON().points), [[0, 0], [10, 0], [20, 5]]);
+            assertStyle(r);
+        });
+        it('頂点3つのPathはLine（始点と付いてくる線の先）になる', () => {
+            const r = removeLastDrawnPoint(makeDrawn([[0, 0], [10, 0], [20, 5]]));
+            assert.equal(r.type, 'line');
+            assert.deepEqual(coordsOf(r.toJSON().points), [[0, 0], [20, 5]]);
+            assertStyle(r);
+        });
+        it('Line（頂点2つ）・結合できない図形はnull', () => {
+            assert.equal(removeLastDrawnPoint(makeDrawn([[0, 0], [10, 0]])), null);
+            assert.equal(removeLastDrawnPoint(new Rect(0, 0, 5, 5)), null);
+        });
+    });
+
+    describe('buildFinishedDrawnLine', () => {
+        it('開いたまま：Lineはnull、頂点3つはLine（打った点2つ）、4つ以上は開いたPath', () => {
+            assert.equal(buildFinishedDrawnLine(makeDrawn([[0, 0], [10, 0]])), null);
+            const a = buildFinishedDrawnLine(makeDrawn([[0, 0], [10, 0], [20, 5]]));
+            assert.equal(a.type, 'line');
+            assert.deepEqual(coordsOf(a.toJSON().points), [[0, 0], [10, 0]]);
+            assertStyle(a);
+            const b = buildFinishedDrawnLine(makeDrawn([[0, 0], [10, 0], [10, 5], [20, 5]]), false);
+            assert.equal(b.type, 'path');
+            assert.equal(b.toJSON().closed, false);
+            assert.deepEqual(coordsOf(b.toJSON().points), [[0, 0], [10, 0], [10, 5]]);
+            assertStyle(b);
+        });
+        it('閉じて：打った点2つはnull、3つ以上は閉じたPath', () => {
+            assert.equal(buildFinishedDrawnLine(makeDrawn([[0, 0], [10, 0], [20, 5]]), true), null);
+            const r = buildFinishedDrawnLine(makeDrawn([[0, 0], [10, 0], [10, 5], [20, 5]]), true);
+            assert.equal(r.type, 'path');
+            assert.equal(r.toJSON().closed, true);
+            assert.deepEqual(coordsOf(r.toJSON().points), [[0, 0], [10, 0], [10, 5]]);
+            assert.equal(r.toJSON().segments.length, 3);
+            assert.equal(r.isFillable(), true);
+            assertStyle(r);
+        });
+        it('結合できない図形はnull', () => {
+            assert.equal(buildFinishedDrawnLine(new Rect(0, 0, 5, 5)), null);
+        });
+    });
+
+    describe('getLastDrawnPoint', () => {
+        it('頂点の末尾から2番目を返す。Lineのときは始点', () => {
+            assert.deepEqual(getLastDrawnPoint(makeDrawn([[0, 0], [10, 0], [20, 5]])), { x: 10, y: 0 });
+            assert.deepEqual(getLastDrawnPoint(makeDrawn([[1, 2], [10, 0]])), { x: 1, y: 2 });
+        });
+        it('結合できない図形はnull', () => {
+            assert.equal(getLastDrawnPoint(new Rect(0, 0, 5, 5)), null);
+        });
+    });
+
+    describe('isOnLastDrawnPoint', () => {
+        it('距離ちょうどは真、超えれば偽', () => {
+            const drawn = makeDrawn([[0, 0], [10, 0], [13, 4]]);
+            assert.equal(isOnLastDrawnPoint(drawn, 5), true);
+            assert.equal(isOnLastDrawnPoint(drawn, 4.99), false);
+        });
+        it('Lineのときは最後の点＝始点との距離で判定する', () => {
+            const drawn = makeDrawn([[0, 0], [3, 4]]);
+            assert.equal(isOnLastDrawnPoint(drawn, 5), true);
+            assert.equal(isOnLastDrawnPoint(drawn, 4), false);
+        });
+        it('結合できない図形は偽', () => {
+            assert.equal(isOnLastDrawnPoint(new Rect(0, 0, 5, 5), 100), false);
+        });
+    });
+
+    describe('canCloseDrawnLine', () => {
+        it('打った点が2つで偽、3つで真', () => {
+            assert.equal(canCloseDrawnLine(makeDrawn([[0, 0], [10, 0], [20, 5]])), false);
+            assert.equal(canCloseDrawnLine(makeDrawn([[0, 0], [10, 0], [10, 5], [20, 5]])), true);
+        });
+        it('Lineは偽、結合できない図形も偽', () => {
+            assert.equal(canCloseDrawnLine(makeDrawn([[0, 0], [10, 0]])), false);
+            assert.equal(canCloseDrawnLine(new Rect(0, 0, 5, 5)), false);
+        });
+    });
+
+    describe('引数を書き換えず、結果が引数と頂点を共有しない', () => {
+        it('各関数が引数の頂点を変えず、結果の頂点を変えても引数に影響しない', () => {
+            const coords = [[0, 0], [10, 0], [10, 5], [20, 5]];
+            const drawn = makeDrawn(coords);
+            const results = [
+                addDrawnPoint(drawn),
+                removeLastDrawnPoint(drawn),
+                buildFinishedDrawnLine(drawn, false),
+                buildFinishedDrawnLine(drawn, true),
+            ];
+            getLastDrawnPoint(drawn);
+            isOnLastDrawnPoint(drawn, 1);
+            canCloseDrawnLine(drawn);
+            for (const r of results) {
+                r.translate(100, 100);
+            }
+            assert.deepEqual(coordsOf(drawn.toJSON().points), coords);
+            const line = makeDrawn([[0, 0], [10, 0]]);
+            const extended = addDrawnPoint(line);
+            extended.translate(7, 7);
+            assert.deepEqual(coordsOf(line.toJSON().points), [[0, 0], [10, 0]]);
+        });
     });
 });

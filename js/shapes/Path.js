@@ -58,6 +58,7 @@ function isPlainObject(value) {
  * 共通メソッド契約（18メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
  * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames）を自律実装する。座標はすべてワールド座標。
  * パスは`ShapeFactory.create`では作られない（読み込み専用。作る操作はPhase 05-03・05-04）。
+ * 直線のツールで続けて引く線（点が3つ以上）も`PathJoinRules`が作り、作成途中の図形にもなる。
  */
 export class Path {
     /**
@@ -348,8 +349,8 @@ export class Path {
     }
 
     /**
-     * 作図中にカーソル位置へ追従させる（終点を動かす）。共通メソッド契約のため実装するが、
-     * パスは作成中の図形にならないため本サブフェイズでは呼ばれない。
+     * 作図中にカーソル位置へ追従させる。直線のツールで続けて引く作成途中の線（開いたパス）の
+     * 付いてくる線の先（最後の頂点）を動かす。呼ぶのは`VectorModel.updateDraft`。
      * @param {number} x - 追従先のX座標（ワールド座標）
      * @param {number} y - 追従先のY座標（ワールド座標）
      */

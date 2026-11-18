@@ -1,8 +1,10 @@
 /**
- * 責務: 線（直線・開いたパス）の結合の規則（受理条件・閉じる／2本の結合／端点を指定した結合・描き足し・吸い付いた端点での操作の計画）を、
+ * 責務: 線（直線・開いたパス）の結合の規則（受理条件・閉じる／2本の結合／端点を指定した結合・描き足し・吸い付いた端点での操作の計画）と、
+ * 直線のツールで続けて引く作成途中の線の点の並びの規則（点を打つ・最後の点を消す・終えた線の組み立て。点2つの開いた線は直線、それ以外はパス）を、
  * 状態を持たない関数と定数として提供する。表示倍率・モデル・履歴を知らず、ワールド座標の許容距離を引数で受け取る。
  */
 import { Path } from './Path.js';
+import { Line } from './Line.js';
 
 /**
  * 端点が「重なっている」とみなす距離（画面上のpx）。唯一の定義箇所。
@@ -12,10 +14,16 @@ import { Path } from './Path.js';
 export const JOIN_TOLERANCE_SCREEN_PX = 5;
 
 /**
- * 閉じたパスの頂点数の下限。`classifyJoin`・`buildClosedPath`・`canCloseByMergingEnds`が共有する。
+ * 閉じたパスの頂点数の下限。`classifyJoin`・`buildClosedPath`・`canCloseByMergingEnds`・`buildFinishedDrawnLine`・`canCloseDrawnLine`が共有する。
  * @type {number}
  */
 const CLOSED_MIN_POINTS = 3;
+
+/**
+ * 直線の頂点数。`Line.js`の非公開の同名定数と同じ値であるべき別の定義（`CLOSED_MIN_POINTS`と同じ扱い）。
+ * @type {number}
+ */
+const LINE_POINT_COUNT = 2;
 
 /**
  * 結合できる線の端点の指定。`EndpointSnapRules`のtypedef`SnapTarget`もこの形を満たす。
@@ -275,6 +283,112 @@ export function planDrawnLineJoin(shapes, drawn, startSnap, endSnap, tolerance) 
     const path = buildExtendedPath(shapes[i], snap.end, point, tolerance);
     if (path === null) return null;
     return { path, targetId: shapes[i].id, keepId: true, removeIds: [] };
+}
+
+/**
+ * 頂点の並びから直線かパスを作る（非公開。直線とパスの作り分けの唯一の箇所）。
+ * `closed`が偽で頂点が`LINE_POINT_COUNT`個なら`Line`、それ以外は`Path`。頂点数の検証はしない（呼び出し側が下限を満たす値を渡す）。
+ * @param {Array<{x: number, y: number}>} points 頂点の並び
+ * @param {boolean} closed 閉じたパスか
+ * @param {{strokeColor: *, strokeWidth: *, fillColor: *}} data 色・太さ・塗りの元（`toJSON()`の値）
+ * @returns {Line|Path} 新しいインスタンス（idはnull）
+ */
+function buildLineOrPath(points, closed, data) {
+    if (!closed && points.length === LINE_POINT_COUNT) {
+        const [p0, p1] = points;
+        return new Line(p0.x, p0.y, p1.x, p1.y, data.strokeColor, data.strokeWidth, data.fillColor);
+    }
+    return new Path(points, closed, data.strokeColor, data.strokeWidth, data.fillColor);
+}
+
+/**
+ * 点を打った作成途中の線を作る。頂点は`drawn`の頂点＋末尾の頂点（付いてくる線の先）の写し。
+ * 作成途中の線の約束：`drawn`は結合できる線で、`toJSON().points`は打った点（先頭＝始点）＋付いてくる線の先（末尾）。
+ * `drawn`を書き換えず、結果は`drawn`と配列・頂点を共有しない。スタイルは`drawn`のもの。
+ * @param {Object} drawn 作成途中の線
+ * @returns {Path|null} 常に開いたパス（頂点3つ以上。idはnull）。結合できる線でなければnull
+ */
+export function addDrawnPoint(drawn) {
+    if (!isJoinableLine(drawn)) return null;
+    const data = drawn.toJSON();
+    const points = data.points.map((p) => ({ x: p.x, y: p.y }));
+    const tip = points[points.length - 1];
+    points.push({ x: tip.x, y: tip.y });
+    return new Path(points, false, data.strokeColor, data.strokeWidth, data.fillColor);
+}
+
+/**
+ * 最後の点を消した作成途中の線を作る。頂点のうち最後の点（末尾から2番目）を除き、付いてくる線の先は残す。
+ * 作成途中の線の約束・引数を書き換えないこと・共有しないことは`addDrawnPoint`と同じ。スタイルは`drawn`のもの。
+ * @param {Object} drawn 作成途中の線
+ * @returns {Line|Path|null} 残りが2つなら`Line`、3つ以上なら開いた`Path`（idはnull）。結合できる線でない・頂点が2つ以下（打った点が始点だけ）ならnull
+ */
+export function removeLastDrawnPoint(drawn) {
+    if (!isJoinableLine(drawn)) return null;
+    const data = drawn.toJSON();
+    if (data.points.length <= LINE_POINT_COUNT) return null;
+    const points = data.points.map((p) => ({ x: p.x, y: p.y }));
+    points.splice(points.length - 2, 1);
+    return buildLineOrPath(points, false, data);
+}
+
+/**
+ * 終えた線を作る。打った点（頂点の末尾＝付いてくる線の先を除いた並び）から組み立てる。
+ * 作成途中の線の約束・引数を書き換えないこと・共有しないことは`addDrawnPoint`と同じ。スタイルは`drawn`のもの。
+ * @param {Object} drawn 作成途中の線
+ * @param {boolean} [closed=false] 閉じて終えるか
+ * @returns {Line|Path|null} 開いたまま：打った点が2つ未満でnull・2つで`Line`・3つ以上で開いた`Path`。閉じて：打った点が`CLOSED_MIN_POINTS`未満でnull、それ以外は閉じた`Path`（始点を重ねて足さない）。結合できる線でなければnull（idはnull）
+ */
+export function buildFinishedDrawnLine(drawn, closed = false) {
+    if (!isJoinableLine(drawn)) return null;
+    const data = drawn.toJSON();
+    const points = data.points.slice(0, -1).map((p) => ({ x: p.x, y: p.y }));
+    if (closed) {
+        if (points.length < CLOSED_MIN_POINTS) return null;
+        return buildLineOrPath(points, true, data);
+    }
+    if (points.length < LINE_POINT_COUNT) return null;
+    return buildLineOrPath(points, false, data);
+}
+
+/**
+ * 作成途中の線の最後の点（頂点の末尾から2番目）を返す。`drawn`を書き換えない。
+ * @param {Object} drawn 作成途中の線
+ * @returns {{x: number, y: number}|null} 最後の点の新しい座標。結合できる線でない・頂点が2つ未満ならnull
+ */
+export function getLastDrawnPoint(drawn) {
+    if (!isJoinableLine(drawn)) return null;
+    const points = drawn.toJSON().points;
+    if (points.length < LINE_POINT_COUNT) return null;
+    const p = points[points.length - 2];
+    return { x: p.x, y: p.y };
+}
+
+/**
+ * 付いてくる線の先（末尾の頂点）が最後の点と重なるか。距離が`tolerance`以下（ちょうどを含む）なら真。
+ * 「最後の点をもう1回クリック」の判定の唯一の箇所（`JOIN_TOLERANCE_SCREEN_PX`のワールド座標への換算は呼び出し側が行う）。`drawn`を書き換えない。
+ * @param {Object} drawn 作成途中の線
+ * @param {number} tolerance ワールド座標の許容距離（長さ）
+ * @returns {boolean} 重なっていれば真。結合できる線でない・頂点が2つ未満なら偽
+ */
+export function isOnLastDrawnPoint(drawn, tolerance) {
+    if (!isJoinableLine(drawn)) return false;
+    const points = drawn.toJSON().points;
+    if (points.length < LINE_POINT_COUNT) return false;
+    const last = points[points.length - 2];
+    const tip = points[points.length - 1];
+    return Math.hypot(tip.x - last.x, tip.y - last.y) <= tolerance;
+}
+
+/**
+ * 作成途中の線を閉じて終えられるか。打った点（頂点数`- 1`）が`CLOSED_MIN_POINTS`以上なら真。
+ * 始点への吸い付きが働く条件の唯一の箇所。`drawn`を書き換えない。
+ * @param {Object} drawn 作成途中の線
+ * @returns {boolean} 閉じて終えられれば真。結合できる線でなければ偽
+ */
+export function canCloseDrawnLine(drawn) {
+    if (!isJoinableLine(drawn)) return false;
+    return drawn.toJSON().points.length - 1 >= CLOSED_MIN_POINTS;
 }
 
 /**

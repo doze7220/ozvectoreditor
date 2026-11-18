@@ -340,7 +340,7 @@
 *   「今回やらないこと」に挙げた到達不能な枝（各図形の`drawHandles`、`resolvePressAction`のハンドルの枝、`CursorShapeRules`の選択モードのハンドルの枝、`CanvasManager.render`のハンドルを描く段、`VectorModel.updateVertex`）は**残す**。
 *   性能の改善を目的とした変更をしない。書き出しの際の座標の丸めをしない。
 
-*   [ ] タスク1: 要件1（前半） 作成途中の線の点の並びの規則（`shapes/PathJoinRules`。`Path`はJSDocのみ）
+*   [x] タスク1: 要件1（前半） 作成途中の線の点の並びの規則（`shapes/PathJoinRules`。`Path`はJSDocのみ）
     *   **対象ファイル** :
         *   `./js/shapes/PathJoinRules.js` :（更新。`./Line.js`のimportの追加・非公開の`LINE_POINT_COUNT`・`buildLineOrPath`の追加・新しい6関数の追加・先頭の責務定義の更新・`CLOSED_MIN_POINTS`のJSDocへの追記）
         *   `./js/shapes/Path.js` :（更新。クラスのJSDocと`updateDraftEnd`のJSDocのみ。コードは変えない）
@@ -499,7 +499,10 @@
 
 ### タスク1: 要件1（前半） 作成途中の線の点の並びの規則（`shapes/PathJoinRules`。`Path`はJSDocのみ）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/shapes/PathJoinRules.js`：先頭の責務定義を更新（タスク2の分を含む最終の文面）、`./Line.js`をimport、非公開の`LINE_POINT_COUNT`・`buildLineOrPath`、公開の`addDrawnPoint`・`removeLastDrawnPoint`・`buildFinishedDrawnLine`・`getLastDrawnPoint`・`isOnLastDrawnPoint`・`canCloseDrawnLine`を追加（すべてJSDoc付き）。`CLOSED_MIN_POINTS`のJSDocの「共有する」関数の列に`buildFinishedDrawnLine`・`canCloseDrawnLine`を追記。既存の関数の中身は変更なし。`extendWithPoints`等・`planDrawnLineJoin`はタスク2のため未着手。
+    *   `js/shapes/Path.js`：クラスのJSDocと`updateDraftEnd`のJSDocのみ変更（コードは不変）。
+    *   `test/shapes/PathJoinRules.test.js`：6関数の`describe`と、引数を書き換えず頂点を共有しないことの`describe`を追加（補助関数`makeDrawn`にJSDoc）。importに6関数を追加。
+    *   `node --test`：tests 1560 / suites 238 / pass 1560 / fail 0（開始前1543から+17、既存ケースは不変）。
 
 ### タスク2: 要件1（後半） 描き足し・つながり・閉じるの計画の拡張（`shapes/PathJoinRules`の`planDrawnLineJoin`）
 *   **作業内容** :
@@ -553,3 +556,4 @@
 *   **表示倍率を変えたあとの重なりの判定**：「最後の点と重なる」は、クリックした時点の表示倍率で画面上5pxを換算する。打った点の間隔が狭いまま縮小すると、点を打つつもりのクリックが「最後の点と重なる」になり終わることがある（今の結合の「重なる」と同じ性質）。また、描き足しの途中の点が端点と重なる場合はその点を足さない（`extendWithPoints`。点が1つの今の描き足しの「重なれば何も起きない」と同じ規則を1点ずつ当てたもの）。
 *   **既存のテストの期待値**：変える既存のケースは無い見込み（`planDrawnLineJoin`・`commitDrawnLine`・`findSnapTarget`は頂点2つの線・今の引数で結果が変わらない作り）。変える必要が出た場合はタスクの作業を止めて報告する。
 *   **REQに挙がっていないファイル**：変更は不要の見込み（`CanvasManager`は作成途中の図形をポリモーフィックに描くため、`Path`の作成途中の図形もそのまま描かれる）。必要が出た場合は実装を止めて発注者の判断を仰ぐ。
+*   **（タスク1の記録）`removeLastDrawnPoint`・`getLastDrawnPoint`・`isOnLastDrawnPoint`の頂点数の下限**：頂点が2つ未満の入力（作成途中の線の約束外）は`null`／`false`にした。`PathJoinRules`の責務定義の文面と`Line`のimportは、タスク2の分を含む最終の形に更新済み（タスク2で責務定義・importを変えない）。開発資料への影響は最終タスク（依存方向(2)の記述）で扱う予定のとおりで、追加の更新予定は無い。
