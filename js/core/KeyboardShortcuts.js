@@ -41,16 +41,16 @@ const ShiftRule = Object.freeze({
  * @typedef {Object} ShortcutActions
  * @property {() => boolean} isDragging ドラッグ中（InputTrackerのDragTrackerセッション中。閾値以前を含む）か。受理判定専用
  * @property {(mode: string) => boolean} setMode 操作モード（OperationModeの値）へ切り替える
- *     （直線のツールで線を引いている途中なら、描いた分を残して終えてから切り替える）
+ *     （直線・曲線のツールで線を引いている途中なら、描いた分を残して終えてから切り替える）
  * @property {(type: string) => boolean} setShapeType 図形種別（SHAPE_TYPESの値）へ切り替える（図形作成モード以外では図形作成モードへも切り替える。
- *     直線のツールで線を引いている途中なら、描いた分を残して終えてから切り替える）
+ *     直線・曲線のツールで線を引いている途中なら、描いた分を残して終えてから切り替える）
  * @property {(direction: 1|-1) => boolean} zoomStep 表示中キャンバスの中心基準で1刻み拡大（1）・縮小（-1）する
  * @property {() => boolean} resetView ビュー変換をリセットする
  * @property {() => boolean} cancel 作成途中の図形の破棄、または選択解除を行う
- *     （直線のツールで線を引いている途中は、描いた分を開いたまま残して終える）
+ *     （直線・曲線のツールで線を引いている途中は、描いた分を開いたまま残して終える）
  * @property {() => boolean} selectAll 全図形を選択する（選択モード以外では選択モードへ切り替えた後）
  * @property {() => boolean} deleteSelection 選択集合の全図形を削除する
- *     （直線のツールで線を引いている途中は、代わりに最後の点を消す。始点だけならやめる）
+ *     （直線・曲線のツールで線を引いている途中は、代わりに最後の点を消す。始点だけならやめる）
  * @property {() => boolean} join 選択中の線を結合する（開いたパス1本を閉じる・2本を1本の開いたパスにする）。
  *     結合した場合のみtrue（結合できない選択ではfalse）
  * @property {() => boolean} bringToFront 選択中の図形を最前面へ移す。並びを変えた場合のみtrue
@@ -61,7 +61,7 @@ const ShiftRule = Object.freeze({
  *     （何も選んでいない・すでに最背面・ドラッグ中ではfalse）
  * @property {() => boolean} sendToBack 選択中の図形を最背面へ移す。並びを変えた場合のみtrue
  *     （何も選んでいない・すでに最背面・ドラッグ中ではfalse）
- * @property {() => boolean} undo 直前の編集操作を取り消す。直線のツールで線を引いている途中なら、最後の点を消すだけで履歴は変化させない。
+ * @property {() => boolean} undo 直前の編集操作を取り消す。直線・曲線のツールで線を引いている途中なら、最後の点を消すだけで履歴は変化させない。
  *     それ以外の作成途中の図形があれば、その破棄のみを行い履歴は変化させない。
  *     取り消せる履歴がなくても、ドラッグ中でなければ常にtrue（ブラウザ標準のCtrl+Zを起こさないため）
  * @property {() => boolean} redo 取り消した編集操作をやり直す。作成途中の図形があれば破棄したうえでやり直す。

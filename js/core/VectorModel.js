@@ -106,7 +106,7 @@ export class VectorModel {
     /**
      * @type {Object|null} 作成中（始点確定・終点未確定）の未コミット図形オブジェクト
      * （draw/setVertex等の共通インターフェースを持つ図形オブジェクト。ShapeFactory経由で生成される）。
-     * 直線のツールで続けて引く線では、打った点＋付いてくる線の先を持つ（`replaceDraft`で組み立て直した図形に置き換わる）。
+     * 直線・曲線のツールで続けて引く線では、打った点＋付いてくる線の先を持つ（`replaceDraft`で組み立て直した図形に置き換わる）。
      * @private
      */
     #draftShape;
@@ -494,7 +494,7 @@ export class VectorModel {
     }
 
     /**
-     * 作成中の図形を、渡された図形に置き換える（直線のツールで続けて引く線の、点を打つ・最後の点を消す・
+     * 作成中の図形を、渡された図形に置き換える（直線・曲線のツールで続けて引く線の、点を打つ・最後の点を消す・
      * 終えた線の組み立て直しで、edit/EndpointSnapperが呼ぶ）。
      * (1)作成中の図形が無ければ、何もせず（通知もせず）falseを返す。
      * (2)`shape`のインスタンスが#shapesに含まれていれば、console.warnのうえ何もせずfalseを返す（`replaceShape`と同じ防御）。

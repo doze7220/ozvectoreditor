@@ -343,7 +343,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク9: 要件H 意味が広がったJSDocの文言（`core/InputTracker`・`main.js`・`core/KeyboardShortcuts`・`core/VectorModel`。コードは変えない）
+*   [x] タスク9: 要件H 意味が広がったJSDocの文言（`core/InputTracker`・`main.js`・`core/KeyboardShortcuts`・`core/VectorModel`。コードは変えない）
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` :（更新。JSDoc・コメントのみ）
         *   `./js/main.js` :（更新。JSDoc・コメントのみ）
@@ -448,7 +448,10 @@
 
 ### タスク9: 要件H 意味が広がったJSDocの文言（`core/InputTracker`・`main.js`・`core/KeyboardShortcuts`・`core/VectorModel`。コードは変えない）
 *   **作業内容** :
-    *   （未記入）
+    *   `InputTracker.js`（20行）・`KeyboardShortcuts.js`（10行）・`VectorModel.js`（4行）・`main.js`（6行）の JSDoc・コメント中の「直線のツール」を `sed` で「直線・曲線のツール」へ置換（コード・対応表・import 不変。行数不変: InputTracker 1729行・main 1010行）。
+    *   `EndpointSnapper.js` は対象外（タスク5で更新済み）。InputTracker の「直線以外では常に表示されない」（描き始めの吸い付き）は直線専用の説明のため変更せず。
+    *   `node --test` は tests 1719 / suites 268 / pass 1719 / fail 0。
+    *   開発資料への影響：`02_main.md`・`03_VectorModel.md`・`06_InputTracker.md`・`07_KeyboardShortcuts.md`（JSDoc のみ。行数変化なし。タスク12で反映）。
 
 ### タスク10: 仕上げの確認（JSDoc・不要なコード・全テスト・スコープ）
 *   **作業内容** :
