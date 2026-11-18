@@ -173,7 +173,7 @@ Phase 8 のクローズに伴う開発資料の整合確認（Survey。`./_log/r
         *   575行は発注者の決定の記録なので、決定の文言を変えず括弧で事実を添える形を守る。
         *   580行・595行・603行と直した記述が矛盾しないことを確かめる。行末（CRLF）と `git diff --stat` を確かめ、詳細作業内容に記録する。
 
-*   [ ] タスク3: 要件6・12 `_doc/arch/01_index_html.md`・`02_main.md`・`36_DisplayWiring.md`（No.28・29・30・31・32・33・34・35・36。9件）
+*   [x] タスク3: 要件6・12 `_doc/arch/01_index_html.md`・`02_main.md`・`36_DisplayWiring.md`（No.28・29・30・31・32・33・34・35・36。9件）
     *   **対象ファイル** :
         *   `./_doc/arch/01_index_html.md` :（更新。4・12・15行の中だけ。CRLF）
         *   `./_doc/arch/02_main.md` :（更新。3・24・25・65行の中だけ。CRLF）
@@ -285,7 +285,17 @@ Phase 8 のクローズに伴う開発資料の整合確認（Survey。`./_log/r
 
 ### タスク3: 要件6・12 `_doc/arch/01_index_html.md`・`02_main.md`・`36_DisplayWiring.md`
 *   **作業内容** :
-    *   （未実施）
+    *   実コードの事実（`wc -l js/main.js`＝988、`main.js` の `inputTracker.isDragging()`、`CanvasManager.js:164` と `InputTracker.js:1531` の `clientWidth`）を確かめ、Survey と一致。文案どおりに完全一致置換で直した（No.31を含め9件）。
+    *   No.28（01:12）：ツールパレットの縦の範囲を「`y 68〜約446`（見出し約39px＋本体337px＋枠2px。…）」にし、`index.html`のCSSコメントが「約410」「本体約301px」のまま古い旨に書き換えた。`index.html`は未変更。
+    *   No.29（01:15）：「重なり順の4ボタン・整列・分布の8ボタンの`disabled`（…`syncOptionBarOrderGroup`・`syncOptionBarAlignGroup`が同期する）」。
+    *   No.30（01:4）：JSがボタンの中身を書き換えない例外を、`palette/UnitSnapGroup.js`と`wiring/ToolIconWiring`の2つにした。後段の「例外（Phase 08-02a）」は不変で合う。
+    *   No.32（36:9）：`model.onChange`は`// 6.5.`より前と後の両方、`viewTransform.onChange`・`displayState.onChange`は`// 6.5.`より前と`// 6.5.`の中（`DisplayWiring`）。理由の後半は残した。No.34（36:5）：「（`wiring/ToolIconWiring`は`asset/sprite/*.js`も）」を追加。
+    *   No.33（02:65）：括弧の中に例外（`core/CanvasManager.resize`・`core/InputTracker.getScreenCoordinate`の2つ）を追加し括弧は1組のまま。
+    *   No.35（02:24）：書いた文（該当部分）：「`performShapeAlign`（ドラッグ中の受理判定＝`inputTracker.isDragging()`なら`false`）、`syncOptionBarAlignGroup`と`model.onChange`への登録。そのほかの判定・計算を持たない。」（タスク2のNo.24の趣旨と合う）。
+    *   No.36（02:25）：`// 8.`の行の先頭に「`zoomAtCanvasCenter`の関数宣言、」を追加。
+    *   No.31＋要件12（02:3）：行数の行を文案どおり1行に書き直した（988行は確認済み。推移・07-05の見込み・「次に切り出す第一の候補」の文を落とした）。全角の`（`＝6、`）`＝6で等しい。
+    *   矛盾確認：02:65の「ドラッグ中の判定は`performShapeAlign`が行う」とNo.35、01:4の後段の例外とNo.30、01:15の初期`disabled`とNo.29は合う。
+    *   行末：01は`wc -l`＝18・CR数＝18、02は73・73（CRLF維持）、36は10・0（LF維持）。`git diff --stat`：01は3行・02は4行・36は2行（直した行のみ、計9 insertions / 9 deletions）。
 
 ### タスク4: 要件7 `_doc/arch/03_VectorModel.md`・`10_ShapeFactory.md`・`12_shapes.md`
 *   **作業内容** :
