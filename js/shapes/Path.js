@@ -1,10 +1,16 @@
 /**
- * 責務: パス（頂点の並びと閉じているか・区間の並びを持つ折れ線）のデータ保持・Canvasへの描画処理・当たり判定、
- * および図形データとの相互変換と描画要素（スプライトの書き出し用）への変換を担う。
+ * 責務: パス（頂点の並びと閉じているか・区間の並びを持つ、直線の区間と点を通るなめらかな曲線の区間からなる線）の
+ * データ保持・Canvasへの描画処理・当たり判定、および図形データとの相互変換と描画要素（スプライトの書き出し用）への変換を担う。
  */
 
-import { distanceToSegment, isPointInPolygonNonzero, segmentIntersectsRect } from './ShapeGeometry.js';
-import { validateShapeData } from './ShapeDataValidation.js';
+import {
+    computeSmoothSegmentControls,
+    cubicBezierPoint,
+    distanceToSegment,
+    isPointInPolygonNonzero,
+    segmentIntersectsRect,
+} from './ShapeGeometry.js';
+import { validateShapeData, isPlainObject } from './ShapeDataValidation.js';
 
 /**
  * 開いたパスの頂点数の下限。
@@ -19,16 +25,28 @@ const OPEN_MIN_POINT_COUNT = 2;
 const CLOSED_MIN_POINT_COUNT = 3;
 
 /**
- * 直線の区間の種類。
+ * 直線の区間の種類（唯一の定義箇所。`PathJoinRules`・`ShapeFactory`もimportする）。
  * @type {string}
  */
-const SEGMENT_KIND_LINE = 'line';
+export const SEGMENT_KIND_LINE = 'line';
 
 /**
- * 受理する区間の種類の並び（本作業では直線のみ）。曲線の区間を足すときは、この並びと`fromJSON`のエラー文・テストを改める。
+ * 曲線の区間（両端の頂点と前後の頂点から形が決まる、点を通るなめらかな曲線）の種類（唯一の定義箇所）。
+ * @type {string}
+ */
+export const SEGMENT_KIND_SMOOTH = 'smooth';
+
+/**
+ * 曲線の区間1つを折れ線で近似するときの分割数。当たり判定・範囲選択・塗りの内側が共有する唯一の定義。
+ * @type {number}
+ */
+const SMOOTH_SEGMENT_SAMPLE_COUNT = 100;
+
+/**
+ * 受理する区間の種類の並び（直線・曲線）。`fromJSON`のエラー文はこの並びから作る。
  * @type {readonly string[]}
  */
-const ACCEPTED_SEGMENT_KINDS = Object.freeze([SEGMENT_KIND_LINE]);
+const ACCEPTED_SEGMENT_KINDS = Object.freeze([SEGMENT_KIND_LINE, SEGMENT_KIND_SMOOTH]);
 
 /**
  * 頂点のハンドル名の接頭辞。ハンドル名は`'vertex-<i>'`（`<i>`は頂点の番号の10進表記）。
@@ -43,34 +61,29 @@ const VERTEX_HANDLE_PREFIX = 'vertex-';
 const VERTEX_HANDLE_PATTERN = /^vertex-(0|[1-9][0-9]*)$/;
 
 /**
- * 値がプレーンオブジェクト（`null`・配列を除くオブジェクト）かを判定する。
- * @param {*} value - 判定対象
- * @returns {boolean} プレーンオブジェクトなら`true`
- */
-function isPlainObject(value) {
-    return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-/**
  * パスの図形クラス（図形種別`'path'`）。頂点の並び`points`（開いたパス2点以上・閉じたパス3点以上）、
  * 閉じているかを表す`closed`、区間の並び`segments`を持つ。`segments[i]`は`points[i]`→`points[i+1]`の区間で、
- * 閉じたパスの最後の要素は`points[n-1]`→`points[0]`の区間（要素数は開いたパス`n - 1`、閉じたパス`n`）。区間の要素は`{ kind }`で、`kind`は現在`'line'`のみ。
+ * 閉じたパスの最後の要素は`points[n-1]`→`points[0]`の区間（要素数は開いたパス`n - 1`、閉じたパス`n`）。区間の要素は`{ kind }`で、`kind`は`'line'`（直線の区間）か`'smooth'`（曲線の区間）。
+ * 曲線の区間の形は両端の頂点と前後の頂点から`computeSmoothSegmentControls`で決まり、制御点は作業データにも図形にも持たない（描くたび・判定するたびに求める）。
+ * 区間の種類を区間ごとに変えるのは`fromJSON`（`segments`を作り直す）だけ。
  * 共通メソッド契約（18メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
  * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames）を自律実装する。座標はすべてワールド座標。
- * パスは`ShapeFactory.create`では作られない（読み込み専用。作る操作はPhase 05-03・05-04）。
- * 直線のツールで続けて引く線（点が3つ以上）も`PathJoinRules`が作り、作成途中の図形にもなる。
+ * パスは`ShapeFactory.create`の曲線のツールの描き始めでも作られる（頂点2つ・区間1つの曲線）。
+ * 直線・曲線のツールで続けて引く線（点が3つ以上）も`PathJoinRules`が作り、作成途中の図形にもなる。
  */
 export class Path {
     /**
      * 引数は検証しない（検証は`fromJSON`のみ。呼び出し側が頂点数・区間の約束を満たす値を渡す）。
-     * `points`の各頂点は新しい`{ x, y }`として複製して保持し、`segments`は区間の数だけ`{ kind: 'line' }`を新しく作る。
+     * `points`の各頂点は新しい`{ x, y }`として複製して保持し、`segments`は区間の数だけ`{ kind: segmentKind }`を新しく作る。
+     * 区間の種類を区間ごとに変えるのは`fromJSON`（`segments`を作り直す）だけ。
      * @param {{x: number, y: number}[]} points - 頂点の並び（始点→終点）
      * @param {boolean} [closed=false] - 閉じているか
      * @param {string|null} [strokeColor='#000000'] - 線の色。nullは線なし
      * @param {number} [strokeWidth=2] - 線の太さ
      * @param {string|null} [fillColor=null] - 塗りの色。nullは塗りなし
+     * @param {string} [segmentKind='line'] - 全区間の種類（`'line'`か`'smooth'`）。省くと全区間が直線
      */
-    constructor(points, closed = false, strokeColor = '#000000', strokeWidth = 2, fillColor = null) {
+    constructor(points, closed = false, strokeColor = '#000000', strokeWidth = 2, fillColor = null, segmentKind = SEGMENT_KIND_LINE) {
         /** @type {string} 図形種別（`ShapeFactory`が受理する文字列と一致） */
         this.type = 'path';
         /** @type {*} 図形の一意なID。作成中は`null`。`VectorModel`の採番・正規化の後は文字列。`fromJSON`直後は`data.id`のまま（欠落なら`undefined`、任意の型を取り得る）。 */
@@ -82,7 +95,7 @@ export class Path {
         /** @type {{kind: string}[]} 区間の並び。要素数は開いたパス`points.length - 1`、閉じたパス`points.length` */
         this.segments = Array.from(
             { length: closed ? this.points.length : this.points.length - 1 },
-            () => ({ kind: SEGMENT_KIND_LINE }),
+            () => ({ kind: segmentKind }),
         );
         /** @type {string|null} 線の色。nullは線なし */
         this.strokeColor = strokeColor;
@@ -101,17 +114,39 @@ export class Path {
     }
 
     /**
+     * 区間ごとの曲線の制御点を求める（曲線の区間は`{ control1, control2 }`、直線の区間は`null`）。
+     * 区間の種類による分岐の置き場所の1つ（`#tracePath`・`#someSegment`・`#fillPolygon`・`toDrawElement`が共有）。
+     * @returns {Array<{control1: {x: number, y: number}, control2: {x: number, y: number}}|null>} 区間ごとの制御点
+     */
+    #segmentControls() {
+        return computeSmoothSegmentControls(
+            this.points,
+            this.segments.map((segment) => segment.kind === SEGMENT_KIND_SMOOTH),
+            this.closed,
+        );
+    }
+
+    /**
      * パスの輪郭をCanvasのパスとして組み立てる（`draw`・`drawHover`・`drawOutline`が共有）。
-     * `beginPath` → `moveTo(points[0])` → `lineTo(points[1]…points[n-1])` → `closed`なら`closePath`。
-     * 区間の種類（`segments[i].kind`）による分岐の置き場所はここ。本作業の区間はすべて直線のため分岐しない。
-     * 曲線の区間を足すときは、ここで`kind`により`lineTo`と曲線の命令を分ける。閉じる区間が曲線の場合は`closePath`だけでは描けないことに注意する。
+     * `beginPath` → `moveTo(points[0])` → 区間`i`ごとに終点`points[(i+1) % n]`へ、
+     * 曲線の区間なら`bezierCurveTo`、直線の区間なら`lineTo` → `closed`なら`closePath`。
+     * ただし閉じたパスの閉じる区間（最後の区間）が直線なら`lineTo`を呼ばず`closePath`で結ぶ。閉じる区間が曲線ならその曲線を描いてから`closePath`。
+     * 区間がすべて直線のパスの命令は`lineTo`（i=1…n-1）→`closePath`のまま。
      * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
      */
     #tracePath(ctx) {
+        const n = this.points.length;
+        const controls = this.#segmentControls();
         ctx.beginPath();
         ctx.moveTo(this.points[0].x, this.points[0].y);
-        for (let i = 1; i < this.points.length; i++) {
-            ctx.lineTo(this.points[i].x, this.points[i].y);
+        for (let i = 0; i < controls.length; i++) {
+            const b = this.points[(i + 1) % n];
+            const control = controls[i];
+            if (control !== null) {
+                ctx.bezierCurveTo(control.control1.x, control.control1.y, control.control2.x, control.control2.y, b.x, b.y);
+            } else if (!(this.closed && i === n - 1)) {
+                ctx.lineTo(b.x, b.y);
+            }
         }
         if (this.closed) {
             ctx.closePath();
@@ -121,24 +156,62 @@ export class Path {
     /**
      * いずれかの区間で述語が真になるかを返す（`hitTest`・`intersectsRect`が共有）。
      * 区間`i`（`0 ≤ i < 区間の数`。区間の数は閉じたパス`n`、開いたパス`n - 1`）の両端は`points[i]`と`points[(i + 1) % n]`。`draw`と同じ区間を対象にする。
-     * @param {(ax: number, ay: number, bx: number, by: number) => boolean} predicate - 区間の両端の座標を受け取る述語
+     * 直線の区間は両端で述語を1回呼ぶ。曲線の区間は`SMOOTH_SEGMENT_SAMPLE_COUNT`個の小区間（折れ線の近似。最後の点は終点そのもの）について順に述語を呼ぶ。
+     * @param {(ax: number, ay: number, bx: number, by: number) => boolean} predicate - 区間（または曲線の小区間）の両端の座標を受け取る述語
      * @returns {boolean} いずれかの区間で述語が真なら`true`
      */
     #someSegment(predicate) {
         const n = this.points.length;
-        const segmentCount = this.closed ? n : n - 1;
-        for (let i = 0; i < segmentCount; i++) {
+        const controls = this.#segmentControls();
+        for (let i = 0; i < controls.length; i++) {
             const a = this.points[i];
             const b = this.points[(i + 1) % n];
-            if (predicate(a.x, a.y, b.x, b.y)) {
-                return true;
+            const control = controls[i];
+            if (control === null) {
+                if (predicate(a.x, a.y, b.x, b.y)) {
+                    return true;
+                }
+                continue;
+            }
+            let prev = a;
+            for (let k = 1; k <= SMOOTH_SEGMENT_SAMPLE_COUNT; k++) {
+                const next = k === SMOOTH_SEGMENT_SAMPLE_COUNT
+                    ? b
+                    : cubicBezierPoint(a, control.control1, control.control2, b, k / SMOOTH_SEGMENT_SAMPLE_COUNT);
+                if (predicate(prev.x, prev.y, next.x, next.y)) {
+                    return true;
+                }
+                prev = next;
             }
         }
         return false;
     }
 
     /**
-     * Canvasにパスを描画する。`closed`なら終点→始点を`closePath`で結ぶ。
+     * 塗りの内側の判定に使う頂点の並びを作る。区間ごとに始点の頂点を並べ、曲線の区間ならその後に近似点（`k = 1…N-1`）を足す
+     * （閉じる区間の近似点は末尾）。区間がすべて直線なら`points`と同じ並び。
+     * @returns {{x: number, y: number}[]} 多角形の頂点の並び
+     */
+    #fillPolygon() {
+        const controls = this.#segmentControls();
+        const n = this.points.length;
+        const polygon = [];
+        for (let i = 0; i < controls.length; i++) {
+            const a = this.points[i];
+            polygon.push(a);
+            const control = controls[i];
+            if (control !== null) {
+                const b = this.points[(i + 1) % n];
+                for (let k = 1; k < SMOOTH_SEGMENT_SAMPLE_COUNT; k++) {
+                    polygon.push(cubicBezierPoint(a, control.control1, control.control2, b, k / SMOOTH_SEGMENT_SAMPLE_COUNT));
+                }
+            }
+        }
+        return polygon;
+    }
+
+    /**
+     * Canvasにパスを描画する。曲線の区間は曲線で描き、`closed`なら終点→始点を結ぶ（閉じる区間が直線なら`closePath`）。
      * 塗る（`isFillable()`かつ`fillColor`が文字列）・線を描く（`strokeColor`が文字列）のどちらも偽なら何も呼ばない。
      * 順序は パス → 塗り（`fillStyle`→`fill()`引数なし） → 線（`strokeStyle`→`lineWidth`→`stroke()`）。
      * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
@@ -216,7 +289,7 @@ export class Path {
 
     /**
      * 点(x, y)がパスの輪郭の許容誤差(tolerance)以内にあるかを判定する。
-     * 全区間（閉じたパスは終点→始点を含む）のいずれかで点-線分距離がtolerance以内ならtrue。`strokeWidth`は許容誤差に足さない。塗り内部は判定しない。
+     * 全区間（閉じたパスは終点→始点を含む。曲線の区間は折れ線の近似）のいずれかで点-線分距離がtolerance以内ならtrue。`strokeWidth`は許容誤差に足さない。塗り内部は判定しない。
      * @param {number} x - 判定対象点のX座標（ワールド座標）
      * @param {number} y - 判定対象点のY座標（ワールド座標）
      * @param {number} tolerance - 許容誤差（ワールド座標の長さ）
@@ -230,11 +303,9 @@ export class Path {
      * 点(x, y)が塗られたパスの内側にあるかを判定する（共通メソッド契約の第15メソッド）。許容誤差は使わない。
      * 塗られている（`draw`が塗りを描く条件と同じ`isFillable()`かつ`fillColor`が文字列）ときだけ内側を判定し、塗られていなければ常に`false`
      * （開いたパスは`fillColor`が文字列でも`false`）。
-     * 内側は、`#tracePath`と同じ頂点の並び（`points[0]`→…→`points[n-1]`→閉じる区間で`points[0]`）の多角形を
+     * 内側は、`#fillPolygon`の頂点の並び（区間がすべて直線なら`points`と同じ。曲線の区間は折れ線で近似）の多角形を
      * nonzero（Canvasの`fill()`引数なしと同じ規則）で判定する。自己交差の中心は内側、逆向きの穴は外側。
      * 境界（輪郭線の中心線）上の点は内側に含めない（輪郭の当たり`hitTest`が受け持つ）。
-     * 区間の種類（`segments[i].kind`）による分岐の置き場所はここ。本作業の区間はすべて直線のため分岐しない。
-     * 曲線の区間を足すときは、曲線の区間を折れ線で近似した頂点の並び等にしてから判定するよう、ここで`kind`により分岐を足す（`#tracePath`・`#someSegment`と揃える）。
      * @param {number} x - 判定対象点のX座標（ワールド座標）
      * @param {number} y - 判定対象点のY座標（ワールド座標）
      * @returns {boolean} 塗られたパスの内側（境界を除く）であれば`true`
@@ -243,12 +314,12 @@ export class Path {
         if (!this.isFillable() || typeof this.fillColor !== 'string') {
             return false;
         }
-        return isPointInPolygonNonzero(x, y, this.points);
+        return isPointInPolygonNonzero(x, y, this.#fillPolygon());
     }
 
     /**
      * 選択矩形に輪郭線（中心線。`strokeWidth`は含めない）の一部でも掛かるかを判定する範囲選択用メソッド。
-     * 全区間（閉じたパスは終点→始点を含む）のいずれかが交差すればtrue（境界を含む）。塗り内部は判定しない。
+     * 全区間（閉じたパスは終点→始点を含む。曲線の区間は折れ線の近似）のいずれかが交差すればtrue（境界を含む）。塗り内部は判定しない。
      * @param {number} minX - 判定矩形の左端X座標（ワールド座標。正規化済み）
      * @param {number} minY - 判定矩形の上端Y座標（ワールド座標。正規化済み）
      * @param {number} maxX - 判定矩形の右端X座標（ワールド座標。正規化済み）
@@ -349,7 +420,7 @@ export class Path {
     }
 
     /**
-     * 作図中にカーソル位置へ追従させる。直線のツールで続けて引く作成途中の線（開いたパス）の
+     * 作図中にカーソル位置へ追従させる。直線・曲線のツールで続けて引く作成途中の線（開いたパス）の
      * 付いてくる線の先（最後の頂点）を動かす。呼ぶのは`VectorModel.updateDraft`。
      * @param {number} x - 追従先のX座標（ワールド座標）
      * @param {number} y - 追従先のY座標（ワールド座標）
@@ -360,20 +431,45 @@ export class Path {
 
     /**
      * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第13メソッド。呼び出し元は`SpriteSerializer`のみ）。
-     * 形（キー順もこの順）: `{ kind: 'polyline', id, points: 各頂点{x, y}, closed, strokeColor, strokeWidth, fillColor }`。
-     * 閉じたパスでも頂点は`n`個で始点を重複させない。区間の種類は出さない（区間がすべて直線の間のみ`polyline`で表せる）。
+     * 区間がすべて直線なら`polyline`、曲線の区間を1つ以上持つなら`bezierPath`。
+     * `polyline`の形（キー順もこの順）: `{ kind: 'polyline', id, points: 各頂点{x, y}, closed, strokeColor, strokeWidth, fillColor }`。
+     * `bezierPath`の形（キー順もこの順）: `{ kind: 'bezierPath', id, points: 各頂点{x, y}, closed, segments, strokeColor, strokeWidth, fillColor }`。
+     * `segments[i]`は`points[i]`→`points[(i+1) % n]`の区間で、直線は`{ kind: 'line' }`、曲線の区間は`{ kind: 'cubic', control1: {x, y}, control2: {x, y} }`
+     * （3次ベジェの制御点。描画要素の区間の語は作業データの`'smooth'`とは別の`'cubic'`）。
+     * 閉じたパスでも頂点は`n`個で始点を重複させない。
      * `id`・`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる。`fillColor`は塗れる形（閉じたパス）なら図形の値、塗れない形（開いたパス）なら`null`。戻り値と自身は配列・頂点を共有しない。
-     * @returns {{kind: string, id: *, points: {x: number, y: number}[], closed: boolean, strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい描画要素
+     * @returns {{kind: string, id: *, points: {x: number, y: number}[], closed: boolean, segments?: Object[], strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい描画要素
      */
     toDrawElement() {
+        const points = this.points.map((point) => ({ x: point.x, y: point.y }));
+        const fillColor = this.isFillable() ? this.fillColor : null;
+        const controls = this.#segmentControls();
+        if (controls.every((control) => control === null)) {
+            return {
+                kind: 'polyline',
+                id: this.id,
+                points,
+                closed: this.closed,
+                strokeColor: this.strokeColor,
+                strokeWidth: this.strokeWidth,
+                fillColor,
+            };
+        }
         return {
-            kind: 'polyline',
+            kind: 'bezierPath',
             id: this.id,
-            points: this.points.map((point) => ({ x: point.x, y: point.y })),
+            points,
             closed: this.closed,
+            segments: controls.map((control) => (control === null
+                ? { kind: 'line' }
+                : {
+                    kind: 'cubic',
+                    control1: { x: control.control1.x, y: control.control1.y },
+                    control2: { x: control.control2.x, y: control.control2.y },
+                })),
             strokeColor: this.strokeColor,
             strokeWidth: this.strokeWidth,
-            fillColor: this.isFillable() ? this.fillColor : null,
+            fillColor,
         };
     }
 
@@ -401,7 +497,7 @@ export class Path {
     /**
      * 図形データ（`toJSON()`の形）からパスを復元する（共通メソッド契約の第12メソッド）。
      * 共通項目は`validateShapeData`（頂点数は`{ min: 2 }`。戻り値は既定値を解決した`{ strokeColor, strokeWidth, fillColor }`）で検証し、その後にパス固有の項目（`closed`・閉じたパスの頂点数・`segments`）を検証する。
-     * コンストラクタが`data`の頂点を複製して生成し、`segments`は`data.segments`の`kind`から作り直す。`data`内の配列・オブジェクトは流用しない。
+     * コンストラクタが`data`の頂点を複製して生成し、`segments`は`data.segments`の`kind`（`'line'`・`'smooth'`。混ざってよい）から作り直す。`data`内の配列・オブジェクトは流用しない。
      * `id`は検証せず`data.id`をそのまま保持する。余分なプロパティ（最上位・区間の要素とも）は無視する。
      * 例外の捕捉は行わない（呼び出し側の`DocumentSerializer`が図形単位で捕捉する）。
      * 往復（`toJSON`→`fromJSON`）で図形データの内容と描画・当たり判定の結果が一致する。
@@ -411,7 +507,7 @@ export class Path {
      *     頂点がオブジェクトでないか`x`・`y`が有限の数値でない／`strokeColor`が文字列でもnullでもない／`strokeWidth`が`undefined`以外で有限の数値でないか0以下／
      *     `fillColor`が`undefined`以外で文字列でもnullでもない／`closed`が真偽値でない／閉じたパスで`points`が3要素未満／`segments`が配列でない／
      *     `segments`の要素数が期待値（開いたパス`n - 1`、閉じたパス`n`）と違う／`segments[i]`がオブジェクトでない／
-     *     `segments[i].kind`が受理する種類（`'line'`）でない場合
+     *     `segments[i].kind`が受理する種類（`'line'`・`'smooth'`）でない場合
      */
     static fromJSON(data) {
         const style = validateShapeData(data, 'Path', ['path'], { min: OPEN_MIN_POINT_COUNT });

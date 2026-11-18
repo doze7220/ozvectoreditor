@@ -4,7 +4,8 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { Path } from '../../js/shapes/Path.js';
+import { Path, SEGMENT_KIND_LINE, SEGMENT_KIND_SMOOTH } from '../../js/shapes/Path.js';
+import { computeSmoothSegmentControls, cubicBezierPoint } from '../../js/shapes/ShapeGeometry.js';
 
 /**
  * 標準のパスの頂点を新しく作る。頂点は(0,0)・(100,0)・(100,100)・(0,100)。
@@ -56,7 +57,7 @@ function assertFromJSONError(data, reason) {
 function makeRecordingCtx() {
     const log = [];
     const ctx = {};
-    for (const name of ['beginPath', 'moveTo', 'lineTo', 'closePath', 'stroke', 'fill', 'rect']) {
+    for (const name of ['beginPath', 'moveTo', 'lineTo', 'bezierCurveTo', 'closePath', 'stroke', 'fill', 'rect']) {
         ctx[name] = (...args) => {
             log.push([name, ...args]);
         };
@@ -568,10 +569,10 @@ describe('Path.fromJSON のエラー文', () => {
         it('segmentsのkindが未知（\'curve\'・キーなし）', () => {
             const unknown = makeValidData(true);
             unknown.segments[2] = { kind: 'curve' };
-            assertFromJSONError(unknown, "segments[2]のkindが'line'ではありません（curve）");
+            assertFromJSONError(unknown, "segments[2]のkindが'line'・'smooth'ではありません（curve）");
             const noKind = makeValidData(false);
             noKind.segments[0] = {};
-            assertFromJSONError(noKind, "segments[0]のkindが'line'ではありません（undefined）");
+            assertFromJSONError(noKind, "segments[0]のkindが'line'・'smooth'ではありません（undefined）");
         });
     });
 
@@ -613,7 +614,7 @@ describe('Path.fromJSON のエラー文', () => {
         it('segments[0]の未知のkindとsegments[1]がオブジェクトでない → segments[0]', () => {
             const data = makeValidData(false);
             data.segments = [{ kind: 'curve' }, 'x', { kind: 'line' }];
-            assertFromJSONError(data, "segments[0]のkindが'line'ではありません（curve）");
+            assertFromJSONError(data, "segments[0]のkindが'line'・'smooth'ではありません（curve）");
         });
 
         it('segments[0]がオブジェクトでない場合はそのkind検査より先に報告される', () => {
@@ -1078,5 +1079,212 @@ describe('Path.getVertexHandleNames', () => {
                 assert.deepEqual(p.getHandlePosition(name), base[i]);
             });
         }
+    });
+});
+
+/**
+ * 区間の種類を指定してパスを作る（`toJSON`→`fromJSON`で区間を差し替える）。頂点は標準の4点。
+ * @param {boolean} closed - 閉じたパスにするか
+ * @param {string[]} kinds - 区間ごとの種類
+ * @param {string|null} [fillColor=null] - 塗りの色
+ * @returns {Path} 区間の種類が混ざったパス
+ */
+function makeMixedPath(closed, kinds, fillColor = null) {
+    const data = new Path(makePoints(), closed, '#000000', 2, fillColor).toJSON();
+    data.id = 'p1';
+    data.segments = kinds.map((kind) => ({ kind }));
+    return Path.fromJSON(data);
+}
+
+/**
+ * パスの区間ごとの制御点を、公開の式（`computeSmoothSegmentControls`）から求める。
+ * @param {Path} path - 対象のパス
+ * @returns {Array<{control1: {x: number, y: number}, control2: {x: number, y: number}}|null>} 区間ごとの制御点
+ */
+function expectedControls(path) {
+    return computeSmoothSegmentControls(path.points, path.segments.map((s) => s.kind === SEGMENT_KIND_SMOOTH), path.closed);
+}
+
+describe('Path の曲線の区間（コンストラクタ・定数）', () => {
+    it('第6引数を省くと全区間が直線、smoothを渡すと全区間が曲線（開いたn-1・閉じたn）', () => {
+        assert.equal(SEGMENT_KIND_LINE, 'line');
+        assert.equal(SEGMENT_KIND_SMOOTH, 'smooth');
+        assert.deepEqual(makePath(false).segments, [{ kind: 'line' }, { kind: 'line' }, { kind: 'line' }]);
+        const open = new Path(makePoints(), false, '#000000', 2, null, SEGMENT_KIND_SMOOTH);
+        assert.deepEqual(open.segments, [{ kind: 'smooth' }, { kind: 'smooth' }, { kind: 'smooth' }]);
+        const closed = new Path(makePoints(), true, '#000000', 2, null, SEGMENT_KIND_SMOOTH);
+        assert.equal(closed.segments.length, 4);
+        assert.ok(closed.segments.every((s) => s.kind === 'smooth'));
+    });
+});
+
+describe('Path の曲線の区間の描画命令', () => {
+    it('開いた曲線のパスは moveTo → bezierCurveTo×区間数（制御点は式の値）', () => {
+        const p = new Path(makePoints(), false, '#000000', 2, null, SEGMENT_KIND_SMOOTH);
+        const controls = expectedControls(p);
+        const { ctx, log } = makeRecordingCtx();
+        p.draw(ctx);
+        const pts = makePoints();
+        assert.deepEqual(log.slice(0, 5), [
+            ['beginPath'],
+            ['moveTo', 0, 0],
+            ['bezierCurveTo', controls[0].control1.x, controls[0].control1.y, controls[0].control2.x, controls[0].control2.y, pts[1].x, pts[1].y],
+            ['bezierCurveTo', controls[1].control1.x, controls[1].control1.y, controls[1].control2.x, controls[1].control2.y, pts[2].x, pts[2].y],
+            ['bezierCurveTo', controls[2].control1.x, controls[2].control1.y, controls[2].control2.x, controls[2].control2.y, pts[3].x, pts[3].y],
+        ]);
+        assert.deepEqual(log.slice(5), [['set', 'strokeStyle', '#000000'], ['set', 'lineWidth', 2], ['stroke']]);
+    });
+
+    it('閉じた全区間曲線は閉じる区間も bezierCurveTo で始点へ戻り closePath', () => {
+        const p = new Path(makePoints(), true, '#000000', 2, '#ff0000', SEGMENT_KIND_SMOOTH);
+        const controls = expectedControls(p);
+        const { ctx, log } = makeRecordingCtx();
+        p.draw(ctx);
+        const names = log.map((entry) => entry[0]);
+        assert.deepEqual(names.slice(0, 7), ['beginPath', 'moveTo', 'bezierCurveTo', 'bezierCurveTo', 'bezierCurveTo', 'bezierCurveTo', 'closePath']);
+        assert.deepEqual(log[5], ['bezierCurveTo', controls[3].control1.x, controls[3].control1.y, controls[3].control2.x, controls[3].control2.y, 0, 0]);
+        assert.ok(names.includes('fill'));
+        assert.ok(names.includes('stroke'));
+    });
+
+    it('直線と曲線の混在：直線の区間は lineTo、閉じる区間が直線なら lineTo なしで closePath', () => {
+        const p = makeMixedPath(true, ['smooth', 'line', 'smooth', 'line']);
+        const { ctx, log } = makeRecordingCtx();
+        p.draw(ctx);
+        assert.deepEqual(log.slice(0, 6).map((entry) => entry[0]), ['beginPath', 'moveTo', 'bezierCurveTo', 'lineTo', 'bezierCurveTo', 'closePath']);
+        const open = makeMixedPath(false, ['line', 'smooth', 'line']);
+        const rec = makeRecordingCtx();
+        open.draw(rec.ctx);
+        assert.deepEqual(rec.log.slice(0, 5).map((entry) => entry[0]), ['beginPath', 'moveTo', 'lineTo', 'bezierCurveTo', 'lineTo']);
+    });
+
+    it('区間がすべて直線のパスの命令は今と同じ（lineTo→closePath）', () => {
+        const { ctx, log } = makeRecordingCtx();
+        makePath(true).draw(ctx);
+        assert.deepEqual(log.slice(0, 6), [
+            ['beginPath'], ['moveTo', 0, 0], ['lineTo', 100, 0], ['lineTo', 100, 100], ['lineTo', 0, 100], ['closePath'],
+        ]);
+    });
+
+    it('drawHover・drawOutline・線なし塗りのみも同じパスを辿る', () => {
+        const p = new Path(makePoints(), true, null, 2, '#ff0000', SEGMENT_KIND_SMOOTH);
+        const fillOnly = makeRecordingCtx();
+        p.draw(fillOnly.ctx);
+        assert.deepEqual(fillOnly.log.slice(-2), [['set', 'fillStyle', '#ff0000'], ['fill']]);
+        assert.equal(fillOnly.log.filter((e) => e[0] === 'bezierCurveTo').length, 4);
+        const expectedNames = ['beginPath', 'moveTo', 'bezierCurveTo', 'bezierCurveTo', 'bezierCurveTo', 'bezierCurveTo', 'closePath'];
+        const hover = makeRecordingCtx();
+        p.drawHover(hover.ctx, 1);
+        assert.deepEqual(hover.log.slice(0, 7).map((e) => e[0]), expectedNames);
+        const outline = makeRecordingCtx();
+        p.drawOutline(outline.ctx, 1, '#00ff00');
+        assert.deepEqual(outline.log.slice(0, 7).map((e) => e[0]), expectedNames);
+    });
+});
+
+describe('Path の曲線の区間の当たり判定・範囲選択', () => {
+    const pts = [{ x: 0, y: 0 }, { x: 100, y: 100 }, { x: 200, y: 0 }];
+
+    it('hitTest：曲線の上の点に当たり、頂点を結ぶ直線上でも曲線から離れた点には当たらない', () => {
+        const p = new Path(pts, false, '#000000', 2, null, SEGMENT_KIND_SMOOTH);
+        const c = expectedControls(p)[0];
+        const onCurve = cubicBezierPoint(pts[0], c.control1, c.control2, pts[1], 0.5);
+        assert.equal(p.hitTest(onCurve.x, onCurve.y, 0.5), true);
+        assert.equal(p.hitTest(pts[1].x, pts[1].y, 0.5), true);
+        const mid = { x: 50, y: 50 };
+        assert.ok(Math.hypot(mid.x - onCurve.x, mid.y - onCurve.y) > 1);
+        assert.equal(p.hitTest(mid.x, mid.y, 0.5), false);
+        assert.equal(new Path(pts, false).hitTest(mid.x, mid.y, 0.5), true);
+    });
+
+    it('intersectsRect：曲線だけが掛かる矩形で真、頂点を結ぶ直線にだけ掛かる矩形で偽', () => {
+        const p = new Path(pts, false, '#000000', 2, null, SEGMENT_KIND_SMOOTH);
+        const c = expectedControls(p)[0];
+        const onCurve = cubicBezierPoint(pts[0], c.control1, c.control2, pts[1], 0.5);
+        assert.equal(p.intersectsRect(onCurve.x - 0.5, onCurve.y - 0.5, onCurve.x + 0.5, onCurve.y + 0.5), true);
+        assert.equal(p.intersectsRect(49.5, 49.5, 50.5, 50.5), false);
+    });
+
+    it('hitTestFill：閉じた曲線のパスで膨らみの内側（頂点の多角形の外）が真、塗りなし・開いたパスは偽', () => {
+        const tri = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 50, y: 80 }];
+        const p = new Path(tri, true, '#000000', 2, '#ff0000', SEGMENT_KIND_SMOOTH);
+        assert.equal(p.hitTestFill(50, 30), true);
+        const c = expectedControls(p)[0];
+        const bulge = cubicBezierPoint(tri[0], c.control1, c.control2, tri[1], 0.5);
+        assert.ok(bulge.y < -1);
+        assert.equal(p.hitTestFill(bulge.x, bulge.y / 2), true);
+        assert.equal(new Path(tri, true, '#000000', 2, '#ff0000').hitTestFill(bulge.x, bulge.y / 2), false);
+        assert.equal(new Path(tri, true, '#000000', 2, null, SEGMENT_KIND_SMOOTH).hitTestFill(50, 30), false);
+        assert.equal(new Path(tri, false, '#000000', 2, '#ff0000', SEGMENT_KIND_SMOOTH).hitTestFill(50, 30), false);
+    });
+});
+
+describe('Path の曲線の区間の toDrawElement', () => {
+    it('区間がすべて直線のパスは今と同じ polyline', () => {
+        const p = makePath(true);
+        assert.deepEqual(Object.keys(p.toDrawElement()), ['kind', 'id', 'points', 'closed', 'strokeColor', 'strokeWidth', 'fillColor']);
+        assert.equal(p.toDrawElement().kind, 'polyline');
+    });
+
+    it('曲線のパスは bezierPath（キー順・区間の line/cubic・制御点・fillColor）', () => {
+        const open = makeMixedPath(false, ['line', 'smooth', 'smooth'], '#ff0000');
+        const el = open.toDrawElement();
+        assert.deepEqual(Object.keys(el), ['kind', 'id', 'points', 'closed', 'segments', 'strokeColor', 'strokeWidth', 'fillColor']);
+        assert.equal(el.kind, 'bezierPath');
+        assert.equal(el.id, 'p1');
+        assert.equal(el.fillColor, null);
+        const controls = expectedControls(open);
+        assert.deepEqual(el.segments[0], { kind: 'line' });
+        assert.deepEqual(el.segments[1], { kind: 'cubic', control1: controls[1].control1, control2: controls[1].control2 });
+        assert.deepEqual(Object.keys(el.segments[1]), ['kind', 'control1', 'control2']);
+        assert.equal(el.points.length, 4);
+        const closed = makeMixedPath(true, ['smooth', 'smooth', 'smooth', 'line'], '#ff0000');
+        const cel = closed.toDrawElement();
+        assert.equal(cel.fillColor, '#ff0000');
+        assert.equal(cel.points.length, 4);
+        assert.equal(cel.segments.length, 4);
+        assert.equal(cel.segments[3].kind, 'line');
+    });
+
+    it('戻り値は自身と配列・頂点を共有しない', () => {
+        const p = new Path(makePoints(), true, '#000000', 2, '#ff0000', SEGMENT_KIND_SMOOTH);
+        const el = p.toDrawElement();
+        const before = JSON.stringify(p.toJSON());
+        el.points[0].x = 999;
+        el.segments[0].control1.x = 999;
+        el.segments.length = 0;
+        assert.equal(JSON.stringify(p.toJSON()), before);
+        assert.notEqual(p.toDrawElement().segments[0].control1.x, 999);
+    });
+});
+
+describe('Path の曲線の区間の toJSON・fromJSON', () => {
+    it('smooth を含む往復（混在を含む）で図形データ・描画・当たり判定が一致', () => {
+        const cases = [
+            [false, ['smooth', 'smooth', 'smooth']],
+            [true, ['smooth', 'line', 'smooth', 'smooth']],
+            [false, ['line', 'smooth', 'line']],
+        ];
+        for (const [closed, kinds] of cases) {
+            const original = makeMixedPath(closed, kinds, '#ff0000');
+            const restored = Path.fromJSON(original.toJSON());
+            assert.deepEqual(restored.toJSON(), original.toJSON());
+            assert.deepEqual(restored.toDrawElement(), original.toDrawElement());
+            const a = makeRecordingCtx();
+            const b = makeRecordingCtx();
+            original.draw(a.ctx);
+            restored.draw(b.ctx);
+            assert.deepEqual(b.log, a.log);
+            assert.equal(restored.hitTest(50, 20, 3), original.hitTest(50, 20, 3));
+        }
+    });
+
+    it('未知の kind はエラー（文言は line・smooth）', () => {
+        const data = makeValidData(false);
+        data.segments[1] = { kind: 'curve' };
+        assertFromJSONError(data, "segments[1]のkindが'line'・'smooth'ではありません（curve）");
+        const noKind = makeValidData(false);
+        noKind.segments[0] = {};
+        assertFromJSONError(noKind, "segments[0]のkindが'line'・'smooth'ではありません（undefined）");
     });
 });

@@ -246,7 +246,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク2: 要件B パスの曲線の区間（`shapes/Path`・`shapes/ShapeDataValidation`）
+*   [x] タスク2: 要件B パスの曲線の区間（`shapes/Path`・`shapes/ShapeDataValidation`）
     *   **対象ファイル** :
         *   `./js/shapes/Path.js` :（更新）
         *   `./js/shapes/ShapeDataValidation.js` :（更新。`isPlainObject`への`export`の付与とJSDocへの追記のみ）
@@ -400,7 +400,10 @@
 
 ### タスク2: 要件B パスの曲線の区間（`shapes/Path`・`shapes/ShapeDataValidation`）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/shapes/Path.js`：`SEGMENT_KIND_LINE`を`export`、`SEGMENT_KIND_SMOOTH`を追加、`SMOOTH_SEGMENT_SAMPLE_COUNT = 100`、`ACCEPTED_SEGMENT_KINDS`に`smooth`を追加。コンストラクタ第6引数`segmentKind`。非公開の`#segmentControls`・`#fillPolygon`を追加し、`#tracePath`・`#someSegment`・`hitTestFill`・`toDrawElement`（`polyline`／`bezierPath`）を拡張。`isPlainObject`の二重定義を消し`ShapeDataValidation`からimport。JSDoc更新。
+    *   `js/shapes/ShapeDataValidation.js`：`isPlainObject`に`export`とJSDocの追記のみ。
+    *   `test/shapes/Path.test.js`：importと`makeRecordingCtx`の命令名に`bezierCurveTo`を追加、エラー文3件を`'line'・'smooth'`へ、曲線の区間の`describe`を5つ（コンストラクタ・定数／描画命令／当たり判定・範囲選択／toDrawElement／toJSON・fromJSON）・`it`を14件追加。全体の`node --test`は tests 1658 / pass 1658 / fail 0。
+    *   懸念：`Path.test.js`先頭の責務JSDocは更新していない（スコープ外の整形を避けた）。
 
 ### タスク3: 要件C 結合できる線と、続けて引く線の点の並び（`shapes/PathJoinRules`）
 *   **作業内容** :

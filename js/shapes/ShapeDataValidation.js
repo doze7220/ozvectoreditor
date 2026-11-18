@@ -22,10 +22,11 @@ const DEFAULT_STROKE_WIDTH = 2;
 
 /**
  * 値がプレーンオブジェクト（`null`・配列を除くオブジェクト）かを判定する。
+ * `Path.fromJSON`の区間の要素の判定にも使う（`export`）。
  * @param {*} value - 判定対象
  * @returns {boolean} プレーンオブジェクトなら`true`
  */
-function isPlainObject(value) {
+export function isPlainObject(value) {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
