@@ -356,7 +356,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない。`InputTracker.js`・`main.js`の変更後の行数を控える）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク10: 仕上げの確認（JSDoc・不要なコード・全テスト・スコープ）
+*   [x] タスク10: 仕上げの確認（JSDoc・不要なコード・全テスト・スコープ）
     *   **対象ファイル** :
         *   （原則として変更なし。漏れが見つかった場合のみ、タスク1〜9で触れたファイルを直す）
     *   **作業内容** :
@@ -435,7 +435,7 @@
 *   **作業内容** :
     *   `js/io/CodeExporter.js`：`DRAW_SOURCE`へ`case 'bezierPath'`（形の項目＝点2つ以上・`segments`の要素数・各区間の`kind`・`cubic`の`control1`/`control2`の確認をパス組み立ての前に行い、足りなければ`return`。`beginPath`→`moveTo`→区間ごとに`bezierCurveTo`／`lineTo`（閉じた要素の最後の区間が`line`なら`lineTo`なし）→`closed`なら`closePath`）を追加。塗りの条件に`bezierPath`を追加し、`drawElement`のJSDocの塗りの規則を更新。`HEADER_COMMENT`・宣言の行・`toModuleText`・`extractSpriteDataText`は不変。
     *   読み込みの確認：`js/io/FileContentReader.js`・`js/check/`・`sprite-check.html`に版の値（`formatVersion`の数値）の直書きは無く、版は`SpriteSerializer.checkFormat`の定数による（変更なし）。
-    *   `test/io/CodeExporter.test.js`：`createRecordingCtx`の命令名へ`bezierCurveTo`、importへ`SEGMENT_KIND_SMOOTH`を追加。`describe`を2つ追加（曲線のパスの見た目の一致8件、手で組み立てた`bezierPath`の規則3件）。`test/io/FileContentReader.test.js`：版3の曲線のパスを含むJS（LF・CRLF）が読み込めるテスト1件と、`formatVersion`を2に書き換えた同じJSも読めるテスト1件の計2件の`describe`を追加。`node --test`は tests 1707 / suites 267 / pass 1707 / fail 0。
+    *   `test/io/CodeExporter.test.js`：`createRecordingCtx`の命令名へ`bezierCurveTo`、importへ`SEGMENT_KIND_SMOOTH`を追加。`describe`を2つ追加（曲線のパスの見た目の一致8件、手で組み立てた`bezierPath`の規則3件）。`test/io/FileContentReader.test.js`：版3の曲線のパスを含むJS（LF・CRLF）が読み込めるテスト1件と、`formatVersion`を2に書き換えた同じJSも読めるテスト1件の`describe`1つの中に`it`2件を追加。`node --test`は tests 1707 / suites 267 / pass 1707 / fail 0。
     *   開発資料への影響：`CodeExporter`の`DRAW_SOURCE`の`bezierPath`・塗りの`kind`の記載に影響（資料本体は未修正。タスク12で反映）。
 
 ### タスク8: 要件G 曲線のツールの作成途中の図形（`core/ShapeFactory`）と既存のテストの図形の作り方
@@ -448,14 +448,20 @@
 
 ### タスク9: 要件H 意味が広がったJSDocの文言（`core/InputTracker`・`main.js`・`core/KeyboardShortcuts`・`core/VectorModel`。コードは変えない）
 *   **作業内容** :
-    *   `InputTracker.js`（20行）・`KeyboardShortcuts.js`（10行）・`VectorModel.js`（4行）・`main.js`（6行）の JSDoc・コメント中の「直線のツール」を `sed` で「直線・曲線のツール」へ置換（コード・対応表・import 不変。行数不変: InputTracker 1729行・main 1010行）。
+    *   `InputTracker.js`（10行）・`KeyboardShortcuts.js`（5行）・`VectorModel.js`（2行）・`main.js`（3行）の JSDoc・コメント中の「直線のツール」を `sed` で「直線・曲線のツール」へ置換（コード・対応表・import 不変。行数不変: InputTracker 1729行・main 1010行）。
     *   `EndpointSnapper.js` は対象外（タスク5で更新済み）。InputTracker の「直線以外では常に表示されない」（描き始めの吸い付き）は直線専用の説明のため変更せず。
     *   `node --test` は tests 1719 / suites 268 / pass 1719 / fail 0。
     *   開発資料への影響：`02_main.md`・`03_VectorModel.md`・`06_InputTracker.md`・`07_KeyboardShortcuts.md`（JSDoc のみ。行数変化なし。タスク12で反映）。
 
 ### タスク10: 仕上げの確認（JSDoc・不要なコード・全テスト・スコープ）
 *   **作業内容** :
-    *   （未記入）
+    *   タスク1〜9の監査で持ち越した軽微指摘を、コメント・テスト名・RESの記述だけで修正（コードのふるまい不変）。
+    *   `js/shapes/PathJoinRules.js`：`classifyJoin`のJSDocで「曲線のパス1本は'close'にならない」を本文側へ移し、`toJSON()`の記述を「呼ぶ回数を抑える（パス1本のときは複数回呼ぶ）」に直した。
+    *   `test/io/SpriteSerializer.test.js`：3次ベジェの極値テストの名前を実データ（y軸 p0=0,c1=40,c2=40,p3=0）に合わせた。
+    *   `js/main.js`：`performUndo`のJSDocを「直線・曲線のツール以外（弧・矩形・円）の作成途中」にした（行数不変）。
+    *   本RES 4章タスク7欄（`describe`1つの中に`it`2件）・タスク9欄（置き換えた行数 10・5・2・3）の数え方を実態に合わせた。
+    *   `node --test` は tests 1719 / suites 268 / pass 1719 / fail 0。
+    *   開発資料への影響：なし（コメント・テスト名のみ）。
 
 ### タスク11: 要件J テストプレイの確認項目を発注者へ提示する
 *   **作業内容** :

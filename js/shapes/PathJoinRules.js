@@ -70,9 +70,9 @@ export function isJoinableLine(shape) {
 
 /**
  * 選択中の図形から結合の種類を判定する。ボタンの押せる/押せないの同期からも呼ばれる（表示倍率は見ない）。
- * 負荷回避のため、図形の数 → `type` → `toJSON()` の順に判定し、不要な`toJSON()`を呼ばない。
- * @param {Array<Object>} shapes 選択集合の図形を重なり順（`model.getShapes()`の並び。奥が先）で並べた配列
+ * 負荷回避のため、図形の数 → `type` → `toJSON()` の順に判定し、`toJSON()`を呼ぶ回数を抑える（パス1本のときは`isJoinableLine`と判定本体で複数回呼ぶ）。
  * 曲線のパス1本は'close'にならない（結合できる線でないため）。
+ * @param {Array<Object>} shapes 選択集合の図形を重なり順（`model.getShapes()`の並び。奥が先）で並べた配列
  * @returns {'close'|'join'|null} 'close'＝頂点3つ以上の開いた（区間がすべて直線の）パス1本を閉じる／'join'＝結合できる線2本／それ以外はnull
  */
 export function classifyJoin(shapes) {

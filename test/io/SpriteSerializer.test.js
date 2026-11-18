@@ -544,7 +544,7 @@ describe('SpriteSerializer: 版3・bezierPath', () => {
         });
     });
 
-    it('3次ベジェの極値: 手計算の例（p0=0,c1=0,c2=100,p3=100の対角でなく山なりの形）', () => {
+    it('3次ベジェの極値: 手計算の例（y軸がp0=0,c1=40,c2=40,p3=0の山なりの形）', () => {
         const element = {
             kind: 'bezierPath',
             id: 'x',
