@@ -255,12 +255,79 @@ function planCloseOf(shapes, shapeId, tolerance) {
 }
 
 /**
- * 直線を描いた結果の計画を作る（吸い付いた端点での描き足し・閉じる・結合）。
- * 描き足しは元のid・重なり順の位置を保つ計画になる（`keepId: true`）。両方nullなら計画はnullで、呼び出し側が従来の確定を行う。
- * 始点側のみ吸い付き→描き終えの点を描き足す／終点側のみ→描き始めの点を描き足す／同じ線の別の端点→閉じる／
- * 同じ端点→何も起きない（null）／別の線の端点→結合（基準＝`shapes`で奥の方）。足す頂点が端点と重なる場合も何も起きない。
+ * 結合できる線の指定した端点の側へ、`points`を並びの順に1つずつ描き足した開いたパスを作る（非公開）。
+ * `points[0]`が端点のすぐ隣になる。1つずつ`buildExtendedPath`で足すため、`end`が'start'のときも元の線の向きが保たれる。
+ * `buildExtendedPath`がnullを返した点（直前の端点と重なる点）は足さずに次の点へ進む（重なりの規則は`buildExtendedPath`の1か所のまま）。
+ * 点が1つのときの結果は`buildExtendedPath(shape, end, points[0], tolerance)`と同じ。引数を書き換えず、結果は引数と頂点を共有しない。
+ * @param {Object} shape 元の線
+ * @param {'start'|'end'} end 描き足す端点
+ * @param {Array<{x: number, y: number}>} points 足す頂点（ワールド座標）。端点のすぐ隣から並べる
+ * @param {number} tolerance ワールド座標の許容距離（長さ）
+ * @returns {Path|null} 開いたパス（idはnull。色・太さ・塗りは元の線のもの）。1つも足せない場合・結合できる線でない場合はnull
+ */
+function extendWithPoints(shape, end, points, tolerance) {
+    let current = shape;
+    let extended = null;
+    for (const point of points) {
+        const next = buildExtendedPath(current, end, point, tolerance);
+        if (next === null) continue;
+        extended = next;
+        current = next;
+    }
+    return extended;
+}
+
+/**
+ * 同じ線の両端に吸い付いた場合に、打った点を加えて閉じる計画を作る（非公開）。元のidと位置を保つ（スタイルは元の線）。
+ * @param {Array<Object>} shapes 重なり順の図形の配列
+ * @param {EndpointRef} ref 描き始めが吸い付いた端点
+ * @param {Array<{x: number, y: number}>} interior 打った途中の点（描き始めの次から描き終えの手前まで）
+ * @param {number} tolerance ワールド座標の許容距離（長さ）
+ * @returns {JoinPlan|null} 図形が無い・結合できる線でない・閉じられない場合はnull
+ */
+function planCloseWithPoints(shapes, ref, interior, tolerance) {
+    const i = indexOfShape(shapes, ref.shapeId);
+    if (i < 0 || !isJoinableLine(shapes[i])) return null;
+    const extended = extendWithPoints(shapes[i], ref.end, interior, tolerance) ?? shapes[i];
+    const path = buildClosedPath(extended, tolerance);
+    if (path === null) return null;
+    return { path, targetId: shapes[i].id, keepId: true, removeIds: [] };
+}
+
+/**
+ * 別々の2本の端点に吸い付いた場合に、打った点を間に入れて1本にする計画を作る（非公開）。
+ * 基準＝`shapes`で奥（先）の方（`planJoinAt`と同じ）。基準が描き始めの側なら`interior`の順、描き終えの側なら逆順の写しで、基準の端点のすぐ隣から足す。
+ * 基準の位置に新しいidで結果を置き、もう一方を除く（向き・スタイルは基準の線）。
  * @param {Array<Object>} shapes 重なり順（奥が先）の図形の配列
- * @param {Object} drawn 作成途中の直線（`toJSON().points`の先頭＝描き始めの点、末尾＝描き終えの点）
+ * @param {EndpointRef} startRef 描き始めが吸い付いた端点
+ * @param {EndpointRef} endRef 描き終えが吸い付いた端点（`shapeId`は`startRef`と異なる）
+ * @param {Array<{x: number, y: number}>} interior 打った途中の点（描き始めの次から描き終えの手前まで）
+ * @param {number} tolerance ワールド座標の許容距離（長さ）
+ * @returns {JoinPlan|null} 図形が無い・結合できる線でない・結果が作れない場合はnull
+ */
+function planJoinWithPoints(shapes, startRef, endRef, interior, tolerance) {
+    const i = indexOfShape(shapes, startRef.shapeId);
+    const j = indexOfShape(shapes, endRef.shapeId);
+    if (i < 0 || j < 0 || i === j) return null;
+    const baseIsStart = i < j;
+    const [base, other] = baseIsStart ? [startRef, endRef] : [endRef, startRef];
+    const baseShape = shapes[Math.min(i, j)];
+    const otherShape = shapes[Math.max(i, j)];
+    const seq = baseIsStart ? interior : interior.slice().reverse();
+    const extended = extendWithPoints(baseShape, base.end, seq, tolerance) ?? baseShape;
+    const path = buildJoinedPathAt(extended, base.end, otherShape, other.end, tolerance);
+    if (path === null) return null;
+    return { path, targetId: baseShape.id, keepId: false, removeIds: [otherShape.id] };
+}
+
+/**
+ * 直線または続けて引いた線を描いた結果の計画を作る（吸い付いた端点での描き足し・閉じる・結合）。
+ * 描き足しは元のid・重なり順の位置を保つ計画になる（`keepId: true`）。両方nullなら計画はnullで、呼び出し側が従来の確定を行う。
+ * 始点側のみ吸い付き→描き始めの次から描き終えまでの点を描き足す／終点側のみ→描き終えの手前から描き始めまでの点を逆順に描き足す／
+ * 同じ線の別の端点→打った途中の点を加えて閉じる／同じ端点→何も起きない（null）／別の線の端点→途中の点を間に入れて結合（基準＝`shapes`で奥の方）。
+ * 足す頂点が端点と重なる場合は足さない（足せる点が無ければ何も起きない）。頂点2つの`drawn`の結果は従来の直線のときと同じ。引数を書き換えない。
+ * @param {Array<Object>} shapes 重なり順（奥が先）の図形の配列
+ * @param {Object} drawn 作成途中の線（頂点2つ以上の直線か開いたパス。`toJSON().points`の先頭＝描き始めの点、末尾＝描き終えの点、間＝打った途中の点）
  * @param {EndpointRef|null} startSnap 描き始めの点が吸い付いた端点。吸い付いていなければnull
  * @param {EndpointRef|null} endSnap 描き終えの点が吸い付いた端点。吸い付いていなければnull
  * @param {number} tolerance ワールド座標の許容距離（長さ）
@@ -268,19 +335,22 @@ function planCloseOf(shapes, shapeId, tolerance) {
  */
 export function planDrawnLineJoin(shapes, drawn, startSnap, endSnap, tolerance) {
     if (startSnap === null && endSnap === null) return null;
+    const drawnPoints = drawn.toJSON().points;
+    const interior = drawnPoints.slice(1, -1);
     if (startSnap !== null && endSnap !== null) {
         if (startSnap.shapeId === endSnap.shapeId) {
             if (startSnap.end === endSnap.end) return null;
-            return planCloseOf(shapes, startSnap.shapeId, tolerance);
+            if (interior.length === 0) return planCloseOf(shapes, startSnap.shapeId, tolerance);
+            return planCloseWithPoints(shapes, startSnap, interior, tolerance);
         }
-        return planJoinAt(shapes, startSnap, endSnap, tolerance);
+        if (interior.length === 0) return planJoinAt(shapes, startSnap, endSnap, tolerance);
+        return planJoinWithPoints(shapes, startSnap, endSnap, interior, tolerance);
     }
     const snap = startSnap !== null ? startSnap : endSnap;
     const i = indexOfShape(shapes, snap.shapeId);
     if (i < 0) return null;
-    const drawnPoints = drawn.toJSON().points;
-    const point = startSnap !== null ? drawnPoints[drawnPoints.length - 1] : drawnPoints[0];
-    const path = buildExtendedPath(shapes[i], snap.end, point, tolerance);
+    const points = startSnap !== null ? drawnPoints.slice(1) : drawnPoints.slice(0, -1).reverse();
+    const path = extendWithPoints(shapes[i], snap.end, points, tolerance);
     if (path === null) return null;
     return { path, targetId: shapes[i].id, keepId: true, removeIds: [] };
 }

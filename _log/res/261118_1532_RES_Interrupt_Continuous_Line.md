@@ -358,7 +358,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク2: 要件1（後半） 描き足し・つながり・閉じるの計画の拡張（`shapes/PathJoinRules`の`planDrawnLineJoin`）
+*   [x] タスク2: 要件1（後半） 描き足し・つながり・閉じるの計画の拡張（`shapes/PathJoinRules`の`planDrawnLineJoin`）
     *   **対象ファイル** :
         *   `./js/shapes/PathJoinRules.js` :（更新。非公開の`extendWithPoints`・`planCloseWithPoints`・`planJoinWithPoints`の追加と、`planDrawnLineJoin`の拡張・JSDocの更新のみ）
         *   `./test/shapes/PathJoinRules.test.js` :（更新。`describe`の追加と、必要なimportの追加のみ）
@@ -506,7 +506,9 @@
 
 ### タスク2: 要件1（後半） 描き足し・つながり・閉じるの計画の拡張（`shapes/PathJoinRules`の`planDrawnLineJoin`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/shapes/PathJoinRules.js`：非公開の`extendWithPoints`・`planCloseWithPoints`・`planJoinWithPoints`を追加（JSDoc付き）。`planDrawnLineJoin`を要件1の1.〜4.のとおりに拡張しJSDocを更新（途中の点が無い2.・3.は今の`planCloseOf`・`planJoinAt`をそのまま呼ぶ。4.は`extendWithPoints`）。責務定義・import・タスク1の関数・既存関数の中身は不変。
+    *   `test/shapes/PathJoinRules.test.js`：`planDrawnLineJoin`の拡張の`describe`（描き始めだけ・描き終えだけ・同じ線の両端・別の線の両端・重なる点を足さない・頂点2つの回帰・引数を書き換えず頂点を共有しない）と補助関数`planToPlain`（JSDoc付き）を末尾に追加。
+    *   `node --test`：tests 1575 / suites 245 / pass 1575 / fail 0（タスク1後の1560から+15、既存ケースは不変）。
 
 ### タスク3: 要件2 始点への吸い付きと描き始めの端点の除外（`shapes/EndpointSnapRules`）
 *   **作業内容** :

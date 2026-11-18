@@ -1045,3 +1045,171 @@ describe('作成途中の線の点の並びの規則', () => {
         });
     });
 });
+
+/**
+ * 結合の計画を比較用の素のオブジェクトにする（`path`は`toJSON()`にする）。
+ * @param {Object|null} plan - 結合の計画
+ * @returns {Object|null} 比較用のオブジェクト
+ */
+function planToPlain(plan) {
+    if (plan === null) return null;
+    return { ...plan, path: plan.path.toJSON() };
+}
+
+describe('planDrawnLineJoin 続けて引いた線（点が複数）への拡張', () => {
+    const TOL = 1;
+    const A = () => withId(makePath([[0, 0], [10, 0], [20, 0]], false, '#ff0000', 4), 'A');
+
+    describe('描き始めだけ吸い付き', () => {
+        it('end側：打った点がすべて元の向きを保って足され、元のidとスタイルを保つ', () => {
+            const a = A();
+            const drawn = makeDrawn([[20, 0], [30, 10], [40, 10], [50, 10]]);
+            const plan = planDrawnLineJoin([a], drawn, ref('A', 'end'), null, TOL);
+            assert.deepEqual(coordsOf(plan.path.toJSON().points), [[0, 0], [10, 0], [20, 0], [30, 10], [40, 10], [50, 10]]);
+            assert.equal(plan.targetId, 'A');
+            assert.equal(plan.keepId, true);
+            assert.deepEqual(plan.removeIds, []);
+            assert.equal(plan.path.toJSON().strokeColor, '#ff0000');
+            assert.equal(plan.path.toJSON().strokeWidth, 4);
+            assertPathInvariant(plan.path);
+        });
+        it('start側：打った点が先頭へ順に足され、元の向きが保たれる', () => {
+            const a = A();
+            const drawn = makeDrawn([[0, 0], [-10, 5], [-20, 5], [-30, 5]]);
+            const plan = planDrawnLineJoin([a], drawn, ref('A', 'start'), null, TOL);
+            assert.deepEqual(coordsOf(plan.path.toJSON().points), [[-30, 5], [-20, 5], [-10, 5], [0, 0], [10, 0], [20, 0]]);
+            assert.equal(plan.keepId, true);
+            assertPathInvariant(plan.path);
+        });
+        it('端点と重なる点は足さない', () => {
+            const a = A();
+            const drawn = makeDrawn([[20, 0], [20, 0.5], [30, 10], [40, 10]]);
+            const plan = planDrawnLineJoin([a], drawn, ref('A', 'end'), null, TOL);
+            assert.deepEqual(coordsOf(plan.path.toJSON().points), [[0, 0], [10, 0], [20, 0], [30, 10], [40, 10]]);
+        });
+        it('足せる点が1つも無ければnull', () => {
+            const a = A();
+            const drawn = makeDrawn([[20, 0], [20, 0.5], [20.5, 0]]);
+            assert.equal(planDrawnLineJoin([a], drawn, ref('A', 'end'), null, TOL), null);
+        });
+    });
+
+    describe('描き終えだけ吸い付き', () => {
+        it('描き終えの手前から描き始めまでが逆順で足される', () => {
+            const a = A();
+            const drawn = makeDrawn([[100, 100], [60, 60], [20, 0]]);
+            const plan = planDrawnLineJoin([a], drawn, null, ref('A', 'end'), TOL);
+            assert.deepEqual(coordsOf(plan.path.toJSON().points), [[0, 0], [10, 0], [20, 0], [60, 60], [100, 100]]);
+            assert.equal(plan.targetId, 'A');
+            assert.equal(plan.keepId, true);
+            assertPathInvariant(plan.path);
+        });
+    });
+
+    describe('同じ線の両端', () => {
+        it('打った点が加わって閉じ、元のidを保つ', () => {
+            const a = withId(makePath([[0, 0], [10, 0], [10, 10]], false, '#ff0000', 4), 'A');
+            const drawn = makeDrawn([[10, 10], [20, 20], [0, 0]]);
+            const plan = planDrawnLineJoin([a], drawn, ref('A', 'end'), ref('A', 'start'), TOL);
+            const d = plan.path.toJSON();
+            assert.equal(d.closed, true);
+            assert.deepEqual(coordsOf(d.points), [[0, 0], [10, 0], [10, 10], [20, 20]]);
+            assert.equal(plan.targetId, 'A');
+            assert.equal(plan.keepId, true);
+            assert.deepEqual(plan.removeIds, []);
+            assert.equal(d.strokeColor, '#ff0000');
+            assertPathInvariant(plan.path);
+        });
+        it('同じ端点ならnull', () => {
+            const a = A();
+            const drawn = makeDrawn([[20, 0], [30, 10], [20, 0]]);
+            assert.equal(planDrawnLineJoin([a], drawn, ref('A', 'end'), ref('A', 'end'), TOL), null);
+        });
+    });
+
+    describe('別の線の両端', () => {
+        const mk = () => [
+            withId(makePath([[0, 0], [10, 0]], false, '#ff0000', 4), 'A'),
+            withId(makePath([[100, 0], [110, 0]], false, '#00ff00', 6), 'B'),
+        ];
+        it('基準が描き始めの線（奥）：途中の点が間に入り、基準の線のスタイル・新しいid扱い', () => {
+            const [a, b] = mk();
+            const drawn = makeDrawn([[10, 0], [40, 5], [70, 5], [100, 0]]);
+            const plan = planDrawnLineJoin([a, b], drawn, ref('A', 'end'), ref('B', 'start'), TOL);
+            assert.deepEqual(coordsOf(plan.path.toJSON().points), [[0, 0], [10, 0], [40, 5], [70, 5], [100, 0], [110, 0]]);
+            assert.equal(plan.targetId, 'A');
+            assert.equal(plan.keepId, false);
+            assert.deepEqual(plan.removeIds, ['B']);
+            assert.equal(plan.path.toJSON().strokeColor, '#ff0000');
+            assert.equal(plan.path.toJSON().strokeWidth, 4);
+            assertPathInvariant(plan.path);
+        });
+        it('基準が描き終えの線（奥）：逆順に足され、基準の線の向き・スタイル', () => {
+            const [a, b] = mk();
+            const drawn = makeDrawn([[10, 0], [40, 5], [70, 5], [100, 0]]);
+            const plan = planDrawnLineJoin([b, a], drawn, ref('A', 'end'), ref('B', 'start'), TOL);
+            assert.deepEqual(coordsOf(plan.path.toJSON().points), [[0, 0], [10, 0], [40, 5], [70, 5], [100, 0], [110, 0]]);
+            assert.equal(plan.targetId, 'B');
+            assert.equal(plan.keepId, false);
+            assert.deepEqual(plan.removeIds, ['A']);
+            assert.equal(plan.path.toJSON().strokeColor, '#00ff00');
+            assert.equal(plan.path.toJSON().strokeWidth, 6);
+            assertPathInvariant(plan.path);
+        });
+        it('途中の点が基準の端点と重なるときは足さない', () => {
+            const [a, b] = mk();
+            const drawn = makeDrawn([[10, 0], [10, 0.5], [70, 5], [100, 0]]);
+            const plan = planDrawnLineJoin([a, b], drawn, ref('A', 'end'), ref('B', 'start'), TOL);
+            assert.deepEqual(coordsOf(plan.path.toJSON().points), [[0, 0], [10, 0], [70, 5], [100, 0], [110, 0]]);
+        });
+    });
+
+    describe('頂点2つのとき今の結果と同じ', () => {
+        const mk = () => [
+            withId(makePath([[0, 0], [10, 0]], false, '#ff0000', 4), 'A'),
+            withId(makePath([[100, 0], [110, 0]], false, '#00ff00', 6), 'B'),
+            withId(makePath([[200, 0], [210, 0], [210, 10]], false, '#0000ff', 2), 'C'),
+        ];
+        it('描き始めだけ・描き終えだけ：buildExtendedPathと同じ', () => {
+            const [a] = mk();
+            const startOnly = planDrawnLineJoin([a], makeDrawn([[10, 0], [50, 50]]), ref('A', 'end'), null, TOL);
+            assert.deepEqual(startOnly.path.toJSON(), buildExtendedPath(a, 'end', { x: 50, y: 50 }, TOL).toJSON());
+            const endOnly = planDrawnLineJoin([a], makeDrawn([[50, 50], [0, 0]]), null, ref('A', 'start'), TOL);
+            assert.deepEqual(endOnly.path.toJSON(), buildExtendedPath(a, 'start', { x: 50, y: 50 }, TOL).toJSON());
+        });
+        it('別の線の両端：planEndpointDragJoin（planJoinAt）と同じ', () => {
+            const [a, b] = mk();
+            const plan = planDrawnLineJoin([a, b], makeDrawn([[10, 0], [100, 0]]), ref('A', 'end'), ref('B', 'start'), TOL);
+            assert.deepEqual(planToPlain(plan), planToPlain(planEndpointDragJoin([a, b], ref('A', 'end'), ref('B', 'start'), TOL)));
+        });
+        it('同じ線の両端：planEndpointDragJoin（planCloseOf）と同じ', () => {
+            const [, , c] = mk();
+            const plan = planDrawnLineJoin([c], makeDrawn([[210, 10], [200, 0]]), ref('C', 'end'), ref('C', 'start'), TOL);
+            assert.deepEqual(planToPlain(plan), planToPlain(planEndpointDragJoin([c], ref('C', 'end'), ref('C', 'start'), TOL)));
+        });
+        it('両方null・図形が無い場合はnull', () => {
+            const [a] = mk();
+            assert.equal(planDrawnLineJoin([a], makeDrawn([[0, 0], [5, 5]]), null, null, TOL), null);
+            assert.equal(planDrawnLineJoin([a], makeDrawn([[0, 0], [5, 5]]), ref('X', 'end'), null, TOL), null);
+        });
+    });
+
+    describe('引数を書き換えず、結果が引数と頂点を共有しない', () => {
+        it('drawn・shapes・スナップを変えず、結果を変えても引数に影響しない', () => {
+            const a = withId(makePath([[0, 0], [10, 0]], false, '#ff0000', 4), 'A');
+            const b = withId(makePath([[100, 0], [110, 0]], false, '#00ff00', 6), 'B');
+            const drawn = makeDrawn([[10, 0], [40, 5], [70, 5], [100, 0]]);
+            const startSnap = ref('A', 'end');
+            const endSnap = ref('B', 'start');
+            const before = JSON.stringify([a.toJSON(), b.toJSON(), drawn.toJSON(), startSnap, endSnap]);
+            const plans = [
+                planDrawnLineJoin([a, b], drawn, startSnap, endSnap, TOL),
+                planDrawnLineJoin([a, b], drawn, startSnap, null, TOL),
+                planDrawnLineJoin([a, b], drawn, null, endSnap, TOL),
+                planDrawnLineJoin([a], drawn, startSnap, ref('A', 'start'), TOL),
+            ];
+            for (const plan of plans) plan.path.translate(1000, 1000);
+            assert.equal(JSON.stringify([a.toJSON(), b.toJSON(), drawn.toJSON(), startSnap, endSnap]), before);
+        });
+    });
+});
