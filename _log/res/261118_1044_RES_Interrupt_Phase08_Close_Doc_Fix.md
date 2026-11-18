@@ -213,7 +213,7 @@ Phase 8 のクローズに伴う開発資料の整合確認（Survey。`./_log/r
         *   `PROJECT_ARCHITECTURE.md` 549行（複製は頂点の選択モードでも働く）・581行（`ShapeExtentReader` の2か所の生成）と矛盾しないことを確かめる（`PROJECT_ARCHITECTURE.md` は読むだけ）。
         *   行末（14はCRLF、38・41はLF）と `git diff --stat` を確かめ、詳細作業内容に記録する。
 
-*   [ ] タスク7: 要件9 `_doc/arch/16_test.md`（No.39〜46。8件）
+*   [x] タスク7: 要件9 `_doc/arch/16_test.md`（No.39〜46。8件）
     *   **対象ファイル** :
         *   `./_doc/arch/16_test.md` :（更新。10・76・77・93・94・109・110・111行の中だけ。CRLF）
     *   **作業内容** :
@@ -333,7 +333,77 @@ Phase 8 のクローズに伴う開発資料の整合確認（Survey。`./_log/r
 
 ### タスク7: 要件9 `_doc/arch/16_test.md`
 *   **作業内容** :
-    *   （未実施）
+    *   実コードの事実（`grep -ln "js/core/VectorModel.js" test/edit/*.test.js` が文案の10ファイル、`PositionInputEditor.test.js` のimportが `PositionInputEditor`・`NudgeEditor`・`ShapeExtentReader`・`VectorModel`、`SpriteFitRules.test.js:46-49・66-69`、`VertexHandleRules.test.js:77-87`、`HistoryManager.test.js:150・168`、`ShapeAlignRules.test.js:169`、`NudgeTargetRules.test.js:49`、`VectorModel.moveShapesBy.test.js:65-73`、`ShapeAlignEditor.test.js:128-135`）を確かめ、Survey と一致。文案どおりに8行を完全一致置換で直した。
+    *   No.39（10行）：「例外は…組み合わせのケースのみ：」を、例外が10ファイルである旨と一覧（`PathJoiner`・`EndpointSnapper`・`ShapeStyleEditor`・`ShapeOrderEditor`・`NudgeEditor`・`ClipboardController`・`StyleEyedropper`・`ShapeExtentReader`・`ShapeAlignEditor`・`PositionInputEditor`〔括弧で実物の`VectorModel`・`ShapeExtentReader`・`NudgeEditor`〕）に置き換え、「`test/edit/PathJoiner.test.js`と`test/edit/EndpointSnapper.test.js`の組み合わせのケース：」で既存の文へ続けた（「のみ」を外した）。各ファイルの詳細の文は消していない。差し引きとして`NudgeEditor`の文の「条件は同じ：DOM・ブラウザのAPIに依存せず、公開APIだけを通す」を「条件は同じ」にした。
+    *   No.40（76行）：「拡大する場合」→「縮小する場合も倍率を求める、外枠の最小が0でないとき最小を原点側へ寄せる」（件数16は不変・実測16）。No.41（77行）：`isVertexHandle`の括弧を文案どおりに拡張（件数8は08-02a時点の記述で不変。実測26は87行・103行の追加と整合）。No.42（94行）：「、前後が同じなら記録せず通知もしない」を追加（17件は実測17）。No.43（109行）：「。2件の整列は動く」を追加（20件）。No.44（93行）：「・`VERTEX`で図形も頂点も0件なら`null`」を追加（16件）。No.45（111行）：「件数が複数でも通知は1回だけ、」を`moveShapes`の文の前に追加（10件）。No.46（110行）：`beginEdit`・`commitEdit`が鍵なしで1回ずつ・通知1回、`moveShapesBy`は観測しない旨と`14_edit.md`の`ShapeAlignEditor.js`の項への参照に置き換え（14_edit.md:73 の手順 `beginEdit()` → `moveShapesBy` → `commitEdit()` と矛盾しない。11件）。
+    *   **件数の確かめ**：`test/` の全60ファイルを1つずつ `node --test <ファイル>` で実行し（出力は `ℹ tests N`）、実測件数の合計は **1543**（期待どおり）。16_test.md の「（N件）」は、直した節（76・77・93・94・109・110・111行）を含め列挙と矛盾しない。各ファイルの照合（「資料なし」は16_test.md に個別の件数の記述が無いファイル。検証範囲だけ記述）：
+
+| ファイル | 実測 | 資料の記述（行） | 照合 |
+|---|---|---|---|
+| check/SpriteCheckInspector | 7 | 資料なし | - |
+| core/CursorShapeRules | 35 | 72行 28件、79行 +7件 | 整合（28+7＝35） |
+| core/DisplayState | 20 | 43行 20件 | 一致 |
+| core/GridSpacingRules | 6 | 44行 6件 | 一致 |
+| core/HistoryManager | 17 | 94行 17件 | 一致 |
+| core/KeyboardShortcuts | 2 | 95行 2件 | 一致 |
+| core/MoveDirectionRules | 12 | 56行 12件 | 一致 |
+| core/NudgeTargetRules | 16 | 93行 16件 | 一致 |
+| core/PointHitRules | 27 | 79行 +3件 計27件 | 一致 |
+| core/PressActionRules | 20 | 71行 12件、85行 +8件 計20件 | 整合（12+8＝20） |
+| core/RulerTickRules | 14 | 45行 14件 | 一致 |
+| core/SelectionRules | 36 | 55行 20件→計36件、86行 +16件 計36件 | 整合（20+16＝36） |
+| core/ShapeFactory | 8 | 資料なし | - |
+| core/SpriteFitRules | 16 | 76行 16件 | 一致 |
+| core/StatusReadoutRules | 13 | 46行 13件 | 一致 |
+| core/ToolRules | 17 | 79行 +1件 計17件 | 一致 |
+| core/UnitSnapRules | 35 | 64行 35件 | 一致 |
+| core/UnitSnapSettings | 13 | 65行 13件 | 一致 |
+| core/VectorModel.moveShapesBy | 10 | 111行 10件 | 一致 |
+| core/VectorModel.reorderShapes | 12 | 資料なし | - |
+| core/VectorModel.replaceShape | 13 | 資料なし | - |
+| core/VectorModel.selectedVertices | 19 | 78行 15件、88行 +4件 計19件 | 整合（15+4＝19） |
+| core/VectorModel.snapPoint | 7 | 資料なし | - |
+| core/VectorModel.style | 18 | 資料なし | - |
+| core/VectorModel.updateVertices | 8 | 84行 8件 | 一致 |
+| core/VertexHandleRules | 26 | 77行 8件、87行 +10件 計18件、103行 +8件 計26件 | 整合（8+10+8＝26） |
+| core/ViewFitRules | 13 | 47行 13件 | 一致 |
+| core/ViewTransform.setView | 6 | 48行 6件 | 一致 |
+| edit/CanvasFileOperations.export | 16 | 資料なし | - |
+| edit/CanvasFileOperations | 38 | 資料なし | - |
+| edit/ClipboardController | 10 | 57行 10件 | 一致 |
+| edit/EndpointSnapper | 20 | 資料なし | - |
+| edit/NudgeEditor | 16 | 96行 11件、104行 +5件 計16件 | 整合（11+5＝16） |
+| edit/PathJoiner | 12 | 資料なし | - |
+| edit/PositionInputEditor | 11 | 102行 11件 | 一致 |
+| edit/PositionInputRules | 15 | 101行 15件 | 一致 |
+| edit/ShapeAlignEditor | 11 | 110行 11件 | 一致 |
+| edit/ShapeAlignRules | 20 | 109行 20件 | 一致 |
+| edit/ShapeExtentReader | 13 | 49行 7件、112行 +6件 | 整合（7+6＝13） |
+| edit/ShapeOrderEditor | 10 | 資料なし | - |
+| edit/ShapeOrderRules | 40 | 資料なし | - |
+| edit/ShapeStyleEditor | 42 | 資料なし | - |
+| edit/StyleEyedropper | 13 | 58行 13件 | 一致 |
+| edit/StylePanelRules | 29 | 資料なし | - |
+| io/CodeExporter.assembly | 1 | 資料なし | - |
+| io/CodeExporter | 45 | 資料なし | - |
+| io/DocumentFileIO | 21 | 資料なし | - |
+| io/DocumentSerializer.errors | 71 | 資料なし | - |
+| io/DocumentSerializer.migration | 7 | 資料なし | - |
+| io/DocumentSerializer.roundtrip | 81 | 資料なし | - |
+| io/FileContentReader | 19 | 資料なし | - |
+| io/SpriteSerializer | 36 | 資料なし | - |
+| shapes/Curve | 57 | 資料なし（79行 3件は追加分） | - |
+| shapes/Ellipse | 85 | 資料なし（79行 2件は追加分） | - |
+| shapes/EndpointSnapRules | 20 | 資料なし | - |
+| shapes/Line | 56 | 資料なし（79行 3件は追加分） | - |
+| shapes/Path | 122 | 資料なし（79行 3件は追加分） | - |
+| shapes/PathJoinRules | 86 | 資料なし | - |
+| shapes/Rect | 64 | 資料なし（79行 3件は追加分） | - |
+| shapes/ShapeGeometry | 10 | 資料なし | - |
+| 合計（60ファイル） | 1543 | 115行 tests 1543 | 一致 |
+
+    *   食い違い（修正が要るもの）：無し。件数の数字は変えていない（Phase別の追加分・時点の件数は、上のとおり各Phaseの時点の記述として整合）。全体の件数（tests / suites）はタスク10で確かめる。
+    *   行末：`wc -l`＝127・CR数＝127（CRLF維持）。`git diff --stat`：16_test.md は8行（8 insertions / 8 deletions。直した行のみ）。
 
 ### タスク8: 要件10 `_doc/arch/32_InputModes.md`・`33_FocusKeyYieldRules.md`・`34_PressActionRules.md`
 *   **作業内容** :
@@ -356,3 +426,4 @@ Phase 8 のクローズに伴う開発資料の整合確認（Survey。`./_log/r
 * （計画立案時）**No.16・No.48 の列挙に足すのは2項目だけ**：Survey は頂点の選択が落ちる経路として (2)「頂点の選択モードの`Ctrl`+クリックで図形が選択から外れる場合」も挙げているが、REQの要件3・7が足す項目を「複製」と「端点への吸い付きの確定」の2つに限っているため、本計画もREQに従った（(2) は `PROJECT_ARCHITECTURE.md` 544行に書かれている）。
 * （計画立案時）**同じ断定の残り**：`hasCtrlModifier` を「`Ctrl`（`⌘`を含む）の読み取りの唯一の定義」とする文は、No.11・No.38 の2か所のほかに `_doc/arch/24_CanvasCursorTracker.md` 3行にもある。`24` はREQが変更対象に挙げていないファイルのため、本作業では直さない。
 * （計画立案時）**`16_test.md` の件数の照合**：「2. アーキテクチャ設計」の要件9の「件数の確かめ」のとおり、計画立案時に全ファイルを実測し、各Phaseの時点の件数・追加分として矛盾が無いことを確かめた。ファイルごとの実測件数は計画立案時には記録していないため、タスク7で実測し直して詳細作業内容に記録する。
+* （タスク7）**16_test.md 2行の Node.js の版**：「確認したNode.jsの版はv24.20.0」とあるが、今回の実測環境は v24.15.0。2行は本作業の対象外（No.39〜46外）なので変えていない。
