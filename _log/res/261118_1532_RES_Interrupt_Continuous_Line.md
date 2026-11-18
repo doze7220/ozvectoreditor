@@ -416,7 +416,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク6: 要件5 線を引く手順（`edit/EndpointSnapper`）
+*   [x] タスク6: 要件5 線を引く手順（`edit/EndpointSnapper`）
     *   **対象ファイル** :
         *   `./js/edit/EndpointSnapper.js` :（更新。importの追加・`#reflectDrawnJoin`への切り出し・`#commitDrawnShape`と公開6メソッドの追加・クラスのJSDocと先頭の責務定義の更新）
         *   `./test/edit/EndpointSnapper.test.js` :（更新。テストの追加と、必要なimport・新しい補助関数の追加のみ）
@@ -532,7 +532,10 @@
 
 ### タスク6: 要件5 線を引く手順（`edit/EndpointSnapper`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/edit/EndpointSnapper.js`：先頭の責務定義・クラスのJSDoc（`model`のメソッド列・前提・通知の回数）を更新。`EndpointSnapRules`から`isDrawnStartSnap`・`findDrawnLineSnapTarget`、`PathJoinRules`から`isJoinableLine`・`addDrawnPoint`・`removeLastDrawnPoint`・`buildFinishedDrawnLine`・`getLastDrawnPoint`・`isOnLastDrawnPoint`・`canCloseDrawnLine`をimport。`commitDrawnLine`の中身を非公開`#reflectDrawnJoin`へ切り出し（ふるまい・順序・戻り値は不変）、非公開`#commitDrawnShape`と公開`isDrawingLine`・`findDrawnLineSnap`・`getDrawnLineLastPoint`・`clickDrawnLine`・`finishDrawnLine`・`removeDrawnLinePoint`を追加（JSDoc付き）。既存の`findDrawSnap`等・コンストラクタ・フィールドは不変。
+    *   `test/edit/EndpointSnapper.test.js`：補助関数`setupFakeDrawing`・`names`（JSDoc付き）と、偽物での手順・実物の組み合わせのテスト23件を末尾に追加。既存のケース・補助関数は不変。
+    *   `node --test`：tests 1631 / suites 250 / pass 1631 / fail 0（タスク5後の1608から+23）。
+    *   開発資料への影響：2章の更新予定の記載のとおりで、追加は無い。
 
 ### タスク7: 要件6 入力の配線（`core/InputTracker`）
 *   **作業内容** :

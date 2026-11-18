@@ -406,3 +406,350 @@ test('実物の組み合わせ: ハンドルのドラッグで自身のもう一
     assert.equal(dump(model)[0].points.length, 4);
     assert.equal(dump(model)[0].closed, false);
 });
+
+/**
+ * 線を引く手順の検証用に、replaceDraft・commitDraftも記録する偽のmodel・editRecorder・screenLengthToWorldとEndpointSnapperを作る。
+ * @param {Array<Object>} shapes getShapesが返す図形（重なり順）
+ * @param {Object|null} draft getDraftShapeが返す作成途中の図形
+ * @param {number} [tolerance=0] screenLengthToWorldが返す値
+ * @returns {{ snapper: EndpointSnapper, calls: Array<Array<*>>, lengths: Array<number> }} 手順と呼び出し記録
+ */
+function setupFakeDrawing(shapes, draft, tolerance = 0) {
+    const calls = [];
+    const lengths = [];
+    const model = {
+        getShapes: () => shapes,
+        getDraftShape: () => draft,
+        cancelDraft: () => { calls.push(['cancelDraft']); },
+        replaceDraft: (shape) => { calls.push(['replaceDraft', shape]); return true; },
+        commitDraft: () => { calls.push(['commitDraft']); },
+        replaceShape: (...args) => {
+            calls.push(['replaceShape', ...args]);
+            return 'placed';
+        }
+    };
+    const editRecorder = {
+        beginEdit: () => { calls.push(['beginEdit']); },
+        commitEdit: () => { calls.push(['commitEdit']); return true; }
+    };
+    const screenLengthToWorld = (length) => {
+        lengths.push(length);
+        return tolerance;
+    };
+    const snapper = new EndpointSnapper({ model, editRecorder, screenLengthToWorld });
+    return { snapper, calls, lengths };
+}
+
+/**
+ * 呼び出し記録から名前の並びだけを取り出す。
+ * @param {Array<Array<*>>} calls 呼び出し記録
+ * @returns {Array<string>} 呼び出し名の並び
+ */
+function names(calls) {
+    return calls.map((c) => c[0]);
+}
+
+test('isDrawingLine: 作成途中が無い・曲線・閉じたパスではfalse、直線・開いたパスではtrue（記録先に触れない）', () => {
+    const none = setupFakeDrawing([], null);
+    assert.equal(none.snapper.isDrawingLine(), false);
+    assert.equal(setupFakeDrawing([], undefined).snapper.isDrawingLine(), false);
+    assert.equal(setupFakeDrawing([], makeCurve(null)).snapper.isDrawingLine(), false);
+    assert.equal(setupFakeDrawing([], makeLine(null, 0, 0, 10, 0)).snapper.isDrawingLine(), true);
+    const open = setupFakeDrawing([], makePath(null, [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }]));
+    assert.equal(open.snapper.isDrawingLine(), true);
+    const closed = makePath(null, [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }], true);
+    assert.equal(setupFakeDrawing([], closed).snapper.isDrawingLine(), false);
+    assert.deepEqual(open.calls, []);
+    assert.deepEqual(open.lengths, []);
+});
+
+test('findDrawnLineSnap: 作成途中が無ければnullで換算を呼ばない。あれば許容距離はscreenLengthToWorld(8)', () => {
+    const a = makeLine('a', 0, 0, 100, 0);
+    const none = setupFakeDrawing([a], null, 10);
+    assert.equal(none.snapper.findDrawnLineSnap(null, { x: 100, y: 0 }), null);
+    assert.deepEqual(none.lengths, []);
+
+    const draft = makeLine(null, 200, 0, 300, 0);
+    const { snapper, lengths } = setupFakeDrawing([a], draft, 10);
+    assert.deepEqual(snapper.findDrawnLineSnap(null, { x: 105, y: 0 }), { shapeId: 'a', end: 'end', x: 100, y: 0 });
+    assert.deepEqual(lengths, [8]);
+    assert.equal(snapper.findDrawnLineSnap({ shapeId: 'a', end: 'end' }, { x: 105, y: 0 }), null);
+});
+
+test('getDrawnLineLastPoint: 作成途中が無ければnull。あれば最後の点（付いてくる線の先の1つ前）', () => {
+    assert.equal(setupFakeDrawing([], null).snapper.getDrawnLineLastPoint(), null);
+    const draft = makePath(null, [{ x: 0, y: 0 }, { x: 10, y: 5 }, { x: 30, y: 30 }]);
+    assert.deepEqual(setupFakeDrawing([], draft).snapper.getDrawnLineLastPoint(), { x: 10, y: 5 });
+});
+
+test('clickDrawnLine: 作成途中が無ければfalseで何も呼ばない', () => {
+    const { snapper, calls, lengths } = setupFakeDrawing([], null, 5);
+    assert.equal(snapper.clickDrawnLine(null, null), false);
+    assert.deepEqual(calls, []);
+    assert.deepEqual(lengths, []);
+});
+
+test('clickDrawnLine（点を打つ）: replaceDraftだけで記録先に触れない。trueで換算は5', () => {
+    const draft = makeLine(null, 0, 0, 100, 0);
+    const { snapper, calls, lengths } = setupFakeDrawing([], draft, 5);
+    assert.equal(snapper.clickDrawnLine(null, null), true);
+    assert.deepEqual(names(calls), ['replaceDraft']);
+    assert.deepEqual(calls[0][1].toJSON().points, [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 0 }]);
+    assert.deepEqual(lengths, [5]);
+});
+
+test('clickDrawnLine（閉じる）: 始点への吸い付き＋打った点3つ → replaceDraft→beginEdit→commitDraft→commitEdit。閉じたパス', () => {
+    const draft = makePath(null, [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 5 }]);
+    const { snapper, calls, lengths } = setupFakeDrawing([], draft, 5);
+    assert.equal(snapper.clickDrawnLine(null, { kind: 'drawnStart', x: 0, y: 0 }), false);
+    assert.deepEqual(names(calls), ['replaceDraft', 'beginEdit', 'commitDraft', 'commitEdit']);
+    const closed = calls[0][1].toJSON();
+    assert.equal(closed.closed, true);
+    assert.deepEqual(closed.points, [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }]);
+    assert.deepEqual(lengths, []);
+});
+
+test('clickDrawnLine（始点への吸い付きでも閉じられない）: 点を打つ', () => {
+    const draft = makePath(null, [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 0, y: 5 }]);
+    const { snapper, calls } = setupFakeDrawing([], draft, 5);
+    assert.equal(snapper.clickDrawnLine(null, { kind: 'drawnStart', x: 0, y: 0 }), true);
+    assert.deepEqual(names(calls), ['replaceDraft']);
+    assert.equal(calls[0][1].toJSON().points.length, 4);
+});
+
+test('clickDrawnLine（開いたまま終える）: 付いてくる線の先が最後の点と重なる → replaceDraft→beginEdit→commitDraft→commitEdit。換算は5', () => {
+    const draft = makePath(null, [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 103, y: 100 }]);
+    const { snapper, calls, lengths } = setupFakeDrawing([], draft, 5);
+    assert.equal(snapper.clickDrawnLine(null, null), false);
+    assert.deepEqual(names(calls), ['replaceDraft', 'beginEdit', 'commitDraft', 'commitEdit']);
+    assert.deepEqual(calls[0][1].toJSON().points, [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }]);
+    assert.deepEqual(lengths, [5]);
+});
+
+test('clickDrawnLine（始点と重なる）: 打った点が始点だけならcancelDraftだけで何も残さない', () => {
+    const draft = makeLine(null, 0, 0, 2, 0);
+    const { snapper, calls } = setupFakeDrawing([], draft, 5);
+    assert.equal(snapper.clickDrawnLine(null, null), false);
+    assert.deepEqual(names(calls), ['cancelDraft']);
+});
+
+test('clickDrawnLine（つながる）: 端点への吸い付き → cancelDraft→beginEdit→replaceShape→commitEdit', () => {
+    const a = makeLine('a', 0, 0, 100, 0);
+    const draft = makePath(null, [{ x: 200, y: 0 }, { x: 150, y: 50 }, { x: 100, y: 0 }]);
+    const { snapper, calls, lengths } = setupFakeDrawing([a], draft, 5);
+    const endSnap = { shapeId: 'a', end: 'end', x: 100, y: 0 };
+    assert.equal(snapper.clickDrawnLine(null, endSnap), false);
+    assert.deepEqual(names(calls), ['cancelDraft', 'beginEdit', 'replaceShape', 'commitEdit']);
+    assert.equal(calls[2][1], 'a');
+    assert.equal(calls[2][3].select, false);
+    assert.deepEqual(lengths, [5, 5]);
+});
+
+test('finishDrawnLine: 作成途中が無ければ何もしない。始点だけならcancelDraftだけ（記録しない）', () => {
+    const none = setupFakeDrawing([], null, 5);
+    none.snapper.finishDrawnLine(null);
+    assert.deepEqual(none.calls, []);
+
+    const one = setupFakeDrawing([], makeLine(null, 0, 0, 50, 0), 5);
+    one.snapper.finishDrawnLine(null);
+    assert.deepEqual(names(one.calls), ['cancelDraft']);
+});
+
+test('finishDrawnLine: 描き始めが端点でなければreplaceDraft→beginEdit→commitDraft→commitEdit', () => {
+    const draft = makePath(null, [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }]);
+    const { snapper, calls } = setupFakeDrawing([], draft, 5);
+    snapper.finishDrawnLine(null);
+    assert.deepEqual(names(calls), ['replaceDraft', 'beginEdit', 'commitDraft', 'commitEdit']);
+    assert.deepEqual(calls[0][1].toJSON().points, [{ x: 0, y: 0 }, { x: 100, y: 0 }]);
+    assert.equal(calls[0][1].toJSON().type, 'line');
+});
+
+test('finishDrawnLine: 描き始めが端点ならcancelDraft→beginEdit→replaceShape(描き足し)→commitEdit', () => {
+    const a = makeLine('a', 0, 0, 100, 0);
+    const draft = makePath(null, [{ x: 100, y: 0 }, { x: 150, y: 50 }, { x: 200, y: 50 }]);
+    const { snapper, calls } = setupFakeDrawing([a], draft, 5);
+    snapper.finishDrawnLine({ shapeId: 'a', end: 'end' });
+    assert.deepEqual(names(calls), ['cancelDraft', 'beginEdit', 'replaceShape', 'commitEdit']);
+    assert.equal(calls[2][1], 'a');
+    assert.deepEqual(calls[2][2].toJSON().points, [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 150, y: 50 }]);
+    assert.deepEqual(calls[2][3], { keepId: true, removeIds: [], select: false });
+});
+
+test('removeDrawnLinePoint: 作成途中が無ければfalse。点が複数ならreplaceDraftでtrue。始点だけならcancelDraftでfalse。記録先に触れない', () => {
+    assert.equal(setupFakeDrawing([], null).snapper.removeDrawnLinePoint(), false);
+
+    const multi = setupFakeDrawing([], makePath(null, [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 20, y: 5 }]));
+    assert.equal(multi.snapper.removeDrawnLinePoint(), true);
+    assert.deepEqual(names(multi.calls), ['replaceDraft']);
+    assert.deepEqual(multi.calls[0][1].toJSON().points, [{ x: 0, y: 0 }, { x: 20, y: 5 }]);
+
+    const one = setupFakeDrawing([], makeLine(null, 0, 0, 10, 0));
+    assert.equal(one.snapper.removeDrawnLinePoint(), false);
+    assert.deepEqual(names(one.calls), ['cancelDraft']);
+});
+
+test('実物の組み合わせ: 点を5つ打って開いたまま終える → 開いたパス1つ・選択は空・履歴1件・undo/redo', () => {
+    const { model, history, snapper } = setupReal([]);
+    model.startDraft(0, 0, 'line');
+    const pts = [{ x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }, { x: 0, y: 200 }];
+    for (const p of pts) {
+        model.updateDraft(p.x, p.y);
+        assert.equal(snapper.clickDrawnLine(null, null), true);
+        assert.equal(history.canUndo(), false);
+        assert.deepEqual(dump(model), []);
+    }
+    model.updateDraft(0, 200);
+    assert.equal(snapper.clickDrawnLine(null, null), false);
+    const shapes = dump(model);
+    assert.equal(shapes.length, 1);
+    assert.equal(shapes[0].type, 'path');
+    assert.equal(shapes[0].closed, false);
+    assert.deepEqual(shapes[0].points, [{ x: 0, y: 0 }, ...pts]);
+    assert.deepEqual(model.getSelectedIds(), []);
+    assert.equal(history.canUndo(), true);
+    assert.equal(history.undo(), true);
+    assert.deepEqual(dump(model), []);
+    assert.equal(history.canUndo(), false);
+    assert.equal(history.redo(), true);
+    assert.deepEqual(dump(model), shapes);
+});
+
+test('実物の組み合わせ: 点2つで終えるとline', () => {
+    const { model, history, snapper } = setupReal([]);
+    model.startDraft(0, 0, 'line');
+    model.updateDraft(100, 0);
+    assert.equal(snapper.clickDrawnLine(null, null), true);
+    snapper.finishDrawnLine(null);
+    const shapes = dump(model);
+    assert.equal(shapes.length, 1);
+    assert.equal(shapes[0].type, 'line');
+    assert.equal(history.canUndo(), true);
+});
+
+test('実物の組み合わせ: 始点に吸い付いて閉じる → 閉じたパス・履歴1件', () => {
+    const { model, history, snapper } = setupReal([]);
+    model.startDraft(0, 0, 'line');
+    for (const p of [{ x: 100, y: 0 }, { x: 100, y: 100 }]) {
+        model.updateDraft(p.x, p.y);
+        snapper.clickDrawnLine(null, null);
+    }
+    model.updateDraft(0, 2);
+    const snap = snapper.findDrawnLineSnap(null, { x: 0, y: 2 });
+    assert.deepEqual(snap, { kind: 'drawnStart', x: 0, y: 0 });
+    assert.equal(snapper.clickDrawnLine(null, snap), false);
+    const shapes = dump(model);
+    assert.equal(shapes.length, 1);
+    assert.equal(shapes[0].type, 'path');
+    assert.equal(shapes[0].closed, true);
+    assert.deepEqual(shapes[0].points, [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }]);
+    assert.equal(history.canUndo(), true);
+    assert.equal(history.undo(), true);
+    assert.equal(history.canUndo(), false);
+});
+
+test('実物の組み合わせ: 既存の線の端点から引き始めて終える → 元のidの開いたパス・履歴1件・undoで元の直線', () => {
+    const a = makeLine('a', 0, 0, 100, 0);
+    const { model, history, snapper } = setupReal([a]);
+    const original = dump(model);
+    const startSnap = { shapeId: 'a', end: 'end' };
+    model.startDraft(100, 0, 'line');
+    model.updateDraft(150, 50);
+    assert.equal(snapper.clickDrawnLine(startSnap, null), true);
+    model.updateDraft(200, 50);
+    snapper.finishDrawnLine(startSnap);
+    const shapes = dump(model);
+    assert.equal(shapes.length, 1);
+    assert.equal(shapes[0].id, 'a');
+    assert.equal(shapes[0].type, 'path');
+    assert.deepEqual(shapes[0].points, [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 150, y: 50 }]);
+    assert.equal(shapes[0].strokeColor, '#112233');
+    assert.equal(history.undo(), true);
+    assert.deepEqual(dump(model), original);
+    assert.equal(history.canUndo(), false);
+});
+
+test('実物の組み合わせ: 別の線の端点に吸い付いて終える → 1本・履歴1件', () => {
+    const a = makeLine('a', 0, 0, 100, 0);
+    const b = makeLine('b', 300, 0, 400, 0);
+    const { model, history, snapper } = setupReal([a, b]);
+    const startSnap = { shapeId: 'a', end: 'end' };
+    model.startDraft(100, 0, 'line');
+    model.updateDraft(200, 50);
+    snapper.clickDrawnLine(startSnap, null);
+    model.updateDraft(300, 0);
+    const endSnap = snapper.findDrawnLineSnap(startSnap, { x: 303, y: 0 });
+    assert.deepEqual(endSnap, { shapeId: 'b', end: 'start', x: 300, y: 0 });
+    assert.equal(snapper.clickDrawnLine(startSnap, endSnap), false);
+    assert.equal(dump(model).length, 1);
+    assert.equal(history.canUndo(), true);
+    assert.equal(history.undo(), true);
+    assert.equal(dump(model).length, 2);
+    assert.equal(history.canUndo(), false);
+});
+
+test('実物の組み合わせ: 両端とも別の線 → 3本が1本・もう一方が除かれる', () => {
+    const a = makeLine('a', 0, 0, 100, 0);
+    const b = makeLine('b', 300, 0, 400, 0);
+    const { model, snapper } = setupReal([a, b]);
+    const startSnap = { shapeId: 'a', end: 'end' };
+    model.startDraft(100, 0, 'line');
+    model.updateDraft(200, 50);
+    snapper.clickDrawnLine(startSnap, null);
+    model.updateDraft(300, 0);
+    snapper.clickDrawnLine(startSnap, { shapeId: 'b', end: 'start', x: 300, y: 0 });
+    const shapes = dump(model);
+    assert.equal(shapes.length, 1);
+    assert.deepEqual(
+        shapes[0].points,
+        [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 200, y: 50 }, { x: 300, y: 0 }, { x: 400, y: 0 }]
+    );
+    assert.equal(model.getShapes().some((s) => s.id === 'b'), false);
+});
+
+test('実物の組み合わせ: 既存の線の端点から引き始め、そのもう一方の端点で閉じる → 元のidの閉じたパス', () => {
+    const a = makeLine('a', 0, 0, 100, 0);
+    const { model, history, snapper } = setupReal([a]);
+    const startSnap = { shapeId: 'a', end: 'end' };
+    model.startDraft(100, 0, 'line');
+    model.updateDraft(50, 100);
+    snapper.clickDrawnLine(startSnap, null);
+    model.updateDraft(0, 0);
+    assert.equal(snapper.clickDrawnLine(startSnap, { shapeId: 'a', end: 'start', x: 0, y: 0 }), false);
+    const shapes = dump(model);
+    assert.equal(shapes.length, 1);
+    assert.equal(shapes[0].id, 'a');
+    assert.equal(shapes[0].closed, true);
+    assert.equal(history.canUndo(), true);
+});
+
+test('実物の組み合わせ: 点を打つ・最後の点を消すの間は履歴・図形一式が変わらない', () => {
+    const { model, history, snapper } = setupReal([]);
+    model.startDraft(0, 0, 'line');
+    model.updateDraft(100, 0);
+    snapper.clickDrawnLine(null, null);
+    model.updateDraft(100, 100);
+    snapper.clickDrawnLine(null, null);
+    assert.equal(model.getDraftShape().toJSON().points.length, 4);
+    assert.equal(snapper.removeDrawnLinePoint(), true);
+    assert.equal(model.getDraftShape().toJSON().points.length, 3);
+    assert.equal(snapper.removeDrawnLinePoint(), true);
+    assert.equal(model.getDraftShape().toJSON().type, 'line');
+    assert.equal(snapper.removeDrawnLinePoint(), false);
+    assert.equal(model.getDraftShape(), null);
+    assert.equal(history.canUndo(), false);
+    assert.deepEqual(dump(model), []);
+});
+
+test('実物の組み合わせ: 新しく引いた線のスタイルは直前に使った値（updateNewShapeStyleで変えた値）', () => {
+    const { model, snapper } = setupReal([]);
+    model.startDraft(0, 0, 'line');
+    model.updateDraft(100, 0);
+    snapper.clickDrawnLine(null, null);
+    model.updateDraft(100, 100);
+    model.updateNewShapeStyle({ strokeColor: '#abcdef', strokeWidth: 7 });
+    snapper.finishDrawnLine(null);
+    const shapes = dump(model);
+    assert.equal(shapes.length, 1);
+    assert.equal(shapes[0].strokeColor, '#abcdef');
+    assert.equal(shapes[0].strokeWidth, 7);
+});
