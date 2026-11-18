@@ -105,7 +105,8 @@ export class VectorModel {
 
     /**
      * @type {Object|null} 作成中（始点確定・終点未確定）の未コミット図形オブジェクト
-     * （draw/setVertex等の共通インターフェースを持つ図形オブジェクト。ShapeFactory経由で生成される）
+     * （draw/setVertex等の共通インターフェースを持つ図形オブジェクト。ShapeFactory経由で生成される）。
+     * 直線のツールで続けて引く線では、打った点＋付いてくる線の先を持つ（`replaceDraft`で組み立て直した図形に置き換わる）。
      * @private
      */
     #draftShape;
@@ -383,6 +384,7 @@ export class VectorModel {
      * 始点を確定し、始点・終点が同一座標の仮図形を作成中データとして生成する。
      * 生成した時点ではidを持たず、#shapesにも登録しない（コミットはcommitDraftで行う）。
      * 生成直後に、直前に使った値（新しく描く図形のスタイル）を作成中の図形へ当てる（ShapeFactory.createの呼び方は変えない）。
+     * 作成中の図形を作る・置き換えるのは、このメソッドと`replaceDraft`だけである。
      * @param {number} x 始点のX座標（ワールド座標）
      * @param {number} y 始点のY座標（ワールド座標）
      * @param {string} [type=SHAPE_TYPES[0]] 生成する図形の種別（SHAPE_TYPESのいずれか。ShapeFactory.createへ渡される）
@@ -489,6 +491,35 @@ export class VectorModel {
         }
         this.#draftShape = null;
         this.#notifyChange();
+    }
+
+    /**
+     * 作成中の図形を、渡された図形に置き換える（直線のツールで続けて引く線の、点を打つ・最後の点を消す・
+     * 終えた線の組み立て直しで、edit/EndpointSnapperが呼ぶ）。
+     * (1)作成中の図形が無ければ、何もせず（通知もせず）falseを返す。
+     * (2)`shape`のインスタンスが#shapesに含まれていれば、console.warnのうえ何もせずfalseを返す（`replaceShape`と同じ防御）。
+     * (3)`shape.id`をnull（作成中の図形はidを持たない）にし、直前に使った値（新しく描く図形のスタイル）を当てる
+     *    （`startDraft`と同じ）。`shape`を作成中の図形として保持する。#shapesには入れない。
+     * (4)変更を通知して（1回）trueを返す。
+     * 選択集合・頂点の選択・ホバー・選択矩形・吸い付きの表示の点・直前に使った値・idの採番には触れない。
+     * 図形の種別・頂点を関知しない。受け取ったインスタンスをそのまま保持して書き換えるため、
+     * 呼び出し側は以後そのインスタンスを他の用途に流用しないこと。
+     * @param {Object} shape 新しい作成中の図形（共通インターフェースを持つ図形オブジェクト）
+     * @returns {boolean} 置き換えたか
+     */
+    replaceDraft(shape) {
+        if (!this.#draftShape) {
+            return false;
+        }
+        if (this.#shapes.includes(shape)) {
+            console.warn('VectorModel.replaceDraft: 既に追加済みの図形インスタンスのため置き換えません。', shape);
+            return false;
+        }
+        shape.id = null;
+        this.#assignShapeStyle(shape, this.#toShapeStyle());
+        this.#draftShape = shape;
+        this.#notifyChange();
+        return true;
     }
 
     /**

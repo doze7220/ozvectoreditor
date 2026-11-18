@@ -402,7 +402,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク5: 要件4 作成途中の図形の置き換え（`core/VectorModel.replaceDraft`）
+*   [x] タスク5: 要件4 作成途中の図形の置き換え（`core/VectorModel.replaceDraft`）
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js` :（更新。`replaceDraft`の追加と、`#draftShape`・`startDraft`のJSDocへの追記のみ）
         *   `./test/core/VectorModel.replaceDraft.test.js` :（新規）
@@ -525,7 +525,10 @@
 
 ### タスク5: 要件4 作成途中の図形の置き換え（`core/VectorModel.replaceDraft`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/VectorModel.js`：`cancelDraft`の直後に`replaceDraft(shape)`を追加（JSDoc付き。処理順は要件4の1.〜4.のとおり。`#assignShapeStyle`・`#toShapeStyle`を使用、importなし）。`#draftShape`・`startDraft`のJSDocへ追記。責務定義・既存メソッドの中身・importは不変。
+    *   `test/core/VectorModel.replaceDraft.test.js`（新規）：要件4のテストの観点（作成途中が無い／ある・id null化・`#shapes`に入らない・スタイルの当て込み・`#shapes`の図形でwarn・触れない状態・`commitDraft`／`cancelDraft`／`updateDraft`との連携）を11ケースで確認。
+    *   `node --test`：tests 1608 / suites 250 / pass 1608 / fail 0（タスク4後の1597から+11）。
+    *   開発資料への影響：2章の更新予定の記載のとおりで、追加は無い。
 
 ### タスク6: 要件5 線を引く手順（`edit/EndpointSnapper`）
 *   **作業内容** :
