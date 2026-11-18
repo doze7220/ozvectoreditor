@@ -1,5 +1,5 @@
 *   **test/**：自動テスト。Node.jsの`node:test`・`node:assert/strict`のみで書き（例外：`test/io/CodeExporter.assembly.test.js`に限り`node:fs`・`node:os`・`node:path`・`node:url`も使う）、プロジェクトのルートの`node --test`で実行する。`index.html`・`js/`は`test/`を参照しない（依存は`test/ → js/`の一方向）。
-    *   **実行方法**：プロジェクトのルートで`node --test`（引数なし）。確認したNode.jsの版はv24.20.0。`package.json`は作らない（`package.json`がなくても`import`/`export`を含む`.js`がESモジュールとして読み込まれ、警告も出ないことを確認済み。古いNode.jsでは動かない可能性がある。その場合も`package.json`を足さずNode.jsの版を上げる）。Node.jsはテストの実行にのみ使う。結果は標準の出力の`tests`・`pass`・`fail`の件数で見る（`fail 0`であることを確かめる）。
+    *   **実行方法**：プロジェクトのルートで`node --test`（引数なし）。確認したNode.jsの版はv24.15.0。`package.json`は作らない（`package.json`がなくても`import`/`export`を含む`.js`がESモジュールとして読み込まれ、警告も出ないことを確認済み。古いNode.jsでは動かない可能性がある。その場合も`package.json`を足さずNode.jsの版を上げる）。Node.jsはテストの実行にのみ使う。結果は標準の出力の`tests`・`pass`・`fail`の件数で見る（`fail 0`であることを確かめる）。
     *   **置き場所と命名**：`test/<js/からの相対フォルダ>/<対象モジュール名>[.<観点>].test.js`。`test/`以下の`.js`はすべてテストとして実行されるため、共有の補助モジュールを置かず、補助関数は各テストファイルの中に書く。テスト以外の`.js`を`test/`以下に置かない。プロジェクト内に`test.js`・`test-*.js`・`*_test.js`・`*-test.js`の名前のファイルを作らない（同じく実行対象になる）。
     *   **書き方の決まり**：
         *   先頭行に単一責務のJSDoc（3行以内）。補助関数にもJSDoc（`@param`・`@returns`）を書く。
