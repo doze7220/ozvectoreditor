@@ -275,7 +275,7 @@
         *   開発資料の記載に影響が出る点があれば、本計画書の『開発資料の更新予定』欄へ追記する（資料本体は修正しない）。
         *   本RESファイルの「4. 詳細作業内容」の該当見出しへ作業内容を記載し、タスクリストのチェックを`[x]`にする。
 
-*   [ ] タスク4: 要件D 曲線のツールは既存の線の端点に吸い付かない（`shapes/EndpointSnapRules`）
+*   [x] タスク4: 要件D 曲線のツールは既存の線の端点に吸い付かない（`shapes/EndpointSnapRules`）
     *   **対象ファイル** :
         *   `./js/shapes/EndpointSnapRules.js` :（更新。`findDrawnLineSnapTarget`の端点の候補の条件と、JSDocの更新のみ）
         *   `./test/shapes/EndpointSnapRules.test.js` :（更新。`describe`の追加と、必要なimportの追加のみ）
@@ -413,7 +413,9 @@
 
 ### タスク4: 要件D 曲線のツールは既存の線の端点に吸い付かない（`shapes/EndpointSnapRules`）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/shapes/EndpointSnapRules.js`：`findDrawnLineSnapTarget`で`isJoinableLine(drawn)`が偽のとき端点の走査をせず`{target: null, distance: Infinity}`として扱う（始点の候補の条件・同距離の優先は不変）。JSDocの手順1.に条件を追記、`findSnapTarget`と`resolveEndpointHandle`のJSDocの「結合できる線」を「直線・区間がすべて直線の開いたパス」へ（`resolveEndpointHandle`は結合できない線の列挙に「曲線の区間を含むパス」も追加）。他の関数・import・定数・先頭の責務定義は不変。
+    *   `test/shapes/EndpointSnapRules.test.js`：`SEGMENT_KIND_SMOOTH`のimportと、曲線のパス・曲線のツールの作成途中の線の`describe`（5件、補助関数`makeSmoothPath`）を追加。既存のケースは不変。`node --test`は tests 1679 / pass 1679 / fail 0。
+    *   開発資料への影響：`EndpointSnapRules`の`findDrawnLineSnapTarget`の条件（曲線のツールの作成途中の線は端点に吸い付かない）の記載に影響（資料本体は未修正。タスク12で反映）。
 
 ### タスク5: 要件E 線を引いている途中かの判定（`edit/EndpointSnapper`。`PathJoiner`はテストのみ）
 *   **作業内容** :

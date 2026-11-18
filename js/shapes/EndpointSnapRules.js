@@ -49,7 +49,7 @@ export function isSnapDrawShapeType(shapeType) {
 /**
  * ハンドルが結合できる線の端点のハンドルか。
  * 「頂点の番号`i`＝図形データの`points[i]`」に依る：`getVertexIndexForHandle`の番号が0なら始点、`points.length - 1`なら終点。
- * 途中の頂点・番号のないハンドル（直線の`'move'`など）・結合できない線（曲線・矩形・円・弧・閉じたパス）はnull。図形を書き換えない。
+ * 途中の頂点・番号のないハンドル（直線の`'move'`など）・結合できない線（曲線・曲線の区間を含むパス・矩形・円・弧・閉じたパス）はnull。結合できる線は直線・区間がすべて直線の開いたパス。図形を書き換えない。
  * @param {Object} shape 図形（`type`・`toJSON()`・`getVertexIndexForHandle`を持つ）
  * @param {*} handleName ハンドル名
  * @returns {'start'|'end'|null} 端点のハンドルなら'start'/'end'、それ以外はnull
@@ -65,7 +65,7 @@ export function resolveEndpointHandle(shape, handleName) {
 
 /**
  * 吸い付く端点を1つ選ぶ。
- * 対象は`shapes`のうち結合できる線（直線・開いたパス）の始点・終点だけ。距離は`Math.hypot`が`tolerance`以下（ちょうどを含む）。
+ * 対象は`shapes`のうち結合できる線（直線・区間がすべて直線の開いたパス）の始点・終点だけ。距離は`Math.hypot`が`tolerance`以下（ちょうどを含む）。
  * 図形を`shapes`の末尾（前面）から先頭へ、各図形は始点→終点の順に調べ、距離が厳密に小さいときだけ更新する
  * （いちばん近い端点／同距離なら前面の図形／同じ図形の始点と終点が同距離なら始点）。
  * `dragged`を渡したとき、`dragged.shapeId`の図形では`dragged.end`の端点を対象にせず、もう一方の端点は
@@ -128,7 +128,9 @@ export function isDrawnStartSnap(snap) {
 
 /**
  * 線を引いている途中の吸い付く先を1つ選ぶ。
- * 1. 端点：`findSnapTarget`と同じ対象・走査順・選び方。ただし`startSnap`が`null`でなければ、その図形のその端点だけを対象にしない
+ * 1. 端点：作成途中の線`drawn`が結合できる線（`isJoinableLine(drawn)`。直線・区間がすべて直線の開いたパス）のときだけ候補にする
+ *    （偽なら端点の走査をせず、結果なし・距離`Infinity`。曲線のツールの作成途中の線は既存の線の端点に吸い付かない）。
+ *    `findSnapTarget`と同じ対象・走査順・選び方。ただし`startSnap`が`null`でなければ、その図形のその端点だけを対象にしない
  *    （同じ図形のもう一方の端点は頂点の数によらず対象。`canCloseByMergingEnds`は使わない）。
  * 2. 始点：`startSnap`が`null`で`canCloseDrawnLine(drawn)`（打った点が3つ以上）のときだけ、`drawn`の始点（`toJSON().points[0]`）を候補にする。
  *    距離が`tolerance`以下で、かつ1.の結果が無いか1.の距離より厳密に小さいときだけ選ぶ（同距離なら端点が残る）。
@@ -141,9 +143,11 @@ export function isDrawnStartSnap(snap) {
  * @returns {SnapTarget|DrawnStartSnap|null} 端点なら`SnapTarget`、始点なら`DrawnStartSnap`、無ければnull
  */
 export function findDrawnLineSnapTarget(shapes, drawn, point, tolerance, startSnap) {
-    const nearest = findNearestEndpoint(shapes, point, tolerance, (shape, end) =>
-        startSnap !== null && shape.id === startSnap.shapeId && end === startSnap.end
-    );
+    const nearest = isJoinableLine(drawn)
+        ? findNearestEndpoint(shapes, point, tolerance, (shape, end) =>
+            startSnap !== null && shape.id === startSnap.shapeId && end === startSnap.end
+        )
+        : { target: null, distance: Infinity };
     if (startSnap === null && canCloseDrawnLine(drawn)) {
         const start = drawn.toJSON().points[0];
         const d = Math.hypot(start.x - point.x, start.y - point.y);
