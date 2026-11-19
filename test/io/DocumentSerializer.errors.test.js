@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { DocumentSerializer } from '../../js/io/DocumentSerializer.js';
 import { ShapeFactory } from '../../js/core/ShapeFactory.js';
 import { Curve } from '../../js/shapes/Curve.js';
+import { Path, SEGMENT_KIND_SMOOTH } from '../../js/shapes/Path.js';
 
 /**
  * console.warn を、そのテストの終了時に自動で元へ戻るモックへ置き換えて抑止する。
@@ -343,4 +344,39 @@ describe('DocumentSerializer: 引数を書き換えない', () => {
         shapes.forEach((shape, i) => assert.equal(shape, before[i]));
         assert.deepStrictEqual(shapes.map((s) => s.toJSON()), jsonBefore);
     });
+});
+
+describe('DocumentSerializer.deserialize: 不正な corners のスキップ（Phase 09-02a）', () => {
+    /**
+     * 角の点を含む正しいパスの図形データを作り、1項目だけ不正にする。
+     * @param {(data: object) => void} mutate - 図形データを不正に書き換える関数
+     * @returns {object} 不正なパスの図形データ
+     */
+    function brokenPath(mutate) {
+        const path = new Path(
+            [{ x: 0, y: 0 }, { x: 50, y: 30 }, { x: 100, y: 0 }], false, '#000000', 2, null, SEGMENT_KIND_SMOOTH, [false, true, false],
+        );
+        path.id = 'p';
+        const data = path.toJSON();
+        mutate(data);
+        return data;
+    }
+
+    const cases = [
+        { name: 'cornersが配列でない', mutate: (d) => { d.corners = 'x'; } },
+        { name: 'cornersがnull', mutate: (d) => { d.corners = null; } },
+        { name: 'cornersの要素数が違う', mutate: (d) => { d.corners = [true, false]; } },
+        { name: 'cornersの要素が真偽値でない', mutate: (d) => { d.corners = [false, 1, false]; } },
+    ];
+    for (const testCase of cases) {
+        it(`${testCase.name}パスは図形単位でスキップされ、残りが復元される`, (t) => {
+            const warn = silenceWarn(t);
+            const [good1, good2] = makeValidData();
+            const result = DocumentSerializer.deserialize(makeDocument([good1, brokenPath(testCase.mutate), good2]));
+            assert.equal(result.ok, true);
+            assert.deepStrictEqual(result.shapes.map((s) => s.toJSON()), [good1, good2]);
+            assert.deepStrictEqual(result.skipped.map(({ index, type }) => ({ index, type })), [{ index: 1, type: 'path' }]);
+            assert.equal(warn.mock.callCount(), 1);
+        });
+    }
 });

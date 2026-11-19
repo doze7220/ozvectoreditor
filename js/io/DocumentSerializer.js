@@ -56,7 +56,7 @@ const MIGRATIONS = Object.freeze({ 1: migrateVersion1To2 });
 
 /**
  * 作業データ形式（現行版2）の最上位の形。
- * 図形データの形は`{ type, id, points, strokeColor, strokeWidth, fillColor }`（pathは`closed`・`segments`が加わる）。
+ * 図形データの形は`{ type, id, points, strokeColor, strokeWidth, fillColor }`（pathは`closed`・`segments`が加わり、角の点があるときだけ`corners`も加わる）。
  * strokeColorは色の文字列またはnull（線なし）、fillColorは色の文字列またはnull（塗りなし。キーが無ければnullとして読む）。
  * @typedef {Object} DocumentData
  * @property {string} format 作業データ形式の識別子（'oz-vector-editor'）

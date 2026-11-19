@@ -543,3 +543,33 @@ describe('塗り・線なしの往復（作業データの版2）', () => {
         assert.equal(JSON.parse(DocumentSerializer.serializeToString(makeFillStrokeShapes())).version, 2);
     });
 });
+
+describe('角の点を含むパスの往復（Phase 09-02a）', () => {
+    const points = [{ x: 0, y: 0 }, { x: 100, y: 20 }, { x: 150, y: 100 }, { x: 40, y: 120 }];
+    const states = [
+        { name: '開いたパス', build: () => new Path(points, false, '#102030', 3, null, SEGMENT_KIND_SMOOTH, [false, true, true, false]) },
+        { name: '閉じたパス', build: () => new Path(points, true, '#102030', 3, '#ffcc00', SEGMENT_KIND_SMOOTH, [true, false, true, false]) },
+    ];
+    for (const state of states) {
+        for (const route of ROUTES) {
+            it(`${state.name}の角の点が保たれる（${route.name}）`, (t) => {
+                const warn = silenceWarn(t);
+                const path = state.build();
+                path.id = 'path-1';
+                assert.ok(path.corners.includes(true));
+                const result = route.run([path]);
+                assertRestoredWithPaths(result, [path]);
+                assert.deepStrictEqual(result.shapes[0].corners, path.corners);
+                assert.deepStrictEqual(result.shapes[0].toJSON().corners, path.corners);
+                assert.equal(warn.mock.callCount(), 0);
+            });
+        }
+    }
+
+    it('角の点がないパスの作業データには corners が出ない', () => {
+        const path = new Path(points, false, '#102030', 3, null, SEGMENT_KIND_SMOOTH);
+        path.id = 'path-1';
+        const doc = DocumentSerializer.serialize([path]);
+        assert.equal('corners' in doc.shapes[0], false);
+    });
+});

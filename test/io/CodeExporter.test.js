@@ -700,3 +700,27 @@ describe('CodeExporter.toModuleText: bezierPathの規則（手で組み立てた
         ]);
     });
 });
+
+describe('CodeExporter.toModuleText: 見た目の一致（角の点を含むパス。Phase 09-02a）', () => {
+    const pts = [{ x: 0, y: 0 }, { x: 100, y: 20 }, { x: 150, y: 100 }, { x: 40, y: 120 }];
+
+    it('開いたパス', async () => {
+        const path = new Path(pts, false, '#ff0000', 4, null, SEGMENT_KIND_SMOOTH, [false, true, true, false]);
+        await assertSameAsEditor([path]);
+        assert.ok(recordEditorDraw([path]).some((entry) => entry[0] === 'bezierCurveTo'));
+    });
+
+    it('閉じたパス', async () => {
+        await assertSameAsEditor([new Path(pts, true, '#00ff00', 2, null, SEGMENT_KIND_SMOOTH, [true, false, false, true])]);
+    });
+
+    it('塗りありの閉じたパス', async () => {
+        await assertSameAsEditor([new Path(pts, true, '#112233', 2, '#abcdef', SEGMENT_KIND_SMOOTH, [false, true, false, false])]);
+    });
+
+    it('角の点で描画命令が角なしと変わる', () => {
+        const plain = new Path(pts, false, '#ff0000', 4, null, SEGMENT_KIND_SMOOTH);
+        const cornered = new Path(pts, false, '#ff0000', 4, null, SEGMENT_KIND_SMOOTH, [false, true, false, false]);
+        assert.notDeepStrictEqual(recordEditorDraw([cornered]), recordEditorDraw([plain]));
+    });
+});

@@ -253,7 +253,7 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
         *   「2. 要件I」の(I-5)のテストを作る。
         *   JSDocの記載漏れが無いことを確かめる。`node --test`が全件通ることを確かめる。
         *   完了後、本RESの「4. 詳細作業内容」のタスク5に作業内容を記載する。開発資料に影響があれば「開発資料の更新予定」へ追記する。
-*   [ ] タスク6: 要件H 保存・書き出しのテスト（`io/`。コードは変えない）
+*   [x] タスク6: 要件H 保存・書き出しのテスト（`io/`。コードは変えない）
     *   **対象ファイル** :
         *   `./test/io/DocumentSerializer.roundtrip.test.js` : 更新（`describe`の追加のみ）
         *   `./test/io/DocumentSerializer.errors.test.js` : 更新（ケースの追加のみ）
@@ -353,7 +353,12 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
 
 ### タスク6: 要件H 保存・書き出しのテスト（`io/`。コードは変えない）
 *   **作業内容** :
-    *   （未実施）
+    *   `test/io/DocumentSerializer.roundtrip.test.js`：`describe('角の点を含むパスの往復（Phase 09-02a）')`を末尾に追加（開いた・閉じた×オブジェクト層・文字列層の4ケース＋角なしで`corners`キーが出ないこと1ケース）。
+    *   `test/io/DocumentSerializer.errors.test.js`：importに`Path`・`SEGMENT_KIND_SMOOTH`を足し、`describe('不正な corners のスキップ（Phase 09-02a）')`を追加（配列でない・null・要素数違い・真偽値でない要素の4ケース。図形単位でスキップされ残りが復元される）。
+    *   `test/io/SpriteSerializer.test.js`：`describe('角の点を含むパスの bezierPath（Phase 09-02a）')`を追加（開いた・閉じた。制御点が`toDrawElement`と一致し角なしと違うこと、外枠が`sampleBezierPathRange`と一致）。
+    *   `test/io/CodeExporter.test.js`：`describe('見た目の一致（角の点を含むパス。Phase 09-02a）')`を追加（開いた・閉じた・塗りあり・角なしと描画命令が違うこと。`assertSameAsEditor`使用）。
+    *   `js/io/DocumentSerializer.js`：typedef`DocumentData`のJSDocの1文のみ修正（コード不変）。
+    *   `node --test`：tests 1860 / suites 294 / pass 1860 / fail 0。既存ケースの変更なし。
 
 ### タスク7: 要件F・要件J 「角」のチェックボックスのUI部品と要素（`palette/OptionBarCornerGroup`・`index.html`）
 *   **作業内容** :

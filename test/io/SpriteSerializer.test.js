@@ -588,3 +588,22 @@ describe('SpriteSerializer: 版3・bezierPath', () => {
         assert.equal(SpriteSerializer.checkFormat({ ...base, formatVersion: 4 }), 'unsupportedVersion');
     });
 });
+
+describe('SpriteSerializer: 角の点を含むパスの bezierPath（Phase 09-02a）', () => {
+    const points = [{ x: 0, y: 0 }, { x: 50, y: 80 }, { x: 100, y: 0 }, { x: 150, y: 60 }];
+
+    for (const closed of [false, true]) {
+        it(`${closed ? '閉じた' : '開いた'}パス: 制御点は角なしと違い toDrawElement と一致し、外枠が形を囲む`, () => {
+            const plain = withId(new Path(points, closed, null, 2, null, SEGMENT_KIND_SMOOTH), 'pl');
+            const cornered = withId(new Path(points, closed, null, 2, null, SEGMENT_KIND_SMOOTH, [false, true, true, false]), 'co');
+            const data = SpriteSerializer.serialize([cornered]);
+            const element = data.elements[0];
+            assert.equal(element.kind, 'bezierPath');
+            const expected = cornered.toDrawElement();
+            assert.deepEqual(element.segments, expected.segments);
+            assert.deepEqual(element.points, expected.points);
+            assert.notDeepEqual(element.segments, SpriteSerializer.serialize([plain]).elements[0].segments);
+            assertBoundsClose(data.bounds, sampleBezierPathRange(element), 1e-3);
+        });
+    }
+});
