@@ -265,7 +265,7 @@ Phase 09-01a・09-01b・09-02aで、パスに曲線の区間（`'smooth'`）と�
         *   `performSegmentKindSwitch`にJSDocを書き、`syncOptionBarCornerGroup`のJSDocとブロックのコメントを実態に合わせる。
         *   `node --test`が全件通ることを確かめる。変更後の`main.js`の行数（`wc -l`）を記録する（タスク8で資料へ書く）。
         *   完了後、本RESの「4. 詳細作業内容」のタスク5に作業内容を記載する。開発資料に影響があれば「開発資料の更新予定」へ追記する。
-*   [ ] タスク6: 仕上げの確認（JSDoc・スコープ・全テスト）
+*   [x] タスク6: 仕上げの確認（JSDoc・スコープ・全テスト）
     *   **対象ファイル** :
         *   （確認のみ。不備があればタスク1〜5の対象ファイルの中でだけ直す）
     *   **作業内容** :
@@ -339,7 +339,11 @@ Phase 09-01a・09-01b・09-02aで、パスに曲線の区間（`'smooth'`）と�
 
 ### タスク6: 仕上げの確認（JSDoc・スコープ・全テスト）
 *   **作業内容** :
-    *   （未記入）
+    *   JSDoc・先頭の責務定義（`PathSegmentKindRules`・`PathCornerEditor`・`OptionBarCornerGroup`とも3行以内で実態に合う）を確認。不備なし。
+    *   タスク5監査の申し送り：`js/main.js`の`performSegmentKindSwitch`のJSDoc冒頭を「頂点の選択で両端の点を選んだ区間（単独の直線・今の曲線を含む）を直線／曲線に切り替える。」に直した（コメントのみ）。
+    *   スコープ：タスク1〜5のコミットの変更ファイルは対象ファイルのみ（`git diff --stat`）。今回の変更は`js/main.js`のコメント1行と本RES。
+    *   二重定義：`edit/PathCornerEditor.js`・`palette/OptionBarCornerGroup.js`と、`main.js`の追加分に、`'vertex-'`・`'start'`・`'path'`・`'line'`・`'curve'`・`'smooth'`の文字列は無いことを`Grep`で確認。
+    *   `node --test`：tests 1926 / suites 306 / pass 1926 / fail 0。既存ケースの期待値の書き換えは無し。
 
 ### タスク7: 要件H テストプレイの確認項目を発注者へ提示する
 *   **作業内容** :
