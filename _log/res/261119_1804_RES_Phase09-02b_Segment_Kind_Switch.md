@@ -279,7 +279,7 @@ Phase 09-01a・09-01b・09-02aで、パスに曲線の区間（`'smooth'`）と�
         *   （本RESのみ）
     *   **作業内容** :
         *   「2. 要件H」の確認項目0〜11を、本RESの「4. 詳細作業内容」のタスク7へ写し、実装の結果に合わせて文言を確かめる（実装で判明した注意点があれば足す）。最終報告でも提示する。
-*   [ ] タスク8: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
+*   [x] タスク8: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` : 更新
         *   `./_doc/arch/01_index_html.md` : 更新
@@ -365,7 +365,12 @@ Phase 09-01a・09-01b・09-02aで、パスに曲線の区間（`'smooth'`）と�
 
 ### タスク8: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
 *   **作業内容** :
-    *   （未記入）
+    *   本タスクは明示的な例外として開発資料を書き換えた（対象は指定の9ファイルのみ。コードは変えていない）。
+    *   `PROJECT_ARCHITECTURE.md`：1章の構成図（`PathSegmentKindRules.js`・`OptionBarCornerGroup`・`PathCornerEditor`の説明・テスト2ファイル）、「存在しないもの」（「区間の直線／曲線の切り替え（Phase 09-02）」を消し、区間のハイライト・切り替えのキー・足す点以外の頂点の追加／削除・今の曲線の「曲線に」を足した）、フォルダ分割の方針（`shapes/`・`edit/`の記述と依存方向の(1)(2)）、2章`path`（区間の切り替えで作られること・不変条件）、3章6.（記録する操作）・13.（まとまりの分け方）・23.（区間の切り替えとの関係）、3章の新しい項24.「区間の直線⇔曲線の切り替え」（流れ・分担・変わる区間と押せるか・結果・選択の付け替えと通知・ドラッグ中・`blur`しない理由・保存・決定事項・やらないこと・確認の状況）。
+    *   `_doc/arch/01_index_html.md`（保っているid・2つのボタン・幅の見積もり約1261px・`title`にキーなし）、`02_main.md`（行数1074行・主な関数・`// 7.12.`・注入の一覧）、`03_VectorModel.md`（`replaceShape`・`setSelectedVertices`・`getSelectedVertices`の呼び出し元）、`12_shapes.md`（`PathSegmentKindRules`の項・`segmentKindsOf`の公開・`PathCornerRules`の使う側・`Path.js`の項の冒頭に`corners`・作る操作・区間の切り替えを「実施済み」に）、`13_palette.md`（`OptionBarCornerGroup`）、`14_edit.md`（`PathCornerEditor`・依存の例外）、`16_test.md`（09-02bの追加分・例外の数12ファイル・テストできない箇所・件数1926 / 306）、`41_NudgeTargetRules.md`（使う側の用途）。
+    *   タスク1の監査の申し送り（`SegmentSwitchTarget`のJSDocに互いの存在を書く点は、`PathCornerRules`が変えないファイルのため`CornerTarget`側からの言及は無い）：コードは変えず、`_doc/arch/12_shapes.md`の`PathSegmentKindRules`の項と`PROJECT_ARCHITECTURE.md`3章24.に両者が同じ形で`#collectTargets`の結果を受けることを書いた。
+    *   監査指摘の修正（資料のみ。コード・テストは不変）：(1) `13_palette.md`冒頭のオプションバーの部品の列に`OptionBarCornerGroup`を追加。(2) `14_edit.md`依存の行末の「`core/`をimportするのは3つだけ」を、実コード（`PathCornerEditor.js`が`core/NudgeTargetRules`をimport）と`PROJECT_ARCHITECTURE.md`に合わせ`PathCornerEditor`を加えた4つに修正。(3) `12_shapes.md`の`Path.js`の項：`SEGMENT_KIND_LINE`・`SEGMENT_KIND_SMOOTH`を使う側に`PathCornerRules`（`SEGMENT_KIND_SMOOTH`のみ。importを確認）・`PathSegmentKindRules`を、`readCornerFlags`を使う側に`PathSegmentKindRules`を追加。(4) `12_shapes.md`の`SegmentSwitchTarget`の「両者の関係はこの資料にだけ書く」を「`SegmentSwitchTarget`側のJSDocには書かれているが`CornerTarget`側からの言及は無い」に修正し、懸念事項の該当行も同趣旨に合わせた。(5) `PROJECT_ARCHITECTURE.md`1章「存在しないもの」の「頂点の追加・削除」を「頂点の削除」に改め、追加は「「曲線に」で足す点以外の頂点の追加」に一本化した。
+    *   作業中の事故：確認のために`git stash`を一度誤って実行し、未コミットの資料の変更が退避されたが、直後に`git stash pop`で復元した（stashは残っていない。変更内容に欠落なし）。
 
 ## 5. 懸念事項・要確認ポイント
 * **既存のクラスの責務を広げること**：`edit/PathCornerEditor`と`palette/OptionBarCornerGroup`は、名前を変えずに区間の切り替えも受け持つ（理由は「2. 全体の方針」）。名前（Corner）と中身（角＋区間の切り替え）がずれるが、REQの「意味が広がるクラスは名前を変えずJSDocを実態に合わせる」に従う。
@@ -375,3 +380,4 @@ Phase 09-01a・09-01b・09-02aで、パスに曲線の区間（`'smooth'`）と�
 * **ボタンの記号（`╱`・`∿`）は仮**。環境によって大きさ・見え方がそろわない可能性がある（整列のボタンと同じ扱い）。1280px幅での収まり（見積もり約1261px。残り約19px）はテストプレイで確かめる。
 * **`Enter`でボタンがもう一度押されること**：ボタンを押した後にフォーカスが残り、`Enter`を押すと（押せるときだけ）もう一度切り替わる。今の重なり順・整列のボタンと同じふるまいで、変えない。
 * **（タスク1より）`PathSegmentKindRules`の注意**：区間の種類を足すときは`changedSegmentIndexes`と`buildCurvedPath`／`buildStraightenedPath`を直す。角の状態は`resolveCornerState`に任せ写さない。今の曲線の頂点の並び（始点0・制御点1・終点2）は`toJSON().points`の約束から読んでいる。開発資料への影響は「開発資料の更新予定」に既に記載の範囲（追記なし）。
+* **（タスク8より）RESの記述とコードの食い違い**：2章要件BはJSDocに「`SegmentSwitchTarget`と`CornerTarget`が互いの存在を書く」としていたが、`PathCornerRules`は変えないファイルのため`CornerTarget`側からの言及は足していない。コードは変えず、開発資料（`_doc/arch/12_shapes.md`・`PROJECT_ARCHITECTURE.md`3章24.）に両者が同じ形であることを書いて補った（`SegmentSwitchTarget`側のJSDocには書かれている。`CornerTarget`側からの言及は無い）。
