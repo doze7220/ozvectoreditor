@@ -229,7 +229,7 @@ Phase 09-01a・09-01b・09-02aで、パスに曲線の区間（`'smooth'`）と�
         *   「2. 要件G」の(G-1)・(G-2)のテストを作る（既存のケースは変えない）。
         *   JSDocの記載漏れが無いことを確かめる。`node --test`が全件通ることを確かめる。
         *   完了後、本RESの「4. 詳細作業内容」のタスク1に作業内容を記載する。開発資料に影響があれば「開発資料の更新予定」へ追記する（資料本体は直さない）。
-*   [ ] タスク2: 要件C 区間の切り替えの1件の編集操作（`edit/PathCornerEditor`）
+*   [x] タスク2: 要件C 区間の切り替えの1件の編集操作（`edit/PathCornerEditor`）
     *   **対象ファイル** :
         *   `./js/edit/PathCornerEditor.js` : 更新（importの追加、3つの公開メソッドと非公開の`#switchSegments`・`#remapSelectedVertices`の追加、ファイル先頭の責務定義とクラスJSDocの更新のみ。既存の`getView`・`toggle`・`#collectTargets`のコードは変えない）
         *   `./test/edit/PathCornerEditor.segmentSwitch.test.js` : 新規
@@ -312,7 +312,9 @@ Phase 09-01a・09-01b・09-02aで、パスに曲線の区間（`'smooth'`）と�
 
 ### タスク2: 要件C 区間の切り替えの1件の編集操作（`edit/PathCornerEditor`）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/edit/PathCornerEditor.js`：`PathSegmentKindRules`のimport（`SegmentKindSwitch`・`resolveSegmentSwitchAvailability`・`planSegmentKindSwitch`）を足し、公開メソッド`getSegmentSwitchAvailability`・`switchSegmentsToLine`・`switchSegmentsToCurve`と非公開の`#switchSegments`・`#remapSelectedVertices`を追加。手順は計画どおり（計画が空なら`false`で何も触れない → 置き換え前に付け替え先を求める → `beginEdit` → `replaceShape`（`keepId: true, select: false`）→ `setSelectedVertices` → `commitEdit()`（鍵なし））。付け替えは`getVertexIndexForHandle`・`getVertexHandleNames`と`vertexIndexMap`だけで、ハンドル名の形式・図形種別は書いていない。ファイル先頭の責務定義（2行）とクラスJSDoc（手順・通知・依存の制約）を実態に合わせた。既存の`getView`・`toggle`・`#collectTargets`は変えていない。
+    *   `test/edit/PathCornerEditor.segmentSwitch.test.js`（新規）：(G-3)の各項目（押せるかの照会・曲線に・直線に・選択の付け替え・単独の直線／今の曲線・複数の図形・変わらないとき・通知の回数・実物の履歴での取り消し／やり直し）。既存の`PathCornerEditor.test.js`は変えていない。
+    *   `node --test`：tests 1912 / suites 304 / fail 0（タスク1後は1897 / 300）。
 
 ### タスク3: 要件F 保存・書き出しのテスト（`io/`。コードは変えない）
 *   **作業内容** :

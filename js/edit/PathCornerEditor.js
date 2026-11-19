@@ -1,22 +1,31 @@
 /**
- * 責務: 頂点の選択で選んでいる点の角・なめらかを規則（`shapes/PathCornerRules`）で切り替える1件の編集操作と、「角」のチェックボックスの表示内容の照会を担う。
- * DOM・操作モードの解釈・図形種別の判定を持たない。
+ * 責務: 頂点の選択で選んでいる点を対象に、角・なめらかの切り替えと区間の直線⇔曲線の切り替えを規則（`shapes/PathCornerRules`・`shapes/PathSegmentKindRules`）で行う1件の編集操作と、
+ * オプションバーの「角」のまとまりの表示内容の照会を担う。DOM・操作モードの解釈・図形種別の判定・ハンドル名の形式を持たない。
  */
 // 依存の向き: `edit/`から`core/`（状態を持たない規則の関数）・`shapes/`（図形をまたぐ規則の関数）への下向きの依存のみ（`main.js → edit → io → core → shapes`の一方向に沿い、どちらも`edit/`を読まないため循環しない）。
 import { resolveNudgeTarget } from '../core/NudgeTargetRules.js';
 import { resolveCornerToggleView, planCornerToggle } from '../shapes/PathCornerRules.js';
+import { SegmentKindSwitch, resolveSegmentSwitchAvailability, planSegmentKindSwitch } from '../shapes/PathSegmentKindRules.js';
 
 /**
- * 角の切り替えの編集操作クラス。main.jsが1つだけ生成する。
+ * 角の切り替え・区間の切り替えの編集操作クラス。main.jsが1つだけ生成する。
  *
- * - 頂点の選択（`A`）で選んでいる点を対象に、表示内容（`getView`）と切り替え（`toggle`）を担う。
+ * - 頂点の選択（`A`）で選んでいる点を対象に、角の表示内容（`getView`）と切り替え（`toggle`）、区間の切り替えの押せるかの照会（`getSegmentSwitchAvailability`）と切り替え（`switchSegmentsToLine`・`switchSegmentsToCurve`）を担う。
  * - 角・なめらかの判定、表示内容の決め方、切り替え後のパスの組み立ては`shapes/PathCornerRules`に任せる。
+ * - 切り替える区間・押せるか・切り替えた新しい図形・元の点の番号から新しい点の番号への対応は`shapes/PathSegmentKindRules`に任せる。
  * - 切り替えは`beginEdit`と`commitEdit`で1回だけ挟み、取り消し1件にする（まとめの鍵なし）。変わる図形が`k`個なら`replaceShape`の通知が`k`回出る。
- * - 置き換えは`keepId: true`・`select: false`なので、図形の選択・頂点の選択・重なり順・スタイル・頂点の位置は変わらない。
+ * - 置き換えは`keepId: true`・`select: false`なので、図形の選択・重なり順・スタイル・頂点の位置は変わらない。
+ *
+ * 区間の切り替えの手順（`#switchSegments`）:
+ *   1. 規則の計画が空なら、記録先・モデルに触れず`false`。
+ *   2. 置き換える前に、選んでいる点の付け替え先を求める（`getVertexIndexForHandle`・`getVertexHandleNames`と計画の`vertexIndexMap`だけを使う。ハンドル名の形式・図形種別は解釈しない）。
+ *   3. `beginEdit` → 図形ごとの`replaceShape` → `setSelectedVertices`（付け替えた頂点の選択） → `commitEdit`。
+ *   通知は`replaceShape`が`k`回、続けて頂点の選択の内容が変わったときだけ`setSelectedVertices`が1回（途中の通知では頂点の選択に元の図形のハンドル名が残るが、同期の処理は合わない名前を飛ばし、最後の通知で正しく描き直される）。
+ *   選んでいた点は選ばれたまま付け替わる（足した点は選ばれない。今の曲線を直線にしたときの制御点の選択は外れる）。
  *
  * 依存の制約:
- *   - importは`core/NudgeTargetRules`の`resolveNudgeTarget`と、`shapes/PathCornerRules`の`resolveCornerToggleView`・`planCornerToggle`のみ。
- *   - `model`は`getSelectedIds`・`getSelectedVertices`・`getShapes`・`replaceShape`だけを使う。
+ *   - importは`core/NudgeTargetRules`の`resolveNudgeTarget`と、`shapes/PathCornerRules`の`resolveCornerToggleView`・`planCornerToggle`と、`shapes/PathSegmentKindRules`の`SegmentKindSwitch`・`resolveSegmentSwitchAvailability`・`planSegmentKindSwitch`のみ。
+ *   - `model`は`getSelectedIds`・`getSelectedVertices`・`getShapes`・`replaceShape`・`setSelectedVertices`だけを使う。
  *   - `editRecorder`（実体は`HistoryManager`）は`beginEdit`・`commitEdit`だけを使う。
  *   - 操作モードの値は解釈せず（`getMode`の戻り値を規則へ渡すだけ）、DOMを知らない。
  *   - 図形種別の分岐・図形固有のプロパティ名（ハンドル名の形式を含む）を持たない。
@@ -70,6 +79,81 @@ export class PathCornerEditor {
         }
         this.#editRecorder.commitEdit();
         return true;
+    }
+
+    /**
+     * 「直線に」「曲線に」のボタンの押せる・押せないを返す（純粋な照会。図形・選択・履歴を変更しない）。
+     * @returns {{ toLine: boolean, toCurve: boolean }} 押せるか（`PathSegmentKindRules.resolveSegmentSwitchAvailability`の結果）
+     */
+    getSegmentSwitchAvailability() {
+        return resolveSegmentSwitchAvailability(this.#collectTargets());
+    }
+
+    /**
+     * 選んでいる点の両端の区間を直線にする。
+     * 変わる区間が無いときは、記録先・モデルに一切触れず`false`。
+     * @returns {boolean} 切り替えたとき`true`
+     */
+    switchSegmentsToLine() {
+        return this.#switchSegments(SegmentKindSwitch.TO_LINE);
+    }
+
+    /**
+     * 選んでいる点の両端の区間を曲線にする（直線の区間の中点に点を足す）。
+     * 変わる区間が無いときは、記録先・モデルに一切触れず`false`。
+     * @returns {boolean} 切り替えたとき`true`
+     */
+    switchSegmentsToCurve() {
+        return this.#switchSegments(SegmentKindSwitch.TO_CURVE);
+    }
+
+    /**
+     * 区間の切り替えの1件の編集操作。計画が空なら何もせず`false`。
+     * 取り消し1件（`beginEdit`と`commitEdit`で1回だけ挟む。鍵なし）。
+     * @param {string} operation `SegmentKindSwitch`の値
+     * @returns {boolean} 切り替えたとき`true`
+     */
+    #switchSegments(operation) {
+        const plan = planSegmentKindSwitch(this.#collectTargets(), operation);
+        if (plan.length === 0) return false;
+        const nextVertices = this.#remapSelectedVertices(this.#model.getSelectedVertices(), this.#model.getShapes(), plan);
+        this.#editRecorder.beginEdit();
+        for (const { targetId, shape } of plan) {
+            this.#model.replaceShape(targetId, shape, { keepId: true, select: false });
+        }
+        this.#model.setSelectedVertices(nextVertices);
+        this.#editRecorder.commitEdit();
+        return true;
+    }
+
+    /**
+     * 置き換える前に、頂点の選択の付け替え先を求める（モデルを変更しない）。
+     * 計画に無い図形の組はそのまま残す。ある図形の組は、元の点の番号を計画の対応で新しい番号へ移し、
+     * 新しい図形のハンドル名のうち同じ番号のものに付け替える。対応先が無い組（今の曲線の制御点など）は落とす。
+     * @param {Array<{shapeId: string, handle: string}>} selectedVertices 今の頂点の選択
+     * @param {Object[]} shapes 置き換える前の図形一式
+     * @param {Array<{targetId: string, shape: Object, vertexIndexMap: Array<number|null>}>} plan 規則の計画
+     * @returns {Array<{shapeId: string, handle: string}>} 付け替えた頂点の選択
+     */
+    #remapSelectedVertices(selectedVertices, shapes, plan) {
+        const next = [];
+        for (const { shapeId, handle } of selectedVertices) {
+            const item = plan.find((p) => p.targetId === shapeId);
+            if (!item) {
+                next.push({ shapeId, handle });
+                continue;
+            }
+            const oldShape = shapes.find((s) => s.id === shapeId);
+            if (!oldShape) continue;
+            const oldIndex = oldShape.getVertexIndexForHandle(handle);
+            if (oldIndex === null) continue;
+            const newIndex = item.vertexIndexMap[oldIndex];
+            if (newIndex === null || newIndex === undefined) continue;
+            const name = item.shape.getVertexHandleNames().find((n) => item.shape.getVertexIndexForHandle(n) === newIndex);
+            if (name === undefined) continue;
+            next.push({ shapeId, handle: name });
+        }
+        return next;
     }
 
     /**
