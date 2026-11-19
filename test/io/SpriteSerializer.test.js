@@ -519,6 +519,19 @@ describe('SpriteSerializer: 版3・bezierPath', () => {
         assert.deepEqual(Object.keys(element.segments[1]), ['kind']);
     });
 
+    it('区間の種類の配列で作った直線と曲線が混ざる開いたパス: 区間・制御点・外枠（Phase 09-01b）', () => {
+        const points = [{ x: 0, y: 0 }, { x: 40, y: 60 }, { x: 80, y: 0 }, { x: 120, y: 70 }, { x: 160, y: 10 }];
+        const path = withId(new Path(points, false, null, 2, null, ['line', 'smooth', 'smooth', 'line']), 'mx');
+        const data = SpriteSerializer.serialize([path]);
+        const element = data.elements[0];
+        assert.equal(element.kind, 'bezierPath');
+        assert.deepEqual(element.segments.map((s) => s.kind), ['line', 'cubic', 'cubic', 'line']);
+        const expected = path.toDrawElement();
+        assert.deepEqual(element.segments, expected.segments);
+        assert.deepEqual(element.points, expected.points);
+        assertBoundsClose(data.bounds, sampleBezierPathRange(element), 1e-3);
+    });
+
     it('外枠は曲線の膨らみ（極値）を含み、制御点を含まない', () => {
         for (const closed of [false, true]) {
             const shape = makeSmoothPathShape(openPoints, closed, null);

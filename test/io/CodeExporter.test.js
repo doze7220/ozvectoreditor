@@ -627,6 +627,15 @@ describe('CodeExporter.toModuleText: 見た目の一致（曲線のパス）', (
         await assertSameAsEditor([makeMixed(pts, true, ['line', 'smooth', 'line', 'smooth'], null)]);
     });
 
+    it('区間の種類の配列で作った直線と曲線が混ざる開いたパス（つなぎ目が角・なめらか）（Phase 09-01b）', async () => {
+        const points = [{ x: 0, y: 0 }, { x: 40, y: 60 }, { x: 80, y: 0 }, { x: 120, y: 70 }, { x: 160, y: 10 }];
+        const path = new Path(points, false, '#112233', 3, null, ['line', 'smooth', 'smooth', 'line']);
+        await assertSameAsEditor([path]);
+        const names = recordEditorDraw([path]).map((entry) => entry[0]);
+        assert.equal(names.filter((name) => name === 'lineTo').length, 2);
+        assert.equal(names.filter((name) => name === 'bezierCurveTo').length, 2);
+    });
+
     it('頂点を動かした曲線のパス', async () => {
         const path = new Path(pts, false, '#123456', 2, null, SEGMENT_KIND_SMOOTH);
         path.setVertex(1, 90, 60);

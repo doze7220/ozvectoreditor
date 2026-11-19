@@ -323,7 +323,7 @@
         *   「2. 要件H」の(H-8)のテストを足す。表の#12はタスク2で書き換え済み（`isJoinableLine`を広げると落ちるため）で、本タスクでは既存のケースを変えない。
         *   `node --test`が全件通ることを確かめる。
         *   完了後、本RESの「4. 詳細作業内容」のタスク6に作業内容（足したテスト）を記載する。開発資料に影響があれば「開発資料の更新予定」へ追記する。
-*   [ ] タスク7: 要件G 直線と曲線が混ざったパスの書き出し・外枠のテスト（`io/`。コードは変えない）
+*   [x] タスク7: 要件G 直線と曲線が混ざったパスの書き出し・外枠のテスト（`io/`。コードは変えない）
     *   **対象ファイル** :
         *   `./test/io/SpriteSerializer.test.js` : 更新（(H-7)の追加のみ）
         *   `./test/io/CodeExporter.test.js` : 更新（(H-7)の追加のみ）
@@ -414,7 +414,12 @@
 
 ### タスク7: 要件G 直線と曲線が混ざったパスの書き出し・外枠のテスト（`io/`。コードは変えない）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/io/`・`js/check/`は未変更。テストのみ追加（既存ケースは未変更、補助関数の追加なし）。計2件。
+    *   `test/io/SpriteSerializer.test.js`：`describe('SpriteSerializer: 版3・bezierPath')`に1件追加。区間`['line','smooth','smooth','line']`の頂点5つの開いたパス（コンストラクタの配列で作る。線の色null）で、描画要素の区間の種類が`['line','cubic','cubic','line']`、`segments`・`points`が`toDrawElement()`と一致、外枠が`sampleBezierPathRange`と一致（誤差1e-3）。
+    *   `test/io/CodeExporter.test.js`：`describe('CodeExporter.toModuleText: 見た目の一致（曲線のパス）')`に1件追加。同じ形のパスで`assertSameAsEditor`が通り、`lineTo`が2回・`bezierCurveTo`が2回であることも確認。
+    *   既存のテストで確かめられている項目（足していない）：`DocumentSerializer.roundtrip.test.js`の「直線と曲線の混在」往復、`SpriteSerializer.test.js`の「直線と曲線が混在するパスの区間は line と cubic」、`CodeExporter.test.js`の「直線と曲線の混在（閉じる区間が直線／曲線）」。
+    *   `node --test`：tests 1779 / suites 281 / pass 1779 / fail 0（足したテスト2件）。
+    *   開発資料への影響：なし。
 
 ### タスク8: 要件F `InputTracker`のJSDocの文言（コードは変えない）
 *   **作業内容** :
