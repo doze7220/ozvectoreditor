@@ -129,13 +129,19 @@ export function cubicBezierPoint(p0, p1, p2, p3, t) {
  * 直線の区間との境目は曲線の側を連なりの端として扱う（角が立つ）。閉じたパスで全区間が曲線なら1周がひとつの連なり。
  * 打った点の間隔が大きく違うと膨らむ・小さな輪ができることがあるのは式の性質（許容）。
  * 引数を書き換えず、戻り値は呼び出しごとに新しいオブジェクト。例外は投げない。
+ * 角の点（cornerFlags[k] === true の頂点k）：区間iの始点 P[i] が角の点なら前の区間を見ず Q0 = 2a − b、
+ * 終点 P[(i+1) % n] が角の点なら次の区間を見ず Q3 = 2b − a（仮の点）を使う。cornerFlags を省いた（空・短い・true以外の）結果は角なしと同じ。
+ * 角の情報が効くのは両側とも曲線の区間の点だけ（直線の区間との境目・開いたパスの端はもともと仮の点を使うため）。
+ * 角の点で形が変わるのはその点の両隣の区間だけ（区間iのQ0・Q3の選び方は P[i]・P[i+1] の角の情報だけを見るため）。
+ * 閉じたパスで全区間が曲線・全点が角なら、区間ごとに直線と同じ形（a + (b−a)/3・b − (b−a)/3）。制御点は角の点があっても頂点の座標の1次式。
  * @param {Array<{x: number, y: number}>} points - 頂点の並び（n個）
  * @param {boolean[]} smoothFlags - 区間ごとの「曲線の区間か」（開いたパスn−1・閉じたパスn個）
  * @param {boolean} closed - 閉じたパスか
+ * @param {boolean[]} [cornerFlags] - 頂点ごとの「角の点か」（要素数n。=== true の要素だけを角とみなす。省く・短い場合は角なし）。書き換えない
  * @returns {Array<{control1: {x: number, y: number}, control2: {x: number, y: number}}|null>}
  *   区間ごとの制御点（要素数は smoothFlags と同じ。曲線の区間でない区間は null）
  */
-export function computeSmoothSegmentControls(points, smoothFlags, closed) {
+export function computeSmoothSegmentControls(points, smoothFlags, closed, cornerFlags = []) {
     const n = points.length;
     const m = smoothFlags.length;
     return smoothFlags.map((isSmooth, i) => {
@@ -144,13 +150,13 @@ export function computeSmoothSegmentControls(points, smoothFlags, closed) {
         const b = points[(i + 1) % n];
 
         const prevIndex = closed ? (i - 1 + m) % m : i - 1;
-        const hasPrev = prevIndex >= 0 && prevIndex !== i && smoothFlags[prevIndex];
+        const hasPrev = prevIndex >= 0 && prevIndex !== i && smoothFlags[prevIndex] && cornerFlags[i] !== true;
         const q0 = hasPrev
             ? points[prevIndex]
             : { x: 2 * a.x - b.x, y: 2 * a.y - b.y };
 
         const nextIndex = closed ? (i + 1) % m : i + 1;
-        const hasNext = nextIndex < m && nextIndex !== i && smoothFlags[nextIndex];
+        const hasNext = nextIndex < m && nextIndex !== i && smoothFlags[nextIndex] && cornerFlags[(i + 1) % n] !== true;
         const q3 = hasNext
             ? points[(nextIndex + 1) % n]
             : { x: 2 * b.x - a.x, y: 2 * b.y - a.y };

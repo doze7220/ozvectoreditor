@@ -203,7 +203,7 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
 *   **`_doc/arch/41_NudgeTargetRules.md`**：使う側に`edit/PathCornerEditor`を足す。
 
 ## 3. タスクリスト
-*   [ ] タスク1: 要件A 形の決め方の式に角の点を足す（`shapes/ShapeGeometry`）
+*   [x] タスク1: 要件A 形の決め方の式に角の点を足す（`shapes/ShapeGeometry`）
     *   **対象ファイル** :
         *   `./js/shapes/ShapeGeometry.js` : 更新（`computeSmoothSegmentControls`の第4引数・2つの条件とJSDocのみ）
         *   `./test/shapes/ShapeGeometry.test.js` : 更新（(I-1)の`describe`の追加のみ）
@@ -323,7 +323,9 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
 
 ### タスク1: 要件A 形の決め方の式に角の点を足す（`shapes/ShapeGeometry`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/shapes/ShapeGeometry.js`：`computeSmoothSegmentControls(points, smoothFlags, closed, cornerFlags = [])`に第4引数を足し、`hasPrev`に`cornerFlags[i] !== true`、`hasNext`に`cornerFlags[(i + 1) % n] !== true`を足した（式の変更はこの2条件のみ）。JSDocに角の点の規則・省いたときの結果が同じこと・両隣の区間だけが変わること・閉じた全点角の性質・`@param cornerFlags`を追記。
+    *   `test/shapes/ShapeGeometry.test.js`：`describe('computeSmoothSegmentControls 角の点（Phase 09-02a）')`を末尾に追加（8ケース。(I-1)の項目を網羅）。既存ケースの変更なし。
+    *   `node --test`：tests 1787 / suites 282 / fail 0。
 
 ### タスク2: 要件B パスが角の情報を持つ（`shapes/Path`）
 *   **作業内容** :

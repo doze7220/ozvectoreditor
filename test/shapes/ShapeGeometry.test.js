@@ -270,3 +270,109 @@ describe('computeSmoothSegmentControls 逆順（Phase 09-01b）', () => {
         });
     });
 });
+
+describe('computeSmoothSegmentControls 角の点（Phase 09-02a）', () => {
+    const P5 = pts([[0, 0], [60, 10], [70, 70], [130, 80], [150, 20]]);
+    const ALL5 = [true, true, true, true];
+    const SQ = pts([[0, 0], [60, 0], [60, 60], [0, 60]]);
+
+    /**
+     * 制御点の結果を比較用の文字列にする。
+     * @param {Array<Object|null>} r - computeSmoothSegmentControlsの結果
+     * @returns {string} JSON文字列
+     */
+    const ser = (r) => JSON.stringify(r);
+
+    it('第4引数を省いた結果と[]・すべてfalseを渡した結果が同じ（開いた・閉じた・混在）', () => {
+        const cases = [
+            [P5, ALL5, false],
+            [SQ, [true, true, true, true], true],
+            [P5, [true, false, true, true], false],
+            [SQ, [true, true, true, false], true],
+        ];
+        for (const [p, f, c] of cases) {
+            const base = ser(computeSmoothSegmentControls(p, f, c));
+            assert.equal(ser(computeSmoothSegmentControls(p, f, c, [])), base);
+            assert.equal(ser(computeSmoothSegmentControls(p, f, c, p.map(() => false))), base);
+        }
+    });
+
+    it('開いた全区間曲線の途中の点を角にすると、前の区間のcontrol2と次の区間のcontrol1が仮の点の式になる', () => {
+        const r = computeSmoothSegmentControls(P5, ALL5, false, [false, false, true, false, false]);
+        // 区間1（P1→P2）: Q3 = 2b - a、Q0 = P0
+        const a = P5[1];
+        const b = P5[2];
+        const q3 = { x: 2 * b.x - a.x, y: 2 * b.y - a.y };
+        assertPointClose(r[1].control2, { x: b.x - (q3.x - a.x) / 6, y: b.y - (q3.y - a.y) / 6 });
+        // 区間2（P2→P3）: Q0 = 2a - b、Q3 = P4
+        const a2 = P5[2];
+        const b2 = P5[3];
+        const q0 = { x: 2 * a2.x - b2.x, y: 2 * a2.y - b2.y };
+        assertPointClose(r[2].control1, { x: a2.x + (b2.x - q0.x) / 6, y: a2.y + (b2.y - q0.y) / 6 });
+    });
+
+    it('頂点5つ以上で、角の点の両隣以外の区間の制御点は角なしと同じ', () => {
+        const P7 = pts([[0, 0], [50, 20], [90, 70], [140, 60], [180, 10], [230, 30], [260, 90]]);
+        const flags = [true, true, true, true, true, true];
+        const base = computeSmoothSegmentControls(P7, flags, false);
+        const r = computeSmoothSegmentControls(P7, flags, false, [false, false, false, true, false, false, false]);
+        // 角は点3。変わるのは区間2・3だけ
+        [0, 1, 4, 5].forEach((i) => assert.equal(ser(r[i]), ser(base[i]), `区間${i}`));
+        assert.notEqual(ser(r[2]), ser(base[2]));
+        assert.notEqual(ser(r[3]), ser(base[3]));
+    });
+
+    it('直線の区間との境目の点・開いたパスの端の点の角の情報は結果を変えない', () => {
+        const flags = [true, false, true, true];
+        const base = computeSmoothSegmentControls(P5, flags, false);
+        // 点1・2は直線の区間との境目、点0・4は端
+        assert.equal(ser(computeSmoothSegmentControls(P5, flags, false, [true, true, true, false, true])), ser(base));
+    });
+
+    it('閉じたパスの始点を角にすると、閉じる区間のcontrol2と区間0のcontrol1が仮の点の式になる', () => {
+        const r = computeSmoothSegmentControls(SQ, [true, true, true, true], true, [true, false, false, false]);
+        // 区間0: Q0 = 2a - b
+        const a = SQ[0];
+        const b = SQ[1];
+        const q0 = { x: 2 * a.x - b.x, y: 2 * a.y - b.y };
+        assertPointClose(r[0].control1, { x: a.x + (b.x - q0.x) / 6, y: a.y + (b.y - q0.y) / 6 });
+        // 区間3（P3→P0）: Q3 = 2b - a（b = P0, a = P3）
+        const a3 = SQ[3];
+        const b3 = SQ[0];
+        const q3 = { x: 2 * b3.x - a3.x, y: 2 * b3.y - a3.y };
+        assertPointClose(r[3].control2, { x: b3.x - (q3.x - a3.x) / 6, y: b3.y - (q3.y - a3.y) / 6 });
+    });
+
+    it('閉じた全区間曲線の全点を角にすると各区間が直線と同じ形になる', () => {
+        const r = computeSmoothSegmentControls(SQ, [true, true, true, true], true, [true, true, true, true]);
+        r.forEach((c, i) => {
+            const a = SQ[i];
+            const b = SQ[(i + 1) % 4];
+            assertPointClose(c.control1, { x: a.x + (b.x - a.x) / 3, y: a.y + (b.y - a.y) / 3 });
+            assertPointClose(c.control2, { x: b.x - (b.x - a.x) / 3, y: b.y - (b.y - a.y) / 3 });
+        });
+    });
+
+    it('角の点を含めても制御点が頂点の1次式（拡大縮小・回転・平行移動と可換）', () => {
+        const flags = [true, true, true, true];
+        const corners = [false, true, false, true];
+        const src = pts([[0, 0], [60, 10], [70, 70], [10, 90]]);
+        const cos = Math.cos(0.7);
+        const sin = Math.sin(0.7);
+        const tf = (p) => ({ x: (p.x * 2) * cos - (p.y * 0.5) * sin + 13, y: (p.x * 2) * sin + (p.y * 0.5) * cos - 7 });
+        const base = computeSmoothSegmentControls(src, flags, true, corners);
+        const moved = computeSmoothSegmentControls(src.map(tf), flags, true, corners);
+        base.forEach((c, i) => {
+            assertPointClose(moved[i].control1, tf(c.control1));
+            assertPointClose(moved[i].control2, tf(c.control2));
+        });
+    });
+
+    it('引数（頂点・区間の種類・角の配列）を書き換えない', () => {
+        const flags = [true, true, true, true];
+        const corners = [false, true, false, true, false];
+        const snapshot = JSON.stringify([P5, flags, corners]);
+        computeSmoothSegmentControls(P5, flags, false, corners);
+        assert.equal(JSON.stringify([P5, flags, corners]), snapshot);
+    });
+});
