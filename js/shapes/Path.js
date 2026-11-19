@@ -1,6 +1,6 @@
 /**
- * 責務: パス（頂点の並びと閉じているか・区間の並び・角の点を持つ、直線の区間と点を通るなめらかな曲線の区間からなる線）の
- * データ保持・Canvasへの描画処理・当たり判定、および図形データとの相互変換と描画要素（スプライトの書き出し用）への変換を担う。
+ * 責務: パス（頂点の並びと閉じているか・区間の並び・角の点を持つ、直線の区間・点を通るなめらかな曲線の区間・
+ * 曲がり方を持つ曲線の区間（引っ張る点を区間に持つ3次ベジェ）からなる線）のデータ保持・Canvasへの描画処理・当たり判定、および図形データとの相互変換と描画要素（スプライトの書き出し用）への変換を担う。
  */
 
 import {
@@ -37,16 +37,53 @@ export const SEGMENT_KIND_LINE = 'line';
 export const SEGMENT_KIND_SMOOTH = 'smooth';
 
 /**
- * 曲線の区間1つを折れ線で近似するときの分割数。当たり判定・範囲選択・塗りの内側が共有する唯一の定義。
+ * 曲がり方を持つ区間（区間ごとに3次ベジェの2つの制御点＝引っ張る点を持ち、形が両端の頂点と引っ張る点で決まる曲線）の種類（唯一の定義箇所）。
+ * 作業データの語彙で、書き出しの描画要素の`'cubic'`とは別の語。
+ * @type {string}
+ */
+export const SEGMENT_KIND_BEZIER = 'bezier';
+
+/**
+ * 曲線の区間（打った点の曲線の区間・曲がり方を持つ区間）1つを折れ線で近似するときの分割数。当たり判定・範囲選択・塗りの内側が共有する唯一の定義。
  * @type {number}
  */
 const SMOOTH_SEGMENT_SAMPLE_COUNT = 100;
 
 /**
- * 受理する区間の種類の並び（直線・曲線）。`fromJSON`のエラー文はこの並びから作る。
+ * 受理する区間の種類の並び（直線・打った点の曲線・曲がり方を持つ区間）。並びの定義の唯一の箇所。
+ * `fromJSON`のエラー文はこの並びから`SEGMENT_KIND_BEZIER`を除いたもの（`'line'・'smooth'`）で作る
+ * （既存のテストの文面の完全一致を保つため。文面の並びを別の定数にしない）。
  * @type {readonly string[]}
  */
-const ACCEPTED_SEGMENT_KINDS = Object.freeze([SEGMENT_KIND_LINE, SEGMENT_KIND_SMOOTH]);
+const ACCEPTED_SEGMENT_KINDS = Object.freeze([SEGMENT_KIND_LINE, SEGMENT_KIND_SMOOTH, SEGMENT_KIND_BEZIER]);
+
+/**
+ * 区間の指定。文字列なら区間の種類（`'line'`か`'smooth'`。`'bezier'`は引っ張る点が無いため渡してはならない）、
+ * オブジェクトなら区間の値（`toJSON()`の`segments`の要素の形）。`kind`が`'bezier'`の区間の値は`control1`・`control2`を持つこと
+ * （呼び出し側の責任。検証しない）。
+ * @typedef {string|{kind: string, control1?: {x: number, y: number}, control2?: {x: number, y: number}}} SegmentSpec
+ */
+
+/**
+ * 区間の指定から区間の値の新しい写しを作る唯一の箇所（コンストラクタ・`toJSON`・`fromJSON`が使う）。
+ * 文字列なら`{ kind }`、`kind`が`'bezier'`なら`{ kind, control1, control2 }`（座標は新しいオブジェクト）、
+ * それ以外は`{ kind }`だけ（余分なキーは捨てる）。引数は書き換えず、結果は引数と何も共有しない。
+ * @param {SegmentSpec} spec - 区間の指定
+ * @returns {{kind: string, control1?: {x: number, y: number}, control2?: {x: number, y: number}}} 新しい区間の値
+ */
+function copySegment(spec) {
+    if (typeof spec === 'string') {
+        return { kind: spec };
+    }
+    if (spec.kind === SEGMENT_KIND_BEZIER) {
+        return {
+            kind: spec.kind,
+            control1: { x: spec.control1.x, y: spec.control1.y },
+            control2: { x: spec.control2.x, y: spec.control2.y },
+        };
+    }
+    return { kind: spec.kind };
+}
 
 /**
  * 頂点のハンドル名の接頭辞。ハンドル名は`'vertex-<i>'`（`<i>`は頂点の番号の10進表記）。
@@ -73,9 +110,14 @@ export function readCornerFlags(data) {
 /**
  * パスの図形クラス（図形種別`'path'`）。頂点の並び`points`（開いたパス2点以上・閉じたパス3点以上）、
  * 閉じているかを表す`closed`、区間の並び`segments`を持つ。`segments[i]`は`points[i]`→`points[i+1]`の区間で、
- * 閉じたパスの最後の要素は`points[n-1]`→`points[0]`の区間（要素数は開いたパス`n - 1`、閉じたパス`n`）。区間の要素は`{ kind }`で、`kind`は`'line'`（直線の区間）か`'smooth'`（曲線の区間）。
- * 曲線の区間の形は両端の頂点と前後の頂点から`computeSmoothSegmentControls`で決まり、制御点は作業データにも図形にも持たない（描くたび・判定するたびに求める）。
- * 区間ごとに種類を指定して作るのは、コンストラクタへ種類の配列を渡す場合（`PathJoinRules`の結合・描き足し・閉じる。結果は元の区間の種類を保つ）と`fromJSON`（`segments`を作り直す）。
+ * 閉じたパスの最後の要素は`points[n-1]`→`points[0]`の区間（要素数は開いたパス`n - 1`、閉じたパス`n`）。区間の種類は3つ：
+ * `{ kind: 'line' }`（直線の区間）・`{ kind: 'smooth' }`（打った点の曲線の区間）・`{ kind: 'bezier', control1, control2 }`（曲がり方を持つ区間）。
+ * 打った点の曲線の区間の形は両端の頂点と前後の頂点から`computeSmoothSegmentControls`で決まり、制御点は作業データにも図形にも持たない（描くたび・判定するたびに求める）。
+ * 曲がり方を持つ区間は引っ張る点`control1`（始点側）・`control2`（終点側）をワールド座標の絶対座標で区間に持ち、形は両端の頂点と引っ張る点の3次ベジェで決まる。
+ * 引っ張る点は頂点ではない（ハンドルにならない。`getVertexHandleNames`・`hitTestHandle`・`drawHandles`は`points`だけを扱う）。
+ * 曲がり方を持つ区間とのつなぎ目は常に角（隣の打った点の曲線の区間は、隣を打った点の曲線の区間として数えず仮の点を使う）。
+ * 頂点を動かす（`setVertex`）と、その頂点につながる曲がり方を持つ区間の、その頂点の側の引っ張る点が同じだけついていく（反対側は動かない）。`translate`は引っ張る点もすべて動かす。
+ * 区間ごとに種類を指定して作るのは、コンストラクタへ区間の指定の配列を渡す場合（`PathJoinRules`の結合・描き足し・閉じる。結果は元の区間を保つ）と`fromJSON`（`segments`を作り直す）。
  * 角の点：公開プロパティ`corners`（頂点と同じ並びの真偽値の配列）で、曲線の連なりの途中の点を、なめらかにつなぐか角を立てるかを点ごとに持つ。
  * 角が形に効くのは両側とも曲線の区間の点だけ（直線の区間との境目・開いたパスの端はもともと角）。図形データでは角の点が1つ以上あるときだけ`corners`を`segments`の直後に出す。
  * 共通メソッド契約（18メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
@@ -86,16 +128,16 @@ export function readCornerFlags(data) {
 export class Path {
     /**
      * 引数は検証しない（検証は`fromJSON`のみ。呼び出し側が頂点数・区間の約束を満たす値を渡す）。
-     * `points`の各頂点は新しい`{ x, y }`として複製して保持し、`segments`は区間の数だけ`{ kind }`を新しく作る。
-     * `segmentKind`が文字列なら全区間をその種類で作る。配列なら区間ごとの種類の並びとして作り、渡された配列は保持しない（要素数・種類も検証しない）。
-     * 区間ごとに種類を指定して作るのは、種類の配列を渡す場合（`PathJoinRules`の結合・描き足し・閉じる）と`fromJSON`（`segments`を作り直す）。
+     * `points`の各頂点は新しい`{ x, y }`として複製して保持し、`segments`は区間の数だけ区間の値を新しく作る。
+     * `segmentKind`が文字列なら全区間をその種類で作る。配列なら区間ごとの区間の指定（`SegmentSpec`）の並びとして`copySegment`で写して作り、渡された配列・要素・座標は保持しない（要素数・種類も検証しない）。
+     * 区間ごとに指定して作るのは、配列を渡す場合（`PathJoinRules`の結合・描き足し・閉じる）と`fromJSON`（`segments`を作り直す）。
      * @param {{x: number, y: number}[]} points - 頂点の並び（始点→終点）
      * @param {boolean} [closed=false] - 閉じているか
      * @param {string|null} [strokeColor='#000000'] - 線の色。nullは線なし
      * @param {number} [strokeWidth=2] - 線の太さ
      * @param {string|null} [fillColor=null] - 塗りの色。nullは塗りなし
-     * @param {string|string[]} [segmentKind='line'] - 文字列なら全区間の種類（`'line'`か`'smooth'`）。省くと全区間が直線。
-     *   配列なら区間ごとの種類の並び（要素数は開いたパス`points.length - 1`・閉じたパス`points.length`であること。呼び出し側の責任で、検証しない）
+     * @param {string|SegmentSpec[]} [segmentKind='line'] - 文字列なら全区間の種類（`'line'`か`'smooth'`。引っ張る点が無いため`'bezier'`は渡さない）。省くと全区間が直線。
+     *   配列なら区間ごとの区間の指定（`SegmentSpec`）の並び（要素数は開いたパス`points.length - 1`・閉じたパス`points.length`であること。呼び出し側の責任で、検証しない）
      * @param {boolean[]} [corners=[]] - 頂点ごとの「角の点か」。保持せず写す（`true`以外は`false`、要素数は常に`points`にそろえる。検証しない）
      */
     constructor(points, closed = false, strokeColor = '#000000', strokeWidth = 2, fillColor = null, segmentKind = SEGMENT_KIND_LINE, corners = []) {
@@ -107,9 +149,9 @@ export class Path {
         this.points = points.map((point) => ({ x: point.x, y: point.y }));
         /** @type {boolean} 閉じているか（`true`なら終点→始点の区間を持つ） */
         this.closed = closed;
-        /** @type {{kind: string}[]} 区間の並び。要素数は開いたパス`points.length - 1`、閉じたパス`points.length` */
+        /** @type {{kind: string, control1?: {x: number, y: number}, control2?: {x: number, y: number}}[]} 区間の並び（`'bezier'`の区間だけ引っ張る点`control1`・`control2`を持つ）。要素数は開いたパス`points.length - 1`、閉じたパス`points.length` */
         this.segments = Array.isArray(segmentKind)
-            ? segmentKind.map((kind) => ({ kind }))
+            ? segmentKind.map(copySegment)
             : Array.from(
                 { length: closed ? this.points.length : this.points.length - 1 },
                 () => ({ kind: segmentKind }),
@@ -133,24 +175,35 @@ export class Path {
     }
 
     /**
-     * 区間ごとの曲線の制御点を求める（曲線の区間は`{ control1, control2 }`、直線の区間は`null`）。
-     * 区間の種類による分岐の置き場所の1つ（`#tracePath`・`#someSegment`・`#fillPolygon`・`toDrawElement`が共有）。
-     * 角の点（`corners`）は`computeSmoothSegmentControls`の第4引数へ渡す（両側とも曲線の区間の角の点で連なりが切れる）。
+     * 区間ごとの曲線の制御点を求める（曲線の区間・曲がり方を持つ区間は`{ control1, control2 }`、直線の区間は`null`）。
+     * 区間の種類による分岐の置き場所（`#tracePath`・`#someSegment`・`#fillPolygon`・`toDrawElement`が共有）。
+     * 角の点（`corners`）は`computeSmoothSegmentControls`の第4引数へ渡す（両側とも打った点の曲線の区間の角の点で連なりが切れる）。
+     * 曲がり方を持つ区間は`computeSmoothSegmentControls`へは打った点の曲線の区間として渡さず（偽）、結果のその区間を区間の値の引っ張る点（新しい写し）に置き換える。
      * @returns {Array<{control1: {x: number, y: number}, control2: {x: number, y: number}}|null>} 区間ごとの制御点
      */
     #segmentControls() {
-        return computeSmoothSegmentControls(
+        const controls = computeSmoothSegmentControls(
             this.points,
             this.segments.map((segment) => segment.kind === SEGMENT_KIND_SMOOTH),
             this.closed,
             this.corners,
         );
+        return controls.map((control, i) => {
+            const segment = this.segments[i];
+            if (segment.kind !== SEGMENT_KIND_BEZIER) {
+                return control;
+            }
+            return {
+                control1: { x: segment.control1.x, y: segment.control1.y },
+                control2: { x: segment.control2.x, y: segment.control2.y },
+            };
+        });
     }
 
     /**
      * パスの輪郭をCanvasのパスとして組み立てる（`draw`・`drawHover`・`drawOutline`が共有）。
      * `beginPath` → `moveTo(points[0])` → 区間`i`ごとに終点`points[(i+1) % n]`へ、
-     * 曲線の区間なら`bezierCurveTo`、直線の区間なら`lineTo` → `closed`なら`closePath`。
+     * 曲線の区間（打った点の曲線の区間・曲がり方を持つ区間）なら`bezierCurveTo`、直線の区間なら`lineTo` → `closed`なら`closePath`。
      * ただし閉じたパスの閉じる区間（最後の区間）が直線なら`lineTo`を呼ばず`closePath`で結ぶ。閉じる区間が曲線ならその曲線を描いてから`closePath`。
      * 区間がすべて直線のパスの命令は`lineTo`（i=1…n-1）→`closePath`のまま。
      * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
@@ -177,7 +230,7 @@ export class Path {
     /**
      * いずれかの区間で述語が真になるかを返す（`hitTest`・`intersectsRect`が共有）。
      * 区間`i`（`0 ≤ i < 区間の数`。区間の数は閉じたパス`n`、開いたパス`n - 1`）の両端は`points[i]`と`points[(i + 1) % n]`。`draw`と同じ区間を対象にする。
-     * 直線の区間は両端で述語を1回呼ぶ。曲線の区間は`SMOOTH_SEGMENT_SAMPLE_COUNT`個の小区間（折れ線の近似。最後の点は終点そのもの）について順に述語を呼ぶ。
+     * 直線の区間は両端で述語を1回呼ぶ。曲線の区間（曲がり方を持つ区間を含む）は`SMOOTH_SEGMENT_SAMPLE_COUNT`個の小区間（折れ線の近似。最後の点は終点そのもの）について順に述語を呼ぶ。
      * @param {(ax: number, ay: number, bx: number, by: number) => boolean} predicate - 区間（または曲線の小区間）の両端の座標を受け取る述語
      * @returns {boolean} いずれかの区間で述語が真なら`true`
      */
@@ -209,7 +262,7 @@ export class Path {
     }
 
     /**
-     * 塗りの内側の判定に使う頂点の並びを作る。区間ごとに始点の頂点を並べ、曲線の区間ならその後に近似点（`k = 1…N-1`）を足す
+     * 塗りの内側の判定に使う頂点の並びを作る。区間ごとに始点の頂点を並べ、曲線の区間（曲がり方を持つ区間を含む）ならその後に近似点（`k = 1…N-1`）を足す
      * （閉じる区間の近似点は末尾）。区間がすべて直線なら`points`と同じ並び。
      * @returns {{x: number, y: number}[]} 多角形の頂点の並び
      */
@@ -418,18 +471,45 @@ export class Path {
     /**
      * 指定した頂点インデックスの座標を絶対座標で更新する。
      * 0以上`points.length`未満の整数以外（null・文字列・小数・負・範囲外・NaN）は何もしない。
+     * 動かした差分だけ、その頂点につながる曲がり方を持つ区間の、その頂点の側の引っ張る点もついていく（`#shiftControlsAt`）。
      * @param {number} vertexIndex - 更新する頂点のインデックス
      * @param {number} x - 更新後のX座標（ワールド座標）
      * @param {number} y - 更新後のY座標（ワールド座標）
      */
     setVertex(vertexIndex, x, y) {
         if (Number.isInteger(vertexIndex) && vertexIndex >= 0 && vertexIndex < this.points.length) {
+            const dx = x - this.points[vertexIndex].x;
+            const dy = y - this.points[vertexIndex].y;
             this.points[vertexIndex] = { x, y };
+            this.#shiftControlsAt(vertexIndex, dx, dy);
         }
     }
 
     /**
-     * 自身の全頂点を相対差分(dx, dy)だけ平行移動する。
+     * 頂点を動かしたとき、その頂点につながる曲がり方を持つ区間の引っ張る点を同じだけ動かす（`setVertex`が呼ぶ。反対側の引っ張る点は動かさない）。
+     * その頂点を始点とする区間（番号`vertexIndex`。区間の数未満のとき）が`'bezier'`なら`control1`、
+     * その頂点を終点とする区間（開いたパスは`vertexIndex - 1`で0以上のとき、閉じたパスは`(vertexIndex - 1 + n) % n`）が`'bezier'`なら`control2`を、`(dx, dy)`だけ動かした新しい`{ x, y }`で置き換える。
+     * @param {number} vertexIndex - 動かした頂点のインデックス（範囲内の整数）
+     * @param {number} dx - X方向の移動差分（ワールド座標）
+     * @param {number} dy - Y方向の移動差分（ワールド座標）
+     */
+    #shiftControlsAt(vertexIndex, dx, dy) {
+        const startSegment = this.segments[vertexIndex];
+        if (vertexIndex < this.segments.length && startSegment.kind === SEGMENT_KIND_BEZIER) {
+            startSegment.control1 = { x: startSegment.control1.x + dx, y: startSegment.control1.y + dy };
+        }
+        const n = this.points.length;
+        const endIndex = this.closed ? (vertexIndex - 1 + n) % n : vertexIndex - 1;
+        if (endIndex >= 0 && endIndex < this.segments.length) {
+            const endSegment = this.segments[endIndex];
+            if (endSegment.kind === SEGMENT_KIND_BEZIER) {
+                endSegment.control2 = { x: endSegment.control2.x + dx, y: endSegment.control2.y + dy };
+            }
+        }
+    }
+
+    /**
+     * 自身の全頂点と、曲がり方を持つ区間の引っ張る点を相対差分(dx, dy)だけ平行移動する。
      * @param {number} dx - X方向の移動差分（ワールド座標）
      * @param {number} dy - Y方向の移動差分（ワールド座標）
      */
@@ -437,6 +517,12 @@ export class Path {
         this.points.forEach((point) => {
             point.x += dx;
             point.y += dy;
+        });
+        this.segments.forEach((segment) => {
+            if (segment.kind === SEGMENT_KIND_BEZIER) {
+                segment.control1 = { x: segment.control1.x + dx, y: segment.control1.y + dy };
+                segment.control2 = { x: segment.control2.x + dx, y: segment.control2.y + dy };
+            }
         });
     }
 
@@ -452,7 +538,7 @@ export class Path {
 
     /**
      * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第13メソッド。呼び出し元は`SpriteSerializer`のみ）。
-     * 区間がすべて直線なら`polyline`、曲線の区間を1つ以上持つなら`bezierPath`。
+     * 区間がすべて直線なら`polyline`、曲線の区間（曲がり方を持つ区間を含む）を1つ以上持つなら`bezierPath`（曲がり方を持つ区間の`cubic`の制御点は引っ張る点）。
      * `polyline`の形（キー順もこの順）: `{ kind: 'polyline', id, points: 各頂点{x, y}, closed, strokeColor, strokeWidth, fillColor }`。
      * `bezierPath`の形（キー順もこの順）: `{ kind: 'bezierPath', id, points: 各頂点{x, y}, closed, segments, strokeColor, strokeWidth, fillColor }`。
      * `segments[i]`は`points[i]`→`points[(i+1) % n]`の区間で、直線は`{ kind: 'line' }`、曲線の区間は`{ kind: 'cubic', control1: {x, y}, control2: {x, y} }`
@@ -497,11 +583,12 @@ export class Path {
     /**
      * 自身を図形データへ変換する（共通メソッド契約の第11メソッド）。
      * 形（キー順もこの順）: `{ type: 'path', id, points: [{x, y}, ...], closed, segments: [{ kind }, ...], strokeColor, strokeWidth, fillColor }`。
+     * `segments`の要素は`'line'`・`'smooth'`なら`{ kind }`、`'bezier'`なら`{ kind, control1: {x, y}, control2: {x, y} }`（絶対座標の引っ張る点）。
      * `fillColor`は塗れない形でも保持している値をそのまま出力する。
      * 角の点が1つ以上あるときだけ、`segments`の直後・`strokeColor`の前に`corners`（頂点と同じ並びの真偽値の配列。新しい配列）を出す。角の点が1つもなければキーを出さない（今までと同じ）。
      * 戻り値と自身は配列・頂点・区間の要素を共有しない。`id`が`null`の場合もそのまま出力する。
      * `JSON.stringify(path)`でも本メソッドの戻り値が出力される。
-     * @returns {{type: string, id: *, points: {x: number, y: number}[], closed: boolean, segments: {kind: string}[], corners?: boolean[], strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい図形データ
+     * @returns {{type: string, id: *, points: {x: number, y: number}[], closed: boolean, segments: {kind: string, control1?: {x: number, y: number}, control2?: {x: number, y: number}}[], corners?: boolean[], strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい図形データ
      */
     toJSON() {
         return {
@@ -509,7 +596,7 @@ export class Path {
             id: this.id,
             points: this.points.map((point) => ({ x: point.x, y: point.y })),
             closed: this.closed,
-            segments: this.segments.map((segment) => ({ kind: segment.kind })),
+            segments: this.segments.map(copySegment),
             ...(this.corners.some((corner) => corner === true) ? { corners: this.corners.slice() } : {}),
             strokeColor: this.strokeColor,
             strokeWidth: this.strokeWidth,
@@ -520,7 +607,7 @@ export class Path {
     /**
      * 図形データ（`toJSON()`の形）からパスを復元する（共通メソッド契約の第12メソッド）。
      * 共通項目は`validateShapeData`（頂点数は`{ min: 2 }`。戻り値は既定値を解決した`{ strokeColor, strokeWidth, fillColor }`）で検証し、その後にパス固有の項目（`closed`・閉じたパスの頂点数・`segments`）を検証する。
-     * コンストラクタが`data`の頂点を複製して生成し、`segments`は`data.segments`の`kind`（`'line'`・`'smooth'`。混ざってよい）から作り直す。`data`内の配列・オブジェクトは流用しない。
+     * コンストラクタが`data`の頂点を複製して生成し、`segments`は`data.segments`の区間（`'line'`・`'smooth'`・`'bezier'`。混ざってよい。`'bezier'`は引っ張る点も写す）から`copySegment`で作り直す。`data`内の配列・オブジェクトは流用しない。
      * `id`は検証せず`data.id`をそのまま保持する。余分なプロパティ（最上位・区間の要素とも）は無視する。
      * 例外の捕捉は行わない（呼び出し側の`DocumentSerializer`が図形単位で捕捉する）。
      * 往復（`toJSON`→`fromJSON`）で図形データの内容と描画・当たり判定の結果が一致する。
@@ -530,7 +617,8 @@ export class Path {
      *     頂点がオブジェクトでないか`x`・`y`が有限の数値でない／`strokeColor`が文字列でもnullでもない／`strokeWidth`が`undefined`以外で有限の数値でないか0以下／
      *     `fillColor`が`undefined`以外で文字列でもnullでもない／`closed`が真偽値でない／閉じたパスで`points`が3要素未満／`segments`が配列でない／
      *     `segments`の要素数が期待値（開いたパス`n - 1`、閉じたパス`n`）と違う／`segments[i]`がオブジェクトでない／
-     *     `segments[i].kind`が受理する種類（`'line'`・`'smooth'`）でない／
+     *     `segments[i].kind`が受理する種類（`'line'`・`'smooth'`・`'bezier'`。エラー文は既存の文面を保つため`'line'・'smooth'`だけを並べる）でない／
+     *     `kind`が`'bezier'`の`segments[i]`の`control1`・`control2`がx・yを有限の数値で持つオブジェクトでない／
      *     `corners`が`undefined`以外で配列でない（`null`を含む）／`corners`の要素数が`points`の要素数と違う／`corners[i]`が真偽値でない場合
      *     （`corners`の検査は`segments`の検査の後）。キーが無ければ角の点なし。すべて`false`の`corners`は受理し、`toJSON()`では出さない
      */
@@ -552,8 +640,20 @@ export class Path {
         data.segments.forEach((segment, index) => {
             if (!isPlainObject(segment)) fail(`segments[${index}]がオブジェクトではありません`);
             if (!ACCEPTED_SEGMENT_KINDS.includes(segment.kind)) {
-                const accepted = ACCEPTED_SEGMENT_KINDS.map((kind) => `'${kind}'`).join('・');
+                // 既存のテストの文面（'line'・'smooth'）を保つため、曲がり方を持つ区間を除いた並びで文を作る
+                const accepted = ACCEPTED_SEGMENT_KINDS
+                    .filter((kind) => kind !== SEGMENT_KIND_BEZIER)
+                    .map((kind) => `'${kind}'`)
+                    .join('・');
                 fail(`segments[${index}]のkindが${accepted}ではありません（${String(segment.kind)}）`);
+            }
+            if (segment.kind === SEGMENT_KIND_BEZIER) {
+                ['control1', 'control2'].forEach((key) => {
+                    const control = segment[key];
+                    if (!isPlainObject(control) || !Number.isFinite(control.x) || !Number.isFinite(control.y)) {
+                        fail(`segments[${index}]の${key}がx・yを有限の数値で持つオブジェクトではありません`);
+                    }
+                });
             }
         });
 
@@ -568,7 +668,7 @@ export class Path {
         }
 
         const path = new Path(data.points, data.closed, style.strokeColor, style.strokeWidth, style.fillColor, SEGMENT_KIND_LINE, readCornerFlags(data));
-        path.segments = data.segments.map((segment) => ({ kind: segment.kind }));
+        path.segments = data.segments.map(copySegment);
         path.id = data.id;
         return path;
     }

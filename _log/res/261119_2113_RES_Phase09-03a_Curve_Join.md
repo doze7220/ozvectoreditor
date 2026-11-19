@@ -200,7 +200,7 @@
 *   **`_doc/arch/16_test.md`**：Phase 09-03aの追加分（ファイルごとの検証範囲）、書き換えた既存のテスト（「2. 要件F」の11件とその理由）、テストできない箇所（画面での見え方・ドラッグでの吸い付きの表示・ついていくふるまいの使い勝手）、件数（タスク6で記録）。`test/shapes/Path.test.js`・`PathJoinRules.test.js`・`EndpointSnapRules.test.js`・`PathCornerRules.test.js`・`PathSegmentKindRules.test.js`・`test/edit/PathJoiner.test.js`・`EndpointSnapper.test.js`・`test/io/DocumentSerializer.roundtrip.test.js`・`DocumentSerializer.errors.test.js`・`SpriteSerializer.test.js`の検証範囲の行に追記。
 
 ## 3. タスクリスト
-*   [ ] タスク1: 要件A 曲がり方を持つ区間（`shapes/Path`）
+*   [x] タスク1: 要件A 曲がり方を持つ区間（`shapes/Path`）
     *   **対象ファイル** :
         *   `./js/shapes/Path.js` : 更新（定数`SEGMENT_KIND_BEZIER`・typedef`SegmentSpec`・非公開の`copySegment`・`#shiftControlsAt`の追加、`ACCEPTED_SEGMENT_KINDS`・コンストラクタ・`#segmentControls`・`setVertex`・`translate`・`toJSON`・`fromJSON`の変更、ファイル先頭の責務定義・クラスJSDoc・関係するJSDocの更新のみ）
         *   `./test/shapes/Path.test.js` : 更新（「2. 要件F」の(F-1)の`describe`の追加のみ）
@@ -287,7 +287,10 @@
 
 ### タスク1: 要件A 曲がり方を持つ区間（`shapes/Path`）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/shapes/Path.js`：定数`SEGMENT_KIND_BEZIER`・typedef`SegmentSpec`・非公開関数`copySegment`・非公開メソッド`#shiftControlsAt`を追加。`ACCEPTED_SEGMENT_KINDS`に`'bezier'`を追加（エラー文は`filter`で除いて既存の文面を保つ。コメント・JSDocに理由）。コンストラクタ（配列は`copySegment`で写す）・`#segmentControls`（`'bezier'`の区間だけ引っ張る点に置き換え）・`setVertex`（差分を`#shiftControlsAt`へ）・`translate`（引っ張る点も移動）・`toJSON`・`fromJSON`（`control1`/`control2`の検証と`copySegment`）を変更。ファイル先頭の責務定義（3行）・クラスJSDoc・関係するJSDocを更新。`#tracePath`等のコードは不変。
+    *   `test/shapes/Path.test.js`：`describe('Path の曲がり方を持つ区間（Phase 09-03a）')`を追加（(F-1)の全項目。補助`bez`）。既存ケースは変更なし。
+    *   `node --test`：tests 1943 / suites 307 / pass 1943 / fail 0。
+    *   開発資料への影響：「開発資料の更新予定」の既存記載の範囲内。追加の更新予定なし。
 
 ### タスク2: 要件B・要件C 今の曲線を結合できる線にする（`shapes/PathJoinRules`・`shapes/EndpointSnapRules`）
 *   **作業内容** :
