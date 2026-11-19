@@ -1769,3 +1769,143 @@ describe('planDrawnLineJoin・planEndpointDragJoin の区間の種類（Phase 09
         assert.deepEqual(kindsOf(plan.path), ['smooth', 'smooth', 'smooth', 'smooth']);
     });
 });
+
+/**
+ * 区間の種類と角の点を指定したパスを作る（Phase 09-02a）。
+ * @param {number[][]} coords - [x, y] の並び
+ * @param {string[]} kinds - 区間ごとの種類
+ * @param {number[]} cornerIdx - 角の点にする頂点の番号
+ * @param {boolean} [closed=false] - 閉じたパスか
+ * @returns {Path} パス
+ */
+function makeCornerPath(coords, kinds, cornerIdx, closed = false) {
+    const corners = coords.map((_, i) => cornerIdx.includes(i));
+    return new Path(pts(coords), closed, '#112233', 5, '#445566', kinds, corners);
+}
+
+/**
+ * パスの頂点ごとの角の点かの並びを返す（`corners`のキーが無ければすべて偽）。
+ * @param {Path} path - パス
+ * @returns {boolean[]} 角の点かの並び
+ */
+function cornersOf(path) {
+    const data = path.toJSON();
+    return data.points.map((_, i) => Array.isArray(data.corners) && data.corners[i] === true);
+}
+
+describe('角の点を保つ（Phase 09-02a）', () => {
+    const T = true;
+    const F = false;
+    const TOL = 0.1;
+    const S4 = ['smooth', 'smooth', 'smooth', 'smooth'];
+    const S3 = ['smooth', 'smooth', 'smooth'];
+    const A_COORDS = [[0, 0], [10, 0], [20, 0], [30, 0], [40, 0]];
+
+    it('buildJoinedPath：Aの途中の角の点・Bの途中の角の点が結果でも角（離れている）', () => {
+        const a = makeCornerPath(A_COORDS, S4, [2]);
+        const b = makeCornerPath([[60, 0], [70, 0], [80, 0], [90, 0]], S3, [1]);
+        const path = buildJoinedPath(a, b, TOL);
+        assert.deepEqual(cornersOf(path), [F, F, T, F, F, F, T, F, F]);
+        assert.equal(path.points.length, path.corners.length);
+    });
+
+    it('buildJoinedPath：Bを逆順にする組では角の番号が逆順の位置へ移る', () => {
+        const a = makeCornerPath(A_COORDS, S4, [2]);
+        const b = makeCornerPath([[90, 0], [80, 0], [70, 0], [60, 0]], S3, [2]);
+        const path = buildJoinedPath(a, b, TOL);
+        assert.deepEqual(cornersOf(path), [F, F, T, F, F, F, T, F, F]);
+    });
+
+    it('buildJoinedPath：端点をまとめた点はなめらか、Bの端の点の角の情報は結果に残らない（重なる）', () => {
+        const a = makeCornerPath(A_COORDS, S4, [2, 4]);
+        const b = makeCornerPath([[40, 0], [50, 0], [60, 0], [70, 0]], S3, [0, 1]);
+        const path = buildJoinedPath(a, b, TOL);
+        assert.deepEqual(cornersOf(path), [F, F, T, F, F, T, F, F]);
+    });
+
+    it('buildJoinedPath：間を埋める区間の両端はなめらか（元の端の点に角の情報があっても）', () => {
+        const a = makeCornerPath(A_COORDS, S4, [0, 4]);
+        const b = makeCornerPath([[60, 0], [70, 0], [80, 0], [90, 0]], S3, [0, 3]);
+        const path = buildJoinedPath(a, b, TOL);
+        assert.deepEqual(cornersOf(path), [F, F, F, F, F, F, F, F, F]);
+    });
+
+    it('buildJoinedPath：Bの始点側へつなぐ組（B＋A）でも角の点が保たれる', () => {
+        const a = makeCornerPath([[60, 0], [70, 0], [80, 0], [90, 0]], S3, [2]);
+        const b = makeCornerPath(A_COORDS, S4, [1]);
+        const path = buildJoinedPath(a, b, TOL);
+        assert.deepEqual(cornersOf(path), [F, T, F, F, F, F, F, T, F]);
+    });
+
+    it('buildJoinedPathAt：端点を指定した結合でも角の点が保たれ、同じ端点どうしはBが逆順になる', () => {
+        const a = makeCornerPath(A_COORDS, S4, [2]);
+        const b = makeCornerPath([[60, 0], [70, 0], [80, 0], [90, 0]], S3, [1]);
+        const path = buildJoinedPathAt(a, 'end', b, 'end', TOL);
+        assert.deepEqual(cornersOf(path), [F, F, T, F, F, F, F, T, F]);
+        const merged = buildJoinedPathAt(a, 'end', makeCornerPath([[40, 0], [50, 0], [60, 0], [70, 0]], S3, [1]), 'start', TOL);
+        assert.deepEqual(cornersOf(merged), [F, F, T, F, F, T, F, F]);
+    });
+
+    it('buildClosedPath：重なるとき途中の角の点が残り、閉じたときの始点はなめらか', () => {
+        const shape = makeCornerPath([[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], S4, [0, 2]);
+        const path = buildClosedPath(shape, TOL);
+        assert.equal(path.closed, true);
+        assert.deepEqual(cornersOf(path), [F, F, T, F]);
+    });
+
+    it('buildClosedPath：離れるとき途中の角の点が残り、間を埋める区間の両端はなめらか', () => {
+        const shape = makeCornerPath([[0, 0], [10, 0], [10, 10], [0, 10]], ['smooth', 'smooth', 'smooth'], [0, 1, 3]);
+        const path = buildClosedPath(shape, TOL);
+        assert.deepEqual(cornersOf(path), [F, T, F, F]);
+        assert.equal(path.points.length, path.corners.length);
+    });
+
+    it('buildExtendedPath：角の点が残り、足した点・元の端の点はなめらか', () => {
+        const a = makeCornerPath(A_COORDS, S4, [2, 4]);
+        assert.deepEqual(cornersOf(buildExtendedPath(a, 'end', { x: 60, y: 0 }, TOL)), [F, F, T, F, F, F]);
+        assert.deepEqual(cornersOf(buildExtendedPath(a, 'start', { x: -20, y: 0 }, TOL)), [F, F, F, T, F, F]);
+    });
+
+    it('planDrawnLineJoin：描き足し・閉じる・つながるでも角の点が残る', () => {
+        const t = withId(makeCornerPath(A_COORDS, S4, [2]), 'T');
+        const extend = planDrawnLineJoin([t], new Line(40, 0, 60, 0, '#000000', 2, null), ref('T', 'end'), null, TOL);
+        assert.deepEqual(cornersOf(extend.path), [F, F, T, F, F, F]);
+
+        const close = planDrawnLineJoin([t], new Line(40, 0, 0, 0, '#000000', 2, null), ref('T', 'end'), ref('T', 'start'), TOL);
+        assert.equal(close.path.closed, true);
+        assert.deepEqual(cornersOf(close.path), [F, F, T, F, F]);
+
+        const u = withId(makeCornerPath([[60, 0], [70, 0], [80, 0], [90, 0]], S3, [1]), 'U');
+        const join = planDrawnLineJoin([t, u], new Line(40, 0, 60, 0, '#000000', 2, null), ref('T', 'end'), ref('U', 'start'), TOL);
+        assert.deepEqual(cornersOf(join.path), [F, F, T, F, F, F, T, F, F]);
+    });
+
+    it('planEndpointDragJoin：閉じる・結合でも角の点が残る', () => {
+        const t = withId(makeCornerPath([[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], S4, [2]), 'T');
+        const close = planEndpointDragJoin([t], ref('T', 'end'), ref('T', 'start'), TOL);
+        assert.deepEqual(cornersOf(close.path), [F, F, T, F]);
+
+        const a = withId(makeCornerPath(A_COORDS, S4, [2]), 'A');
+        const b = withId(makeCornerPath([[40, 0], [50, 0], [60, 0], [70, 0]], S3, [1]), 'B');
+        const join = planEndpointDragJoin([a, b], ref('B', 'start'), ref('A', 'end'), TOL);
+        assert.deepEqual(cornersOf(join.path), [F, F, T, F, F, T, F, F]);
+    });
+
+    it('角の点が無い入力の結果の toJSON() に corners が無い（今と同じ）', () => {
+        const a = makeKindsPath(A_COORDS, ['line', 'smooth', 'smooth', 'line']);
+        const b = makeKindsPath([[40, 0], [50, 0], [60, 0]], ['smooth', 'smooth']);
+        assert.equal('corners' in buildJoinedPath(a, b, TOL).toJSON(), false);
+        assert.equal('corners' in buildClosedPath(a, TOL).toJSON(), false);
+        assert.equal('corners' in buildExtendedPath(a, 'end', { x: 60, y: 0 }, TOL).toJSON(), false);
+        assert.equal('corners' in buildJoinedPath(makeLine(0, 0, 10, 0), makeLine(10, 0, 20, 0), TOL).toJSON(), false);
+    });
+
+    it('入力の図形を書き換えない', () => {
+        const a = makeCornerPath(A_COORDS, S4, [2]);
+        const before = JSON.stringify(a.toJSON());
+        buildJoinedPath(a, makeCornerPath([[40, 0], [50, 0], [60, 0], [70, 0]], S3, [1]), TOL);
+        buildClosedPath(a, TOL);
+        buildExtendedPath(a, 'start', { x: -20, y: 0 }, TOL);
+        assert.equal(JSON.stringify(a.toJSON()), before);
+    });
+});

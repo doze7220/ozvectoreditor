@@ -1,9 +1,9 @@
 /**
- * 責務: 線の結合の規則（結合できる線＝直線と開いたパス（区間の種類によらない）。結果は元の区間の種類を保つ。閉じる／2本の結合／描き足し／吸い付いた端点での計画）と、
+ * 責務: 線の結合の規則（結合できる線＝直線と開いたパス（区間の種類によらない）。結果は元の区間の種類と途中の角の点を保つ。閉じる／2本の結合／描き足し／吸い付いた端点での計画）と、
  * 直線・曲線のツールで続けて引く作成途中の線の点の並びの規則（足す区間の種類は作成途中の線のもの。点2つの開いた線は直線）を、
  * 状態を持たない関数と定数として提供する。表示倍率・モデル・履歴を知らず、ワールド座標の許容距離を引数で受け取る。
  */
-import { Path, SEGMENT_KIND_LINE } from './Path.js';
+import { Path, SEGMENT_KIND_LINE, readCornerFlags } from './Path.js';
 import { Line } from './Line.js';
 
 /**
@@ -74,10 +74,11 @@ export function isJoinableLine(shape) {
 }
 
 /**
- * 開いた線の頂点と区間の種類の並び。`kinds.length === points.length - 1`。
+ * 開いた線の頂点と区間の種類と角の点の並び。`kinds.length === points.length - 1`、`corners.length === points.length`。
  * @typedef {Object} SegmentChain
  * @property {Array<{x: number, y: number}>} points 頂点の並び
  * @property {string[]} kinds 区間の種類の並び
+ * @property {boolean[]} corners 頂点ごとの角の点か（先頭・末尾の端の点は常に偽）
  */
 
 /**
@@ -93,22 +94,27 @@ function segmentKindsOf(data) {
 }
 
 /**
- * `toJSON()`の値から頂点と区間の種類の並びを作る（非公開）。頂点の配列は共有する（呼び出し側は書き換えない）。
+ * `toJSON()`の値から頂点と区間の種類と角の点の並びを作る（非公開）。頂点の配列は共有する（呼び出し側は書き換えない）。
+ * 角の点は`readCornerFlags`の値の新しい配列で、**開いた線の端の点（先頭・末尾）は常に偽にする**
+ * （「つながってできた点はなめらかな点」の唯一の箇所。端の点は、つなぐ・閉じることで途中の点になるか、結果でも端の点のまま角の考えがない点になるかのどちらか）。
  * @param {{points: Array<{x: number, y: number}>, type?: string, segments?: Array<{kind: string}>}} data 開いた線の`toJSON()`の値
  * @returns {SegmentChain}
  */
 function chainOf(data) {
-    return { points: data.points, kinds: segmentKindsOf(data) };
+    const corners = readCornerFlags(data);
+    corners[0] = false;
+    corners[corners.length - 1] = false;
+    return { points: data.points, kinds: segmentKindsOf(data), corners };
 }
 
 /**
- * 頂点と区間の種類の並びを逆順にした新しい並びを返す（非公開。Bを逆順にして並べるときの唯一の箇所）。
- * 区間の種類の並びも逆順にする。形の決め方の式は向きを逆にしても同じ形になるため、逆順にしても形は変わらない。引数を書き換えない。
+ * 頂点と区間の種類と角の点の並びを逆順にした新しい並びを返す（非公開。Bを逆順にして並べるときの唯一の箇所）。
+ * 区間の種類・角の点の並びも逆順にする。形の決め方の式は向きを逆にしても同じ形になるため、逆順にしても形は変わらない。引数を書き換えない。
  * @param {SegmentChain} chain 頂点と区間の種類の並び
  * @returns {SegmentChain}
  */
 function reverseChain(chain) {
-    return { points: chain.points.slice().reverse(), kinds: chain.kinds.slice().reverse() };
+    return { points: chain.points.slice().reverse(), kinds: chain.kinds.slice().reverse(), corners: chain.corners.slice().reverse() };
 }
 
 /**
@@ -137,7 +143,7 @@ export function classifyJoin(shapes) {
 /**
  * 頂点3つ以上の開いたパス1本を、閉じたパスにする。
  * 始点と終点の距離が`tolerance`以下なら最後の頂点を除く。残りが3つ未満ならnull。頂点の並び・向きは変えない。色・太さ・塗りは元のパスのもの（開いたパスの塗りが閉じることで現れる）。
- * 区間の種類は元の区間の種類を保つ。始点と終点が離れているときは閉じる区間（終点→始点）を`gapSegmentKind`で足し、
+ * 区間の種類・途中の角の点は元のまま保つ（始点・終点は`chainOf`で端の点としてなめらかな点になる）。始点と終点が離れているときは閉じる区間（終点→始点）を`gapSegmentKind`で足し、
  * 重なっているときは除いた頂点につながっていた区間（最後の区間）が閉じる区間として種類を保つ。
  * @param {Object} shape 図形
  * @param {number} tolerance ワールド座標の許容距離（長さ）
@@ -148,17 +154,20 @@ export function buildClosedPath(shape, tolerance, gapSegmentKind = JOIN_GAP_SEGM
     if (shape.type !== 'path' || !isJoinableLine(shape)) return null;
     const data = shape.toJSON();
     if (data.closed || data.points.length < CLOSED_MIN_POINTS) return null;
-    const points = data.points.slice();
-    const kinds = segmentKindsOf(data);
+    const chain = chainOf(data);
+    const points = chain.points.slice();
+    const kinds = chain.kinds.slice();
+    const corners = chain.corners.slice();
     const first = points[0];
     const last = points[points.length - 1];
     if (Math.hypot(last.x - first.x, last.y - first.y) <= tolerance) {
         points.pop();
+        corners.pop();
     } else {
         kinds.push(gapSegmentKind);
     }
     if (points.length < CLOSED_MIN_POINTS) return null;
-    return new Path(points, true, data.strokeColor, data.strokeWidth, data.fillColor, kinds);
+    return new Path(points, true, data.strokeColor, data.strokeWidth, data.fillColor, kinds, corners);
 }
 
 /**
@@ -167,7 +176,7 @@ export function buildClosedPath(shape, tolerance, gapSegmentKind = JOIN_GAP_SEGM
  * (1) Aの終点とBの始点（A＋Bそのまま）、(2) Aの終点とBの終点（A＋Bを逆順）、
  * (3) Aの始点とBの終点（Bそのまま＋A）、(4) Aの始点とBの始点（Bを逆順＋A）。
  * 選んだ組の距離が`tolerance`以下なら、Bの側のつなぐ端点を除く（Aの端点の座標を残す）。
- * 結果は開いたパスで、色・太さ・塗りはAのもの。区間の種類は元の区間の種類を保ち（Bを逆順にするときは区間の種類も逆順）、間を埋める区間は直線（発注者の決定）。
+ * 結果は開いたパスで、色・太さ・塗りはAのもの。区間の種類・途中の角の点は元のまま保ち（Bを逆順にするときは区間の種類・角の点も逆順）、つないだ点・間を埋める区間の両端はなめらかな点（`corners`が偽）で、間を埋める区間は直線（発注者の決定）。
  * @param {Object} a 基準の線A（重なり順で奥）
  * @param {Object} b もう一方の線B
  * @param {number} tolerance ワールド座標の許容距離（長さ）
@@ -202,7 +211,7 @@ export function buildJoinedPath(a, b, tolerance) {
 
 /**
  * Aの頂点・区間とBの頂点・区間をつないで開いたパスを作る（非公開。`buildJoinedPath`・`buildJoinedPathAt`・`buildExtendedPath`が共有する）。
- * 頂点の並べ方と区間の種類の並べ方の規則はここだけに置く。入力の配列は書き換えない。結果は元の区間の種類を保つ。
+ * 頂点・区間の種類・角の点の並べ方の規則はここだけに置く。入力の配列は書き換えない。結果は元の区間の種類と途中の角の点を保つ（`chainOf`が端の点を偽にしているため、つないだ点はなめらかな点）。
  * `merge`のとき除くのはBの端点だけで、その端点につながっていた区間（`bChain.kinds`の先頭／末尾）は残ったAの端点につながる区間として種類を保つ。
  * 離れているとき（`merge`が偽）はAの区間とBの区間の間に間を埋める区間`gapSegmentKind`を1つ入れる。
  * @param {{points: Array<{x: number, y: number}>, strokeColor: *, strokeWidth: *, fillColor: *, type?: string, segments?: Array<{kind: string}>}} dataA 基準の線Aの`toJSON()`（頂点・区間・色・太さ・塗りの元）
@@ -215,21 +224,28 @@ export function buildJoinedPath(a, b, tolerance) {
 function assembleOpenPath(dataA, bChain, aFirst, merge, gapSegmentKind) {
     const aChain = chainOf(dataA);
     const bPoints = bChain.points.slice();
+    const bCorners = bChain.corners.slice();
     if (merge) {
-        if (aFirst) bPoints.shift();
-        else bPoints.pop();
+        if (aFirst) {
+            bPoints.shift();
+            bCorners.shift();
+        } else {
+            bPoints.pop();
+            bCorners.pop();
+        }
     }
     const joint = merge ? [] : [gapSegmentKind];
     const points = aFirst ? aChain.points.concat(bPoints) : bPoints.concat(aChain.points);
     const kinds = aFirst ? aChain.kinds.concat(joint, bChain.kinds) : bChain.kinds.concat(joint, aChain.kinds);
-    return new Path(points, false, dataA.strokeColor, dataA.strokeWidth, dataA.fillColor, kinds);
+    const corners = aFirst ? aChain.corners.concat(bCorners) : bCorners.concat(aChain.corners);
+    return new Path(points, false, dataA.strokeColor, dataA.strokeWidth, dataA.fillColor, kinds, corners);
 }
 
 /**
  * 結合できる線2本を、つなぐ端点を指定して1本の開いたパスにする（いちばん近い組は選ばない）。
  * 並べ方は`buildJoinedPath`と同じ：`aEnd`が'end'ならA＋Bの側の並び、'start'ならBの側の並び＋A。
  * Bは`aEnd`と`bEnd`が同じとき逆順になる。2つの端点の距離が`tolerance`以下ならBの側の端点を除く（Aの端点の座標を残す）。
- * 結果は常に開いたパス（両端が重なっても閉じない）で、色・太さ・塗りはAのもの。区間の種類は元の区間の種類を保つ（Bを逆順にするときは区間の種類も逆順）。
+ * 結果は常に開いたパス（両端が重なっても閉じない）で、色・太さ・塗りはAのもの。区間の種類・途中の角の点は元のまま保つ（Bを逆順にするときは区間の種類・角の点も逆順）。つないだ点はなめらかな点。
  * @param {Object} a 基準の線A（向き・色・太さ・塗りの元。重なり順で奥）
  * @param {'start'|'end'} aEnd Aのつなぐ端点（'start'＝始点／'end'＝終点）
  * @param {Object} b もう一方の線B
@@ -253,7 +269,7 @@ export function buildJoinedPathAt(a, aEnd, b, bEnd, tolerance, gapSegmentKind = 
 /**
  * 結合できる線の指定した端点に、頂点を1つ描き足した開いたパスを作る（元の線の向きを保つ）。
  * `end`が'end'なら末尾、'start'なら先頭に`point`を加える。色・太さ・塗りは元の線のもの。
- * `point`と指定した端点の距離が`tolerance`以下（重なる）なら何も起きない（null）。元の線の区間の種類は保つ。
+ * `point`と指定した端点の距離が`tolerance`以下（重なる）なら何も起きない（null）。元の線の区間の種類・途中の角の点は保つ（足した点・元の端の点はなめらかな点）。
  * @param {Object} shape 元の線
  * @param {'start'|'end'} end 描き足す端点
  * @param {{x: number, y: number}} point 足す頂点（ワールド座標）
@@ -267,7 +283,7 @@ export function buildExtendedPath(shape, end, point, tolerance, segmentKind = JO
     const A = dataA.points;
     const p = end === 'end' ? A[A.length - 1] : A[0];
     if (Math.hypot(point.x - p.x, point.y - p.y) <= tolerance) return null;
-    return assembleOpenPath(dataA, { points: [{ x: point.x, y: point.y }], kinds: [] }, end === 'end', false, segmentKind);
+    return assembleOpenPath(dataA, { points: [{ x: point.x, y: point.y }], kinds: [], corners: [false] }, end === 'end', false, segmentKind);
 }
 
 /**

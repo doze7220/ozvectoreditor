@@ -233,7 +233,7 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
         *   「2. 要件I」の(I-3)のテストを作る。
         *   JSDocの記載漏れが無いことを確かめる。`node --test`が全件通ることを確かめる。
         *   完了後、本RESの「4. 詳細作業内容」のタスク3に作業内容を記載する。開発資料に影響があれば「開発資料の更新予定」へ追記する。
-*   [ ] タスク4: 要件D 結合・描き足し・閉じるで角の点を保つ（`shapes/PathJoinRules`）
+*   [x] タスク4: 要件D 結合・描き足し・閉じるで角の点を保つ（`shapes/PathJoinRules`）
     *   **対象ファイル** :
         *   `./js/shapes/PathJoinRules.js` : 更新（importの`readCornerFlags`、typedef`SegmentChain`、`chainOf`・`reverseChain`・`assembleOpenPath`・`buildExtendedPath`・`buildClosedPath`と、関係するJSDoc・ファイル先頭の責務定義）
         *   `./test/shapes/PathJoinRules.test.js` : 更新（(I-4)の`describe`の追加のみ）
@@ -341,7 +341,9 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
 
 ### タスク4: 要件D 結合・描き足し・閉じるで角の点を保つ（`shapes/PathJoinRules`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/shapes/PathJoinRules.js`：importに`readCornerFlags`、`SegmentChain`に`corners`、`chainOf`（`readCornerFlags`の新配列で先頭・末尾を偽にする唯一の箇所）、`reverseChain`（`corners`も逆順）、`assembleOpenPath`（`merge`で`bCorners`も同じ端を除き連結して第7引数へ）、`buildExtendedPath`（`corners: [false]`）、`buildClosedPath`（`chainOf`から`points`・`kinds`・`corners`の写しを取り、重なるとき`points`と`corners`を一緒に`pop`）を変更。関係するJSDoc・ファイル先頭の責務定義（3行のまま）を更新。作成途中の線の組み立て・計画の関数・判定の関数のコードは不変。
+    *   `test/shapes/PathJoinRules.test.js`：末尾に補助2つ（`makeCornerPath`・`cornersOf`）と`describe('角の点を保つ（Phase 09-02a）')`（13ケース。(I-4)の項目を網羅）を追加。既存ケースの変更なし。
+    *   `node --test`：tests 1833 / suites 287 / pass 1833 / fail 0。
 
 ### タスク5: 要件E 角の切り替えの1件の編集操作（`edit/PathCornerEditor`）
 *   **作業内容** :
