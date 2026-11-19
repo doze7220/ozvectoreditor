@@ -243,7 +243,7 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
         *   「2. 要件I」の(I-4)のテストを足す。既存のケースは変えない。
         *   JSDocの記載漏れが無いことを確かめる。`node --test`が全件通ることを確かめる。
         *   完了後、本RESの「4. 詳細作業内容」のタスク4に作業内容を記載する。開発資料に影響があれば「開発資料の更新予定」へ追記する。
-*   [ ] タスク5: 要件E 角の切り替えの1件の編集操作（`edit/PathCornerEditor`）
+*   [x] タスク5: 要件E 角の切り替えの1件の編集操作（`edit/PathCornerEditor`）
     *   **対象ファイル** :
         *   `./js/edit/PathCornerEditor.js` : 新規
         *   `./test/edit/PathCornerEditor.test.js` : 新規
@@ -347,7 +347,9 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
 
 ### タスク5: 要件E 角の切り替えの1件の編集操作（`edit/PathCornerEditor`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/edit/PathCornerEditor.js`（新規）：責務定義（3行）・クラス（コンストラクタ`{ model, editRecorder, getMode }`・`getView`・`toggle`・非公開`#collectTargets`）。importは`core/NudgeTargetRules`の`resolveNudgeTarget`と`shapes/PathCornerRules`の`resolveCornerToggleView`・`planCornerToggle`のみ。クラスJSDocに依存の制約と前提（ドラッグ中でないことは呼び出し側）を記載。全メソッド・フィールドにJSDoc。
+    *   `test/edit/PathCornerEditor.test.js`（新規）：12ケース・3 describe（対象の集め方と`getView`5・`toggle`5・実物の`HistoryManager`/`SnapshotAdapter`との組み合わせ2。(I-5)の項目を網羅）。
+    *   `node --test`：tests 1845 / suites 290 / pass 1845 / fail 0。既存ケースの変更なし。
 
 ### タスク6: 要件H 保存・書き出しのテスト（`io/`。コードは変えない）
 *   **作業内容** :
@@ -378,4 +380,5 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
 * （計画時点）**複数の図形の点を切り替えると変更通知が図形の数だけ出る**：`VectorModel`に複数置き換えのメソッドを足さず`replaceShape`を図形ごとに呼ぶため（取り消しは1件）。1回ずつ正しい状態のため見た目は崩れない見込み。
 * （計画時点）**チェックボックスは`change`の後にフォーカスを外す**：`Space`での意図しない切り替えとショートカットの停止を避けるため（要件F）。`Tab`でフォーカスを移してキーボードだけで続けて切り替えることはできない（切り替えのたびに`Tab`で戻る）。実際のブラウザでの`indeterminate`の「−」の見た目・`blur`のふるまい・1280px幅での収まり（見積もり約1189px）は`node --test`で確かめられないため、テストプレイで確かめる。
 * （計画時点）**すべて`false`の`corners`を持つ作業データは、読み込んで保存し直すとキーが消える**（`toJSON()`は角の点があるときだけ出すため。本アプリは書き出さない形で、形は変わらない。許容）。
+* （タスク5）`PathCornerEditor`は図形の`getVertexIndexForHandle`が`null`を返すものだけを飛ばす。`Line`など`path`以外の図形は`resolveCornerState`が`NONE`にするため、押せない・変わらない扱いになる（テストで確認）。取り消し後に頂点の選択が外れることはテストでは確認していない（`SnapshotAdapter`の既存のふるまい）。開発資料への影響は「開発資料の更新予定」の`14_edit.md`・`16_test.md`の項のとおりで、追記なし。
 * （タスク2）`Path.js`の`fromJSON`の`corners`検査は、`corners`のキーが`undefined`のときだけ検査を飛ばす（`null`は「配列ではありません」で例外）。`fromJSON`はコンストラクタに`SEGMENT_KIND_LINE`を渡してから`segments`を作り直す従来の流れのまま。
