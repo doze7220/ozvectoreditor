@@ -11,6 +11,7 @@ import { Rect } from '../../js/shapes/Rect.js';
 import { Ellipse } from '../../js/shapes/Ellipse.js';
 import { Path, SEGMENT_KIND_SMOOTH } from '../../js/shapes/Path.js';
 import { cubicBezierPoint } from '../../js/shapes/ShapeGeometry.js';
+import { SegmentKindSwitch, planSegmentKindSwitch } from '../../js/shapes/PathSegmentKindRules.js';
 
 /**
  * 図形へ文字列のidを代入して返す。
@@ -606,4 +607,79 @@ describe('SpriteSerializer: 角の点を含むパスの bezierPath（Phase 09-02
             assertBoundsClose(data.bounds, sampleBezierPathRange(element), 1e-3);
         });
     }
+});
+
+describe('SpriteSerializer: 区間の切り替えで作った図形（Phase 09-02b）', () => {
+    /**
+     * 頂点番号の一覧の点を選んだ対象の並びにする。
+     * @param {object} shape - 図形
+     * @param {number[]} indexes - 頂点の番号
+     * @returns {{shape: object, vertexIndex: number}[]} 切り替えの対象
+     */
+    const targetsOf = (shape, indexes) => indexes.map((vertexIndex) => ({ shape, vertexIndex }));
+
+    /**
+     * 切り替えた新しい図形（1つ）へidを付けて返す。
+     * @param {object} source - 元の図形
+     * @param {number[]} indexes - 選ぶ頂点の番号
+     * @param {string} operation - 切り替えの操作
+     * @returns {object} 切り替えた新しい図形
+     */
+    const switched = (source, indexes, operation) => {
+        withId(source, 'src');
+        const plan = planSegmentKindSwitch(targetsOf(source, indexes), operation);
+        assert.equal(plan.length, 1);
+        return withId(plan[0].shape, 'sw');
+    };
+
+    const points = [{ x: 0, y: 0 }, { x: 60, y: 0 }, { x: 120, y: 60 }, { x: 120, y: 120 }];
+
+    for (const closed of [false, true]) {
+        it(`${closed ? '閉じた' : '開いた'}パスの「曲線に」: bezierPath の要素が toDrawElement と一致し、外枠が形を囲む`, () => {
+            const source = new Path(points, closed, '#102030', 4, closed ? '#ffcc00' : null);
+            const path = switched(source, closed ? [3, 0, 1] : [0, 1, 2], SegmentKindSwitch.TO_CURVE);
+            const data = SpriteSerializer.serialize([path]);
+            const element = data.elements[0];
+            assert.equal(element.kind, 'bezierPath');
+            assert.equal(element.points.length, points.length + 2);
+            assert.equal(element.segments.length, closed ? element.points.length : element.points.length - 1);
+            const expected = path.toDrawElement();
+            assert.deepEqual(element.segments, expected.segments);
+            assert.deepEqual(element.points, expected.points);
+            assert.ok(element.segments.some((s) => s.kind === 'cubic'));
+            if (closed) {
+                assert.equal(element.fillColor, '#ffcc00');
+            }
+            const range = sampleBezierPathRange(element);
+            const half = 2;
+            assertBoundsClose(data.bounds, {
+                minX: range.minX - half, minY: range.minY - half, maxX: range.maxX + half, maxY: range.maxY + half,
+            }, 1e-3);
+        });
+    }
+
+    it('単独の直線を「曲線に」した直後の外枠は、元の直線の外枠と同じ', () => {
+        const line = withId(new Line(0, 0, 30, 60, '#102030', 4), 'ln');
+        const before = SpriteSerializer.serialize([line]).bounds;
+        const path = switched(line, [0, 1], SegmentKindSwitch.TO_CURVE);
+        const data = SpriteSerializer.serialize([path]);
+        assert.equal(data.elements[0].kind, 'bezierPath');
+        assertBoundsClose(data.bounds, before, 1e-9);
+        for (const segment of data.elements[0].segments) {
+            assert.equal(segment.kind, 'cubic');
+        }
+    });
+
+    it('今の曲線を「直線に」した結果は polyline', () => {
+        const curve = makeCurve([{ x: 0, y: 0 }, { x: 30, y: 60 }, { x: 90, y: 30 }]);
+        const line = switched(curve, [0, 2], SegmentKindSwitch.TO_LINE);
+        const element = SpriteSerializer.serialize([line]).elements[0];
+        assert.equal(element.kind, 'polyline');
+        assert.deepEqual(element.points, [{ x: 0, y: 0 }, { x: 90, y: 30 }]);
+    });
+
+    it('書き出し形式の版は3のまま', () => {
+        const path = switched(new Path(points, false), [0, 1], SegmentKindSwitch.TO_CURVE);
+        assert.equal(SpriteSerializer.serialize([path]).formatVersion, 3);
+    });
 });

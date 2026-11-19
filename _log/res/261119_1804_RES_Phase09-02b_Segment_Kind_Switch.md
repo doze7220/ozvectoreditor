@@ -239,7 +239,7 @@ Phase 09-01a・09-01b・09-02aで、パスに曲線の区間（`'smooth'`）と�
         *   「2. 要件G」の(G-3)のテストを作る。既存の`test/edit/PathCornerEditor.test.js`は変えない。
         *   JSDocの記載漏れが無いことを確かめる。`node --test`が全件通ることを確かめる。
         *   完了後、本RESの「4. 詳細作業内容」のタスク2に作業内容を記載する。開発資料に影響があれば「開発資料の更新予定」へ追記する。
-*   [ ] タスク3: 要件F 保存・書き出しのテスト（`io/`。コードは変えない）
+*   [x] タスク3: 要件F 保存・書き出しのテスト（`io/`。コードは変えない）
     *   **対象ファイル** :
         *   `./test/io/DocumentSerializer.roundtrip.test.js` : 更新（`describe`の追加のみ）
         *   `./test/io/SpriteSerializer.test.js` : 更新（`describe`の追加のみ）
@@ -318,7 +318,10 @@ Phase 09-01a・09-01b・09-02aで、パスに曲線の区間（`'smooth'`）と�
 
 ### タスク3: 要件F 保存・書き出しのテスト（`io/`。コードは変えない）
 *   **作業内容** :
-    *   （未記入）
+    *   `test/io/DocumentSerializer.roundtrip.test.js`：`describe('区間の切り替えで作った図形の往復（Phase 09-02b）')`を追加（開いたパス・閉じた塗りありのパス（終点→始点の区間を含む）の「曲線に」、単独の直線から変わったパス、今の曲線から変わった直線を、オブジェクト層・文字列層で往復。`corners`のキーの有無、作業データの版2・キー順も確認）。`PathSegmentKindRules`のimportを足した。既存の補助`assertRestoredWithPaths`・`ROUTES`・`silenceWarn`を使用。
+    *   `test/io/SpriteSerializer.test.js`：`describe('SpriteSerializer: 区間の切り替えで作った図形（Phase 09-02b）')`を追加（開いた・閉じたパスの`bezierPath`が`toDrawElement()`と一致し外枠が形（線幅の半分を加えたもの）を囲む、単独の直線を「曲線に」した直後の外枠が元と同じ、今の曲線を「直線に」した結果が`polyline`、書き出し形式の版3）。既存の補助`sampleBezierPathRange`・`assertBoundsClose`・`makeCurve`を使用。
+    *   `js/io/`のコード・JSDocは変えていない。既存のケースは変えていない。
+    *   `node --test`：tests 1926 / suites 306 / fail 0（タスク2後は1912 / 304）。
 
 ### タスク4: 要件D 「直線に」「曲線に」のボタンのUI部品と要素（`palette/OptionBarCornerGroup`・`index.html`）
 *   **作業内容** :

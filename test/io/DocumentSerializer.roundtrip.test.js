@@ -11,6 +11,7 @@ import { Curve } from '../../js/shapes/Curve.js';
 import { Rect } from '../../js/shapes/Rect.js';
 import { Ellipse } from '../../js/shapes/Ellipse.js';
 import { Path, SEGMENT_KIND_SMOOTH } from '../../js/shapes/Path.js';
+import { SegmentKindSwitch, planSegmentKindSwitch } from '../../js/shapes/PathSegmentKindRules.js';
 
 /** 種別ごとの頂点数（開発資料4章 shapes/）。 */
 const POINT_COUNTS = { line: 2, curve: 3, rect: 4, arc: 5, circle: 5 };
@@ -571,5 +572,84 @@ describe('角の点を含むパスの往復（Phase 09-02a）', () => {
         path.id = 'path-1';
         const doc = DocumentSerializer.serialize([path]);
         assert.equal('corners' in doc.shapes[0], false);
+    });
+});
+
+describe('区間の切り替えで作った図形の往復（Phase 09-02b）', () => {
+    /**
+     * 頂点番号の一覧の点を選んだ対象の並びにする。
+     * @param {object} shape - 図形
+     * @param {number[]} indexes - 頂点の番号
+     * @returns {{shape: object, vertexIndex: number}[]} 切り替えの対象
+     */
+    const targetsOf = (shape, indexes) => indexes.map((vertexIndex) => ({ shape, vertexIndex }));
+
+    /**
+     * 切り替えの計画の最初の図形へidを付けて返す。
+     * @param {object} source - 元の図形
+     * @param {number[]} indexes - 選ぶ頂点の番号
+     * @param {string} operation - 切り替えの操作
+     * @returns {object} 切り替えた新しい図形
+     */
+    const switched = (source, indexes, operation) => {
+        source.id = 'src-1';
+        const plan = planSegmentKindSwitch(targetsOf(source, indexes), operation);
+        assert.equal(plan.length, 1);
+        const shape = plan[0].shape;
+        shape.id = 'switched-1';
+        return shape;
+    };
+
+    const openPoints = [{ x: 0, y: 0 }, { x: 60, y: 0 }, { x: 120, y: 60 }, { x: 120, y: 120 }];
+    const states = [
+        {
+            name: '開いたパスの「曲線に」（角の点ができる）',
+            build: () => switched(new Path(openPoints, false, '#102030', 3), [0, 1, 2], SegmentKindSwitch.TO_CURVE),
+            expectCorners: true,
+        },
+        {
+            name: '閉じた塗りありのパスの「曲線に」（終点→始点の区間を含む）',
+            build: () => switched(new Path(openPoints, true, '#102030', 3, '#ffcc00'), [3, 0, 1], SegmentKindSwitch.TO_CURVE),
+            expectCorners: true,
+        },
+        {
+            name: '単独の直線から変わったパス',
+            build: () => switched(new Line(0, 0, 30, 60, '#102030', 3), [0, 1], SegmentKindSwitch.TO_CURVE),
+            expectCorners: false,
+        },
+        {
+            name: '今の曲線から変わった直線',
+            build: () => {
+                const curve = new Curve(0, 0, 90, 30, '#102030', 3);
+                curve.setVertex(1, 30, 60);
+                return switched(curve, [0, 2], SegmentKindSwitch.TO_LINE);
+            },
+            expectCorners: false,
+        },
+    ];
+
+    for (const state of states) {
+        for (const route of ROUTES) {
+            it(`${state.name}が保たれる（${route.name}）`, (t) => {
+                const warn = silenceWarn(t);
+                const shape = state.build();
+                if (shape.type === 'path') {
+                    assert.equal('corners' in shape.toJSON(), state.expectCorners);
+                }
+                const result = route.run([shape]);
+                assertRestoredWithPaths(result, [shape]);
+                assert.deepStrictEqual(result.shapes[0].toJSON(), shape.toJSON());
+                assert.equal(warn.mock.callCount(), 0);
+            });
+        }
+    }
+
+    it('作業データの版は2のまま・図形データのキーは増えない', () => {
+        const path = switched(new Path(openPoints, false, '#102030', 3), [0, 1, 2], SegmentKindSwitch.TO_CURVE);
+        const doc = DocumentSerializer.serialize([path]);
+        assert.equal(doc.version, 2);
+        assert.deepStrictEqual(Object.keys(doc.shapes[0]), [
+            'type', 'id', 'points', 'closed', 'segments', 'corners', 'strokeColor', 'strokeWidth', 'fillColor',
+        ]);
     });
 });
