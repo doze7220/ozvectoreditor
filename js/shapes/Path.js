@@ -1,5 +1,5 @@
 /**
- * 責務: パス（頂点の並びと閉じているか・区間の並びを持つ、直線の区間と点を通るなめらかな曲線の区間からなる線）の
+ * 責務: パス（頂点の並びと閉じているか・区間の並び・角の点を持つ、直線の区間と点を通るなめらかな曲線の区間からなる線）の
  * データ保持・Canvasへの描画処理・当たり判定、および図形データとの相互変換と描画要素（スプライトの書き出し用）への変換を担う。
  */
 
@@ -61,11 +61,23 @@ const VERTEX_HANDLE_PREFIX = 'vertex-';
 const VERTEX_HANDLE_PATTERN = /^vertex-(0|[1-9][0-9]*)$/;
 
 /**
+ * 図形データ（`toJSON()`の値または検証済みの図形データ）から、頂点ごとの「角の点か」の真偽値の配列を新しく作る。
+ * 「`corners`のキーが無ければすべてなめらか」という読み方の唯一の箇所。`points`を持つ直線の`toJSON()`の値にも使える（すべて`false`）。
+ * @param {{points: Array, corners?: boolean[]}} data - 図形データ
+ * @returns {boolean[]} 頂点と同じ要素数の新しい配列（`corners[i] === true`の要素だけ`true`）
+ */
+export function readCornerFlags(data) {
+    return Array.from({ length: data.points.length }, (_, i) => Array.isArray(data.corners) && data.corners[i] === true);
+}
+
+/**
  * パスの図形クラス（図形種別`'path'`）。頂点の並び`points`（開いたパス2点以上・閉じたパス3点以上）、
  * 閉じているかを表す`closed`、区間の並び`segments`を持つ。`segments[i]`は`points[i]`→`points[i+1]`の区間で、
  * 閉じたパスの最後の要素は`points[n-1]`→`points[0]`の区間（要素数は開いたパス`n - 1`、閉じたパス`n`）。区間の要素は`{ kind }`で、`kind`は`'line'`（直線の区間）か`'smooth'`（曲線の区間）。
  * 曲線の区間の形は両端の頂点と前後の頂点から`computeSmoothSegmentControls`で決まり、制御点は作業データにも図形にも持たない（描くたび・判定するたびに求める）。
  * 区間ごとに種類を指定して作るのは、コンストラクタへ種類の配列を渡す場合（`PathJoinRules`の結合・描き足し・閉じる。結果は元の区間の種類を保つ）と`fromJSON`（`segments`を作り直す）。
+ * 角の点：公開プロパティ`corners`（頂点と同じ並びの真偽値の配列）で、曲線の連なりの途中の点を、なめらかにつなぐか角を立てるかを点ごとに持つ。
+ * 角が形に効くのは両側とも曲線の区間の点だけ（直線の区間との境目・開いたパスの端はもともと角）。図形データでは角の点が1つ以上あるときだけ`corners`を`segments`の直後に出す。
  * 共通メソッド契約（18メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
  * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames）を自律実装する。座標はすべてワールド座標。
  * パスは`ShapeFactory.create`の曲線のツールの描き始めでも作られる（頂点2つ・区間1つの曲線）。
@@ -84,8 +96,9 @@ export class Path {
      * @param {string|null} [fillColor=null] - 塗りの色。nullは塗りなし
      * @param {string|string[]} [segmentKind='line'] - 文字列なら全区間の種類（`'line'`か`'smooth'`）。省くと全区間が直線。
      *   配列なら区間ごとの種類の並び（要素数は開いたパス`points.length - 1`・閉じたパス`points.length`であること。呼び出し側の責任で、検証しない）
+     * @param {boolean[]} [corners=[]] - 頂点ごとの「角の点か」。保持せず写す（`true`以外は`false`、要素数は常に`points`にそろえる。検証しない）
      */
-    constructor(points, closed = false, strokeColor = '#000000', strokeWidth = 2, fillColor = null, segmentKind = SEGMENT_KIND_LINE) {
+    constructor(points, closed = false, strokeColor = '#000000', strokeWidth = 2, fillColor = null, segmentKind = SEGMENT_KIND_LINE, corners = []) {
         /** @type {string} 図形種別（`ShapeFactory`が受理する文字列と一致） */
         this.type = 'path';
         /** @type {*} 図形の一意なID。作成中は`null`。`VectorModel`の採番・正規化の後は文字列。`fromJSON`直後は`data.id`のまま（欠落なら`undefined`、任意の型を取り得る）。 */
@@ -101,6 +114,8 @@ export class Path {
                 { length: closed ? this.points.length : this.points.length - 1 },
                 () => ({ kind: segmentKind }),
             );
+        /** @type {boolean[]} 頂点と同じ並びの「角の点か」。常に`points`と同じ要素数（初めはすべて`false`）。角が効くのは両側とも曲線の区間の点だけ */
+        this.corners = this.points.map((_, i) => Array.isArray(corners) && corners[i] === true);
         /** @type {string|null} 線の色。nullは線なし */
         this.strokeColor = strokeColor;
         /** @type {number} 線の太さ */
@@ -120,6 +135,7 @@ export class Path {
     /**
      * 区間ごとの曲線の制御点を求める（曲線の区間は`{ control1, control2 }`、直線の区間は`null`）。
      * 区間の種類による分岐の置き場所の1つ（`#tracePath`・`#someSegment`・`#fillPolygon`・`toDrawElement`が共有）。
+     * 角の点（`corners`）は`computeSmoothSegmentControls`の第4引数へ渡す（両側とも曲線の区間の角の点で連なりが切れる）。
      * @returns {Array<{control1: {x: number, y: number}, control2: {x: number, y: number}}|null>} 区間ごとの制御点
      */
     #segmentControls() {
@@ -127,6 +143,7 @@ export class Path {
             this.points,
             this.segments.map((segment) => segment.kind === SEGMENT_KIND_SMOOTH),
             this.closed,
+            this.corners,
         );
     }
 
@@ -481,9 +498,10 @@ export class Path {
      * 自身を図形データへ変換する（共通メソッド契約の第11メソッド）。
      * 形（キー順もこの順）: `{ type: 'path', id, points: [{x, y}, ...], closed, segments: [{ kind }, ...], strokeColor, strokeWidth, fillColor }`。
      * `fillColor`は塗れない形でも保持している値をそのまま出力する。
+     * 角の点が1つ以上あるときだけ、`segments`の直後・`strokeColor`の前に`corners`（頂点と同じ並びの真偽値の配列。新しい配列）を出す。角の点が1つもなければキーを出さない（今までと同じ）。
      * 戻り値と自身は配列・頂点・区間の要素を共有しない。`id`が`null`の場合もそのまま出力する。
      * `JSON.stringify(path)`でも本メソッドの戻り値が出力される。
-     * @returns {{type: string, id: *, points: {x: number, y: number}[], closed: boolean, segments: {kind: string}[], strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい図形データ
+     * @returns {{type: string, id: *, points: {x: number, y: number}[], closed: boolean, segments: {kind: string}[], corners?: boolean[], strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい図形データ
      */
     toJSON() {
         return {
@@ -492,6 +510,7 @@ export class Path {
             points: this.points.map((point) => ({ x: point.x, y: point.y })),
             closed: this.closed,
             segments: this.segments.map((segment) => ({ kind: segment.kind })),
+            ...(this.corners.some((corner) => corner === true) ? { corners: this.corners.slice() } : {}),
             strokeColor: this.strokeColor,
             strokeWidth: this.strokeWidth,
             fillColor: this.fillColor,
@@ -511,7 +530,9 @@ export class Path {
      *     頂点がオブジェクトでないか`x`・`y`が有限の数値でない／`strokeColor`が文字列でもnullでもない／`strokeWidth`が`undefined`以外で有限の数値でないか0以下／
      *     `fillColor`が`undefined`以外で文字列でもnullでもない／`closed`が真偽値でない／閉じたパスで`points`が3要素未満／`segments`が配列でない／
      *     `segments`の要素数が期待値（開いたパス`n - 1`、閉じたパス`n`）と違う／`segments[i]`がオブジェクトでない／
-     *     `segments[i].kind`が受理する種類（`'line'`・`'smooth'`）でない場合
+     *     `segments[i].kind`が受理する種類（`'line'`・`'smooth'`）でない／
+     *     `corners`が`undefined`以外で配列でない（`null`を含む）／`corners`の要素数が`points`の要素数と違う／`corners[i]`が真偽値でない場合
+     *     （`corners`の検査は`segments`の検査の後）。キーが無ければ角の点なし。すべて`false`の`corners`は受理し、`toJSON()`では出さない
      */
     static fromJSON(data) {
         const style = validateShapeData(data, 'Path', ['path'], { min: OPEN_MIN_POINT_COUNT });
@@ -536,7 +557,17 @@ export class Path {
             }
         });
 
-        const path = new Path(data.points, data.closed, style.strokeColor, style.strokeWidth, style.fillColor);
+        if (data.corners !== undefined) {
+            if (!Array.isArray(data.corners)) fail('cornersが配列ではありません');
+            if (data.corners.length !== data.points.length) {
+                fail(`cornersが${data.points.length}要素の配列ではありません`);
+            }
+            data.corners.forEach((corner, index) => {
+                if (typeof corner !== 'boolean') fail(`corners[${index}]が真偽値ではありません`);
+            });
+        }
+
+        const path = new Path(data.points, data.closed, style.strokeColor, style.strokeWidth, style.fillColor, SEGMENT_KIND_LINE, readCornerFlags(data));
         path.segments = data.segments.map((segment) => ({ kind: segment.kind }));
         path.id = data.id;
         return path;

@@ -4,7 +4,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { Path, SEGMENT_KIND_LINE, SEGMENT_KIND_SMOOTH } from '../../js/shapes/Path.js';
+import { Path, SEGMENT_KIND_LINE, SEGMENT_KIND_SMOOTH, readCornerFlags } from '../../js/shapes/Path.js';
 import { computeSmoothSegmentControls, cubicBezierPoint } from '../../js/shapes/ShapeGeometry.js';
 
 /**
@@ -1323,5 +1323,179 @@ describe('Path コンストラクタの区間ごとの種類の配列（Phase 09
         const smooth = new Path(makePoints(), true, '#000000', 2, null, 'smooth');
         assert.deepEqual(smooth.segments, [{ kind: 'smooth' }, { kind: 'smooth' }, { kind: 'smooth' }, { kind: 'smooth' }]);
         assert.deepEqual(new Path(makePoints()).segments, [{ kind: 'line' }, { kind: 'line' }, { kind: 'line' }]);
+    });
+});
+
+describe('Path の角の点（Phase 09-02a）', () => {
+    const NONE = [false, false, false, false];
+    const ONE = [false, true, false, false];
+
+    /**
+     * 全区間曲線のパスを、角の情報つきで作る。
+     * @param {boolean} closed - 閉じたパスにするか
+     * @param {boolean[]} [corners] - 角の点の並び
+     * @param {string|null} [fillColor=null] - 塗りの色
+     * @returns {Path} 全区間曲線のパス
+     */
+    function makeSmooth(closed, corners, fillColor = null) {
+        const p = new Path(makePoints(), closed, '#000000', 2, fillColor, SEGMENT_KIND_SMOOTH, corners);
+        p.id = 'p1';
+        return p;
+    }
+
+    /**
+     * パスの区間ごとの制御点を、角の情報つきで公開の式から求める。
+     * @param {Path} path - 対象のパス
+     * @returns {Array<Object|null>} 区間ごとの制御点
+     */
+    function controlsWithCorners(path) {
+        return computeSmoothSegmentControls(path.points, path.segments.map((s) => s.kind === SEGMENT_KIND_SMOOTH), path.closed, path.corners);
+    }
+
+    it('コンストラクタの既定の corners はすべて false（要素数は points と同じ）', () => {
+        assert.deepEqual(new Path(makePoints()).corners, NONE);
+        assert.deepEqual(new Path(makePoints(), true, '#000000', 2, null, SEGMENT_KIND_SMOOTH).corners, NONE);
+    });
+
+    it('第7引数は写して保持する（共有しない・true 以外は false・要素数を points にそろえる）', () => {
+        const src = [false, true, 1, 'true', true, true];
+        const p = new Path(makePoints(), false, '#000000', 2, null, SEGMENT_KIND_SMOOTH, src);
+        assert.deepEqual(p.corners, [false, true, false, false]);
+        src[0] = true;
+        assert.deepEqual(p.corners, [false, true, false, false]);
+        assert.notEqual(p.corners, src);
+        assert.deepEqual(new Path(makePoints(), false, '#000000', 2, null, SEGMENT_KIND_SMOOTH, [true]).corners, [true, false, false, false]);
+        assert.deepEqual(new Path(makePoints(), false, '#000000', 2, null, SEGMENT_KIND_SMOOTH, null).corners, NONE);
+    });
+
+    it('角の点がないパスの toJSON のキーは今と同じ（corners が無い）', () => {
+        assert.deepEqual(Object.keys(makeSmooth(false).toJSON()), ['type', 'id', 'points', 'closed', 'segments', 'strokeColor', 'strokeWidth', 'fillColor']);
+        assert.equal('corners' in makeSmooth(false, NONE).toJSON(), false);
+    });
+
+    it('角の点があると corners が segments の直後・strokeColor の前に新しい配列で出る', () => {
+        const p = makeSmooth(false, ONE);
+        const data = p.toJSON();
+        assert.deepEqual(Object.keys(data), ['type', 'id', 'points', 'closed', 'segments', 'corners', 'strokeColor', 'strokeWidth', 'fillColor']);
+        assert.deepEqual(data.corners, ONE);
+        assert.notEqual(data.corners, p.corners);
+        data.corners[0] = true;
+        assert.deepEqual(p.corners, ONE);
+    });
+
+    it('toJSON → fromJSON の往復で corners・描画・当たり判定が一致する', () => {
+        for (const closed of [false, true]) {
+            const p = makeSmooth(closed, ONE, closed ? '#ff0000' : null);
+            const back = Path.fromJSON(p.toJSON());
+            assert.deepEqual(back.toJSON(), p.toJSON());
+            assert.deepEqual(back.corners, ONE);
+            const a = makeRecordingCtx();
+            const b = makeRecordingCtx();
+            p.draw(a.ctx);
+            back.draw(b.ctx);
+            assert.deepEqual(b.log, a.log);
+            for (const [x, y] of [[50, 20], [100, 50], [20, 80], [60, 60]]) {
+                assert.equal(back.hitTest(x, y, 3), p.hitTest(x, y, 3));
+                assert.equal(back.hitTestFill(x, y), p.hitTestFill(x, y));
+            }
+        }
+    });
+
+    it('すべて false の corners は受理し、toJSON では出ない', () => {
+        const data = makeSmooth(false).toJSON();
+        data.corners = NONE.slice();
+        const p = Path.fromJSON(data);
+        assert.deepEqual(p.corners, NONE);
+        assert.equal('corners' in p.toJSON(), false);
+    });
+
+    it('fromJSON のエラー文（配列でない・null・要素数違い・真偽値でない要素）', () => {
+        let data = makeSmooth(false).toJSON();
+        data.corners = 'x';
+        assertFromJSONError(data, 'cornersが配列ではありません');
+        data = makeSmooth(false).toJSON();
+        data.corners = null;
+        assertFromJSONError(data, 'cornersが配列ではありません');
+        data = makeSmooth(false).toJSON();
+        data.corners = [false, true];
+        assertFromJSONError(data, 'cornersが4要素の配列ではありません');
+        data = makeSmooth(false).toJSON();
+        data.corners = [false, 1, false, false];
+        assertFromJSONError(data, 'corners[1]が真偽値ではありません');
+    });
+
+    it('corners の検査は segments の検査の後', () => {
+        const data = makeSmooth(false).toJSON();
+        data.corners = 'x';
+        data.segments = 'x';
+        assertFromJSONError(data, 'segmentsが配列ではありません');
+        const data2 = makeSmooth(false).toJSON();
+        data2.corners = 'x';
+        data2.segments[0] = { kind: 'bad' };
+        assert.throws(() => Path.fromJSON(data2), /segments\[0\]のkind/);
+    });
+
+    it('setVertex・translate の後も corners が残る', () => {
+        const p = makeSmooth(false, ONE);
+        p.setVertex(1, 50, 50);
+        assert.deepEqual(p.corners, ONE);
+        p.translate(5, 5);
+        assert.deepEqual(p.corners, ONE);
+        assert.deepEqual(p.toJSON().corners, ONE);
+    });
+
+    it('toDrawElement の cubic の制御点が式（corners つき）と一致し、角なしと違う', () => {
+        const p = makeSmooth(false, ONE);
+        const el = p.toDrawElement();
+        assert.equal(el.kind, 'bezierPath');
+        const controls = controlsWithCorners(p);
+        el.segments.forEach((seg, i) => {
+            assert.deepEqual(seg.control1, controls[i].control1);
+            assert.deepEqual(seg.control2, controls[i].control2);
+        });
+        assert.notDeepEqual(el.segments, makeSmooth(false).toDrawElement().segments);
+    });
+
+    it('区間がすべて直線のパスは角の情報があっても polyline のまま', () => {
+        const p = new Path(makePoints(), false, '#000000', 2, null, SEGMENT_KIND_LINE, ONE);
+        assert.equal(p.toDrawElement().kind, 'polyline');
+    });
+
+    it('draw の bezierCurveTo の引数が角の点を反映する', () => {
+        const p = makeSmooth(false, ONE);
+        const controls = controlsWithCorners(p);
+        const { ctx, log } = makeRecordingCtx();
+        p.draw(ctx);
+        const pts = makePoints();
+        assert.deepEqual(log[2], ['bezierCurveTo', controls[0].control1.x, controls[0].control1.y, controls[0].control2.x, controls[0].control2.y, pts[1].x, pts[1].y]);
+        const plain = makeRecordingCtx();
+        makeSmooth(false).draw(plain.ctx);
+        assert.notDeepEqual(log, plain.log);
+    });
+
+    it('当たり判定・範囲選択・塗りの内側が角の点を反映する', () => {
+        const p = makeSmooth(false, ONE);
+        const plain = makeSmooth(false);
+        const c = controlsWithCorners(p)[0];
+        const onCurve = cubicBezierPoint(p.points[0], c.control1, c.control2, p.points[1], 0.5);
+        assert.equal(p.hitTest(onCurve.x, onCurve.y, 0.5), true);
+        assert.equal(plain.hitTest(onCurve.x, onCurve.y, 0.5), false);
+        assert.equal(p.intersectsRect(onCurve.x - 0.5, onCurve.y - 0.5, onCurve.x + 0.5, onCurve.y + 0.5), true);
+        assert.equal(plain.intersectsRect(onCurve.x - 0.5, onCurve.y - 0.5, onCurve.x + 0.5, onCurve.y + 0.5), false);
+        const allCorner = makeSmooth(true, [true, true, true, true], '#ff0000');
+        for (const [x, y] of [[50, 50], [10, 10], [90, 90], [-5, 50], [105, 50], [50, 105]]) {
+            const inside = x > 0 && x < 100 && y > 0 && y < 100;
+            assert.equal(allCorner.hitTestFill(x, y), inside);
+        }
+    });
+
+    it('readCornerFlags：キーなし・あり・直線の toJSON・新しい配列', () => {
+        assert.deepEqual(readCornerFlags({ points: makePoints() }), NONE);
+        const withKey = { points: makePoints(), corners: [true, false, 1, true] };
+        const flags = readCornerFlags(withKey);
+        assert.deepEqual(flags, [true, false, false, true]);
+        assert.notEqual(flags, withKey.corners);
+        assert.deepEqual(readCornerFlags({ points: makePoints(), corners: 'x' }), NONE);
+        assert.deepEqual(readCornerFlags({ type: 'line', points: [{ x: 0, y: 0 }, { x: 1, y: 1 }] }), [false, false]);
     });
 });

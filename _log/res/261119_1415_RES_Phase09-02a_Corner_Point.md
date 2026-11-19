@@ -213,7 +213,7 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
         *   「2. 要件I」の(I-1)のテストを足す。既存のケースは変えない。
         *   JSDocの記載漏れが無いことを確かめる。`node --test`が全件通ることを確かめる。
         *   完了後、本RESの「4. 詳細作業内容」のタスク1に作業内容を記載する。開発資料に影響があれば「開発資料の更新予定」へ追記する（資料本体は直さない）。
-*   [ ] タスク2: 要件B パスが角の情報を持つ（`shapes/Path`）
+*   [x] タスク2: 要件B パスが角の情報を持つ（`shapes/Path`）
     *   **対象ファイル** :
         *   `./js/shapes/Path.js` : 更新（`readCornerFlags`の追加、コンストラクタの第7引数と`corners`、`#segmentControls`、`toJSON`、`fromJSON`と、関係するJSDoc・ファイル先頭の責務定義）
         *   `./test/shapes/Path.test.js` : 更新（(I-2)の`describe`の追加のみ）
@@ -329,7 +329,9 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
 
 ### タスク2: 要件B パスが角の情報を持つ（`shapes/Path`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/shapes/Path.js`：公開関数`readCornerFlags(data)`、コンストラクタ第7引数`corners`と公開プロパティ`corners`（常に`points`と同じ要素数・写して保持）、`#segmentControls`の第4引数、`toJSON`（角の点があるときだけ`segments`直後に`corners`）、`fromJSON`（`segments`検査の後に`corners`を検証。エラー文3種。生成は`readCornerFlags(data)`を第7引数へ）を足し、JSDoc・ファイル先頭の責務定義・`@throws`を実態に合わせた。18メソッド・`setVertex`・`translate`・`updateDraftEnd`・ハンドル関係・`isFillable`は変えていない。
+    *   `test/shapes/Path.test.js`：importに`readCornerFlags`を足し、末尾に`describe('Path の角の点（Phase 09-02a）')`を追加（14ケース。(I-2)の項目を網羅）。既存ケースの変更なし。
+    *   `node --test`：tests 1801 / suites 283 / fail 0。
 
 ### タスク3: 要件C 角の判定と切り替えの組み立て（`shapes/PathCornerRules`）
 *   **作業内容** :
@@ -372,3 +374,4 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
 * （計画時点）**複数の図形の点を切り替えると変更通知が図形の数だけ出る**：`VectorModel`に複数置き換えのメソッドを足さず`replaceShape`を図形ごとに呼ぶため（取り消しは1件）。1回ずつ正しい状態のため見た目は崩れない見込み。
 * （計画時点）**チェックボックスは`change`の後にフォーカスを外す**：`Space`での意図しない切り替えとショートカットの停止を避けるため（要件F）。`Tab`でフォーカスを移してキーボードだけで続けて切り替えることはできない（切り替えのたびに`Tab`で戻る）。実際のブラウザでの`indeterminate`の「−」の見た目・`blur`のふるまい・1280px幅での収まり（見積もり約1189px）は`node --test`で確かめられないため、テストプレイで確かめる。
 * （計画時点）**すべて`false`の`corners`を持つ作業データは、読み込んで保存し直すとキーが消える**（`toJSON()`は角の点があるときだけ出すため。本アプリは書き出さない形で、形は変わらない。許容）。
+* （タスク2）`Path.js`の`fromJSON`の`corners`検査は、`corners`のキーが`undefined`のときだけ検査を飛ばす（`null`は「配列ではありません」で例外）。`fromJSON`はコンストラクタに`SEGMENT_KIND_LINE`を渡してから`segments`を作り直す従来の流れのまま。
