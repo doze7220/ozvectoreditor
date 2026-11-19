@@ -40,7 +40,7 @@ export function isTextInputElement(element) {
  * checkbox（Spaceで切り替え）とcolor（Spaceでピッカーを開く）は、スペースパン・ショートカットと
  * Spaceの奪い合いになるため含める。
  * 含めないtypeの例：radio / range / button / submit / reset / file / image / hidden。
- * 現在、これらのtypeのinput要素はオプションバーのスタイルのまとまりの色の欄（color）以外に存在しない。
+ * 現在、これらのtypeのinput要素は、オプションバーのスタイルのまとまりの色の欄（color）と、角のまとまりのチェックボックス（checkbox。`change`の後にフォーカスを外す）だけ。
  * @type {ReadonlyArray<string>}
  */
 const SPACE_OPERATED_INPUT_TYPES = Object.freeze(['checkbox', 'color']);

@@ -434,8 +434,17 @@
             font-size: 12px;
             color: #666;
         }
+        /* 「角」のチェックボックスと文字（文字のクリックでも切り替わる。押せないときは文字も.tool-btn:disabledと同じ薄さ） */
+        .option-corner-label {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+        #option-corner-toggle:disabled + .option-corner-text {
+            opacity: 0.4;
+        }
         /* ツールバー全体の幅の見積もり（1280px幅）：
-           左右の余白16px＋最初のまとまり68px（ボタン32×2＋間隔4。🧰と📁）＋取り消し/やり直し68px＋削除/結合68px＋区切り17px×4＋スタイル約218px＋重なり順140px＋区切り17px＋位置約174px（X:約15px＋欄56px＋Y:約15px＋欄56px＋px約16px＋gap4px×4）＋区切り17px＋整列・分布284px（ボタン32×8＋間隔4×7）＝約1138px。
+           左右の余白16px＋最初のまとまり68px（ボタン32×2＋間隔4。🧰と📁）＋取り消し/やり直し68px＋削除/結合68px＋区切り17px×4＋スタイル約218px＋重なり順140px＋区切り17px＋位置約174px（X:約15px＋欄56px＋Y:約15px＋欄56px＋px約16px＋gap4px×4）＋区切り17px＋整列・分布284px（ボタン32×8＋間隔4×7）＋区切り17px＋角約34px（チェックの欄約13px＋既定の余白約7px＋間隔2px＋文字「角」約12px）＝約1189px。
            幅が足りないときは右のまとまりから切れる（.toolbarのoverflow: hidden） */
         /* 開発者向け確認用ウィンドウ（?dev時のみ表示。ツールパレットの右隣に置く。
            left: ツールパレットの左の位置に54px（ツールパレット幅44px＋枠2px＋余白8px）を足す。1280×800ではx 82〜444、y 68〜。
@@ -519,6 +528,9 @@
             <button type="button" id="option-align-bottom" class="tool-btn icon-btn" title="下へそろえる" disabled>⬇</button>
             <button type="button" id="option-distribute-horizontal" class="tool-btn icon-btn" title="横方向に均等に並べる" disabled>⋯</button>
             <button type="button" id="option-distribute-vertical" class="tool-btn icon-btn" title="縦方向に均等に並べる" disabled>⋮</button>
+        </div>
+        <div id="option-corner-group" class="toolbar-group">
+            <label class="option-corner-label" title="角（頂点の選択で選んだ、両側とも曲線の区間の点を角にする／なめらかに戻す）"><input type="checkbox" id="option-corner-toggle" disabled><span class="option-unit option-corner-text">角</span></label>
         </div>
     </header>
     <footer id="status-bar" class="status-bar">

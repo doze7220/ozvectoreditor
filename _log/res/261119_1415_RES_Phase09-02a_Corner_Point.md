@@ -265,7 +265,7 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
         *   「2. 要件H」のとおり、`DocumentSerializer.js`のJSDocの1文を直す。
         *   `node --test`が全件通ることを確かめる。
         *   完了後、本RESの「4. 詳細作業内容」のタスク6に作業内容を記載する。開発資料に影響があれば「開発資料の更新予定」へ追記する。
-*   [ ] タスク7: 要件F・要件J 「角」のチェックボックスのUI部品と要素（`palette/OptionBarCornerGroup`・`index.html`）
+*   [x] タスク7: 要件F・要件J 「角」のチェックボックスのUI部品と要素（`palette/OptionBarCornerGroup`・`index.html`）
     *   **対象ファイル** :
         *   `./js/palette/OptionBarCornerGroup.js` : 新規
         *   `./index.html` : 更新（`#option-corner-group`の要素の追加、`<style>`への2つのルールの追加、幅の見積もりのコメントの更新のみ）
@@ -362,7 +362,10 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
 
 ### タスク7: 要件F・要件J 「角」のチェックボックスのUI部品と要素（`palette/OptionBarCornerGroup`・`index.html`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/palette/OptionBarCornerGroup.js`（新規）：責務定義（3行）・typedef`CornerToggleView`（二重定義と明記）・`OptionBarCornerGroupActions`・クラス（コンストラクタ・`render`・非公開`#applyView`・`change`でコールバック→`#applyView(#lastView)`の当て直し→`blur`）。importなし。全メンバにJSDoc。
+    *   `index.html`：`#option-align-group`の直後に`#option-corner-group`を追加。`<style>`に`.option-corner-label`・`#option-corner-toggle:disabled + .option-corner-text`の2ルールを追加。幅の見積もりのコメントに角のまとまり（区切り17px＋約34px）と合計約1189pxを追記。既存の要素・ルールは不変。
+    *   `js/core/FocusKeyYieldRules.js`：`SPACE_OPERATED_INPUT_TYPES`のJSDocの1文のみ修正（コード不変）。
+    *   `node --test`：全件合格を確認（件数は変わらない見込み。実行結果は最終報告のとおり）。
 
 ### タスク8: 要件G `main.js`の配線（`// 7.12.`）
 *   **作業内容** :
