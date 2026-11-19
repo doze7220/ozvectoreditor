@@ -782,7 +782,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 表示（チェックボックスのチェックあり・なし・「−」・押せない）はOptionBarCornerGroup（palette/）が、変更の手順（1件の編集操作と
     // 表示内容の照会）はPathCornerEditor（edit/）が、点の角の判定と切り替えの組み立てはPathCornerRules（shapes/）が持つ。
     // ここは生成・注入・同期とドラッグ中の受理判定のみを行う（判定・計算を書かない）。表示の同期はmodel.onChangeのみで行う
-    // （機能専用の同期経路は足さない）。キーボードショートカットは割り当てない（チェックボックスのみ）。
+    // （機能専用の同期経路は足さない）。キーボードショートカットは割り当てない（チェックボックスとボタンのみ）。
+    // 区間の直線⇔曲線の切り替えも同じまとまりに載せる（判定・組み立てはPathSegmentKindRules（shapes/）、手順はPathCornerEditor、
+    // 表示はOptionBarCornerGroupが持つ）。
     const pathCornerEditor = new PathCornerEditor({ model, editRecorder: historyManager, getMode: () => inputTracker.getMode() });
 
     /**
@@ -799,18 +801,37 @@ document.addEventListener('DOMContentLoaded', () => {
         return pathCornerEditor.toggle();
     }
 
+    /**
+     * 選択中の図形の区間を直線／曲線に切り替える。オプションバーの「直線に」「曲線に」ボタンの経路（キーは割り当てない）。
+     * (1) ドラッグ中（InputTracker.isDragging()が真）なら何もせずfalse（不受理）。ドラッグが開いている編集操作と
+     *     beginEdit／commitEditの対を崩さないため。
+     * (2) それ以外はapplySwitch()の結果を返す。
+     * @param {() => boolean} applySwitch pathCornerEditorの切り替えのメソッド（switchSegmentsToLine／switchSegmentsToCurve）を呼ぶ関数
+     * @returns {boolean} 図形を変えた場合のみtrue（不受理・変わらない操作ではfalse）
+     */
+    function performSegmentKindSwitch(applySwitch) {
+        if (inputTracker.isDragging()) {
+            return false;
+        }
+        return applySwitch();
+    }
+
     // 戻り値をそのまま返すだけ
     const optionBarCornerGroup = new OptionBarCornerGroup(document.getElementById('option-corner-group'), {
-        onCornerToggle: () => performCornerToggle()
+        onCornerToggle: () => performCornerToggle(),
+        onSegmentToLine: () => performSegmentKindSwitch(() => pathCornerEditor.switchSegmentsToLine()),
+        onSegmentToCurve: () => performSegmentKindSwitch(() => pathCornerEditor.switchSegmentsToCurve())
     });
 
     /**
-     * オプションバーの角のまとまりのチェックボックスの表示を、現在の選択・頂点の選択・図形の角の状態
-     * （pathCornerEditor.getView()）に同期する（optionBarCornerGroup.render）。
+     * オプションバーの角のまとまりのチェックボックスとボタンの表示を、現在の選択・頂点の選択・図形の状態に同期する
+     * （optionBarCornerGroup.render（pathCornerEditor.getView()）と
+     * optionBarCornerGroup.renderSegmentSwitch（pathCornerEditor.getSegmentSwitchAvailability()））。
      * model.onChangeのコールバックとして登録し、起動時にも明示的に1回呼び出す。DOMの更新はOptionBarCornerGroupが担い、ここは橋渡しのみ。
      */
     function syncOptionBarCornerGroup() {
         optionBarCornerGroup.render(pathCornerEditor.getView());
+        optionBarCornerGroup.renderSegmentSwitch(pathCornerEditor.getSegmentSwitchAvailability());
     }
 
     model.onChange(syncOptionBarCornerGroup);

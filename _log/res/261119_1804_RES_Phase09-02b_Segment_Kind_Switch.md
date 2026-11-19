@@ -257,7 +257,7 @@ Phase 09-01a・09-01b・09-02aで、パスに曲線の区間（`'smooth'`）と�
         *   ファイル先頭の責務定義（3行以内）・typedef（`SegmentSwitchAvailability`の二重定義であることを書く・`OptionBarCornerGroupActions`）・クラスJSDoc・足したメソッドとフィールドのJSDocを書く。DOMのためテストは置かない。
         *   `node --test`が全件通ることを確かめる（このタスクでは件数は変わらない）。
         *   完了後、本RESの「4. 詳細作業内容」のタスク4に作業内容を記載する。開発資料に影響があれば「開発資料の更新予定」へ追記する。
-*   [ ] タスク5: 要件E `main.js`の配線（`// 7.12.`への追加）
+*   [x] タスク5: 要件E `main.js`の配線（`// 7.12.`への追加）
     *   **対象ファイル** :
         *   `./js/main.js` : 更新（`// 7.12.`のブロックの中だけ：`performSegmentKindSwitch`の追加、`OptionBarCornerGroup`の生成へのコールバック2つの追加、`syncOptionBarCornerGroup`への1行の追加とJSDoc、ブロック冒頭のコメント）
     *   **作業内容** :
@@ -332,7 +332,10 @@ Phase 09-01a・09-01b・09-02aで、パスに曲線の区間（`'smooth'`）と�
 
 ### タスク5: 要件E `main.js`の配線（`// 7.12.`への追加）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/main.js`（`// 7.12.`の中だけ）：ブロック冒頭のコメントに区間の切り替えの分担とキーを割り当てない旨（チェックボックスとボタンのみ）を追記。`performSegmentKindSwitch(applySwitch)`（ドラッグ中は`false`、それ以外は`applySwitch()`の戻り値を返す。JSDoc付き）を追加。`OptionBarCornerGroup`の生成に`onSegmentToLine`・`onSegmentToCurve`を追加。`syncOptionBarCornerGroup`に`renderSegmentSwitch(pathCornerEditor.getSegmentSwitchAvailability())`を1行足し、JSDocを実態に直した。import・`model.onChange`の登録・`KeyboardShortcuts`・起動時の同期の呼び出しは変えていない。
+    *   `js/edit/PathCornerEditor.js`：クラスJSDocの前提の記述に、区間の切り替えの前提は`main.js`の`performSegmentKindSwitch`が判定する旨を書き足した（コメントのみ。タスク2監査の申し送り）。
+    *   `node --test`：tests 1926 / suites 306 / pass 1926 / fail 0。変更後の`js/main.js`の行数：1074行（`wc -l`。タスク8で`02_main.md`へ）。
+    *   これでタスク4で述べた起動時の例外（コールバック未注入）は解消した。
 
 ### タスク6: 仕上げの確認（JSDoc・スコープ・全テスト）
 *   **作業内容** :

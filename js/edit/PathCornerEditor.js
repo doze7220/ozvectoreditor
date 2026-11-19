@@ -31,7 +31,7 @@ import { SegmentKindSwitch, resolveSegmentSwitchAvailability, planSegmentKindSwi
  *   - 図形種別の分岐・図形固有のプロパティ名（ハンドル名の形式を含む）を持たない。
  *   - 再描画・UI同期を自分で呼ばない。`try/catch`を持たない。
  *
- * 前提（呼び出し側の責務）: ドラッグ中でないこと（`main.js`の`performCornerToggle`が判定する）。
+ * 前提（呼び出し側の責務）: ドラッグ中でないこと（`main.js`の`performCornerToggle`が判定する。区間の切り替えの前提は`main.js`の`performSegmentKindSwitch`が判定する）。
  * 本クラスは進行中の入力操作の中断・モード切り替えを行わない。
  */
 export class PathCornerEditor {
