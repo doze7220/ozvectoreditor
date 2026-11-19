@@ -337,3 +337,51 @@ test('canJoin・join（曲線のパスを含む選択）: 曲線のパス1本は
     assert.deepEqual(dump(model), joined);
     assert.equal(history.canRedo(), false);
 });
+
+/**
+ * 全区間が'smooth'の開いた（または閉じた）パスを、idを代入して作る。
+ * @param {string} id 代入するid
+ * @param {Array<[number, number]>} coords 頂点の座標（[x, y]の並び）
+ * @returns {Path} 全区間が'smooth'のパス
+ */
+function makeSmoothPathOf(id, coords) {
+    const path = new Path(coords.map(([x, y]) => ({ x, y })), false, '#445566', 3, null, SEGMENT_KIND_SMOOTH);
+    path.id = id;
+    return path;
+}
+
+test('join（区間の種類を保つ。Phase 09-01b）: 端点が重なる曲線のパス2本は全区間smoothの1本になる', () => {
+    const a = makeSmoothPathOf('a', [[0, 0], [10, 0], [20, 10]]);
+    const b = makeSmoothPathOf('b', [[20, 10], [30, 20], [40, 20]]);
+    const { joiner, calls } = setupFake([a, b], ['a', 'b'], { tolerance: 5 });
+    assert.equal(joiner.join(), true);
+    assert.deepEqual(calls.map((c) => c[0]), ['beginEdit', 'replaceShape', 'commitEdit']);
+    const joined = calls[1][2];
+    const json = joined.toJSON();
+    assert.equal(json.closed, false);
+    assert.equal(json.points.length, 5);
+    assert.deepEqual(json.segments.map((s) => s.kind), ['smooth', 'smooth', 'smooth', 'smooth']);
+});
+
+test('join（区間の種類を保つ。Phase 09-01b）: 端点が離れた曲線のパス2本は間を埋める区間だけがlineになる', () => {
+    const a = makeSmoothPathOf('a', [[0, 0], [10, 0], [20, 10]]);
+    const b = makeSmoothPathOf('b', [[60, 10], [70, 20], [80, 20]]);
+    const { joiner, calls } = setupFake([a, b], ['a', 'b'], { tolerance: 5 });
+    assert.equal(joiner.join(), true);
+    const joined = calls[1][2];
+    assert.equal(joined.toJSON().points.length, 6);
+    assert.deepEqual(kindsOf(joined), ['smooth', 'smooth', 'line', 'smooth', 'smooth']);
+});
+
+test('join（区間の種類を保つ。Phase 09-01b）: 両端が重なる曲線のパス1本は元のidの閉じたパスで全区間smoothになる', () => {
+    const p = makeSmoothPathOf('p', [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]);
+    const { joiner, calls } = setupFake([p], ['p'], { tolerance: 5 });
+    assert.equal(joiner.join(), true);
+    const [, targetId, closedPath, options] = calls[1];
+    assert.equal(targetId, 'p');
+    assert.equal(options.keepId, true);
+    const json = closedPath.toJSON();
+    assert.equal(json.closed, true);
+    assert.equal(json.points.length, 4);
+    assert.deepEqual(json.segments.map((s) => s.kind), ['smooth', 'smooth', 'smooth', 'smooth']);
+});
