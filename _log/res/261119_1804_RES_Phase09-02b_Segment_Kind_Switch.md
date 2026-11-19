@@ -247,7 +247,7 @@ Phase 09-01a・09-01b・09-02aで、パスに曲線の区間（`'smooth'`）と�
         *   「2. 要件G」の(G-4)のテストを足す（切り替えた図形は`planSegmentKindSwitch`で作る。既存の補助関数を使う。既存のケースは変えない）。`js/io/`のコードとJSDocは変えない。
         *   `node --test`が全件通ることを確かめる。
         *   完了後、本RESの「4. 詳細作業内容」のタスク3に作業内容を記載する。開発資料に影響があれば「開発資料の更新予定」へ追記する。
-*   [ ] タスク4: 要件D 「直線に」「曲線に」のボタンのUI部品と要素（`palette/OptionBarCornerGroup`・`index.html`）
+*   [x] タスク4: 要件D 「直線に」「曲線に」のボタンのUI部品と要素（`palette/OptionBarCornerGroup`・`index.html`）
     *   **対象ファイル** :
         *   `./js/palette/OptionBarCornerGroup.js` : 更新（2つのボタンの解決と`click`の配線、`renderSegmentSwitch`の追加、コールバックの検証の追加、typedef・ファイル先頭の責務定義・クラスJSDocの更新のみ。既存の`render`・`#applyView`・`change`の処理は変えない）
         *   `./index.html` : 更新（`#option-corner-group`の中への2つのボタンの追加と、幅の見積もりのコメントの更新のみ）
@@ -325,7 +325,10 @@ Phase 09-01a・09-01b・09-02aで、パスに曲線の区間（`'smooth'`）と�
 
 ### タスク4: 要件D 「直線に」「曲線に」のボタンのUI部品と要素（`palette/OptionBarCornerGroup`・`index.html`）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/palette/OptionBarCornerGroup.js`：先頭の責務定義・typedef`SegmentSwitchAvailability`（二重定義の旨を記載）・`OptionBarCornerGroupActions`（`onSegmentToLine`・`onSegmentToCurve`）・クラスJSDocを更新。コンストラクタでコールバック2つを検証し、3要素（`#option-corner-toggle`・`#option-segment-to-line`・`#option-segment-to-curve`）のどれかが欠ければ既存の警告文言で`console.warn`して配線しない。2ボタンの`click`でコールバックを呼ぶ（`blur`なし・`aria-pressed`なし）。公開メソッド`renderSegmentSwitch`・非公開フィールド`#toLineButton`・`#toCurveButton`を追加。既存の`render`・`#applyView`・`change`の処理は変えていない。importなし。
+    *   `index.html`：`#option-corner-group`の中、`<label class="option-corner-label">`の前に2つのボタン（初期`disabled`）を追加。幅の見積もりのコメントの角の項（約106px）と合計（約1261px）を更新。CSS・既存要素は不変。
+    *   DOMのためテストは置いていない。`node --test`：tests 1926 / suites 306 / fail 0（タスク3後から件数は変わらない）。
+    *   注意：タスク4をコミットした時点では`js/main.js`が新しいコールバック（`onSegmentToLine`・`onSegmentToCurve`）をまだ渡していないため、ブラウザで起動すると`OptionBarCornerGroup`のコンストラクタが例外を投げる（タスク5で解消）。
 
 ### タスク5: 要件E `main.js`の配線（`// 7.12.`への追加）
 *   **作業内容** :

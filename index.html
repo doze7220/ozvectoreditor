@@ -444,7 +444,7 @@
             opacity: 0.4;
         }
         /* ツールバー全体の幅の見積もり（1280px幅）：
-           左右の余白16px＋最初のまとまり68px（ボタン32×2＋間隔4。🧰と📁）＋取り消し/やり直し68px＋削除/結合68px＋区切り17px×4＋スタイル約218px＋重なり順140px＋区切り17px＋位置約174px（X:約15px＋欄56px＋Y:約15px＋欄56px＋px約16px＋gap4px×4）＋区切り17px＋整列・分布284px（ボタン32×8＋間隔4×7）＋区切り17px＋角約34px（チェックの欄約13px＋既定の余白約7px＋間隔2px＋文字「角」約12px）＝約1189px。
+           左右の余白16px＋最初のまとまり68px（ボタン32×2＋間隔4。🧰と📁）＋取り消し/やり直し68px＋削除/結合68px＋区切り17px×4＋スタイル約218px＋重なり順140px＋区切り17px＋位置約174px（X:約15px＋欄56px＋Y:約15px＋欄56px＋px約16px＋gap4px×4）＋区切り17px＋整列・分布284px（ボタン32×8＋間隔4×7）＋区切り17px＋角約106px（ボタン32×2＋間隔4×2＋チェックの欄約13px＋既定の余白約7px＋間隔2px＋文字「角」約12px）＝約1261px。
            幅が足りないときは右のまとまりから切れる（.toolbarのoverflow: hidden） */
         /* 開発者向け確認用ウィンドウ（?dev時のみ表示。ツールパレットの右隣に置く。
            left: ツールパレットの左の位置に54px（ツールパレット幅44px＋枠2px＋余白8px）を足す。1280×800ではx 82〜444、y 68〜。
@@ -530,6 +530,8 @@
             <button type="button" id="option-distribute-vertical" class="tool-btn icon-btn" title="縦方向に均等に並べる" disabled>⋮</button>
         </div>
         <div id="option-corner-group" class="toolbar-group">
+            <button type="button" id="option-segment-to-line" class="tool-btn icon-btn" title="直線に（頂点の選択で両端の点を選んだ区間を直線にする）" disabled>╱</button>
+            <button type="button" id="option-segment-to-curve" class="tool-btn icon-btn" title="曲線に（頂点の選択で両端の点を選んだ直線の区間の中点に点を足し、曲線にする）" disabled>∿</button>
             <label class="option-corner-label" title="角（頂点の選択で選んだ、両側とも曲線の区間の点を角にする／なめらかに戻す）"><input type="checkbox" id="option-corner-toggle" disabled><span class="option-unit option-corner-text">角</span></label>
         </div>
     </header>
