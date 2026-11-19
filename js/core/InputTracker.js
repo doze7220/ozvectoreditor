@@ -195,7 +195,7 @@ export function hasCtrlModifier(event) {
  * 編集操作（図形の作成・一括削除・選択集合の平行移動・ハンドルによる変形）は、変更処理を注入された記録先（EditRecorder）の
  * beginEdit()／commitEdit()で挟んで開始・確定を伝える（履歴の保持・適用は行わない。記録先はコンストラクタ第4引数）。
  * 範囲選択・クリック選択・全選択・選択解除・ホバー・パン・ズーム・モード/図形種別の切り替えは編集操作として伝えない。
- * 端点への吸い付きの照会と反映（直線を描くときの描き足し・結合・閉じる）は、注入された補助（EndpointSnapAssist。コンストラクタ第5引数）へ
+ * 端点への吸い付きの照会と反映（直線・曲線のツールで描くときの描き足し・結合・閉じる）は、注入された補助（EndpointSnapAssist。コンストラクタ第5引数）へ
  * 委ね、本クラスは呼ぶ場面の配線と吸い付きの表示（model.setSnapPoint/clearSnapPoint）の設定・消去のみを行う。
  * Ctrl（hasCtrlModifier）を押している間は、この吸い付きを照会せず表示も消す（図形作成の描き始めのclick・描いている途中と図形作成モードのIDLEのmousemove、
  * 端点のハンドルのドラッグ中。照会結果がnullのときと同じ経路を通る）。
@@ -307,14 +307,14 @@ export class InputTracker {
     #duplicateOnMove = false;
 
     /**
-     * 直線を描き始めたときに吸い付いていた端点（handleClickのIDLE・図形作成モードで照会した結果。吸い付いていなければnull）。
+     * 直線・曲線のツールで描き始めたときに吸い付いていた端点（handleClickのIDLE・図形作成モードで照会した結果。吸い付いていなければnull）。
      * 描き終えのcommitDrawnLineへ渡す。#resetSnapState()でnullに戻す。
      * @type {Object|null}
      */
     #drawStartSnap = null;
 
     /**
-     * 直線を描いている途中の直前のmousemoveで吸い付いていた端点（吸い付いていなければnull）。
+     * 直線・曲線のツールで描いている途中の直前のmousemoveで吸い付いていた端点（吸い付いていなければnull）。
      * 描き終えの端点として使う（クリック位置で取り直さない）。#resetSnapState()でnullに戻す。
      * @type {Object|null}
      */
@@ -823,7 +823,7 @@ export class InputTracker {
      * 線を引いている途中（直線・曲線のツール。補助のisDrawingLine()が真）は、先頭の枝で補助のfindDrawnLineSnap(#drawStartSnap, 丸めていないカーソル位置)を照会して
      * #drawEndSnapに保持・表示し、付いてくる線の先を、吸い付けばその座標、吸い付かなければ#resolveDrawnLineEnd（Shiftなら最後の点を基準に
      * 向きを限定して丸める。それ以外は今のroundPointToUnit）に追従させる。吸い付いたときは限定もスナップもしない。Shiftを見るのはこのmousemoveイベント。
-     * IDLE状態かつ図形作成モード中は、描く図形種別で吸い付きを照会して表示だけを更新する（直線以外では常に表示されない。
+     * IDLE状態かつ図形作成モード中は、描く図形種別で吸い付きを照会して表示だけを更新する（直線・曲線のツール以外では常に表示されない。
      * Ctrlの間は照会せず表示を消す）。
      * Modelへ渡す座標・当たり判定に用いる座標はすべてワールド座標（getWorldCoordinate由来）。
      * ドラッグセッション中（パン・左ドラッグ。閾値以前を含む）は何もしない。追従はDragTrackerのonMoveが担い
