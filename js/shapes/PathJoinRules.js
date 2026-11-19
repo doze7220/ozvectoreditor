@@ -82,13 +82,14 @@ export function isJoinableLine(shape) {
  */
 
 /**
- * `toJSON()`の値から区間の種類の並びを新しい配列で返す（非公開）。
+ * `toJSON()`の値から区間の種類の並びを新しい配列で返す。
  * `type`が`'line'`なら`[SEGMENT_KIND_LINE]`（直線は直線の区間1つとして扱う）、それ以外は`segments`の各`kind`。
- * 「`type`が`'line'`の図形は直線の区間1つ」という規則の唯一の定義箇所。開いた線（結合できる線・作成途中の線）の値だけを渡す。
- * @param {{type?: string, segments?: Array<{kind: string}>}} data 開いた線の`toJSON()`の値
+ * 「`type`が`'line'`の図形は直線の区間1つ」という規則の唯一の定義箇所。直線とパス（開いた線・閉じたパス）の`toJSON()`の値を渡す。
+ * 使う側は`PathJoinRules`の中と`PathSegmentKindRules`（区間の切り替え）。引数を書き換えない。
+ * @param {{type?: string, segments?: Array<{kind: string}>}} data 直線かパス（開いた線・閉じたパス）の`toJSON()`の値
  * @returns {string[]} 区間の種類の並び（新しい配列）
  */
-function segmentKindsOf(data) {
+export function segmentKindsOf(data) {
     if (data.type === 'line') return [SEGMENT_KIND_LINE];
     return data.segments.map((segment) => segment.kind);
 }

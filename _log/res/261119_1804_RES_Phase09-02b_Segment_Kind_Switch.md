@@ -216,7 +216,7 @@ Phase 09-01a・09-01b・09-02aで、パスに曲線の区間（`'smooth'`）と�
 *   **`_doc/arch/01_index_html.md`**：保っているidに`#option-segment-to-line`・`#option-segment-to-curve`（と既存で漏れている`#option-corner-group`・`#option-corner-toggle`）、角のまとまりの中身（左から「直線に」「曲線に」「角」・記号は仮・`title`にキーなし・初期`disabled`・`aria-pressed`なし）、幅の見積もり（約1261px）、ショートカットの表記（2つのボタンの`title`にキーを書かない）。
 
 ## 3. タスクリスト
-*   [ ] タスク1: 要件A・要件B 区間の切り替えの規則（`shapes/PathSegmentKindRules`と`PathJoinRules.segmentKindsOf`の公開）
+*   [x] タスク1: 要件A・要件B 区間の切り替えの規則（`shapes/PathSegmentKindRules`と`PathJoinRules.segmentKindsOf`の公開）
     *   **対象ファイル** :
         *   `./js/shapes/PathJoinRules.js` : 更新（`segmentKindsOf`に`export`を付け、そのJSDocを直すのみ）
         *   `./js/shapes/PathSegmentKindRules.js` : 新規
@@ -302,7 +302,13 @@ Phase 09-01a・09-01b・09-02aで、パスに曲線の区間（`'smooth'`）と�
 
 ### タスク1: 要件A・要件B 区間の切り替えの規則（`shapes/PathSegmentKindRules`と`PathJoinRules.segmentKindsOf`の公開）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/shapes/PathJoinRules.js`：`segmentKindsOf`に`export`を付け、JSDocを実態（直線とパスの値を渡す・使う側は`PathJoinRules`の中と`PathSegmentKindRules`）に直した。中身・ほかの関数・先頭の責務定義は変えていない。
+    *   `js/shapes/PathSegmentKindRules.js`（新規）：先頭の責務定義（3行以内）、`SegmentKindSwitch`、typedef3つ（`SegmentSwitchTarget`・`SegmentSwitchAvailability`・`SegmentSwitchPlanItem`。ほかに非公開の`SwitchEntry`）、`resolveSegmentSwitchAvailability`・`planSegmentKindSwitch`、非公開の`dataOf`・`collectSwitchEntries`・`changedSegmentIndexes`・`midpoint`・`buildCurvedPath`・`buildStraightenedPath`・`buildLineFromCurve`。importは`Path.js`（`Path`・`SEGMENT_KIND_LINE`・`SEGMENT_KIND_SMOOTH`・`readCornerFlags`）・`Line.js`・`PathJoinRules.js`（`segmentKindsOf`）・`PathCornerRules.js`（`resolveCornerState`・`CornerState`）のみ。形の式・角の判定・`corners`の読み方・「直線は区間1つ」は写していない。
+    *   `test/shapes/PathJoinRules.test.js`：`describe('segmentKindsOf（Phase 09-02b で公開）')`を追加（既存のケースは変えていない）。
+    *   `test/shapes/PathSegmentKindRules.test.js`（新規）：(G-2)の各項目。
+    *   `node --test`：tests 1897 / suites 300 / fail 0（開始前は1860 / 294）。
+    *   今の曲線のテストでは`Curve`のコンストラクタが制御点を取らない（制御点は中点）ため、テスト内の補助`makeCurve`で公開の`setVertex(1, x, y)`により制御点を置いて作っている（既存テストの慣例）。
+    *   監査の指摘で、閉じたパスで区間0が曲線の区間のとき終点→始点の区間を「曲線に」し、番号0をまたいで隣り合う曲線の区間の制御点が変わらないことを確かめるケースを足した。
 
 ### タスク2: 要件C 区間の切り替えの1件の編集操作（`edit/PathCornerEditor`）
 *   **作業内容** :
@@ -339,3 +345,4 @@ Phase 09-01a・09-01b・09-02aで、パスに曲線の区間（`'smooth'`）と�
 * **途中の通知での頂点の選択の食い違い**：区間の切り替えでは`replaceShape`（`k`回）の通知の時点で頂点の選択のハンドル名が新しい図形に合わない。同期の処理を実コードで確かめ、例外・残る誤表示は無いと判断した（「2. 要件C」）。画面での見え方はテストプレイ（確認項目2・5・8）で確かめる。
 * **ボタンの記号（`╱`・`∿`）は仮**。環境によって大きさ・見え方がそろわない可能性がある（整列のボタンと同じ扱い）。1280px幅での収まり（見積もり約1261px。残り約19px）はテストプレイで確かめる。
 * **`Enter`でボタンがもう一度押されること**：ボタンを押した後にフォーカスが残り、`Enter`を押すと（押せるときだけ）もう一度切り替わる。今の重なり順・整列のボタンと同じふるまいで、変えない。
+* **（タスク1より）`PathSegmentKindRules`の注意**：区間の種類を足すときは`changedSegmentIndexes`と`buildCurvedPath`／`buildStraightenedPath`を直す。角の状態は`resolveCornerState`に任せ写さない。今の曲線の頂点の並び（始点0・制御点1・終点2）は`toJSON().points`の約束から読んでいる。開発資料への影響は「開発資料の更新予定」に既に記載の範囲（追記なし）。

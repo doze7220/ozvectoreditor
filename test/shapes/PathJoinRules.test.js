@@ -23,6 +23,7 @@ import {
     getLastDrawnPoint,
     isOnLastDrawnPoint,
     canCloseDrawnLine,
+    segmentKindsOf,
 } from '../../js/shapes/PathJoinRules.js';
 import { Line } from '../../js/shapes/Line.js';
 import { Curve } from '../../js/shapes/Curve.js';
@@ -1907,5 +1908,28 @@ describe('角の点を保つ（Phase 09-02a）', () => {
         buildClosedPath(a, TOL);
         buildExtendedPath(a, 'start', { x: -20, y: 0 }, TOL);
         assert.equal(JSON.stringify(a.toJSON()), before);
+    });
+});
+
+describe('segmentKindsOf（Phase 09-02b で公開）', () => {
+    it('直線の値は [line] になる', () => {
+        assert.deepEqual(segmentKindsOf(new Line(0, 0, 10, 0).toJSON()), ['line']);
+    });
+
+    it('開いたパス・閉じたパスは segments の各 kind の新しい配列になる', () => {
+        const open = new Path(pts([[0, 0], [10, 0], [20, 0]]), false, '#000000', 2, null, ['line', 'smooth']);
+        const closed = new Path(pts([[0, 0], [10, 0], [10, 10]]), true, '#000000', 2, null, ['smooth', 'line', 'smooth']);
+        const openData = open.toJSON();
+        assert.deepEqual(segmentKindsOf(openData), ['line', 'smooth']);
+        assert.deepEqual(segmentKindsOf(closed.toJSON()), ['smooth', 'line', 'smooth']);
+        assert.notEqual(segmentKindsOf(openData), segmentKindsOf(openData));
+    });
+
+    it('引数を書き換えない', () => {
+        const data = new Path(pts([[0, 0], [10, 0], [20, 0]]), false, '#000000', 2, null, ['line', 'smooth']).toJSON();
+        const before = JSON.stringify(data);
+        const result = segmentKindsOf(data);
+        result[0] = 'x';
+        assert.equal(JSON.stringify(data), before);
     });
 });
