@@ -352,7 +352,7 @@
         *   （本RESのみ）
     *   **作業内容** :
         *   「2. 要件I」の確認項目0〜10を、本RESの「4. 詳細作業内容」のタスク10へ写し、実装の結果に合わせて文言を確かめる（実装で判明した注意点があれば足す）。最終報告でも提示する。
-*   [ ] タスク11: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
+*   [x] タスク11: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` : 更新
         *   `./_doc/arch/12_shapes.md` : 更新
@@ -459,7 +459,13 @@
 
 ### タスク11: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `PROJECT_ARCHITECTURE.md`：1章「存在しないもの」（09-01bの項を「この点は角」・結合後の形の事前表示のやらないことへ置換）、「フォルダ分割の方針」`shapes/`の`PathJoinRules`の説明、2章「新しく描く図形のスタイル」の当てないものの括弧書き、3章11.（結合できる線の項の書き換え、「区間の種類」の項の新設、やらないことの「今の曲線」への修正、端点を指定する入口に`planDrawnLineJoin`の第6引数・組み立て関数の末尾の引数、描き足しの規則）、12.（見出し・流れ（描き始め／描いている途中／描き終え）・発注者の決定の対象・曲線のツールの項を「曲線のツールも吸い付く」へ・表示を消す箇所・やらないこと）、22.（曲線のツールの項・現場設計セッションが決めた点・既存の線とつながる・閉じる・発注者の決定（2026-11-19）の追加）を実態に合わせた。
+    *   `_doc/arch/12_shapes.md`：`PathJoinRules.js`の項（`isJoinableLine`の実態と2つの名前を分ける理由、公開関数の引数の追加、「読むもの」、区間の種類の非公開の定義（`JOIN_GAP_SEGMENT_KIND`・`segmentKindsOf`・`chainOf`・`reverseChain`・`assembleOpenPath`）、`EndpointSnapRules.js`の項（`isSnapDrawShapeType`・`findDrawnLineSnapTarget`・対象・注意）、`Path.js`の項（コンストラクタの第6引数が配列も受ける）。
+    *   `_doc/arch/14_edit.md`：`PathJoiner.js`の項（対象に曲線のパスを含む）、`EndpointSnapper.js`の項（曲線のツールも吸い付く・`finishDrawnLine`が作成途中の線を`#reflectDrawnJoin`の第4引数として`planDrawnLineJoin`の第6引数へ渡すこと）。
+    *   `_doc/arch/06_InputTracker.md`：「行数」の項に09-01bはJSDocの文言4か所のみで行数は変わらないことを追記。
+    *   `_doc/arch/16_test.md`：09-01bの追加分（ファイルごとの件数。計60件）・書き換えた既存の12ケース・テストできない箇所・件数（tests 1779 / suites 281）を追記。`PathJoinRules.test.js`・`EndpointSnapRules.test.js`の記述に対象が曲線のパスを含むことを追記。
+    *   `_doc/arch/15_io.md`・`js/`・`test/`は変更していない。`node --test`は実行していない（資料のみの変更）。
+    *   **diff監査の指摘による修正**：(1) `PROJECT_ARCHITECTURE.md`2章`path`に、結合・描き足し・閉じるの結果が元の各区間の種類を保つこと（Bを逆順にするときは逆順・端点をまとめるときは除いた端点につながっていた区間の種類を保つ）と、曲線の区間どうしのつなぎ目がなめらかになること（データに新しい情報は足さない）を追記。(2) 2章「当てないもの」の自己矛盾の括弧書きを「直線・曲線のツールで線を引いた結果の…」へ。(3) 3章3.の吸い付きを直線・曲線のツールに、3章22.の参照先名を「流れ（直線・曲線の描き始め）」に。(4) `06_InputTracker.md`の「描く図形種別」を直線・曲線（`isSnapDrawShapeType`が`'line'`・`'curve'`で真）に。(5) `16_test.md`の09-01bの件数を実測に合わせた（`PathJoinRules.test.js`は`describe`+10・tests+36、`ShapeGeometry.test.js`は`describe`+1。suites合計+13・tests合計+60と一致）。(6) 書き換えた4ケースの内訳を実差分に合わせた（`isJoinableLine`・`isDrawnLineShape`・`classifyJoin`と`planJoin`・`buildClosedPath`と`canCloseByMergingEnds`の各1ケース。ほかのファイルの内訳〔`EndpointSnapRules`5・`EndpointSnapper`2・`PathJoiner`1〕は実差分と一致を確認）。(7) 09-01aの追加分の結合の対象外の説明に「09-01bで逆の期待値に書き換え」を添えた。(8) `12_shapes.md`の「注意」を「区間の種類」の項から独立した項へ戻した。(9) 3章22.の「曲線のパスも、直線のツールの線と同じ操作で既存の線とつながる」へ読みやすく修正。
 
 ## 5. 懸念事項・要確認ポイント
 *   **`InputTracker`のJSDocの修正（要件F）**：REQは「`InputTracker`を変えない見込み。変える必要がある場合は配線だけ」としているが、本計画はコードも配線も変えず、実態と食い違うJSDocの文言4か所だけを直す（行数は変わらない）。開発資料の第一の目的（ハルシネーションの防止）のため。問題があればタスク8を外しても、ほかのタスクとテストには影響しない。
@@ -473,3 +479,4 @@
 *   **タスク3の補足**：(1) 開発資料の更新予定：`planDrawnLineJoin`の省ける第6引数`drawnKindSource`と、計画の関数が描いた区間の種類を渡すことは、タスク11で反映（資料本体は未変更）。(2) 始点側へ描き足す（`end === 'start'`）と足した区間は`kinds`の先頭側に並ぶ（同じ線の両端＋途中の点ありの閉じる結果は`['smooth','line','line','smooth']`）。(3) `planDrawnLineJoin`の呼び出し元`EndpointSnapper.finishDrawnLine`が第6引数を渡すのはタスク5。
 *   **タスク5の補足**：(1) 開発資料の更新予定：`EndpointSnapper`が曲線のツールの描き始めにも吸い付くこと、`finishDrawnLine`だけが作成途中の線を`#reflectDrawnJoin`の第4引数（`drawnKindSource`）として渡し描いた区間の種類を伝えること（点2つで開いたまま終えた線は`Line`で区間の種類を持たないため）は、タスク11で`_doc/arch/14_edit.md`ほかへ反映（資料本体は未変更）。(2) 目視確認の推奨：曲線のツールで既存の直線の端点から描き始め、点2つだけで`Esc`／最後の点のクリックで終えたとき、足した区間が曲線になること。(3) 将来`finishDrawnLine`を直すときは、`buildFinishedDrawnLine`の結果（点2つなら`Line`）から区間の種類を読んではならない（作成途中の線から読む）。
 *   **タスク9の補足**：`_doc/arch/16_test.md`へ反映する件数は tests 1779 / suites 281 / pass 1779 / fail 0。
+*   **タスク11の補足**：(1) `PROJECT_ARCHITECTURE.md`の22.「曲線のツール」の項に、09-01aの「状態の持ち主」「用語」の項の『曲線のツールでは…』等の記述は変えていない（09-01bの影響を受けないため）。(2) `16_test.md`の12ケースの内訳（関数ごとの割り当て）はタスク2・4の記録から再構成したもので、細部はテストファイルのgit差分が正本。(3) 目視確認の推奨：`PROJECT_ARCHITECTURE.md`の3章12.の吸い付きの項が、直線・曲線のツールの記述として読み通せること。
