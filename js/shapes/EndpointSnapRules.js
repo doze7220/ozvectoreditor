@@ -38,18 +38,19 @@ export const DRAWN_START_SNAP_KIND = 'drawnStart';
  */
 
 /**
- * 描く図形種別が吸い付く種別か。「直線を描くときだけ吸い付く」の規則の唯一の定義箇所。
+ * 描く図形種別が吸い付く種別か。「直線・曲線のツールで描くときだけ吸い付く」の規則の唯一の定義箇所。
+ * `'curve'`は曲線のツールの図形種別（`ShapeFactory`の`curve`。作成途中の図形は曲線のパスで、今の曲線を作るわけではない）。弧・矩形・円は偽。
  * @param {*} shapeType 描く図形種別
- * @returns {boolean} `'line'`のときだけ真
+ * @returns {boolean} `'line'`・`'curve'`のときだけ真
  */
 export function isSnapDrawShapeType(shapeType) {
-    return shapeType === 'line';
+    return shapeType === 'line' || shapeType === 'curve';
 }
 
 /**
  * ハンドルが結合できる線の端点のハンドルか。
  * 「頂点の番号`i`＝図形データの`points[i]`」に依る：`getVertexIndexForHandle`の番号が0なら始点、`points.length - 1`なら終点。
- * 途中の頂点・番号のないハンドル（直線の`'move'`など）・結合できない線（曲線・曲線の区間を含むパス・矩形・円・弧・閉じたパス）はnull。結合できる線は直線・区間がすべて直線の開いたパス。図形を書き換えない。
+ * 途中の頂点・番号のないハンドル（直線の`'move'`など）・結合できない線（今の曲線・矩形・円・弧・閉じたパス）はnull。結合できる線は直線・開いたパス（曲線のパスを含む）。図形を書き換えない。
  * @param {Object} shape 図形（`type`・`toJSON()`・`getVertexIndexForHandle`を持つ）
  * @param {*} handleName ハンドル名
  * @returns {'start'|'end'|null} 端点のハンドルなら'start'/'end'、それ以外はnull
@@ -65,7 +66,7 @@ export function resolveEndpointHandle(shape, handleName) {
 
 /**
  * 吸い付く端点を1つ選ぶ。
- * 対象は`shapes`のうち結合できる線（直線・区間がすべて直線の開いたパス）の始点・終点だけ。距離は`Math.hypot`が`tolerance`以下（ちょうどを含む）。
+ * 対象は`shapes`のうち結合できる線（直線・開いたパス。曲線のパスを含む）の始点・終点だけ。距離は`Math.hypot`が`tolerance`以下（ちょうどを含む）。
  * 図形を`shapes`の末尾（前面）から先頭へ、各図形は始点→終点の順に調べ、距離が厳密に小さいときだけ更新する
  * （いちばん近い端点／同距離なら前面の図形／同じ図形の始点と終点が同距離なら始点）。
  * `dragged`を渡したとき、`dragged.shapeId`の図形では`dragged.end`の端点を対象にせず、もう一方の端点は
@@ -128,8 +129,8 @@ export function isDrawnStartSnap(snap) {
 
 /**
  * 線を引いている途中の吸い付く先を1つ選ぶ。
- * 1. 端点：作成途中の線`drawn`が結合できる線（`isJoinableLine(drawn)`。直線・区間がすべて直線の開いたパス）のときだけ候補にする
- *    （偽なら端点の走査をせず、結果なし・距離`Infinity`。曲線のツールの作成途中の線は既存の線の端点に吸い付かない）。
+ * 1. 端点：作成途中の線は続けて引く線の形で常に結合できる線（`isJoinableLine(drawn)`が真）のため、直線・曲線のツールのどちらでも既存の端点を候補にする
+ *    （偽なら端点を走査せず結果なし・距離`Infinity`とする分岐はコードに残る）。
  *    `findSnapTarget`と同じ対象・走査順・選び方。ただし`startSnap`が`null`でなければ、その図形のその端点だけを対象にしない
  *    （同じ図形のもう一方の端点は頂点の数によらず対象。`canCloseByMergingEnds`は使わない）。
  * 2. 始点：`startSnap`が`null`で`canCloseDrawnLine(drawn)`（打った点が3つ以上）のときだけ、`drawn`の始点（`toJSON().points[0]`）を候補にする。

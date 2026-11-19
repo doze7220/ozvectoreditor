@@ -294,7 +294,7 @@
         *   「2. 要件H」の(H-3)のテストを足す。既存のケースは変えない。
         *   JSDocの記載漏れが無いことを確かめる。`node --test`が全件通ることを確かめる。
         *   完了後、本RESの「4. 詳細作業内容」のタスク3に作業内容を記載する。開発資料に影響があれば「開発資料の更新予定」へ追記する。
-*   [ ] タスク4: 要件D 曲線のツールの描き始めの吸い付きと、吸い付きの規則のテスト（`shapes/EndpointSnapRules`）
+*   [x] タスク4: 要件D 曲線のツールの描き始めの吸い付きと、吸い付きの規則のテスト（`shapes/EndpointSnapRules`）
     *   **対象ファイル** :
         *   `./js/shapes/EndpointSnapRules.js` : 更新（`isSnapDrawShapeType`のコードとJSDoc、`resolveEndpointHandle`・`findSnapTarget`・`findDrawnLineSnapTarget`のJSDocのみ）
         *   `./test/shapes/EndpointSnapRules.test.js` : 更新（(H-5)の追加と、要件Hの表の#5・#7の書き換え）
@@ -394,7 +394,11 @@
 
 ### タスク4: 要件D 曲線のツールの描き始めの吸い付きと、吸い付きの規則のテスト（`shapes/EndpointSnapRules`）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/shapes/EndpointSnapRules.js`：`isSnapDrawShapeType`を`'line'`・`'curve'`で真にし、JSDocを更新。`resolveEndpointHandle`・`findSnapTarget`・`findDrawnLineSnapTarget`はJSDocのみ更新（コード不変・責務定義不変）。
+    *   `test/shapes/EndpointSnapRules.test.js`：表#5（`isSnapDrawShapeType`は line と curve が真）・#7（`resolveEndpointHandle`は曲線のパスで`'vertex-0'`→`'start'`・`'vertex-2'`→`'end'`）を書き換え。末尾に(H-5)の`describe('EndpointSnapRules 曲線のパスの吸い付き（Phase 09-01b）')`を追加（4件：dragged＋頂点4つ以上/3つ、`resolveEndpointHandle`の途中の頂点・`move`、`findDrawnLineSnapTarget`が直線・直線のパス・曲線のパスの端点を返す、`startSnap`の除外、打った点3つ以上の選び方を曲線・直線のツールの線で比較）。
+    *   `test/edit/EndpointSnapper.test.js`：表#10を書き換え（種別の並びから`'curve'`を外し、名前を「直線・曲線以外の種別では…」へ）。
+    *   `test/shapes/ShapeGeometry.test.js`：(H-4)の`describe('computeSmoothSegmentControls 逆順（Phase 09-01b）')`を追加（1件）。
+    *   `node --test`：tests 1765 / suites 281 / pass 1765 / fail 0。
 
 ### タスク5: 要件E 開いたまま終えた描き足しへ描いた区間の種類を伝える（`edit/EndpointSnapper`）
 *   **作業内容** :

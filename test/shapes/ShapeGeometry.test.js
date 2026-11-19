@@ -250,3 +250,23 @@ describe('computeSmoothSegmentControls', () => {
         assert.notEqual(a[0].control1, b[0].control1);
     });
 });
+
+describe('computeSmoothSegmentControls 逆順（Phase 09-01b）', () => {
+    it('開いたパスで頂点と区間の種類の並びを逆順にすると、区間 m-1-i は元の区間 i の制御点を入れ替えたものと一致する', () => {
+        const points = pts([[0, 0], [40, 30], [90, 10], [120, 80], [60, 120]]);
+        const flags = [true, true, false, true];
+        const forward = computeSmoothSegmentControls(points, flags, false);
+        const backward = computeSmoothSegmentControls([...points].reverse(), [...flags].reverse(), false);
+        const m = flags.length;
+        assert.equal(backward.length, m);
+        forward.forEach((c, i) => {
+            const r = backward[m - 1 - i];
+            if (c === null) {
+                assert.equal(r, null, `区間${i}`);
+                return;
+            }
+            assertPointClose(r.control1, c.control2);
+            assertPointClose(r.control2, c.control1);
+        });
+    });
+});

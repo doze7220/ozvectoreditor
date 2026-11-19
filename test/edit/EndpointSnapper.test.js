@@ -121,10 +121,10 @@ function drawLine(model, x1, y1, x2, y2) {
     model.updateDraft(x2, y2);
 }
 
-test('findDrawSnap: 直線以外の種別ではnull。screenLengthToWorldもgetShapesも呼ばない', () => {
+test('findDrawSnap: 直線・曲線以外の種別ではnull。screenLengthToWorldもgetShapesも呼ばない', () => {
     const a = makeLine('a', 0, 0, 100, 0);
     const { snapper, calls, lengths } = setupFake([a], null, 1000);
-    for (const type of ['curve', 'rect', 'circle', 'arc', 'path', 'unknown']) {
+    for (const type of ['rect', 'circle', 'arc', 'path', 'unknown']) {
         assert.equal(snapper.findDrawSnap(type, { x: 0, y: 0 }), null);
     }
     assert.deepEqual(lengths, []);

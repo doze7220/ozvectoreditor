@@ -47,9 +47,10 @@ describe('EndpointSnapRules 定数と図形種別', () => {
         assert.notEqual(SNAP_TOLERANCE_SCREEN_PX, JOIN_TOLERANCE_SCREEN_PX);
     });
 
-    it('isSnapDrawShapeType は line だけ真', () => {
+    it('isSnapDrawShapeType は line と curve が真', () => {
         assert.equal(isSnapDrawShapeType('line'), true);
-        for (const t of ['curve', 'rect', 'circle', 'arc', 'path', 'unknown', '', null, undefined]) {
+        assert.equal(isSnapDrawShapeType('curve'), true);
+        for (const t of ['rect', 'circle', 'arc', 'path', 'unknown', '', null, undefined]) {
             assert.equal(isSnapDrawShapeType(t), false, String(t));
         }
     });
@@ -396,10 +397,10 @@ describe('EndpointSnapRules 曲線のパスと曲線のツールの作成途中�
         );
     });
 
-    it('resolveEndpointHandle は曲線のパスの端点のハンドルで null', () => {
+    it('resolveEndpointHandle は曲線のパスの端点のハンドルで start/end', () => {
         const path = makeSmoothPath([[0, 0], [50, 50], [100, 0]]);
-        assert.equal(resolveEndpointHandle(path, 'start'), null);
-        assert.equal(resolveEndpointHandle(path, 'end'), null);
+        assert.equal(resolveEndpointHandle(path, 'vertex-0'), 'start');
+        assert.equal(resolveEndpointHandle(path, 'vertex-2'), 'end');
     });
 
     it('作成途中の線が曲線のパス（打った点2つ）なら近くの直線の端点を返す', () => {
@@ -435,5 +436,67 @@ describe('EndpointSnapRules 曲線のパスと曲線のツールの作成途中�
             findDrawnLineSnapTarget(shapes, drawn, { x: 1, y: 1 }, 8, null),
             { shapeId: 'L', end: 'start', x: 0, y: 0 }
         );
+    });
+});
+
+describe('EndpointSnapRules 曲線のパスの吸い付き（Phase 09-01b）', () => {
+    it('findSnapTarget: dragged が曲線のパスの端点なら、もう一方の端点は頂点4つ以上のときだけ候補', () => {
+        const four = [withId(makeSmoothPath([[0, 0], [50, 50], [100, 50], [100, 0]]), 'S')];
+        const draggedStart = { shapeId: 'S', end: 'start' };
+        assert.equal(findSnapTarget(four, { x: 0, y: 0 }, 8, draggedStart), null);
+        assert.deepEqual(
+            findSnapTarget(four, { x: 100, y: 0 }, 8, draggedStart),
+            { shapeId: 'S', end: 'end', x: 100, y: 0 }
+        );
+        const three = [withId(makeSmoothPath([[0, 0], [50, 50], [100, 0]]), 'T')];
+        assert.equal(findSnapTarget(three, { x: 100, y: 0 }, 8, { shapeId: 'T', end: 'start' }), null);
+        assert.equal(findSnapTarget(three, { x: 0, y: 0 }, 8, { shapeId: 'T', end: 'end' }), null);
+    });
+
+    it('resolveEndpointHandle: 曲線のパスの途中の頂点は null、頂点の番号のないハンドルも null', () => {
+        const path = makeSmoothPath([[0, 0], [50, 50], [100, 50], [100, 0]]);
+        assert.equal(resolveEndpointHandle(path, 'vertex-0'), 'start');
+        assert.equal(resolveEndpointHandle(path, 'vertex-3'), 'end');
+        assert.equal(resolveEndpointHandle(path, 'vertex-1'), null);
+        assert.equal(resolveEndpointHandle(path, 'vertex-2'), null);
+        assert.equal(resolveEndpointHandle(path, 'move'), null);
+    });
+
+    it('findDrawnLineSnapTarget: 曲線のツールの線でも既存の端点（直線・直線のパス・曲線のパス）を返す', () => {
+        const shapes = [
+            withId(new Line(0, 0, 100, 0), 'L'),
+            withId(makePath([[0, 100], [100, 100], [100, 200]]), 'P'),
+            withId(makeSmoothPath([[0, 300], [50, 350], [100, 300]]), 'S'),
+        ];
+        const drawn = makeSmoothPath([[500, 500], [550, 550]]);
+        assert.deepEqual(findDrawnLineSnapTarget(shapes, drawn, { x: 1, y: 1 }, 8, null), { shapeId: 'L', end: 'start', x: 0, y: 0 });
+        assert.deepEqual(findDrawnLineSnapTarget(shapes, drawn, { x: 100, y: 201 }, 8, null), { shapeId: 'P', end: 'end', x: 100, y: 200 });
+        assert.deepEqual(findDrawnLineSnapTarget(shapes, drawn, { x: 100, y: 299 }, 8, null), { shapeId: 'S', end: 'end', x: 100, y: 300 });
+    });
+
+    it('findDrawnLineSnapTarget: startSnap の端点だけを除き、同じ曲線のパスのもう一方の端点は返す', () => {
+        const shapes = [withId(makeSmoothPath([[0, 0], [50, 50], [100, 0]]), 'S')];
+        const drawn = makeSmoothPath([[0, 0], [30, 30]]);
+        const startSnap = { shapeId: 'S', end: 'start' };
+        assert.equal(findDrawnLineSnapTarget(shapes, drawn, { x: 0, y: 0 }, 8, startSnap), null);
+        assert.deepEqual(
+            findDrawnLineSnapTarget(shapes, drawn, { x: 100, y: 0 }, 8, startSnap),
+            { shapeId: 'S', end: 'end', x: 100, y: 0 }
+        );
+    });
+
+    it('findDrawnLineSnapTarget: 打った点が3つ以上のとき、厳密に近い方を選び、同距離なら端点が残る（直線のツールの線と同じ）', () => {
+        const coords = [[200, 200], [300, 200], [300, 300], [250, 250]];
+        const smooth = makeSmoothPath(coords);
+        const line = makeDrawn(coords);
+        const near = [withId(new Line(204, 200, 400, 400), 'E')];
+        const far = [withId(new Line(207, 200, 400, 400), 'E')];
+        const tie = [withId(new Line(206, 200, 400, 400), 'E')];
+        const point = { x: 203, y: 200 };
+        for (const drawn of [smooth, line]) {
+            assert.deepEqual(findDrawnLineSnapTarget(near, drawn, point, 8, null), { shapeId: 'E', end: 'start', x: 204, y: 200 });
+            assert.deepEqual(findDrawnLineSnapTarget(far, drawn, point, 8, null), { kind: DRAWN_START_SNAP_KIND, x: 200, y: 200 });
+            assert.deepEqual(findDrawnLineSnapTarget(tie, drawn, point, 8, null), { shapeId: 'E', end: 'start', x: 206, y: 200 });
+        }
     });
 });
