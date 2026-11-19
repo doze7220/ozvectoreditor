@@ -223,7 +223,7 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
         *   「2. 要件I」の(I-2)のテストを足す。既存のケースは変えない。
         *   JSDocの記載漏れが無いことを確かめる。`node --test`が全件通ることを確かめる。
         *   完了後、本RESの「4. 詳細作業内容」のタスク2に作業内容を記載する。開発資料に影響があれば「開発資料の更新予定」へ追記する。
-*   [ ] タスク3: 要件C 角の判定と切り替えの組み立て（`shapes/PathCornerRules`）
+*   [x] タスク3: 要件C 角の判定と切り替えの組み立て（`shapes/PathCornerRules`）
     *   **対象ファイル** :
         *   `./js/shapes/PathCornerRules.js` : 新規
         *   `./test/shapes/PathCornerRules.test.js` : 新規
@@ -335,7 +335,9 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
 
 ### タスク3: 要件C 角の判定と切り替えの組み立て（`shapes/PathCornerRules`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/shapes/PathCornerRules.js`（新規）：責務定義（3行）・`CornerState`・`resolveCornerState`・`resolveCornerToggleView`・`planCornerToggle`、非公開の`cornerStateOfData`・`dataOf`（呼び出しごとの`Map`で図形ごとに1回だけ`toJSON()`）・`statesOf`、typedef 3種（`CornerToggleView`は二重定義と明記）。importは`./Path.js`のみ。全関数・定数・typedefにJSDoc。
+    *   `test/shapes/PathCornerRules.test.js`（新規）：`resolveCornerState`6・`resolveCornerToggleView`5・`planCornerToggle`7ケース（(I-3)の項目を網羅）。
+    *   `node --test`：tests 1820 / suites 286 / pass 1820 / fail 0。既存ケースの変更なし。
 
 ### タスク4: 要件D 結合・描き足し・閉じるで角の点を保つ（`shapes/PathJoinRules`）
 *   **作業内容** :
