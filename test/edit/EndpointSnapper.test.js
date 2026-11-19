@@ -910,9 +910,9 @@ test('removeDrawnLinePoint（曲線のツール）: 曲線のパスのまま点�
     assert.deepEqual(names(one.calls), ['cancelDraft']);
 });
 
-test('findDrawnLineSnap（曲線のツール）: 既存の線の端点の近くでもnull（吸い付かない）', () => {
+test('findDrawnLineSnap（曲線のツール）: 既存の線の端点の近くなら既存の線の端点を返す', () => {
     const a = makeLine('a', 0, 0, 100, 0);
     const draft = makeSmoothDraft([{ x: 200, y: 0 }, { x: 105, y: 0 }]);
     const { snapper } = setupFakeDrawing([a], draft, 10);
-    assert.equal(snapper.findDrawnLineSnap(null, { x: 105, y: 0 }), null);
+    assert.deepEqual(snapper.findDrawnLineSnap(null, { x: 105, y: 0 }), { shapeId: 'a', end: 'end', x: 100, y: 0 });
 });

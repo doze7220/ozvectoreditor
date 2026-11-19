@@ -52,6 +52,15 @@ function makeCurve(id) {
 }
 
 /**
+ * パスの区間の種類を頂点順に並べる。
+ * @param {Path} path パス
+ * @returns {Array<string>} 各区間の種類
+ */
+function kindsOf(path) {
+    return path.toJSON().segments.map((s) => s.kind);
+}
+
+/**
  * 偽のmodel・editRecorder・screenLengthToWorldとPathJoinerを作る。
  * @param {Array<Object>} shapes getShapesが返す図形（重なり順）
  * @param {Array<string>} selectedIds 選択中のid
@@ -293,25 +302,38 @@ test('実物の組み合わせ: 結合できない選択でjoinしても履歴�
     assert.deepEqual(dump(model), original);
 });
 
-test('canJoin・join（曲線のパスを含む選択）: 曲線のパス1本・曲線のパスと直線では結合できず、何もしない・記録しない', () => {
+test('canJoin・join（曲線のパスを含む選択）: 曲線のパス1本は閉じ・曲線のパスと直線は結合でき、区間の種類を保つ。取り消し・やり直しも1回', () => {
     const smooth = new Path([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }], false, '#445566', 3, null, SEGMENT_KIND_SMOOTH);
     smooth.id = 's';
     const line = makeLine('a', 10, 10, 30, 10);
 
-    const one = setupFake([smooth], ['s']);
-    assert.equal(one.joiner.canJoin(), false);
-    assert.equal(one.joiner.join(), false);
-    assert.deepEqual(one.calls, []);
+    const one = setupFake([smooth], ['s'], { tolerance: 5 });
+    assert.equal(one.joiner.canJoin(), true);
+    assert.equal(one.joiner.join(), true);
+    assert.deepEqual(one.calls.map((c) => c[0]), ['beginEdit', 'replaceShape', 'commitEdit']);
+    const [, targetId, closedPath, options] = one.calls[1];
+    assert.equal(targetId, 's');
+    assert.equal(options.keepId, true);
+    assert.equal(closedPath.toJSON().closed, true);
+    assert.deepEqual(kindsOf(closedPath), ['smooth', 'smooth', 'line']);
 
     const two = setupFake([smooth, line], ['s', 'a'], { tolerance: 5 });
-    assert.equal(two.joiner.canJoin(), false);
-    assert.equal(two.joiner.join(), false);
-    assert.deepEqual(two.calls, []);
+    assert.equal(two.joiner.canJoin(), true);
+    assert.equal(two.joiner.join(), true);
+    assert.deepEqual(two.calls.map((c) => c[0]), ['beginEdit', 'replaceShape', 'commitEdit']);
+    assert.deepEqual(two.calls[1][3].removeIds, ['a']);
 
     const { model, history, joiner } = setupReal([smooth, line]);
     model.setSelection(['s', 'a']);
     const original = dump(model);
-    assert.equal(joiner.join(), false);
-    assert.equal(history.canUndo(), false);
+    assert.equal(joiner.join(), true);
+    const joined = dump(model);
+    assert.equal(joined.length, 1);
+    assert.deepEqual(joined[0].segments.map((s) => s.kind), ['smooth', 'smooth', 'line']);
+    assert.equal(history.undo(), true);
     assert.deepEqual(dump(model), original);
+    assert.equal(history.canUndo(), false);
+    assert.equal(history.redo(), true);
+    assert.deepEqual(dump(model), joined);
+    assert.equal(history.canRedo(), false);
 });

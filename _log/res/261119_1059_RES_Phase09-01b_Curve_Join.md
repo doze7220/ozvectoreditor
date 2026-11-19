@@ -270,7 +270,7 @@
         *   「2. 要件H」の(H-1)のテストを足す。既存のケースは変えない。
         *   JSDocの記載漏れが無いことを確かめる。`node --test`が全件通ることを確かめる。
         *   完了後、本RESの「4. 詳細作業内容」のタスク1に作業内容を記載する。開発資料に影響があれば「開発資料の更新予定」へ追記する（資料本体は直さない）。
-*   [ ] タスク2: 要件A・要件C（前半） 結合できる線を広げ、組み立てで区間の種類を保つ（`shapes/PathJoinRules`の`isJoinableLine`と組み立て関数）
+*   [x] タスク2: 要件A・要件C（前半） 結合できる線を広げ、組み立てで区間の種類を保つ（`shapes/PathJoinRules`の`isJoinableLine`と組み立て関数）
     *   **対象ファイル** :
         *   `./js/shapes/PathJoinRules.js` : 更新（`isJoinableLine`・`JOIN_GAP_SEGMENT_KIND`・区間の列の補助・`drawnSegmentKind`の本体・`assembleOpenPath`・`buildJoinedPath`・`buildJoinedPathAt`・`buildExtendedPath`・`buildClosedPath`と、関係するJSDoc・ファイル先頭の責務定義）
         *   `./test/shapes/PathJoinRules.test.js` : 更新（(H-2)の`describe`の追加と、要件Hの表の#1〜#4の書き換え）
@@ -377,7 +377,14 @@
 
 ### タスク2: 要件A・要件C（前半） 結合できる線を広げ、組み立てで区間の種類を保つ（`shapes/PathJoinRules`の`isJoinableLine`と組み立て関数）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/shapes/PathJoinRules.js`：`isJoinableLine`を`isDrawnLineShape`に任せる1行にした。非公開の`JOIN_GAP_SEGMENT_KIND`・typedef`SegmentChain`・`segmentKindsOf`・`chainOf`・`reverseChain`を追加し、`drawnSegmentKind`は`segmentKindsOf`の最後の要素を返す本体にした。`assembleOpenPath`を頂点と区間の種類の並び（`bChain`）と`gapSegmentKind`を受けて`Path`の第6引数へ区間の配列を渡す形に変更。`buildJoinedPath`（4候補を区間の列に。常に`JOIN_GAP_SEGMENT_KIND`）・`buildJoinedPathAt`（末尾に省ける`gapSegmentKind`）・`buildExtendedPath`（末尾に省ける`segmentKind`）・`buildClosedPath`（末尾に省ける`gapSegmentKind`。重なるときは最後の頂点を除き区間はそのまま、離れているときは閉じる区間を足す）を変更。`planJoin`はコード不変でJSDocのみ。JSDoc（`isJoinableLine`・`isDrawnLineShape`・`classifyJoin`・`buildClosedPath`・`canCloseByMergingEnds`ほか）とファイル先頭の責務定義（3行のまま）を実態に合わせた。非公開の計画の関数・`planDrawnLineJoin`・`planEndpointDragJoin`のコードは未変更（タスク3）。
+    *   `test/shapes/PathJoinRules.test.js`：表#1〜#4を書き換え（#1：曲線の区間を持つ開いたパスは`isJoinableLine`が真／#2：`isJoinableLine`と`isDrawnLineShape`は同じ結果／#3：`describe`名を「曲線のパスも対象」へ、曲線のパス1本は`'close'`・曲線のパスと直線は`'join'`・`planJoin`がnullでない／#4：`buildClosedPath`がnullでなく`canCloseByMergingEnds`が真。理由はいずれも`isJoinableLine`が偽→真になるため）。末尾に(H-2)の`describe('PathJoinRules 区間の種類を保つ組み立て（Phase 09-01b）')`を追加（`buildJoinedPath`の4通り×離れる/重なる、`buildJoinedPathAt`、`buildClosedPath`、`buildExtendedPath`、`planJoin`、直線のみの結果が全区間`'line'`、形(a)(b)(c)、引数を書き換えない）。補助`makeKindsPath`・`kindsOf`・`assertNearPoint`を追加。
+    *   `test/shapes/EndpointSnapRules.test.js`：表#6（曲線のパスの端点を候補にする）・#8（打った点2つ：近くの直線の端点を返す）・#9（打った点3つ以上：近い方を返す。始点側・既存の端点側・離れた終点の3点で確認）を書き換え。
+    *   `test/edit/EndpointSnapper.test.js`：表#11（既存の線の端点を返す）を書き換え。
+    *   `test/edit/PathJoiner.test.js`：表#12を書き換え（曲線のパス1本の閉じる（元のid・`keepId`・区間`['smooth','smooth','line']`）、曲線のパスと直線の結合の呼び出しの順、実物の組み合わせで取り消し1回・やり直し1回・区間の種類を保つ）。
+    *   (H-2)の「頂点2つの曲線のパス1本は`classifyJoin`・`planJoin`で`null`」の確認のケースを足した（`makeKindPath([[0, 0], [10, 0]], 'smooth')`）。
+    *   (H-2)の形(c)（`buildJoinedPath`を呼ぶテスト）のBの座標は、左右対称な座標だと結合前後で制御点が一致してしまうため、非対称（`[40, 25]`）にした。
+    *   `node --test`：tests 1747 / suites 278 / pass 1747 / fail 0。
 
 ### タスク3: 要件C（後半） 計画で間を埋める区間・描き足す区間の種類を渡す（`shapes/PathJoinRules`の計画の関数）
 *   **作業内容** :
@@ -423,3 +430,4 @@
 *   **`Path`のコンストラクタの配列は検証しない**：頂点数と同じく呼び出し側の責任（呼び出し元は`PathJoinRules`だけで、要素数は組み立ての式で必ず合う）。
 *   **書き換える既存のテストは12ケース**（要件Hの表）。いずれも本作業で意味が変わるもの。
 *   **書き換えのタスクへの割り当て**：各タスクを終えた時点で`node --test`が全件通るよう、既存のケースは「そのケースを落とすコードの変更と同じタスク」で書き換える（要件Hの表の「書き換えるタスク」列と「書き換えるタスクの決め方」）。このためタスク2の対象ファイルに、`isJoinableLine`の広がりで落ちるケースを持つ`test/shapes/EndpointSnapRules.test.js`（#6・#8・#9）・`test/edit/EndpointSnapper.test.js`（#11）・`test/edit/PathJoiner.test.js`（#12）を、タスク4の対象ファイルに`test/edit/EndpointSnapper.test.js`（#10）を、それぞれ該当ケースの書き換えだけの範囲で含める。#12をタスク2へ移したため、タスク6は#12の書き換えに代えて(H-8)（結合（ボタン・`J`）で区間の種類を保つことの確認）を足す。
+*   **タスク2の補足**：(1) 開発資料の更新予定：`PathJoinRules`の結合できる線の定義（`isJoinableLine`が曲線のパスを含む）・組み立て関数の追加引数・`Path`コンストラクタの種類の配列（タスク1）は、タスク11で`PROJECT_ARCHITECTURE.md`・`_doc/arch/`へ反映する（資料本体は未変更）。(2) 本タスクの間、非公開の計画の関数・`planDrawnLineJoin`・`planEndpointDragJoin`は組み立て関数の末尾の引数を省いて呼ぶため、曲線のツールでの描き足しの区間は直線になる（タスク3で直す）。(3) 目視確認：結合（ボタン・`J`）で曲線のパスが結合・閉じるできること。

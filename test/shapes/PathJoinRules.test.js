@@ -1242,10 +1242,10 @@ describe('PathJoinRules 曲線のパスと続けて引く線の形（Phase 09-01
     const FOUR = [[0, 0], [10, 0], [10, 10], [0, 10]];
 
     describe('isJoinableLine', () => {
-        it('曲線の区間を持つ開いたパス（全区間・混在・頂点2つ）は偽', () => {
-            assert.equal(isJoinableLine(makeKindPath(FOUR, 'smooth')), false);
-            assert.equal(isJoinableLine(makeMixedPath(FOUR, ['line', 'smooth', 'line'])), false);
-            assert.equal(isJoinableLine(makeKindPath([[0, 0], [10, 0]], 'smooth')), false);
+        it('曲線の区間を持つ開いたパス（全区間・混在・頂点2つ）は真', () => {
+            assert.equal(isJoinableLine(makeKindPath(FOUR, 'smooth')), true);
+            assert.equal(isJoinableLine(makeMixedPath(FOUR, ['line', 'smooth', 'line'])), true);
+            assert.equal(isJoinableLine(makeKindPath([[0, 0], [10, 0]], 'smooth')), true);
         });
         it('直線と、直線の区間だけの開いたパスは真', () => {
             assert.equal(isJoinableLine(makeLine(0, 0, 10, 0)), true);
@@ -1270,37 +1270,35 @@ describe('PathJoinRules 曲線のパスと続けて引く線の形（Phase 09-01
                 assert.equal(isDrawnLineShape(makeUnjoinable(kind)), false, kind);
             }
         });
-        it('結合できる線は続けて引く線の形のうち区間がすべて直線のもの', () => {
+        it('isJoinableLineとisDrawnLineShapeは同じ結果', () => {
             const shapes = [
                 makeLine(0, 0, 10, 0), makeKindPath(FOUR, 'line'), makeKindPath(FOUR, 'smooth'),
                 makeMixedPath(FOUR, ['line', 'smooth', 'line']), makeKindPath(FOUR, 'line', true),
                 ...UNJOINABLE_KINDS.map(makeUnjoinable),
             ];
             for (const shape of shapes) {
-                const allLine = shape.type === 'line'
-                    || (shape.type === 'path' && shape.toJSON().segments.every((s) => s.kind === 'line'));
-                assert.equal(isJoinableLine(shape), isDrawnLineShape(shape) && allLine);
+                assert.equal(isJoinableLine(shape), isDrawnLineShape(shape));
             }
         });
     });
 
-    describe('結合・閉じる（曲線のパスは対象外）', () => {
-        it('classifyJoin・planJoin：曲線のパス1本・曲線のパスと直線の2本はnull', () => {
+    describe('結合・閉じる（曲線のパスも対象）', () => {
+        it('classifyJoin・planJoin：曲線のパス1本はclose・曲線のパスと直線の2本はjoin（計画はnullでない）', () => {
             const smooth = makeKindPath(FOUR, 'smooth');
             const line = makeLine(0, 0, 10, 0);
-            assert.equal(classifyJoin([smooth]), null);
-            assert.equal(classifyJoin([smooth, line]), null);
-            assert.equal(classifyJoin([line, smooth]), null);
-            assert.equal(planJoin([smooth], 0.1), null);
-            assert.equal(planJoin([smooth, line], 0.1), null);
+            assert.equal(classifyJoin([smooth]), 'close');
+            assert.equal(classifyJoin([smooth, line]), 'join');
+            assert.equal(classifyJoin([line, smooth]), 'join');
+            assert.notEqual(planJoin([smooth], 0.1), null);
+            assert.notEqual(planJoin([smooth, line], 0.1), null);
         });
         it('classifyJoin：直線の区間だけのパス1本は今までどおり close', () => {
             assert.equal(classifyJoin([makeKindPath(FOUR, 'line')]), 'close');
         });
-        it('buildClosedPath・canCloseByMergingEnds：曲線のパスはnull／false', () => {
+        it('buildClosedPath・canCloseByMergingEnds：曲線のパスもnullでない／真', () => {
             const smooth = makeKindPath([[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], 'smooth');
-            assert.equal(buildClosedPath(smooth, 0.1), null);
-            assert.equal(canCloseByMergingEnds(smooth), false);
+            assert.notEqual(buildClosedPath(smooth, 0.1), null);
+            assert.equal(canCloseByMergingEnds(smooth), true);
             const line = makeKindPath([[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], 'line');
             assert.notEqual(buildClosedPath(line, 0.1), null);
             assert.equal(canCloseByMergingEnds(line), true);
@@ -1374,6 +1372,277 @@ describe('PathJoinRules 曲線のパスと続けて引く線の形（Phase 09-01
         it('続けて引く線の形でない図形は受け付けない（addDrawnPointがnull）', () => {
             assert.equal(addDrawnPoint(makeKindPath(FOUR, 'smooth', true)), null);
             assert.equal(addDrawnPoint(new Rect(0, 0, 5, 5)), null);
+        });
+    });
+});
+
+/**
+ * 区間の種類の並びを指定した開いたパスを作る（`Path`コンストラクタの種類の配列を使う）。
+ * @param {number[][]} coords - [x, y] の並び
+ * @param {string[]} kinds - 区間ごとの種類（頂点数`- 1`個）
+ * @returns {Path} 開いたパス
+ */
+function makeKindsPath(coords, kinds) {
+    return new Path(pts(coords), false, '#112233', 5, '#445566', kinds);
+}
+
+/**
+ * パスの区間の種類の並びを返す（比較用）。
+ * @param {Path} path - パス
+ * @returns {string[]} 区間の種類の並び
+ */
+function kindsOf(path) {
+    return path.toJSON().segments.map((s) => s.kind);
+}
+
+/**
+ * 2つの制御点の座標が誤差内で一致するか確かめる。
+ * @param {{x: number, y: number}} actual - 実際の点
+ * @param {{x: number, y: number}} expected - 期待する点
+ * @param {string} [message] - 失敗時のメッセージ
+ * @returns {void}
+ */
+function assertNearPoint(actual, expected, message) {
+    assert.ok(Math.abs(actual.x - expected.x) < 1e-9 && Math.abs(actual.y - expected.y) < 1e-9, message);
+}
+
+describe('PathJoinRules 区間の種類を保つ組み立て（Phase 09-01b）', () => {
+    const A_COORDS = [[0, 0], [10, 0], [10, 10]];
+    const A_KINDS = ['line', 'smooth'];
+    const B_KINDS = ['smooth', 'smooth', 'line'];
+    const TOL = 0.1;
+
+    describe('buildJoinedPath: 4通りの端点の組', () => {
+        // 各組：離れているときのBの頂点／重なるときのBの頂点／結果の並べ方
+        const cases = [
+            {
+                name: '(1) A＋B',
+                gap: [[50, 50], [60, 50], [60, 60], [70, 60]],
+                merge: [[10, 10], [20, 10], [20, 20], [30, 20]],
+                order: (a, b, joint) => ({ points: a.points.concat(b.points.slice(joint ? 0 : 1)), kinds: a.kinds.concat(joint ? ['line'] : [], b.kinds) }),
+            },
+            {
+                name: '(2) A＋逆順B',
+                gap: [[70, 60], [60, 60], [60, 50], [50, 50]],
+                merge: [[30, 20], [20, 20], [20, 10], [10, 10]],
+                order: (a, b, joint) => {
+                    const r = { points: b.points.slice().reverse(), kinds: b.kinds.slice().reverse() };
+                    return { points: a.points.concat(r.points.slice(joint ? 0 : 1)), kinds: a.kinds.concat(joint ? ['line'] : [], r.kinds) };
+                },
+            },
+            {
+                name: '(3) B＋A',
+                gap: [[-70, -60], [-60, -60], [-60, -50], [-50, -50]],
+                merge: [[-30, -20], [-20, -20], [-10, -10], [0, 0]],
+                order: (a, b, joint) => ({ points: b.points.slice(0, joint ? undefined : -1).concat(a.points), kinds: b.kinds.concat(joint ? ['line'] : [], a.kinds) }),
+            },
+            {
+                name: '(4) 逆順B＋A',
+                gap: [[-50, -50], [-60, -50], [-60, -60], [-70, -60]],
+                merge: [[0, 0], [-10, -10], [-20, -20], [-30, -20]],
+                order: (a, b, joint) => {
+                    const r = { points: b.points.slice().reverse(), kinds: b.kinds.slice().reverse() };
+                    return { points: r.points.slice(0, joint ? undefined : -1).concat(a.points), kinds: r.kinds.concat(joint ? ['line'] : [], a.kinds) };
+                },
+            },
+        ];
+        for (const c of cases) {
+            for (const joint of [true, false]) {
+                it(`${c.name}：端点が${joint ? '離れている（間を埋める区間は line）' : '重なる（間を埋める区間なし）'}`, () => {
+                    const a = makeKindsPath(A_COORDS, A_KINDS);
+                    const bCoords = joint ? c.gap : c.merge;
+                    const b = makeKindsPath(bCoords, B_KINDS);
+                    const result = buildJoinedPath(a, b, TOL);
+                    const expected = c.order(
+                        { points: pts(A_COORDS), kinds: A_KINDS },
+                        { points: pts(bCoords), kinds: B_KINDS },
+                        joint,
+                    );
+                    assert.deepEqual(coordsOf(result.toJSON().points), coordsOf(expected.points));
+                    assert.deepEqual(kindsOf(result), expected.kinds);
+                    assert.equal(result.toJSON().closed, false);
+                });
+            }
+        }
+    });
+
+    describe('buildJoinedPathAt', () => {
+        const a = () => makeKindsPath([[0, 0], [10, 0], [10, 10]], ['smooth', 'smooth']);
+        it('第6引数を省くと間を埋める区間は line、smooth を渡すと smooth', () => {
+            const b = makeKindsPath([[50, 50], [60, 50]], ['smooth']);
+            assert.deepEqual(kindsOf(buildJoinedPathAt(a(), 'end', b, 'start', TOL)), ['smooth', 'smooth', 'line', 'smooth']);
+            assert.deepEqual(kindsOf(buildJoinedPathAt(a(), 'end', b, 'start', TOL, 'smooth')), ['smooth', 'smooth', 'smooth', 'smooth']);
+        });
+        it('端点が重なるときは第6引数によらず間を埋める区間ができない', () => {
+            const b = makeKindsPath([[10, 10], [20, 10]], ['smooth']);
+            for (const gap of [undefined, 'line', 'smooth']) {
+                const result = buildJoinedPathAt(a(), 'end', b, 'start', TOL, gap);
+                assert.equal(result.toJSON().points.length, 4);
+                assert.deepEqual(kindsOf(result), ['smooth', 'smooth', 'smooth']);
+            }
+        });
+    });
+
+    describe('buildClosedPath', () => {
+        it('両端が離れた曲線のパス：閉じる区間は省くと line・smooth を渡すと smooth（元の区間はそのまま）', () => {
+            const path = makeKindsPath([[0, 0], [10, 0], [10, 10], [0, 10]], ['line', 'smooth', 'smooth']);
+            const byDefault = buildClosedPath(path, TOL);
+            assert.equal(byDefault.toJSON().closed, true);
+            assert.deepEqual(kindsOf(byDefault), ['line', 'smooth', 'smooth', 'line']);
+            assert.deepEqual(kindsOf(buildClosedPath(path, TOL, 'smooth')), ['line', 'smooth', 'smooth', 'smooth']);
+        });
+        it('両端が重なるパスは最後の頂点を除き、区間の種類の並びは元のまま', () => {
+            const mixed = makeKindsPath([[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], ['line', 'smooth', 'line', 'smooth']);
+            const closedMixed = buildClosedPath(mixed, TOL, 'line');
+            assert.equal(closedMixed.toJSON().points.length, 4);
+            assert.deepEqual(kindsOf(closedMixed), ['line', 'smooth', 'line', 'smooth']);
+            const smooth = makeKindPath([[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], 'smooth');
+            assert.deepEqual(kindsOf(buildClosedPath(smooth, TOL)), ['smooth', 'smooth', 'smooth', 'smooth']);
+        });
+    });
+
+    describe('buildExtendedPath', () => {
+        const path = () => makeKindsPath([[0, 0], [10, 0], [10, 10]], ['line', 'smooth']);
+        it('終点側：省くと足す区間は line・smooth を渡すと smooth（[...元, 足す]）', () => {
+            assert.deepEqual(kindsOf(buildExtendedPath(path(), 'end', { x: 30, y: 30 }, TOL)), ['line', 'smooth', 'line']);
+            assert.deepEqual(kindsOf(buildExtendedPath(path(), 'end', { x: 30, y: 30 }, TOL, 'smooth')), ['line', 'smooth', 'smooth']);
+        });
+        it('始点側：省くと足す区間は line・smooth を渡すと smooth（[足す, ...元]）', () => {
+            assert.deepEqual(kindsOf(buildExtendedPath(path(), 'start', { x: -30, y: 0 }, TOL)), ['line', 'line', 'smooth']);
+            assert.deepEqual(kindsOf(buildExtendedPath(path(), 'start', { x: -30, y: 0 }, TOL, 'smooth')), ['smooth', 'line', 'smooth']);
+        });
+        it('直線（Line）への描き足しは [line, 足す]', () => {
+            const line = makeLine(0, 0, 10, 0);
+            assert.deepEqual(kindsOf(buildExtendedPath(line, 'end', { x: 20, y: 5 }, TOL)), ['line', 'line']);
+            assert.deepEqual(kindsOf(buildExtendedPath(line, 'end', { x: 20, y: 5 }, TOL, 'smooth')), ['line', 'smooth']);
+        });
+    });
+
+    describe('planJoin', () => {
+        it('曲線のパス1本の閉じる（両端が離れている）は閉じる区間 line・元のid', () => {
+            const smooth = withId(makeKindPath([[0, 0], [10, 0], [10, 10], [0, 10]], 'smooth'), 'p1');
+            const plan = planJoin([smooth], TOL);
+            assert.equal(plan.targetId, 'p1');
+            assert.equal(plan.keepId, true);
+            assert.equal(plan.path.toJSON().closed, true);
+            assert.deepEqual(kindsOf(plan.path), ['smooth', 'smooth', 'smooth', 'line']);
+        });
+        it('曲線のパスどうしの2本：離れていれば間を埋める区間 line・重なれば間を埋める区間なしで全区間 smooth', () => {
+            const a = withId(makeKindPath([[0, 0], [10, 0], [20, 10]], 'smooth'), 'a');
+            const far = withId(makeKindPath([[50, 50], [60, 50], [70, 60]], 'smooth'), 'b');
+            const near = withId(makeKindPath([[20, 10], [30, 10], [40, 20]], 'smooth'), 'c');
+            const farPlan = planJoin([a, far], TOL);
+            assert.deepEqual(kindsOf(farPlan.path), ['smooth', 'smooth', 'line', 'smooth', 'smooth']);
+            assert.deepEqual(farPlan.removeIds, ['b']);
+            const nearPlan = planJoin([a, near], TOL);
+            assert.deepEqual(kindsOf(nearPlan.path), ['smooth', 'smooth', 'smooth', 'smooth']);
+            assert.equal(nearPlan.path.toJSON().points.length, 5);
+        });
+        it('頂点2つの曲線のパス1本は classifyJoin・planJoin ともに null', () => {
+            const two = withId(makeKindPath([[0, 0], [10, 0]], 'smooth'), 'p2');
+            assert.equal(classifyJoin([two]), null);
+            assert.equal(planJoin([two], TOL), null);
+        });
+    });
+
+    describe('直線・直線の区間だけのパスの結果は全区間 line', () => {
+        it('buildJoinedPath・buildJoinedPathAt・buildClosedPath・buildExtendedPath', () => {
+            const a = makeKindPath([[0, 0], [10, 0], [10, 10]], 'line');
+            const b = makeLine(50, 50, 60, 50);
+            assertAllLineSegments(buildJoinedPath(a, b, TOL), 4);
+            assertAllLineSegments(buildJoinedPathAt(a, 'end', b, 'start', TOL), 4);
+            assertAllLineSegments(buildClosedPath(a, TOL), 3);
+            assertAllLineSegments(buildExtendedPath(a, 'end', { x: 30, y: 30 }, TOL), 3);
+            assertAllLineSegments(buildExtendedPath(makeLine(0, 0, 10, 0), 'start', { x: -5, y: 0 }, TOL), 2);
+        });
+    });
+
+    describe('形（区間ごとの制御点）', () => {
+        const FOUR_SMOOTH = [[0, 0], [10, 5], [20, -5], [30, 0]];
+
+        it('(a) 逆順でも形が変わらない：(2)の組ではBの部分がBの制御点を逆順・制御点入れ替えにしたもの、(1)の組ではBの制御点と一致', () => {
+            const b = makeKindPath(FOUR_SMOOTH, 'smooth');
+            const bSegments = b.toDrawElement().segments;
+            // (2) Bを逆順：Aの終点（100, 0）とBの終点（30, 0）の距離が最小。Bの部分は結果の区間2〜4
+            const lineA = makeLine(130, 0, 100, 0);
+            const r2 = buildJoinedPath(lineA, b, TOL);
+            const parts2 = r2.toDrawElement().segments.slice(2);
+            const expected2 = bSegments.slice().reverse().map((seg) => ({ kind: seg.kind, control1: seg.control2, control2: seg.control1 }));
+            assert.equal(parts2.length, 3);
+            parts2.forEach((seg, i) => {
+                assert.equal(seg.kind, 'cubic');
+                assertNearPoint(seg.control1, expected2[i].control1, `2-c1-${i}`);
+                assertNearPoint(seg.control2, expected2[i].control2, `2-c2-${i}`);
+            });
+            // (1) 逆順なし：Aの終点（-20, 0）とBの始点（0, 0）が最小
+            const lineB = makeLine(-50, 0, -20, 0);
+            const r1 = buildJoinedPath(lineB, b, TOL);
+            const parts1 = r1.toDrawElement().segments.slice(2);
+            parts1.forEach((seg, i) => {
+                assert.equal(seg.kind, 'cubic');
+                assertNearPoint(seg.control1, bSegments[i].control1, `1-c1-${i}`);
+                assertNearPoint(seg.control2, bSegments[i].control2, `1-c2-${i}`);
+            });
+        });
+
+        it('(b) つなぎ目で元の線の形が変わらない（曲線のパスへ line を描き足す）', () => {
+            const original = makeKindPath(FOUR_SMOOTH, 'smooth');
+            const extended = buildExtendedPath(original, 'end', { x: 50, y: 20 }, TOL, 'line');
+            const before = original.toDrawElement().segments;
+            const after = extended.toDrawElement().segments;
+            before.forEach((seg, i) => {
+                assertNearPoint(after[i].control1, seg.control1, `c1-${i}`);
+                assertNearPoint(after[i].control2, seg.control2, `c2-${i}`);
+            });
+            assert.equal(after[3].kind, 'line');
+        });
+
+        it('(b) 直線の区間だけのパスへ smooth を描き足すと、元の区間は line のまま・足した区間は直線の1/3・2/3の点', () => {
+            const original = makeKindPath([[0, 0], [10, 0], [10, 10]], 'line');
+            const extended = buildExtendedPath(original, 'end', { x: 40, y: 40 }, TOL, 'smooth');
+            const data = extended.toJSON();
+            assert.deepEqual(data.segments.map((s) => s.kind), ['line', 'line', 'smooth']);
+            assert.deepEqual(coordsOf(data.points.slice(0, 3)), [[0, 0], [10, 0], [10, 10]]);
+            const last = extended.toDrawElement().segments[2];
+            assert.equal(last.kind, 'cubic');
+            assertNearPoint(last.control1, { x: 10 + 30 / 3, y: 10 + 30 / 3 }, 'c1');
+            assertNearPoint(last.control2, { x: 10 + 60 / 3, y: 10 + 60 / 3 }, 'c2');
+        });
+
+        it('(c) 曲線の区間どうしがつながるとつなぎ目がなめらかになる', () => {
+            const aCoords = [[0, 0], [10, 5], [20, -5], [30, 0]];
+            const bCoords = [[30, 0], [40, 25], [50, -5], [60, 0]];
+            const a = makeKindPath(aCoords, 'smooth');
+            const b = makeKindPath(bCoords, 'smooth');
+            const joined = buildJoinedPath(a, b, TOL);
+            assert.deepEqual(kindsOf(joined), ['smooth', 'smooth', 'smooth', 'smooth', 'smooth', 'smooth']);
+            assert.equal(joined.toJSON().points.length, 7);
+            const aSeg = a.toDrawElement().segments;
+            const jSeg = joined.toDrawElement().segments;
+            const differs = (p, q) => Math.abs(p.x - q.x) > 1e-9 || Math.abs(p.y - q.y) > 1e-9;
+            assert.ok(differs(jSeg[2].control1, aSeg[2].control1) || differs(jSeg[2].control2, aSeg[2].control2));
+            for (const i of [0, 1]) {
+                assertNearPoint(jSeg[i].control1, aSeg[i].control1, `c1-${i}`);
+                assertNearPoint(jSeg[i].control2, aSeg[i].control2, `c2-${i}`);
+            }
+        });
+    });
+
+    describe('引数を書き換えず、結果と共有しない（曲線のパスの入力）', () => {
+        it('toJSONが呼び出しの前後で変わらず、結果の頂点を動かしても元が変わらない', () => {
+            const a = makeKindPath([[0, 0], [10, 0], [10, 10]], 'smooth');
+            const b = makeKindPath([[50, 50], [60, 50], [70, 60]], 'smooth');
+            const beforeA = JSON.stringify(a.toJSON());
+            const beforeB = JSON.stringify(b.toJSON());
+            const results = [
+                buildJoinedPath(a, b, TOL), buildJoinedPathAt(a, 'end', b, 'start', TOL, 'smooth'),
+                buildClosedPath(a, TOL), buildExtendedPath(a, 'end', { x: 30, y: 30 }, TOL, 'smooth'),
+            ];
+            assert.equal(JSON.stringify(a.toJSON()), beforeA);
+            assert.equal(JSON.stringify(b.toJSON()), beforeB);
+            for (const r of results) r.translate(1000, 1000);
+            assert.equal(JSON.stringify(a.toJSON()), beforeA);
+            assert.equal(JSON.stringify(b.toJSON()), beforeB);
         });
     });
 });
