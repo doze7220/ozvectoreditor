@@ -260,7 +260,7 @@
 *   `_doc/arch/15_io.md`：変更なしの見込み（`io/`のコードを変えないため）。
 
 ## 3. タスクリスト
-*   [ ] タスク1: 要件B 区間ごとに種類を指定してパスを作る（`shapes/Path`のコンストラクタ）
+*   [x] タスク1: 要件B 区間ごとに種類を指定してパスを作る（`shapes/Path`のコンストラクタ）
     *   **対象ファイル** :
         *   `./js/shapes/Path.js` : 更新（コンストラクタの第6引数と、コンストラクタ・クラスのJSDocのみ）
         *   `./test/shapes/Path.test.js` : 更新（`describe`の追加のみ）
@@ -371,7 +371,9 @@
 
 ### タスク1: 要件B 区間ごとに種類を指定してパスを作る（`shapes/Path`のコンストラクタ）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/shapes/Path.js`：コンストラクタの`segments`の作成を`Array.isArray(segmentKind)`の1か所で分岐（配列は`map((kind) => ({ kind }))`、文字列・省略は従来どおり）。コンストラクタの`@param`（`string|string[]`・要素数の約束・検証しない・保持しない）とコンストラクタ・クラスのJSDocの「`fromJSON`だけ」の文を実態に合わせた。`fromJSON`・18メソッド・責務定義は変更なし。
+    *   `test/shapes/Path.test.js`：末尾に`describe('Path コンストラクタの区間ごとの種類の配列（Phase 09-01b）')`を追加（4件：配列で混在・共有しない・`fromJSON`と`toJSON`/`toDrawElement`一致・文字列/省略は従来どおり）。既存ケースは未変更。
+    *   `node --test`：tests 1723 / suites 269 / pass 1723 / fail 0。
 
 ### タスク2: 要件A・要件C（前半） 結合できる線を広げ、組み立てで区間の種類を保つ（`shapes/PathJoinRules`の`isJoinableLine`と組み立て関数）
 *   **作業内容** :

@@ -65,7 +65,7 @@ const VERTEX_HANDLE_PATTERN = /^vertex-(0|[1-9][0-9]*)$/;
  * 閉じているかを表す`closed`、区間の並び`segments`を持つ。`segments[i]`は`points[i]`→`points[i+1]`の区間で、
  * 閉じたパスの最後の要素は`points[n-1]`→`points[0]`の区間（要素数は開いたパス`n - 1`、閉じたパス`n`）。区間の要素は`{ kind }`で、`kind`は`'line'`（直線の区間）か`'smooth'`（曲線の区間）。
  * 曲線の区間の形は両端の頂点と前後の頂点から`computeSmoothSegmentControls`で決まり、制御点は作業データにも図形にも持たない（描くたび・判定するたびに求める）。
- * 区間の種類を区間ごとに変えるのは`fromJSON`（`segments`を作り直す）だけ。
+ * 区間ごとに種類を指定して作るのは、コンストラクタへ種類の配列を渡す場合（`PathJoinRules`の結合・描き足し・閉じる。結果は元の区間の種類を保つ）と`fromJSON`（`segments`を作り直す）。
  * 共通メソッド契約（18メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
  * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames）を自律実装する。座標はすべてワールド座標。
  * パスは`ShapeFactory.create`の曲線のツールの描き始めでも作られる（頂点2つ・区間1つの曲線）。
@@ -74,14 +74,16 @@ const VERTEX_HANDLE_PATTERN = /^vertex-(0|[1-9][0-9]*)$/;
 export class Path {
     /**
      * 引数は検証しない（検証は`fromJSON`のみ。呼び出し側が頂点数・区間の約束を満たす値を渡す）。
-     * `points`の各頂点は新しい`{ x, y }`として複製して保持し、`segments`は区間の数だけ`{ kind: segmentKind }`を新しく作る。
-     * 区間の種類を区間ごとに変えるのは`fromJSON`（`segments`を作り直す）だけ。
+     * `points`の各頂点は新しい`{ x, y }`として複製して保持し、`segments`は区間の数だけ`{ kind }`を新しく作る。
+     * `segmentKind`が文字列なら全区間をその種類で作る。配列なら区間ごとの種類の並びとして作り、渡された配列は保持しない（要素数・種類も検証しない）。
+     * 区間ごとに種類を指定して作るのは、種類の配列を渡す場合（`PathJoinRules`の結合・描き足し・閉じる）と`fromJSON`（`segments`を作り直す）。
      * @param {{x: number, y: number}[]} points - 頂点の並び（始点→終点）
      * @param {boolean} [closed=false] - 閉じているか
      * @param {string|null} [strokeColor='#000000'] - 線の色。nullは線なし
      * @param {number} [strokeWidth=2] - 線の太さ
      * @param {string|null} [fillColor=null] - 塗りの色。nullは塗りなし
-     * @param {string} [segmentKind='line'] - 全区間の種類（`'line'`か`'smooth'`）。省くと全区間が直線
+     * @param {string|string[]} [segmentKind='line'] - 文字列なら全区間の種類（`'line'`か`'smooth'`）。省くと全区間が直線。
+     *   配列なら区間ごとの種類の並び（要素数は開いたパス`points.length - 1`・閉じたパス`points.length`であること。呼び出し側の責任で、検証しない）
      */
     constructor(points, closed = false, strokeColor = '#000000', strokeWidth = 2, fillColor = null, segmentKind = SEGMENT_KIND_LINE) {
         /** @type {string} 図形種別（`ShapeFactory`が受理する文字列と一致） */
@@ -93,10 +95,12 @@ export class Path {
         /** @type {boolean} 閉じているか（`true`なら終点→始点の区間を持つ） */
         this.closed = closed;
         /** @type {{kind: string}[]} 区間の並び。要素数は開いたパス`points.length - 1`、閉じたパス`points.length` */
-        this.segments = Array.from(
-            { length: closed ? this.points.length : this.points.length - 1 },
-            () => ({ kind: segmentKind }),
-        );
+        this.segments = Array.isArray(segmentKind)
+            ? segmentKind.map((kind) => ({ kind }))
+            : Array.from(
+                { length: closed ? this.points.length : this.points.length - 1 },
+                () => ({ kind: segmentKind }),
+            );
         /** @type {string|null} 線の色。nullは線なし */
         this.strokeColor = strokeColor;
         /** @type {number} 線の太さ */

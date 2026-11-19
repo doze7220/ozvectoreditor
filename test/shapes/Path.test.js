@@ -1288,3 +1288,40 @@ describe('Path の曲線の区間の toJSON・fromJSON', () => {
         assertFromJSONError(noKind, "segments[0]のkindが'line'・'smooth'ではありません（undefined）");
     });
 });
+
+describe('Path コンストラクタの区間ごとの種類の配列（Phase 09-01b）', () => {
+    it('配列を渡すと区間ごとの種類になる（開いたn-1・閉じたn。直線と曲線の混在）', () => {
+        const open = new Path(makePoints(), false, '#000000', 2, null, ['line', 'smooth', 'line']);
+        assert.deepEqual(open.segments, [{ kind: 'line' }, { kind: 'smooth' }, { kind: 'line' }]);
+        const closed = new Path(makePoints(), true, '#000000', 2, null, ['smooth', 'line', 'smooth', 'line']);
+        assert.deepEqual(closed.segments, [{ kind: 'smooth' }, { kind: 'line' }, { kind: 'smooth' }, { kind: 'line' }]);
+    });
+
+    it('構築後に渡した配列を書き換えても segments は変わらない（共有しない）', () => {
+        const kinds = ['line', 'smooth', 'line'];
+        const path = new Path(makePoints(), false, '#000000', 2, null, kinds);
+        kinds[0] = 'smooth';
+        kinds.push('smooth');
+        assert.deepEqual(path.segments, [{ kind: 'line' }, { kind: 'smooth' }, { kind: 'line' }]);
+        assert.notEqual(path.segments[0], path.segments[2]);
+    });
+
+    it('同じ頂点・種類の fromJSON で作ったパスと toJSON・toDrawElement が一致する', () => {
+        for (const closed of [false, true]) {
+            const kinds = closed ? ['smooth', 'line', 'smooth', 'smooth'] : ['line', 'smooth', 'smooth'];
+            const byCtor = new Path(makePoints(), closed, '#112233', 3, closed ? '#445566' : null, kinds);
+            byCtor.id = 'p1';
+            const byJson = Path.fromJSON(byCtor.toJSON());
+            assert.deepEqual(byCtor.toJSON(), byJson.toJSON());
+            assert.deepEqual(byCtor.toDrawElement(), byJson.toDrawElement());
+        }
+    });
+
+    it('第6引数が文字列・省略のときの結果は今までと同じ', () => {
+        const line = new Path(makePoints(), false, '#000000', 2, null, 'line');
+        assert.deepEqual(line.segments, [{ kind: 'line' }, { kind: 'line' }, { kind: 'line' }]);
+        const smooth = new Path(makePoints(), true, '#000000', 2, null, 'smooth');
+        assert.deepEqual(smooth.segments, [{ kind: 'smooth' }, { kind: 'smooth' }, { kind: 'smooth' }, { kind: 'smooth' }]);
+        assert.deepEqual(new Path(makePoints()).segments, [{ kind: 'line' }, { kind: 'line' }, { kind: 'line' }]);
+    });
+});
