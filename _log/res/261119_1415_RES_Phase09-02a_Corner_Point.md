@@ -285,7 +285,7 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
         *   `performCornerToggle`・`syncOptionBarCornerGroup`にJSDocを書き、ブロックのコメントを既存の`// 7.11.`にそろえる。
         *   `node --test`が全件通ることを確かめる。変更後の`main.js`の行数を記録する（タスク11で資料へ書く）。
         *   完了後、本RESの「4. 詳細作業内容」のタスク8に作業内容を記載する。開発資料に影響があれば「開発資料の更新予定」へ追記する。
-*   [ ] タスク9: 仕上げの確認（JSDoc・スコープ・全テスト）
+*   [x] タスク9: 仕上げの確認（JSDoc・スコープ・全テスト）
     *   **対象ファイル** :
         *   （確認のみ。不備があればタスク1〜8の対象ファイルの中でだけ直す）
     *   **作業内容** :
@@ -336,7 +336,7 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
 ### タスク3: 要件C 角の判定と切り替えの組み立て（`shapes/PathCornerRules`）
 *   **作業内容** :
     *   `js/shapes/PathCornerRules.js`（新規）：責務定義（3行）・`CornerState`・`resolveCornerState`・`resolveCornerToggleView`・`planCornerToggle`、非公開の`cornerStateOfData`・`dataOf`（呼び出しごとの`Map`で図形ごとに1回だけ`toJSON()`）・`statesOf`、typedef 3種（`CornerToggleView`は二重定義と明記）。importは`./Path.js`のみ。全関数・定数・typedefにJSDoc。
-    *   `test/shapes/PathCornerRules.test.js`（新規）：`resolveCornerState`6・`resolveCornerToggleView`5・`planCornerToggle`7ケース（(I-3)の項目を網羅）。
+    *   `test/shapes/PathCornerRules.test.js`（新規）：`resolveCornerState`6・`resolveCornerToggleView`5・`planCornerToggle`8ケース（(I-3)の項目を網羅）。
     *   `node --test`：tests 1820 / suites 286 / pass 1820 / fail 0。既存ケースの変更なし。
 
 ### タスク4: 要件D 結合・描き足し・閉じるで角の点を保つ（`shapes/PathJoinRules`）
@@ -365,7 +365,7 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
     *   `js/palette/OptionBarCornerGroup.js`（新規）：責務定義（3行）・typedef`CornerToggleView`（二重定義と明記）・`OptionBarCornerGroupActions`・クラス（コンストラクタ・`render`・非公開`#applyView`・`change`でコールバック→`#applyView(#lastView)`の当て直し→`blur`）。importなし。全メンバにJSDoc。
     *   `index.html`：`#option-align-group`の直後に`#option-corner-group`を追加。`<style>`に`.option-corner-label`・`#option-corner-toggle:disabled + .option-corner-text`の2ルールを追加。幅の見積もりのコメントに角のまとまり（区切り17px＋約34px）と合計約1189pxを追記。既存の要素・ルールは不変。
     *   `js/core/FocusKeyYieldRules.js`：`SPACE_OPERATED_INPUT_TYPES`のJSDocの1文のみ修正（コード不変）。
-    *   `node --test`：全件合格を確認（件数は変わらない見込み。実行結果は最終報告のとおり）。
+    *   `node --test`：tests 1860 / suites 294 / pass 1860 / fail 0（件数はタスク6から変わらない）。既存ケースの変更なし。
 
 ### タスク8: 要件G `main.js`の配線（`// 7.12.`）
 *   **作業内容** :
@@ -376,7 +376,12 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
 
 ### タスク9: 仕上げの確認（JSDoc・スコープ・全テスト）
 *   **作業内容** :
-    *   （未実施）
+    *   JSDoc・責務定義：新規3ファイル（`PathCornerRules.js`・`PathCornerEditor.js`・`OptionBarCornerGroup.js`）の先頭の責務定義は2〜3行以内で実態に合う。`Path.js`・`PathJoinRules.js`・`ShapeGeometry.js`で足した・変えた関数・引数・フィールド・`readCornerFlags`にJSDocがあることを差分で確認。不備なし（修正なし）。
+    *   スコープ：計画コミット（`dec8dfe`）からの`js/`の変更は、`core/FocusKeyYieldRules.js`（1行）・`io/DocumentSerializer.js`（1行）・`main.js`・`shapes/Path.js`・`PathJoinRules.js`・`ShapeGeometry.js`・新規3ファイルのみ。`core/VectorModel.js`・`InputTracker.js`・`KeyboardShortcuts.js`・`ShapeFactory.js`、`edit/`・`palette/`の既存のファイル、`check/`・`wiring/`・`asset/`・`sprite-check.html`は不変。`index.html`はタスク7の対象。改名・整形・コードの削除は差分に無い。
+    *   二重定義の確認（`Grep`）：`corners`の読み方は`readCornerFlags`（`Path.js`）で、他のファイルは`readCornerFlags`経由（`.corners`の直接参照は`PathJoinRules`の`SegmentChain`のみ）。形の決め方の式は`ShapeGeometry.computeSmoothSegmentControls`のみ。重複なし。
+    *   `node --test`：tests 1860 / suites 294 / pass 1860 / fail 0。既存ケースの期待値の書き換えなし。
+    *   RESの記載の修正：タスク3の「`planCornerToggle`7ケース」を実ファイルに合わせ8ケースへ、タスク7の`node --test`の記述を実際の件数へ直した。
+    *   開発資料への影響：「開発資料の更新予定」の`16_test.md`の項の件数は 1860 / 294（tests/suites）。追記なし。
 
 ### タスク10: 要件K テストプレイの確認項目を発注者へ提示する
 *   **作業内容** :
