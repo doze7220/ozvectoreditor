@@ -380,3 +380,41 @@ describe('DocumentSerializer.deserialize: 不正な corners のスキップ（Ph
         });
     }
 });
+
+describe('DocumentSerializer.deserialize: 不正な曲がり方を持つ区間のスキップ（Phase 09-03a）', () => {
+    /**
+     * 曲がり方を持つ区間を含む正しいパスの図形データを作り、1項目だけ不正にする。
+     * @param {(data: object) => void} mutate - 図形データを不正に書き換える関数
+     * @returns {object} 不正なパスの図形データ
+     */
+    function brokenBezierPath(mutate) {
+        const path = new Path(
+            [{ x: 0, y: 0 }, { x: 50, y: 30 }, { x: 100, y: 0 }], false, '#000000', 2, null,
+            [{ kind: 'bezier', control1: { x: 10, y: 20 }, control2: { x: 40, y: 40 } }, 'line'],
+        );
+        path.id = 'p';
+        const data = path.toJSON();
+        assert.equal(data.segments[0].kind, 'bezier');
+        mutate(data);
+        return data;
+    }
+
+    const cases = [
+        { name: 'control1がない', mutate: (d) => { delete d.segments[0].control1; } },
+        { name: 'control2がない', mutate: (d) => { delete d.segments[0].control2; } },
+        { name: 'control1がnull', mutate: (d) => { d.segments[0].control1 = null; } },
+        { name: 'control1の座標が数値でない', mutate: (d) => { d.segments[0].control1 = { x: '10', y: 20 }; } },
+        { name: 'control2の座標が有限でない', mutate: (d) => { d.segments[0].control2 = { x: 40, y: Infinity }; } },
+    ];
+    for (const testCase of cases) {
+        it(`${testCase.name}パスは図形単位でスキップされ、残りが復元される`, (t) => {
+            const warn = silenceWarn(t);
+            const [good1, good2] = makeValidData();
+            const result = DocumentSerializer.deserialize(makeDocument([good1, brokenBezierPath(testCase.mutate), good2]));
+            assert.equal(result.ok, true);
+            assert.deepStrictEqual(result.shapes.map((s) => s.toJSON()), [good1, good2]);
+            assert.deepStrictEqual(result.skipped.map(({ index, type }) => ({ index, type })), [{ index: 1, type: 'path' }]);
+            assert.equal(warn.mock.callCount(), 1);
+        });
+    }
+});

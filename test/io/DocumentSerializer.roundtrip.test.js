@@ -12,6 +12,7 @@ import { Rect } from '../../js/shapes/Rect.js';
 import { Ellipse } from '../../js/shapes/Ellipse.js';
 import { Path, SEGMENT_KIND_SMOOTH } from '../../js/shapes/Path.js';
 import { SegmentKindSwitch, planSegmentKindSwitch } from '../../js/shapes/PathSegmentKindRules.js';
+import { planJoin } from '../../js/shapes/PathJoinRules.js';
 
 /** 種別ごとの頂点数（開発資料4章 shapes/）。 */
 const POINT_COUNTS = { line: 2, curve: 3, rect: 4, arc: 5, circle: 5 };
@@ -651,5 +652,73 @@ describe('区間の切り替えで作った図形の往復（Phase 09-02b）', (
         assert.deepStrictEqual(Object.keys(doc.shapes[0]), [
             'type', 'id', 'points', 'closed', 'segments', 'corners', 'strokeColor', 'strokeWidth', 'fillColor',
         ]);
+    });
+});
+
+describe('曲がり方を持つ区間を含むパスの往復（Phase 09-03a）', () => {
+    const points = [{ x: 0, y: 0 }, { x: 60, y: 40 }, { x: 120, y: 0 }, { x: 160, y: 50 }];
+    /**
+     * 曲がり方を持つ区間の指定を作る。
+     * @param {number} c1x - control1のx
+     * @param {number} c1y - control1のy
+     * @param {number} c2x - control2のx
+     * @param {number} c2y - control2のy
+     * @returns {{kind: string, control1: object, control2: object}} 区間の指定
+     */
+    const bez = (c1x, c1y, c2x, c2y) => ({ kind: 'bezier', control1: { x: c1x, y: c1y }, control2: { x: c2x, y: c2y } });
+    const states = [
+        {
+            name: '開いたパス',
+            build: () => new Path(points, false, '#102030', 3, null, [bez(10, 30, 40, 50), 'line', bez(130, 20, 150, 60)]),
+        },
+        {
+            name: '閉じた塗りありのパス',
+            build: () => new Path(points, true, '#102030', 3, '#ffcc00', [bez(10, 30, 40, 50), 'line', bez(130, 20, 150, 60), 'line']),
+        },
+        {
+            name: '直線・曲線・曲がり方を持つ区間が混ざったパス',
+            build: () => new Path(points, false, '#102030', 3, null, ['line', 'smooth', bez(130, 20, 150, 60)]),
+        },
+        {
+            name: '角の点を持つパス',
+            build: () => new Path(points, false, '#102030', 3, null, [bez(10, 30, 40, 50), 'smooth', 'smooth'], [false, true, false, false]),
+        },
+    ];
+    for (const state of states) {
+        for (const route of ROUTES) {
+            it(`${state.name}が保たれる（${route.name}）`, (t) => {
+                const warn = silenceWarn(t);
+                const path = state.build();
+                path.id = 'path-1';
+                assert.ok(path.segments.some((segment) => segment.kind === 'bezier'));
+                const result = route.run([path]);
+                assertRestoredWithPaths(result, [path]);
+                assert.deepStrictEqual(result.shapes[0].toJSON(), path.toJSON());
+                assert.deepStrictEqual(result.shapes[0].segments, path.segments);
+                assert.equal(warn.mock.callCount(), 0);
+            });
+        }
+    }
+
+    it('今の曲線と直線を結合した結果が往復で保たれ、作業データの版は2のまま', (t) => {
+        const warn = silenceWarn(t);
+        const curve = new Curve(0, 0, 60, 0);
+        curve.setVertex(1, 30, 60);
+        curve.id = 'c-1';
+        const line = new Line(60, 0, 100, 20);
+        line.id = 'l-1';
+        const plan = planJoin([curve, line], 0);
+        assert.notEqual(plan, null);
+        const joined = plan.path;
+        joined.id = 'joined-1';
+        assert.deepStrictEqual(joined.toJSON().segments.map((s) => s.kind), ['bezier', 'line']);
+        for (const route of ROUTES) {
+            const result = route.run([joined]);
+            assertRestoredWithPaths(result, [joined]);
+            assert.deepStrictEqual(result.shapes[0].toJSON(), joined.toJSON());
+        }
+        assert.equal(DocumentSerializer.serialize([joined]).version, 2);
+        assert.equal(JSON.parse(DocumentSerializer.serializeToString([joined])).version, 2);
+        assert.equal(warn.mock.callCount(), 0);
     });
 });

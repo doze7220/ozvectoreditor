@@ -245,7 +245,7 @@
         *   テストは(F-6)・(F-7)の追加だけを行う（書き換え10.・11.はタスク2で済んでいる）。既存の補助（`setupFake`・`setupReal`・`makeCurve`等）を使う。一覧にない既存のケースは変えない。
         *   `node --test`が全件通ることを確かめる。
         *   完了後、本RESの「4. 詳細作業内容」のタスク4に作業内容を記載する。開発資料に影響があれば「開発資料の更新予定」へ追記する。
-*   [ ] タスク5: 要件A・E 保存・書き出しのテスト（`io/`。コードは変えない）
+*   [x] タスク5: 要件A・E 保存・書き出しのテスト（`io/`。コードは変えない）
     *   **対象ファイル** :
         *   `./test/io/DocumentSerializer.roundtrip.test.js` : 更新（(F-8)の`describe`の追加のみ）
         *   `./test/io/DocumentSerializer.errors.test.js` : 更新（(F-9)の`describe`の追加のみ）
@@ -321,7 +321,11 @@
 
 ### タスク5: 要件A・E 保存・書き出しのテスト（`io/`。コードは変えない）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `test/io/DocumentSerializer.roundtrip.test.js`：importに`planJoin`を追加し、(F-8)の`describe`を追加（曲がり方を持つ区間を含む開いた・閉じた塗りあり・直線／曲線と混在・角の点ありのパスの往復をオブジェクト層・文字列層で、今の曲線と直線を`planJoin`で結合した結果の往復と作業データの`version`が2のまま）。
+    *   `test/io/DocumentSerializer.errors.test.js`：(F-9)の`describe`を追加（引っ張る点が欠ける・null・座標が数値でない・有限でない曲がり方を持つ区間のパスは、そのパスだけスキップされ残りが復元される）。
+    *   `test/io/SpriteSerializer.test.js`：importに`planJoin`を追加し、(F-10)の`describe`を追加（`bezierPath`の`formatVersion`3・`cubic`の`control1`・`control2`が作業データと一致、区間1つのパスの外枠が同じ形の今の曲線（`quadratic`）の外枠と一致、今の曲線と直線の結合結果の外枠が`sampleBezierPathRange`で形を囲む）。既存ケース・`js/io/`は不変。
+    *   `node --test`：tests 2002 / suites 322 / pass 2002 / fail 0。
+    *   開発資料への影響：「開発資料の更新予定」の既存記載の範囲内。追加の更新予定なし。
 
 ### タスク6: 仕上げの確認（JSDoc・スコープ・全テスト）
 *   **作業内容** :

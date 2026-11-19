@@ -12,6 +12,7 @@ import { Ellipse } from '../../js/shapes/Ellipse.js';
 import { Path, SEGMENT_KIND_SMOOTH } from '../../js/shapes/Path.js';
 import { cubicBezierPoint } from '../../js/shapes/ShapeGeometry.js';
 import { SegmentKindSwitch, planSegmentKindSwitch } from '../../js/shapes/PathSegmentKindRules.js';
+import { planJoin } from '../../js/shapes/PathJoinRules.js';
 
 /**
  * 図形へ文字列のidを代入して返す。
@@ -681,5 +682,58 @@ describe('SpriteSerializer: 区間の切り替えで作った図形（Phase 09-0
     it('書き出し形式の版は3のまま', () => {
         const path = switched(new Path(points, false), [0, 1], SegmentKindSwitch.TO_CURVE);
         assert.equal(SpriteSerializer.serialize([path]).formatVersion, 3);
+    });
+});
+
+describe('SpriteSerializer: 曲がり方を持つ区間を含むパス（Phase 09-03a）', () => {
+    const control1 = { x: 10, y: 50 };
+    const control2 = { x: 70, y: -20 };
+    const points = [{ x: 0, y: 0 }, { x: 80, y: 30 }, { x: 140, y: 0 }];
+
+    it('bezierPath の区間の cubic の control1・control2 が作業データの引っ張る点と一致し、版は3', () => {
+        const path = withId(new Path(points, false, '#102030', 2, null, [{ kind: 'bezier', control1, control2 }, 'line']), 'bz');
+        const data = SpriteSerializer.serialize([path]);
+        assert.equal(data.formatVersion, 3);
+        const element = data.elements[0];
+        assert.equal(element.kind, 'bezierPath');
+        assert.deepEqual(element.segments.map((s) => s.kind), ['cubic', 'line']);
+        assert.deepEqual(element.segments[0].control1, path.toJSON().segments[0].control1);
+        assert.deepEqual(element.segments[0].control2, path.toJSON().segments[0].control2);
+        assert.deepEqual(element.segments[0].control1, control1);
+        assert.deepEqual(element.segments[0].control2, control2);
+        assert.deepEqual(element.segments, path.toDrawElement().segments);
+    });
+
+    it('曲がり方を持つ区間1つの開いたパスの外枠は、同じ形の今の曲線（quadratic）の外枠と一致する', () => {
+        const curve = withId(makeCurve([{ x: 0, y: 0 }, { x: 30, y: 60 }, { x: 60, y: 0 }]), 'cv');
+        const quadratic = SpriteSerializer.serialize([curve]);
+        assert.equal(quadratic.elements[0].kind, 'quadratic');
+        // 2次→3次: control1 = s + (c - s) * 2 / 3、control2 = e + (c - e) * 2 / 3
+        const path = withId(new Path(
+            [{ x: 0, y: 0 }, { x: 60, y: 0 }], false, '#000000', 2, null,
+            [{ kind: 'bezier', control1: { x: 20, y: 40 }, control2: { x: 40, y: 40 } }],
+        ), 'bp');
+        const data = SpriteSerializer.serialize([path]);
+        assert.equal(data.elements[0].kind, 'bezierPath');
+        assertBoundsClose(data.bounds, quadratic.bounds, 1e-6);
+    });
+
+    it('今の曲線と直線を結合した結果の外枠は形を囲む', () => {
+        const curve = withId(makeCurve([{ x: 0, y: 0 }, { x: 30, y: 60 }, { x: 60, y: 0 }]), 'cv');
+        const line = withId(new Line(60, 0, 100, -20, '#000000', 2), 'ln');
+        const plan = planJoin([curve, line], 0);
+        assert.notEqual(plan, null);
+        const joined = withId(plan.path, 'jn');
+        const data = SpriteSerializer.serialize([joined]);
+        const element = data.elements[0];
+        assert.equal(element.kind, 'bezierPath');
+        assert.deepEqual(element.segments.map((s) => s.kind), ['cubic', 'line']);
+        const range = sampleBezierPathRange(element);
+        const half = 1;
+        assertBoundsClose(data.bounds, {
+            minX: range.minX - half, minY: range.minY - half, maxX: range.maxX + half, maxY: range.maxY + half,
+        }, 1e-3);
+        // 曲線の山（y=30）を含む
+        assert.ok(data.bounds.maxY >= 30);
     });
 });
