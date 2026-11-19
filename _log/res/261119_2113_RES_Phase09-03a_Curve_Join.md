@@ -254,7 +254,7 @@
         *   (F-8)〜(F-10)のテストを足す（今の曲線と直線の結合の結果は`PathJoinRules.planJoin`で作る。既存の補助関数を使う。既存のケースは変えない）。`js/io/`のコードとJSDocは変えない。
         *   `node --test`が全件通ることを確かめる。
         *   完了後、本RESの「4. 詳細作業内容」のタスク5に作業内容を記載する。開発資料に影響があれば「開発資料の更新予定」へ追記する。
-*   [ ] タスク6: 仕上げの確認（JSDoc・スコープ・全テスト）
+*   [x] タスク6: 仕上げの確認（JSDoc・スコープ・全テスト）
     *   **対象ファイル** :
         *   （確認のみ。不備があればタスク1〜5の対象ファイルの中でだけ直す）
     *   **作業内容** :
@@ -329,7 +329,14 @@
 
 ### タスク6: 仕上げの確認（JSDoc・スコープ・全テスト）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   JSDoc・責務定義：タスク1〜5で足した・変えた定数・関数・typedefのJSDocに漏れなし。変えたファイル（`Path.js`・`PathJoinRules.js`・`EndpointSnapRules.js`・`PathCornerRules.js`・`PathSegmentKindRules.js`・`PathJoiner.js`）の先頭の責務定義はいずれも3行以内で実態に合う。
+    *   タスク3の監査候補2点を実コードで照合し、食い違っていたためJSDocだけを直した（名前・値・コードは不変）。
+        *   `js/shapes/PathCornerRules.js`の`CornerState.CORNER`・`SMOOTH`：`cornerStateOfData`は両側の`kind`が`'smooth'`（打った点の曲線の区間）のときだけ`CORNER`／`SMOOTH`を返し、曲がり方を持つ区間（`'bezier'`）は`LINE_CORNER`になる。「両側とも曲線の区間の点」は曲がり方を持つ区間も含むと読めるため、「両側とも打った点の曲線の区間の点」に直した。
+        *   `js/shapes/PathSegmentKindRules.js`の`SegmentKindSwitch.TO_LINE`：`changedSegmentIndexes`は`kind !== 'line'`の区間（打った点の曲線の区間・曲がり方を持つ区間）を直線にする（今の曲線`type === 'curve'`も`buildLineFromCurve`で直線になる）ため、「打った点の曲線の区間・曲がり方を持つ区間を直線の区間にし、今の曲線は直線にする」に直した。
+    *   スコープ：`git diff HEAD~5 --stat`の変更ファイルは対象ファイルだけ（`js/`は上の6ファイル、`test/`は対象のテスト10ファイル。`js/core/`・`js/io/`・`js/check/`・`js/wiring/`・`js/palette/`・`js/main.js`・`index.html`・`sprite-check.html`・`asset/`・`ShapeGeometry`・`ShapeDataValidation`・`Curve`・`Line`・`Rect`・`Ellipse`・`KeyboardShortcuts.js`は不変）。`PathJoiner.js`は責務定義の1行だけ。
+    *   二重定義：`js/edit/`・`js/core/`・`js/io/`・`js/palette/`・`js/main.js`に今回の変更で増えた`'bezier'`・`'smooth'`・`'curve'`・`control1`・`control2`は無い（`Grep`。残る出現は`ShapeFactory.js`・`CodeExporter.js`・`SpriteSerializer.js`の既存分で差分に含まれない）。
+    *   `node --test`：tests 2002 / suites 322 / pass 2002 / fail 0（作業前は tests 1926 / suites 306）。書き換えた既存のケースは「2. 要件F」の11件だけ。
+    *   開発資料への影響：追加の更新予定なし（「開発資料の更新予定」の範囲内）。
 
 ### タスク7: 要件G テストプレイの確認項目を発注者へ提示する
 *   **作業内容** :

@@ -13,7 +13,7 @@ import { resolveCornerState, CornerState } from './PathCornerRules.js';
  * @enum {string}
  */
 export const SegmentKindSwitch = Object.freeze({
-    /** 直線に（曲線の区間を直線の区間にする） */
+    /** 直線に（打った点の曲線の区間・曲がり方を持つ区間を直線の区間にし、今の曲線は直線にする） */
     TO_LINE: 'toLine',
     /** 曲線に（直線の区間の中点に点を足し、その2つの区間を曲線の区間にする） */
     TO_CURVE: 'toCurve',

@@ -10,9 +10,9 @@ import { Path, SEGMENT_KIND_SMOOTH, readCornerFlags } from './Path.js';
  * @enum {string}
  */
 export const CornerState = Object.freeze({
-    /** 角の点（両側とも曲線の区間の点で、角を立てると決めた点） */
+    /** 角の点（両側とも打った点の曲線の区間の点で、角を立てると決めた点） */
     CORNER: 'corner',
-    /** なめらかな点（両側とも曲線の区間の点で、角を立てていない点） */
+    /** なめらかな点（両側とも打った点の曲線の区間の点で、角を立てていない点） */
     SMOOTH: 'smooth',
     /** 直線の角の点（片側でも打った点の曲線の区間でない（直線の区間・曲がり方を持つ区間）パスの点。実際に角が立っていて操作できない） */
     LINE_CORNER: 'lineCorner',
