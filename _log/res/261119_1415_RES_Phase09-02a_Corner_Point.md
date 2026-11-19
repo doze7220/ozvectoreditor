@@ -299,7 +299,7 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
         *   （本RESのみ）
     *   **作業内容** :
         *   「2. 要件K」の確認項目0〜10を、本RESの「4. 詳細作業内容」のタスク10へ写し、実装の結果に合わせて文言を確かめる（実装で判明した注意点があれば足す）。最終報告でも提示する。
-*   [ ] タスク11: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
+*   [x] タスク11: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` : 更新
         *   `./_doc/arch/01_index_html.md` : 更新
@@ -405,7 +405,10 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
 
 ### タスク11: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
 *   **作業内容** :
-    *   （未実施）
+    *   `PROJECT_ARCHITECTURE.md`：1章の構成図（`PathCornerRules.js`・`OptionBarCornerGroup.js`・`PathCornerEditor.js`・`test/shapes/PathCornerRules.test.js`・`test/edit/PathCornerEditor.test.js`）、「存在しないもの」（「この点は角」という情報を消し、角の点の見分け表示・方向線・角のキー・つなぎ目をなめらかにすることを足した）、フォルダ分割の方針（`shapes/`・`edit/`の列、依存方向の(1)(2)(3)と「この4ファイルだけ」）、2章`path`（図形データの形・`corners`の持ち方と理由・形の決め方の式の`Q0`/`Q3`・`readCornerFlags`・`fromJSON`の検証・古いエディタでの扱い）、3章6.（角の切り替えの記録）、11.・12.・22.（角の点の扱い。`chainOf`が端を偽にする）、13.（まとまりの一覧に「角」）、新しい項23.「点の滑らかさ（角）」を反映。
+    *   `_doc/arch/01_index_html.md`（角のまとまり・CSS・幅の見積もり約1189px）、`02_main.md`（行数1053行・主な関数・`// 7.12.`・注入の一覧・起動時の同期）、`12_shapes.md`（`computeSmoothSegmentControls`の第4引数・`PathJoinRules`の角の点とimport・`PathCornerRules`の項・`Path`の`corners`・`fromJSON`）、`13_palette.md`（`OptionBarCornerGroup`）、`14_edit.md`（`PathCornerEditor`）、`15_io.md`（角の点は`io/`を変えずに保たれること）、`16_test.md`（09-02aの追加分・テストできない箇所・件数1860 / 294）、`33_FocusKeyYieldRules.md`（チェックボックスの実在）、`41_NudgeTargetRules.md`（使う側に`PathCornerEditor`）を反映。
+    *   実コード（`js/main.js`の`wc -l`＝1053行、`node --test`の件数はタスク9の記録）と、タスク1〜10の詳細作業内容に基づく。資料以外のファイルは変更していない。
+    *   監査の軽微な指摘2点を直した（`PROJECT_ARCHITECTURE.md`3章23.の決定の出どころの書き分けをREQに合わせた／`_doc/arch/02_main.md`の「1010行」が何を指すか分かる文にした）。続けて、23.の書き分けに消していた「現場設計の決定」の区分を戻し、REQ:55-63の項目（ドラッグ中は受理しない・キーは割り当てない等）をそこへそろえた。
 
 ## 5. 懸念事項・要確認ポイント
 * （計画時点）**取り消し・やり直しの後は頂点の選択が外れる**：`replaceAllShapes`が選択集合・頂点の選択をクリアし、`shouldRestoreSelection`は図形の選択だけを戻すため（今までの頂点の移動の取り消しと同じ既存のふるまい）。取り消した直後はチェックボックスが押せない見た目になる。テストプレイの確認項目7に書いた。
@@ -414,3 +417,4 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
 * （計画時点）**すべて`false`の`corners`を持つ作業データは、読み込んで保存し直すとキーが消える**（`toJSON()`は角の点があるときだけ出すため。本アプリは書き出さない形で、形は変わらない。許容）。
 * （タスク5）`PathCornerEditor`は図形の`getVertexIndexForHandle`が`null`を返すものだけを飛ばす。`Line`など`path`以外の図形は`resolveCornerState`が`NONE`にするため、押せない・変わらない扱いになる（テストで確認）。取り消し後に頂点の選択が外れることはテストでは確認していない（`SnapshotAdapter`の既存のふるまい）。開発資料への影響は「開発資料の更新予定」の`14_edit.md`・`16_test.md`の項のとおりで、追記なし。
 * （タスク2）`Path.js`の`fromJSON`の`corners`検査は、`corners`のキーが`undefined`のときだけ検査を飛ばす（`null`は「配列ではありません」で例外）。`fromJSON`はコンストラクタに`SEGMENT_KIND_LINE`を渡してから`segments`を作り直す従来の流れのまま。
+* （タスク11）`_doc/arch/02_main.md`の行数の記述は、もとの値（1010行）がPhase 09-01aの時点のままで、09-01b以降の増減が記録されていなかった。今回は現在の実測1053行を書き、「09-01b以降の増減は`wc -l`が正本」と注記した。`16_test.md`の既存の項（09-01a・09-01b）の件数・書き方は変えていない。

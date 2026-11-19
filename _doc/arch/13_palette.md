@@ -47,6 +47,14 @@
         *   **知らないこと**：importを持たず、`VectorModel`・選択集合・図形データ・`ShapeAlignEditor`・規則・操作の値（`ShapeAlignOperation`）を参照しない（受け取るのは`view`とコールバックのみ）。記号は持たない（`index.html`のボタンの中身の1か所）。
         *   **二重定義**：typedef`ShapeAlignAvailability`は`edit/ShapeAlignEditor.js`と同じ内容を持つ。対応表`ALIGN_BUTTONS`（`{ operation, id }`×8。凍結）の`operation`は`edit/ShapeAlignRules.js`の`ShapeAlignOperation`の値との二重定義（`palette/`はimportを持たない約束のため）。値・形を変える場合は3か所（`ShapeAlignRules.js`・`ShapeAlignEditor.js`のtypedef・本ファイル）をそろえる（ずれると表示側が黙って押せない表示になる）。
         *   **テスト対象外**：DOMに依存するため自動テストは無く、テストプレイで確かめる（`_doc/arch/16_test.md`の08-05の追加）。
+    *   **OptionBarCornerGroup.js**：オプションバーの「角」のまとまり（`#option-corner-group`）のチェックボックス（`#option-corner-toggle`）のDOMの配線（`render(view)`で押せる・チェックあり・なし・「−」を表示し、`change`をコールバックへ通知）。流れは3章23.。Phase 09-02a。
+        *   **公開メソッド**：`render`。
+        *   **注入**：コンストラクタでまとまりのルート要素とコールバック**1つ**`onCornerToggle()`を受け取る。`onCornerToggle`が関数でなければ`Error`、`#option-corner-toggle`が無ければ`console.warn`して配線しない（以後の`render`は何もしない）。
+        *   **表示の規則**：`render(view)`が`disabled`（`!(view && view.enabled === true)`）・`indeterminate`（`view?.mixed === true`）・`checked`（`view?.checked === true && view?.mixed !== true`）を当て、`view`を最後に表示した内容として覚える。`view`が無ければ押せない・チェックなし。
+        *   **`change`のとき**：`onCornerToggle()`を呼び（戻り値は使わない）、続けて最後に表示した内容を当て直し、最後に`checkbox.blur()`する。**当て直す理由**：ブラウザは`change`の前に`checked`を反転し`indeterminate`を外す。受理されると`model.onChange`の経路で`render`が先に呼ばれて正しくなるが、受理されない（ドラッグ中・変わる点が無い）と通知が来ず反転した見た目が残るため。**`blur`する理由**：`core/FocusKeyYieldRules`は`type="checkbox"`の`input`にフォーカスがある間`Space`をその部品に譲り（パンしない）、`Ctrl`なしのショートカットを止めるため、フォーカスが残ると`Space`で意図せず切り替わり、矢印キーの微調整・`A`等が働かなくなる（`FocusKeyYieldRules`・`KeyboardShortcuts`のコードは変えていない）。
+        *   **知らないこと**：importを持たず、`VectorModel`・図形データ・選択状態・`PathCornerEditor`・`PathCornerRules`を参照しない（受け取るのは`view`とコールバックのみ）。角の判定を持たない。
+        *   **二重定義**：typedef`CornerToggleView`（`enabled`・`checked`・`mixed`）は`shapes/PathCornerRules.js`と同じ内容を持つ。形を変える場合は両方を揃える。
+        *   **テスト対象外**：DOMに依存するため自動テストは無く、テストプレイで確かめる（「−」の見た目・`blur`のふるまい。`_doc/arch/16_test.md`の09-02aの追加）。
     *   **ツールバーの位置づけ**：頻繁に使う操作（削除・結合・取り消し/やり直し等）と、他のパレットの**呼び出し口**（開閉ボタン）を置く場所である。続けてオプションバー（選択中の図形・新しく描く図形のスタイルと重なり順、選択中の図形・頂点の位置の数値入力、選択中の図形の整列・分布）を置く（ビューのリセット・倍率・キャンバス名はステータスバー）。頻繁には使わない機能はパレットに分け、呼び出し口から開閉する。項目は`<div class="toolbar-group">`のまとまりごとに足し、既存のまとまりは変えない（`_doc/arch/01_index_html.md`）。
     *   **PaletteLauncher.js**：呼び出し口のボタンと開閉式パレットの対応づけと開閉。フロートウィンドウをまとめて隠している間の呼び出し口の規則も持つ。
         *   **公開メソッド**：なし（コンストラクタのみ）。
