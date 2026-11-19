@@ -247,3 +247,53 @@ describe('PathCornerRules planCornerToggle', () => {
         assert.notEqual(path.points[0].x, 999);
     });
 });
+
+/**
+ * 曲がり方を持つ区間の指定を作る。
+ * @param {number} x1 - 始点側の引っ張る点のx
+ * @param {number} y1 - 始点側の引っ張る点のy
+ * @param {number} x2 - 終点側の引っ張る点のx
+ * @param {number} y2 - 終点側の引っ張る点のy
+ * @returns {{kind: string, control1: {x: number, y: number}, control2: {x: number, y: number}}} 区間の指定
+ */
+function bezSpec(x1, y1, x2, y2) {
+    return { kind: 'bezier', control1: { x: x1, y: y1 }, control2: { x: x2, y: y2 } };
+}
+
+describe('PathCornerRules と曲がり方を持つ区間（Phase 09-03a）', () => {
+    /**
+     * 点0〜4の開いたパス。区間は [なめらか, なめらか, 曲がり方を持つ, 直線]。
+     * @returns {Path} パス（idは'b'）
+     */
+    function makeBezierPath() {
+        const pts = [{ x: 0, y: 0 }, { x: 30, y: 0 }, { x: 60, y: 30 }, { x: 90, y: 30 }, { x: 120, y: 0 }];
+        const path = new Path(pts, false, '#123456', 3, null,
+            [SEGMENT_KIND_SMOOTH, SEGMENT_KIND_SMOOTH, bezSpec(70, 30, 80, 30), SEGMENT_KIND_LINE]);
+        path.id = 'b';
+        return path;
+    }
+
+    it('曲がり方を持つ区間に接する点は LINE_CORNER、両側とも打った点の曲線の区間の点は SMOOTH', () => {
+        const path = makeBezierPath();
+        assert.equal(resolveCornerState(path, 1), CornerState.SMOOTH);
+        assert.equal(resolveCornerState(path, 2), CornerState.LINE_CORNER);
+        assert.equal(resolveCornerState(path, 3), CornerState.LINE_CORNER);
+    });
+
+    it('曲がり方を持つ区間に接する点だけを選ぶと押せず、チェックありの見た目', () => {
+        const path = makeBezierPath();
+        assert.deepEqual(
+            resolveCornerToggleView([{ shape: path, vertexIndex: 2 }]),
+            { enabled: false, checked: true, mixed: false },
+        );
+    });
+
+    it('ほかの点を切り替えても、曲がり方を持つ区間は引っ張る点ごと元のまま', () => {
+        const path = makeBezierPath();
+        const plan = planCornerToggle([{ shape: path, vertexIndex: 1 }]);
+        assert.equal(plan.length, 1);
+        assert.deepEqual(plan[0].path.corners, [false, true, false, false, false]);
+        assert.deepEqual(plan[0].path.toJSON().segments, path.toJSON().segments);
+        assert.deepEqual(plan[0].path.toJSON().segments[2], bezSpec(70, 30, 80, 30));
+    });
+});

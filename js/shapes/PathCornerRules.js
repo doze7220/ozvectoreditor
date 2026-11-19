@@ -14,7 +14,7 @@ export const CornerState = Object.freeze({
     CORNER: 'corner',
     /** なめらかな点（両側とも曲線の区間の点で、角を立てていない点） */
     SMOOTH: 'smooth',
-    /** 直線の角の点（片側でも直線の区間の、パスの点。実際に角が立っていて操作できない） */
+    /** 直線の角の点（片側でも打った点の曲線の区間でない（直線の区間・曲がり方を持つ区間）パスの点。実際に角が立っていて操作できない） */
     LINE_CORNER: 'lineCorner',
     /** 角の考えがない点（開いたパスの端の点・パス以外の図形の点・範囲外の番号） */
     NONE: 'none',
@@ -82,7 +82,7 @@ function cornerStateOfData(data, vertexIndex) {
 /**
  * 図形の点の角の状態を返す。判定の唯一の箇所。
  * パス以外の図形・範囲外や整数でない番号・開いたパスの端の点は`NONE`、
- * 両側とも曲線の区間なら角の情報で`CORNER`／`SMOOTH`、どちらかが直線の区間なら`LINE_CORNER`。
+ * 両側とも打った点の曲線の区間なら角の情報で`CORNER`／`SMOOTH`、どちらかが打った点の曲線の区間でない（直線の区間・曲がり方を持つ区間）なら`LINE_CORNER`。
  * @param {Object} shape - 図形
  * @param {number} vertexIndex - 頂点の番号
  * @returns {string} `CornerState`の値
@@ -134,7 +134,7 @@ export function resolveCornerToggleView(targets) {
  * 次の値は、`resolveCornerToggleView(targets)`が押せなければ計画なし（空配列）、チェックありなら`false`（すべてなめらか）、
  * そうでなければ`true`（すべて角。`mixed`も角になる）。角を操作できる点（`CORNER`・`SMOOTH`）の番号だけを次の値にし、
  * 直線の角の点・角の考えがない点は変えない。図形ごと（`targets`に最初に現れた順。同じ図形インスタンスは1つにまとめる）に、
- * 角の状態が1つでも変わる図形だけを結果に入れる。新しいパスは頂点・閉じているか・区間の種類・スタイルを元のままにし、idは`null`。
+ * 角の状態が1つでも変わる図形だけを結果に入れる。新しいパスは頂点・閉じているか・区間（曲がり方を持つ区間の引っ張る点を含む）・スタイルを元のままにし、idは`null`。
  * 結果は引数と配列・頂点を共有せず、引数を書き換えない。同じ点が2回あっても結果は変わらない。
  * @param {CornerTarget[]} targets - 選んだ点（0件可）
  * @returns {CornerTogglePlanItem[]} 角の状態が変わる図形ごとの計画（変わる図形が無ければ空配列）
@@ -178,7 +178,7 @@ export function planCornerToggle(targets) {
             data.strokeColor,
             data.strokeWidth,
             data.fillColor,
-            data.segments.map((s) => s.kind),
+            data.segments,
             newCorners,
         );
         plan.push({ targetId: shape.id, path });

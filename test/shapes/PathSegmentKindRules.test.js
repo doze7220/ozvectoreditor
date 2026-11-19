@@ -420,3 +420,58 @@ describe('planSegmentKindSwitch 共通', () => {
         assert.equal(q.points[0].x, 0);
     });
 });
+
+describe('PathSegmentKindRules と曲がり方を持つ区間（Phase 09-03a）', () => {
+    const COORDS = [[0, 0], [30, 0], [60, 30], [90, 30]];
+    const BEZ = { kind: 'bezier', control1: { x: 40, y: 0 }, control2: { x: 50, y: 30 } };
+
+    /**
+     * 区間は [直線, 曲がり方を持つ区間, 直線]の開いたパスを作る。
+     * @returns {Path} パス（idは'p1'）
+     */
+    function makeBezierPath() {
+        return makePath(COORDS, false, ['line', BEZ, 'line']);
+    }
+
+    it('曲がり方を持つ区間の両端を選ぶと「直線に」だけ押せる', () => {
+        const p = makeBezierPath();
+        assert.deepEqual(resolveSegmentSwitchAvailability(pick(p, [1, 2])), { toLine: true, toCurve: false });
+    });
+
+    it('「直線に」で曲がり方を持つ区間が直線になり、点の数・corners は変わらない', () => {
+        const p = makeBezierPath();
+        const plan = planSegmentKindSwitch(pick(p, [1, 2]), SegmentKindSwitch.TO_LINE);
+        assert.equal(plan.length, 1);
+        const data = plan[0].shape.toJSON();
+        assert.deepEqual(data.segments[1], { kind: 'line' });
+        assert.equal(data.points.length, 4);
+        assert.deepEqual(plan[0].shape.corners, p.corners);
+        assert.deepEqual(plan[0].vertexIndexMap, [0, 1, 2, 3]);
+    });
+
+    it('「曲線に」は曲がり方を持つ区間だけを選んだとき空配列', () => {
+        const p = makeBezierPath();
+        assert.deepEqual(planSegmentKindSwitch(pick(p, [1, 2]), SegmentKindSwitch.TO_CURVE), []);
+    });
+
+    it('隣の直線の区間を「曲線に」しても、曲がり方を持つ区間の引っ張る点は変わらない', () => {
+        const p = makePath(COORDS, false, ['line', BEZ, 'line'], [false, false, true, false]);
+        const plan = planSegmentKindSwitch(pick(p, [0, 1]), SegmentKindSwitch.TO_CURVE);
+        const data = plan[0].shape.toJSON();
+        assert.equal(data.points.length, 5);
+        assert.deepEqual(data.segments[2], BEZ);
+        const el = plan[0].shape.toDrawElement();
+        assertThirds(el.segments[0], { x: 0, y: 0 }, { x: 15, y: 0 });
+        assertThirds(el.segments[1], { x: 15, y: 0 }, { x: 30, y: 0 });
+        assertSameControls(el.segments[2], p.toDrawElement().segments[1]);
+        assert.deepEqual(plan[0].shape.corners, [false, false, false, true, false]);
+    });
+
+    it('別の打った点の曲線の区間を「直線に」しても、曲がり方を持つ区間が残る', () => {
+        const p = makePath([[0, 0], [30, 0], [60, 30], [90, 30], [120, 0]], false, ['smooth', BEZ, 'line', 'line']);
+        const plan = planSegmentKindSwitch(pick(p, [0, 1]), SegmentKindSwitch.TO_LINE);
+        const data = plan[0].shape.toJSON();
+        assert.deepEqual(data.segments[0], { kind: 'line' });
+        assert.deepEqual(data.segments[1], BEZ);
+    });
+});

@@ -224,7 +224,7 @@
         *   テストは書き換え1.〜11.（「2. 要件F」の一覧どおり。題名の直しを含む。10.・11.は`edit/`のテストだが、本タスクの`isJoinableLine`・`classifyJoin`の変更で期待値が変わるため本タスクで行う）と(F-2)・(F-3)を行う。`edit/`の2つのテストファイルは書き換え10.・11.だけを行い、(F-6)・(F-7)の追加はタスク4で行う。一覧にない既存のケースは変えない。一覧にない既存のケースが落ちたら直さずに中断して報告する。
         *   JSDocの記載漏れが無いことを確かめる。`node --test`が全件通ることを確かめる。
         *   完了後、本RESの「4. 詳細作業内容」のタスク2に作業内容を記載する。開発資料に影響があれば「開発資料の更新予定」へ追記する。
-*   [ ] タスク3: 要件D 角・区間の切り替えで曲がり方を保つ（`shapes/PathCornerRules`・`shapes/PathSegmentKindRules`）
+*   [x] タスク3: 要件D 角・区間の切り替えで曲がり方を保つ（`shapes/PathCornerRules`・`shapes/PathSegmentKindRules`）
     *   **対象ファイル** :
         *   `./js/shapes/PathCornerRules.js` : 更新（`planCornerToggle`の`new Path`の第6引数を`data.segments`にする1か所と、`CornerState.LINE_CORNER`・`cornerStateOfData`・`resolveCornerState`・`planCornerToggle`のJSDocのみ）
         *   `./js/shapes/PathSegmentKindRules.js` : 更新（importへの`segmentSpecsOf`の追加、`changedSegmentIndexes`・`buildCurvedPath`・`buildStraightenedPath`の変更とJSDocのみ）
@@ -303,7 +303,12 @@
 
 ### タスク3: 要件D 角・区間の切り替えで曲がり方を保つ（`shapes/PathCornerRules`・`shapes/PathSegmentKindRules`）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/shapes/PathCornerRules.js`：`planCornerToggle`の`new Path`の第6引数を`data.segments`に変更。`CornerState.LINE_CORNER`・`resolveCornerState`・`planCornerToggle`のJSDocを実態に合わせた（`cornerStateOfData`のコードは不変）。
+    *   `js/shapes/PathSegmentKindRules.js`：importに`segmentSpecsOf`を追加。`changedSegmentIndexes`の「直線に」を`kinds[i] !== SEGMENT_KIND_LINE`に（「曲線に」は`=== SEGMENT_KIND_LINE`のまま）。`buildCurvedPath`・`buildStraightenedPath`は区間の並びを`segmentSpecsOf(data)`で読む。3関数のJSDocを更新。`collectSwitchEntries`・`buildLineFromCurve`ほかは不変。
+    *   テスト：`PathCornerRules.test.js`に(F-4)、`PathSegmentKindRules.test.js`に(F-5)の`describe`を追加（既存ケースは不変）。
+    *   diff監査の軽微2件を修正：`buildCurvedPath`のJSDocに「曲がり方を持つ区間に接する点は元の値のまま」を追記。F-5の「隣の直線の区間を曲線に」のケースは、曲がり方を持つ区間に接する点の元の値を`false`にし（`[false, false, true, false]`）、期待を`[false, false, false, true, false]`として、その点の角の情報が元のまま残ることを見分けられるようにした。コードのふるまいは不変。
+    *   `node --test`：tests 1981 / suites 319 / pass 1981 / fail 0。
+    *   開発資料への影響：「開発資料の更新予定」の既存記載の範囲内。追加の更新予定なし。
 
 ### タスク4: 要件E 手順の層の確認とテスト（`edit/PathJoiner`のJSDoc・`edit/`のテスト）
 *   **作業内容** :

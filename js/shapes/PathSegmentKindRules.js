@@ -4,7 +4,7 @@
  */
 import { Path, SEGMENT_KIND_LINE, SEGMENT_KIND_SMOOTH, readCornerFlags } from './Path.js';
 import { Line } from './Line.js';
-import { segmentKindsOf } from './PathJoinRules.js';
+import { segmentKindsOf, segmentSpecsOf } from './PathJoinRules.js';
 import { resolveCornerState, CornerState } from './PathCornerRules.js';
 
 /**
@@ -104,7 +104,7 @@ function collectSwitchEntries(targets, cache) {
 
 /**
  * 操作で変わる区間の番号を決める。変わる区間の決め方の唯一の箇所（押せるかと押したときの結果が共有する）。
- * 区間を持つ線は、「曲線に」なら直線の区間、「直線に」なら曲線の区間。今の曲線は「直線に」なら切り替える区間そのまま、「曲線に」は空（何もしない）。
+ * 区間を持つ線は、「曲線に」なら直線の区間、「直線に」なら直線の区間でない区間（打った点の曲線の区間と曲がり方を持つ区間。曲がり方を持つ区間は「曲線に」では変わらない）。今の曲線は「直線に」なら切り替える区間そのまま、「曲線に」は空（何もしない）。
  * @param {SwitchEntry} entry - 図形ごとの切り替える区間
  * @param {string} operation - `SegmentKindSwitch`の値
  * @returns {number[]} 変わる区間の番号（昇順）
@@ -114,8 +114,10 @@ function changedSegmentIndexes(entry, operation) {
         return operation === SegmentKindSwitch.TO_LINE ? entry.segmentIndexes.slice() : [];
     }
     const kinds = segmentKindsOf(entry.data);
-    const from = operation === SegmentKindSwitch.TO_CURVE ? SEGMENT_KIND_LINE : SEGMENT_KIND_SMOOTH;
-    return entry.segmentIndexes.filter((i) => kinds[i] === from);
+    if (operation === SegmentKindSwitch.TO_CURVE) {
+        return entry.segmentIndexes.filter((i) => kinds[i] === SEGMENT_KIND_LINE);
+    }
+    return entry.segmentIndexes.filter((i) => kinds[i] !== SEGMENT_KIND_LINE);
 }
 
 /**
@@ -130,10 +132,11 @@ function midpoint(a, b) {
 
 /**
  * 「曲線に」で、変わる区間の中点に点を足した新しいパスを組み立てる。頂点・区間の種類・角の情報を一緒に並べる唯一の箇所。
- * 元の頂点を順に並べ、区間があれば続けて区間を並べる。変わる区間は「`'smooth'` → 足した点（両端の中点。なめらかな点）→ `'smooth'`」、そうでなければ元の種類のまま。
+ * 元の頂点を順に並べ、区間があれば続けて区間を並べる。変わる区間は「`'smooth'` → 足した点（両端の中点。なめらかな点）→ `'smooth'`」、
+ * そうでなければ元の区間の指定のまま（曲がり方を持つ区間は引っ張る点ごと残る。区間の指定は`segmentSpecsOf`で読む）。
  * このため足した点は区間の始点の直後に入り、閉じたパスの終点→始点の区間に足した点は末尾に置かれる。
  * 変わる区間の両端の点は、いったん元の角の情報で作った仮のパスで`resolveCornerState`が`CORNER`か`SMOOTH`（切り替えの後に角を操作できる点）なら角の点にする
- * （隣の曲線の区間の形を変えないため）。それ以外（片側がまだ直線の区間の点・端の点）は元の値のまま。
+ * （隣の曲線の区間の形を変えないため）。それ以外（片側がまだ直線の区間の点・曲がり方を持つ区間に接する点・端の点）は元の値のまま。
  * 直線の区間の中点`M`に足すと、2つの区間の制御点が区間の1/3・2/3の位置に乗り、直線と同じ形になる。単独の直線は点3つの開いたパスになる。
  * @param {Object} data - 区間を持つ線（パスか単独の直線）の`toJSON()`の値
  * @param {number[]} changedIndexes - 変わる区間の番号
@@ -141,7 +144,7 @@ function midpoint(a, b) {
  */
 function buildCurvedPath(data, changedIndexes) {
     const points = data.points;
-    const kinds = segmentKindsOf(data);
+    const kinds = segmentSpecsOf(data);
     const corners = readCornerFlags(data);
     const n = points.length;
     const closed = data.closed === true;
@@ -177,14 +180,15 @@ function buildCurvedPath(data, changedIndexes) {
 }
 
 /**
- * 「直線に」（パス）で、変わる区間だけ`'line'`にした新しいパスを組み立てる。点は足さない・消さない。
+ * 「直線に」（パス）で、変わる区間（打った点の曲線の区間・曲がり方を持つ区間）だけ`'line'`にした新しいパスを組み立てる。点は足さない・消さない。
+ * 変わらない曲がり方を持つ区間は引っ張る点ごと残り、変わる曲がり方を持つ区間の引っ張る点は捨てる（区間の指定は`segmentSpecsOf`で読む）。
  * 頂点・閉じているか・スタイル・角の情報は元のまま（両端の点は片側が直線の区間になり角を操作できない点になるため、形に効かない）。
  * @param {Object} data - パスの`toJSON()`の値
  * @param {number[]} changedIndexes - 変わる区間の番号
  * @returns {{shape: Path, vertexIndexMap: number[]}} 新しいパス（idは`null`）と恒等の対応
  */
 function buildStraightenedPath(data, changedIndexes) {
-    const kinds = segmentKindsOf(data);
+    const kinds = segmentSpecsOf(data);
     for (const i of changedIndexes) kinds[i] = SEGMENT_KIND_LINE;
     const shape = new Path(data.points, data.closed === true, data.strokeColor, data.strokeWidth, data.fillColor, kinds, readCornerFlags(data));
     return { shape, vertexIndexMap: data.points.map((_, i) => i) };
