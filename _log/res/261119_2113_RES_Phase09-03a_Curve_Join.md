@@ -235,7 +235,7 @@
         *   変えた関数・値のJSDocを実態に合わせる（名前・値は変えない）。
         *   (F-4)・(F-5)のテストを足す（既存のケースは変えない）。JSDocの記載漏れが無いことを確かめる。`node --test`が全件通ることを確かめる。
         *   完了後、本RESの「4. 詳細作業内容」のタスク3に作業内容を記載する。開発資料に影響があれば「開発資料の更新予定」へ追記する。
-*   [ ] タスク4: 要件E 手順の層の確認とテスト（`edit/PathJoiner`のJSDoc・`edit/`のテスト）
+*   [x] タスク4: 要件E 手順の層の確認とテスト（`edit/PathJoiner`のJSDoc・`edit/`のテスト）
     *   **対象ファイル** :
         *   `./js/edit/PathJoiner.js` : 更新（ファイル先頭の責務定義の括弧書き「直線・開いたパス」を「直線・開いたパス・今の曲線」に直すのみ。コード・ほかのJSDocは変えない）
         *   `./test/edit/PathJoiner.test.js` : 更新（(F-6)のテストの追加のみ。書き換え10.はタスク2で済ませる）
@@ -312,7 +312,12 @@
 
 ### タスク4: 要件E 手順の層の確認とテスト（`edit/PathJoiner`のJSDoc・`edit/`のテスト）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/edit/PathJoiner.js`：ファイル先頭の責務定義の括弧書きを「直線・開いたパス・今の曲線」に直した（3行以内のまま。コード・ほかのJSDocは不変）。
+    *   経路の確認：`PathJoiner`は`classifyJoin`・`planJoin`の結果に従うだけ、`EndpointSnapper`は規則の結果に従うだけで、図形種別の分岐を持たないことをコードで確かめた。`js/edit/`（責務定義を除く）・`js/core/`・`js/io/`・`js/main.js`のコード変更は不要だった。
+    *   `test/edit/PathJoiner.test.js`：(F-6)として、偽物の依存で今の曲線と直線の`canJoin`真・`join`の`replaceShape`の図形の区間が`['bezier','line']`のテストと、実物の組み合わせで結合 → 取り消し1回で元の今の曲線（`type:'curve'`・`points`同じ）と直線 → やり直しで結合後のテストを追加。
+    *   `test/edit/EndpointSnapper.test.js`：(F-7)として、今の曲線の端点を直線の端点へドラッグした`joinDraggedEndpoint`が`replaceShape`（`select:true`）を呼び区間に`'bezier'`を含むテストと、`commitDrawnLine`で描き始めが今の曲線の端点のとき`keepId:true`で今の曲線のidを保つテストを追加。
+    *   `node --test`：tests 1985 / suites 319 / pass 1985 / fail 0。
+    *   開発資料への影響：「開発資料の更新予定」の既存記載の範囲内。追加の更新予定なし。
 
 ### タスク5: 要件A・E 保存・書き出しのテスト（`io/`。コードは変えない）
 *   **作業内容** :

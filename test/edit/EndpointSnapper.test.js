@@ -1080,3 +1080,32 @@ test('実物の組み合わせ（曲線のパスの端点のドラッグ）: 頂
     assert.equal(shapes[0].points.length, 3);
     assert.deepEqual(shapes[0].segments, shapes[0].points.map(() => ({ kind: 'smooth' })));
 });
+
+test('joinDraggedEndpoint（今の曲線の端点のドラッグ。Phase 09-03a）: 曲がり方を持つ区間を含むパスでreplaceShape（select:true）を呼ぶ', () => {
+    const k = makeCurve('k');
+    const b = makeLine('b', 20, 0, 30, 0);
+    k.setVertex(2, 20, 0);
+    const { snapper, calls } = setupFake([k, b], null, 5);
+    assert.equal(snapper.resolveDragEndpoint('k', 'end'), 'end');
+    assert.equal(
+        snapper.joinDraggedEndpoint({ shapeId: 'k', end: 'end' }, { shapeId: 'b', end: 'start', x: 20, y: 0 }),
+        true
+    );
+    assert.deepEqual(calls.map((c) => c[0]), ['replaceShape']);
+    const [, targetId, path, options] = calls[0];
+    assert.equal(targetId, 'k');
+    assert.deepEqual(options, { keepId: false, removeIds: ['b'], select: true });
+    assert.equal(path.toJSON().segments.some((s) => s.kind === 'bezier'), true);
+});
+
+test('commitDrawnLine（描き始めが今の曲線の端点。Phase 09-03a）: 今の曲線のidを保つ（keepId:true）', () => {
+    const k = makeCurve('k');
+    const draft = makeLine(null, 10, 10, 50, 10);
+    const { snapper, calls } = setupFake([k], draft, 5);
+    assert.equal(snapper.commitDrawnLine({ shapeId: 'k', end: 'end' }, null), true);
+    assert.deepEqual(calls.map((c) => c[0]), ['cancelDraft', 'beginEdit', 'replaceShape', 'commitEdit']);
+    const [, targetId, path, options] = calls[2];
+    assert.equal(targetId, 'k');
+    assert.deepEqual(options, { keepId: true, removeIds: [], select: false });
+    assert.deepEqual(path.toJSON().segments.map((s) => s.kind), ['bezier', 'line']);
+});

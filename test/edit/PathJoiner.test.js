@@ -385,3 +385,39 @@ test('join（区間の種類を保つ。Phase 09-01b）: 両端が重なる曲�
     assert.equal(json.points.length, 4);
     assert.deepEqual(json.segments.map((s) => s.kind), ['smooth', 'smooth', 'smooth', 'smooth']);
 });
+
+test('canJoin・join（今の曲線を含む選択。Phase 09-03a）: 偽物の依存で今の曲線と直線の結合ができ、置き換える図形に曲がり方を持つ区間がある', () => {
+    const k = makeCurve('k');
+    const a = makeLine('a', 10, 10, 30, 10);
+    const { joiner, calls } = setupFake([k, a], ['k', 'a'], { tolerance: 5 });
+    assert.equal(joiner.canJoin(), true);
+    assert.deepEqual(calls, []);
+    assert.equal(joiner.join(), true);
+    assert.deepEqual(calls.map((c) => c[0]), ['beginEdit', 'replaceShape', 'commitEdit']);
+    const [, , joined] = calls[1];
+    assert.equal(joined.toJSON().closed, false);
+    assert.equal(kindsOf(joined).includes('bezier'), true);
+    assert.deepEqual(kindsOf(joined), ['bezier', 'line']);
+});
+
+test('join（今の曲線を含む選択。Phase 09-03a）: 実物の組み合わせで今の曲線と直線を結合 → 取り消し1回で元の今の曲線と直線 → やり直しで結合後', () => {
+    const k = makeCurve('k');
+    const a = makeLine('a', 10, 10, 30, 10);
+    const { model, history, joiner } = setupReal([k, a]);
+    model.setSelection(['k', 'a']);
+    const original = dump(model);
+    assert.equal(joiner.join(), true);
+    const joined = dump(model);
+    assert.equal(joined.length, 1);
+    assert.equal(joined[0].type, 'path');
+    assert.equal(joined[0].segments.some((s) => s.kind === 'bezier'), true);
+    assert.equal(history.undo(), true);
+    const restored = dump(model);
+    assert.deepEqual(restored, original);
+    assert.equal(restored[0].type, 'curve');
+    assert.deepEqual(restored[0].points, [{ x: 0, y: 0 }, { x: 5, y: 5 }, { x: 10, y: 10 }]);
+    assert.equal(history.canUndo(), false);
+    assert.equal(history.redo(), true);
+    assert.deepEqual(dump(model), joined);
+    assert.equal(history.canRedo(), false);
+});
