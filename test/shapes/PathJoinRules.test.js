@@ -1646,3 +1646,126 @@ describe('PathJoinRules 区間の種類を保つ組み立て（Phase 09-01b）',
         });
     });
 });
+
+describe('planDrawnLineJoin・planEndpointDragJoin の区間の種類（Phase 09-01b）', () => {
+    const TOLERANCE = 1;
+
+    /**
+     * 曲線のツールの作成途中の線（全区間`'smooth'`の開いたパス）を作る。
+     * @param {number[][]} coords - [x, y] の並び（2つ以上）
+     * @returns {Path} 作成途中の線
+     */
+    function makeSmoothDrawn(coords) {
+        return makeKindPath(coords, 'smooth');
+    }
+
+    /**
+     * 全区間`'line'`で頂点3つの開いたパス（idつき）を作る。
+     * @param {string} id - 付ける id
+     * @param {number[][]} coords - [x, y] の並び（3つ）
+     * @param {string} kind - 全区間の種類
+     * @returns {Path} パス
+     */
+    function makeTarget(id, coords, kind) {
+        return withId(makeKindPath(coords, kind), id);
+    }
+
+    it('曲線のツール：描き始めだけ吸い付くと、足した区間がすべて smooth で元の区間はそのまま・keepId', () => {
+        const target = makeTarget('T', [[0, 0], [10, 0], [20, 0]], 'line');
+        const drawn = makeSmoothDrawn([[20, 0], [30, 10], [40, 0], [50, 10]]);
+        const plan = planDrawnLineJoin([target], drawn, ref('T', 'end'), null, TOLERANCE);
+        assert.equal(plan.keepId, true);
+        assert.equal(plan.targetId, 'T');
+        assert.deepEqual(kindsOf(plan.path), ['line', 'line', 'smooth', 'smooth', 'smooth']);
+    });
+
+    it('曲線のツール：描き終えだけ吸い付くと、逆順に足した区間がすべて smooth', () => {
+        const target = makeTarget('T', [[0, 0], [10, 0], [20, 0]], 'line');
+        const drawn = makeSmoothDrawn([[50, 10], [40, 0], [30, 10], [20, 0]]);
+        const plan = planDrawnLineJoin([target], drawn, null, ref('T', 'end'), TOLERANCE);
+        assert.equal(plan.keepId, true);
+        assert.deepEqual(kindsOf(plan.path), ['line', 'line', 'smooth', 'smooth', 'smooth']);
+    });
+
+    it('曲線のツール：同じ線の両端（途中の点なし）は閉じる区間が smooth', () => {
+        const target = makeTarget('T', [[0, 0], [20, 0], [20, 20]], 'line');
+        const drawn = makeSmoothDrawn([[0, 0], [20, 20]]);
+        const plan = planDrawnLineJoin([target], drawn, ref('T', 'start'), ref('T', 'end'), TOLERANCE);
+        assert.equal(plan.path.toJSON().closed, true);
+        assert.equal(plan.keepId, true);
+        assert.deepEqual(kindsOf(plan.path), ['line', 'line', 'smooth']);
+    });
+
+    it('曲線のツール：同じ線の両端（途中の点あり）は足した区間と閉じる区間が smooth', () => {
+        const target = makeTarget('T', [[0, 0], [20, 0], [20, 20]], 'line');
+        const drawn = makeSmoothDrawn([[0, 0], [-10, 10], [20, 20]]);
+        const plan = planDrawnLineJoin([target], drawn, ref('T', 'start'), ref('T', 'end'), TOLERANCE);
+        assert.equal(plan.path.toJSON().closed, true);
+        assert.equal(plan.keepId, true);
+        // 始点側へ足すため、足した区間が先頭、元の2区間、最後が閉じる区間
+        assert.deepEqual(kindsOf(plan.path), ['smooth', 'line', 'line', 'smooth']);
+    });
+
+    it('曲線のツール：別の線の両端（途中の点なし・離れている）は間を埋める区間が smooth', () => {
+        const a = makeTarget('A', [[0, 0], [10, 0], [20, 0]], 'line');
+        const b = makeTarget('B', [[100, 0], [110, 0], [120, 0]], 'line');
+        const drawn = makeSmoothDrawn([[20, 0], [100, 0]]);
+        const plan = planDrawnLineJoin([a, b], drawn, ref('A', 'end'), ref('B', 'start'), TOLERANCE);
+        assert.equal(plan.keepId, false);
+        assert.deepEqual(plan.removeIds, ['B']);
+        assert.deepEqual(kindsOf(plan.path), ['line', 'line', 'smooth', 'line', 'line']);
+    });
+
+    it('曲線のツール：別の線の両端（途中の点あり）は途中の区間と最後の間を埋める区間が smooth', () => {
+        const a = makeTarget('A', [[0, 0], [10, 0], [20, 0]], 'line');
+        const b = makeTarget('B', [[100, 0], [110, 0], [120, 0]], 'line');
+        const drawn = makeSmoothDrawn([[20, 0], [50, 30], [100, 0]]);
+        const plan = planDrawnLineJoin([a, b], drawn, ref('A', 'end'), ref('B', 'start'), TOLERANCE);
+        assert.deepEqual(kindsOf(plan.path), ['line', 'line', 'smooth', 'smooth', 'line', 'line']);
+    });
+
+    it('直線のツール（Line）：相手が曲線のパスでも足す区間は line で、曲線のパスの区間はそのまま', () => {
+        const target = makeTarget('T', [[0, 0], [10, 0], [20, 0]], 'smooth');
+        const drawn = new Line(20, 0, 40, 0, '#112233', 5, '#445566');
+        const plan = planDrawnLineJoin([target], drawn, ref('T', 'end'), null, TOLERANCE);
+        assert.deepEqual(kindsOf(plan.path), ['smooth', 'smooth', 'line']);
+    });
+
+    it('直線のツール（直線の区間だけのパス）：曲線のパスどうしの結合で間を埋める区間は line', () => {
+        const a = makeTarget('A', [[0, 0], [10, 0], [20, 0]], 'smooth');
+        const b = makeTarget('B', [[100, 0], [110, 0], [120, 0]], 'smooth');
+        const drawn = makeKindPath([[20, 0], [50, 30], [100, 0]], 'line');
+        const plan = planDrawnLineJoin([a, b], drawn, ref('A', 'end'), ref('B', 'start'), TOLERANCE);
+        assert.deepEqual(kindsOf(plan.path), ['smooth', 'smooth', 'line', 'line', 'smooth', 'smooth']);
+    });
+
+    it('第6引数 drawnKindSource：drawn が点2つの Line でも、作成途中の線の区間の種類（smooth）で描き足す', () => {
+        const target = makeTarget('T', [[0, 0], [10, 0], [20, 0]], 'line');
+        const drawn = new Line(20, 0, 40, 0, '#112233', 5, '#445566');
+        const source = makeSmoothDrawn([[20, 0], [30, 10], [40, 0]]);
+        const plan = planDrawnLineJoin([target], drawn, ref('T', 'end'), null, TOLERANCE, source);
+        assert.deepEqual(kindsOf(plan.path), ['line', 'line', 'smooth']);
+    });
+
+    it('第6引数を省くと drawn（Line）から読み line', () => {
+        const target = makeTarget('T', [[0, 0], [10, 0], [20, 0]], 'smooth');
+        const drawn = new Line(20, 0, 40, 0, '#112233', 5, '#445566');
+        const plan = planDrawnLineJoin([target], drawn, ref('T', 'end'), null, TOLERANCE);
+        assert.deepEqual(kindsOf(plan.path), ['smooth', 'smooth', 'line']);
+    });
+
+    it('planEndpointDragJoin：両端が重なる曲線のパスを閉じると元の区間の種類を保つ', () => {
+        const target = makeTarget('T', [[0, 0], [20, 0], [20, 20], [0, 0]], 'smooth');
+        const plan = planEndpointDragJoin([target], ref('T', 'end'), ref('T', 'start'), TOLERANCE);
+        assert.equal(plan.keepId, true);
+        assert.deepEqual(kindsOf(plan.path), ['smooth', 'smooth', 'smooth']);
+    });
+
+    it('planEndpointDragJoin：端点が重なる曲線のパスどうしの結合は間を埋める区間なしで種類を保つ', () => {
+        const a = makeTarget('A', [[0, 0], [10, 0], [20, 0]], 'smooth');
+        const b = makeTarget('B', [[20, 0], [30, 0], [40, 0]], 'smooth');
+        const plan = planEndpointDragJoin([a, b], ref('B', 'start'), ref('A', 'end'), TOLERANCE);
+        assert.equal(plan.keepId, false);
+        assert.deepEqual(kindsOf(plan.path), ['smooth', 'smooth', 'smooth', 'smooth']);
+    });
+});
