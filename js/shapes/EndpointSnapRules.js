@@ -50,7 +50,7 @@ export function isSnapDrawShapeType(shapeType) {
 /**
  * ハンドルが結合できる線の端点のハンドルか。
  * 「頂点の番号`i`＝図形データの`points[i]`」に依る：`getVertexIndexForHandle`の番号が0なら始点、`points.length - 1`なら終点。
- * 途中の頂点・番号のないハンドル（直線の`'move'`など）・結合できない線（今の曲線・矩形・円・弧・閉じたパス）はnull。結合できる線は直線・開いたパス（曲線のパスを含む）。図形を書き換えない。
+ * 途中の頂点・番号のないハンドル（直線の`'move'`など）・結合できない線（矩形・円・弧・閉じたパス）はnull。結合できる線は直線・開いたパス（曲線のパスを含む）・今の曲線（始点・終点が端点。制御点は端点でないためnull）。図形を書き換えない。
  * @param {Object} shape 図形（`type`・`toJSON()`・`getVertexIndexForHandle`を持つ）
  * @param {*} handleName ハンドル名
  * @returns {'start'|'end'|null} 端点のハンドルなら'start'/'end'、それ以外はnull
@@ -66,7 +66,7 @@ export function resolveEndpointHandle(shape, handleName) {
 
 /**
  * 吸い付く端点を1つ選ぶ。
- * 対象は`shapes`のうち結合できる線（直線・開いたパス。曲線のパスを含む）の始点・終点だけ。距離は`Math.hypot`が`tolerance`以下（ちょうどを含む）。
+ * 対象は`shapes`のうち結合できる線（直線・開いたパス（曲線のパスを含む）・今の曲線）の始点・終点だけ（今の曲線の制御点は対象にならない）。距離は`Math.hypot`が`tolerance`以下（ちょうどを含む）。
  * 図形を`shapes`の末尾（前面）から先頭へ、各図形は始点→終点の順に調べ、距離が厳密に小さいときだけ更新する
  * （いちばん近い端点／同距離なら前面の図形／同じ図形の始点と終点が同距離なら始点）。
  * `dragged`を渡したとき、`dragged.shapeId`の図形では`dragged.end`の端点を対象にせず、もう一方の端点は

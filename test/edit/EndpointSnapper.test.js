@@ -149,7 +149,7 @@ test('findDrawSnap: 呼び出しのたびに換算する', () => {
     assert.deepEqual(lengths, [8, 8]);
 });
 
-test('resolveDragEndpoint: 端点のハンドルは start/end、途中の頂点・moveは null、無いid・曲線は null', () => {
+test('resolveDragEndpoint: 端点のハンドルは start/end、途中の頂点・moveは null、無いid・今の曲線の制御点は null（始点・終点は端点）', () => {
     const line = makeLine('l', 0, 0, 10, 0);
     const path = makePath('p', [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }]);
     const curve = makeCurve('k');
@@ -160,7 +160,9 @@ test('resolveDragEndpoint: 端点のハンドルは start/end、途中の頂点�
     assert.equal(snapper.resolveDragEndpoint('p', 'vertex-0'), 'start');
     assert.equal(snapper.resolveDragEndpoint('p', 'vertex-1'), null);
     assert.equal(snapper.resolveDragEndpoint('p', 'vertex-2'), 'end');
-    assert.equal(snapper.resolveDragEndpoint('k', 'start'), null);
+    assert.equal(snapper.resolveDragEndpoint('k', 'start'), 'start');
+    assert.equal(snapper.resolveDragEndpoint('k', 'end'), 'end');
+    assert.equal(snapper.resolveDragEndpoint('k', 'control'), null);
     assert.equal(snapper.resolveDragEndpoint('none', 'start'), null);
     assert.deepEqual(calls, []);
     assert.deepEqual(lengths, []);

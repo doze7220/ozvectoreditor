@@ -210,7 +210,7 @@
         *   足した定数・typedef・関数・メソッド、変えた引数・フィールド（`segments`の型）・`@throws`にJSDocを書く。ファイル先頭の責務定義は3行以内。
         *   (F-1)のテストを足す（既存のケースは変えない）。JSDocの記載漏れが無いことを確かめる。`node --test`が全件通ることを確かめる。
         *   完了後、本RESの「4. 詳細作業内容」のタスク1に作業内容を記載する。開発資料に影響があれば「開発資料の更新予定」へ追記する（資料本体は直さない）。
-*   [ ] タスク2: 要件B・要件C 今の曲線を結合できる線にする（`shapes/PathJoinRules`・`shapes/EndpointSnapRules`）
+*   [x] タスク2: 要件B・要件C 今の曲線を結合できる線にする（`shapes/PathJoinRules`・`shapes/EndpointSnapRules`）
     *   **対象ファイル** :
         *   `./js/shapes/PathJoinRules.js` : 更新（importへの`SEGMENT_KIND_BEZIER`の追加、`isJoinableLine`・`classifyJoin`・`chainOf`・`reverseChain`の変更、`segmentSpecsOf`・`chainSourceOf`・`reverseSegmentSpec`の追加、ファイル先頭の責務定義・typedef`SegmentChain`・関係するJSDocの更新のみ）
         *   `./js/shapes/EndpointSnapRules.js` : 更新（`resolveEndpointHandle`・`findSnapTarget`のJSDocのみ。コードは変えない）
@@ -294,7 +294,12 @@
 
 ### タスク2: 要件B・要件C 今の曲線を結合できる線にする（`shapes/PathJoinRules`・`shapes/EndpointSnapRules`）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/shapes/PathJoinRules.js`：importに`SEGMENT_KIND_BEZIER`を追加。`isJoinableLine`を`isDrawnLineShape(shape) || shape.type === 'curve'`に、`classifyJoin`の2本の`typeOk`に`'curve'`を追加。非公開`chainSourceOf`（今の曲線→開いたパス。2次→3次の式は`s + (c - s) * 2 / 3`の1か所）・公開`segmentSpecsOf`・非公開`reverseSegmentSpec`を追加。`chainOf`は`chainSourceOf`→`segmentSpecsOf`、`reverseChain`は`.map(reverseSegmentSpec)`に変更。typedef`SegmentChain`・責務定義（3行）・関係するJSDocを更新。`isDrawnLineShape`・`segmentKindsOf`・組み立て／計画の関数のコードは不変。
+    *   `js/shapes/EndpointSnapRules.js`：`resolveEndpointHandle`・`findSnapTarget`のJSDocのみ（コード不変）。
+    *   テスト：書き換え1.〜11.を実施（`PathJoinRules.test.js` 1〜7＋補助`JOIN_REJECTED_KINDS`、`EndpointSnapRules.test.js` 8・9、`PathJoiner.test.js` 10、`EndpointSnapper.test.js` 11）。(F-2)・(F-3)の`describe`を追加（`PathJoinRules.test.js`に補助`makeCurve`・`idOf`・`makeSpecPath`）。
+    *   監査の指摘の修正：`segmentKindsOf`のJSDocの「使う側」に`segmentSpecsOf`・`drawnSegmentKind`を記載（ファイル内の呼び出し箇所を確認。コード不変）。(F-2)に「今の曲線＋開いた直線のパス」のケースを追加、「今の曲線＋開いたパス」のケースで打った点の曲線の区間の`toDrawElement()`の制御点が結合の前と同じことも確認、スタイルのケースに塗りの確認を追加（テストの補助`makeCurve`・`makeLine`に塗りの引数を追加）。
+    *   `node --test`：tests 1973 / suites 317 / pass 1973 / fail 0。一覧外で落ちた既存ケースなし。
+    *   開発資料への影響：「開発資料の更新予定」の既存記載の範囲内。追加の更新予定なし。
 
 ### タスク3: 要件D 角・区間の切り替えで曲がり方を保つ（`shapes/PathCornerRules`・`shapes/PathSegmentKindRules`）
 *   **作業内容** :
@@ -324,4 +329,5 @@
 * **（計画時）`fromJSON`の未知の区間の種類のエラー文**：REQの方針「受理する区間の種類（`ACCEPTED_SEGMENT_KINDS`）を広げる」と、最上位の要件「既存のテストの期待値は変えない」（`test/shapes/Path.test.js`の5か所がエラー文`…のkindが'line'・'smooth'ではありません（…）`を完全一致で確かめている）が、今の「エラー文は`ACCEPTED_SEGMENT_KINDS`の並びから作る」作りのままでは両立しない。計画では、受理は`ACCEPTED_SEGMENT_KINDS`に`'bezier'`を足して広げ、エラー文の並びは`'bezier'`を除いて作る（今の文面を保つ）ことにした。未知の区間の種類のエラー文に`'bezier'`が挙がらない点は、既存のテストの期待値を変えてよいと判断されるまで残る。
 * **（計画時）端点をまとめるときの引っ張る点**：結合のボタン・`J`で端点が画面上5px以内で離れて「重なっている」とみなされ、基準の線Aでない側（B）が今の曲線（曲がり方を持つ区間）のとき、Bの端点はAの端点の座標に置き換わるが、その側の引っ張る点は動かさない（今の「Bの端点を除く」規則のまま）。このため、その端点の位置の差（5px以内）の分だけ、元の今の曲線の端の近くの形がわずかに変わる（端点が完全に重なっているとき・端点のドラッグやツールで吸い付いて結合したときは形は元のまま）。「頂点を動かすとその側の引っ張る点がついていく」と同じ扱いにするかは、テストプレイで違和感があれば発注者が判断する。
 * **（計画時）頂点2つでは閉じられない形（今の曲線1本と直線1本の半月形、今の曲線2本のレンズ（葉）形）**：閉じたパスは頂点3つ以上が要る（今の作業データの約束。`Path.fromJSON`・`buildClosedPath`（`js/shapes/PathJoinRules.js:164-170`で、重なる端点をまとめた後に頂点が3つ未満なら`null`））。今の曲線と直線を両端で結合した開いたパス（頂点3つで始点と終点が重なる）、および今の曲線2本を両端で結合した開いたパス（同じく頂点3つで始点と終点が重なる。区間は曲がり方を持つ区間2つ）は、`classifyJoin`が`'close'`を返すため結合のボタンが押せる見た目になるが、まとめると頂点2つになり`planJoin`が`null`を返すため、押しても何も起きない（直線2本で同じ形を作った場合の今のふるまいと同じ。押せるのに何も起きないボタンになる）。今の曲線では自然に作りうる形のため、扱いを変えるか（頂点2つの閉じたパスを許す・ボタンを押せない見た目にする等）は発注者の判断が要る（本作業の範囲外。REQの「今の曲線1本だけでは閉じない（閉じるには頂点3つ以上のパスが要る）」に沿って今のままとした）。
+* （タスク2）`chainOf`の`points`は`chainSourceOf`が返す新しい配列（今の曲線）か元の`data.points`（直線・パス。従来どおり共有）。`reverseSegmentSpec`は引っ張る点の座標オブジェクトを入れ替えて共有する（`Path`のコンストラクタが写すため結果は共有しない）。
 * （タスク実行時に、確信が持てなかった箇所・目視確認してほしい箇所・『参照する責務』と実コードの相違があれば追記する）

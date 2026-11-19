@@ -131,7 +131,7 @@ test('canJoin: 受理する選択（開いたパス1本・直線2本）でtrue',
     assert.deepEqual(two.calls, []);
 });
 
-test('canJoin: 受理しない選択（0個・直線1本・3本・曲線を含む）でfalse。記録先・replaceShapeを呼ばない', () => {
+test('canJoin: 受理しない選択（0個・直線1本・3本・今の曲線1本）でfalse。記録先・replaceShapeを呼ばない', () => {
     const a = makeLine('a', 0, 0, 10, 0);
     const b = makeLine('b', 20, 0, 30, 0);
     const c = makeLine('c', 40, 0, 50, 0);
@@ -140,7 +140,7 @@ test('canJoin: 受理しない選択（0個・直線1本・3本・曲線を含�
         [[a, b], []],
         [[a, b], ['a']],
         [[a, b, c], ['a', 'b', 'c']],
-        [[a, k], ['a', 'k']]
+        [[k], ['k']]
     ];
     for (const [shapes, selected] of cases) {
         const { joiner, calls } = setupFake(shapes, selected);

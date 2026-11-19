@@ -24,12 +24,14 @@ import {
     isOnLastDrawnPoint,
     canCloseDrawnLine,
     segmentKindsOf,
+    segmentSpecsOf,
 } from '../../js/shapes/PathJoinRules.js';
 import { Line } from '../../js/shapes/Line.js';
 import { Curve } from '../../js/shapes/Curve.js';
 import { Rect } from '../../js/shapes/Rect.js';
 import { Ellipse } from '../../js/shapes/Ellipse.js';
 import { Path } from '../../js/shapes/Path.js';
+import { cubicBezierPoint, quadraticBezierPoint } from '../../js/shapes/ShapeGeometry.js';
 
 /**
  * 頂点の並びを座標の配列 [[x, y], ...] から作る。
@@ -69,14 +71,15 @@ function makePath(coords, closed = false, color = '#000000', width = 2) {
  * @param {number} y2 - 終点y
  * @param {string} [color='#000000'] - 線の色
  * @param {number} [width=2] - 線の太さ
+ * @param {string|null} [fill=null] - 塗りの色
  * @returns {Line} 直線
  */
-function makeLine(x1, y1, x2, y2, color = '#000000', width = 2) {
-    return new Line(x1, y1, x2, y2, color, width);
+function makeLine(x1, y1, x2, y2, color = '#000000', width = 2, fill = null) {
+    return new Line(x1, y1, x2, y2, color, width, fill);
 }
 
 /**
- * 結合できない種類の図形を種類名から作る。
+ * 続けて引く線の形でない種類の図形を種類名から作る（今の曲線を含む。今の曲線はPhase 09-03aから結合できる線）。
  * @param {'curve'|'rect'|'circle'|'arc'|'closedPath'} kind - 図形の種類
  * @returns {Object} 図形
  */
@@ -90,7 +93,17 @@ function makeUnjoinable(kind) {
     }
 }
 
+/**
+ * 続けて引く線の形でない図形の種類名の並び（今の曲線を含む。今の曲線はPhase 09-03aから結合できる線）。
+ * @type {string[]}
+ */
 const UNJOINABLE_KINDS = ['curve', 'rect', 'circle', 'arc', 'closedPath'];
+
+/**
+ * 結合できない図形の種類名の並び（`UNJOINABLE_KINDS`から今の曲線を除いたもの）。
+ * @type {string[]}
+ */
+const JOIN_REJECTED_KINDS = UNJOINABLE_KINDS.filter((kind) => kind !== 'curve');
 
 /**
  * 区間がすべて直線で、要素数が期待どおりか確かめる。
@@ -147,7 +160,7 @@ describe('classifyJoin', () => {
     });
 
     it('結合できない図形を1つでも含む2つはnull（順も問わない）', () => {
-        for (const kind of UNJOINABLE_KINDS) {
+        for (const kind of JOIN_REJECTED_KINDS) {
             const line = makeLine(0, 0, 10, 0);
             assert.equal(classifyJoin([line, makeUnjoinable(kind)]), null, `${kind} 後`);
             assert.equal(classifyJoin([makeUnjoinable(kind), line]), null, `${kind} 前`);
@@ -177,8 +190,8 @@ describe('isJoinableLine', () => {
         assert.equal(isJoinableLine(makePath([[0, 0], [10, 0], [10, 10]])), true);
     });
 
-    it('閉じたパス・曲線・矩形・円・弧は false', () => {
-        for (const kind of UNJOINABLE_KINDS) {
+    it('閉じたパス・矩形・円・弧は false', () => {
+        for (const kind of JOIN_REJECTED_KINDS) {
             assert.equal(isJoinableLine(makeUnjoinable(kind)), false, kind);
         }
     });
@@ -339,10 +352,10 @@ describe('buildJoinedPath', () => {
         assertAllLineSegments(result, 5);
     });
 
-    it('結合できない線（閉じたパス・曲線）を含むとnull', () => {
+    it('結合できない線（閉じたパス・矩形）を含むとnull', () => {
         const line = makeLine(0, 0, 10, 0);
         assert.equal(buildJoinedPath(line, makeUnjoinable('closedPath'), 5), null);
-        assert.equal(buildJoinedPath(makeUnjoinable('curve'), line, 5), null);
+        assert.equal(buildJoinedPath(makeUnjoinable('rect'), line, 5), null);
     });
 
     it('両端が重なっても閉じない', () => {
@@ -399,11 +412,11 @@ describe('planJoin', () => {
         assert.deepEqual(coordsOf(plan.path.toJSON().points), [[0, 0], [10, 0], [20, 0], [30, 0]]);
     });
 
-    it('受理しない選択（0個・3つ以上・曲線を含む）はnull', () => {
+    it('受理しない選択（0個・3つ以上・矩形を含む）はnull', () => {
         assert.equal(planJoin([], 5), null);
         const lines = [makeLine(0, 0, 1, 0), makeLine(2, 0, 3, 0), makeLine(4, 0, 5, 0)];
         assert.equal(planJoin(lines, 5), null);
-        assert.equal(planJoin([makeLine(0, 0, 1, 0), makeUnjoinable('curve')], 5), null);
+        assert.equal(planJoin([makeLine(0, 0, 1, 0), makeUnjoinable('rect')], 5), null);
         assert.equal(planJoin([makeLine(0, 0, 1, 0)], 5), null);
     });
 });
@@ -561,7 +574,7 @@ describe('PathJoinRules 端点を指定した結合・描き足し・吸い付�
         });
 
         it('結合できない線で null', () => {
-            assert.equal(buildJoinedPathAt(makeUnjoinable('curve'), 'end', A(), 'start', 1), null);
+            assert.equal(buildJoinedPathAt(makeUnjoinable('rect'), 'end', A(), 'start', 1), null);
             assert.equal(buildJoinedPathAt(A(), 'end', makeUnjoinable('closedPath'), 'start', 1), null);
         });
     });
@@ -597,9 +610,9 @@ describe('PathJoinRules 端点を指定した結合・描き足し・吸い付�
             assert.deepEqual(coordsOf(r.toJSON().points), [[0, 0], [10, 0], [13, 4]]);
         });
 
-        it('結合できない線（閉じたパス・曲線）で null', () => {
+        it('結合できない線（閉じたパス・矩形）で null', () => {
             assert.equal(buildExtendedPath(makeUnjoinable('closedPath'), 'end', { x: 0, y: 0 }, 1), null);
-            assert.equal(buildExtendedPath(makeUnjoinable('curve'), 'end', { x: 0, y: 0 }, 1), null);
+            assert.equal(buildExtendedPath(makeUnjoinable('rect'), 'end', { x: 0, y: 0 }, 1), null);
         });
     });
 
@@ -1271,15 +1284,17 @@ describe('PathJoinRules 曲線のパスと続けて引く線の形（Phase 09-01
                 assert.equal(isDrawnLineShape(makeUnjoinable(kind)), false, kind);
             }
         });
-        it('isJoinableLineとisDrawnLineShapeは同じ結果', () => {
+        it('今の曲線のほかはisJoinableLineとisDrawnLineShapeが同じ結果。今の曲線は結合できるが続けて引く線の形ではない', () => {
             const shapes = [
                 makeLine(0, 0, 10, 0), makeKindPath(FOUR, 'line'), makeKindPath(FOUR, 'smooth'),
                 makeMixedPath(FOUR, ['line', 'smooth', 'line']), makeKindPath(FOUR, 'line', true),
-                ...UNJOINABLE_KINDS.map(makeUnjoinable),
+                ...JOIN_REJECTED_KINDS.map(makeUnjoinable),
             ];
             for (const shape of shapes) {
                 assert.equal(isJoinableLine(shape), isDrawnLineShape(shape));
             }
+            assert.equal(isJoinableLine(makeUnjoinable('curve')), true);
+            assert.equal(isDrawnLineShape(makeUnjoinable('curve')), false);
         });
     });
 
@@ -1931,5 +1946,313 @@ describe('segmentKindsOf（Phase 09-02b で公開）', () => {
         const result = segmentKindsOf(data);
         result[0] = 'x';
         assert.equal(JSON.stringify(data), before);
+    });
+});
+
+/**
+ * 今の曲線を作る（始点・制御点・終点）。
+ * @param {number[]} start - 始点 [x, y]
+ * @param {number[]} control - 制御点 [x, y]
+ * @param {number[]} end - 終点 [x, y]
+ * @param {string} [color='#000000'] - 線の色
+ * @param {number} [width=2] - 線の太さ
+ * @param {string|null} [fill=null] - 塗りの色
+ * @returns {Curve} 今の曲線
+ */
+function makeCurve(start, control, end, color = '#000000', width = 2, fill = null) {
+    const curve = new Curve(start[0], start[1], end[0], end[1], color, width, fill);
+    curve.points[1] = { x: control[0], y: control[1] };
+    return curve;
+}
+
+/**
+ * 図形にidを付けて返す。
+ * @param {Object} shape - 図形
+ * @param {string} id - id
+ * @returns {Object} 同じ図形
+ */
+function idOf(shape, id) {
+    shape.id = id;
+    return shape;
+}
+
+/**
+ * 曲がり方を持つ区間を含む開いたパスを作る。
+ * @param {number[][]} coords - 頂点
+ * @param {Array<string|Object>} specs - 区間の指定
+ * @returns {Path} パス
+ */
+function makeSpecPath(coords, specs) {
+    return new Path(pts(coords), false, '#000000', 2, null, specs);
+}
+
+describe('PathJoinRules 今の曲線の結合（Phase 09-03a）', () => {
+    // 始点(0,0)・制御点(30,60)・終点(60,0)の2次は、control1 (20,40)・control2 (40,40)の3次に等しい
+    const CURVE = () => makeCurve([0, 0], [30, 60], [60, 0]);
+    const BEZ = { kind: 'bezier', control1: { x: 20, y: 40 }, control2: { x: 40, y: 40 } };
+    const BEZ_REV = { kind: 'bezier', control1: { x: 40, y: 40 }, control2: { x: 20, y: 40 } };
+
+    describe('結合できる線の判定', () => {
+        it('isJoinableLineは今の曲線で真、isDrawnLineShapeは偽', () => {
+            assert.equal(isJoinableLine(CURVE()), true);
+            assert.equal(isDrawnLineShape(CURVE()), false);
+        });
+
+        it('classifyJoin：今の曲線と直線・開いたパス・今の曲線は join（順も問わない）', () => {
+            const line = makeLine(60, 0, 100, 0);
+            const straightPath = makePath([[60, 0], [70, 0], [80, 0]]);
+            const smoothPath = makeKindPath([[60, 0], [70, 10], [80, 0], [90, 10]], 'smooth');
+            for (const other of [line, straightPath, smoothPath, CURVE()]) {
+                assert.equal(classifyJoin([CURVE(), other]), 'join');
+                assert.equal(classifyJoin([other, CURVE()]), 'join');
+            }
+        });
+
+        it('classifyJoin：今の曲線と矩形・閉じたパスは null、今の曲線1本は null', () => {
+            assert.equal(classifyJoin([CURVE(), makeUnjoinable('rect')]), null);
+            assert.equal(classifyJoin([CURVE(), makeUnjoinable('closedPath')]), null);
+            assert.equal(classifyJoin([CURVE()]), null);
+        });
+    });
+
+    describe('今の曲線の変換（形が誤差なく同じ）', () => {
+        it('結合した結果の区間0は3次の引っ張る点で、すべてのtで元の2次と同じ点を通る', () => {
+            const curve = CURVE();
+            const result = buildJoinedPath(curve, makeLine(60, 0, 100, 0), 0);
+            const seg = result.toJSON().segments[0];
+            assert.deepEqual(seg, BEZ);
+            const [p0, p1, p2] = curve.toJSON().points;
+            for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+                const q = quadraticBezierPoint(p0, p1, p2, t);
+                const c = cubicBezierPoint(p0, seg.control1, seg.control2, p2, t);
+                assert.ok(Math.abs(q.x - c.x) < 1e-9 && Math.abs(q.y - c.y) < 1e-9, `t=${t}`);
+            }
+        });
+    });
+
+    describe('planJoin／buildJoinedPath', () => {
+        it('今の曲線＋直線（端点が重なる）：頂点3つ・区間 bezier, line', () => {
+            const a = idOf(CURVE(), 'A');
+            const b = idOf(makeLine(60, 0, 100, 0), 'B');
+            const plan = planJoin([a, b], 0);
+            const data = plan.path.toJSON();
+            assert.deepEqual(coordsOf(data.points), [[0, 0], [60, 0], [100, 0]]);
+            assert.deepEqual(data.segments, [BEZ, { kind: 'line' }]);
+            assert.equal(plan.keepId, false);
+            assert.equal(plan.targetId, 'A');
+            assert.deepEqual(plan.removeIds, ['B']);
+            assert.equal('corners' in data, false);
+        });
+
+        it('今の曲線＋直線（離れている）：間に直線の区間', () => {
+            const result = buildJoinedPath(CURVE(), makeLine(70, 0, 100, 0), 0);
+            const data = result.toJSON();
+            assert.deepEqual(coordsOf(data.points), [[0, 0], [60, 0], [70, 0], [100, 0]]);
+            assert.deepEqual(data.segments, [BEZ, { kind: 'line' }, { kind: 'line' }]);
+        });
+
+        it('直線＋今の曲線：Bの今の曲線を逆順にして引っ張る点を入れ替える（形は逆向きにたどって同じ）', () => {
+            const result = buildJoinedPath(makeLine(100, 0, 60, 0), CURVE(), 0);
+            const data = result.toJSON();
+            assert.deepEqual(coordsOf(data.points), [[100, 0], [60, 0], [0, 0]]);
+            assert.deepEqual(data.segments, [{ kind: 'line' }, BEZ_REV]);
+            const [p0, p1, p2] = CURVE().toJSON().points;
+            const seg = data.segments[1];
+            for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+                const q = quadraticBezierPoint(p0, p1, p2, 1 - t);
+                const c = cubicBezierPoint({ x: 60, y: 0 }, seg.control1, seg.control2, { x: 0, y: 0 }, t);
+                assert.ok(Math.abs(q.x - c.x) < 1e-9 && Math.abs(q.y - c.y) < 1e-9, `t=${t}`);
+            }
+        });
+
+        it('今の曲線＋開いたパス：打った点の曲線の区間が残り、今の曲線の区間は引っ張る点を保つ', () => {
+            const smooth = makeKindPath([[60, 0], [80, 20], [100, 0], [120, 20]], 'smooth');
+            const result = buildJoinedPath(CURVE(), smooth, 0);
+            const data = result.toJSON();
+            assert.deepEqual(data.segments.map((s) => s.kind), ['bezier', 'smooth', 'smooth', 'smooth']);
+            const after = result.toDrawElement().segments;
+            assert.equal(after.length, 4);
+            assert.deepEqual(after[0].control1, BEZ.control1);
+            assert.deepEqual(after[0].control2, BEZ.control2);
+            const smoothBefore = smooth.toDrawElement().segments;
+            for (let i = 0; i < smoothBefore.length; i++) {
+                assert.deepEqual(after[i + 1].control1, smoothBefore[i].control1, `区間${i + 1} control1`);
+                assert.deepEqual(after[i + 1].control2, smoothBefore[i].control2, `区間${i + 1} control2`);
+            }
+        });
+
+        it('今の曲線＋開いた直線のパス：区間 bezier, line, line', () => {
+            const straight = makePath([[60, 0], [80, 20], [100, 0]]);
+            const result = buildJoinedPath(CURVE(), straight, 0);
+            const data = result.toJSON();
+            assert.deepEqual(coordsOf(data.points), [[0, 0], [60, 0], [80, 20], [100, 0]]);
+            assert.deepEqual(data.segments, [BEZ, { kind: 'line' }, { kind: 'line' }]);
+            const plan = planJoin([idOf(CURVE(), 'A'), idOf(makePath([[60, 0], [80, 20], [100, 0]]), 'B')], 0);
+            assert.equal(plan.targetId, 'A');
+            assert.deepEqual(plan.removeIds, ['B']);
+        });
+
+        it('今の曲線＋今の曲線：区間は bezier を2つ', () => {
+            const b = makeCurve([60, 0], [90, -60], [120, 0]);
+            const result = buildJoinedPath(CURVE(), b, 0);
+            const data = result.toJSON();
+            assert.deepEqual(coordsOf(data.points), [[0, 0], [60, 0], [120, 0]]);
+            assert.deepEqual(data.segments.map((s) => s.kind), ['bezier', 'bezier']);
+        });
+
+        it('スタイルは基準の線Aのもの（今の曲線がAなら今の曲線のもの）', () => {
+            const a = makeCurve([0, 0], [30, 60], [60, 0], '#aa0000', 7, '#a1a1a1');
+            const b = makeLine(60, 0, 100, 0, '#00bb00', 3, '#b2b2b2');
+            const d1 = buildJoinedPath(a, b, 0).toJSON();
+            assert.equal(d1.strokeColor, '#aa0000');
+            assert.equal(d1.strokeWidth, 7);
+            assert.equal(d1.fillColor, '#a1a1a1');
+            const d2 = buildJoinedPath(b, a, 0).toJSON();
+            assert.equal(d2.strokeColor, '#00bb00');
+            assert.equal(d2.strokeWidth, 3);
+            assert.equal(d2.fillColor, '#b2b2b2');
+        });
+
+        it('引数を書き換えず、結果は引数と共有しない', () => {
+            const a = CURVE();
+            const b = makeLine(60, 0, 100, 0);
+            const beforeA = JSON.stringify(a.toJSON());
+            const beforeB = JSON.stringify(b.toJSON());
+            const result = buildJoinedPath(a, b, 0);
+            result.setVertex(0, 5, 5);
+            assert.equal(JSON.stringify(a.toJSON()), beforeA);
+            assert.equal(JSON.stringify(b.toJSON()), beforeB);
+        });
+    });
+
+    describe('閉じる', () => {
+        it('(a) 両端が離れている：閉じる区間に直線が足され、曲がり方を持つ区間はそのまま', () => {
+            const path = makeSpecPath([[0, 0], [60, 0], [60, 60]], [BEZ, 'line']);
+            const result = buildClosedPath(path, 0);
+            const data = result.toJSON();
+            assert.equal(data.closed, true);
+            assert.deepEqual(data.segments, [BEZ, { kind: 'line' }, { kind: 'line' }]);
+            assert.deepEqual(result.toDrawElement().segments[0].control1, BEZ.control1);
+            assert.deepEqual(result.toDrawElement().segments[0].control2, BEZ.control2);
+        });
+
+        it('(b) 最後の区間が曲がり方を持つ区間で始点と終点が重なる：control2は元の値のまま', () => {
+            const last = { kind: 'bezier', control1: { x: 10, y: 20 }, control2: { x: 5, y: 10 } };
+            const path = makeSpecPath([[0, 0], [60, 0], [60, 60], [0, 0]], ['line', 'line', last]);
+            const before = path.toDrawElement().segments[2];
+            const planned = planJoin([idOf(path, 'P')], 0);
+            const data = planned.path.toJSON();
+            assert.equal(planned.keepId, true);
+            assert.equal(data.points.length, 3);
+            assert.deepEqual(data.segments[2], last);
+            assert.deepEqual(planned.path.toDrawElement().segments[2].control1, before.control1);
+            assert.deepEqual(planned.path.toDrawElement().segments[2].control2, before.control2);
+        });
+    });
+
+    describe('buildJoinedPathAt・buildExtendedPath', () => {
+        it('buildJoinedPathAt：今の曲線の終点側・始点側（向きを保つ）', () => {
+            const end = buildJoinedPathAt(CURVE(), 'end', makeLine(60, 0, 100, 0), 'start', 0).toJSON();
+            assert.deepEqual(end.segments, [BEZ, { kind: 'line' }]);
+            const start = buildJoinedPathAt(CURVE(), 'start', makeLine(-40, 0, 0, 0), 'end', 0).toJSON();
+            assert.deepEqual(coordsOf(start.points), [[-40, 0], [0, 0], [60, 0]]);
+            assert.deepEqual(start.segments, [{ kind: 'line' }, BEZ]);
+        });
+
+        it('buildExtendedPath：今の曲線の終点側・始点側に描き足す。端点と重なれば null', () => {
+            const e = buildExtendedPath(CURVE(), 'end', { x: 60, y: 40 }, 1).toJSON();
+            assert.deepEqual(coordsOf(e.points), [[0, 0], [60, 0], [60, 40]]);
+            assert.deepEqual(e.segments, [BEZ, { kind: 'line' }]);
+            const s = buildExtendedPath(CURVE(), 'start', { x: -40, y: 0 }, 1).toJSON();
+            assert.deepEqual(s.segments, [{ kind: 'line' }, BEZ]);
+            assert.equal(buildExtendedPath(CURVE(), 'end', { x: 60, y: 0 }, 1), null);
+        });
+    });
+
+    describe('planDrawnLineJoin', () => {
+        const TOL = 1;
+        it('描き始めだけ今の曲線の端点：今の曲線のidを保ち、足した区間は描いた区間の種類', () => {
+            const curve = idOf(CURVE(), 'C');
+            const drawnLine = makeLine(60, 0, 60, 40);
+            const plan = planDrawnLineJoin([curve], drawnLine, ref('C', 'end'), null, TOL);
+            assert.equal(plan.keepId, true);
+            assert.equal(plan.targetId, 'C');
+            assert.deepEqual(plan.path.toJSON().segments, [BEZ, { kind: 'line' }]);
+            const drawnSmooth = makeKindPath([[60, 0], [60, 40]], 'smooth');
+            const plan2 = planDrawnLineJoin([curve], drawnLine, ref('C', 'end'), null, TOL, drawnSmooth);
+            assert.deepEqual(plan2.path.toJSON().segments, [BEZ, { kind: 'smooth' }]);
+        });
+
+        it('描き終えだけ今の曲線の端点', () => {
+            const curve = idOf(CURVE(), 'C');
+            const drawnLine = makeLine(0, 40, 0, 0);
+            const plan = planDrawnLineJoin([curve], drawnLine, null, ref('C', 'start'), TOL);
+            assert.equal(plan.keepId, true);
+            assert.deepEqual(plan.path.toJSON().segments, [{ kind: 'line' }, BEZ]);
+        });
+
+        it('今の曲線の始点から引き始め途中の点を打って終点で終える：閉じたパス', () => {
+            const curve = idOf(CURVE(), 'C');
+            const drawn = makeKindPath([[0, 0], [30, -40], [60, 0]], 'line');
+            const plan = planDrawnLineJoin([curve], drawn, ref('C', 'start'), ref('C', 'end'), TOL);
+            const data = plan.path.toJSON();
+            assert.equal(data.closed, true);
+            assert.ok(data.points.length >= 3);
+            assert.equal(plan.keepId, true);
+            assert.equal(plan.targetId, 'C');
+            assert.equal(plan.path.isFillable(), true);
+        });
+
+        it('途中の点なしで同じ今の曲線の両端は null', () => {
+            const curve = idOf(CURVE(), 'C');
+            const drawn = makeLine(0, 0, 60, 0);
+            assert.equal(planDrawnLineJoin([curve], drawn, ref('C', 'start'), ref('C', 'end'), TOL), null);
+        });
+
+        it('今の曲線と直線の端点の間は結合', () => {
+            const curve = idOf(CURVE(), 'C');
+            const line = idOf(makeLine(100, 0, 140, 0), 'L');
+            const drawn = makeLine(60, 0, 100, 0);
+            const plan = planDrawnLineJoin([curve, line], drawn, ref('C', 'end'), ref('L', 'start'), TOL);
+            assert.equal(plan.keepId, false);
+            assert.deepEqual(plan.path.toJSON().segments.map((s) => s.kind), ['bezier', 'line', 'line']);
+        });
+    });
+
+    describe('planEndpointDragJoin', () => {
+        it('今の曲線の終点を直線の始点へ（同じ座標）：結合（形は元のまま）', () => {
+            const curve = idOf(CURVE(), 'C');
+            const line = idOf(makeLine(60, 0, 100, 0), 'L');
+            const plan = planEndpointDragJoin([curve, line], ref('C', 'end'), ref('L', 'start'), 1);
+            assert.deepEqual(plan.path.toJSON().segments, [BEZ, { kind: 'line' }]);
+        });
+
+        it('直線の終点を今の曲線の始点へ：結合', () => {
+            const line = idOf(makeLine(-40, 0, 0, 0), 'L');
+            const curve = idOf(CURVE(), 'C');
+            const plan = planEndpointDragJoin([line, curve], ref('L', 'end'), ref('C', 'start'), 1);
+            assert.deepEqual(plan.path.toJSON().segments, [{ kind: 'line' }, BEZ]);
+        });
+
+        it('今の曲線の自分のもう一方の端点は null', () => {
+            const curve = idOf(CURVE(), 'C');
+            assert.equal(planEndpointDragJoin([curve], ref('C', 'start'), ref('C', 'end'), 1), null);
+        });
+    });
+
+    describe('segmentSpecsOf', () => {
+        it('直線は [line]', () => {
+            assert.deepEqual(segmentSpecsOf(makeLine(0, 0, 10, 0).toJSON()), ['line']);
+        });
+
+        it('パスは segments の各要素（引っ張る点を含む）の新しい配列。引数を書き換えない', () => {
+            const data = makeSpecPath([[0, 0], [60, 0], [100, 0]], [BEZ, 'line']).toJSON();
+            const before = JSON.stringify(data);
+            const result = segmentSpecsOf(data);
+            assert.deepEqual(result, [BEZ, { kind: 'line' }]);
+            assert.notEqual(result, data.segments);
+            result[0] = 'x';
+            assert.equal(JSON.stringify(data), before);
+        });
     });
 });

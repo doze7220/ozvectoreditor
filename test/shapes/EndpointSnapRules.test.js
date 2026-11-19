@@ -78,12 +78,11 @@ describe('EndpointSnapRules resolveEndpointHandle', () => {
         assert.equal(resolveEndpointHandle(path, 'vertex-1'), 'end');
     });
 
-    it('閉じたパス・曲線・矩形・円・弧は null', () => {
+    it('閉じたパス・矩形・円・弧は null', () => {
         const closed = makePath([[0, 0], [10, 0], [10, 10]], true);
         assert.equal(resolveEndpointHandle(closed, 'vertex-0'), null);
         assert.equal(resolveEndpointHandle(closed, 'vertex-2'), null);
         const others = [
-            new Curve(0, 0, 100, 100),
             new Rect(0, 0, 100, 100),
             new Ellipse(0, 0, 100, 100, 'circle'),
             new Ellipse(0, 0, 100, 100, 'arc'),
@@ -121,9 +120,8 @@ describe('EndpointSnapRules findSnapTarget 対象', () => {
         assert.equal(findSnapTarget([path], { x: 50, y: 0 }, 8), null);
     });
 
-    it('曲線・矩形・円・弧・閉じたパスの点には吸い付かない', () => {
+    it('矩形・円・弧・閉じたパスの点には吸い付かない', () => {
         const shapes = [
-            withId(new Curve(0, 0, 100, 100), 'C'),
             withId(new Rect(0, 0, 100, 100), 'R'),
             withId(new Ellipse(0, 0, 100, 100, 'circle'), 'E'),
             withId(new Ellipse(0, 0, 100, 100, 'arc'), 'A'),
@@ -498,5 +496,48 @@ describe('EndpointSnapRules 曲線のパスの吸い付き（Phase 09-01b）', (
             assert.deepEqual(findDrawnLineSnapTarget(far, drawn, point, 8, null), { kind: DRAWN_START_SNAP_KIND, x: 200, y: 200 });
             assert.deepEqual(findDrawnLineSnapTarget(tie, drawn, point, 8, null), { shapeId: 'E', end: 'start', x: 206, y: 200 });
         }
+    });
+});
+
+describe('EndpointSnapRules 今の曲線の吸い付き（Phase 09-03a）', () => {
+    /**
+     * 始点(0, 0)・制御点(50, 100)・終点(100, 0)の今の曲線を作る。
+     * @param {string} id - 付けるid
+     * @returns {Curve} 今の曲線
+     */
+    function makeCurve(id) {
+        const curve = new Curve(0, 0, 100, 0);
+        curve.points[1] = { x: 50, y: 100 };
+        return withId(curve, id);
+    }
+
+    it('resolveEndpointHandle は今の曲線の start が start・end が end・control が null', () => {
+        const curve = makeCurve('C');
+        assert.equal(resolveEndpointHandle(curve, 'start'), 'start');
+        assert.equal(resolveEndpointHandle(curve, 'end'), 'end');
+        assert.equal(resolveEndpointHandle(curve, 'control'), null);
+    });
+
+    it('findSnapTarget は今の曲線の始点・終点に吸い付き、制御点の位置には吸い付かない', () => {
+        const curve = makeCurve('C');
+        assert.deepEqual(findSnapTarget([curve], { x: 2, y: 1 }, 8), { shapeId: 'C', end: 'start', x: 0, y: 0 });
+        assert.deepEqual(findSnapTarget([curve], { x: 99, y: 2 }, 8), { shapeId: 'C', end: 'end', x: 100, y: 0 });
+        assert.equal(findSnapTarget([curve], { x: 50, y: 100 }, 8), null);
+    });
+
+    it('findSnapTarget: ドラッグ中の今の曲線の端点は自分のもう一方の端点に吸い付かない', () => {
+        const curve = makeCurve('C');
+        const dragged = { shapeId: 'C', end: 'start' };
+        assert.equal(findSnapTarget([curve], { x: 100, y: 0 }, 8, dragged), null);
+        assert.equal(findSnapTarget([curve], { x: 0, y: 0 }, 8, dragged), null);
+    });
+
+    it('findDrawnLineSnapTarget は今の曲線の端点を候補にする', () => {
+        const curve = makeCurve('C');
+        const drawn = new Line(300, 0, 400, 0);
+        assert.deepEqual(
+            findDrawnLineSnapTarget([curve], drawn, { x: 100, y: 3 }, 8, null),
+            { shapeId: 'C', end: 'end', x: 100, y: 0 }
+        );
     });
 });
