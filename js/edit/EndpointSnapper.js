@@ -1,5 +1,5 @@
 /**
- * 責務: 端点への吸い付きの照会（直線を描くとき・端点のハンドルのドラッグ中。線を引いている途中は作成途中の線の始点も）と、
+ * 責務: 端点への吸い付きの照会（直線・曲線のツールで描くとき・端点のハンドルのドラッグ中。線を引いている途中は作成途中の線の始点も）と、
  * 吸い付いた端点での描き足し・結合・閉じる操作、および直線・曲線のツールで続けて引く線の点を打つ・最後の点を消す・終える操作の
  * モデルへの反映を、規則（`shapes/EndpointSnapRules`・`shapes/PathJoinRules`）に従って行う手順を担う。DOMに触れない。
  */
@@ -36,7 +36,7 @@ import {
  *   - `try/catch`を持たない。
  *
  * 前提（呼び出し側の責務）:
- *   - `commitDrawnLine`は作成途中の直線があるときに呼ぶ。
+ *   - `commitDrawnLine`は作成途中の線があるときに呼ぶ。
  *   - 線を引く手順のメソッド（`findDrawnLineSnap`・`getDrawnLineLastPoint`・`clickDrawnLine`・`finishDrawnLine`・`removeDrawnLinePoint`）は、
  *     作成途中の線があるとき（`isDrawingLine()`が真のとき）に呼ぶ。
  *   - `joinDraggedEndpoint`は呼び出し側が開いた編集操作の中で、選択モードのときに呼ぶ（記録の確定も呼び出し側）。
@@ -79,8 +79,8 @@ export class EndpointSnapper {
     }
 
     /**
-     * 直線を描くときの吸い付く端点を照会する。
-     * `isSnapDrawShapeType(shapeType)`が偽なら`screenLengthToWorld`も呼ばず`null`。
+     * 直線・曲線のツールで描き始めるときの吸い付く端点を照会する。
+     * `isSnapDrawShapeType(shapeType)`が偽（直線・曲線のツール以外）なら`screenLengthToWorld`も呼ばず`null`。
      * 真なら`findSnapTarget(model.getShapes(), point, screenLengthToWorld(SNAP_TOLERANCE_SCREEN_PX))`。
      * @param {*} shapeType 描く図形種別（不透明な値として規則へ渡す）
      * @param {{x: number, y: number}} point 照会する点（ワールド座標）
@@ -128,7 +128,7 @@ export class EndpointSnapper {
     }
 
     /**
-     * 描き終えた直線を、吸い付いた端点での描き足し・結合・閉じる操作として反映する。
+     * 描き終えた線を、吸い付いた端点での描き足し・結合・閉じる操作として反映する。
      * 作成途中の線は点が複数でもよい（付いてくる線の先＝`endSnap`の端点を含む並び）。
      * `endSnap`に`DrawnStartSnap`（始点への吸い付き）を渡してはならない（`clickDrawnLine`が先に扱う）。
      *
@@ -276,7 +276,8 @@ export class EndpointSnapper {
      *   1. 作成途中の図形が無ければ何もしない。
      *   2. `buildFinishedDrawnLine(作成途中の図形, false)`が`null`（打った点が始点だけ）なら`model.cancelDraft()`だけ（何も残さない。記録しない）。
      *   3. `startSnap`が`null`なら`#commitDrawnShape(終えた線)`。
-     *   4. それ以外は`#reflectDrawnJoin(終えた線, startSnap, null)`（描き始めの線の続きとして描き足す。計画が`null`なら作成途中の線を捨てるだけ）。
+     *   4. それ以外は`#reflectDrawnJoin(終えた線, startSnap, null, 作成途中の図形)`（描き始めの線の続きとして描き足す。計画が`null`なら作成途中の線を捨てるだけ）。
+     *      描いた区間の種類は作成途中の線から読む（点2つの終えた線は`Line`で区間の種類を持たないため）。
      *
      * @param {import('../shapes/PathJoinRules.js').EndpointRef|null} startSnap 描き始めの点が吸い付いた端点
      */
@@ -294,7 +295,7 @@ export class EndpointSnapper {
             this.#commitDrawnShape(finished);
             return;
         }
-        this.#reflectDrawnJoin(finished, startSnap, null);
+        this.#reflectDrawnJoin(finished, startSnap, null, drawn);
     }
 
     /**
@@ -345,8 +346,9 @@ export class EndpointSnapper {
      * @param {Object|null|undefined} drawn 結合できる線（作成途中の図形、または`finishDrawnLine`が組み立てた終えた線）
      * @param {import('../shapes/PathJoinRules.js').EndpointRef|null} startSnap 描き始めの点が吸い付いた端点
      * @param {import('../shapes/PathJoinRules.js').EndpointRef|null} endSnap 描き終えの点が吸い付いた端点
+     * @param {Object} [drawnKindSource] 描いた区間の種類を読む作成途中の線（`finishDrawnLine`だけが渡す。省くと`drawn`）
      */
-    #reflectDrawnJoin(drawn, startSnap, endSnap) {
+    #reflectDrawnJoin(drawn, startSnap, endSnap, drawnKindSource) {
         const plan = drawn === null || drawn === undefined
             ? null
             : planDrawnLineJoin(
@@ -354,7 +356,8 @@ export class EndpointSnapper {
                 drawn,
                 startSnap,
                 endSnap,
-                this.#screenLengthToWorld(JOIN_TOLERANCE_SCREEN_PX)
+                this.#screenLengthToWorld(JOIN_TOLERANCE_SCREEN_PX),
+                drawnKindSource
             );
         this.#model.cancelDraft();
         if (plan === null) {

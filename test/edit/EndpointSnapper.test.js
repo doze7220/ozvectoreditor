@@ -916,3 +916,163 @@ test('findDrawnLineSnap（曲線のツール）: 既存の線の端点の近く�
     const { snapper } = setupFakeDrawing([a], draft, 10);
     assert.deepEqual(snapper.findDrawnLineSnap(null, { x: 105, y: 0 }), { shapeId: 'a', end: 'end', x: 100, y: 0 });
 });
+
+/**
+ * idを直接代入した、区間がすべて曲線のパスを作る。
+ * @param {string} id 代入するid
+ * @param {Array<{x:number,y:number}>} points 頂点
+ * @returns {Path} 曲線の区間の開いたパス
+ */
+function makeSmoothPath(id, points) {
+    const path = makeSmoothDraft(points);
+    path.id = id;
+    return path;
+}
+
+test('findDrawSnap（曲線のツール）: curveでSnapTargetを返し、screenLengthToWorldを8で呼ぶ', () => {
+    const a = makeLine('a', 0, 0, 100, 0);
+    const { snapper, lengths } = setupFake([a], null, 8);
+    assert.deepEqual(snapper.findDrawSnap('curve', { x: 3, y: 0 }), { shapeId: 'a', end: 'start', x: 0, y: 0 });
+    assert.deepEqual(lengths, [8]);
+});
+
+test('finishDrawnLine（曲線のツール・偽物の依存）: 描き始めが端点のとき、呼び出しの順は変わらず足した区間がsmooth', () => {
+    const a = makeLine('a', 0, 0, 100, 0);
+    const draft = makeSmoothDraft([{ x: 100, y: 0 }, { x: 150, y: 50 }, { x: 160, y: 60 }]);
+    const { snapper, calls } = setupFakeDrawing([a], draft, 5);
+    snapper.finishDrawnLine({ shapeId: 'a', end: 'end' });
+    assert.deepEqual(names(calls), ['cancelDraft', 'beginEdit', 'replaceShape', 'commitEdit']);
+    const [, targetId, path] = calls[2];
+    assert.equal(targetId, 'a');
+    assert.deepEqual(path.toJSON().segments, [{ kind: 'line' }, { kind: 'smooth' }]);
+});
+
+test('実物の組み合わせ（曲線のツール）: 直線のパスの終点から描き始めて点2つで終える → 元のid・区間[line, line, smooth]・履歴1件・undo/redo', () => {
+    const p = makePath('p', [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }]);
+    const { model, history, snapper } = setupReal([p]);
+    const original = dump(model);
+    const startSnap = { shapeId: 'p', end: 'end' };
+    startSmoothDraft(model, [{ x: 100, y: 100 }, { x: 150, y: 150 }]);
+    assert.equal(snapper.clickDrawnLine(startSnap, null), true);
+    model.updateDraft(200, 150);
+    snapper.finishDrawnLine(startSnap);
+    const shapes = dump(model);
+    assert.equal(shapes.length, 1);
+    assert.equal(shapes[0].id, 'p');
+    assert.deepEqual(shapes[0].points, [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 150, y: 150 }]);
+    assert.deepEqual(shapes[0].segments, [{ kind: 'line' }, { kind: 'line' }, { kind: 'smooth' }]);
+    const extended = dump(model);
+    assert.equal(history.undo(), true);
+    assert.deepEqual(dump(model), original);
+    assert.equal(history.canUndo(), false);
+    assert.equal(history.redo(), true);
+    assert.deepEqual(dump(model), extended);
+});
+
+test('実物の組み合わせ（曲線のツール）: 曲線のパスの終点から点3つで終える → 足した区間がすべてsmooth', () => {
+    const p = makeSmoothPath('p', [{ x: 0, y: 0 }, { x: 100, y: 0 }]);
+    const { model, snapper } = setupReal([p]);
+    const startSnap = { shapeId: 'p', end: 'end' };
+    startSmoothDraft(model, [{ x: 100, y: 0 }, { x: 100, y: 50 }]);
+    assert.equal(snapper.clickDrawnLine(startSnap, null), true);
+    model.updateDraft(150, 100);
+    assert.equal(snapper.clickDrawnLine(startSnap, null), true);
+    model.updateDraft(150, 100);
+    assert.equal(snapper.clickDrawnLine(startSnap, null), false);
+    const shapes = dump(model);
+    assert.equal(shapes.length, 1);
+    assert.equal(shapes[0].id, 'p');
+    assert.deepEqual(shapes[0].points, [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 50 }, { x: 150, y: 100 }]);
+    assert.deepEqual(shapes[0].segments, shapes[0].points.slice(1).map(() => ({ kind: 'smooth' })));
+});
+
+test('実物の組み合わせ（曲線のツール）: 引いている途中に別の線の端点へ吸い付いてクリック → 1本の開いたパス・基準の線の位置・もう一方を除く・区間の種類', () => {
+    const back = makeLine('back', 0, 200, 50, 200);
+    const a = makeLine('a', 0, 0, 100, 0);
+    const b = makeLine('b', 300, 0, 400, 0);
+    const { model, history, snapper } = setupReal([back, a, b]);
+    const original = dump(model);
+    const startSnap = { shapeId: 'a', end: 'end' };
+    startSmoothDraft(model, [{ x: 100, y: 0 }, { x: 200, y: 50 }]);
+    snapper.clickDrawnLine(startSnap, null);
+    model.updateDraft(300, 0);
+    const endSnap = snapper.findDrawnLineSnap(startSnap, { x: 303, y: 0 });
+    assert.deepEqual(endSnap, { shapeId: 'b', end: 'start', x: 300, y: 0 });
+    assert.equal(snapper.clickDrawnLine(startSnap, endSnap), false);
+    const shapes = dump(model);
+    assert.equal(shapes.length, 2);
+    assert.equal(shapes[0].id, 'back');
+    assert.equal(model.getShapes().some((s) => s.id === 'b'), false);
+    assert.equal(shapes[1].type, 'path');
+    assert.deepEqual(
+        shapes[1].points,
+        [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 200, y: 50 }, { x: 300, y: 0 }, { x: 400, y: 0 }]
+    );
+    assert.deepEqual(shapes[1].segments.map((s) => s.kind), ['line', 'smooth', 'smooth', 'line']);
+    assert.equal(history.undo(), true);
+    assert.deepEqual(dump(model), original);
+});
+
+test('実物の組み合わせ（曲線のツール）: 同じ線の両端の間を描く → 元のidの閉じたパス・閉じる区間がsmooth', () => {
+    const a = makeLine('a', 0, 0, 100, 0);
+    const { model, snapper } = setupReal([a]);
+    const startSnap = { shapeId: 'a', end: 'end' };
+    startSmoothDraft(model, [{ x: 100, y: 0 }, { x: 50, y: 100 }]);
+    snapper.clickDrawnLine(startSnap, null);
+    model.updateDraft(0, 0);
+    assert.equal(snapper.clickDrawnLine(startSnap, { shapeId: 'a', end: 'start', x: 0, y: 0 }), false);
+    const shapes = dump(model);
+    assert.equal(shapes.length, 1);
+    assert.equal(shapes[0].id, 'a');
+    assert.equal(shapes[0].closed, true);
+    assert.deepEqual(shapes[0].points, [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 50, y: 100 }]);
+    assert.deepEqual(shapes[0].segments, [{ kind: 'line' }, { kind: 'smooth' }, { kind: 'smooth' }]);
+});
+
+test('実物の組み合わせ（直線のツール）: 曲線のパスの終点から描き足す → 区間[...元のsmooth, line]', () => {
+    const p = makeSmoothPath('p', [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }]);
+    const { model, snapper } = setupReal([p]);
+    drawLine(model, 100, 100, 200, 100);
+    assert.equal(snapper.commitDrawnLine({ shapeId: 'p', end: 'end' }, null), true);
+    const shapes = dump(model);
+    assert.equal(shapes.length, 1);
+    assert.equal(shapes[0].id, 'p');
+    assert.deepEqual(shapes[0].points, [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 200, y: 100 }]);
+    assert.deepEqual(shapes[0].segments, [{ kind: 'smooth' }, { kind: 'smooth' }, { kind: 'line' }]);
+});
+
+test('実物の組み合わせ（曲線のパスの端点のドラッグ）: 曲線のパスどうしの結合 → 結果だけが選択・全区間smooth', () => {
+    const s1 = makeSmoothPath('s1', [{ x: 0, y: 0 }, { x: 50, y: 0 }, { x: 100, y: 0 }]);
+    const s2 = makeSmoothPath('s2', [{ x: 200, y: 0 }, { x: 250, y: 0 }, { x: 300, y: 0 }]);
+    const { model, history, snapper } = setupReal([s1, s2]);
+    const dragged = { shapeId: 's1', end: 'end' };
+    history.beginEdit();
+    const snap = snapper.findDragSnap(dragged, { x: 197, y: 0 });
+    assert.deepEqual(snap, { shapeId: 's2', end: 'start', x: 200, y: 0 });
+    model.updateVertex('s1', 2, snap.x, snap.y);
+    assert.equal(snapper.joinDraggedEndpoint(dragged, snap), true);
+    history.commitEdit();
+    const joined = dump(model);
+    assert.equal(joined.length, 1);
+    assert.equal(joined[0].points.length, 5);
+    assert.deepEqual(joined[0].segments, [{ kind: 'smooth' }, { kind: 'smooth' }, { kind: 'smooth' }, { kind: 'smooth' }]);
+    assert.deepEqual(model.getSelectedIds(), [joined[0].id]);
+});
+
+test('実物の組み合わせ（曲線のパスの端点のドラッグ）: 頂点4つの曲線のパスを閉じる → 閉じたパス・全区間smooth', () => {
+    const p = makeSmoothPath('p', [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }]);
+    const { model, history, snapper } = setupReal([p]);
+    const dragged = { shapeId: 'p', end: 'end' };
+    history.beginEdit();
+    const snap = snapper.findDragSnap(dragged, { x: 3, y: 0 });
+    assert.deepEqual(snap, { shapeId: 'p', end: 'start', x: 0, y: 0 });
+    model.updateVertex('p', 3, snap.x, snap.y);
+    assert.equal(snapper.joinDraggedEndpoint(dragged, snap), true);
+    history.commitEdit();
+    const shapes = dump(model);
+    assert.equal(shapes.length, 1);
+    assert.equal(shapes[0].id, 'p');
+    assert.equal(shapes[0].closed, true);
+    assert.equal(shapes[0].points.length, 3);
+    assert.deepEqual(shapes[0].segments, shapes[0].points.map(() => ({ kind: 'smooth' })));
+});

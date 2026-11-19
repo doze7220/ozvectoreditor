@@ -305,7 +305,7 @@
         *   「2. 要件H」の(H-4)・(H-5)のテストを足し、表の#5・#7・#10を書き換える（#5・#10は`isSnapDrawShapeType`の変更で落ちるため本タスク。理由は表のとおり）。`test/edit/EndpointSnapper.test.js`は#10の書き換えだけ（(H-6)の追加はタスク5）。#6・#8・#9はタスク2で書き換え済み。ほかの既存のケースは変えない。
         *   JSDocの記載漏れが無いことを確かめる。`node --test`が全件通ることを確かめる。
         *   完了後、本RESの「4. 詳細作業内容」のタスク4に作業内容を記載する。開発資料に影響があれば「開発資料の更新予定」へ追記する。
-*   [ ] タスク5: 要件E 開いたまま終えた描き足しへ描いた区間の種類を伝える（`edit/EndpointSnapper`）
+*   [x] タスク5: 要件E 開いたまま終えた描き足しへ描いた区間の種類を伝える（`edit/EndpointSnapper`）
     *   **対象ファイル** :
         *   `./js/edit/EndpointSnapper.js` : 更新（`finishDrawnLine`の1行・`#reflectDrawnJoin`の引数と、要件Eに挙げたJSDoc・ファイル先頭の責務定義）
         *   `./test/edit/EndpointSnapper.test.js` : 更新（(H-6)の追加のみ）
@@ -402,7 +402,9 @@
 
 ### タスク5: 要件E 開いたまま終えた描き足しへ描いた区間の種類を伝える（`edit/EndpointSnapper`）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/edit/EndpointSnapper.js`：`finishDrawnLine`の手順4.を`this.#reflectDrawnJoin(finished, startSnap, null, drawn)`にし、`#reflectDrawnJoin`に第4引数`drawnKindSource`を足して`planDrawnLineJoin`の第6引数へそのまま渡す（`commitDrawnLine`は3引数のまま。処理の順・`screenLengthToWorld`の呼び出し回数・importは不変）。JSDoc（ファイル先頭の責務定義＝3行のまま「直線・曲線のツールで描くとき」、クラスの前提「作成途中の線」、`findDrawSnap`、`commitDrawnLine`、`finishDrawnLine`の手順4.、`#reflectDrawnJoin`の`@param`）を実態に合わせた。
+    *   `test/edit/EndpointSnapper.test.js`：末尾に(H-6)の9件を追加（`findDrawSnap('curve')`、`finishDrawnLine`の偽物の依存（呼び出しの順と最後の区間`'smooth'`）、実物の組み合わせ(a)〜(f)＝(a)直線のパスの終点から点2つで終える（元のid・区間・履歴1件・undo/redo）、(b)曲線のパスの終点から点3つ、(c)別の線の端点へ吸い付いてクリック、(d)同じ線の両端を閉じる、(e)直線のツールで曲線のパスへ描き足す、(f)`joinDraggedEndpoint`の結合と閉じる（2件））。補助`makeSmoothPath`（JSDoc付き）を足した。既存ケースは未変更。
+    *   `node --test`：tests 1774 / suites 281 / pass 1774 / fail 0（足したテスト9件）。
 
 ### タスク6: 要件A（確認） 結合（ボタン・`J`）の手順のテスト（`edit/PathJoiner`。コードは変えない）
 *   **作業内容** :
@@ -438,3 +440,4 @@
 *   **書き換えのタスクへの割り当て**：各タスクを終えた時点で`node --test`が全件通るよう、既存のケースは「そのケースを落とすコードの変更と同じタスク」で書き換える（要件Hの表の「書き換えるタスク」列と「書き換えるタスクの決め方」）。このためタスク2の対象ファイルに、`isJoinableLine`の広がりで落ちるケースを持つ`test/shapes/EndpointSnapRules.test.js`（#6・#8・#9）・`test/edit/EndpointSnapper.test.js`（#11）・`test/edit/PathJoiner.test.js`（#12）を、タスク4の対象ファイルに`test/edit/EndpointSnapper.test.js`（#10）を、それぞれ該当ケースの書き換えだけの範囲で含める。#12をタスク2へ移したため、タスク6は#12の書き換えに代えて(H-8)（結合（ボタン・`J`）で区間の種類を保つことの確認）を足す。
 *   **タスク2の補足**：(1) 開発資料の更新予定：`PathJoinRules`の結合できる線の定義（`isJoinableLine`が曲線のパスを含む）・組み立て関数の追加引数・`Path`コンストラクタの種類の配列（タスク1）は、タスク11で`PROJECT_ARCHITECTURE.md`・`_doc/arch/`へ反映する（資料本体は未変更）。(2) 本タスクの間、非公開の計画の関数・`planDrawnLineJoin`・`planEndpointDragJoin`は組み立て関数の末尾の引数を省いて呼ぶため、曲線のツールでの描き足しの区間は直線になる（タスク3で直す）。(3) 目視確認：結合（ボタン・`J`）で曲線のパスが結合・閉じるできること。
 *   **タスク3の補足**：(1) 開発資料の更新予定：`planDrawnLineJoin`の省ける第6引数`drawnKindSource`と、計画の関数が描いた区間の種類を渡すことは、タスク11で反映（資料本体は未変更）。(2) 始点側へ描き足す（`end === 'start'`）と足した区間は`kinds`の先頭側に並ぶ（同じ線の両端＋途中の点ありの閉じる結果は`['smooth','line','line','smooth']`）。(3) `planDrawnLineJoin`の呼び出し元`EndpointSnapper.finishDrawnLine`が第6引数を渡すのはタスク5。
+*   **タスク5の補足**：(1) 開発資料の更新予定：`EndpointSnapper`が曲線のツールの描き始めにも吸い付くこと、`finishDrawnLine`だけが作成途中の線を`#reflectDrawnJoin`の第4引数（`drawnKindSource`）として渡し描いた区間の種類を伝えること（点2つで開いたまま終えた線は`Line`で区間の種類を持たないため）は、タスク11で`_doc/arch/14_edit.md`ほかへ反映（資料本体は未変更）。(2) 目視確認の推奨：曲線のツールで既存の直線の端点から描き始め、点2つだけで`Esc`／最後の点のクリックで終えたとき、足した区間が曲線になること。(3) 将来`finishDrawnLine`を直すときは、`buildFinishedDrawnLine`の結果（点2つなら`Line`）から区間の種類を読んではならない（作成途中の線から読む）。
