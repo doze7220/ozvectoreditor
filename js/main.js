@@ -43,6 +43,8 @@ import { OptionBarOrderGroup } from './palette/OptionBarOrderGroup.js';
 import { OptionBarPositionGroup } from './palette/OptionBarPositionGroup.js';
 import { ShapeAlignEditor } from './edit/ShapeAlignEditor.js';
 import { OptionBarAlignGroup } from './palette/OptionBarAlignGroup.js';
+import { PathCornerEditor } from './edit/PathCornerEditor.js';
+import { OptionBarCornerGroup } from './palette/OptionBarCornerGroup.js';
 import { DisplayState } from './core/DisplayState.js';
 import { UnitSnapSettings } from './core/UnitSnapSettings.js';
 import { DisplayWiring } from './wiring/DisplayWiring.js';
@@ -776,6 +778,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
     model.onChange(syncOptionBarAlignGroup);
 
+    // 7.12. オプションバー（角のまとまり）配線
+    // 表示（チェックボックスのチェックあり・なし・「−」・押せない）はOptionBarCornerGroup（palette/）が、変更の手順（1件の編集操作と
+    // 表示内容の照会）はPathCornerEditor（edit/）が、点の角の判定と切り替えの組み立てはPathCornerRules（shapes/）が持つ。
+    // ここは生成・注入・同期とドラッグ中の受理判定のみを行う（判定・計算を書かない）。表示の同期はmodel.onChangeのみで行う
+    // （機能専用の同期経路は足さない）。キーボードショートカットは割り当てない（チェックボックスのみ）。
+    const pathCornerEditor = new PathCornerEditor({ model, editRecorder: historyManager, getMode: () => inputTracker.getMode() });
+
+    /**
+     * 頂点の選択で選んでいる点の角・なめらかを切り替える。オプションバーの角のチェックボックスの経路（キーは割り当てない）。
+     * (1) ドラッグ中（InputTracker.isDragging()が真）なら何もせずfalse（不受理）。ドラッグが開いている編集操作と
+     *     beginEdit／commitEditの対を崩さないため。
+     * (2) それ以外はpathCornerEditor.toggle()の結果を返す。
+     * @returns {boolean} 角の状態を変えた場合のみtrue（不受理・変わらない操作ではfalse）
+     */
+    function performCornerToggle() {
+        if (inputTracker.isDragging()) {
+            return false;
+        }
+        return pathCornerEditor.toggle();
+    }
+
+    // 戻り値をそのまま返すだけ
+    const optionBarCornerGroup = new OptionBarCornerGroup(document.getElementById('option-corner-group'), {
+        onCornerToggle: () => performCornerToggle()
+    });
+
+    /**
+     * オプションバーの角のまとまりのチェックボックスの表示を、現在の選択・頂点の選択・図形の角の状態
+     * （pathCornerEditor.getView()）に同期する（optionBarCornerGroup.render）。
+     * model.onChangeのコールバックとして登録し、起動時にも明示的に1回呼び出す。DOMの更新はOptionBarCornerGroupが担い、ここは橋渡しのみ。
+     */
+    function syncOptionBarCornerGroup() {
+        optionBarCornerGroup.render(pathCornerEditor.getView());
+    }
+
+    model.onChange(syncOptionBarCornerGroup);
+
     // 8. キーボードショートカット配線
     /**
      * 表示中キャンバスの中心を基準に、ホイール1刻みと同じ刻み幅（WHEEL_ZOOM_STEP）で拡大・縮小する。
@@ -995,6 +1034,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // オプションバーの整列・分布のまとまりの8ボタンの押せる/押せない状態も同様に、index.htmlの初期disabled属性や
     // onChange通知に依存させず、選択集合と図形の外枠の実値で明示的に1回同期する
     syncOptionBarAlignGroup();
+
+    // オプションバーの角のまとまりのチェックボックス（押せる/押せない・チェック・「−」）も同様に、index.htmlの初期disabled属性や
+    // onChange通知に依存させず、選択集合・頂点の選択・図形の実値で明示的に1回同期する
+    syncOptionBarCornerGroup();
 
     // キャンバス名の表示・読み込み中の覆い要素・キャンバスパレットも同様に、onChange通知に依存させず
     // 状態の実値で明示的に1回同期する（名前の表示・覆い要素はCanvasLibrary、パレットはCanvasFileOperationsの状態。

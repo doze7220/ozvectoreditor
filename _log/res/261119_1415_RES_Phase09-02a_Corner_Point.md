@@ -277,7 +277,7 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
         *   すべてのメソッド・フィールドにJSDocを書く。DOMのためテストは置かない。
         *   `node --test`が全件通ることを確かめる（このタスクでは件数は変わらない）。
         *   完了後、本RESの「4. 詳細作業内容」のタスク7に作業内容を記載する。開発資料に影響があれば「開発資料の更新予定」へ追記する。
-*   [ ] タスク8: 要件G `main.js`の配線（`// 7.12.`）
+*   [x] タスク8: 要件G `main.js`の配線（`// 7.12.`）
     *   **対象ファイル** :
         *   `./js/main.js` : 更新（importの2行、`// 7.12.`のブロック、起動時の同期の1か所のみ）
     *   **作業内容** :
@@ -369,7 +369,10 @@ Phase 09-01a・09-01bでパスに曲線の区間（`'smooth'`）が入り、曲�
 
 ### タスク8: 要件G `main.js`の配線（`// 7.12.`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/main.js`：importに`PathCornerEditor`・`OptionBarCornerGroup`を追加（`OptionBarAlignGroup`の直後）。`// 7.11.`の`model.onChange(syncOptionBarAlignGroup);`の直後・`// 8.`の前に`// 7.12.`ブロックを追加（`pathCornerEditor`の生成、JSDoc付き`performCornerToggle`（ドラッグ中は`false`）、`optionBarCornerGroup`の生成、JSDoc付き`syncOptionBarCornerGroup`と`model.onChange`への登録）。起動時の同期は`syncOptionBarAlignGroup();`の直後にコメント付きで`syncOptionBarCornerGroup();`を1回追加。既存のブロック・`KeyboardShortcuts`の注入は不変（監査の指摘で、誤って空白が消えていた`// 8. キーボードショートカット配線`の行を元に戻した）。
+    *   変更後の`main.js`の行数：1053行。
+    *   `node --test`：tests 1860 / suites 294 / pass 1860 / fail 0。既存ケースの変更なし。
+    *   開発資料への影響：「開発資料の更新予定」の`02_main.md`の項のとおりで、追記なし。
 
 ### タスク9: 仕上げの確認（JSDoc・スコープ・全テスト）
 *   **作業内容** :
