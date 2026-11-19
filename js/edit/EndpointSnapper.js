@@ -136,7 +136,7 @@ export class EndpointSnapper {
      *   1. 両方`null`なら何も呼ばず`false`（`screenLengthToWorld`も呼ばない。呼び出し側が従来の確定を行う）。
      *   2. `#reflectDrawnJoin(作成途中の図形, startSnap, endSnap)`で次の3.〜6.を行う（`finishDrawnLine`と共有）。
      *   3. `planDrawnLineJoin`で計画を作る（許容距離は`screenLengthToWorld(JOIN_TOLERANCE_SCREEN_PX)`）。作成途中の図形が無ければ計画なし。
-     *   4. `model.cancelDraft()`で作成途中の直線を捨てる。
+     *   4. `model.cancelDraft()`で作成途中の線（直線・曲線のツールの線）を捨てる。
      *   5. 計画が`null`なら何も起きない（`beginEdit`/`commitEdit`を呼ばない）。
      *   6. `editRecorder.beginEdit()` → `model.replaceShape(..., { keepId, removeIds, select: false })` → `editRecorder.commitEdit()`。
      *   7. `true`を返す。

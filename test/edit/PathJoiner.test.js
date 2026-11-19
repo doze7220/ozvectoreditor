@@ -339,7 +339,7 @@ test('canJoin・join（曲線のパスを含む選択）: 曲線のパス1本は
 });
 
 /**
- * 全区間が'smooth'の開いた（または閉じた）パスを、idを代入して作る。
+ * 全区間が'smooth'の開いたパス（常に開く）を、idを代入して作る。
  * @param {string} id 代入するid
  * @param {Array<[number, number]>} coords 頂点の座標（[x, y]の並び）
  * @returns {Path} 全区間が'smooth'のパス

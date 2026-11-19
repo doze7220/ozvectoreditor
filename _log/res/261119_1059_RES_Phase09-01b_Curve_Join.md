@@ -339,7 +339,7 @@
         *   「2. 要件F」の4か所の文言だけを置き換える。コード・ほかの文言・行の数は変えない（作業後も1729行であることを確かめる）。
         *   `node --test`が全件通ることを確かめる。
         *   完了後、本RESの「4. 詳細作業内容」のタスク8に作業内容を記載する。開発資料に影響があれば「開発資料の更新予定」へ追記する。
-*   [ ] タスク9: 仕上げの確認（JSDoc・スコープ・全テスト）
+*   [x] タスク9: 仕上げの確認（JSDoc・スコープ・全テスト）
     *   **対象ファイル** :
         *   （確認のみ。不備があればタスク1〜8の対象ファイルの中でだけ直す）
     *   **作業内容** :
@@ -395,7 +395,7 @@
 ### タスク4: 要件D 曲線のツールの描き始めの吸い付きと、吸い付きの規則のテスト（`shapes/EndpointSnapRules`）
 *   **作業内容** :
     *   `js/shapes/EndpointSnapRules.js`：`isSnapDrawShapeType`を`'line'`・`'curve'`で真にし、JSDocを更新。`resolveEndpointHandle`・`findSnapTarget`・`findDrawnLineSnapTarget`はJSDocのみ更新（コード不変・責務定義不変）。
-    *   `test/shapes/EndpointSnapRules.test.js`：表#5（`isSnapDrawShapeType`は line と curve が真）・#7（`resolveEndpointHandle`は曲線のパスで`'vertex-0'`→`'start'`・`'vertex-2'`→`'end'`）を書き換え。末尾に(H-5)の`describe('EndpointSnapRules 曲線のパスの吸い付き（Phase 09-01b）')`を追加（4件：dragged＋頂点4つ以上/3つ、`resolveEndpointHandle`の途中の頂点・`move`、`findDrawnLineSnapTarget`が直線・直線のパス・曲線のパスの端点を返す、`startSnap`の除外、打った点3つ以上の選び方を曲線・直線のツールの線で比較）。
+    *   `test/shapes/EndpointSnapRules.test.js`：表#5（`isSnapDrawShapeType`は line と curve が真）・#7（`resolveEndpointHandle`は曲線のパスで`'vertex-0'`→`'start'`・`'vertex-2'`→`'end'`）を書き換え。末尾に(H-5)の`describe('EndpointSnapRules 曲線のパスの吸い付き（Phase 09-01b）')`を追加（5件：dragged＋頂点4つ以上/3つ、`resolveEndpointHandle`の途中の頂点・`move`、`findDrawnLineSnapTarget`が直線・直線のパス・曲線のパスの端点を返す、`startSnap`の除外、打った点3つ以上の選び方を曲線・直線のツールの線で比較）。
     *   `test/edit/EndpointSnapper.test.js`：表#10を書き換え（種別の並びから`'curve'`を外し、名前を「直線・曲線以外の種別では…」へ）。
     *   `test/shapes/ShapeGeometry.test.js`：(H-4)の`describe('computeSmoothSegmentControls 逆順（Phase 09-01b）')`を追加（1件）。
     *   `node --test`：tests 1765 / suites 281 / pass 1765 / fail 0。
@@ -430,7 +430,11 @@
 
 ### タスク9: 仕上げの確認（JSDoc・スコープ・全テスト）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   確認（`Grep`「後半（b）」「09-01b」「吸い付かない」「区間がすべて直線の開いたパス」を`js/`で調査）：「後半（b）」「区間がすべて直線の開いたパス」は0件。「09-01b」は`PathJoinRules.js`65行の`isJoinableLine`のJSDoc（正しい記述）のみ。「吸い付かない」は`InputTracker.js`の5件（吸い付かない種別・範囲外はnull／既定値`NO_SNAP_ASSIST`／補助の省略時／Ctrl中）で、いずれも一般の正しい記述のため残した。09-01aの古い記述は残っていない。
+    *   スコープ：`git diff --stat e8c86ec HEAD`と作業ツリーで、変更はタスク1〜8の対象ファイルのみ。`InputTracker.js`は1729行のまま（JSDoc4か所のみ）、`main.js`・`VectorModel.js`・`PathJoiner.js`・`io/`・`check/`・`index.html`は不変。JSDoc・責務定義（3行以内）に漏れなし。
+    *   監査の軽微な不備6件を修正（テストの期待値・本体のふるまいは不変）：(1) `PathJoinRules.test.js`の`makeTarget`のJSDocを「全区間が`kind`の開いたパス（頂点は3つ以上）」「coords（3つ以上）」へ。(2) `PathJoiner.test.js`の`makeSmoothPathOf`のJSDocを「開いたパス（常に開く）」へ。(3) `EndpointSnapper.test.js`の(H-6)(c)に結果のidが`'a'`でも`'b'`でもないことの`assert.notEqual`2件を追加。(4) `EndpointSnapper.js`の`commitDrawnLine`のJSDoc手順4.を「作成途中の線（直線・曲線のツールの線）」へ（コード不変）。(5) `Path.test.js`先頭の責務定義へ「コンストラクタ（区間の種類の配列）」を追加（3行以内を維持）。(6) タスク4の(H-5)の件数を4件→5件へ。
+    *   `node --test`：tests 1779 / suites 281 / pass 1779 / fail 0。
+    *   開発資料への影響：新規になし（タスク11で計画済みの分のみ）。
 
 ### タスク10: 要件I テストプレイの確認項目を発注者へ提示する
 *   **作業内容** :
@@ -451,3 +455,4 @@
 *   **タスク2の補足**：(1) 開発資料の更新予定：`PathJoinRules`の結合できる線の定義（`isJoinableLine`が曲線のパスを含む）・組み立て関数の追加引数・`Path`コンストラクタの種類の配列（タスク1）は、タスク11で`PROJECT_ARCHITECTURE.md`・`_doc/arch/`へ反映する（資料本体は未変更）。(2) 本タスクの間、非公開の計画の関数・`planDrawnLineJoin`・`planEndpointDragJoin`は組み立て関数の末尾の引数を省いて呼ぶため、曲線のツールでの描き足しの区間は直線になる（タスク3で直す）。(3) 目視確認：結合（ボタン・`J`）で曲線のパスが結合・閉じるできること。
 *   **タスク3の補足**：(1) 開発資料の更新予定：`planDrawnLineJoin`の省ける第6引数`drawnKindSource`と、計画の関数が描いた区間の種類を渡すことは、タスク11で反映（資料本体は未変更）。(2) 始点側へ描き足す（`end === 'start'`）と足した区間は`kinds`の先頭側に並ぶ（同じ線の両端＋途中の点ありの閉じる結果は`['smooth','line','line','smooth']`）。(3) `planDrawnLineJoin`の呼び出し元`EndpointSnapper.finishDrawnLine`が第6引数を渡すのはタスク5。
 *   **タスク5の補足**：(1) 開発資料の更新予定：`EndpointSnapper`が曲線のツールの描き始めにも吸い付くこと、`finishDrawnLine`だけが作成途中の線を`#reflectDrawnJoin`の第4引数（`drawnKindSource`）として渡し描いた区間の種類を伝えること（点2つで開いたまま終えた線は`Line`で区間の種類を持たないため）は、タスク11で`_doc/arch/14_edit.md`ほかへ反映（資料本体は未変更）。(2) 目視確認の推奨：曲線のツールで既存の直線の端点から描き始め、点2つだけで`Esc`／最後の点のクリックで終えたとき、足した区間が曲線になること。(3) 将来`finishDrawnLine`を直すときは、`buildFinishedDrawnLine`の結果（点2つなら`Line`）から区間の種類を読んではならない（作成途中の線から読む）。
+*   **タスク9の補足**：`_doc/arch/16_test.md`へ反映する件数は tests 1779 / suites 281 / pass 1779 / fail 0。

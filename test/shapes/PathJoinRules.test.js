@@ -1660,9 +1660,9 @@ describe('planDrawnLineJoin・planEndpointDragJoin の区間の種類（Phase 09
     }
 
     /**
-     * 全区間`'line'`で頂点3つの開いたパス（idつき）を作る。
+     * 全区間が`kind`の開いたパス（頂点は3つ以上。idつき）を作る。
      * @param {string} id - 付ける id
-     * @param {number[][]} coords - [x, y] の並び（3つ）
+     * @param {number[][]} coords - [x, y] の並び（3つ以上）
      * @param {string} kind - 全区間の種類
      * @returns {Path} パス
      */

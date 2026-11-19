@@ -1,6 +1,6 @@
 /**
  * 責務: パス（Path）の当たり判定（輪郭・内側）・頂点のハンドル・塗れる形（isFillable）・描画命令（塗り・線なし）・
- * fromJSONの不正な図形データのエラー文・図形データと描画要素への変換・ハンドルの位置（getHandlePosition）・頂点のハンドル名の一覧（getVertexHandleNames）を、公開APIのみを通して検証する。
+ * fromJSONの不正な図形データのエラー文・図形データと描画要素への変換・ハンドルの位置（getHandlePosition）・頂点のハンドル名の一覧（getVertexHandleNames）・コンストラクタ（区間の種類の配列）を、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';

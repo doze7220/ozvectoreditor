@@ -1004,6 +1004,8 @@ test('実物の組み合わせ（曲線のツール）: 引いている途中に
     assert.equal(shapes[0].id, 'back');
     assert.equal(model.getShapes().some((s) => s.id === 'b'), false);
     assert.equal(shapes[1].type, 'path');
+    assert.notEqual(shapes[1].id, 'a');
+    assert.notEqual(shapes[1].id, 'b');
     assert.deepEqual(
         shapes[1].points,
         [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 200, y: 50 }, { x: 300, y: 0 }, { x: 400, y: 0 }]
