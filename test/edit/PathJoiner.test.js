@@ -11,6 +11,7 @@ import { SnapshotAdapter } from '../../js/edit/SnapshotAdapter.js';
 import { Line } from '../../js/shapes/Line.js';
 import { Path, SEGMENT_KIND_SMOOTH } from '../../js/shapes/Path.js';
 import { Curve } from '../../js/shapes/Curve.js';
+import { Ellipse } from '../../js/shapes/Ellipse.js';
 
 /**
  * idを直接代入した直線を作る。
@@ -416,6 +417,61 @@ test('join（今の曲線を含む選択。Phase 09-03a）: 実物の組み合�
     assert.deepEqual(restored, original);
     assert.equal(restored[0].type, 'curve');
     assert.deepEqual(restored[0].points, [{ x: 0, y: 0 }, { x: 5, y: 5 }, { x: 10, y: 10 }]);
+    assert.equal(history.canUndo(), false);
+    assert.equal(history.redo(), true);
+    assert.deepEqual(dump(model), joined);
+    assert.equal(history.canRedo(), false);
+});
+
+/**
+ * idを直接代入した弧（中心(100,200)・横の半径60・縦の半径30。左端(40,200)・右端(160,200)）を作る。
+ * @param {string} id 代入するid
+ * @returns {Ellipse} 弧
+ */
+function makeArc(id) {
+    const arc = new Ellipse(100, 200, 160, 230, 'arc', '#abcdef', 4);
+    arc.id = id;
+    return arc;
+}
+
+test('canJoin・join（弧を含む選択。Phase 09-03b）: 偽物の依存で弧と直線は結合でき、弧1本は結合できない。置き換える図形の区間はbezier・bezier・line', () => {
+    const arc = makeArc('r');
+    const line = makeLine('a', 160, 200, 200, 200);
+
+    const one = setupFake([arc], ['r'], { tolerance: 5 });
+    assert.equal(one.joiner.canJoin(), false);
+    assert.equal(one.joiner.join(), false);
+    assert.deepEqual(one.calls, []);
+
+    const two = setupFake([arc, line], ['r', 'a'], { tolerance: 5 });
+    assert.equal(two.joiner.canJoin(), true);
+    assert.deepEqual(two.calls, []);
+    assert.equal(two.joiner.join(), true);
+    assert.deepEqual(two.calls.map((c) => c[0]), ['beginEdit', 'replaceShape', 'commitEdit']);
+    const [, targetId, joined, options] = two.calls[1];
+    assert.equal(targetId, 'r');
+    assert.deepEqual(options, { keepId: false, removeIds: ['a'] });
+    assert.equal(joined.toJSON().closed, false);
+    assert.deepEqual(kindsOf(joined), ['bezier', 'bezier', 'line']);
+});
+
+test('join（弧を含む選択。Phase 09-03b）: 実物の組み合わせで弧と直線を結合 → 取り消し1回で元の弧と直線 → やり直しで結合後', () => {
+    const arc = makeArc('r');
+    const line = makeLine('a', 160, 200, 200, 200);
+    const { model, history, joiner } = setupReal([arc, line]);
+    model.setSelection(['r', 'a']);
+    const original = dump(model);
+    const arcData = arc.toJSON();
+    assert.equal(joiner.join(), true);
+    const joined = dump(model);
+    assert.equal(joined.length, 1);
+    assert.equal(joined[0].type, 'path');
+    assert.deepEqual(joined[0].segments.map((s) => s.kind), ['bezier', 'bezier', 'line']);
+    assert.equal(history.undo(), true);
+    const restored = dump(model);
+    assert.deepEqual(restored, original);
+    assert.equal(restored[0].type, 'arc');
+    assert.deepEqual(restored[0], arcData);
     assert.equal(history.canUndo(), false);
     assert.equal(history.redo(), true);
     assert.deepEqual(dump(model), joined);

@@ -1,5 +1,5 @@
 /**
- * 責務: 選択中の線（直線・開いたパス・今の曲線）の結合を、結合の規則（`shapes/PathJoinRules`）で作った計画に従ってモデルへ反映する
+ * 責務: 選択中の線（直線・開いたパス・今の曲線・弧）の結合を、結合の規則（`shapes/PathJoinRules`）で作った計画に従ってモデルへ反映する
  * 1件の編集操作（閉じる・2本の結合）と、結合できる選択かの照会を担う。DOMに触れない。
  */
 import { JOIN_TOLERANCE_SCREEN_PX, classifyJoin, planJoin } from '../shapes/PathJoinRules.js';

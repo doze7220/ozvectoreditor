@@ -179,7 +179,7 @@
         *   要件Dの「足すケース」のタスク3の分を足す（既存のケースは変えない。補助関数を足すときはJSDocを書く）。ソースは変えない。タスク1の後であればタスク2と順序を問わない（タスク2の結果に依らない）。
         *   `node --test`が全件通ることを確かめ、件数を記録する。テストが落ちてソースの直しが要ると判断したときは、直さずに中断して質問として報告する。
         *   コード修正完了後、JSDocコメントの記載漏れがないことを確認し、作業レポート（本RESファイル）の4.のタスク3の詳細作業内容を記載し、開発資料の記載に影響が出る場合は資料本体を修正せず『開発資料の更新予定』欄に追記する。
-*   [ ] タスク4: 要件C 手順の層の確認とテスト（`edit/PathJoiner`のJSDoc・`edit/`のテスト）
+*   [x] タスク4: 要件C 手順の層の確認とテスト（`edit/PathJoiner`のJSDoc・`edit/`のテスト）
     *   **対象ファイル** :
         *   `./js/edit/PathJoiner.js` : 更新（先頭の責務定義のJSDocだけ）
         *   `./test/edit/PathJoiner.test.js` : 更新（ケースの追加）
@@ -247,7 +247,11 @@
 
 ### タスク4: 要件C 手順の層の確認とテスト（`edit/PathJoiner`のJSDoc・`edit/`のテスト）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/edit/PathJoiner.js`：先頭の責務定義の括弧書きを「直線・開いたパス・今の曲線・弧」に直した（3行のまま。コード・ほかのJSDocは変えていない）。
+    *   経路の確認：`PathJoiner`は`classifyJoin`・`planJoin`、`EndpointSnapper`は`resolveEndpointHandle`・`findSnapTarget`・`findDrawnLineSnapTarget`・`planDrawnLineJoin`・`planEndpointDragJoin`の結果に従うだけで、図形種別を見ていない（コードは変えていない）。
+    *   `test/edit/PathJoiner.test.js`：`Ellipse`のimportと補助`makeArc`（JSDoc付き）を追加。2ケース（偽の依存：弧と直線の`canJoin`真・弧1本の`canJoin`偽・`replaceShape`の区間`['bezier', 'bezier', 'line']`／実物：結合→取り消し1回で弧と直線に戻る（弧の`toJSON()`が元と同じ）→やり直しで結合後）。
+    *   `test/edit/EndpointSnapper.test.js`：`Ellipse`のimportと補助`makeArc`（JSDoc付き）を追加。6ケース（`resolveDragEndpoint`が弧の5ハンドルで`null`／`findDrawSnap('line'・'curve')`が弧の始点／`findDragSnap`が弧の右端／`joinDraggedEndpoint`が`select: true`で`bezier`2つを含むパス／`commitDrawnLine`が弧のidを保つ・区間`['bezier', 'bezier', 'line']`／実物：直線のツールで弧の右端から引き始めて終える→弧のid・色・太さの開いたパス・履歴1件・取り消しで弧に戻る）。既存のケースは変えていない。
+    *   `node --test`：tests 2058 / suites 335 / pass 2058 / fail 0（タスク3後 2050 / 335 から8ケース増。新しいdescribeは作らず`test`を追加）。
 
 ### タスク5: 要件D 保存・書き出しのテスト（`io/`。コードは変えない）
 *   **作業内容** :
@@ -272,3 +276,4 @@
 * **形のずれ**：結合した弧の部分は楕円の4分の1の標準の近似で、ずれは半径の最大約0.027%（半径100pxで約0.03px）。両端と頂上は弧の上にちょうど乗る。見た目で区別できない想定だが、テストプレイの項目1で確かめる。結合した後の当たり判定・範囲選択・塗りの内側は`Path`の折れ線近似（分割数100）を使う（結合する前の弧の当たり判定とは別の式で、許容量の考え方が少し違う）。
 * **`fromJSON`で`points[3]`・`[4]`が正準の位置でない弧**：結合の端点は中心と半径から求めた左端・右端で、描画と同じ形になる（`points[3]`・`[4]`の位置には吸い付かない）。エディタが作る弧では`[3]`・`[4]`は常に左端・右端の位置にある。
 * **既存のテストの書き換え**：要件Dの1.(1a)(1b)(1c)・2.の計4ケース（と補助`JOIN_REJECTED_KINDS`の中身・補助のJSDoc）。`JOIN_REJECTED_KINDS`から弧を除くため、(1a)(1b)(1c)は弧を確かめなくなり、弧の判定は要件Dのタスク2の新しいケースで確かめる。
+* **タスク4で気づいた点**：実物の組み合わせ（弧の端点から描き足す）は、`finishDrawnLine`の前に`clickDrawnLine`で点を1つ打つ必要がある（`startDraft`＋`updateDraft`だけだと作成途中の線は始点＋付いてくる先だけで、終えるときに先が捨てられ始点だけになり何も残らない。既存の直線のテストと同じ手順）。

@@ -11,6 +11,7 @@ import { SnapshotAdapter } from '../../js/edit/SnapshotAdapter.js';
 import { Line } from '../../js/shapes/Line.js';
 import { Path, SEGMENT_KIND_SMOOTH } from '../../js/shapes/Path.js';
 import { Curve } from '../../js/shapes/Curve.js';
+import { Ellipse } from '../../js/shapes/Ellipse.js';
 
 /**
  * idを直接代入した直線を作る。
@@ -1108,4 +1109,97 @@ test('commitDrawnLine（描き始めが今の曲線の端点。Phase 09-03a）: 
     assert.equal(targetId, 'k');
     assert.deepEqual(options, { keepId: true, removeIds: [], select: false });
     assert.deepEqual(path.toJSON().segments.map((s) => s.kind), ['bezier', 'line']);
+});
+
+/**
+ * idを直接代入した弧（中心(100,200)・横の半径60・縦の半径30。左端(40,200)・右端(160,200)）を作る。
+ * @param {string} id 代入するid
+ * @returns {Ellipse} 弧
+ */
+function makeArc(id) {
+    const arc = new Ellipse(100, 200, 160, 230, 'arc', '#abcdef', 4);
+    arc.id = id;
+    return arc;
+}
+
+test('resolveDragEndpoint（弧のハンドル。Phase 09-03b）: left・right・up・down・moveのどれも端点として解決せずnull', () => {
+    const { snapper, calls, lengths } = setupFake([makeArc('r')], null);
+    for (const name of ['left', 'right', 'up', 'down', 'move']) {
+        assert.equal(snapper.resolveDragEndpoint('r', name), null);
+    }
+    assert.deepEqual(calls, []);
+    assert.deepEqual(lengths, []);
+});
+
+test('findDrawSnap（弧の端点。Phase 09-03b）: 直線・曲線のツールで弧の左端の近くは弧の始点のSnapTarget', () => {
+    const { snapper, lengths } = setupFake([makeArc('r')], null, 10);
+    const expected = { shapeId: 'r', end: 'start', x: 40, y: 200 };
+    assert.deepEqual(snapper.findDrawSnap('line', { x: 44, y: 203 }), expected);
+    assert.deepEqual(snapper.findDrawSnap('curve', { x: 44, y: 203 }), expected);
+    assert.deepEqual(lengths, [8, 8]);
+});
+
+test('findDragSnap（弧の端点。Phase 09-03b）: ほかの線の端点のドラッグが弧の右端に吸い付く', () => {
+    const a = makeLine('a', 300, 200, 400, 200);
+    const { snapper } = setupFake([makeArc('r'), a], null, 10);
+    assert.deepEqual(
+        snapper.findDragSnap({ shapeId: 'a', end: 'start' }, { x: 163, y: 198 }),
+        { shapeId: 'r', end: 'end', x: 160, y: 200 }
+    );
+});
+
+test('joinDraggedEndpoint（弧の端点へのドラッグ。Phase 09-03b）: 直線の端点を弧の端点へ。replaceShape（select:true）でbezier2つを含むパスを渡す', () => {
+    const arc = makeArc('r');
+    const line = makeLine('a', 300, 200, 400, 200);
+    line.setVertex(0, 160, 200);
+    const { snapper, calls } = setupFake([arc, line], null, 5);
+    assert.equal(
+        snapper.joinDraggedEndpoint({ shapeId: 'a', end: 'start' }, { shapeId: 'r', end: 'end', x: 160, y: 200 }),
+        true
+    );
+    assert.deepEqual(calls.map((c) => c[0]), ['replaceShape']);
+    const [, targetId, path, options] = calls[0];
+    assert.equal(targetId, 'r');
+    assert.deepEqual(options, { keepId: false, removeIds: ['a'], select: true });
+    const kinds = path.toJSON().segments.map((s) => s.kind);
+    assert.equal(kinds.filter((k) => k === 'bezier').length, 2);
+});
+
+test('commitDrawnLine（描き始めが弧の端点。Phase 09-03b）: 弧のidを保つ（keepId:true）・区間はbezier・bezier・line', () => {
+    const arc = makeArc('r');
+    const draft = makeLine(null, 160, 200, 200, 230);
+    const { snapper, calls } = setupFake([arc], draft, 5);
+    assert.equal(snapper.commitDrawnLine({ shapeId: 'r', end: 'end' }, null), true);
+    assert.deepEqual(calls.map((c) => c[0]), ['cancelDraft', 'beginEdit', 'replaceShape', 'commitEdit']);
+    const [, targetId, path, options] = calls[2];
+    assert.equal(targetId, 'r');
+    assert.deepEqual(options, { keepId: true, removeIds: [], select: false });
+    assert.deepEqual(path.toJSON().segments.map((s) => s.kind), ['bezier', 'bezier', 'line']);
+});
+
+test('実物の組み合わせ（弧の端点から描き足す。Phase 09-03b）: 直線のツールで弧の右端から引き始めて終える → 弧のidで弧の色・太さの開いたパス・履歴1件・取り消しで弧に戻る', () => {
+    const arc = makeArc('r');
+    const { model, history, snapper } = setupReal([arc]);
+    const original = dump(model);
+    const startSnap = snapper.findDrawSnap('line', { x: 162, y: 201 });
+    assert.deepEqual(startSnap, { shapeId: 'r', end: 'end', x: 160, y: 200 });
+    model.startDraft(160, 200, 'line');
+    model.updateDraft(220, 240);
+    assert.equal(snapper.clickDrawnLine(startSnap, null), true);
+    model.updateDraft(260, 240);
+    snapper.finishDrawnLine(startSnap);
+    const shapes = dump(model);
+    assert.equal(shapes.length, 1);
+    assert.equal(shapes[0].id, 'r');
+    assert.equal(shapes[0].type, 'path');
+    assert.equal(shapes[0].closed, false);
+    assert.equal(shapes[0].strokeColor, '#abcdef');
+    assert.equal(shapes[0].strokeWidth, 4);
+    assert.deepEqual(shapes[0].segments.map((s) => s.kind), ['bezier', 'bezier', 'line']);
+    assert.deepEqual(shapes[0].points[3], { x: 220, y: 240 });
+    assert.equal(history.canUndo(), true);
+    assert.equal(history.undo(), true);
+    assert.deepEqual(dump(model), original);
+    assert.equal(model.getShapes()[0].toJSON().type, 'arc');
+    assert.equal(history.canUndo(), false);
 });
