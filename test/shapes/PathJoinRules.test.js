@@ -2421,6 +2421,7 @@ describe('PathJoinRules 弧の結合（Phase 09-03b）', () => {
         it('半径0の弧（点）も直線と結合でき、縮んだ形（NaNなし）になる', () => {
             const arc = new Ellipse(10, 10, 10, 10, 'arc');
             const data = buildJoinedPath(arc, makeLine(10, 10, 50, 10), 0).toJSON();
+            assert.deepEqual(coordsOf(data.points).slice(0, 3), [[10, 10], [10, 10], [10, 10]]);
             assertDegenerateArcPart(data, (q) => Math.abs(q.x - 10) < 1e-9 && Math.abs(q.y - 10) < 1e-9);
         });
 

@@ -125,7 +125,7 @@ export function segmentSpecsOf(data) {
  * 2次ベジェの次数を上げた3次ベジェ（`control1 = 始点 + (制御点 - 始点) * 2 / 3`、`control2 = 終点 + (制御点 - 終点) * 2 / 3`）はすべての`t`で同じ点を通る（誤差なく同じ形）。
  * 計算の順は「差に2を掛けてから3で割る」（差が3の倍数の座標で厳密な値になるため）。それ以外の図形の値はそのまま返す。引数を書き換えない。
  * @param {Object} data 結合できる線の`toJSON()`の値
- * @returns {Object} 今の曲線なら開いたパスの図形データ、それ以外は`data`そのもの
+ * @returns {Object} 今の曲線・弧なら開いたパスの図形データ、それ以外は`data`そのもの
  */
 function chainSourceOf(data) {
     if (data.type === 'arc') return arcChainSourceOf(data);
@@ -281,10 +281,10 @@ export function classifyJoin(shapes) {
  * 始点と終点の距離が`tolerance`以下なら最後の頂点を除く。残りが3つ未満ならnull。頂点の並び・向きは変えない。色・太さ・塗りは元のパスのもの（開いたパスの塗りが閉じることで現れる）。
  * 区間の種類・途中の角の点は元のまま保つ（始点・終点は`chainOf`で端の点としてなめらかな点になる）。始点と終点が離れているときは閉じる区間（終点→始点）を`gapSegmentKind`で足し、
  * 重なっているときは除いた頂点につながっていた区間（最後の区間）が閉じる区間として種類を保つ。
+ * 今の曲線・弧1本は`null`（`type`が`'path'`でない）。
  * @param {Object} shape 図形
  * @param {number} tolerance ワールド座標の許容距離（長さ）
  * @param {string} [gapSegmentKind] 始点と終点が離れているときの閉じる区間の種類。省くと直線。重なっているときは使わない（閉じる区間は最後の区間の種類のまま。全区間が曲線なら1周なめらかな輪）
- * 今の曲線・弧1本は`null`（`type`が`'path'`でない）。
  * @returns {Path|null} 閉じたパス（idはnull）。頂点3つ以上の開いた（結合できる線の）パスでない場合、またはまとめると3つ未満になる場合はnull
  */
 export function buildClosedPath(shape, tolerance, gapSegmentKind = JOIN_GAP_SEGMENT_KIND) {

@@ -197,7 +197,7 @@
         *   要件Dの「足すケース」のタスク5の分を足す（既存のケース・補助は変えない。結合の結果は`shapes/PathJoinRules`の`planJoin`で作る。09-03aの`describe('曲がり方を持つ区間を含むパスの往復（Phase 09-03a）')`・`describe('SpriteSerializer: 曲がり方を持つ区間を含むパス（Phase 09-03a）')`の書き方にそろえる）。`io/`のソースは変えない。
         *   `node --test`が全件通ることを確かめ、件数を記録する。
         *   コード修正完了後、JSDocコメントの記載漏れがないことを確認し、作業レポート（本RESファイル）の4.のタスク5の詳細作業内容を記載し、開発資料の記載に影響が出る場合は資料本体を修正せず『開発資料の更新予定』欄に追記する。
-*   [ ] タスク6: 仕上げの確認（JSDoc・スコープ・全テスト）
+*   [x] タスク6: 仕上げの確認（JSDoc・スコープ・全テスト）
     *   **対象ファイル** :
         *   なし（確認のみ。漏れがあればタスク1〜5の対象ファイルの範囲で直す）
     *   **作業内容** :
@@ -261,7 +261,11 @@
 
 ### タスク6: 仕上げの確認（JSDoc・スコープ・全テスト）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `git diff`で、変更ファイルがタスク1〜5の対象ファイル（`PathJoinRules`・`EndpointSnapRules`・`PathJoiner`のJSDoc・`test/`の各ファイル）だけであることを確かめた。`core/`・`io/`・`palette/`・`main.js`・`index.html`・`Ellipse`・`Path`・`PathCornerRules`・`PathSegmentKindRules`・`ShapeGeometry`・`KeyboardShortcuts.js`は変更なし。
+    *   `toJSON().points`の先頭・末尾の直接読みを検索：`PathJoinRules`の`lineEndpointOf`内（`chainSourceOf`の結果を読む）、`buildClosedPath`（`type==='path'`のみ）、作成途中の線の約束の読み方（`tip`）、`EndpointSnapRules`の作成途中の線の始点のみ。結合できる線の端点を直接読む箇所は残っていない。
+    *   監査の軽微な指摘3点を直した：(1)`PathJoinRules.js`の`chainSourceOf`の`@returns`を「今の曲線・弧なら…」に、(2)`buildClosedPath`のJSDocの一文「今の曲線・弧1本は`null`」を`@param`より前へ移動、(3)`PathJoinRules.test.js`の「半径0の弧（点）」のケースに`coordsOf(data.points).slice(0, 3)`が`[[10,10],[10,10],[10,10]]`であるassertを追加。
+    *   `node --test`：tests 2067 / suites 337 / pass 2067 / fail 0（ケース数は変わらず）。開発資料への影響は新たになし。
+    *   再指摘の修正：`buildClosedPath`のJSDocで、一文「今の曲線・弧1本は`null`」が`@param tolerance`の続きに読まれていたため、最初の`@param {Object} shape`より前の本文末尾へ移した。`node --test`は全件合格（2067 / fail 0）。
 
 ### タスク7: 要件E テストプレイの確認項目を発注者へ提示する
 *   **作業内容** :
