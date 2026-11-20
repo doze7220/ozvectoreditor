@@ -211,7 +211,7 @@
     *   **作業内容** :
         *   要件Eの確認項目を、実装の結果に合わせて文言を確かめて4.のタスク7の欄に書く（注意点があれば足す）。
         *   開発資料の記載に影響が出る点に気づいた場合は、資料本体を修正せず『開発資料の更新予定』欄に追記する。
-*   [ ] タスク8: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
+*   [x] タスク8: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` : 更新
         *   `./_doc/arch/12_shapes.md` : 更新
@@ -285,7 +285,11 @@
 
 ### タスク8: 開発資料（`PROJECT_ARCHITECTURE.md`・`_doc/arch/`）への反映
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   『開発資料の更新予定』に従い、次を反映した（コードは変えていない）。
+    *   `PROJECT_ARCHITECTURE.md`：1章 構成図（`PathJoinRules`の行）・フォルダ分割の方針（`shapes/`。結合できる線に弧、`lineEndpointOf`・`endpointVertexIndexOf`）・「存在しないもの」（弧の結合の項を消し、弧自身のハンドルでの吸い付き・頂点の選択で弧に点を出すこと・弧1本の閉じる・誤差なく保つこと・弧の回転と角度変更・弧のツールでの吸い付きを足した）／2章 `path`（弧の結合で作られること）・`'bezier'`（弧の近似の式・係数・ずれ）・書き出しの`bezierPath`と`ellipse`の記述／3章 11.（結合できる線・`classifyJoin`の`typeOk`廃止・新項「弧の結合（Phase 09-03b）」・「やらないこと」）・12.（対象・弧のハンドルは`null`・やらないこと）・22.（続けて引く線の形は変わらない・弧の端点からつながる・同じ弧の両端は何も起きない）・23.（頂上の点・弧の端の点は`LINE_CORNER`）。3章6.は変更なし（弧の結合も同じ1件の記録で、記述の変更が不要）。
+    *   `_doc/arch/12_shapes.md`：`PathJoinRules`（`isJoinableLine`・公開に`lineEndpointOf`・`endpointVertexIndexOf`・`classifyJoin`・`chainSourceOf`の弧の分岐と`arcChainSourceOf`・`QUARTER_ELLIPSE_BEZIER_K`・Aの端点の読み方）、`EndpointSnapRules`（import・`resolveEndpointHandle`・`findNearestEndpoint`・「注意」・`findSnapTarget`の対象）、`Ellipse.js`（弧は結合できる線）。
+    *   `_doc/arch/14_edit.md`（`PathJoiner`・`EndpointSnapper`）、`_doc/arch/15_io.md`（弧の結合でできた`'bezier'`の往復・`bezierPath`）、`_doc/arch/16_test.md`（Phase 09-03bの追加分の件数と観点・書き換えた既存の4ケース＋補助・テストできない箇所・完了時の件数 tests 2067 / suites 337）。
+    *   `node --test`は実行していない（ドキュメントのみの変更）。
 
 ## 5. 懸念事項・要確認ポイント
 * **弧の半径のハンドルは今の画面では操作できない**：Phase 08-02aから、選択（`V`）ではハンドルを当たりに含めず、頂点の選択（`A`）では弧に点が出ない。REQのテストプレイの項目2の「弧自身の左右の端のハンドルをドラッグすると、今までどおり半径が変わり、どこにも吸い付かない」は今の画面ではその操作自体ができないため、要件Eの項目2・9の文言を「弧は頂点の選択で点が出ず、線の上を押してドラッグすると範囲選択になり、どこにも吸い付かない」に直した。弧自身のハンドルが端点として解決されないことは自動テスト（`resolveEndpointHandle`・`resolveDragEndpoint`）で確かめる。
@@ -295,4 +299,5 @@
 * **`fromJSON`で`points[3]`・`[4]`が正準の位置でない弧**：結合の端点は中心と半径から求めた左端・右端で、描画と同じ形になる（`points[3]`・`[4]`の位置には吸い付かない）。エディタが作る弧では`[3]`・`[4]`は常に左端・右端の位置にある。
 * **既存のテストの書き換え**：要件Dの1.(1a)(1b)(1c)・2.の計4ケース（と補助`JOIN_REJECTED_KINDS`の中身・補助のJSDoc）。`JOIN_REJECTED_KINDS`から弧を除くため、(1a)(1b)(1c)は弧を確かめなくなり、弧の判定は要件Dのタスク2の新しいケースで確かめる。
 * **タスク4で気づいた点**：実物の組み合わせ（弧の端点から描き足す）は、`finishDrawnLine`の前に`clickDrawnLine`で点を1つ打つ必要がある（`startDraft`＋`updateDraft`だけだと作成途中の線は始点＋付いてくる先だけで、終えるときに先が捨てられ始点だけになり何も残らない。既存の直線のテストと同じ手順）。
+* **タスク8で気づいた点**：`PROJECT_ARCHITECTURE.md`の1章「存在しないもの」には「弧の曲線の区間としての取り込み」に当たる項が他にも残っていないことを検索で確かめた。`_doc/arch/`の`17_sprite_check.md`ほかは弧の結合に触れる記述が無く変更していない。今後、弧の閉じる（同じ弧の両端の間を途中の点なしで引く）を許す場合は`buildClosedPath`の受け付けとともに3章11.・22.の該当記述を直すこと。
 * **タスク5で気づいた点**：弧2本の結合（弧(100,200)と弧(220,200)）は右端と左端(160,200)が重なるため端点がまとめられ、区間は`['bezier'×4]`（頂点5つ・間の直線の区間なし）になる。要件Dの記述の「頂点5つ・`'bezier'`4つ」と同じ。
