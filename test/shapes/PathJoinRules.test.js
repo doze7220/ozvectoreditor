@@ -25,6 +25,8 @@ import {
     canCloseDrawnLine,
     segmentKindsOf,
     segmentSpecsOf,
+    lineEndpointOf,
+    endpointVertexIndexOf,
 } from '../../js/shapes/PathJoinRules.js';
 import { Line } from '../../js/shapes/Line.js';
 import { Curve } from '../../js/shapes/Curve.js';
@@ -2255,6 +2257,467 @@ describe('PathJoinRules 今の曲線の結合（Phase 09-03a）', () => {
             assert.notEqual(result, data.segments);
             result[0] = 'x';
             assert.equal(JSON.stringify(data), before);
+        });
+    });
+});
+
+/**
+ * 弧の結合のテストで使う、楕円の4分の1を3次ベジェ1つで表す係数（ソースの非公開の定数と同じ式をここに書く）。
+ * @type {number}
+ */
+const ARC_K = 4 * (Math.SQRT2 - 1) / 3;
+
+/**
+ * 共通の弧を作る（中心(100,200)・横の半径60・縦の半径30。左端L(40,200)・頂上T(100,170)・右端R(160,200)）。
+ * @param {string|null} [color='#000000'] - 線の色
+ * @param {number} [width=2] - 線の太さ
+ * @param {string|null} [fill=null] - 塗りの色
+ * @returns {Ellipse} 弧
+ */
+function makeArc(color = '#000000', width = 2, fill = null) {
+    return new Ellipse(100, 200, 160, 230, 'arc', color, width, fill);
+}
+
+/**
+ * 共通の弧を結合したときの2つの曲がり方を持つ区間（`'bezier'`）の期待値を返す。
+ * @returns {{kind: string, control1: {x: number, y: number}, control2: {x: number, y: number}}[]} 区間0（左端→頂上）と区間1（頂上→右端）
+ */
+function arcBeziers() {
+    return [
+        { kind: 'bezier', control1: { x: 40, y: 200 - 30 * ARC_K }, control2: { x: 100 - 60 * ARC_K, y: 170 } },
+        { kind: 'bezier', control1: { x: 100 + 60 * ARC_K, y: 170 }, control2: { x: 160, y: 200 - 30 * ARC_K } },
+    ];
+}
+
+/**
+ * 区間の指定が期待どおり（種類と、あれば引っ張る点が1e-9以内で一致）か確かめる。
+ * @param {Object[]} actual - 実際の区間の並び
+ * @param {Object[]} expected - 期待する区間の並び
+ * @returns {void}
+ */
+function assertSegmentsNear(actual, expected) {
+    assert.equal(actual.length, expected.length);
+    for (let i = 0; i < expected.length; i++) {
+        assert.equal(actual[i].kind, expected[i].kind, `区間${i}の種類`);
+        if (expected[i].kind === 'bezier') {
+            assertNearPoint(actual[i].control1, expected[i].control1, `区間${i} control1`);
+            assertNearPoint(actual[i].control2, expected[i].control2, `区間${i} control2`);
+        }
+    }
+}
+
+/**
+ * 結合した結果の先頭2区間（弧の部分）の上の点がすべて元の楕円の上（半径で割った距離が1から3e-4以内）かつ上半分にあるか確かめる。
+ * @param {Object} data - 結合した結果の図形データ（先頭3頂点・先頭2区間が弧の部分）
+ * @param {number} xc - 中心x
+ * @param {number} yc - 中心y
+ * @param {number} rx - 横の半径
+ * @param {number} ry - 縦の半径
+ * @returns {void}
+ */
+function assertArcPartOnEllipse(data, xc, yc, rx, ry) {
+    for (let i = 0; i < 2; i++) {
+        const seg = data.segments[i];
+        assert.equal(seg.kind, 'bezier');
+        for (let step = 0; step <= 20; step++) {
+            const t = step / 20;
+            const q = cubicBezierPoint(data.points[i], seg.control1, seg.control2, data.points[i + 1], t);
+            const d = Math.hypot((q.x - xc) / rx, (q.y - yc) / ry);
+            assert.ok(Math.abs(d - 1) <= 3e-4, `区間${i} t=${t} のずれ ${d}`);
+            assert.ok(q.y <= yc + 1e-9, `区間${i} t=${t} は上半分`);
+        }
+    }
+}
+
+/**
+ * 結合した結果の先頭2区間（縮んだ弧の部分）の上の点が有限で、指定の条件を満たすか確かめる。
+ * @param {Object} data - 結合した結果の図形データ
+ * @param {function({x: number, y: number}): boolean} onShape - 縮んだ形の上にあるかの判定
+ * @returns {void}
+ */
+function assertDegenerateArcPart(data, onShape) {
+    assert.deepEqual(data.segments.slice(0, 2).map((s) => s.kind), ['bezier', 'bezier']);
+    for (let i = 0; i < 2; i++) {
+        const seg = data.segments[i];
+        for (let step = 0; step <= 10; step++) {
+            const q = cubicBezierPoint(data.points[i], seg.control1, seg.control2, data.points[i + 1], step / 10);
+            assert.ok(Number.isFinite(q.x) && Number.isFinite(q.y), 'NaNを含まない');
+            assert.ok(onShape(q), `区間${i} step=${step} (${q.x}, ${q.y})`);
+        }
+    }
+}
+
+describe('PathJoinRules 弧の結合（Phase 09-03b）', () => {
+    const L = [40, 200];
+    const T = [100, 170];
+    const R = [160, 200];
+
+    describe('結合できる線の判定', () => {
+        it('isJoinableLineは弧で真、isDrawnLineShapeは偽、円は偽', () => {
+            assert.equal(isJoinableLine(makeArc()), true);
+            assert.equal(isDrawnLineShape(makeArc()), false);
+            assert.equal(isJoinableLine(makeUnjoinable('circle')), false);
+        });
+
+        it('classifyJoin：弧と直線・開いたパス・今の曲線・別の弧は join（順も問わない）', () => {
+            const others = [
+                makeLine(160, 200, 200, 200),
+                makePath([[160, 200], [180, 220], [200, 200]]),
+                makeKindPath([[160, 200], [180, 180], [200, 200], [220, 180]], 'smooth'),
+                makeCurve([160, 200], [190, 160], [220, 200]),
+                new Ellipse(220, 200, 280, 230, 'arc'),
+            ];
+            for (const other of others) {
+                assert.equal(classifyJoin([makeArc(), other]), 'join');
+                assert.equal(classifyJoin([other, makeArc()]), 'join');
+            }
+        });
+
+        it('classifyJoin：弧と円・矩形・閉じたパスは null、弧1本は null', () => {
+            for (const kind of ['circle', 'rect', 'closedPath']) {
+                assert.equal(classifyJoin([makeArc(), makeUnjoinable(kind)]), null);
+                assert.equal(classifyJoin([makeUnjoinable(kind), makeArc()]), null);
+            }
+            assert.equal(classifyJoin([makeArc()]), null);
+        });
+
+        it('作成途中の線の関数は弧を受け付けない', () => {
+            assert.equal(addDrawnPoint(makeArc()), null);
+            assert.equal(buildFinishedDrawnLine(makeArc()), null);
+            assert.equal(canCloseDrawnLine(makeArc()), false);
+        });
+    });
+
+    describe('弧の変換（形のずれは半径の約0.03%以内）', () => {
+        it('buildJoinedPath(弧, 直線)：頂点[L,T,R,直線の先]・区間[bezier2つ, line]・corners無し', () => {
+            const result = buildJoinedPath(makeArc(), makeLine(160, 200, 200, 200), 0);
+            const data = result.toJSON();
+            assert.deepEqual(coordsOf(data.points), [L, T, R, [200, 200]]);
+            assertSegmentsNear(data.segments, [...arcBeziers(), { kind: 'line' }]);
+            assert.equal('corners' in data, false);
+        });
+
+        it('区間の上の点が楕円の上（上半分）にあり、両端と頂上は弧の上にちょうど乗る', () => {
+            const data = buildJoinedPath(makeArc(), makeLine(160, 200, 200, 200), 0).toJSON();
+            assertArcPartOnEllipse(data, 100, 200, 60, 30);
+            assert.deepEqual(coordsOf(data.points).slice(0, 3), [L, T, R]);
+        });
+
+        it('接線の向き：左端・右端は縦、頂上は横', () => {
+            const segs = buildJoinedPath(makeArc(), makeLine(160, 200, 200, 200), 0).toJSON().segments;
+            assert.equal(segs[0].control1.x, 40);
+            assert.equal(segs[0].control2.y, 170);
+            assert.equal(segs[1].control1.y, 170);
+            assert.equal(segs[1].control2.x, 160);
+        });
+
+        it('横と縦の半径が同じ弧（円の上半分）でも同じ許容量', () => {
+            const arc = new Ellipse(100, 200, 150, 250, 'arc');
+            const data = buildJoinedPath(arc, makeLine(150, 200, 200, 200), 0).toJSON();
+            assert.deepEqual(coordsOf(data.points).slice(0, 3), [[50, 200], [100, 150], [150, 200]]);
+            assertArcPartOnEllipse(data, 100, 200, 50, 50);
+        });
+
+        it('半径0の弧（点）も直線と結合でき、縮んだ形（NaNなし）になる', () => {
+            const arc = new Ellipse(10, 10, 10, 10, 'arc');
+            const data = buildJoinedPath(arc, makeLine(10, 10, 50, 10), 0).toJSON();
+            assertDegenerateArcPart(data, (q) => Math.abs(q.x - 10) < 1e-9 && Math.abs(q.y - 10) < 1e-9);
+        });
+
+        it('半径0の弧（横の半径0・縦の半径20の線分）も直線と結合でき、線分の上に乗る', () => {
+            const arc = new Ellipse(10, 30, 10, 10, 'arc');
+            const data = buildJoinedPath(arc, makeLine(10, 30, 50, 30), 0).toJSON();
+            assert.deepEqual(coordsOf(data.points).slice(0, 3), [[10, 30], [10, 10], [10, 30]]);
+            assertDegenerateArcPart(data, (q) => Math.abs(q.x - 10) < 1e-9 && q.y >= 10 - 1e-9 && q.y <= 30 + 1e-9);
+        });
+    });
+
+    describe('planJoin／buildJoinedPath', () => {
+        it('弧＋直線（端点が重なる）：頂点4つ・区間 bezier, bezier, line。idの扱い', () => {
+            const plan = planJoin([withId(makeArc(), 'A'), withId(makeLine(160, 200, 200, 200), 'B')], 0);
+            const data = plan.path.toJSON();
+            assert.deepEqual(coordsOf(data.points), [L, T, R, [200, 200]]);
+            assertSegmentsNear(data.segments, [...arcBeziers(), { kind: 'line' }]);
+            assert.equal(plan.keepId, false);
+            assert.equal(plan.targetId, 'A');
+            assert.deepEqual(plan.removeIds, ['B']);
+        });
+
+        it('弧＋直線（離れている）：間に直線の区間', () => {
+            const data = buildJoinedPath(makeArc(), makeLine(170, 200, 200, 200), 0).toJSON();
+            assert.deepEqual(coordsOf(data.points), [L, T, R, [170, 200], [200, 200]]);
+            assertSegmentsNear(data.segments, [...arcBeziers(), { kind: 'line' }, { kind: 'line' }]);
+        });
+
+        it('直線＋弧：Bの弧を逆順にして区間は[line, B1の逆, B0の逆]（引っ張る点を入れ替える）', () => {
+            const data = buildJoinedPath(makeLine(200, 200, 160, 200), makeArc(), 0).toJSON();
+            assert.deepEqual(coordsOf(data.points), [[200, 200], R, T, L]);
+            const [b0, b1] = arcBeziers();
+            assertSegmentsNear(data.segments, [
+                { kind: 'line' },
+                { kind: 'bezier', control1: b1.control2, control2: b1.control1 },
+                { kind: 'bezier', control1: b0.control2, control2: b0.control1 },
+            ]);
+        });
+
+        it('弧＋直線の開いたパス：頂点5つ・区間 bezier, bezier, line, line', () => {
+            const data = buildJoinedPath(makeArc(), makePath([[160, 200], [180, 220], [200, 200]]), 0).toJSON();
+            assert.deepEqual(coordsOf(data.points), [L, T, R, [180, 220], [200, 200]]);
+            assertSegmentsNear(data.segments, [...arcBeziers(), { kind: 'line' }, { kind: 'line' }]);
+        });
+
+        it('弧＋曲線の開いたパス：曲線の区間を保つ', () => {
+            const smooth = makeKindPath([[160, 200], [180, 180], [200, 200], [220, 180]], 'smooth');
+            const data = buildJoinedPath(makeArc(), smooth, 0).toJSON();
+            assert.deepEqual(data.segments.map((s) => s.kind), ['bezier', 'bezier', 'smooth', 'smooth', 'smooth']);
+            assert.equal(data.points.length, 6);
+        });
+
+        it('弧＋今の曲線：区間 bezier が3つ', () => {
+            const data = buildJoinedPath(makeArc(), makeCurve([160, 200], [190, 160], [220, 200]), 0).toJSON();
+            assert.deepEqual(coordsOf(data.points), [L, T, R, [220, 200]]);
+            assert.deepEqual(data.segments.map((s) => s.kind), ['bezier', 'bezier', 'bezier']);
+        });
+
+        it('弧＋別の弧：頂点5つ・bezier 4つ', () => {
+            const data = buildJoinedPath(makeArc(), new Ellipse(220, 200, 280, 230, 'arc'), 0).toJSON();
+            assert.deepEqual(coordsOf(data.points), [L, T, R, [220, 170], [280, 200]]);
+            assert.deepEqual(data.segments.map((s) => s.kind), ['bezier', 'bezier', 'bezier', 'bezier']);
+        });
+
+        it('スタイルは基準の線Aのもの（弧がAなら弧の線の色・太さ・塗り。直線がAなら直線のもの）', () => {
+            const arc = makeArc('#aa0000', 7, '#a1a1a1');
+            const line = makeLine(160, 200, 200, 200, '#00bb00', 3, '#b2b2b2');
+            const d1 = buildJoinedPath(arc, line, 0).toJSON();
+            assert.equal(d1.strokeColor, '#aa0000');
+            assert.equal(d1.strokeWidth, 7);
+            assert.equal(d1.fillColor, '#a1a1a1');
+            const line2 = makeLine(200, 200, 160, 200, '#00bb00', 3, '#b2b2b2');
+            const d2 = buildJoinedPath(line2, arc, 0).toJSON();
+            assert.equal(d2.strokeColor, '#00bb00');
+            assert.equal(d2.strokeWidth, 3);
+            assert.equal(d2.fillColor, '#b2b2b2');
+        });
+
+        it('引数（弧のtoJSON）を書き換えず、結果は引数と頂点を共有しない', () => {
+            const arc = makeArc();
+            const line = makeLine(160, 200, 200, 200);
+            const beforeArc = JSON.stringify(arc.toJSON());
+            const beforeLine = JSON.stringify(line.toJSON());
+            const result = buildJoinedPath(arc, line, 0);
+            result.setVertex(0, 5, 5);
+            result.translate(10, 10);
+            assert.equal(JSON.stringify(arc.toJSON()), beforeArc);
+            assert.equal(JSON.stringify(line.toJSON()), beforeLine);
+        });
+    });
+
+    describe('閉じる（半月形）', () => {
+        it('弧と直線(R→L)を結合し、もう一度結合すると頂点3つの閉じた塗れるパスになる', () => {
+            const arc = withId(makeArc('#112233', 3, '#ff0000'), 'A');
+            const line = withId(makeLine(160, 200, 40, 200), 'B');
+            const first = planJoin([arc, line], 0);
+            const open = first.path.toJSON();
+            assert.deepEqual(coordsOf(open.points), [L, T, R, L]);
+            assertSegmentsNear(open.segments, [...arcBeziers(), { kind: 'line' }]);
+            first.path.id = 'P';
+            const second = planJoin([first.path], 5);
+            const closed = second.path.toJSON();
+            assert.equal(second.keepId, true);
+            assert.equal(closed.closed, true);
+            assert.deepEqual(coordsOf(closed.points), [L, T, R]);
+            assertSegmentsNear(closed.segments, [...arcBeziers(), { kind: 'line' }]);
+            assert.equal(second.path.isFillable(), true);
+            assert.equal(second.path.hitTestFill(100, 190), true);
+        });
+
+        it('弧1本は buildClosedPath が null、planJoin も null', () => {
+            assert.equal(buildClosedPath(makeArc(), 0), null);
+            assert.equal(planJoin([withId(makeArc(), 'A')], 0), null);
+        });
+    });
+
+    describe('buildJoinedPathAt・buildExtendedPath', () => {
+        it('buildJoinedPathAt：弧の終点側・始点側（向きを保つ）', () => {
+            const end = buildJoinedPathAt(makeArc(), 'end', makeLine(160, 200, 200, 200), 'start', 0).toJSON();
+            assert.deepEqual(coordsOf(end.points), [L, T, R, [200, 200]]);
+            assertSegmentsNear(end.segments, [...arcBeziers(), { kind: 'line' }]);
+            const start = buildJoinedPathAt(makeArc(), 'start', makeLine(0, 200, 40, 200), 'end', 0).toJSON();
+            assert.deepEqual(coordsOf(start.points), [[0, 200], L, T, R]);
+            assertSegmentsNear(start.segments, [{ kind: 'line' }, ...arcBeziers()]);
+        });
+
+        it('buildExtendedPath：弧の終点側・始点側に描き足す。区間の種類は引数のもの。端点と重なれば null', () => {
+            const e = buildExtendedPath(makeArc(), 'end', { x: 160, y: 240 }, 1).toJSON();
+            assert.deepEqual(coordsOf(e.points), [L, T, R, [160, 240]]);
+            assertSegmentsNear(e.segments, [...arcBeziers(), { kind: 'line' }]);
+            const s = buildExtendedPath(makeArc(), 'start', { x: 40, y: 240 }, 1).toJSON();
+            assert.deepEqual(coordsOf(s.points), [[40, 240], L, T, R]);
+            assertSegmentsNear(s.segments, [{ kind: 'line' }, ...arcBeziers()]);
+            const k = buildExtendedPath(makeArc(), 'end', { x: 160, y: 240 }, 1, 'smooth').toJSON();
+            assert.deepEqual(k.segments.map((seg) => seg.kind), ['bezier', 'bezier', 'smooth']);
+            assert.equal(buildExtendedPath(makeArc(), 'end', { x: 160, y: 200 }, 1), null);
+            assert.equal(buildExtendedPath(makeArc(), 'start', { x: 40, y: 200 }, 1), null);
+        });
+    });
+
+    describe('planDrawnLineJoin', () => {
+        const TOL = 1;
+
+        it('描き始めだけ弧の端点：弧のidを保ち、足した区間は描いた区間の種類', () => {
+            const arc = withId(makeArc(), 'A');
+            const drawn = makeLine(160, 200, 160, 240);
+            const plan = planDrawnLineJoin([arc], drawn, ref('A', 'end'), null, TOL);
+            assert.equal(plan.keepId, true);
+            assert.equal(plan.targetId, 'A');
+            assertSegmentsNear(plan.path.toJSON().segments, [...arcBeziers(), { kind: 'line' }]);
+            const drawnSmooth = makeKindPath([[160, 200], [160, 240]], 'smooth');
+            const plan2 = planDrawnLineJoin([arc], drawn, ref('A', 'end'), null, TOL, drawnSmooth);
+            assert.deepEqual(plan2.path.toJSON().segments.map((s) => s.kind), ['bezier', 'bezier', 'smooth']);
+        });
+
+        it('描き終えだけ弧の端点', () => {
+            const arc = withId(makeArc(), 'A');
+            const drawn = makeLine(40, 240, 40, 200);
+            const plan = planDrawnLineJoin([arc], drawn, null, ref('A', 'start'), TOL);
+            assert.equal(plan.keepId, true);
+            assert.equal(plan.targetId, 'A');
+            assert.deepEqual(coordsOf(plan.path.toJSON().points), [[40, 240], L, T, R]);
+            assertSegmentsNear(plan.path.toJSON().segments, [{ kind: 'line' }, ...arcBeziers()]);
+        });
+
+        it('同じ弧の両端で途中の点なしは null', () => {
+            const arc = withId(makeArc(), 'A');
+            const drawn = makeLine(40, 200, 160, 200);
+            assert.equal(planDrawnLineJoin([arc], drawn, ref('A', 'start'), ref('A', 'end'), TOL), null);
+        });
+
+        it('途中の点ありで同じ弧の両端：閉じたパス（弧のid）', () => {
+            const arc = withId(makeArc(), 'A');
+            const drawn = makeKindPath([[40, 200], [100, 260], [160, 200]], 'line');
+            const plan = planDrawnLineJoin([arc], drawn, ref('A', 'start'), ref('A', 'end'), TOL);
+            const data = plan.path.toJSON();
+            assert.equal(data.closed, true);
+            assert.equal(plan.keepId, true);
+            assert.equal(plan.targetId, 'A');
+            assert.equal(plan.path.isFillable(), true);
+        });
+
+        it('弧の端と直線の端の間は結合', () => {
+            const arc = withId(makeArc(), 'A');
+            const line = withId(makeLine(200, 200, 240, 200), 'B');
+            const drawn = makeLine(160, 200, 200, 200);
+            const plan = planDrawnLineJoin([arc, line], drawn, ref('A', 'end'), ref('B', 'start'), TOL);
+            assert.equal(plan.keepId, false);
+            assert.deepEqual(plan.path.toJSON().segments.map((s) => s.kind), ['bezier', 'bezier', 'line', 'line']);
+        });
+    });
+
+    describe('planEndpointDragJoin', () => {
+        it('直線の終点を弧の始点Lへ（同じ座標）：結合。弧が奥でも手前でも頂点の並びは同じ', () => {
+            const line = withId(makeLine(0, 200, 40, 200), 'N');
+            const arc = withId(makeArc(), 'A');
+            for (const shapes of [[arc, line], [line, arc]]) {
+                const plan = planEndpointDragJoin(shapes, ref('N', 'end'), ref('A', 'start'), 1);
+                const data = plan.path.toJSON();
+                assert.deepEqual(coordsOf(data.points), [[0, 200], L, T, R]);
+                assertSegmentsNear(data.segments, [{ kind: 'line' }, ...arcBeziers()]);
+            }
+        });
+
+        it('弧のもう一方の端点への自分のドラッグは null（弧1本は閉じない）', () => {
+            const arc = withId(makeArc(), 'A');
+            assert.equal(planEndpointDragJoin([arc], ref('A', 'start'), ref('A', 'end'), 1), null);
+            assert.equal(planEndpointDragJoin([arc], ref('A', 'end'), ref('A', 'start'), 1), null);
+        });
+    });
+
+    describe('結合した後の頂点の操作（Path の公開API）', () => {
+        const joined = () => buildJoinedPath(makeArc(), makeLine(160, 200, 200, 200), 0);
+
+        it('頂上を動かすと両側の引っ張る点が同じ差だけ動き、頂上でなめらかなまま', () => {
+            const path = joined();
+            const before = arcBeziers();
+            path.setVertex(1, 105, 163);
+            const segs = path.toJSON().segments;
+            assertNearPoint(segs[0].control1, before[0].control1);
+            assertNearPoint(segs[0].control2, { x: before[0].control2.x + 5, y: before[0].control2.y - 7 });
+            assertNearPoint(segs[1].control1, { x: before[1].control1.x + 5, y: before[1].control1.y - 7 });
+            assertNearPoint(segs[1].control2, before[1].control2);
+            assert.equal(segs[0].control2.y, 163);
+            assert.equal(segs[1].control1.y, 163);
+            assert.equal(segs[2].kind, 'line');
+        });
+
+        it('左端を動かすと区間0の control1 だけが動く', () => {
+            const path = joined();
+            const before = arcBeziers();
+            path.setVertex(0, 45, 205);
+            const segs = path.toJSON().segments;
+            assertNearPoint(segs[0].control1, { x: before[0].control1.x + 5, y: before[0].control1.y + 5 });
+            assertNearPoint(segs[0].control2, before[0].control2);
+            assertNearPoint(segs[1].control1, before[1].control1);
+            assertNearPoint(segs[1].control2, before[1].control2);
+        });
+
+        it('translate ですべての引っ張る点が動く', () => {
+            const path = joined();
+            const before = arcBeziers();
+            path.translate(10, 20);
+            const segs = path.toJSON().segments;
+            for (let i = 0; i < 2; i++) {
+                assertNearPoint(segs[i].control1, { x: before[i].control1.x + 10, y: before[i].control1.y + 20 });
+                assertNearPoint(segs[i].control2, { x: before[i].control2.x + 10, y: before[i].control2.y + 20 });
+            }
+        });
+    });
+
+    describe('端点の読み方', () => {
+        it('lineEndpointOf：直線・開いたパス・今の曲線・弧の端点を新しいオブジェクトで返し、引数を書き換えない', () => {
+            const cases = [
+                [makeLine(0, 0, 10, 5), { x: 0, y: 0 }, { x: 10, y: 5 }],
+                [makePath([[0, 0], [5, 5], [8, 1], [10, 9]]), { x: 0, y: 0 }, { x: 10, y: 9 }],
+                [makeCurve([0, 0], [30, 60], [60, 0]), { x: 0, y: 0 }, { x: 60, y: 0 }],
+                [makeArc(), { x: 40, y: 200 }, { x: 160, y: 200 }],
+            ];
+            for (const [shape, start, end] of cases) {
+                const data = shape.toJSON();
+                const before = JSON.stringify(data);
+                const s = lineEndpointOf(data, 'start');
+                const e = lineEndpointOf(data, 'end');
+                assert.deepEqual(s, start);
+                assert.deepEqual(e, end);
+                assert.equal(JSON.stringify(data), before);
+                s.x = 999;
+                e.y = 999;
+                assert.equal(JSON.stringify(data), before);
+            }
+        });
+
+        it('fromJSONで[3]・[4]が正準でない弧・[1]が中心より左の弧でも左端・右端（半径は絶対値、[3]・[4]を読まない）', () => {
+            const data = makeArc().toJSON();
+            data.points = [
+                { x: 100, y: 200 }, { x: 40, y: 200 }, { x: 100, y: 230 },
+                { x: 999, y: 999 }, { x: -5, y: -5 },
+            ];
+            const arc = Ellipse.fromJSON(data);
+            assert.deepEqual(lineEndpointOf(arc.toJSON(), 'start'), { x: 40, y: 200 });
+            assert.deepEqual(lineEndpointOf(arc.toJSON(), 'end'), { x: 160, y: 200 });
+        });
+
+        it('endpointVertexIndexOf：直線0／1、頂点4つのパス0／3、今の曲線0／2、弧は null／null', () => {
+            const line = makeLine(0, 0, 10, 0).toJSON();
+            assert.equal(endpointVertexIndexOf(line, 'start'), 0);
+            assert.equal(endpointVertexIndexOf(line, 'end'), 1);
+            const path = makePath([[0, 0], [5, 5], [8, 1], [10, 9]]).toJSON();
+            assert.equal(endpointVertexIndexOf(path, 'start'), 0);
+            assert.equal(endpointVertexIndexOf(path, 'end'), 3);
+            const curve = makeCurve([0, 0], [30, 60], [60, 0]).toJSON();
+            assert.equal(endpointVertexIndexOf(curve, 'start'), 0);
+            assert.equal(endpointVertexIndexOf(curve, 'end'), 2);
+            const arc = makeArc().toJSON();
+            assert.equal(endpointVertexIndexOf(arc, 'start'), null);
+            assert.equal(endpointVertexIndexOf(arc, 'end'), null);
         });
     });
 });

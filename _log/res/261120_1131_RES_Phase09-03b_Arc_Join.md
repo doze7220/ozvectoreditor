@@ -163,7 +163,7 @@
         *   要件Dの「書き換える既存のケース」1.・2.をこのタスクで書き換える（ほかのケースは変えない・足さない）。
         *   `node --test`が全件通ることを確かめ、件数を記録する（ケースを足さないため tests 2002 / suites 322 のまま）。書き換え以外の既存のケースが落ちたら直さずに中断し、質問として報告する。
         *   コード修正完了後、JSDocコメントの記載漏れがないことを確認し、作業レポート（本RESファイル）の4.のタスク1の詳細作業内容を記載し、開発資料の記載に影響が出る場合は資料本体を修正せず『開発資料の更新予定』欄に追記する。
-*   [ ] タスク2: 要件D 結合の規則のテストを足す（`test/shapes/PathJoinRules.test.js`）
+*   [x] タスク2: 要件D 結合の規則のテストを足す（`test/shapes/PathJoinRules.test.js`）
     *   **対象ファイル** :
         *   `./test/shapes/PathJoinRules.test.js` : 更新（ケースの追加）
     *   **作業内容** :
@@ -235,7 +235,8 @@
 
 ### タスク2: 要件D 結合の規則のテストを足す（`test/shapes/PathJoinRules.test.js`）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `test/shapes/PathJoinRules.test.js`：importに`lineEndpointOf`・`endpointVertexIndexOf`を追加。末尾に補助（`ARC_K`・`makeArc`・`arcBeziers`・`assertSegmentsNear`・`assertArcPartOnEllipse`・`assertDegenerateArcPart`。すべてJSDoc付き）と`describe('PathJoinRules 弧の結合（Phase 09-03b）')`を追加。観点：結合できる線の判定、変換（形のずれ3e-4・接線・円の上半分・半径0の2種）、`planJoin`／`buildJoinedPath`（重なる・離れる・直線＋弧の逆順・パス・曲線のパス・今の曲線・別の弧・スタイル・id・引数不変）、半月形で閉じる・弧1本はnull、`buildJoinedPathAt`・`buildExtendedPath`、`planDrawnLineJoin`、`planEndpointDragJoin`、結合後の`setVertex`・`translate`、`lineEndpointOf`・`endpointVertexIndexOf`（`fromJSON`の正準でない弧を含む）。既存のケース・ソースは変えていない。
+    *   `node --test`：tests 2038 / suites 332 / pass 2038 / fail 0（作業前 2002 / 322。足したのは36ケース・10 describe）。
 
 ### タスク3: 要件D 吸い付き・角・区間の切り替えの規則のテストを足す（`test/shapes/`の残り3ファイル）
 *   **作業内容** :
