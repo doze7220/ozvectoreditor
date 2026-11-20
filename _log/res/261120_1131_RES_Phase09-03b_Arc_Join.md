@@ -170,7 +170,7 @@
         *   要件Dの「足すケース」のタスク2の分を足す（既存のケースは変えない。補助関数を足すときはJSDocを書く。形のずれの点は`js/shapes/ShapeGeometry.js`がexportする`cubicBezierPoint`で求める＝このテストファイルは既に`../../js/shapes/ShapeGeometry.js`からimportしている）。ソースは変えない。
         *   `node --test`が全件通ることを確かめ、件数を記録する。テストが落ちてソースの直しが要ると判断したときは、直さずに中断して質問として報告する。
         *   コード修正完了後、JSDocコメントの記載漏れがないことを確認し、作業レポート（本RESファイル）の4.のタスク2の詳細作業内容を記載し、開発資料の記載に影響が出る場合は資料本体を修正せず『開発資料の更新予定』欄に追記する。
-*   [ ] タスク3: 要件D 吸い付き・角・区間の切り替えの規則のテストを足す（`test/shapes/`の残り3ファイル）
+*   [x] タスク3: 要件D 吸い付き・角・区間の切り替えの規則のテストを足す（`test/shapes/`の残り3ファイル）
     *   **対象ファイル** :
         *   `./test/shapes/EndpointSnapRules.test.js` : 更新（ケースの追加）
         *   `./test/shapes/PathCornerRules.test.js` : 更新（ケースの追加）
@@ -240,7 +240,10 @@
 
 ### タスク3: 要件D 吸い付き・角・区間の切り替えの規則のテストを足す（`test/shapes/`の残り3ファイル）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `test/shapes/EndpointSnapRules.test.js`：末尾に`describe('EndpointSnapRules 弧の吸い付き（Phase 09-03b）')`（補助`makeArc`・`makeOddArc`はJSDoc付き）。観点：左端・右端が吸い付く、中心・頂上は対象外、`fromJSON`で`[3]`・`[4]`が正準でない弧は左端・右端のみ、`resolveEndpointHandle`が弧の5ハンドルで`null`、ほかの線のドラッグ中に弧の端点が候補、`findDrawnLineSnapTarget`で描き始めが弧の始点なら終点のみ候補、円の点には吸い付かない。7ケース。
+    *   `test/shapes/PathCornerRules.test.js`：`planJoin`のimportを追加し、`describe('PathCornerRules と弧の結合（Phase 09-03b）')`（頂上・弧の右端だった点が`LINE_CORNER`、「角」が押せない・チェックあり）。2ケース。
+    *   `test/shapes/PathSegmentKindRules.test.js`：`planJoin`のimportを追加し、`describe('PathSegmentKindRules と弧の結合（Phase 09-03b）')`（左端と頂上で「直線に」のみ押せる、区間0だけ`line`で区間1の`bezier`は残る、「曲線に」は空配列）。3ケース。
+    *   既存のケース・ソースは変えていない。`node --test`：tests 2050 / suites 335 / pass 2050 / fail 0（タスク2後 2038 / 332 から12ケース・3 describe 増）。
 
 ### タスク4: 要件C 手順の層の確認とテスト（`edit/PathJoiner`のJSDoc・`edit/`のテスト）
 *   **作業内容** :

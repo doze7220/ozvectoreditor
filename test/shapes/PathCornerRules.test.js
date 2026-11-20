@@ -9,6 +9,7 @@ import {
     resolveCornerToggleView,
     planCornerToggle,
 } from '../../js/shapes/PathCornerRules.js';
+import { planJoin } from '../../js/shapes/PathJoinRules.js';
 import { Path, SEGMENT_KIND_LINE, SEGMENT_KIND_SMOOTH } from '../../js/shapes/Path.js';
 import { Line } from '../../js/shapes/Line.js';
 import { Rect } from '../../js/shapes/Rect.js';
@@ -295,5 +296,37 @@ describe('PathCornerRules と曲がり方を持つ区間（Phase 09-03a）', () 
         assert.deepEqual(plan[0].path.corners, [false, true, false, false, false]);
         assert.deepEqual(plan[0].path.toJSON().segments, path.toJSON().segments);
         assert.deepEqual(plan[0].path.toJSON().segments[2], bezSpec(70, 30, 80, 30));
+    });
+});
+
+describe('PathCornerRules と弧の結合（Phase 09-03b）', () => {
+    /**
+     * 弧（中心(100,200)・横の半径60・縦の半径30）と直線（右端→(200,200)）を結合したパスを作る。
+     * 頂点は [左端, 頂上, 右端, (200,200)]、区間は [曲がり方を持つ, 曲がり方を持つ, 直線]。
+     * @returns {Path} 結合したパス
+     */
+    function makeJoinedArcPath() {
+        const arc = new Ellipse(100, 200, 160, 230, 'arc');
+        arc.id = 'A';
+        const line = new Line(160, 200, 200, 200);
+        line.id = 'B';
+        return planJoin([arc, line], 0).path;
+    }
+
+    it('頂上（番号1）・弧の右端だった点（番号2）は LINE_CORNER', () => {
+        const path = makeJoinedArcPath();
+        assert.equal(resolveCornerState(path, 1), CornerState.LINE_CORNER);
+        assert.equal(resolveCornerState(path, 2), CornerState.LINE_CORNER);
+    });
+
+    it('頂上・弧の右端だった点を選ぶと、押せず、チェックありの見た目', () => {
+        const path = makeJoinedArcPath();
+        const view = { enabled: false, checked: true, mixed: false };
+        assert.deepEqual(resolveCornerToggleView([{ shape: path, vertexIndex: 1 }]), view);
+        assert.deepEqual(resolveCornerToggleView([{ shape: path, vertexIndex: 2 }]), view);
+        assert.deepEqual(
+            resolveCornerToggleView([{ shape: path, vertexIndex: 1 }, { shape: path, vertexIndex: 2 }]),
+            view,
+        );
     });
 });

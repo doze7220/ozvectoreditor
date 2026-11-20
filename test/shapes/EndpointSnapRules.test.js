@@ -540,3 +540,82 @@ describe('EndpointSnapRules 今の曲線の吸い付き（Phase 09-03a）', () =
         );
     });
 });
+
+describe('EndpointSnapRules 弧の吸い付き（Phase 09-03b）', () => {
+    /**
+     * 共通の弧を作る（中心(100,200)・横の半径60・縦の半径30。左端(40,200)・頂上(100,170)・右端(160,200)）。
+     * @param {string} id - 付けるid
+     * @returns {Ellipse} 弧
+     */
+    function makeArc(id) {
+        return withId(new Ellipse(100, 200, 160, 230, 'arc'), id);
+    }
+
+    /**
+     * `points[3]`・`[4]`（開始角・終了角の制御点）が正準でない位置の弧を`fromJSON`で作る。
+     * @param {string} id - 付けるid
+     * @returns {Ellipse} 弧
+     */
+    function makeOddArc(id) {
+        const data = makeArc(id).toJSON();
+        data.points = [
+            { x: 100, y: 200 }, { x: 160, y: 200 }, { x: 100, y: 170 },
+            { x: 999, y: 999 }, { x: -5, y: -5 },
+        ];
+        return Ellipse.fromJSON(data);
+    }
+
+    it('findSnapTarget は弧の左端が start・右端が end として吸い付く', () => {
+        const arc = makeArc('A');
+        assert.deepEqual(findSnapTarget([arc], { x: 42, y: 201 }, 8), { shapeId: 'A', end: 'start', x: 40, y: 200 });
+        assert.deepEqual(findSnapTarget([arc], { x: 158, y: 203 }, 8), { shapeId: 'A', end: 'end', x: 160, y: 200 });
+    });
+
+    it('findSnapTarget は弧の中心・頂上には吸い付かない', () => {
+        const arc = makeArc('A');
+        assert.equal(findSnapTarget([arc], { x: 100, y: 200 }, 8), null);
+        assert.equal(findSnapTarget([arc], { x: 100, y: 170 }, 8), null);
+    });
+
+    it('fromJSONで[3]・[4]が正準でない弧は、その位置に吸い付かず左端・右端に吸い付く', () => {
+        const arc = withId(makeOddArc('A'), 'A');
+        assert.equal(findSnapTarget([arc], { x: 999, y: 999 }, 8), null);
+        assert.equal(findSnapTarget([arc], { x: -5, y: -5 }, 8), null);
+        assert.deepEqual(findSnapTarget([arc], { x: 41, y: 200 }, 8), { shapeId: 'A', end: 'start', x: 40, y: 200 });
+        assert.deepEqual(findSnapTarget([arc], { x: 159, y: 200 }, 8), { shapeId: 'A', end: 'end', x: 160, y: 200 });
+    });
+
+    it('resolveEndpointHandle は弧のどのハンドルでも null（fromJSONの弧でも）', () => {
+        for (const arc of [makeArc('A'), makeOddArc('B')]) {
+            for (const name of ['left', 'right', 'up', 'down', 'move']) {
+                assert.equal(resolveEndpointHandle(arc, name), null, name);
+            }
+        }
+    });
+
+    it('ほかの線をドラッグしているとき、弧の端点が候補になる', () => {
+        const arc = makeArc('A');
+        const line = withId(new Line(300, 200, 400, 200), 'L');
+        const dragged = { shapeId: 'L', end: 'start' };
+        assert.deepEqual(findSnapTarget([arc, line], { x: 41, y: 199 }, 8, dragged), { shapeId: 'A', end: 'start', x: 40, y: 200 });
+        assert.deepEqual(findSnapTarget([arc, line], { x: 160, y: 202 }, 8, dragged), { shapeId: 'A', end: 'end', x: 160, y: 200 });
+    });
+
+    it('findDrawnLineSnapTarget は描き始めが弧の始点のとき、終点は候補・始点は候補でない', () => {
+        const arc = makeArc('A');
+        const drawn = makeDrawn([[40, 200], [60, 260]]);
+        const startSnap = { shapeId: 'A', end: 'start' };
+        assert.equal(findDrawnLineSnapTarget([arc], drawn, { x: 40, y: 200 }, 8, startSnap), null);
+        assert.deepEqual(
+            findDrawnLineSnapTarget([arc], drawn, { x: 161, y: 200 }, 8, startSnap),
+            { shapeId: 'A', end: 'end', x: 160, y: 200 }
+        );
+    });
+
+    it('円の点には吸い付かない', () => {
+        const circle = withId(new Ellipse(100, 200, 160, 230, 'circle'), 'C');
+        for (const p of circle.toJSON().points) {
+            assert.equal(findSnapTarget([circle], { x: p.x, y: p.y }, 8), null);
+        }
+    });
+});

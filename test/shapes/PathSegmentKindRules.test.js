@@ -10,6 +10,7 @@ import { Line } from '../../js/shapes/Line.js';
 import { Curve } from '../../js/shapes/Curve.js';
 import { Rect } from '../../js/shapes/Rect.js';
 import { Ellipse } from '../../js/shapes/Ellipse.js';
+import { planJoin } from '../../js/shapes/PathJoinRules.js';
 
 const EPS = 1e-9;
 
@@ -473,5 +474,44 @@ describe('PathSegmentKindRules と曲がり方を持つ区間（Phase 09-03a）'
         const data = plan[0].shape.toJSON();
         assert.deepEqual(data.segments[0], { kind: 'line' });
         assert.deepEqual(data.segments[1], BEZ);
+    });
+});
+
+describe('PathSegmentKindRules と弧の結合（Phase 09-03b）', () => {
+    /**
+     * 弧（中心(100,200)・横の半径60・縦の半径30）と直線（右端→(200,200)）を結合したパスを作る。
+     * 頂点は [左端, 頂上, 右端, (200,200)]、区間は [曲がり方を持つ, 曲がり方を持つ, 直線]。
+     * @returns {Path} 結合したパス
+     */
+    function makeJoinedArcPath() {
+        const arc = new Ellipse(100, 200, 160, 230, 'arc');
+        arc.id = 'A';
+        const line = new Line(160, 200, 200, 200);
+        line.id = 'B';
+        return planJoin([arc, line], 0).path;
+    }
+
+    it('左端と頂上を選ぶと「直線に」だけ押せる', () => {
+        const p = makeJoinedArcPath();
+        assert.deepEqual(resolveSegmentSwitchAvailability(pick(p, [0, 1])), { toLine: true, toCurve: false });
+    });
+
+    it('「直線に」で区間0だけが直線になり、区間1の曲がり方を持つ区間は引っ張る点ごと残る', () => {
+        const p = makeJoinedArcPath();
+        const before = p.toJSON().segments;
+        assert.equal(before[0].kind, 'bezier');
+        assert.equal(before[1].kind, 'bezier');
+        const plan = planSegmentKindSwitch(pick(p, [0, 1]), SegmentKindSwitch.TO_LINE);
+        assert.equal(plan.length, 1);
+        const data = plan[0].shape.toJSON();
+        assert.deepEqual(data.segments[0], { kind: 'line' });
+        assert.deepEqual(data.segments[1], before[1]);
+        assert.deepEqual(data.segments[2], before[2]);
+        assert.equal(data.points.length, 4);
+    });
+
+    it('「曲線に」では変わる区間が無く、空配列', () => {
+        const p = makeJoinedArcPath();
+        assert.deepEqual(planSegmentKindSwitch(pick(p, [0, 1]), SegmentKindSwitch.TO_CURVE), []);
     });
 });
