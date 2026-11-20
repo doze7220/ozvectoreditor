@@ -737,3 +737,61 @@ describe('SpriteSerializer: 曲がり方を持つ区間を含むパス（Phase 0
         assert.ok(data.bounds.maxY >= 30);
     });
 });
+
+describe('SpriteSerializer: 弧を結合した結果（Phase 09-03b）', () => {
+    /**
+     * 弧（中心(100,200)・横の半径60・縦の半径30。左端(40,200)・右端(160,200)）と別の線を`planJoin`で結合した結果のパスを作る。
+     * @param {object} other - 弧と結合するもう1本の図形
+     * @param {string} id - 結果のパスに付けるid
+     * @param {string|null} [arcFill=null] - 弧の塗りの色
+     * @returns {Path} 結合した結果のパス
+     */
+    function joinArc(other, id, arcFill = null) {
+        const arc = withId(new Ellipse(100, 200, 160, 230, 'arc', '#102030', 4, arcFill), 'arc');
+        const plan = planJoin([arc, withId(other, 'other')], 0);
+        assert.notEqual(plan, null);
+        return withId(plan.path, id);
+    }
+
+    it('bezierPath の区間は cubic・cubic・line で、引っ張る点が作業データと一致し、版は3・外枠は形を囲む', () => {
+        const path = joinArc(new Line(160, 200, 220, 260, '#102030', 4), 'jn');
+        const data = SpriteSerializer.serialize([path]);
+        assert.equal(data.formatVersion, 3);
+        const element = data.elements[0];
+        assert.equal(element.kind, 'bezierPath');
+        assert.deepEqual(element.segments.map((s) => s.kind), ['cubic', 'cubic', 'line']);
+        const source = path.toJSON().segments;
+        assert.deepEqual(element.segments[0].control1, source[0].control1);
+        assert.deepEqual(element.segments[0].control2, source[0].control2);
+        assert.deepEqual(element.segments[1].control1, source[1].control1);
+        assert.deepEqual(element.segments[1].control2, source[1].control2);
+        assert.deepEqual(element.segments, path.toDrawElement().segments);
+        const range = sampleBezierPathRange(element);
+        const half = 2;
+        assertBoundsClose(data.bounds, {
+            minX: range.minX - half, minY: range.minY - half, maxX: range.maxX + half, maxY: range.maxY + half,
+        }, 1e-3);
+    });
+
+    it('弧と弧の外接矩形の内側に収まる直線を結合した結果の外枠は、元の弧だけの外枠と一致する', () => {
+        const arc = withId(new Ellipse(100, 200, 160, 230, 'arc', '#102030', 4), 'arc-only');
+        const original = SpriteSerializer.serialize([arc]);
+        assert.equal(original.elements[0].kind, 'ellipse');
+        const path = joinArc(new Line(160, 200, 100, 200, '#102030', 4), 'jn');
+        const joined = SpriteSerializer.serialize([path]);
+        assert.equal(joined.elements[0].kind, 'bezierPath');
+        assertBoundsClose(joined.bounds, original.bounds, 1e-6);
+    });
+
+    it('半月形の閉じた塗りありは closed: true で fillColor を持つ', () => {
+        const open = joinArc(new Line(160, 200, 40, 200, '#102030', 4), 'open', '#ffcc00');
+        const closedPlan = planJoin([open], 0);
+        assert.notEqual(closedPlan, null);
+        const closed = withId(closedPlan.path, 'half-moon');
+        const element = SpriteSerializer.serialize([closed]).elements[0];
+        assert.equal(element.kind, 'bezierPath');
+        assert.equal(element.closed, true);
+        assert.equal(element.fillColor, '#ffcc00');
+        assert.deepEqual(element.segments.map((s) => s.kind), ['cubic', 'cubic', 'line']);
+    });
+});

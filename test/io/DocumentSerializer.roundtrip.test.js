@@ -722,3 +722,73 @@ describe('曲がり方を持つ区間を含むパスの往復（Phase 09-03a）'
         assert.equal(warn.mock.callCount(), 0);
     });
 });
+
+/**
+ * 弧と直線などを`planJoin`で結合した結果のパスを作る（弧は中心(100,200)・横の半径60・縦の半径30。左端(40,200)・右端(160,200)）。
+ * @param {object[]} shapes - 結合する図形（基準の線Aが先頭）
+ * @param {string} id - 結果のパスに付けるid
+ * @returns {Path} 結合した結果のパス
+ */
+function joinForArcRoundtrip(shapes, id) {
+    shapes.forEach((shape, i) => {
+        shape.id = `src-${i}`;
+    });
+    const plan = planJoin(shapes, 0);
+    assert.notEqual(plan, null);
+    plan.path.id = id;
+    return plan.path;
+}
+
+describe('弧を結合した結果の往復（Phase 09-03b）', () => {
+    const states = [
+        {
+            name: '弧と直線を結合した開いたパス',
+            build: () => joinForArcRoundtrip(
+                [new Ellipse(100, 200, 160, 230, 'arc', '#102030', 3), new Line(160, 200, 220, 220, '#102030', 3)],
+                'arc-line',
+            ),
+            kinds: ['bezier', 'bezier', 'line'],
+            closed: false,
+        },
+        {
+            name: '半月形の閉じた塗りありのパス',
+            build: () => {
+                const open = joinForArcRoundtrip(
+                    [new Ellipse(100, 200, 160, 230, 'arc', '#102030', 3, '#ffcc00'), new Line(160, 200, 40, 200, '#102030', 3)],
+                    'half-moon',
+                );
+                const closedPlan = planJoin([open], 0);
+                assert.notEqual(closedPlan, null);
+                return closedPlan.path;
+            },
+            kinds: ['bezier', 'bezier', 'line'],
+            closed: true,
+        },
+        {
+            name: '弧2本を結合したパス',
+            build: () => joinForArcRoundtrip(
+                [new Ellipse(100, 200, 160, 230, 'arc', '#102030', 3), new Ellipse(220, 200, 280, 230, 'arc', '#102030', 3)],
+                'arc-arc',
+            ),
+            kinds: ['bezier', 'bezier', 'bezier', 'bezier'],
+            closed: false,
+        },
+    ];
+    for (const state of states) {
+        for (const route of ROUTES) {
+            it(`${state.name}が保たれ、作業データの版は2のまま（${route.name}）`, (t) => {
+                const warn = silenceWarn(t);
+                const path = state.build();
+                path.id = 'joined-arc';
+                assert.deepStrictEqual(path.segments.map((s) => s.kind), state.kinds);
+                assert.equal(path.closed, state.closed);
+                const result = route.run([path]);
+                assertRestoredWithPaths(result, [path]);
+                assert.deepStrictEqual(result.shapes[0].toJSON(), path.toJSON());
+                assert.deepStrictEqual(result.shapes[0].segments, path.segments);
+                assert.equal(DocumentSerializer.serialize([path]).version, 2);
+                assert.equal(warn.mock.callCount(), 0);
+            });
+        }
+    }
+});

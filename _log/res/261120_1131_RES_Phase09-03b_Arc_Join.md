@@ -189,7 +189,7 @@
         *   要件Cの経路（`PathJoiner`・`EndpointSnapper`・`InputTracker`が規則の結果に従うだけであること）を実コードで確かめ、要件Dの「足すケース」のタスク4の分を足す（既存のケースは変えない。`Ellipse`のimportを足してよい）。
         *   `node --test`が全件通ることを確かめ、件数を記録する。
         *   コード修正完了後、JSDocコメントの記載漏れがないことを確認し、作業レポート（本RESファイル）の4.のタスク4の詳細作業内容を記載し、開発資料の記載に影響が出る場合は資料本体を修正せず『開発資料の更新予定』欄に追記する。
-*   [ ] タスク5: 要件D 保存・書き出しのテスト（`io/`。コードは変えない）
+*   [x] タスク5: 要件D 保存・書き出しのテスト（`io/`。コードは変えない）
     *   **対象ファイル** :
         *   `./test/io/DocumentSerializer.roundtrip.test.js` : 更新（ケースの追加）
         *   `./test/io/SpriteSerializer.test.js` : 更新（ケースの追加）
@@ -255,7 +255,9 @@
 
 ### タスク5: 要件D 保存・書き出しのテスト（`io/`。コードは変えない）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `test/io/DocumentSerializer.roundtrip.test.js`：末尾に補助`joinForArcRoundtrip`（JSDoc付き）と`describe('弧を結合した結果の往復（Phase 09-03b）')`を追加。弧と直線（開いた）・半月形の閉じた塗りありのパス・弧2本の結合の3状態を`ROUTES`（オブジェクト層・文字列層）で往復し、`toJSON()`・`segments`が同じ・`version`が2・`console.warn`が0回を確かめる（6ケース）。
+    *   `test/io/SpriteSerializer.test.js`：末尾に`describe('SpriteSerializer: 弧を結合した結果（Phase 09-03b）')`（describe内の補助`joinArc`はJSDoc付き）。3ケース（区間`['cubic','cubic','line']`・`control1`/`control2`が作業データと一致・`toDrawElement().segments`と一致・`formatVersion`3・外枠が`sampleBezierPathRange`＋線の太さの半分と1e-3で一致／弧と外接矩形内の直線R→(100,200)の結合の外枠が元の弧の`ellipse`の外枠と1e-6で一致／半月形は`closed: true`・`fillColor`あり）。
+    *   既存のケース・補助・`io/`のソースは変えていない。`node --test`：tests 2067 / suites 337 / pass 2067 / fail 0（タスク4後 2058 / 335 から9ケース・2 describe 増）。
 
 ### タスク6: 仕上げの確認（JSDoc・スコープ・全テスト）
 *   **作業内容** :
@@ -277,3 +279,4 @@
 * **`fromJSON`で`points[3]`・`[4]`が正準の位置でない弧**：結合の端点は中心と半径から求めた左端・右端で、描画と同じ形になる（`points[3]`・`[4]`の位置には吸い付かない）。エディタが作る弧では`[3]`・`[4]`は常に左端・右端の位置にある。
 * **既存のテストの書き換え**：要件Dの1.(1a)(1b)(1c)・2.の計4ケース（と補助`JOIN_REJECTED_KINDS`の中身・補助のJSDoc）。`JOIN_REJECTED_KINDS`から弧を除くため、(1a)(1b)(1c)は弧を確かめなくなり、弧の判定は要件Dのタスク2の新しいケースで確かめる。
 * **タスク4で気づいた点**：実物の組み合わせ（弧の端点から描き足す）は、`finishDrawnLine`の前に`clickDrawnLine`で点を1つ打つ必要がある（`startDraft`＋`updateDraft`だけだと作成途中の線は始点＋付いてくる先だけで、終えるときに先が捨てられ始点だけになり何も残らない。既存の直線のテストと同じ手順）。
+* **タスク5で気づいた点**：弧2本の結合（弧(100,200)と弧(220,200)）は右端と左端(160,200)が重なるため端点がまとめられ、区間は`['bezier'×4]`（頂点5つ・間の直線の区間なし）になる。要件Dの記述の「頂点5つ・`'bezier'`4つ」と同じ。
