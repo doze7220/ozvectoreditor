@@ -151,7 +151,7 @@
 *   **`_doc/arch/16_test.md`**：Phase 09-03bの追加分（ファイルごとの件数と観点）・書き換えた既存のテスト（要件Dの1.(1a)(1b)(1c)・2.の計4ケース＋補助`JOIN_REJECTED_KINDS`の中身とJSDoc）・テストできない箇所・完了時の件数。
 
 ## 3. タスクリスト
-*   [ ] タスク1: 要件A・要件B 弧を結合できる線にし、区間として読み、端点の読み方を1か所にする（`shapes/PathJoinRules`・`shapes/EndpointSnapRules`）と既存のケースの書き換え
+*   [x] タスク1: 要件A・要件B 弧を結合できる線にし、区間として読み、端点の読み方を1か所にする（`shapes/PathJoinRules`・`shapes/EndpointSnapRules`）と既存のケースの書き換え
     *   **対象ファイル** :
         *   `./js/shapes/PathJoinRules.js` : 更新
         *   `./js/shapes/EndpointSnapRules.js` : 更新
@@ -228,7 +228,10 @@
 
 ### タスク1: 要件A・要件B 弧を結合できる線にし、区間として読み、端点の読み方を1か所にする（`shapes/PathJoinRules`・`shapes/EndpointSnapRules`）と既存のケースの書き換え
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/shapes/PathJoinRules.js`：責務定義に弧を追加。定数`QUARTER_ELLIPSE_BEZIER_K`・非公開`arcChainSourceOf`・公開`lineEndpointOf`・`endpointVertexIndexOf`を新設。`isJoinableLine`に弧を追加、`chainSourceOf`に弧の分岐、`classifyJoin`の2本分岐を`isJoinableLine`のみに（`typeOk`削除）、`buildJoinedPath`・`buildJoinedPathAt`・`buildExtendedPath`の端点を`lineEndpointOf`で読むよう変更。関連JSDoc（`EndpointRef`・`isDrawnLineShape`・`segmentSpecsOf`・`chainOf`・`buildClosedPath`・`classifyJoin`・`buildJoinedPath`）を更新。
+    *   `js/shapes/EndpointSnapRules.js`：importに2名追加、`resolveEndpointHandle`は`endpointVertexIndexOf`で判定（弧は常にnull）、`findNearestEndpoint`は`lineEndpointOf`で端点を読む。JSDoc（`SnapTarget`・`resolveEndpointHandle`・`findSnapTarget`・`findNearestEndpoint`）更新。
+    *   テスト書き換え（要件D 1.・2.）：`PathJoinRules.test.js`の`JOIN_REJECTED_KINDS`・補助JSDoc・2ケース名・(1c)の末尾にアサーション2つ、`EndpointSnapRules.test.js`の弧の行除去と名前変更。
+    *   `node --test`：tests 2002 / suites 322 / pass 2002 / fail 0。
 
 ### タスク2: 要件D 結合の規則のテストを足す（`test/shapes/PathJoinRules.test.js`）
 *   **作業内容** :

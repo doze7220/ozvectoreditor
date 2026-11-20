@@ -79,7 +79,7 @@ function makeLine(x1, y1, x2, y2, color = '#000000', width = 2, fill = null) {
 }
 
 /**
- * 続けて引く線の形でない種類の図形を種類名から作る（今の曲線を含む。今の曲線はPhase 09-03aから結合できる線）。
+ * 続けて引く線の形でない種類の図形を種類名から作る（今の曲線・弧を含む。今の曲線はPhase 09-03a、弧はPhase 09-03bから結合できる線）。
  * @param {'curve'|'rect'|'circle'|'arc'|'closedPath'} kind - 図形の種類
  * @returns {Object} 図形
  */
@@ -94,16 +94,16 @@ function makeUnjoinable(kind) {
 }
 
 /**
- * 続けて引く線の形でない図形の種類名の並び（今の曲線を含む。今の曲線はPhase 09-03aから結合できる線）。
+ * 続けて引く線の形でない図形の種類名の並び（今の曲線・弧を含む。今の曲線はPhase 09-03a、弧はPhase 09-03bから結合できる線）。
  * @type {string[]}
  */
 const UNJOINABLE_KINDS = ['curve', 'rect', 'circle', 'arc', 'closedPath'];
 
 /**
- * 結合できない図形の種類名の並び（`UNJOINABLE_KINDS`から今の曲線を除いたもの）。
+ * 結合できない図形の種類名の並び（`UNJOINABLE_KINDS`から今の曲線・弧を除いたもの）。
  * @type {string[]}
  */
-const JOIN_REJECTED_KINDS = UNJOINABLE_KINDS.filter((kind) => kind !== 'curve');
+const JOIN_REJECTED_KINDS = UNJOINABLE_KINDS.filter((kind) => kind !== 'curve' && kind !== 'arc');
 
 /**
  * 区間がすべて直線で、要素数が期待どおりか確かめる。
@@ -190,7 +190,7 @@ describe('isJoinableLine', () => {
         assert.equal(isJoinableLine(makePath([[0, 0], [10, 0], [10, 10]])), true);
     });
 
-    it('閉じたパス・矩形・円・弧は false', () => {
+    it('閉じたパス・矩形・円は false', () => {
         for (const kind of JOIN_REJECTED_KINDS) {
             assert.equal(isJoinableLine(makeUnjoinable(kind)), false, kind);
         }
@@ -1284,7 +1284,7 @@ describe('PathJoinRules 曲線のパスと続けて引く線の形（Phase 09-01
                 assert.equal(isDrawnLineShape(makeUnjoinable(kind)), false, kind);
             }
         });
-        it('今の曲線のほかはisJoinableLineとisDrawnLineShapeが同じ結果。今の曲線は結合できるが続けて引く線の形ではない', () => {
+        it('今の曲線・弧のほかはisJoinableLineとisDrawnLineShapeが同じ結果。今の曲線・弧は結合できるが続けて引く線の形ではない', () => {
             const shapes = [
                 makeLine(0, 0, 10, 0), makeKindPath(FOUR, 'line'), makeKindPath(FOUR, 'smooth'),
                 makeMixedPath(FOUR, ['line', 'smooth', 'line']), makeKindPath(FOUR, 'line', true),
@@ -1295,6 +1295,8 @@ describe('PathJoinRules 曲線のパスと続けて引く線の形（Phase 09-01
             }
             assert.equal(isJoinableLine(makeUnjoinable('curve')), true);
             assert.equal(isDrawnLineShape(makeUnjoinable('curve')), false);
+            assert.equal(isJoinableLine(makeUnjoinable('arc')), true);
+            assert.equal(isDrawnLineShape(makeUnjoinable('arc')), false);
         });
     });
 

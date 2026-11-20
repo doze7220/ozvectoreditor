@@ -1,5 +1,5 @@
 /**
- * 責務: 線の結合の規則（結合できる線＝直線・開いたパス（区間の種類によらない）・今の曲線。結果は元の区間の種類と途中の角の点を保つ。閉じる／2本の結合／描き足し／吸い付いた端点での計画）と、
+ * 責務: 線の結合の規則（結合できる線＝直線・開いたパス（区間の種類によらない）・今の曲線・弧。結果は元の区間の種類と途中の角の点を保つ。閉じる／2本の結合／描き足し／吸い付いた端点での計画）と、
  * 直線・曲線のツールで続けて引く作成途中の線の点の並びの規則（足す区間の種類は作成途中の線のもの。点2つの開いた線は直線）を、
  * 状態を持たない関数と定数として提供する。表示倍率・モデル・履歴を知らず、ワールド座標の許容距離を引数で受け取る。
  */
@@ -33,10 +33,18 @@ const LINE_POINT_COUNT = 2;
 const JOIN_GAP_SEGMENT_KIND = SEGMENT_KIND_LINE;
 
 /**
+ * 楕円の4分の1を3次ベジェ1つで表す標準の係数（唯一の定義箇所。`arcChainSourceOf`が使う）。
+ * 両端の点と中点（`t = 0.5`）が楕円の上にちょうど乗り、両端の接線の向きが楕円と同じ。
+ * 円に対するずれは外側へ最大で半径の約0.027%（楕円は円を軸ごとに伸ばした形のため、横・縦の半径で割った比で同じ割合）。
+ * @type {number}
+ */
+const QUARTER_ELLIPSE_BEZIER_K = 4 * (Math.SQRT2 - 1) / 3;
+
+/**
  * 結合できる線の端点の指定。`EndpointSnapRules`のtypedef`SnapTarget`もこの形を満たす。
  * @typedef {Object} EndpointRef
  * @property {*} shapeId 図形のid（不透明な値として扱う）
- * @property {'start'|'end'} end 'start'＝始点（頂点の先頭）／'end'＝終点（頂点の末尾）
+ * @property {'start'|'end'} end 'start'＝始点／'end'＝終点（結合できる線として読んだ頂点の並び＝`chainSourceOf`の結果の先頭／末尾。直線・パスは`points`の先頭／末尾、今の曲線は始点／終点、弧は左端／右端）
  */
 
 /**
@@ -51,7 +59,7 @@ const JOIN_GAP_SEGMENT_KIND = SEGMENT_KIND_LINE;
 /**
  * 続けて引く線の形か（`type`が`'line'`、または`type`が`'path'`で`closed`が真でない。区間の種類によらない）。
  * 「線を引いている途中か」（`EndpointSnapper.isDrawingLine`）と、作成途中の線の規則の関数の受け付け条件の唯一の箇所。
- * 結合できる線（`isJoinableLine`）はこの形に今の曲線を足した条件（Phase 09-03a。今の曲線はこの関数では偽のまま）。図形を書き換えない。
+ * 結合できる線（`isJoinableLine`）はこの形に今の曲線・弧を足した条件（Phase 09-03a・09-03b。今の曲線・弧はこの関数では偽のまま）。図形を書き換えない。
  * @param {Object} shape 図形（`type`と`toJSON()`を持つ）
  * @returns {boolean}
  */
@@ -62,15 +70,16 @@ export function isDrawnLineShape(shape) {
 }
 
 /**
- * 結合できる線か。直線、区間の種類によらず開いたパス（曲線のパスを含む。Phase 09-01bで広げた）、または今の曲線（Phase 09-03aで足した）。
- * 続けて引く線の形の条件は`isDrawnLineShape`に任せ、ここでは今の曲線（`type`が`'curve'`）だけを足す。2つの関数を分けて残すのは意味が違うため
- * （結合・吸い付きの対象／続けて引く線の形）で、弧の結合（Phase 09-03b）で結合できる線を広げるときはこの関数だけを変える。
+ * 結合できる線か。直線、区間の種類によらず開いたパス（曲線のパスを含む。Phase 09-01bで広げた）、今の曲線（Phase 09-03aで足した）、または弧（Phase 09-03bで足した。円は含めない）。
+ * 続けて引く線の形の条件は`isDrawnLineShape`に任せ、ここでは今の曲線（`type`が`'curve'`）・弧（`'arc'`）だけを足す。2つの関数を分けて残すのは意味が違うため
+ * （結合・吸い付きの対象／続けて引く線の形）で、結合できる線を広げるときはこの関数だけを変える（Phase 09-03bで弧を足した）。
  * 結合・吸い付きの対象の判定はすべてこの関数に従う。Phase 05-04が吸い付く対象の判定として使い回す。図形を書き換えない。
+ * 弧でも`toJSON()`を呼ばずに真を返す。
  * @param {Object} shape 図形（`type`と`toJSON()`を持つ）
  * @returns {boolean}
  */
 export function isJoinableLine(shape) {
-    return isDrawnLineShape(shape) || shape.type === 'curve';
+    return isDrawnLineShape(shape) || shape.type === 'curve' || shape.type === 'arc';
 }
 
 /**
@@ -99,7 +108,7 @@ export function segmentKindsOf(data) {
  * `type`が`'line'`なら`segmentKindsOf(data)`（直線は直線の区間1つ。規則は`segmentKindsOf`に任せて写さない）、
  * それ以外は`data.segments.slice()`（要素は`toJSON()`が作った区間の値のまま。曲がり方を持つ区間は引っ張る点を含む。
  * `Path`のコンストラクタが写すため結果は共有しない）。使う側は`PathJoinRules`の中（`chainOf`）と`PathSegmentKindRules`。引数を書き換えない。
- * 今の曲線は`chainSourceOf`を通してから渡す。
+ * 今の曲線・弧は`chainSourceOf`を通してから渡す。
  * @param {{type?: string, segments?: Array<Object>}} data 直線かパス（開いた線・閉じたパス）の`toJSON()`の値
  * @returns {Array<string|Object>} 区間の指定の並び（新しい配列）
  */
@@ -109,7 +118,8 @@ export function segmentSpecsOf(data) {
 }
 
 /**
- * 今の曲線を区間として読む（非公開。今の曲線から区間への変換と2次から3次への変換の式の唯一の箇所）。
+ * 今の曲線・弧を区間として読む（非公開。今の曲線・弧から区間への変換の唯一の箇所。2次から3次への変換の式はここ、楕円の4分の1の近似の式は`arcChainSourceOf`）。
+ * 弧（`data.type`が`'arc'`）なら`arcChainSourceOf`の結果（頂点3つと曲がり方を持つ区間2つの開いたパス）を返す。
  * `data.type`が`'curve'`なら、頂点2つ（始点・終点）と曲がり方を持つ区間1つの開いたパスの図形データに読み替えて返す（スタイル3つは元の値。`corners`なし）。
  * 頂点の並びは今の曲線の約束（`points[0]`＝始点・`[1]`＝制御点・`[2]`＝終点）から読む。
  * 2次ベジェの次数を上げた3次ベジェ（`control1 = 始点 + (制御点 - 始点) * 2 / 3`、`control2 = 終点 + (制御点 - 終点) * 2 / 3`）はすべての`t`で同じ点を通る（誤差なく同じ形）。
@@ -118,6 +128,7 @@ export function segmentSpecsOf(data) {
  * @returns {Object} 今の曲線なら開いたパスの図形データ、それ以外は`data`そのもの
  */
 function chainSourceOf(data) {
+    if (data.type === 'arc') return arcChainSourceOf(data);
     if (data.type !== 'curve') return data;
     const [s, c, e] = data.points;
     return {
@@ -136,11 +147,81 @@ function chainSourceOf(data) {
 }
 
 /**
+ * 弧の`toJSON()`の値を開いたパスの図形データに読み替える（非公開。楕円の4分の1の近似の式の唯一の箇所）。
+ * 弧の`points`の約束だけから読む（`[0]`中心・`[1]`右端の制御点・`[2]`上端の制御点）。半径は`Ellipse`の描画と同じ求め方（`rx = |right.x - xc|`・`ry = |top.y - yc|`）で、
+ * `points[3]`・`[4]`（開始角・終了角の制御点）は読まない（正準の位置でない弧でも描画と同じ形になる）。
+ * 弧の描く向き（左端π→頂上3π/2→右端2π）と同じ並びで、頂点は左端・頂上・右端の3つ（始点が左端・終点が右端）、区間は頂上で2つに分けた楕円の4分の1ずつ（どちらも`'bezier'`）。
+ * 両端と頂上の点は弧の上にちょうど乗り、そこでの接線の向きも弧と同じ（左端・右端は縦、頂上は横）。ずれは半径の約0.03%以内（`QUARTER_ELLIPSE_BEZIER_K`）。
+ * 半径が0の弧（点・線分に縮んだ弧）も同じ式で、縮んだ形（今の描画と同じ）になる。スタイル3つは元の値（`corners`なし）。引数を書き換えない。
+ * @param {{points: Array<{x: number, y: number}>, strokeColor: *, strokeWidth: *, fillColor: *}} data 弧の`toJSON()`の値
+ * @returns {Object} 開いたパスの図形データ（`type: 'path'`・頂点3つ・曲がり方を持つ区間2つ）
+ */
+function arcChainSourceOf(data) {
+    const [center, right, top] = data.points;
+    const xc = center.x;
+    const yc = center.y;
+    const rx = Math.abs(right.x - xc);
+    const ry = Math.abs(top.y - yc);
+    const kx = QUARTER_ELLIPSE_BEZIER_K * rx;
+    const ky = QUARTER_ELLIPSE_BEZIER_K * ry;
+    return {
+        type: 'path',
+        points: [{ x: xc - rx, y: yc }, { x: xc, y: yc - ry }, { x: xc + rx, y: yc }],
+        closed: false,
+        segments: [
+            {
+                kind: SEGMENT_KIND_BEZIER,
+                control1: { x: xc - rx, y: yc - ky },
+                control2: { x: xc - kx, y: yc - ry }
+            },
+            {
+                kind: SEGMENT_KIND_BEZIER,
+                control1: { x: xc + kx, y: yc - ry },
+                control2: { x: xc + rx, y: yc - ky }
+            }
+        ],
+        strokeColor: data.strokeColor,
+        strokeWidth: data.strokeWidth,
+        fillColor: data.fillColor
+    };
+}
+
+/**
+ * 結合できる線の端点の座標を返す（端点の読み方の唯一の箇所。外から読む入口）。
+ * `chainSourceOf`で読み替えた頂点の並びの先頭（`'start'`）・末尾（`'end'`）。直線・パスは`points`の先頭・末尾、今の曲線は始点・終点、
+ * 弧は左端・右端（弧の`points`の先頭の中心・末尾の終了角の制御点ではない）。結合できる線の`toJSON()`の値を渡す。
+ * 使う側は`PathJoinRules`の中（`buildJoinedPath`・`buildJoinedPathAt`・`buildExtendedPath`）と`EndpointSnapRules`（`findNearestEndpoint`）。引数を書き換えない。
+ * @param {Object} data 結合できる線の`toJSON()`の値
+ * @param {'start'|'end'} end 'start'＝始点／'end'＝終点
+ * @returns {{x: number, y: number}} 端点の座標（新しいオブジェクト）
+ */
+export function lineEndpointOf(data, end) {
+    const points = chainSourceOf(data).points;
+    const p = end === 'end' ? points[points.length - 1] : points[0];
+    return { x: p.x, y: p.y };
+}
+
+/**
+ * 結合できる線の端点が図形データの何番目の頂点か（`getVertexIndexForHandle`が返す番号＝`points[i]`の`i`）を返す。
+ * 端点のハンドルの判定（`EndpointSnapRules.resolveEndpointHandle`）の頂点の番号の読み方の唯一の箇所。
+ * 直線・パスは0／`points.length - 1`、今の曲線は0／2（制御点の番号1は端点でない）。
+ * 弧は`null`（弧の端は`chainSourceOf`が中心と半径から求めた点で、弧のハンドル（`'left'`・`'right'`・`'up'`・`'down'`・`'move'`）は半径の編集のハンドルであり端点のハンドルではない）。
+ * 結合できる線の`toJSON()`の値を渡す。引数を書き換えない。
+ * @param {{type?: string, points: Array<{x: number, y: number}>}} data 結合できる線の`toJSON()`の値
+ * @param {'start'|'end'} end 'start'＝始点／'end'＝終点
+ * @returns {number|null} 端点の頂点の番号。弧はnull
+ */
+export function endpointVertexIndexOf(data, end) {
+    if (data.type === 'arc') return null;
+    return end === 'end' ? data.points.length - 1 : 0;
+}
+
+/**
  * `toJSON()`の値から頂点と区間の種類と角の点の並びを作る（非公開）。頂点の配列は共有する（呼び出し側は書き換えない）。
  * 角の点は`readCornerFlags`の値の新しい配列で、**開いた線の端の点（先頭・末尾）は常に偽にする**
  * （「つながってできた点はなめらかな点」の唯一の箇所。端の点は、つなぐ・閉じることで途中の点になるか、結果でも端の点のまま角の考えがない点になるかのどちらか）。
- * 今の曲線は`chainSourceOf`で曲がり方を持つ区間1つの開いたパスとして読む（今の曲線を区間として読むのはここを通る）。区間は`segmentSpecsOf`で読む。
- * @param {{points: Array<{x: number, y: number}>, type?: string, segments?: Array<Object>}} data 開いた線か今の曲線の`toJSON()`の値
+ * 今の曲線・弧は`chainSourceOf`で曲がり方を持つ区間の開いたパスとして読む（今の曲線・弧を区間として読むのはここを通る）。区間は`segmentSpecsOf`で読む。
+ * @param {{points: Array<{x: number, y: number}>, type?: string, segments?: Array<Object>}} data 開いた線・今の曲線・弧の`toJSON()`の値
  * @returns {SegmentChain}
  */
 function chainOf(data) {
@@ -176,9 +257,9 @@ function reverseChain(chain) {
 
 /**
  * 選択中の図形から結合の種類を判定する。ボタンの押せる/押せないの同期からも呼ばれる（表示倍率は見ない）。
- * 負荷回避のため、図形の数 → `type` → `toJSON()` の順に判定し、`toJSON()`を呼ぶ回数を抑える（パス1本のときは`isJoinableLine`と判定本体で複数回呼ぶ）。
+ * 負荷回避のため、図形の数 → `isJoinableLine`（`type`を先に見て、パスのときだけ`toJSON()`を呼ぶ）の順に判定し、`toJSON()`を呼ぶ回数を抑える（パス1本のときは`isJoinableLine`と判定本体で複数回呼ぶ）。
  * @param {Array<Object>} shapes 選択集合の図形を重なり順（`model.getShapes()`の並び。奥が先）で並べた配列
- * @returns {'close'|'join'|null} 'close'＝頂点3つ以上の開いたパス1本（区間の種類によらない。今の曲線1本は閉じない）を閉じる／'join'＝結合できる線2本（今の曲線を含む）／それ以外はnull
+ * @returns {'close'|'join'|null} 'close'＝頂点3つ以上の開いたパス1本（区間の種類によらない。今の曲線・弧1本は閉じない）を閉じる／'join'＝結合できる線2本（今の曲線・弧を含む）／それ以外はnull
  */
 export function classifyJoin(shapes) {
     if (shapes.length === 1) {
@@ -190,8 +271,6 @@ export function classifyJoin(shapes) {
     }
     if (shapes.length === 2) {
         const [a, b] = shapes;
-        const typeOk = (shape) => shape.type === 'line' || shape.type === 'path' || shape.type === 'curve';
-        if (!typeOk(a) || !typeOk(b)) return null;
         return isJoinableLine(a) && isJoinableLine(b) ? 'join' : null;
     }
     return null;
@@ -205,6 +284,7 @@ export function classifyJoin(shapes) {
  * @param {Object} shape 図形
  * @param {number} tolerance ワールド座標の許容距離（長さ）
  * @param {string} [gapSegmentKind] 始点と終点が離れているときの閉じる区間の種類。省くと直線。重なっているときは使わない（閉じる区間は最後の区間の種類のまま。全区間が曲線なら1周なめらかな輪）
+ * 今の曲線・弧1本は`null`（`type`が`'path'`でない）。
  * @returns {Path|null} 閉じたパス（idはnull）。頂点3つ以上の開いた（結合できる線の）パスでない場合、またはまとめると3つ未満になる場合はnull
  */
 export function buildClosedPath(shape, tolerance, gapSegmentKind = JOIN_GAP_SEGMENT_KIND) {
@@ -234,6 +314,7 @@ export function buildClosedPath(shape, tolerance, gapSegmentKind = JOIN_GAP_SEGM
  * (3) Aの始点とBの終点（Bそのまま＋A）、(4) Aの始点とBの始点（Bを逆順＋A）。
  * 選んだ組の距離が`tolerance`以下なら、Bの側のつなぐ端点を除く（Aの端点の座標を残す）。
  * 結果は開いたパスで、色・太さ・塗りはAのもの。区間の種類・途中の角の点は元のまま保ち（Bを逆順にするときは区間の種類・角の点も逆順）、つないだ点・間を埋める区間の両端はなめらかな点（`corners`が偽）で、間を埋める区間は直線（発注者の決定）。
+ * 端点は`lineEndpointOf`（Bは`chainOf`の並び）で読む（弧は左端・右端）。
  * @param {Object} a 基準の線A（重なり順で奥）
  * @param {Object} b もう一方の線B
  * @param {number} tolerance ワールド座標の許容距離（長さ）
@@ -242,11 +323,10 @@ export function buildClosedPath(shape, tolerance, gapSegmentKind = JOIN_GAP_SEGM
 export function buildJoinedPath(a, b, tolerance) {
     if (!isJoinableLine(a) || !isJoinableLine(b)) return null;
     const dataA = a.toJSON();
-    const A = dataA.points;
     const bChain = chainOf(b.toJSON());
     const B = bChain.points;
-    const aStart = A[0];
-    const aEnd = A[A.length - 1];
+    const aStart = lineEndpointOf(dataA, 'start');
+    const aEnd = lineEndpointOf(dataA, 'end');
     const bStart = B[0];
     const bEnd = B[B.length - 1];
     const dist = (p, q) => Math.hypot(p.x - q.x, p.y - q.y);
@@ -314,10 +394,9 @@ function assembleOpenPath(dataA, bChain, aFirst, merge, gapSegmentKind) {
 export function buildJoinedPathAt(a, aEnd, b, bEnd, tolerance, gapSegmentKind = JOIN_GAP_SEGMENT_KIND) {
     if (!isJoinableLine(a) || !isJoinableLine(b)) return null;
     const dataA = a.toJSON();
-    const A = dataA.points;
     const bData = chainOf(b.toJSON());
     const B = bData.points;
-    const pa = aEnd === 'end' ? A[A.length - 1] : A[0];
+    const pa = lineEndpointOf(dataA, aEnd);
     const pb = bEnd === 'end' ? B[B.length - 1] : B[0];
     const bChain = aEnd === bEnd ? reverseChain(bData) : bData;
     return assembleOpenPath(dataA, bChain, aEnd === 'end', Math.hypot(pa.x - pb.x, pa.y - pb.y) <= tolerance, gapSegmentKind);
@@ -337,8 +416,7 @@ export function buildJoinedPathAt(a, aEnd, b, bEnd, tolerance, gapSegmentKind = 
 export function buildExtendedPath(shape, end, point, tolerance, segmentKind = JOIN_GAP_SEGMENT_KIND) {
     if (!isJoinableLine(shape)) return null;
     const dataA = shape.toJSON();
-    const A = dataA.points;
-    const p = end === 'end' ? A[A.length - 1] : A[0];
+    const p = lineEndpointOf(dataA, end);
     if (Math.hypot(point.x - p.x, point.y - p.y) <= tolerance) return null;
     return assembleOpenPath(dataA, { points: [{ x: point.x, y: point.y }], kinds: [], corners: [false] }, end === 'end', false, segmentKind);
 }

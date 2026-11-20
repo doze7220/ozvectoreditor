@@ -2,7 +2,7 @@
  * 責務: 端点への吸い付きの規則（吸い付く対象の端点・候補の選び方・吸い付く距離・描く図形種別と端点のハンドルの判定、
  * 線を引いている途中の吸い付き＝描き始めの端点を除く端点と作成途中の線の始点）を、状態を持たない関数と定数として提供する。表示倍率・モデルを知らない。
  */
-import { isJoinableLine, canCloseByMergingEnds, canCloseDrawnLine } from './PathJoinRules.js';
+import { isJoinableLine, canCloseByMergingEnds, canCloseDrawnLine, lineEndpointOf, endpointVertexIndexOf } from './PathJoinRules.js';
 
 /**
  * 端点へ吸い付く距離（画面上のpx）。唯一の定義箇所。
@@ -16,7 +16,7 @@ export const SNAP_TOLERANCE_SCREEN_PX = 8;
  * 吸い付いた端点。`PathJoinRules`のtypedef`EndpointRef`（`{ shapeId, end }`）を満たす。
  * @typedef {Object} SnapTarget
  * @property {*} shapeId 吸い付いた端点を持つ図形のid（不透明な値として読み写す）
- * @property {'start'|'end'} end 'start'＝始点（頂点の先頭）／'end'＝終点（頂点の末尾）
+ * @property {'start'|'end'} end 'start'＝始点（結合できる線として読んだ頂点の並びの先頭。弧は左端）／'end'＝終点（末尾。弧は右端）
  * @property {number} x 端点のワールド座標x
  * @property {number} y 端点のワールド座標y
  */
@@ -49,8 +49,9 @@ export function isSnapDrawShapeType(shapeType) {
 
 /**
  * ハンドルが結合できる線の端点のハンドルか。
- * 「頂点の番号`i`＝図形データの`points[i]`」に依る：`getVertexIndexForHandle`の番号が0なら始点、`points.length - 1`なら終点。
- * 途中の頂点・番号のないハンドル（直線の`'move'`など）・結合できない線（矩形・円・弧・閉じたパス）はnull。結合できる線は直線・開いたパス（曲線のパスを含む）・今の曲線（始点・終点が端点。制御点は端点でないためnull）。図形を書き換えない。
+ * 端点の頂点の番号は`endpointVertexIndexOf`に任せる（直線・パス・今の曲線は0が始点・`points.length - 1`が終点）。
+ * 途中の頂点・番号のないハンドル（直線の`'move'`など）・結合できない線（矩形・円・閉じたパス）はnull。結合できる線は直線・開いたパス（曲線のパスを含む）・今の曲線（始点・終点が端点。制御点は端点でないためnull）・
+ * 弧（結合できる線だが、弧のハンドルは半径の編集のハンドルで端点として解決しない＝null）。図形を書き換えない。
  * @param {Object} shape 図形（`type`・`toJSON()`・`getVertexIndexForHandle`を持つ）
  * @param {*} handleName ハンドル名
  * @returns {'start'|'end'|null} 端点のハンドルなら'start'/'end'、それ以外はnull
@@ -59,14 +60,15 @@ export function resolveEndpointHandle(shape, handleName) {
     if (!isJoinableLine(shape)) return null;
     const index = shape.getVertexIndexForHandle(handleName);
     if (index === null) return null;
-    if (index === 0) return 'start';
-    if (index === shape.toJSON().points.length - 1) return 'end';
+    const data = shape.toJSON();
+    if (index === endpointVertexIndexOf(data, 'start')) return 'start';
+    if (index === endpointVertexIndexOf(data, 'end')) return 'end';
     return null;
 }
 
 /**
  * 吸い付く端点を1つ選ぶ。
- * 対象は`shapes`のうち結合できる線（直線・開いたパス（曲線のパスを含む）・今の曲線）の始点・終点だけ（今の曲線の制御点は対象にならない）。距離は`Math.hypot`が`tolerance`以下（ちょうどを含む）。
+ * 対象は`shapes`のうち結合できる線（直線・開いたパス（曲線のパスを含む）・今の曲線・弧）の始点・終点だけ（今の曲線の制御点、弧の中心・頂上・制御点は対象にならない。弧の始点・終点は左端・右端）。距離は`Math.hypot`が`tolerance`以下（ちょうどを含む）。
  * 図形を`shapes`の末尾（前面）から先頭へ、各図形は始点→終点の順に調べ、距離が厳密に小さいときだけ更新する
  * （いちばん近い端点／同距離なら前面の図形／同じ図形の始点と終点が同距離なら始点）。
  * `dragged`を渡したとき、`dragged.shapeId`の図形では`dragged.end`の端点を対象にせず、もう一方の端点は
@@ -88,7 +90,7 @@ export function findSnapTarget(shapes, point, tolerance, dragged = null) {
 /**
  * 結合できる線の端点のうち、`point`にいちばん近い端点を選ぶ走査。`findSnapTarget`と`findDrawnLineSnapTarget`が共有する（候補の選び方の唯一の箇所）。
  * 図形を`shapes`の末尾（前面）から先頭へ、各図形は始点→終点の順に調べ、距離が`tolerance`以下で、かつ厳密に小さいときだけ更新する。
- * `isExcluded`が真を返す端点は対象にしない。引数を書き換えない。
+ * `isExcluded`が真を返す端点は対象にしない。端点は`lineEndpointOf`で読む。引数を書き換えない。
  * @param {Array<Object>} shapes 図形の配列（奥が先）
  * @param {{x: number, y: number}} point 照会する点（ワールド座標）
  * @param {number} tolerance ワールド座標の許容距離
@@ -101,10 +103,10 @@ function findNearestEndpoint(shapes, point, tolerance, isExcluded) {
     for (let i = shapes.length - 1; i >= 0; i--) {
         const shape = shapes[i];
         if (!isJoinableLine(shape)) continue;
-        const points = shape.toJSON().points;
+        const data = shape.toJSON();
         const ends = [
-            { end: 'start', p: points[0] },
-            { end: 'end', p: points[points.length - 1] }
+            { end: 'start', p: lineEndpointOf(data, 'start') },
+            { end: 'end', p: lineEndpointOf(data, 'end') }
         ];
         for (const { end, p } of ends) {
             if (isExcluded(shape, end)) continue;

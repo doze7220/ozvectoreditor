@@ -120,11 +120,10 @@ describe('EndpointSnapRules findSnapTarget 対象', () => {
         assert.equal(findSnapTarget([path], { x: 50, y: 0 }, 8), null);
     });
 
-    it('矩形・円・弧・閉じたパスの点には吸い付かない', () => {
+    it('矩形・円・閉じたパスの点には吸い付かない', () => {
         const shapes = [
             withId(new Rect(0, 0, 100, 100), 'R'),
             withId(new Ellipse(0, 0, 100, 100, 'circle'), 'E'),
-            withId(new Ellipse(0, 0, 100, 100, 'arc'), 'A'),
             withId(makePath([[0, 0], [100, 0], [100, 100]], true), 'Z'),
         ];
         for (const s of shapes) {
