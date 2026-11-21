@@ -270,7 +270,7 @@ Phase 9 のクローズの整合確認（Survey `./_log/res/261120_1637_RES_Surv
         *   **行末の確認**：`12_shapes.md` はCRLFのまま（88行・CR 88）。
         *   **記録**：4.の「タスク5」に、No.16・No.17(1)(2)・No.18・No.25・No.26(40・51・52行)・A3・A4 の前後の要点、整合・行末の確認結果を書き、タスクを[x]にする。
 
-*   [ ] タスク6: `_doc/arch/10_ShapeFactory.md`・`28_MoveDirectionRules.md`・`30_UnitSnapRules.md`（No.21・No.22・No.23）
+*   [x] タスク6: `_doc/arch/10_ShapeFactory.md`・`28_MoveDirectionRules.md`・`30_UnitSnapRules.md`（No.21・No.22・No.23）
     *   **対象ファイル** :
         *   `./_doc/arch/10_ShapeFactory.md` : 更新（6行「`curve`の`create`は曲線のパスを返す」の括弧と末尾の文）
         *   `./_doc/arch/28_MoveDirectionRules.md` : 更新（5行「使う側」の範囲の語）
@@ -422,7 +422,11 @@ Phase 9 のクローズの整合確認（Survey `./_log/res/261120_1637_RES_Surv
 
 ### タスク6: `_doc/arch/10_ShapeFactory.md`・`28_MoveDirectionRules.md`・`30_UnitSnapRules.md`（No.21・No.22・No.23）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   No.21：`10_ShapeFactory.md` 6行の括弧を計画の後の文のとおり「（戻り値は`VectorModel.startDraft`が作成途中の図形として持ち、その`type`を`PathJoinRules.isDrawnLineShape`が読む＝`'path'`のため続けて引く線の形に当たり、曲線のツールも線を続けて引く流れを通る。3章22.）」に直した。「呼び出し元は`VectorModel.startDraft`だけ」は括弧から外し（差し引き）、「置き場所の理由」の文は未変更。
+    *   No.22：同6行の末尾を「importは`SEGMENT_KIND_SMOOTH`（`shapes/Path.js`が`export`）を足した（`Path`は`path`の`fromJSON`のため前からimportしている）。」に直した。差し引きは取っていない。
+    *   No.23：`28_MoveDirectionRules.md` 5行・`30_UnitSnapRules.md` 10行・12行の「直線のツールで線を引いている途中」を「直線・曲線のツールで線を引いている途中」に直した（30の12行の「`Shift`だけ」の限定は残した）。差し引きは取っていない。
+    *   整合確認：3章22.「モジュールの分担」の「09-01aで変えたのは`curve`の`create`だけ」、`06_InputTracker.md` の「線を引いている途中の配線（`DRAWING`。直線・曲線のツール…）」と矛盾しない（読むだけ）。10の6行の「置き場所の理由」の文は未変更。
+    *   行末確認：3ファイルともLF維持（10＝9行/CR0、28＝7行/CR0、30＝14行/CR0。Pythonのバイナリ書き込みで置換し `sed -i` は不使用）。`git diff --stat` は3ファイルで4行の入れ替えのみ。
 
 ### タスク7: コードのコメント3か所（No.19・`js/main.js` 305行・502行）
 *   **作業内容** :
