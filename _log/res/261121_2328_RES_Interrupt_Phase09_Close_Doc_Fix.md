@@ -131,7 +131,7 @@ Phase 9 のクローズの整合確認（Survey `./_log/res/261120_1637_RES_Surv
         *   **行末の確認**：`PROJECT_ARCHITECTURE.md`・`15_io.md` はCRLF、`40_asset_sprite.md` はLFのまま（共通の直し方4.の方法と値）。
         *   **記録**：4.の「タスク1」に、直した番号（No.1・No.2・No.26(252行)・No.3・No.24）と前後の要点、整合・行末の確認結果を書き、タスクを[x]にする。
 
-*   [ ] タスク2: `PROJECT_ARCHITECTURE.md` 3章6.・11.・12.、`_doc/arch/14_edit.md`（No.4・No.5・No.6・No.7・No.8）
+*   [x] タスク2: `PROJECT_ARCHITECTURE.md` 3章6.・11.・12.、`_doc/arch/14_edit.md`（No.4・No.5・No.6・No.7・No.8）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` : 更新（3章6.「記録する操作と時点」の図形の作成、11.冒頭、12.「流れ（描き終え）」の括弧）
         *   `./_doc/arch/14_edit.md` : 更新（`edit/` の「依存」の1文、`EndpointSnapper.js` の「契約」の「線を引く手順の記録」）
@@ -375,7 +375,14 @@ Phase 9 のクローズの整合確認（Survey `./_log/res/261120_1637_RES_Surv
 
 ### タスク2: `PROJECT_ARCHITECTURE.md` 3章6.・11.・12.、`_doc/arch/14_edit.md`（No.4・No.5・No.6・No.7・No.8）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   No.4：3章6.の図形の作成を「吸い付きなし・始点で閉じる＝…、描き足し・つながり・既存の線を閉じる＝…」に直した。
+    *   No.8：`14_edit.md` の「線を引く手順の記録」を「吸い付きなし・始点で閉じる＝…」に直した（`#commitDrawnShape` の名前は書かず）。
+    *   No.5：3章11.冒頭を「（直線・開いたパス・今の曲線・弧）」に直した。
+    *   No.7：3章12.を「直線・曲線以外のツール（弧・矩形・円）の`handleClick`で」に直した。同じ行のほかは未変更。
+    *   No.6：`14_edit.md` の依存を「`edit/`で`shapes/`をimportするのは`PathJoiner`・`PathCornerEditor`・`EndpointSnapper`の3つだけ」に直した。
+    *   差し引きは計画どおりどれも取っていない。
+    *   整合確認：No.4・No.8は3章2.「当てないもの」（描き足し・つながり・既存の線を閉じる）と矛盾しない。No.5は11.「結合できる線」の項（円を含めない）と一致。No.6は1章・2章の`edit/`の記述（`PathJoiner`・`EndpointSnapper`・`PathCornerEditor`の3クラスが`shapes/`の規則も使う）と一致。No.7は12.「表示を消す箇所」の「直線・曲線以外」と同じ範囲。
+    *   行末確認：`PROJECT_ARCHITECTURE.md` 740行/CR740、`14_edit.md` 105行/CR105（CRLF維持）。
 
 ### タスク3: `PROJECT_ARCHITECTURE.md` 3章22.、`_doc/arch/06_InputTracker.md`（No.9・No.10・No.11・No.12・No.13）
 *   **作業内容** :
