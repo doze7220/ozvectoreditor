@@ -97,7 +97,7 @@ Phase 9 のクローズの整合確認（Survey `./_log/res/261120_1637_RES_Surv
 *   **変えない箇所**：`PROJECT_ARCHITECTURE.md` 2章245行（エンジンとの約束(c)）・3章22.640行（用語の定義）・3章24.（「モジュールの分担」の`CornerTarget`側からの言及の文だけはREQの補足決定によりタスク8で直す。ほかの文は変えない）・3章15.524行（`Tab`の扱い）。`_doc/arch/07_KeyboardShortcuts.md`、REQの要件に挙げていない `_doc/arch/` のファイル、`_doc/arch/12_shapes.md` 29行のうちタスク8で直す1文以外。
 
 ## 3. タスクリスト
-*   [ ] タスク1: `PROJECT_ARCHITECTURE.md` 1章・2章、`_doc/arch/15_io.md`・`40_asset_sprite.md`（No.1・No.2・No.26の2章252行・No.3・No.24）
+*   [x] タスク1: `PROJECT_ARCHITECTURE.md` 1章・2章、`_doc/arch/15_io.md`・`40_asset_sprite.md`（No.1・No.2・No.26の2章252行・No.3・No.24）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` : 更新（1章「依存方向」の1文、2章 `path` の「作られるのは」の文、2章「描画要素」の `"bezierPath"` の括弧）
         *   `./_doc/arch/15_io.md` : 更新（`SpriteSerializer.js` の「知らないこと」の1文）
@@ -364,7 +364,14 @@ Phase 9 のクローズの整合確認（Survey `./_log/res/261120_1637_RES_Surv
 
 ### タスク1: `PROJECT_ARCHITECTURE.md` 1章・2章、`_doc/arch/15_io.md`・`40_asset_sprite.md`（No.1・No.2・No.26の2章252行・No.3・No.24）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   No.1：1章「依存方向」を、計画の置き換え案どおり「…importする向きと、`InputTracker`が生成して持つ状態を持つ部品`DragTracker`をimportする1件だけで、逆向き…は無い」に直した。
+    *   No.2：2章 `path` の「作られるのは」の列挙の末尾に「直線・曲線のツールで点を打って頂点が3つ以上になった作成途中の線（`PathJoinRules`の`buildDrawnDraft`・`buildLineOrPath`。22.）」を足した。
+    *   No.26(252行)：`"bezierPath"` の括弧を「直線でない区間（曲線の区間・曲がり方を持つ区間）を1つ以上持つ`path`。版3で追加」に直した。同じ行の後半は未変更。
+    *   No.3：`15_io.md` を「版3への版上げはエンジンへ連絡済み（Phase 09-04。2章）」に直した（外側の括弧以降は未変更）。
+    *   No.24：`40_asset_sprite.md` を「版3への版上げは連絡済み（Phase 09-04）。2章」に直した。
+    *   差し引きは計画どおりどれも取っていない。
+    *   整合確認：`grep -rn 未送付 PROJECT_ARCHITECTURE.md _doc/arch` は0件。2章245行(c)は未変更。
+    *   行末確認：`PROJECT_ARCHITECTURE.md` 740行/CR740、`15_io.md` 37行/CR37（CRLF維持）、`40_asset_sprite.md` 6行/CR0（LF維持）。
 
 ### タスク2: `PROJECT_ARCHITECTURE.md` 3章6.・11.・12.、`_doc/arch/14_edit.md`（No.4・No.5・No.6・No.7・No.8）
 *   **作業内容** :

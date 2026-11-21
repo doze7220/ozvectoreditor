@@ -2,5 +2,5 @@
     *   **本アプリの書き出しが作った生成物**：2本とも、`Path.fromJSON`（7頂点の閉じたパス1つ）→ `SpriteSerializer.serialize` → `CodeExporter.toModuleText`の経路で生成したテキストをそのまま置いたもの（書き出し形式の版2。作業データの版も2）。**現行の書き出し形式はPhase 09-01aで版3になったが、生成物は版2のまま書き換えない**（`SpriteSerializer.checkFormat`は版1〜3を受理し、`ToolIconWiring`は`bounds`と`draw`だけを使うため差し替えは不要。2本は`bezierPath`を含まない）。生成は1回限りの手作業で、生成スクリプト・ビルド手順はリポジトリに無い（`package.json`・ビルドを足さない方針）。**手で書き換えない**。差し替えるときは、本アプリで描いて書き出したJSで置き換える。
     *   **先頭のコメントは`CodeExporter`の固定のヘッダコメント**（`OZ Vector Editor が出力したスプライト（ESモジュール）。…`）であり、**「責務:」の語を含まない**。これは憲法3章の「すべての`.js`の最先頭行に単一の責務をJSDocで書く」とは別の、書き出しの形のコメントである（生成物であり手で書き換えないため、責務の記載を足さない。**監査時に責務の記載漏れの違反と誤検知しないこと**）。
     *   **形**：既定のexportのみ（`export default { ...spriteData, draw };`。スプライトデータの全キー`format`・`formatVersion`・`bounds`・`elements`・`source`と`draw(ctx)`）。何もimportしない葉のモジュール。`draw(ctx)`は`ctx`の現在の変換の上に原点(0, 0)を基準に描く（2章「JSの形」）。
-    *   **使う側**：`wiring/ToolIconWiring`だけ（`bounds`と`draw`を使う）。`core/`・`edit/`・`io/`・`palette/`は`asset/`をimportしない。エンジンへは渡さない（本アプリ自身のUI用。この2本は書き出し形式の版の変更の連絡票の対象にならない。版3への版上げの連絡票は未送付でPhase 09-04で出す。2章）。
+    *   **使う側**：`wiring/ToolIconWiring`だけ（`bounds`と`draw`を使う）。`core/`・`edit/`・`io/`・`palette/`は`asset/`をimportしない。エンジンへは渡さない（本アプリ自身のUI用。この2本は書き出し形式の版の変更の連絡票の対象にならない。版3への版上げは連絡済み（Phase 09-04）。2章）。
     *   **テスト**：なし（生成物。確認はテストプレイでアイコンが描かれること。`_doc/arch/16_test.md`）。
