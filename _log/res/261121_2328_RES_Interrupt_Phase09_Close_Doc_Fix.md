@@ -315,7 +315,7 @@ Phase 9 のクローズの整合確認（Survey `./_log/res/261120_1637_RES_Surv
         *   **行末の確認**：2ファイルとも**LFのまま**（`main.js`＝1074行・`PathCornerRules.js`＝187行、CRは0）。
         *   **記録**：4.の「タスク7」に、No.19・`main.js` 305行・502行の前後の要点、`node --check` の結果、行末の確認結果を書き、タスクを[x]にする。
 
-*   [ ] タスク8: No.19 に伴う資料の2か所（`_doc/arch/12_shapes.md` 29行・`PROJECT_ARCHITECTURE.md` 3章24.。REQの補足決定）
+*   [x] タスク8: No.19 に伴う資料の2か所（`_doc/arch/12_shapes.md` 29行・`PROJECT_ARCHITECTURE.md` 3章24.。REQの補足決定）
     *   **対象ファイル** :
         *   `./_doc/arch/12_shapes.md` : 更新（`PathSegmentKindRules.js` の「公開」の typedef`SegmentSwitchTarget` の括弧の中の1文だけ）
         *   `./PROJECT_ARCHITECTURE.md` : 更新（3章24.「モジュールの分担」の規則の括弧の中の1文だけ）
@@ -438,7 +438,11 @@ Phase 9 のクローズの整合確認（Survey `./_log/res/261120_1637_RES_Surv
 
 ### タスク8: No.19 に伴う資料の2か所（`_doc/arch/12_shapes.md` 29行・`PROJECT_ARCHITECTURE.md` 3章24.。REQの補足決定）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   前提：`grep -c SegmentSwitchTarget js/shapes/PathCornerRules.js` は1件（タスク7の文が入っている）。
+    *   `_doc/arch/12_shapes.md` 29行：「。`SegmentSwitchTarget`側のJSDocには`CornerTarget`との関係が書かれているが、コードは`PathCornerRules`を変えないため`CornerTarget`側からの言及は無い）」を「。この関係は互いのJSDocに書かれている）」に直した（1行のまま。同じ括弧のほかの語と29行のほかの語は未変更）。
+    *   `PROJECT_ARCHITECTURE.md` 3章24.「モジュールの分担」（681行）：「。この関係は`SegmentSwitchTarget`側のJSDocには書かれているが、`PathCornerRules`は変えないファイルのため`CornerTarget`側からの言及は無い）」を同じ「。この関係は互いのJSDocに書かれている）」に直した（ほかの文は未変更）。
+    *   整合確認：`grep -rn "言及は無い"` は0件。`grep -rn "この関係は互いのJSDocに書かれている"` は2件（`PROJECT_ARCHITECTURE.md` 681行・`12_shapes.md` 29行）。`PathCornerRules.js:24` の `CornerTarget` は `SegmentSwitchTarget` の名前を、`PathSegmentKindRules.js:23` の `SegmentSwitchTarget` は `CornerTarget` の名前を書いている（読むだけ）。`git diff -U0` の変更行は各1行（681行・29行）だけ（`--stat` は2ファイル・2 insertions / 2 deletions）。
+    *   行末確認：`PROJECT_ARCHITECTURE.md`＝740行/CR 740、`12_shapes.md`＝88行/CR 88でCRLF維持。Pythonのバイナリ置換で行い `sed -i` は不使用。
 
 ### タスク9: 確認（要件9。固定タスク）
 *   **作業内容** :
