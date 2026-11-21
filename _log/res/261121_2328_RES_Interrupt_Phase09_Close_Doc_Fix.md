@@ -352,7 +352,7 @@ Phase 9 のクローズの整合確認（Survey `./_log/res/261120_1637_RES_Surv
         *   テストプレイ・ブラウザでの確認は行わない（画面のふるまいが変わらないため）。
         *   タスクを[x]にする。
 
-*   [ ] タスク10: 懸念事項・今後の修正における注意点の記述（固定タスク）
+*   [x] タスク10: 懸念事項・今後の修正における注意点の記述（固定タスク）
     *   **対象ファイル** :
         *   なし（本RESの5.へ記録するのみ）
     *   **作業内容** :
@@ -371,6 +371,7 @@ Phase 9 のクローズの整合確認（Survey `./_log/res/261120_1637_RES_Surv
     *   No.24：`40_asset_sprite.md` を「版3への版上げは連絡済み（Phase 09-04）。2章」に直した。
     *   差し引きは計画どおりどれも取っていない。
     *   整合確認：`grep -rn 未送付 PROJECT_ARCHITECTURE.md _doc/arch` は0件。2章245行(c)は未変更。
+    *   No.1の整合確認（計画が求めたもの）：1章「依存方向」の(3)以降の文・`_doc/arch/06_InputTracker.md` のimportの記述と、No.1の文は矛盾しない。`js/core/InputTracker.js:7` の `DragTracker` のimportが、`core/` 内で状態を持つクラスをimportする唯一の例（監査で確認）。
     *   行末確認：`PROJECT_ARCHITECTURE.md` 740行/CR740、`15_io.md` 37行/CR37（CRLF維持）、`40_asset_sprite.md` 6行/CR0（LF維持）。
 
 ### タスク2: `PROJECT_ARCHITECTURE.md` 3章6.・11.・12.、`_doc/arch/14_edit.md`（No.4・No.5・No.6・No.7・No.8）
@@ -404,7 +405,7 @@ Phase 9 のクローズの整合確認（Survey `./_log/res/261120_1637_RES_Surv
     *   A2：`EndpointSnapRules.test.js` の項の「対象」の括弧を計画の後の文のとおりに直した。テストの確認：`describe` の「曲線のパスの吸い付き（Phase 09-01b）」（439行）、「今の曲線の吸い付き（Phase 09-03a）」（501行。始点・終点に吸い付き制御点には吸い付かない）、「弧の吸い付き（Phase 09-03b）」（544行。左端・右端に吸い付き、中心・頂上には吸い付かない、円の点には吸い付かない）の各 `it` で、書いた範囲が確かめられている。件数・同じ項目のほかの語は未変更。
     *   差し引きは計画どおりどれも取っていない。
     *   整合確認：`grep -rn 1189 PROJECT_ARCHITECTURE.md _doc/arch` は `PROJECT_ARCHITECTURE.md`・`16_test.md` は0件。`_doc/arch/01_index_html.md` 15行にだけ「Phase 09-02aの約1189pxから…」「…を加えて約1189px、Phase 09-02bで…」という経緯の記述が残る（計画の「0件」と食い違うが、09-02a時点の値を述べる正しい経緯で、現在値は同行の約1261pxと一致。読むだけの資料のため触れず）。`index.html` 447行のコメント（約1261px）・3章24.「確認の状況」（約1261px）・`01_index_html.md` の現在値（約1261px）と一致。
-    *   行末確認：`sed -i` がCRを落としたため（Git Bashのsed）、直後に各行末へCRを付け直して復元した。`PROJECT_ARCHITECTURE.md` 740行/CR740、`16_test.md` 196行/CR196（CRLF維持）。`git diff --stat` は2ファイルで各5行の入れ替えのみ。
+    *   行末確認：`sed -i` がCRを落としたため（Git Bashのsed）、直後に各行末へCRを付け直して復元した。`PROJECT_ARCHITECTURE.md` 740行/CR740、`16_test.md` 196行/CR196（CRLF維持）。`git diff -U0` の変更行は `PROJECT_ARCHITECTURE.md` が2行（673・676行）、`16_test.md` が3行（21・135・157行）の入れ替えのみ（計5行。監査の指摘で記録を補正）。
 
 ### タスク5: `_doc/arch/12_shapes.md`（No.16・No.17・No.18・No.25・No.26の40・51・52行・A3・A4）
 *   **作業内容** :
@@ -490,10 +491,15 @@ Phase 9 のクローズの整合確認（Survey `./_log/res/261120_1637_RES_Surv
 
 ### タスク10: 懸念事項・今後の修正における注意点の記述（固定タスク）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   5.に5〜7を追記した（判断に迷った点・対象外で残した点・将来の注意）。計画時の1〜4は消していない。
+    *   計画が5.に書くと定めた項目：REQの決定から外れた点（No.19に伴う `12_shapes.md` 29行・`PROJECT_ARCHITECTURE.md` 3章24.の2文）は5.の1に既に書いてあるため重複させない。
+    *   事実確認：`InputTracker.js:7` の `DragTracker` のimport、タスク4の変更行（673・676／21・135・157。コミット9c0620e）を実ファイル・実差分で確かめた。
 
 ## 5. 懸念事項・要確認ポイント
 1. **（計画時・REQの決定から外れた点）No.19 に伴い、REQが変えないとした資料の2文を直す**：REQは「`_doc/arch/12_shapes.md` 29行・`PROJECT_ARCHITECTURE.md` 3章24.は正しいので変えない」としたが、No.19 のJSDocの修正で「`CornerTarget`側からの言及は無い」とその理由の文が事実と合わなくなるため、現場設計セッションの回答（2026-11-21。(A)）により、この2文だけを「この関係は互いのJSDocに書かれている」に直す（タスク8）。3章24.のほかの文とREQが変更禁止に挙げたほかの箇所は変えない。
 2. **（計画時）行末の実測がREQと違う**：REQは本作業で触るファイルをすべてCRLFとするが、`_doc/arch/10_ShapeFactory.md`・`28_MoveDirectionRules.md`・`30_UnitSnapRules.md`・`40_asset_sprite.md`・`js/main.js`・`js/shapes/PathCornerRules.js` の作業ツリーはLF（`git ls-files --eol` で `w/lf`）。REQの原則の主旨（行末を変えない）に従い、各ファイルの今の行末を保つ計画にした（2.の共通の直し方4.）。
 3. **（計画時）本作業の対象外として残す、近い記述**：`PROJECT_ARCHITECTURE.md` 3章12.「表示を消す箇所」の `#resetSnapState()` の列挙も `removeLastLinePoint` の始点だけでやめる枝を挙げていない（「最後の点を消した直後」に含めて読める書き方）。Survey の5章の26件に入っておらず、REQの要件にも無いため触れない。同じく、2章 `path` の「作られるのは」の列挙には角の切り替え（`planCornerToggle`）が無いが、No.2 の要件は作成途中の線だけのため足さない（`12_shapes.md` 80行はNo.17で足す）。曲線のツールで最後の点を消して点1つに戻った作成途中の線は頂点2つの `Path` を `PathJoinRules.buildDrawnDraft` が作る（`ShapeFactory.create('curve')` ではない）が、No.2・No.17 の要件は「頂点が3つ以上」のため、その言い方のままにする（3章22.「状態の持ち主」が `k = 1` の曲線のツールの形を書いている）。
 4. **（計画時）将来この箇所を修正する際の注意**：「直線以外」の範囲の語は、本作業の後も3章22.冒頭の「直線以外のツール・選択（`V`）…は変えない」（Interrupt の時点の記述）に残る。続けて引く線の形（`isDrawnLineShape`）を変えるときは、本作業で「直線・曲線以外のツール（弧・矩形・円）」と書いた3章12.・22.・`06_InputTracker.md` の範囲の語と、`28`・`30` の「直線・曲線のツール」をそろえて見直すこと。区間の種類を足すときは、「直線でない区間（曲線の区間・曲がり方を持つ区間）」と書いた2章252行・`12_shapes.md` 40・51・52行をそろえる。
+5. **（タスク10・本作業の対象外として残す）1章「依存方向」の列挙漏れ**：「処理・レンダラー・小さな部品が状態を持たない規則の関数をimportする向き」には、`core/ShapeFactory` からのimport（`VectorModel.js:6` のクラス `ShapeFactory`、`InputTracker.js:10`・`KeyboardShortcuts.js:8` の `SHAPE_TYPES`）が含まれていない。前からある書き方で、No.1の要件外のため触れていない。
+6. **（タスク10・対象外）`06_InputTracker.md` 吸い付きの項の読み誤り余地**：本文「`DRAWING`は照会・保持・表示・終点の追従」は、見出しを「直線・曲線以外のツール」に直した後も、弧・矩形・円で吸い付きが表示されるように読める余地がある（`isDrawingLine()` が偽の `DRAWING` の枝 `InputTracker.js:851` では `findDrawSnap` が必ず `null`）。タスク3は計画どおりIDLEの句だけを直した。将来この項を直すときは `DRAWING` の句も同じ範囲（直線・曲線のツールだけ）に限定すること。
+7. **（タスク10・記録）`1189` の残存は正しい**：`grep -rn "1189" PROJECT_ARCHITECTURE.md _doc/arch` は、`_doc/arch/01_index_html.md` 15行の経緯の記述（Phase 09-02a 時点の値）のため0件にならない。現在値は同行の約1261pxと一致しており、直さない。
