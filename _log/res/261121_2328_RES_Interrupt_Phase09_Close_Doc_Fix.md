@@ -228,7 +228,7 @@ Phase 9 のクローズの整合確認（Survey `./_log/res/261120_1637_RES_Surv
         *   **行末の確認**：`PROJECT_ARCHITECTURE.md`・`16_test.md` はCRLFのまま。
         *   **記録**：4.の「タスク4」に、No.14・No.15・No.20・A1・A2 の前後の要点、整合・行末の確認結果を書き、タスクを[x]にする。
 
-*   [ ] タスク5: `_doc/arch/12_shapes.md`（No.16・No.17・No.18・No.25・No.26の40・51・52行・A3・A4）
+*   [x] タスク5: `_doc/arch/12_shapes.md`（No.16・No.17・No.18・No.25・No.26の40・51・52行・A3・A4）
     *   **対象ファイル** :
         *   `./_doc/arch/12_shapes.md` : 更新（3・8・13・17・40・51・52・63・80行の該当の文だけ）
     *   **作業内容** :
@@ -408,7 +408,17 @@ Phase 9 のクローズの整合確認（Survey `./_log/res/261120_1637_RES_Surv
 
 ### タスク5: `_doc/arch/12_shapes.md`（No.16・No.17・No.18・No.25・No.26の40・51・52行・A3・A4）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   A4：3行の「`isPointInPolygonNonzero（」を「`isPointInPolygonNonzero`（」に直した（バッククォート1字のみ）。
+    *   A3：8行 `PathJoinRules.js` の「公開」の見出しを「直線・曲線のツールで線を続けて引く作業の追加（3章22.）：」に直した（17行と同じ。後の列挙は未変更）。
+    *   No.16：13行を「`assembleOpenPath`が開いたパスへつなぐときに頂点と区間の種類を一緒に並べる唯一の箇所で、`buildJoinedPath`系・`buildExtendedPath`が共有する（`buildClosedPath`は使わない。角の点の項）。」に直した。13行のほかの文は未変更。
+    *   No.18：17行の括弧を「弧は左端・右端に吸い付く＝Phase 09-03b（中心・頂上には吸い付かない）が、弧のハンドルはどれも`resolveEndpointHandle`の対象にならない＝`null`）」に直した。
+    *   No.26：40行を「曲線の区間・曲がり方を持つ区間は100分割の折れ線で近似した並び」、51行を「`Path`の曲線の区間・曲がり方を持つ区間は輪郭を100分割した」、52行を「直線でない区間（曲線の区間・曲がり方を持つ区間）を1つ以上持つ`Path`は`bezierPath`」に直した。
+    *   No.25：63行を「区間を`data.segments`から`copySegment`で作り直す（`'bezier'`の区間は`control1`・`control2`も複製）。」に直した。
+    *   No.17(1)：80行「作る操作」に、作成途中の線（`buildDrawnDraft`・`buildLineOrPath`。3章22.）と角の切り替え（`planCornerToggle`。Phase 09-02a。3章23.）を計画の後の文のとおり足した。
+    *   No.17(2)：80行の「区間ごとの配列も受ける」を「（`PathJoinRules`の結合・描き足し・閉じる、`PathCornerRules`の角の切り替え、`PathSegmentKindRules`の区間の切り替えが使う。Phase 09-01b。」に直した。
+    *   差し引きは計画どおりどれも取っていない。29行は未変更。
+    *   整合確認：13行と14行の `buildClosedPath` の記述は一致（14行は `chainOf` から `points`・`kinds`・`corners` を並べると書く）。No.18は18行・21行・77行の趣旨（弧のハンドルは端点として解決しない）と合う。No.25は80行の `copySegment` の項と合う。No.17は23行・24行と合う。`'smooth'`と`'bezier'`を分けて書く27行・80行は未変更で食い違わない。
+    *   行末確認：`12_shapes.md` 88行/CR88（CRLF維持。バイナリで置換し `sed -i` は不使用）。`git diff --stat` は1ファイル9行の入れ替えのみ。
 
 ### タスク6: `_doc/arch/10_ShapeFactory.md`・`28_MoveDirectionRules.md`・`30_UnitSnapRules.md`（No.21・No.22・No.23）
 *   **作業内容** :
