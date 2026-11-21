@@ -293,7 +293,7 @@ Phase 9 のクローズの整合確認（Survey `./_log/res/261120_1637_RES_Surv
         *   **行末の確認**：3ファイルとも**LFのまま**（10＝9行・28＝7行・30＝14行、CRは0）。
         *   **記録**：4.の「タスク6」に、No.21・No.22・No.23 の前後の要点、整合・行末の確認結果を書き、タスクを[x]にする。
 
-*   [ ] タスク7: コードのコメント3か所（No.19・`js/main.js` 305行・502行）
+*   [x] タスク7: コードのコメント3か所（No.19・`js/main.js` 305行・502行）
     *   **対象ファイル** :
         *   `./js/shapes/PathCornerRules.js` : 更新（typedef `CornerTarget` のJSDocの説明行1行のみ）
         *   `./js/main.js` : 更新（305行・502行のコメント行2行のみ）
@@ -430,7 +430,11 @@ Phase 9 のクローズの整合確認（Survey `./_log/res/261120_1637_RES_Surv
 
 ### タスク7: コードのコメント3か所（No.19・`js/main.js` 305行・502行）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   No.19：`PathCornerRules.js` 24行を「 * 選んだ点。`PathSegmentKindRules`のtypedef`SegmentSwitchTarget`と同じ形（どちらも`PathCornerEditor`が集めた同じ結果を受ける）。」に直した（1行のまま。`@typedef`・`@property`・先頭の責務定義・`PathSegmentKindRules.js` は未変更）。
+    *   `main.js` 305行：「（切り取りの削除と同一経路。Delete/BackspaceはdeleteLastLinePointOrSelection()を通り、線を引いている途中でなければ同じ削除。ここでmodel.deleteShapesを直接呼ばないこと）」に直した。
+    *   `main.js` 502行：「（削除ボタンと同一経路。Delete/BackspaceはdeleteLastLinePointOrSelection()を通り、線を引いている途中でなければ同じ削除）」に直した。いずれも1行のまま。実行されるコード・904〜906行のコメントは未変更。資料はタスク8のため未着手。
+    *   確認：`node --check` は2ファイルとも成功。`git diff --stat -- js` は2ファイル（`main.js` 2行・`PathCornerRules.js` 1行、3 insertions / 3 deletions）。
+    *   行末確認：2ファイルともLF維持（`main.js`＝1074行、`PathCornerRules.js`＝187行、CR 0）。Pythonのバイナリ置換で行い `sed -i` は不使用。
 
 ### タスク8: No.19 に伴う資料の2か所（`_doc/arch/12_shapes.md` 29行・`PROJECT_ARCHITECTURE.md` 3章24.。REQの補足決定）
 *   **作業内容** :

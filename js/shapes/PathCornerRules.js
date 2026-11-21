@@ -21,7 +21,7 @@ export const CornerState = Object.freeze({
 });
 
 /**
- * 選んだ点。
+ * 選んだ点。`PathSegmentKindRules`のtypedef`SegmentSwitchTarget`と同じ形（どちらも`PathCornerEditor`が集めた同じ結果を受ける）。
  * @typedef {Object} CornerTarget
  * @property {Object} shape - 図形（`type`・`id`・`toJSON()`だけを読む）
  * @property {number} vertexIndex - 頂点の番号

@@ -302,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
     model.onChange(syncDeleteButtonState);
 
     // 削除ボタン：受理条件の判定と削除はinputTracker.deleteSelection()のみが担う
-    // （Delete/Backspaceショートカットと同一経路。ここでmodel.deleteShapesを直接呼ばないこと）
+    // （切り取りの削除と同一経路。Delete/BackspaceはdeleteLastLinePointOrSelection()を通り、線を引いている途中でなければ同じ削除。ここでmodel.deleteShapesを直接呼ばないこと）
     deleteSelectionBtn.addEventListener('click', () => inputTracker.deleteSelection());
 
     // 結合（選択中の線の結合）。規則はshapes/PathJoinRules、手順はedit/PathJoinerが担い、ここは配線のみ。
@@ -499,7 +499,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 処理本体はedit/の新設クラスが持ち、ここは生成と注入のみを行う。
     // 貼り付け・複製は編集操作の記録先（EditRecorder）としてhistoryManagerを注入する
     const shapeInserter = new ShapeInserter({ model, editRecorder: historyManager });
-    // 切り取りの削除は、既存の唯一の削除経路inputTracker.deleteSelection()を注入する（Delete/削除ボタンと同一経路）
+    // 切り取りの削除は、既存の唯一の削除経路inputTracker.deleteSelection()を注入する（削除ボタンと同一経路。Delete/BackspaceはdeleteLastLinePointOrSelection()を通り、線を引いている途中でなければ同じ削除）
     const clipboardController = new ClipboardController({ model, inserter: shapeInserter, deleteSelection: () => inputTracker.deleteSelection() });
 
     /**
