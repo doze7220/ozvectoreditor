@@ -162,7 +162,7 @@ Phase 9 のクローズの整合確認（Survey `./_log/res/261120_1637_RES_Surv
         *   **行末の確認**：`PROJECT_ARCHITECTURE.md`・`14_edit.md` はCRLFのまま。
         *   **記録**：4.の「タスク2」に、No.4・No.5・No.6・No.7・No.8 の前後の要点、整合・行末の確認結果を書き、タスクを[x]にする。
 
-*   [ ] タスク3: `PROJECT_ARCHITECTURE.md` 3章22.、`_doc/arch/06_InputTracker.md`（No.9・No.10・No.11・No.12・No.13）
+*   [x] タスク3: `PROJECT_ARCHITECTURE.md` 3章22.、`_doc/arch/06_InputTracker.md`（No.9・No.10・No.11・No.12・No.13）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` : 更新（3章22.「操作ごとの流れ」の `Esc`、「既存の線とつながる・閉じる」の括弧）
         *   `./_doc/arch/06_InputTracker.md` : 更新（`cancelDraftOrClearSelection()` の項、「配線の場面」の見出し〔確認の結果によりその本文のIDLEの句〕、「表示を消す箇所」）
@@ -386,7 +386,14 @@ Phase 9 のクローズの整合確認（Survey `./_log/res/261120_1637_RES_Surv
 
 ### タスク3: `PROJECT_ARCHITECTURE.md` 3章22.、`_doc/arch/06_InputTracker.md`（No.9・No.10・No.11・No.12・No.13）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   No.9：3章22.の `Esc` を「直線・曲線以外のツール（弧・矩形・円）は従来どおり破棄。」に直した。
+    *   No.10：`06_InputTracker.md` の `cancelDraftOrClearSelection()` を「直線・曲線以外のツール（弧・矩形・円）は従来どおり破棄、」に直した。
+    *   No.11：「配線の場面」の見出しを「（直線・曲線以外のツール・描き始め・端点のハンドルのドラッグ）」に直した。IDLEの照会の確認：本文の「図形作成モードのIDLEは照会して表示のみ」は、見出しの「直線・曲線以外のツール」の場面（弧・矩形・円）で吸い付きが表示されると誤読されうると判断し、計画どおりその句だけを「（吸い付くのは直線・曲線のツールだけ）」付きに直した（IDLEの照会が非nullなのは直線・曲線のツールだけ。`isSnapDrawShapeType`）。
+    *   No.12：3章22.「既存の線とつながる・閉じる」を「途中の点が要るのはそれ以外のとき＝頂点2つの線・今の曲線・弧は途中の点なしでは閉じない。11.」に直した。
+    *   No.13：「表示を消す箇所」の `#resetSnapState()` の列挙に「`removeLastLinePoint`の始点だけでやめる枝」を足し、後半を「最後の点を消して引き続けるとき」に直した。
+    *   差し引きは計画どおりどれも取っていない。
+    *   整合確認：No.9・No.10は22.の「線を引いている途中」（直線・曲線のツール）・06の「線を引いている途中の配線」（`Esc`＝`finishDrawnLine`）と合う。No.12は11.「弧の結合」の項・22.「曲線のツール」の項と合う。`grep -n 直線以外` の残りは3章22.冒頭（638行。対象外）だけ。
+    *   行末確認：`PROJECT_ARCHITECTURE.md` 740行/CR740、`06_InputTracker.md` 42行/CR42（CRLF維持）。
 
 ### タスク4: `PROJECT_ARCHITECTURE.md` 3章23.、`_doc/arch/16_test.md`（No.14・No.15・No.20・A1・A2）
 *   **作業内容** :
