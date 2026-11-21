@@ -196,7 +196,7 @@ Phase 9 のクローズの整合確認（Survey `./_log/res/261120_1637_RES_Surv
         *   **行末の確認**：`PROJECT_ARCHITECTURE.md`・`06_InputTracker.md` はCRLFのまま。
         *   **記録**：4.の「タスク3」に、No.9〜No.13 の前後の要点、整合・行末の確認結果を書き、タスクを[x]にする。
 
-*   [ ] タスク4: `PROJECT_ARCHITECTURE.md` 3章23.、`_doc/arch/16_test.md`（No.14・No.15・No.20・A1・A2）
+*   [x] タスク4: `PROJECT_ARCHITECTURE.md` 3章23.、`_doc/arch/16_test.md`（No.14・No.15・No.20・A1・A2）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` : 更新（3章23.「`change`の後に`blur`する理由」の括弧、「確認の状況」の見積もり）
         *   `./_doc/arch/16_test.md` : 更新（`EndpointSnapRules.test.js` の項の「対象」の括弧、「書き換えた既存のテスト（09-01a）」の末尾の文、「テストできない箇所（09-02aの追加）」の見積もり）
@@ -397,7 +397,14 @@ Phase 9 のクローズの整合確認（Survey `./_log/res/261120_1637_RES_Surv
 
 ### タスク4: `PROJECT_ARCHITECTURE.md` 3章23.、`_doc/arch/16_test.md`（No.14・No.15・No.20・A1・A2）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   No.14：3章23.「確認の状況」の「見積もり約1189px」を「約1261px」に直した。
+    *   A1：`16_test.md`「テストできない箇所（09-02aの追加）」の「約1189px」を「約1261px」に直した。
+    *   No.15：3章23.「`change`の後に`blur`する理由」を「（外れた後の`Tab`はパレットを隠す/出すだけでチェックボックスへは戻らない。15.の`Tab`の扱い。許容）」に直した。3章15.・`07_KeyboardShortcuts.md` は未変更。
+    *   No.20：`16_test.md`「書き換えた既存のテスト（09-01a）」の「上の4ファイル」を「上の3ファイル」に直した（直前の`roundtrip`の項が挙げる3ファイルと一致）。
+    *   A2：`EndpointSnapRules.test.js` の項の「対象」の括弧を計画の後の文のとおりに直した。テストの確認：`describe` の「曲線のパスの吸い付き（Phase 09-01b）」（439行）、「今の曲線の吸い付き（Phase 09-03a）」（501行。始点・終点に吸い付き制御点には吸い付かない）、「弧の吸い付き（Phase 09-03b）」（544行。左端・右端に吸い付き、中心・頂上には吸い付かない、円の点には吸い付かない）の各 `it` で、書いた範囲が確かめられている。件数・同じ項目のほかの語は未変更。
+    *   差し引きは計画どおりどれも取っていない。
+    *   整合確認：`grep -rn 1189 PROJECT_ARCHITECTURE.md _doc/arch` は `PROJECT_ARCHITECTURE.md`・`16_test.md` は0件。`_doc/arch/01_index_html.md` 15行にだけ「Phase 09-02aの約1189pxから…」「…を加えて約1189px、Phase 09-02bで…」という経緯の記述が残る（計画の「0件」と食い違うが、09-02a時点の値を述べる正しい経緯で、現在値は同行の約1261pxと一致。読むだけの資料のため触れず）。`index.html` 447行のコメント（約1261px）・3章24.「確認の状況」（約1261px）・`01_index_html.md` の現在値（約1261px）と一致。
+    *   行末確認：`sed -i` がCRを落としたため（Git Bashのsed）、直後に各行末へCRを付け直して復元した。`PROJECT_ARCHITECTURE.md` 740行/CR740、`16_test.md` 196行/CR196（CRLF維持）。`git diff --stat` は2ファイルで各5行の入れ替えのみ。
 
 ### タスク5: `_doc/arch/12_shapes.md`（No.16・No.17・No.18・No.25・No.26の40・51・52行・A3・A4）
 *   **作業内容** :
