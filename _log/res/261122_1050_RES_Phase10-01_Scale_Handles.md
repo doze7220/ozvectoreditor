@@ -293,7 +293,7 @@
         *   コード修正完了後、JSDocコメントの記載漏れがないこと（新しい・変えた関数・メソッド・typedef・定数、先頭の責務定義）を確認する。
         *   開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る場合は、資料本体は修正せず、その旨を『開発資料の更新予定』欄に追記する。
         *   タスク完了後、作業レポート（本RES）の「4. 詳細作業内容」の本タスクの欄を記載し完成させ、本タスクを`[x]`にする。
-*   [ ] タスク9: 要件D 外枠とハンドルの描画（`CanvasManager.render`の`scaleFrame`）
+*   [x] タスク9: 要件D 外枠とハンドルの描画（`CanvasManager.render`の`scaleFrame`）
     *   **対象ファイル** :
         *   `./js/core/CanvasManager.js` : 更新（`render`の省ける引数`scaleFrame`・`#drawScaleFrame`・定数・`render`とクラスのJSDocの描画順）
     *   **作業内容** :
@@ -408,7 +408,11 @@
 
 ### タスク9: 要件D 外枠とハンドルの描画（`CanvasManager.render`の`scaleFrame`）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/core/CanvasManager.js`のみ変更（LFのまま。483行→約530行）。
+    *   `render`に省ける`scaleFrame = null`を足し、(5-3)として頂点のハンドルの後・作成中の図形の前に、非`null`のときだけ非公開`#drawScaleFrame(frame, scale)`を呼ぶ。省略・`null`では何も描かず今と同じ描画。到達不能の`showHandles`の枝は消していない。
+    *   `#drawScaleFrame`：倍率が正の有限値でなければ描かない。`bounds`の矩形を線幅`SCALE_FRAME_LINE_WIDTH / scale`・色`SCALE_FRAME_STROKE_COLOR`で`strokeRect`し、`handles`の並びの順に選ばれていない頂点のハンドルと同じ見た目（`VERTEX_HANDLE_*`を流用、`÷ scale`）で描く。`save`/`restore`。状態・図形種別・選択・操作モードは判定しない。
+    *   新しい定数`SCALE_FRAME_LINE_WIDTH = 1`・`SCALE_FRAME_STROKE_COLOR = '#4a90e2'`。JSDoc：先頭の責務定義（外枠とそのハンドルを列挙に追加）・`render`の描画順（2-3）と`@param state.scaleFrame`・`#drawScaleFrame`・定数。
+    *   `node --test`：tests 2248 / suites 365 全件合格（テストは足していない）。
 
 ### タスク10: 要件D・E `Esc`の受理（`KeyboardShortcuts`の例外）と`main.js`の配線とテスト
 *   **作業内容** :
@@ -459,3 +463,5 @@
 * **（タスク8）カーソル**：`#updateCursor`は`#scaleDrag !== null`なら`#scaleDrag.handle`を必ず`scaleHandle`へ渡す。`#beginScaleSelection`は`#beginLeftDrag`（内で`#updateCursor`）の前に`#scaleDrag`を入れる。ブラウザでの確認はタスク10の後。
 * **（タスク8）`handleClick`の外枠のハンドルの判定位置**：RESの指示どおり待ち受け（`isPickingShape`）の判定の後・`hit.handle`の前。`#findScaleHandle`はクリックのたびに照会（`getSelectionFrameBounds`）を呼ぶ。`#classifyPoint`は今までどおり先に1回行う。
 * **（タスク8）`#onLeftDragCancel`の戻し**：閾値以前の中断は`#isEditOpen`が偽のため戻さない（図形を変えていないため）。`#scaleDrag`の`null`確認を足している（防御）。
+* **（タスク9）目視確認**：外枠のハンドルの見た目（外枠の青い1pxの線・白い四角に青い枠）はタスク10の後にブラウザで確認する。ハンドルの大きさは頂点のハンドルと同じ（`VERTEX_HANDLE_SIZE`）で、`handles`の後ろ（角）が前面に重なる。`CanvasManager`は受け取った位置を描くだけ。
+* **（タスク9）開発資料の更新予定**：`_doc/arch/04_CanvasManager.md`（`render`の描画順に(2-3)外枠とハンドル・`scaleFrame`引数を追記）。
