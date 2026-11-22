@@ -339,7 +339,7 @@
     *   **作業内容** :
         *   実装後のコードで要件Gの文言（カーソルの形・キーの受理・`Esc`の後の`click`・準備の手順）を確かめ直し、食い違いがあれば直して詳細作業内容に確認項目として書く。
         *   タスク完了後、作業レポート（本RES）の「4. 詳細作業内容」の本タスクの欄を記載し完成させ、本タスクを`[x]`にする。
-*   [ ] タスク14: 開発資料（`PROJECT_ARCHITECTURE.md`と、`_doc/arch/`の該当ファイル）への反映
+*   [x] タスク14: 開発資料（`PROJECT_ARCHITECTURE.md`と、`_doc/arch/`の該当ファイル）への反映
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` : 更新
         *   `./_doc/arch/`の該当ファイル（『開発資料の更新予定』の一覧。`42_ScaleHandleRules.md`は新規） : 更新・新規
@@ -457,7 +457,13 @@
 
 ### タスク14: 開発資料（`PROJECT_ARCHITECTURE.md`と、`_doc/arch/`の該当ファイル）への反映
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   各ファイルの行末を実測してから書き換え、行末を保った（`PROJECT_ARCHITECTURE.md`・`02`・`03`・`04`・`06`・`09`・`12`・`14`・`15`・`16`はCRLF、`07`・`10`・`30`・`32`・`34`・`35`はLF。作業前の見込み（RES記載）のうちCRLFの3ファイル（`PROJECT_ARCHITECTURE.md`・`06`・`12`）は実測と一致）。新規の`42_ScaleHandleRules.md`は、同じフォルダのファイルの多数（LFは42を除いて24件、42を足して25件）がLFのためLF（CRLFは17件。直前の`41`はCRLF）。`js/`・テスト・`.claude/`は変えていない。`node --test`：tests 2270 / suites 368 / pass 2270 / fail 0。
+    *   監査の指摘で修正：`PROJECT_ARCHITECTURE.md`3章20.の「配線＝`// 7.10.`」の旧記述（ここでも1つ生成）を「`// 4.`で生成した同じインスタンスを`// 7.10.`で受ける」に直し、上の行末の件数（26件→LFは42を除いて24件）を実測に合わせた。
+    *   `PROJECT_ARCHITECTURE.md`：**1章**＝構成図（`core/ScaleHandleRules.js`・`KeyboardShortcuts.js`・`DragTracker.js`・`ShapeGeometry.js`・`ShapeExtentReader.js`の説明、`UnitSnapRules`・`PressActionRules`・`CursorShapeRules`の説明、`test/core/ScaleHandleRules.test.js`・`VectorModel.replaceShapesKeepingIds.test.js`）、「存在しないもの」（拡大縮小・外枠のハンドルを実装済みへ、Phase 10-01でやらないと決めたことの一覧へ置き換え、「複数選択の比率の保持」を削除）、フォルダ分割の方針（`core/`・`shapes/`・`io/`・`edit/`の記述、`ShapeExtentReader`の生成箇所を`// 4.`へ）、依存方向（`core/`から`shapes/`をimportするのは`ShapeFactory`だけ＋型参照の例外・`ScaleHandleRules → UnitSnapRules`・`CursorShapeRules → ScaleHandleRules`の規則どうしのimport・`core/ScaleHandleRules`の`import()`型参照の例外）。**2章**＝共通メソッド契約を19メソッドに、`Ellipse`の拡大縮小での表し方、選択状態の項に外枠・ハンドルの位置は保存しないこと。**3章**＝2.（描画サイクルの`scaleFrame`）・3.（当たり分類に外枠のハンドルを含めないこと・キーボード操作の`Esc`の例外）・6.（記録する操作に拡大縮小、中断では記録しない）・15.（`drawHandles`の去就）・16.・17.（修飾キーを見る時点・丸める箇所の外枠のハンドル）・18.（`drawHandles`が呼ばれなくなること、選択（`V`）の変更、発注者の決定(1)）・24.（共通メソッド契約の件数の注記）・**新しい25.「外枠のハンドルでの拡大縮小」**。**4章**＝一覧に`ScaleHandleRules.js` → `42_ScaleHandleRules.md`。
+    *   `_doc/arch/`：`42_ScaleHandleRules.md`（新規）、`06_InputTracker.md`（`SCALING_SELECTION`・`#scaleDrag`・`isScalingSelection`・`#findScaleHandle`等・`InputAssist`の5項目目・修飾キーの項・`cancelDraftOrClearSelection`(1)・`resolvePressAction`の第3引数・行数1868行）、`07_KeyboardShortcuts.md`（`isCancelableDrag`・`CANCEL_BINDING`・`findCancelableDragBinding`のexport・手順3・5の例外・修飾キーを問わないこと・テスト）、`09_DragTracker.md`（`cancel`の`suppressClick`）、`02_main.md`（`shapeExtentReader`の生成位置・`getSelectionFrameBounds`・`scaleFrame`・`isCancelableDrag`の注入・生成順・行数1088行）、`03_VectorModel.md`（`replaceShapesKeepingIds`）、`04_CanvasManager.md`（`scaleFrame`・描画順・定数）、`10_ShapeFactory.md`（19メソッド）、`12_shapes.md`（19メソッド契約・`createTransformed`の契約と各クラス・`Ellipse`の項・`ShapeGeometry.applyAffineTransformToPoint`）、`14_edit.md`（`getSelectedGeometryBounds`・生成箇所）、`15_io.md`（`computeShapesGeometryBounds`・`#computeBounds`の引数）、`16_test.md`（Phase 10-01の追加分・件数・テストできない箇所）、`30_UnitSnapRules.md`（使う側に`ScaleHandleRules`）、`32_InputModes.md`（`SCALING_SELECTION`・使う側）、`34_PressActionRules.md`（順0・第3引数・件数）、`35_CursorShapeRules.md`（(3b)・`scaleHandle`・import・件数）。
+    *   修飾キーの用途の記述は、`InputTracker.js`先頭の責務定義・`06_InputTracker.md`の修飾キーの項・`PROJECT_ARCHITECTURE.md`3章17.の「`Ctrl`を見る時点」（加えて16.）で、拡大縮小のドラッグの`Shift`・`Alt`・`Ctrl`を規則の関数（`computeBoundsScale`）へ渡す旨にそろえた。
+    *   実コードと照らして確認した点：`InputTracker.js`は1868行（RESのタスク8の最終値と一致）、`main.js`は1088行、`CanvasManager.js`の定数名・描画順、`KeyboardShortcuts.js`の手順3・5、`ScaleHandleRules.js`の公開名・import。RESの記述と実コードの食い違いは見つからなかった（2章の「`handleMouseDown`の分岐は`#classifyPoint`の後」等は実コードどおり）。タスク別の`suites`の件数はRESの記録（タスク4で345のまま）が実態と合わない可能性があるため、`16_test.md`には全体の件数（前2067/337、後2270/368）だけを書いた。
+    *   開発資料の更新予定の項目は、1章・2章・3章・4章・`_doc/arch/`の一覧（`42`・`06`・`12`・`03`・`04`・`14`・`15`・`16`・`30`・`32`・`34`・`35`・`07`・`09`・`02`）をすべて反映した。
 
 ## 5. 懸念事項・要確認ポイント
 * **`Esc`の経路（REQの前提と実コードの食い違い。発注者の決定で方針(a)）**：REQは「`Esc`（今の`cancelDraftOrClearSelection`のドラッグ中の扱い）で元の形に戻る」としていたが、実コードではドラッグ中の`Esc`は`KeyboardShortcuts`の受理判定の手順5（`isDragging()`が真なら実行しない）で止まって`cancelDraftOrClearSelection`まで届かず、届いても(1)で何もせず`false`を返す（今のコードにはドラッグ中に`Esc`でやめる経路が無い）。計画立案の途中で発注者へ確かめ、**方針(a)**に決まった：`KeyboardShortcuts`の受理判定に「拡大縮小のドラッグ中は`cancel`だけを通す」例外を1つ足し（照会`isCancelableDrag`を注入で受け取る。対応表は変えない。修飾キーを問わないことは発注者の決定（追加）で、下の「修飾キーを押したままの`Esc`」の項）、`cancelDraftOrClearSelection`の(1)は拡大縮小のドラッグなら中断して引き始めの形に戻し`true`、それ以外のドラッグは今のまま`false`。このため`KeyboardShortcuts.js`を対象に加えた（REQの「変えない見込み」の一覧には無かったファイル）。
