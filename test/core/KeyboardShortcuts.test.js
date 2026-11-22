@@ -5,6 +5,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { KeyboardShortcuts, findCancelableDragBinding } from '../../js/core/KeyboardShortcuts.js';
+import { InputState, CANCELABLE_DRAG_STATES } from '../../js/core/InputModes.js';
 
 /**
  * 指定した名前を除く、どのプロパティ名にも関数を返すコールバック群（Proxy）を作る補助。
@@ -120,6 +121,16 @@ describe('findCancelableDragBinding 拡大縮小のドラッグ中のcancelの�
             return false;
         });
         assert.equal(calls, 1);
+    });
+
+    it('回転のドラッグ中（CANCELABLE_DRAG_STATES が ROTATING_SELECTION を含む照会）は、修飾キーの16通りすべてで cancel のエントリを返す', () => {
+        const isRotating = () => CANCELABLE_DRAG_STATES.includes(InputState.ROTATING_SELECTION);
+        for (const event of createAllModifierEvents('Escape')) {
+            const binding = findCancelableDragBinding(event, isRotating);
+            assert.notEqual(binding, null);
+            assert.equal(binding.action, 'cancel');
+            assert.equal(binding.repeatable, false);
+        }
     });
 
     it('event を書き換えない', () => {

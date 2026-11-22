@@ -13,6 +13,7 @@ import { AltKeyGuard } from './core/AltKeyGuard.js';
 import { invertSelection } from './core/SelectionRules.js';
 import { collectVertexHandles } from './core/VertexHandleRules.js';
 import { collectScaleFrame } from './core/ScaleHandleRules.js';
+import { resolveDisplayedScaleFrame } from './core/RotationRules.js';
 import { WindowManager } from './core/WindowManager.js';
 import { ViewTransform } from './core/ViewTransform.js';
 import { HistoryManager } from './core/HistoryManager.js';
@@ -191,7 +192,9 @@ document.addEventListener('DOMContentLoaded', () => {
      * resizeハンドラの4経路から同一の引数構成で呼び出すことで、再描画トリガーの重複定義を避ける。
      * 図形ごとのハンドル（drawHandles）は`showHandles: false`で常に描かない。選んでいる図形全体の外枠とそのハンドルは、
      * `collectScaleFrame`が現在の操作モード・線を含まない外枠（`shapeExtentReader.getSelectedGeometryBounds()`）・表示倍率から
-     * 求めた位置を`scaleFrame`として渡す（選択モードで選択があるときだけ値が入る。描くのはCanvasManager）。頂点のハンドルは`collectVertexHandles`が現在の操作モード・
+     * 求めた位置を`scaleFrame`として渡す（選択モードで選択があるときだけ値が入る。描くのはCanvasManager）。
+     * 回転のドラッグ中は`inputTracker.getRotationDragView()`の控えを`resolveDisplayedScaleFrame`に渡し、傾いた外枠（`corners`付き）を`scaleFrame`にする
+     * （回転のドラッグ中でなければ`collectScaleFrame`の結果がそのまま渡る。分岐は規則の関数の中）。頂点のハンドルは`collectVertexHandles`が現在の操作モード・
      * 選択中の図形・選択中の頂点から求めた位置の一覧を`vertexHandles`として渡す（頂点の選択のモードのときだけ中身が入る）。
      */
     function renderCurrentState() {
@@ -206,7 +209,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // （図形のdrawHandlesは残してある。去就はPhaseのクローズで決める）
             showHandles: false,
             vertexHandles: collectVertexHandles(inputTracker.getMode(), shapes, model.getSelectedIds(), model.getSelectedVertices()),
-            scaleFrame: collectScaleFrame(inputTracker.getMode(), shapeExtentReader.getSelectedGeometryBounds(), viewTransform.getScale()),
+            scaleFrame: resolveDisplayedScaleFrame(
+                collectScaleFrame(inputTracker.getMode(), shapeExtentReader.getSelectedGeometryBounds(), viewTransform.getScale()),
+                inputTracker.getRotationDragView(),
+            ),
             hoveredId: model.getHoveredId(),
             draftShape: model.getDraftShape(),
             selectionRect: model.getSelectionRect(),
@@ -875,7 +881,7 @@ document.addEventListener('DOMContentLoaded', () => {
     new KeyboardShortcuts({
         // ドラッグ中（パン・左ドラッグ。閾値以前を含む）か。受理判定専用
         isDragging: () => inputTracker.isDragging(),
-        // Escで中断できるドラッグ（拡大縮小のドラッグ中）か。受理判定専用（真の間はcancelだけがShift・Alt・Ctrlを問わず通る）
+        // Escで中断できるドラッグ（拡大縮小・回転のドラッグ中）か。受理判定専用（真の間はcancelだけがShift・Alt・Ctrlを問わず通る）
         isCancelableDrag: () => inputTracker.isScalingSelection(),
         // 操作モード切替（ツールパレットの選択・頂点の選択・キャンバス移動のボタンと同一経路のselectModeTool。
         // 線を引いている途中なら描いた分を残して終えてから切り替える）
@@ -899,7 +905,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return true;
         },
         // スポイトの待ち受け中は待ち受けだけをやめる（選択は残す。true）。待ち受けでなければ
-        // 拡大縮小のドラッグ中ならその中断（引き始めの形へ戻す。cancelDraftOrClearSelectionの(1)）、そうでなければ
+        // 拡大縮小・回転のドラッグ中ならその中断（引き始めの形へ戻す。cancelDraftOrClearSelectionの(1)）、そうでなければ
         // 作成途中の図形の破棄／選択解除（何もしなかった場合はfalse）。判定はstyleEyedropper.cancelPickingが持つ
         cancel: () => styleEyedropper.cancelPicking(() => inputTracker.cancelDraftOrClearSelection()),
         // 全選択。選択モード以外では先に選択モードへ切り替える（ensureSelectMode。共通に使う操作は同関数のJSDoc参照）。

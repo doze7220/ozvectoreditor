@@ -1,6 +1,6 @@
 /**
  * 責務：キーボードショートカットのキー→操作の対応表と、keydownの受理判定（IME変換中・テキスト入力中・修飾キー・
- * Spaceで操作する入力部品（typeがcheckbox・colorのinput。色の欄）の操作中・ドラッグ中（拡大縮小のドラッグ中のcancelの例外を含む）・
+ * Spaceで操作する入力部品（typeがcheckbox・colorのinput。色の欄）の操作中・ドラッグ中（拡大縮小・回転のドラッグ中のcancelの例外を含む）・
  * キーリピート・preventDefaultの要否）のみを担う。操作の実体はmain.jsから注入されたコールバックへ委譲する。
  */
 
@@ -40,7 +40,7 @@ const ShiftRule = Object.freeze({
  * 戻り値true＝受理（preventDefault()する）、false＝受理せず（preventDefault()しない）を表す。
  * @typedef {Object} ShortcutActions
  * @property {() => boolean} isDragging ドラッグ中（InputTrackerのDragTrackerセッション中。閾値以前を含む）か。受理判定専用
- * @property {() => boolean} isCancelableDrag Esc（cancel）で中断できるドラッグ＝拡大縮小のドラッグの最中か（閾値以前を含む）。受理判定専用。
+ * @property {() => boolean} isCancelableDrag Esc（cancel）で中断できるドラッグ＝拡大縮小・回転のドラッグの最中か（閾値以前を含む）。受理判定専用。
  *     真の間は、cancelだけがShift・Alt・Ctrl（Meta）の押下を問わずisDraggingによる不実行を受けず呼ばれる（findCancelableDragBinding）
  * @property {(mode: string) => boolean} setMode 操作モード（OperationModeの値）へ切り替える
  *     （直線・曲線のツールで線を引いている途中なら、描いた分を残して終えてから切り替える）
@@ -50,7 +50,7 @@ const ShiftRule = Object.freeze({
  * @property {() => boolean} resetView ビュー変換をリセットする
  * @property {() => boolean} cancel 作成途中の図形の破棄、または選択解除を行う
  *     （直線・曲線のツールで線を引いている途中は、描いた分を開いたまま残して終える）。
- *     拡大縮小のドラッグ中（isCancelableDragが真）は、修飾キーを問わず呼ばれ、引き始めの形に戻して中断する
+ *     拡大縮小・回転のドラッグ中（isCancelableDragが真）は、修飾キーを問わず呼ばれ、引き始めの形に戻して中断する
  * @property {() => boolean} selectAll 全図形を選択する（選択モード以外では選択モードへ切り替えた後）
  * @property {() => boolean} deleteSelection 選択集合の全図形を削除する
  *     （直線・曲線のツールで線を引いている途中は、代わりに最後の点を消す。始点だけならやめる）
@@ -206,16 +206,16 @@ const SHORTCUT_BINDINGS = Object.freeze([
 ].map((binding) => Object.freeze(binding)));
 
 /**
- * 対応表のcancel（Esc）のエントリ。拡大縮小のドラッグ中の例外（findCancelableDragBinding）が返す唯一のエントリで、
+ * 対応表のcancel（Esc）のエントリ。拡大縮小・回転のドラッグ中の例外（findCancelableDragBinding）が返す唯一のエントリで、
  * キーの識別はこのエントリのcodesから取る（'Escape'をほかの箇所に書き写さない）。exportしない。
  * @type {Readonly<ShortcutBinding>}
  */
 const CANCEL_BINDING = SHORTCUT_BINDINGS.find((binding) => binding.action === 'cancel');
 
 /**
- * 拡大縮小のドラッグ中のcancel（Esc）の例外の判定（この判定はここ1箇所のみ）。#findBindingの照合より前に使われる。
+ * 拡大縮小・回転のドラッグ中のcancel（Esc）の例外の判定（この判定はここ1箇所のみ）。#findBindingの照合より前に使われる。
  * event.codeがcancelのエントリのcodesに含まれ、かつisCancelableDrag()が真のときだけcancelのエントリを返す。
- * Shift・Alt・Ctrl・Metaとevent.repeatは読まない（拡大縮小のドラッグ中は修飾キーを押したままでも中断できるようにするため。
+ * Shift・Alt・Ctrl・Metaとevent.repeatは読まない（拡大縮小・回転のドラッグ中は修飾キーを押したままでも中断できるようにするため。
  * 今の#findBindingはAlt押下で常に不一致、cancelはctrl: false・shift: FORBIDDENのため、その照合では拾えない）。
  * documentに触れず、eventを書き換えない。対応表の照合（#findBinding）の結果には影響しない。
  * @param {{code: string}} event keydownイベント（codeのみ読む）
@@ -234,7 +234,7 @@ export function findCancelableDragBinding(event, isCancelableDrag) {
  * VectorModel・ViewTransform・InputTrackerインスタンス・DOMのボタン要素は参照しない
  * （documentのkeydown購読とdocument.activeElementの読み取りのみ）。keyupは購読しない。
  * 図形種別・操作モードごとの分岐は持たず、action名によるコールバック呼び出しのみを行う。
- * ドラッグ中は原則として何も実行しないが、拡大縮小のドラッグ中のcancel（Esc）だけは修飾キーを問わず通す
+ * ドラッグ中は原則として何も実行しないが、拡大縮小・回転のドラッグ中のcancel（Esc）だけは修飾キーを問わず通す
  * （問い合わせは注入されたisCancelableDragのみ。判定はfindCancelableDragBindingの1か所）。
  */
 export class KeyboardShortcuts {
@@ -263,12 +263,12 @@ export class KeyboardShortcuts {
      * keydownイベントのハンドラ。以下の順で判定する（順序は固定）。
      * 1. IME変換中（event.isComposing）なら何もしない。
      * 2. テキスト入力中（isTextInputElement(document.activeElement)）なら何もしない。
-     * 3. 一致エントリを求める。まず拡大縮小のドラッグ中のcancelの例外（findCancelableDragBinding。Shift・Alt・Ctrl・Metaを問わず
+     * 3. 一致エントリを求める。まず拡大縮小・回転のドラッグ中のcancelの例外（findCancelableDragBinding。Shift・Alt・Ctrl・Metaを問わず
      *    Escにcancelのエントリを返す）、当たらなければ対応表から探す（#findBinding）。一致なしなら何もしない。
      * 4. ctrl: falseのエントリで、Spaceで操作する入力部品（isSpaceOperatedInputElement(document.activeElement)。
      *    typeがcheckbox・colorのinput。色の欄）にフォーカスがあるなら何もしない（Ctrl付きのエントリは対象外）。
      *    ON/OFFのボタン（aria-pressedを持つbutton）はこの手順の対象外（Spaceの扱いはInputTrackerが決める）。
-     * 5. ドラッグ中（isDragging()が真）なら実行しない。ただし手順3の例外が当たったとき（拡大縮小のドラッグ中のEsc）は実行する
+     * 5. ドラッグ中（isDragging()が真）なら実行しない。ただし手順3の例外が当たったとき（拡大縮小・回転のドラッグ中のEsc）は実行する
      *    （手順4・6は例外のときもcancelのエントリの値のまま効く＝色の欄にフォーカスがある間・キーリピートは実行しない）。
      * 6. キーリピート（event.repeat）かつrepeatable: falseのエントリなら実行しない。
      * 7. 注入コールバックactions[binding.action](binding.arg)を呼び、trueが返った場合のみpreventDefault()する。
@@ -288,7 +288,7 @@ export class KeyboardShortcuts {
             return;
         }
 
-        // 手順3：拡大縮小のドラッグ中のcancelの例外（修飾キーを問わない）を先に判定し、当たらなければ対応表の照合
+        // 手順3：拡大縮小・回転のドラッグ中のcancelの例外（修飾キーを問わない）を先に判定し、当たらなければ対応表の照合
         const dragCancelBinding = findCancelableDragBinding(event, () => this.#actions.isCancelableDrag());
         const binding = dragCancelBinding ?? this.#findBinding(event);
         if (binding === null) {
@@ -316,7 +316,7 @@ export class KeyboardShortcuts {
 
     /**
      * 対応表を走査し、イベントに一致する最初のエントリを返す。キー識別・修飾キー判定はこのメソッドでのみ行う
-     * （ただし拡大縮小のドラッグ中のcancel（Esc）の例外はfindCancelableDragBindingが先に判定し、修飾キーを問わない。
+     * （ただし拡大縮小・回転のドラッグ中のcancel（Esc）の例外はfindCancelableDragBindingが先に判定し、修飾キーを問わない。
      * 例外が当たったときはこのメソッドは呼ばれない。例外が当たらなければ以下の規則のまま）。
      * ・キーはevent.code（物理キー位置）で識別する。event.keyは大文字小文字・Shift併用時の記号化（Shift+1→!）・
      *   キーボード配列・IMEの影響を受けるため用いない（例：JIS配列の;/+キーはkeyが揺れるがcodeはSemicolonで一定）。
