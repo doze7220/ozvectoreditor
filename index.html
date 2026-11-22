@@ -9,7 +9,7 @@
            キャンバスの領域は、ツールバー・横の定規の下、縦の定規の右、ステータスバーの上（定規の太さ--ruler-sizeの分だけ狭い）。
            --canvas-area-width・--canvas-area-heightとフロートウィンドウの既定の位置の基準はそれに追従する */
         :root {
-            --toolbar-height: 40px;          /* ツールバーの高さ（1行固定） */
+            --toolbar-height: 80px;          /* ツールバーの高さ（2行固定。各行はこの半分） */
             --statusbar-height: 28px;        /* ステータスバーの高さ（1行固定） */
             --ruler-size: 20px;              /* 定規の太さ（横の定規の高さ・縦の定規の幅。唯一の定義箇所） */
             /* ツールバー・ステータスバー・定規・定規の角の地の色（1か所で共有する） */
@@ -43,7 +43,7 @@
         #editor-canvas {
             z-index: 1;
         }
-        /* ツールバー（上端）とステータスバー（下端）の共通。画面に固定する枠（フロートウィンドウではない）で、1行固定。
+        /* ツールバー（上端。2行）とステータスバー（下端。1行）の共通。画面に固定する枠（フロートウィンドウではない）で、行数は固定。
            収まらない右側の項目は画面の外へ切れる（折り返し・横スクロールはしない）。
            重なりは定規と同じく、キャンバス（1）・覆い要素（5）より前面（8）・フロートウィンドウ（10以上）より背面のため、読み込み中も押せ、フロートウィンドウはその上へ動かせる */
         .toolbar, .status-bar {
@@ -91,12 +91,24 @@
             width: var(--ruler-size);
             height: var(--ruler-size);
         }
-        /* ツールバー（上端。高さは--toolbar-heightで固定）。項目はまとまり（.toolbar-group）ごとに足す */
+        /* ツールバー（上端。高さは--toolbar-heightで固定。2行を縦に並べる）。項目は行（.toolbar-row）の中にまとまり（.toolbar-group）ごとに足す */
         .toolbar {
             top: 0;
             height: var(--toolbar-height);
             padding: 0 8px;
             border-bottom: 1px solid #ccc;
+            flex-direction: column;
+            align-items: stretch;
+        }
+        /* ツールバーの1行（高さを等分する。収まらない右側のまとまりは行ごとに切れる） */
+        .toolbar-row {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            flex: 1 1 0;
+            min-height: 0;
+            overflow: hidden;
+            white-space: nowrap;
         }
         /* ツールバーの項目のまとまり（縮まない。収まらないときはまとまりごと右側から切れる） */
         .toolbar-group {
@@ -220,8 +232,8 @@
             gap: 8px;
         }
         /* ツールパレット（静的に置き常に表示。×なし・見出しの文字なし。常に押せる＝半透明にしない）。
-           キャンバスの領域の左上に置く（top: --float-window-top＝ツールバー40px＋定規20px＋余白8px＝68px、left: 縦の定規20px＋余白8px＝28px）。
-           幅44px（ボタン32px＋.window-bodyの左右の余白6px×2）。1280×800での範囲はx 28〜74、y 68〜約410
+           キャンバスの領域の左上に置く（top: --float-window-top＝ツールバー80px＋定規20px＋余白8px＝108px、left: 縦の定規20px＋余白8px＝28px）。
+           幅44px（ボタン32px＋.window-bodyの左右の余白6px×2）。1280×800での範囲はx 28〜74、y 108〜約450
            （見出し約39px＋本体約301px＋枠2px）で、ステータスバーの上端772pxより上。
            ?devの確認用ウィンドウ（left: 82px）・キャンバスパレットとは横方向で離れているため重ならない */
         #window-tool-palette {
@@ -314,8 +326,8 @@
             text-overflow: ellipsis;
         }
         /* キャンバスパレット（ツールバーの呼び出し口#launcher-canvasで開閉。hidden属性で初期非表示）。
-           キャンバスの領域の右上に置く（top: 定規の下の--float-window-top＝68px、right: 余白8px、幅240px）。
-           1280×800での範囲はx 1030〜1272、y 68〜約585（一覧の最大240pxを含む見積もり）で、ステータスバーの上端772pxより上。
+           キャンバスの領域の右上に置く（top: 定規の下の--float-window-top＝108px、right: 余白8px、幅240px）。
+           1280×800での範囲はx 1030〜1272、y 108〜約625（一覧の最大240pxを含む見積もり）で、ステータスバーの上端772pxより上。
            ツールパレット（x 28〜74）・?devの確認用ウィンドウ（left: 82px・幅360px）とは、画面幅が約700px以上なら重ならない */
         #window-canvas-palette {
             top: var(--float-window-top);
@@ -394,7 +406,7 @@
         .canvas-loading-cover[hidden] {
             display: none;
         }
-        /* オプションバーの色の欄を包む要素（覆いと斜線の基準。ツールバーの高さ40pxに収まるよう欄は32×24px） */
+        /* オプションバーの色の欄を包む要素（覆いと斜線の基準。ツールバーの1行（--toolbar-heightの半分）に収まるよう欄は32×24px） */
         .option-color-frame {
             position: relative;
             display: inline-flex;
@@ -420,14 +432,43 @@
                     #e00000 calc(50% + 1px), transparent calc(50% + 1px)),
                 #c8c8c8;
         }
-        /* 線の太さの欄・位置の欄（.toolbarのuser-select: noneは変えず、これらの欄に限り文字の選択を許可する） */
+        /* 線の太さの欄・位置の欄・幅と高さの欄・角度の欄（.toolbarのuser-select: noneは変えず、これらの欄に限り文字の選択を許可する） */
         #option-stroke-width,
         #option-position-x,
-        #option-position-y {
+        #option-position-y,
+        #option-size-width,
+        #option-size-height,
+        #option-angle {
             box-sizing: border-box;
             width: 56px;
             height: 24px;
             user-select: text;
+        }
+        /* 基準点の3×3のボタンの並び（32×32。.toolbar-groupのflex・gapの中で1つの項目として縮まない） */
+        .option-reference-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 10px);
+            grid-template-rows: repeat(3, 10px);
+            gap: 1px;
+            flex: none;
+        }
+        .option-reference-btn {
+            box-sizing: border-box;
+            width: 10px;
+            height: 10px;
+            padding: 0;
+            border: 1px solid #999;
+            border-radius: 1px;
+            background-color: #fff;
+            cursor: pointer;
+        }
+        .option-reference-btn[aria-pressed="true"] {
+            background-color: #6699ff;
+            border-color: #3366cc;
+        }
+        .option-reference-btn:disabled {
+            opacity: 0.4;
+            cursor: default;
         }
         /* 単位と欄の見出し（px・X:・Y:）に使う小さな添え字 */
         .option-unit {
@@ -443,11 +484,12 @@
         #option-corner-toggle:disabled + .option-corner-text {
             opacity: 0.4;
         }
-        /* ツールバー全体の幅の見積もり（1280px幅）：
-           左右の余白16px＋最初のまとまり68px（ボタン32×2＋間隔4。🧰と📁）＋取り消し/やり直し68px＋削除/結合68px＋区切り17px×4＋スタイル約218px＋重なり順140px＋区切り17px＋位置約174px（X:約15px＋欄56px＋Y:約15px＋欄56px＋px約16px＋gap4px×4）＋区切り17px＋整列・分布284px（ボタン32×8＋間隔4×7）＋区切り17px＋角約106px（ボタン32×2＋間隔4×2＋チェックの欄約13px＋既定の余白約7px＋間隔2px＋文字「角」約12px）＝約1261px。
-           幅が足りないときは右のまとまりから切れる（.toolbarのoverflow: hidden） */
+        /* ツールバーの各行の幅の見積もり（1280px幅）：
+           1行目：左右の余白16px＋最初のまとまり68px（ボタン32×2＋間隔4。🧰と📁）＋取り消し/やり直し68px＋削除/結合68px＋スタイル約218px＋重なり順140px＋区切り17px×4＝約646px。
+           2行目：左右の余白16px＋位置約154px（X:約15px＋欄56px＋Y:約15px＋欄56px＋gap4px×3）＋区切り17px＋大きさ約210px（W:約15px＋欄56px＋鍵32px＋H:約15px＋欄56px＋px約16px＋gap4px×5）＋区切り17px＋変形約188px（∠約10px＋欄56px＋°約6px＋基準点の3×3の32px＋反転32px×2＋gap4px×5）＋区切り17px＋整列・分布284px（ボタン32×8＋間隔4×7）＋区切り17px＋角約106px（ボタン32×2＋間隔4×2＋チェックの欄約13px＋既定の余白約7px＋間隔2px＋文字「角」約12px）＝約1026px。
+           どちらの行も1280pxに収まる。幅が足りないときは行ごとに右のまとまりから切れる（.toolbar-rowのoverflow: hidden） */
         /* 開発者向け確認用ウィンドウ（?dev時のみ表示。ツールパレットの右隣に置く。
-           left: ツールパレットの左の位置に54px（ツールパレット幅44px＋枠2px＋余白8px）を足す。1280×800ではx 82〜444、y 68〜。
+           left: ツールパレットの左の位置に54px（ツールパレット幅44px＋枠2px＋余白8px）を足す。1280×800ではx 82〜444、y 108〜。
            ツールパレット（x 28〜74）とは重ならない */
         #window-dev-panel {
             top: var(--float-window-top);
@@ -486,53 +528,82 @@
     <canvas id="ruler-vertical" class="ruler"></canvas>
     <div id="ruler-corner" class="ruler"></div>
     <header id="toolbar" class="toolbar">
-        <div class="toolbar-group">
-            <button type="button" id="float-windows-toggle" class="tool-btn icon-btn" title="パレットを隠す／出す (Tab)">🧰</button>
-            <button type="button" id="launcher-canvas" class="tool-btn icon-btn" title="キャンバスパレットを開く／閉じる">📁</button>
+        <div class="toolbar-row">
+            <div class="toolbar-group">
+                <button type="button" id="float-windows-toggle" class="tool-btn icon-btn" title="パレットを隠す／出す (Tab)">🧰</button>
+                <button type="button" id="launcher-canvas" class="tool-btn icon-btn" title="キャンバスパレットを開く／閉じる">📁</button>
+            </div>
+            <div class="toolbar-group">
+                <button type="button" id="history-undo" class="tool-btn icon-btn" title="取り消し (Ctrl+Z)" disabled>↶</button>
+                <button type="button" id="history-redo" class="tool-btn icon-btn" title="やり直し (Ctrl+Y / Ctrl+Shift+Z)" disabled>↷</button>
+            </div>
+            <div class="toolbar-group">
+                <button type="button" id="selection-delete" class="tool-btn icon-btn" title="選択中の図形を削除 (Delete / Backspace)" disabled>🗑</button>
+                <button type="button" id="selection-join" class="tool-btn icon-btn" title="選択中の線を結合 (J)" disabled>🔗</button>
+            </div>
+            <div id="option-style-group" class="toolbar-group">
+                <button type="button" id="option-stroke-toggle" class="tool-btn icon-btn" title="線のあり／なしを切り替え" aria-pressed="false">🖊</button>
+                <span id="option-stroke-color-frame" class="option-color-frame"><input type="color" id="option-stroke-color" title="線の色"></span>
+                <button type="button" id="option-fill-toggle" class="tool-btn icon-btn" title="塗りのあり／なしを切り替え" aria-pressed="false">🪣</button>
+                <span id="option-fill-color-frame" class="option-color-frame"><input type="color" id="option-fill-color" title="塗りの色"></span>
+                <input type="number" id="option-stroke-width" min="1" max="100" step="1" title="線の太さ（1〜100の整数）">
+                <span class="option-unit">px</span>
+            </div>
+            <div id="option-order-group" class="toolbar-group">
+                <button type="button" id="option-bring-to-front" class="tool-btn icon-btn" title="最前面へ (Home)" disabled>⏫</button>
+                <button type="button" id="option-bring-forward" class="tool-btn icon-btn" title="前へ (PageUp)" disabled>🔼</button>
+                <button type="button" id="option-send-backward" class="tool-btn icon-btn" title="後ろへ (PageDown)" disabled>🔽</button>
+                <button type="button" id="option-send-to-back" class="tool-btn icon-btn" title="最背面へ (End)" disabled>⏬</button>
+            </div>
         </div>
-        <div class="toolbar-group">
-            <button type="button" id="history-undo" class="tool-btn icon-btn" title="取り消し (Ctrl+Z)" disabled>↶</button>
-            <button type="button" id="history-redo" class="tool-btn icon-btn" title="やり直し (Ctrl+Y / Ctrl+Shift+Z)" disabled>↷</button>
-        </div>
-        <div class="toolbar-group">
-            <button type="button" id="selection-delete" class="tool-btn icon-btn" title="選択中の図形を削除 (Delete / Backspace)" disabled>🗑</button>
-            <button type="button" id="selection-join" class="tool-btn icon-btn" title="選択中の線を結合 (J)" disabled>🔗</button>
-        </div>
-        <div id="option-style-group" class="toolbar-group">
-            <button type="button" id="option-stroke-toggle" class="tool-btn icon-btn" title="線のあり／なしを切り替え" aria-pressed="false">🖊</button>
-            <span id="option-stroke-color-frame" class="option-color-frame"><input type="color" id="option-stroke-color" title="線の色"></span>
-            <button type="button" id="option-fill-toggle" class="tool-btn icon-btn" title="塗りのあり／なしを切り替え" aria-pressed="false">🪣</button>
-            <span id="option-fill-color-frame" class="option-color-frame"><input type="color" id="option-fill-color" title="塗りの色"></span>
-            <input type="number" id="option-stroke-width" min="1" max="100" step="1" title="線の太さ（1〜100の整数）">
-            <span class="option-unit">px</span>
-        </div>
-        <div id="option-order-group" class="toolbar-group">
-            <button type="button" id="option-bring-to-front" class="tool-btn icon-btn" title="最前面へ (Home)" disabled>⏫</button>
-            <button type="button" id="option-bring-forward" class="tool-btn icon-btn" title="前へ (PageUp)" disabled>🔼</button>
-            <button type="button" id="option-send-backward" class="tool-btn icon-btn" title="後ろへ (PageDown)" disabled>🔽</button>
-            <button type="button" id="option-send-to-back" class="tool-btn icon-btn" title="最背面へ (End)" disabled>⏬</button>
-        </div>
-        <div id="option-position-group" class="toolbar-group">
-            <span class="option-unit">X:</span>
-            <input type="number" id="option-position-x" step="any" title="選択の外枠の左上のX座標（線の太さを含む。頂点の選択では選んだ頂点の左上）">
-            <span class="option-unit">Y:</span>
-            <input type="number" id="option-position-y" step="any" title="選択の外枠の左上のY座標（線の太さを含む。頂点の選択では選んだ頂点の左上）">
-            <span class="option-unit">px</span>
-        </div>
-        <div id="option-align-group" class="toolbar-group">
-            <button type="button" id="option-align-left" class="tool-btn icon-btn" title="左へそろえる" disabled>⬅</button>
-            <button type="button" id="option-align-horizontal-center" class="tool-btn icon-btn" title="左右中央へそろえる" disabled>↔</button>
-            <button type="button" id="option-align-right" class="tool-btn icon-btn" title="右へそろえる" disabled>➡</button>
-            <button type="button" id="option-align-top" class="tool-btn icon-btn" title="上へそろえる" disabled>⬆</button>
-            <button type="button" id="option-align-vertical-center" class="tool-btn icon-btn" title="上下中央へそろえる" disabled>↕</button>
-            <button type="button" id="option-align-bottom" class="tool-btn icon-btn" title="下へそろえる" disabled>⬇</button>
-            <button type="button" id="option-distribute-horizontal" class="tool-btn icon-btn" title="横方向に均等に並べる" disabled>⋯</button>
-            <button type="button" id="option-distribute-vertical" class="tool-btn icon-btn" title="縦方向に均等に並べる" disabled>⋮</button>
-        </div>
-        <div id="option-corner-group" class="toolbar-group">
-            <button type="button" id="option-segment-to-line" class="tool-btn icon-btn" title="直線に（頂点の選択で両端の点を選んだ区間を直線にする）" disabled>╱</button>
-            <button type="button" id="option-segment-to-curve" class="tool-btn icon-btn" title="曲線に（頂点の選択で両端の点を選んだ直線の区間の中点に点を足し、曲線にする）" disabled>∿</button>
-            <label class="option-corner-label" title="角（頂点の選択で選んだ、両側とも曲線の区間の点を角にする／なめらかに戻す）"><input type="checkbox" id="option-corner-toggle" disabled><span class="option-unit option-corner-text">角</span></label>
+        <div class="toolbar-row">
+            <div id="option-position-group" class="toolbar-group">
+                <span class="option-unit">X:</span>
+                <input type="number" id="option-position-x" step="any" title="基準点のX座標（線の太さを含まない外枠の上。頂点の選択では選んだ頂点の左上）">
+                <span class="option-unit">Y:</span>
+                <input type="number" id="option-position-y" step="any" title="基準点のY座標（線の太さを含まない外枠の上。頂点の選択では選んだ頂点の左上）">
+            </div>
+            <div id="option-size-group" class="toolbar-group">
+                <span class="option-unit">W:</span>
+                <input type="number" id="option-size-width" step="any" title="幅（線の太さを含まない外枠の幅。入れた幅になるよう基準点を動かさずに伸び縮みする）">
+                <button type="button" id="option-size-lock" class="tool-btn icon-btn" title="幅と高さの比率を保つ" aria-pressed="false" disabled>🔒</button>
+                <span class="option-unit">H:</span>
+                <input type="number" id="option-size-height" step="any" title="高さ（線の太さを含まない外枠の高さ。入れた高さになるよう基準点を動かさずに伸び縮みする）">
+                <span class="option-unit">px</span>
+            </div>
+            <div id="option-transform-group" class="toolbar-group">
+                <span class="option-unit">∠</span>
+                <input type="number" id="option-angle" step="any" title="回転（入れた角度だけ基準点の周りに回す。プラスで反時計回り。確定すると0に戻る）">
+                <span class="option-unit">°</span>
+                <div class="option-reference-grid" title="基準点（回転・反転・幅と高さの変更で動かない点。位置の欄が表す点）">
+                    <button type="button" id="option-reference-nw" class="option-reference-btn" data-reference-point="nw" title="基準点：左上" aria-pressed="false" disabled></button>
+                    <button type="button" id="option-reference-n" class="option-reference-btn" data-reference-point="n" title="基準点：上中央" aria-pressed="false" disabled></button>
+                    <button type="button" id="option-reference-ne" class="option-reference-btn" data-reference-point="ne" title="基準点：右上" aria-pressed="false" disabled></button>
+                    <button type="button" id="option-reference-w" class="option-reference-btn" data-reference-point="w" title="基準点：左中央" aria-pressed="false" disabled></button>
+                    <button type="button" id="option-reference-center" class="option-reference-btn" data-reference-point="center" title="基準点：中心" aria-pressed="false" disabled></button>
+                    <button type="button" id="option-reference-e" class="option-reference-btn" data-reference-point="e" title="基準点：右中央" aria-pressed="false" disabled></button>
+                    <button type="button" id="option-reference-sw" class="option-reference-btn" data-reference-point="sw" title="基準点：左下" aria-pressed="false" disabled></button>
+                    <button type="button" id="option-reference-s" class="option-reference-btn" data-reference-point="s" title="基準点：下中央" aria-pressed="false" disabled></button>
+                    <button type="button" id="option-reference-se" class="option-reference-btn" data-reference-point="se" title="基準点：右下" aria-pressed="false" disabled></button>
+                </div>
+                <button type="button" id="option-flip-horizontal" class="tool-btn icon-btn" title="横に反転 (Shift+H)" disabled>⇆</button>
+                <button type="button" id="option-flip-vertical" class="tool-btn icon-btn" title="縦に反転 (Shift+V)" disabled>⇅</button>
+            </div>
+            <div id="option-align-group" class="toolbar-group">
+                <button type="button" id="option-align-left" class="tool-btn icon-btn" title="左へそろえる" disabled>⬅</button>
+                <button type="button" id="option-align-horizontal-center" class="tool-btn icon-btn" title="左右中央へそろえる" disabled>↔</button>
+                <button type="button" id="option-align-right" class="tool-btn icon-btn" title="右へそろえる" disabled>➡</button>
+                <button type="button" id="option-align-top" class="tool-btn icon-btn" title="上へそろえる" disabled>⬆</button>
+                <button type="button" id="option-align-vertical-center" class="tool-btn icon-btn" title="上下中央へそろえる" disabled>↕</button>
+                <button type="button" id="option-align-bottom" class="tool-btn icon-btn" title="下へそろえる" disabled>⬇</button>
+                <button type="button" id="option-distribute-horizontal" class="tool-btn icon-btn" title="横方向に均等に並べる" disabled>⋯</button>
+                <button type="button" id="option-distribute-vertical" class="tool-btn icon-btn" title="縦方向に均等に並べる" disabled>⋮</button>
+            </div>
+            <div id="option-corner-group" class="toolbar-group">
+                <button type="button" id="option-segment-to-line" class="tool-btn icon-btn" title="直線に（頂点の選択で両端の点を選んだ区間を直線にする）" disabled>╱</button>
+                <button type="button" id="option-segment-to-curve" class="tool-btn icon-btn" title="曲線に（頂点の選択で両端の点を選んだ直線の区間の中点に点を足し、曲線にする）" disabled>∿</button>
+                <label class="option-corner-label" title="角（頂点の選択で選んだ、両側とも曲線の区間の点を角にする／なめらかに戻す）"><input type="checkbox" id="option-corner-toggle" disabled><span class="option-unit option-corner-text">角</span></label>
+            </div>
         </div>
     </header>
     <footer id="status-bar" class="status-bar">
