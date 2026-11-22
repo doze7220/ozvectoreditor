@@ -1,17 +1,18 @@
 /**
  * 責務: 位置の数値入力（オプションバーのX・Yの欄）の表示内容の照会と、入力された値への移動の手順を担う。
- * 対象と範囲の解決・移動量の算出は規則に、実際の移動と記録は`NudgeEditor`に任せ、DOM・図形種別の分岐を持たない。
+ * 図形は線を含まない外枠の上の基準点、頂点は選んだ頂点全体の範囲の左上を位置とし、対象と範囲の解決・移動量の算出は規則に、実際の移動と記録は`NudgeEditor`に任せ、DOM・図形種別の分岐を持たない。
  */
 // 依存の向き: `edit/`から`core/`への下向きの依存と同じ層（`edit/`）内の依存（`main.js → edit → io → core → shapes`の一方向に沿い、`core/`側は`edit/`を読まず、`PositionInputRules`は`StatusReadoutRules`しか読まないため循環しない）。
 import { resolveNudgeTarget } from '../core/NudgeTargetRules.js';
+import { DEFAULT_REFERENCE_POINT, resolveReferencePointPosition } from '../core/ReferencePointRules.js';
 import { computeVertexHandlesBounds } from '../core/VertexHandleRules.js';
 import { buildPositionInputView, resolvePositionDelta } from './PositionInputRules.js';
 
 /**
  * 位置の数値入力の編集操作クラス。main.jsが1つだけ生成する。
  *
- * - 対象（選んでいる図形または頂点）と、その範囲の左上を求め、欄に出す内容と入力の反映を担う。
- * - 図形は外枠（線の太さを含む）、頂点は選んだ頂点全体の範囲の左上を位置とする。
+ * - 対象（選んでいる図形または頂点）と、その位置を求め、欄に出す内容と入力の反映を担う。
+ * - 図形は線を含まない外枠の上の基準点（`getReferencePoint`の名前。省くと中心）、頂点は選んだ頂点全体の範囲の左上を位置とする。
  * - 記録（`beginEdit`・`commitEdit`）は`NudgeEditor.nudgeWithoutGrouping`に任せ、このクラスは`HistoryManager`を持たない。
  *
  * 依存の制約:
@@ -27,24 +28,29 @@ export class PositionInputEditor {
     /** @type {function(): string} */
     #getMode;
 
-    /** @type {{ getSelectedBounds: function(): ({minX: number, minY: number, maxX: number, maxY: number}|null) }} */
+    /** @type {{ getSelectedGeometryBounds: function(): ({minX: number, minY: number, maxX: number, maxY: number}|null) }} */
     #shapeExtentReader;
 
     /** @type {{ nudgeWithoutGrouping: function(number, number): boolean }} */
     #nudgeEditor;
 
+    /** @type {function(): (string|null)} */
+    #getReferencePoint;
+
     /**
      * @param {Object} deps 依存
      * @param {import('../core/VectorModel.js').VectorModel} deps.model 図形一式と選択を保持するモデル
      * @param {function(): string} deps.getMode 現在の操作モードを返す関数
-     * @param {{ getSelectedBounds: function(): ({minX: number, minY: number, maxX: number, maxY: number}|null) }} deps.shapeExtentReader 外枠の照会
+     * @param {{ getSelectedGeometryBounds: function(): ({minX: number, minY: number, maxX: number, maxY: number}|null) }} deps.shapeExtentReader 線を含まない外枠の照会
      * @param {{ nudgeWithoutGrouping: function(number, number): boolean }} deps.nudgeEditor 移動量を当てる編集操作
+     * @param {function(): (string|null)} [deps.getReferencePoint] 基準点の名前を返す関数（省く・関数でないときは中心）
      */
-    constructor({ model, getMode, shapeExtentReader, nudgeEditor }) {
+    constructor({ model, getMode, shapeExtentReader, nudgeEditor, getReferencePoint }) {
         this.#model = model;
         this.#getMode = getMode;
         this.#shapeExtentReader = shapeExtentReader;
         this.#nudgeEditor = nudgeEditor;
+        this.#getReferencePoint = typeof getReferencePoint === 'function' ? getReferencePoint : () => DEFAULT_REFERENCE_POINT;
     }
 
     /**
@@ -70,14 +76,17 @@ export class PositionInputEditor {
     }
 
     /**
-     * 対象と、その範囲（図形は外枠、頂点は頂点全体の範囲）を求める。
+     * 対象と、その範囲を求める。図形は線を含まない外枠の上の基準点の位置の0×0の範囲（左上＝基準点）、頂点は頂点全体の範囲。
      * @returns {{ target: (Object|null), bounds: ({minX: number, minY: number, maxX: number, maxY: number}|null) }} 対象と範囲（対象なしなら両方`null`）
      */
     #resolveTargetAndBounds() {
         const target = resolveNudgeTarget(this.#getMode(), this.#model.getSelectedIds(), this.#model.getSelectedVertices());
         if (target === null) return { target: null, bounds: null };
         if (target.type === 'shapes') {
-            return { target, bounds: this.#shapeExtentReader.getSelectedBounds() };
+            const frame = this.#shapeExtentReader.getSelectedGeometryBounds();
+            if (frame === null) return { target, bounds: null };
+            const p = resolveReferencePointPosition(frame, this.#getReferencePoint());
+            return { target, bounds: { minX: p.x, minY: p.y, maxX: p.x, maxY: p.y } };
         }
         return { target, bounds: computeVertexHandlesBounds(this.#model.getShapes(), target.vertices) };
     }

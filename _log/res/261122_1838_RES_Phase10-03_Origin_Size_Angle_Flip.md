@@ -183,7 +183,7 @@ REQの要件と本計画の設計の対応：要件1（2行）＝要件A、要�
         *   コード修正完了後、JSDocコメントの記載漏れがないこと（新しい・変えた関数・メソッド・typedef・定数、先頭の責務定義）を確認する。
         *   開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る場合は、資料本体は修正せず、その旨を『開発資料の更新予定』欄に追記する。
         *   タスク完了後、作業レポート（本RES）の「4. 詳細作業内容」の本タスクの欄を記載し完成させ、本タスクを`[x]`にする。
-*   [ ] タスク5: 要件C 位置の欄を基準点にする（`edit/PositionInputEditor.js`）とテスト
+*   [x] タスク5: 要件C 位置の欄を基準点にする（`edit/PositionInputEditor.js`）とテスト
     *   **対象ファイル** :
         *   `./js/edit/PositionInputEditor.js` : 更新（依存の`getReferencePoint`・`#resolveTargetAndBounds`の図形の枝・import・先頭の責務定義・JSDoc）
         *   `./test/edit/PositionInputEditor.test.js` : 更新（要件Iの(a)の6件の書き換えと、補助の省ける引数・ケースの追加）
@@ -311,7 +311,10 @@ REQの要件と本計画の設計の対応：要件1（2行）＝要件A、要�
 
 ### タスク5: 要件C 位置の欄を基準点にする（`edit/PositionInputEditor.js`）とテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `js/edit/PositionInputEditor.js`：依存に省ける`getReferencePoint`（関数でなければ`() => DEFAULT_REFERENCE_POINT`）を追加、`#shapeExtentReader`の型を`getSelectedGeometryBounds`に変更。`#resolveTargetAndBounds`の図形の枝は`getSelectedGeometryBounds()`（`null`なら`bounds: null`）→`resolveReferencePointPosition`→基準点の位置の0×0の範囲を返す。頂点の枝は未変更。import（`DEFAULT_REFERENCE_POINT`・`resolveReferencePointPosition`）・先頭の責務定義・クラスJSDoc・コンストラクタ・`#resolveTargetAndBounds`のJSDocを更新。行数93。
+    *   `test/edit/PositionInputEditor.test.js`：補助A・Bに省ける引数`referencePoint`を追加（渡したら`getReferencePoint`を注入）。要件I(a)の6件（A:図形1つ×2・A:図形複数・A:線の太さ（見出しも「変わらない」に変更）・B:受理しない入力・B:受理する入力）だけ`'nw'`を渡して期待値を書き換え。追加4件：既定は中心、9か所の基準点ごとの表示と移動量、基準点を変えても表示だけ変わり図形は変わらない、頂点は基準点によらず今のまま。
+    *   `node --test`：tests 2410 / suites 399 / pass 2410 / fail 0。
+    *   `PositionInputRules.js`・`NudgeEditor.js`・`ShapeExtentReader.js`は変更なし。
 
 ### タスク6: 要件D 幅・高さ・角度・反転の規則（新規`edit/TransformInputRules.js`）とテスト
 *   **作業内容** :
