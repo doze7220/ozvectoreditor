@@ -199,8 +199,9 @@ export class CanvasManager {
      * @param {boolean} [state.showHandles] - 偽なら選択集合の図形の drawHandles の段を行わない。省略時は真
      * @param {Array<{shapeId: string, handles: Array<{x: number, y: number, selected: boolean}>}>} [state.vertexHandles] -
      *     描く頂点のハンドル（ワールド座標の位置と、選ばれているか）。全図形の描画後・作成中の図形の前に描く。省略時は空配列
-     * @param {{bounds: {minX: number, minY: number, maxX: number, maxY: number}, handles: Array<{name: string, x: number, y: number}>}|null} [state.scaleFrame] -
-     *     描く外枠（`bounds`の矩形）とそのハンドル（ワールド座標の位置。`handles`の並びの順に描くため後ろほど前面）。
+     * @param {{bounds: {minX: number, minY: number, maxX: number, maxY: number}, handles: Array<{name: string, x: number, y: number}>, corners?: Array<{x: number, y: number}>}|null} [state.scaleFrame] -
+     *     描く外枠（`corners`（nw・ne・se・swの4点）があればその傾いた四角形、無ければ`bounds`の矩形）とそのハンドル
+     *     （ワールド座標の位置。`handles`の並びの順に描くため後ろほど前面。四角は傾けない）。
      *     頂点のハンドルの後・作成中の図形の前に描く。省略時・nullは描かない（従来と同じ）
      * @param {Object|null} [state.draftShape] - 作成中の未確定図形。draw(ctx) メソッドを持つ場合、全図形・ハンドルの後に重ねて描画する
      * @param {{x1: number, y1: number, x2: number, y2: number}|null} [state.selectionRect] - 範囲選択中の選択矩形。
@@ -322,14 +323,17 @@ export class CanvasManager {
     }
 
     /**
-     * 外枠（`bounds`の矩形。画面上1pxの線）とそのハンドル（選ばれていない頂点のハンドルと同じ見た目）を描画する。
+     * 外枠（画面上1pxの線）とそのハンドル（選ばれていない頂点のハンドルと同じ見た目）を描画する。
+     * 外枠の線は、`corners`（4点）があればその4点を結ぶ閉じた四角形（傾いた外枠）、無ければ`bounds`の矩形（縦横の外枠）。
+     * ハンドルの四角は外枠が傾いていても傾けず、位置だけを使う。
      * 呼び出し時点でワールド座標の描画変換が設定済みであることを前提とする。
      * - 線幅・ハンドルの大きさ・枠の線幅は`÷ scale`し、画面上で一定にする。
      * - ハンドルは`handles`の並びの順に描く（後ろほど前面）。
      * - 倍率が正の有限値でなければ描かない。
      * - スタイルは`save()`/`restore()`で後続の描画へ残さない。
      * - 状態・図形種別・選択・操作モードは判定せず、渡された位置を描くだけ。
-     * @param {{bounds: {minX: number, minY: number, maxX: number, maxY: number}, handles: Array<{name: string, x: number, y: number}>}} frame - 描く外枠とハンドル
+     * @param {{bounds: {minX: number, minY: number, maxX: number, maxY: number}, handles: Array<{name: string, x: number, y: number}>, corners?: Array<{x: number, y: number}>}} frame -
+     *     描く外枠とハンドル。`corners`はnw・ne・se・swの順の4点（省略時は`bounds`の縦横の矩形を描く）
      * @param {number} scale - ビュー変換の倍率（ワールド長 → スクリーン長の係数）
      */
     #drawScaleFrame(frame, scale) {
@@ -342,7 +346,17 @@ export class CanvasManager {
         this.ctx.save();
         this.ctx.lineWidth = SCALE_FRAME_LINE_WIDTH / scale;
         this.ctx.strokeStyle = SCALE_FRAME_STROKE_COLOR;
-        this.ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
+        if (Array.isArray(frame.corners) && frame.corners.length === 4) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(frame.corners[0].x, frame.corners[0].y);
+            for (let i = 1; i < 4; i++) {
+                this.ctx.lineTo(frame.corners[i].x, frame.corners[i].y);
+            }
+            this.ctx.closePath();
+            this.ctx.stroke();
+        } else {
+            this.ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
+        }
 
         this.ctx.lineWidth = VERTEX_HANDLE_LINE_WIDTH / scale;
         this.ctx.strokeStyle = VERTEX_HANDLE_STROKE_COLOR;
