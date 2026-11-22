@@ -1,5 +1,5 @@
 /**
- * 責務: ShapeExtentReader（選択中の図形・全図形の外枠の照会）の振る舞いを、実物のVectorModelと図形を使い公開APIのみで検証する。
+ * 責務: ShapeExtentReader（選択中の図形・全図形の外枠と、選択中の図形の線を含まない外枠の照会）の振る舞いを、実物のVectorModelと図形を使い公開APIのみで検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -137,6 +137,53 @@ describe('ShapeExtentReader.getSelectedBoundsPerShape', () => {
         assert.deepEqual(shapesAfter.map((shape) => shape.toJSON()), jsonBefore);
         assert.deepEqual(model.getSelectedIds(), selectedBefore);
         assert.equal(changeCount, 0);
+    });
+});
+
+describe('ShapeExtentReader.getSelectedGeometryBounds', () => {
+    it('選択なしでnull', () => {
+        const { reader } = setup();
+        assert.equal(reader.getSelectedGeometryBounds(), null);
+    });
+
+    it('選択中の図形だけの線を含まない外枠（Line(100,100,120,130)・Rect(0,0,10,10)の和）', () => {
+        const { model, reader, ids } = setup();
+        model.setSelection([ids[1]]);
+        assert.deepEqual(reader.getSelectedGeometryBounds(), { minX: 100, minY: 100, maxX: 120, maxY: 130 });
+        model.setSelection([ids[0], ids[1]]);
+        assert.deepEqual(reader.getSelectedGeometryBounds(), { minX: 0, minY: 0, maxX: 120, maxY: 130 });
+    });
+
+    it('線の太さの半分だけ線を含む外枠より内側で、getSelectedBoundsの値は変わらない', () => {
+        const { model, reader, ids } = setup();
+        model.setSelection([ids[1]]);
+        assert.deepEqual(reader.getSelectedBounds(), { minX: 99, minY: 99, maxX: 121, maxY: 131 });
+        assert.deepEqual(reader.getSelectedGeometryBounds(), { minX: 100, minY: 100, maxX: 120, maxY: 130 });
+    });
+
+    it('線なし・塗りなしで見えない図形も含める', () => {
+        const model = new VectorModel();
+        const ids = model.addShapesWithNewIds([
+            new Rect(0, 0, 10, 10, '#000000', 2, null),
+            new Rect(50, 60, 70, 90, null, 2, null),
+        ]);
+        model.setSelection(ids);
+        const reader = new ShapeExtentReader({ model });
+        assert.deepEqual(reader.getSelectedGeometryBounds(), { minX: 0, minY: 0, maxX: 70, maxY: 90 });
+    });
+
+    it('選択の変更に追従し、モデルを変えず、onChangeを呼ばない', () => {
+        const { model, reader, ids } = setup();
+        model.setSelection([ids[0]]);
+        const jsonBefore = model.getShapes().map((shape) => shape.toJSON());
+        let changeCount = 0;
+        model.onChange(() => { changeCount += 1; });
+        assert.deepEqual(reader.getSelectedGeometryBounds(), { minX: 0, minY: 0, maxX: 10, maxY: 10 });
+        model.setSelection([ids[2]]);
+        const afterSelect = changeCount;
+        assert.deepEqual(reader.getSelectedGeometryBounds(), { minX: -50, minY: -40, maxX: -20, maxY: -10 });
+        assert.equal(changeCount, afterSelect);
+        assert.deepEqual(model.getShapes().map((shape) => shape.toJSON()), jsonBefore);
     });
 });
 

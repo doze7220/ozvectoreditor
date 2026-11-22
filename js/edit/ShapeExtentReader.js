@@ -1,5 +1,5 @@
 /**
- * 責務：選択中の図形・全図形・選択中の図形1つずつの外枠（書き出しの外枠`bounds`と同じ求め方）の照会のみを担う。
+ * 責務：選択中の図形・全図形・選択中の図形1つずつの外枠（書き出しの外枠`bounds`と同じ求め方）と、選択中の図形の線を含まない外枠の照会のみを担う。
  * DOMに触れず、図形・選択集合・履歴を変更しない。
  */
 
@@ -15,7 +15,7 @@ import { SpriteSerializer } from '../io/SpriteSerializer.js';
 
 /**
  * 図形の外枠の照会クラス。main.jsの`// 7.10.`とwiring/DisplayWiringの内部の2か所で生成する。
- * 外枠の求め方は`SpriteSerializer.computeShapesBounds`に任せ、本クラスは対象の図形の絞り込みだけを持つ。
+ * 外枠の求め方は`SpriteSerializer.computeShapesBounds`（線を含む）・`computeShapesGeometryBounds`（線を含まない）に任せ、本クラスは対象の図形の絞り込みだけを持つ。
  */
 export class ShapeExtentReader {
     /** @type {{ getShapes: function(): Array<Object>, isSelected: function(string): boolean }} */
@@ -37,6 +37,16 @@ export class ShapeExtentReader {
     getSelectedBounds() {
         const selectedShapes = this.#model.getShapes().filter((shape) => this.#model.isSelected(shape.id));
         return SpriteSerializer.computeShapesBounds(selectedShapes);
+    }
+
+    /**
+     * 選択中の図形の線を含まない外枠を求める（描画順のまま。見えない図形も含む。線の太さの半分を広げない形の範囲の和）。
+     * @returns {{minX: number, minY: number, maxX: number, maxY: number}|null} 線を含まない外枠。選択なしならnull
+     * @throws {Error} `SpriteSerializer.computeShapesGeometryBounds`と同じ（未知の`kind`・`toDrawElement`を持たない要素）
+     */
+    getSelectedGeometryBounds() {
+        const selectedShapes = this.#model.getShapes().filter((shape) => this.#model.isSelected(shape.id));
+        return SpriteSerializer.computeShapesGeometryBounds(selectedShapes);
     }
 
     /**

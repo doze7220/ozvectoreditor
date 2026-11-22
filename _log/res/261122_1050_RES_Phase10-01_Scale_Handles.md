@@ -201,6 +201,7 @@
 *   **4章**：一覧に`ScaleHandleRules.js` → `_doc/arch/42_ScaleHandleRules.md`を足す。
 *   **`_doc/arch/`**：`42_ScaleHandleRules.md`（新規）・`06_InputTracker.md`（`SCALING_SELECTION`・`#scaleDrag`・`isScalingSelection`・`InputAssist`の5項目目・修飾キーの項・`cancelDraftOrClearSelection`(1)・行数）・`12_shapes.md`（19メソッド契約・`createTransformed`の契約と各クラス・`ShapeGeometry.applyAffineTransformToPoint`）・`03_VectorModel.md`（`replaceShapesKeepingIds`）・`04_CanvasManager.md`（`scaleFrame`・描画順・定数）・`14_edit.md`（`getSelectedGeometryBounds`・生成箇所）・`15_io.md`（`computeShapesGeometryBounds`・`#computeBounds`の引数）・`16_test.md`（新しいテストファイルと件数。`test/core/KeyboardShortcuts.test.js`の範囲に`findCancelableDragBinding`を足し、`#handleKeyDown`を通した修飾キー付きの`Esc`はテストできない箇所としてテストプレイで確かめる旨）・`30_UnitSnapRules.md`（使う側に`ScaleHandleRules`）・`32_InputModes.md`（`SCALING_SELECTION`）・`34_PressActionRules.md`（順0・第3引数）・`35_CursorShapeRules.md`（(3b)・`scaleHandle`・import）・`07_KeyboardShortcuts.md`（手順3・5の例外・`findCancelableDragBinding`・`CANCEL_BINDING`・修飾キーを問わないこと・`isCancelableDrag`）・`09_DragTracker.md`（`cancel`の省ける引数）・`02_main.md`（`shapeExtentReader`の生成位置・`getSelectionFrameBounds`・`scaleFrame`・`isCancelableDrag`の注入・生成順）。
 *   **1章（タスク1で判明）**：構成図の`ShapeGeometry`の説明に`applyAffineTransformToPoint`（点へのアフィン変換。変形の式の唯一の箇所。Phase 10-01）を足す。
+*   **1章・`_doc/arch/15_io.md`・`14_edit.md`（タスク3で判明）**：`SpriteSerializer`の責務に線を含まない外枠の照会（`computeShapesGeometryBounds`・`#computeBounds`の`includeStroke`引数）、`ShapeExtentReader`に`getSelectedGeometryBounds`を足す（既に上の2章・`_doc/arch/`の項に概ね記載あり）。
 *   （各タスクの実行時に判明した分はここへ追記する。）
 
 ## 3. タスクリスト
@@ -225,7 +226,7 @@
         *   コード修正完了後、JSDocコメントの記載漏れがないこと（新しい・変えた関数・メソッド・typedef・定数、先頭の責務定義）を確認する。
         *   開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る場合は、資料本体は修正せず、その旨を『開発資料の更新予定』欄に追記する。
         *   タスク完了後、作業レポート（本RES）の「4. 詳細作業内容」の本タスクの欄を記載し完成させ、本タスクを`[x]`にする。
-*   [ ] タスク3: 要件B 線を含まない外枠の照会とテスト
+*   [x] タスク3: 要件B 線を含まない外枠の照会とテスト
     *   **対象ファイル** :
         *   `./js/io/SpriteSerializer.js` : 更新（`#computeBounds`の引数・`computeShapesGeometryBounds`）
         *   `./js/edit/ShapeExtentReader.js` : 更新（`getSelectedGeometryBounds`・責務定義・クラスJSDocへの線を含まない外枠の照会の追記。**クラスJSDocの生成箇所の記述（「main.jsの`// 7.10.`と…2か所で生成する」）には触れない**＝生成を移すタスク10で直す）
@@ -361,7 +362,9 @@
 
 ### タスク3: 要件B 線を含まない外枠の照会とテスト
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/io/SpriteSerializer.js`：`#computeBounds(elements, includeStroke = true)`（偽なら`half = 0`）、`static computeShapesGeometryBounds(shapes)`（`#computeBounds(…, false)`）を追加。既存の呼び出し（`serialize`・`computeShapesBounds`）は引数を渡さず値は不変。先頭の責務定義に「外枠（線を含む・線を含まない）の照会」を反映。ファイルはCRLFのまま。
+    *   `js/edit/ShapeExtentReader.js`：`getSelectedGeometryBounds()`を追加。先頭の責務定義・クラスJSDocに線を含まない外枠の照会を追記。クラスJSDocの生成箇所の記述（`main.js`の`// 7.10.`）は変えていない（タスク10）。
+    *   テスト：`SpriteSerializer.test.js`に`computeShapesGeometryBounds`の9件（線・矩形が線を含む外枠より太さの半分内側＝Line(10,20,30,5,太さ4)で{10,5,30,20}対{8,3,32,22}・曲線の極値{0,0,100,50}・3次ベジェの極値{0,0,30,30}と線ありの{-5,-5,35,35}・円{-20,-20,40,60}・弧{-20,-20,40,20}・線なしの要素を含む和・複数の和・図形0個でnull・未知kindでError・引数不変と新しいオブジェクト・線を含む外枠`computeShapesBounds`・`serialize`の値不変）、`ShapeExtentReader.test.js`に`getSelectedGeometryBounds`の5件（選択なしnull・選択中だけ・`getSelectedBounds`との差と値不変・線なし塗りなしの図形を含む・選択追従と副作用なし）を追加。期待値は手計算の固定値。`node --test`：tests 2125 / suites 345 全件合格（作業前2111→+14）。
 
 ### タスク4: 要件D モデルの入口`replaceShapesKeepingIds`とテスト
 *   **作業内容** :
@@ -427,3 +430,4 @@
 * **OSが使う修飾キー付きの`Esc`**：Windowsでは`Ctrl`+`Esc`（スタートメニュー）・`Alt`+`Esc`（ウィンドウの切り替え）・`Ctrl`+`Shift`+`Esc`（タスクマネージャー）をOSが先に使い、ページに`keydown`が届かないことがある。その場合はウィンドウのフォーカスが外れ、`DragTracker`のblurの中断（`#onLeftDragCancel`）で同じく引き始めの形に戻る（`click`の抑止は立たないが、フォーカスが外れたためボタンを離した`click`は通常来ない）。テストプレイの9.に書いた。
 * **（タスク2）弧の上下の裏返しの目視確認**：弧は`d < 0`のとき中心の`y`に`ry'`を足すため、上下に裏返した弧は外枠の下端に中心が来る（上半分の弧のまま）。外枠の`getSelectedGeometryBounds`（`toDrawElement`の弧の両端と軸上の端点）と一致する前提で、タスク10の後のブラウザで「弧を含む選択の上辺を下へ越える」操作を目視確認することを勧める。
 * **（タスク2）`Path.createTransformed`の`corners`**：コンストラクタが`corners`を要素数`points`にそろえて写すため、`this.corners`をそのまま渡している（コンストラクタが複製するので共有しない）。
+* **（タスク3）`computeShapesGeometryBounds`の範囲**：`ellipse`の弧の外枠は両端点と軸上の端点のみで弦は含まない（線を含む外枠と同じ形の範囲）。線なし・塗りなしの図形も和に含む。`ShapeExtentReader`のクラスJSDocの生成箇所の記述は`// 7.10.`のままで、タスク10で`// 4.`へ直す。

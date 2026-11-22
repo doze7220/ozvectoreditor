@@ -795,3 +795,84 @@ describe('SpriteSerializer: 弧を結合した結果（Phase 09-03b）', () => {
         assert.deepEqual(element.segments.map((s) => s.kind), ['cubic', 'cubic', 'line']);
     });
 });
+
+describe('SpriteSerializer.computeShapesGeometryBounds', () => {
+    it('線は線の太さを含まない（線を含む外枠より太さの半分ずつ内側）', () => {
+        const line = new Line(10, 20, 30, 5, '#000000', 4);
+        assertBoundsClose(SpriteSerializer.computeShapesGeometryBounds([line]), { minX: 10, minY: 5, maxX: 30, maxY: 20 });
+        assertBoundsClose(SpriteSerializer.computeShapesBounds([line]), { minX: 8, minY: 3, maxX: 32, maxY: 22 });
+        const rect = new Rect(10, 20, 30, 50, '#000000', 8, '#ff0000');
+        assertBoundsClose(SpriteSerializer.computeShapesGeometryBounds([rect]), { minX: 10, minY: 20, maxX: 30, maxY: 50 });
+        assertBoundsClose(SpriteSerializer.computeShapesBounds([rect]), { minX: 6, minY: 16, maxX: 34, maxY: 54 });
+    });
+
+    it('曲線は制御点ではなく極値を使う（線の太さを含まない）', () => {
+        const curve = makeCurve([{ x: 0, y: 0 }, { x: 50, y: 100 }, { x: 100, y: 0 }]);
+        // y(t) = 2(1-t)t*100 → t=0.5 で 50
+        assertBoundsClose(SpriteSerializer.computeShapesGeometryBounds([curve]), { minX: 0, minY: 0, maxX: 100, maxY: 50 });
+    });
+
+    it('3次ベジェ（bezierPath）は端点と極値を使い、線の太さを含まない', () => {
+        const element = {
+            kind: 'bezierPath',
+            id: 'x',
+            points: [{ x: 0, y: 0 }, { x: 30, y: 0 }],
+            closed: false,
+            segments: [{ kind: 'cubic', control1: { x: 0, y: 40 }, control2: { x: 30, y: 40 } }],
+            strokeColor: '#000000',
+            strokeWidth: 10,
+            fillColor: null,
+        };
+        const shape = { toDrawElement: () => element };
+        // y(t) = 120 t (1-t) → t=0.5 で最大 30
+        assertBoundsClose(SpriteSerializer.computeShapesGeometryBounds([shape]), { minX: 0, minY: 0, maxX: 30, maxY: 30 });
+        assertBoundsClose(SpriteSerializer.computeShapesBounds([shape]), { minX: -5, minY: -5, maxX: 35, maxY: 35 });
+    });
+
+    it('円は全周・弧は上半分の範囲（線の太さを含まない）', () => {
+        const circle = new Ellipse(10, 20, 40, 60, 'circle');
+        assertBoundsClose(SpriteSerializer.computeShapesGeometryBounds([circle]), { minX: -20, minY: -20, maxX: 40, maxY: 60 });
+        const arc = new Ellipse(10, 20, 40, 60, 'arc');
+        assertBoundsClose(SpriteSerializer.computeShapesGeometryBounds([arc]), { minX: -20, minY: -20, maxX: 40, maxY: 20 });
+    });
+
+    it('線なしの要素も和に含め、複数の図形は和を取る', () => {
+        const shapes = [
+            new Line(-50, -50, -40, -40, null, 10),
+            new Rect(0, 0, 10, 10, '#000000', 4, '#ff0000'),
+        ];
+        assertBoundsClose(SpriteSerializer.computeShapesGeometryBounds(shapes), { minX: -50, minY: -50, maxX: 10, maxY: 10 });
+        const mixed = [new Line(0, 0, 10, 10, '#000000', 2), new Rect(-20, 5, 30, 40, '#000000', 6)];
+        assertBoundsClose(SpriteSerializer.computeShapesGeometryBounds(mixed), { minX: -20, minY: 0, maxX: 30, maxY: 40 });
+        assertBoundsClose(SpriteSerializer.computeShapesBounds(mixed), { minX: -23, minY: -1, maxX: 33, maxY: 43 });
+    });
+
+    it('図形0個でnull', () => {
+        assert.equal(SpriteSerializer.computeShapesGeometryBounds([]), null);
+    });
+
+    it('未知のkindの描画要素はErrorをthrowする', () => {
+        const fake = { toDrawElement: () => ({ kind: 'unknown', strokeWidth: 2 }) };
+        assert.throws(() => SpriteSerializer.computeShapesGeometryBounds([fake]), Error);
+    });
+
+    it('引数の配列と図形を書き換えず、毎回新しいオブジェクトを返す', () => {
+        const shapes = makeFilledShapes();
+        const shapesBefore = [...shapes];
+        const jsonBefore = shapes.map((shape) => shape.toJSON());
+        const first = SpriteSerializer.computeShapesGeometryBounds(shapes);
+        const second = SpriteSerializer.computeShapesGeometryBounds(shapes);
+        assert.notEqual(first, second);
+        assert.deepEqual(first, second);
+        assert.equal(shapes.length, shapesBefore.length);
+        shapes.forEach((shape, i) => assert.equal(shape, shapesBefore[i]));
+        assert.deepEqual(shapes.map((shape) => shape.toJSON()), jsonBefore);
+    });
+
+    it('線を含む外枠（computeShapesBounds・serialize）の値は変わらない', () => {
+        const shapes = [new Line(10, 20, 30, 5, '#000000', 4), new Rect(-20, 5, 30, 40, '#000000', 6)];
+        const expected = { minX: -23, minY: 2, maxX: 33, maxY: 43 };
+        assertBoundsClose(SpriteSerializer.computeShapesBounds(shapes), expected);
+        assertBoundsClose(SpriteSerializer.serialize(shapes).bounds, expected);
+    });
+});

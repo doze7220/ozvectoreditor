@@ -1,5 +1,5 @@
 /**
- * 責務: スプライトデータ形式（書き出し形式）の定義と判別（識別子・版）、および図形一式からのスプライトデータ（描画要素・外枠・作業データsource）の組み立て・JSON文字列化、外枠の照会を担う。
+ * 責務: スプライトデータ形式（書き出し形式）の定義と判別（識別子・版）、および図形一式からのスプライトデータ（描画要素・外枠・作業データsource）の組み立て・JSON文字列化、外枠（線を含む・線を含まない）の照会を担う。
  * DOMに依存しない。
  */
 import { DocumentSerializer } from './DocumentSerializer.js';
@@ -292,6 +292,18 @@ export class SpriteSerializer {
     }
 
     /**
+     * 図形の配列から線を含まない外枠を求める（描画要素ごとの形の範囲＝中心線の外接矩形の和。線の太さの半分は広げない）。
+     * `polyline`は全頂点、`quadratic`・`bezierPath`は端点と各軸の極値（制御点そのものは含めない）、`ellipse`は弧の両端と軸上の端点の範囲。線なしの要素も和に含める。
+     * 線を含む外枠（`computeShapesBounds`）より、線を描く図形の分だけ線の太さの半分ずつ内側になる。
+     * @param {Array<Object>} shapes - 図形インスタンスの配列（描画順。引数は書き換えない）
+     * @returns {SpriteBounds|null} 線を含まない外枠（図形0個ならnull。毎回新しいオブジェクト）
+     * @throws {Error} `computeShapesBounds`と同じ（未知の`kind`の描画要素が得られた場合、または`toDrawElement`を持たない要素が混ざった場合）
+     */
+    static computeShapesGeometryBounds(shapes) {
+        return SpriteSerializer.#computeBounds(shapes.map((shape) => shape.toDrawElement()), false);
+    }
+
+    /**
      * スプライトデータをJSON文字列へ変換する（字下げ2。作業データファイルと同じ）。
      * @param {SpriteData} spriteData - スプライトデータ
      * @returns {string} JSON文字列
@@ -302,11 +314,13 @@ export class SpriteSerializer {
 
     /**
      * 描画要素の配列から外枠を求める（各要素の形の範囲の和。`strokeColor`が文字列の要素は形の範囲を線の太さの半分だけ広げ、線を描かない要素は形の範囲のまま。線なしで塗れない要素も和に含める）。
+     * `includeStroke`が偽なら線の太さの半分を広げない（線を含まない外枠。形の範囲の和そのもの）。
      * @param {Array<DrawElement>} elements - 描画要素の配列
+     * @param {boolean} [includeStroke=true] - 線の太さの半分を広げるか（省略時は広げる）
      * @returns {SpriteBounds|null} 外枠（要素0個ならnull）
      * @throws {Error} 未知の`kind`の要素がある場合
      */
-    static #computeBounds(elements) {
+    static #computeBounds(elements, includeStroke = true) {
         if (elements.length === 0) {
             return null;
         }
@@ -322,7 +336,7 @@ export class SpriteSerializer {
                 throw new Error(`SpriteSerializer: 未知の描画要素のkindです: ${String(element.kind)}`);
             }
             const range = rangeOf(element);
-            const half = typeof element.strokeColor === 'string'
+            const half = includeStroke && typeof element.strokeColor === 'string'
                 ? resolveStrokeWidth(element.strokeWidth) / 2
                 : 0;
             minX = Math.min(minX, range.minX - half);
