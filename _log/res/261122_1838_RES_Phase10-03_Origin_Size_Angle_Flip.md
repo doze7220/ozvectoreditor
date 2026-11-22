@@ -154,7 +154,7 @@ REQの要件と本計画の設計の対応：要件1（2行）＝要件A、要�
         *   コード修正完了後、JSDocコメントの記載漏れがないこと（新しい・変えた関数・メソッド・typedef・定数、先頭の責務定義）を確認する。
         *   開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る場合は、資料本体は修正せず、その旨を『開発資料の更新予定』欄に追記する。
         *   タスク完了後、作業レポート（本RES）の「4. 詳細作業内容」の本タスクの欄を記載し完成させ、本タスクを`[x]`にする。
-*   [ ] タスク2: 要件B 基準点・比率の鍵の設定の持ち主（新規`core/TransformInputSettings.js`）とテスト
+*   [x] タスク2: 要件B 基準点・比率の鍵の設定の持ち主（新規`core/TransformInputSettings.js`）とテスト
     *   **対象ファイル** :
         *   `./js/core/TransformInputSettings.js` : 新規
         *   `./test/core/TransformInputSettings.test.js` : 新規
@@ -292,7 +292,9 @@ REQの要件と本計画の設計の対応：要件1（2行）＝要件A、要�
 
 ### タスク2: 要件B 基準点・比率の鍵の設定の持ち主（新規`core/TransformInputSettings.js`）とテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/TransformInputSettings.js`を新規作成（`UnitSnapSettings`と同じ形。typedef`TransformInputSettingsSnapshot`、クラス、`getState`・`getReferencePoint`・`isAspectLocked`・`setReferencePoint`・`setAspectLocked`・`toggleAspectLock`・`onChange`、非公開の`#notifyChange`。importは`./ReferencePointRules.js`の`DEFAULT_REFERENCE_POINT`・`isReferencePoint`のみ＝`REFERENCE_POINT`は使わないためimportしていない。先頭の責務定義・全項目にJSDoc記載済み）。
+    *   `test/core/TransformInputSettings.test.js`を新規作成（初期値・`getState`の独立・基準点の通知/同値/未知値のwarn・鍵の通知/非真偽値のwarn/トグル・相互に影響しない・`onChange`の関数以外の無視と登録順）。
+    *   `node --test`：tests 2403 / suites 399 / pass 2403 / fail 0。
 
 ### タスク3: 要件F 回転の中心を基準点にする（`RotationRules.computeRotationCenter`の第2引数）とテスト
 *   **作業内容** :
