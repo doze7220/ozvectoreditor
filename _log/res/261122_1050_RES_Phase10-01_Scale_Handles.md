@@ -325,7 +325,7 @@
         *   コード修正完了後、JSDocコメントの記載漏れがないこと（新しい・変えた関数・メソッド・typedef・定数、先頭の責務定義）を確認する。
         *   開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る場合は、資料本体は修正せず、その旨を『開発資料の更新予定』欄に追記する。
         *   タスク完了後、作業レポート（本RES）の「4. 詳細作業内容」の本タスクの欄を記載し完成させ、本タスクを`[x]`にする。
-*   [ ] タスク12: 仕上げの確認（JSDoc・スコープ・全テスト）
+*   [x] タスク12: 仕上げの確認（JSDoc・スコープ・全テスト）
     *   **対象ファイル** :
         *   （確認のみ。漏れがあれば上のタスクの対象ファイルの中で直す）
     *   **作業内容** :
@@ -380,7 +380,7 @@
 ### タスク5: 要件C 外枠のハンドルの規則`ScaleHandleRules`とテスト
 *   **作業内容** :
     *   `js/core/ScaleHandleRules.js`（新規）：先頭の責務定義（3行以内）、`SCALE_HANDLE_NAMES`・`SCALE_HANDLE_HIT_SCREEN_PX`・`SCALE_EDGE_HANDLE_MIN_SCREEN_PX`、typedef `ScaleHandle`・`ScaleFrame`・`BoundsScale`・`BoundsScaleInput`、関数`collectScaleFrame`・`hitTestScaleHandle`・`resolveScaleHandleCursor`・`computeBoundsScale`（JSDocに手順1〜8）・`toScaleTransform`。importは`InputModes`の`OperationMode`と`UnitSnapRules`の`roundPointToUnit`のみ（`AffineTransform`はJSDocの`import()`型参照だけ）。丸めは`roundPointToUnit`を呼ぶだけ。モジュール内の非公開：`isPositiveFinite`・`isFiniteBounds`・`readAxis`・`snapAxisScale`・typedef`AxisState`（いずれもJSDocあり、exportしない）。
-    *   `test/core/ScaleHandleRules.test.js`（新規・93件）：8つのハンドルの位置と並び・小さい外枠（24pxちょうど／僅かに下・表示倍率による違い）・幅か高さが0・両方0・選択モード以外・boundsがnull/非有限・viewScale不正、当たり（境界6/6.5・倍率2で3/3.5・角優先・重なる小さい外枠でsw優先・null）、カーソルの向き、倍率と動かない点（角4・辺4・Shift（角・辺）・Alt・Shift+Alt・裏返り（横・縦・両方・Shiftの角）・ちょうど0でpreviousのまま（Shiftの角を含む・符号はpreviousの符号）・幅か高さが0の向き）、スナップ（刻み10の角・辺・Shift・Alt・Shift+Alt、刻みnull/0/負で丸めない、外枠の辺が半端な位置（minX=10.5）、丸めた結果が0でpreviousのまま）、`toScaleTransform`（4隅の写り先）、引数不変・未知のハンドル名のError。期待値は固定の値で手計算（各`it`の題に計算を記載）。`node --test`：tests 2232 / suites 363 全件合格（作業前2138→+94）。
+    *   `test/core/ScaleHandleRules.test.js`（新規・94件）：8つのハンドルの位置と並び・小さい外枠（24pxちょうど／僅かに下・表示倍率による違い）・幅か高さが0・両方0・選択モード以外・boundsがnull/非有限・viewScale不正、当たり（境界6/6.5・倍率2で3/3.5・角優先・重なる小さい外枠でsw優先・null）、カーソルの向き、倍率と動かない点（角4・辺4・Shift（角・辺）・Alt・Shift+Alt・裏返り（横・縦・両方・Shiftの角）・ちょうど0でpreviousのまま（Shiftの角を含む・符号はpreviousの符号）・幅か高さが0の向き）、スナップ（刻み10の角・辺・Shift・Alt・Shift+Alt、刻みnull/0/負で丸めない、外枠の辺が半端な位置（minX=10.5）、丸めた結果が0でpreviousのまま）、`toScaleTransform`（4隅の写り先）、引数不変・未知のハンドル名のError。期待値は固定の値で手計算（各`it`の題に計算を記載）。`node --test`：tests 2232 / suites 363 全件合格（作業前2138→+94）。
     *   diff監査の指摘で修正：`Shift`の角で、倍率を決めた向きの符号を丸める前の`raw`ではなく丸めた後の`s`の符号から取るよう直した（もう一方の向きは今のとおりその向きの`raw`の符号、ちょうど0なら`previous`の符号）。外枠の辺が半端な位置でカーソルが動かない点から半刻み以内のとき、引く辺が刻みの目に乗らなかった欠陥の修正。JSDoc手順7と上の要件C（RES:72）の文言も実態に合わせた。テスト1件追加（外枠`{10.5,0,110.5,50}`・`se`・(12,50)・刻み10で`Shift`あり`{-0.005, 0.005, 10.5, 0}`、`Shift`なし`{-0.005, 1, 10.5, 0}`）。既存の93件は変更なしで合格。
 
 ### タスク6: 要件D 入力状態・押下の分岐・カーソルの規則とテスト
@@ -431,7 +431,11 @@
 
 ### タスク12: 仕上げの確認（JSDoc・スコープ・全テスト）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `git diff 911428a HEAD --stat`（`.claude/skills/oz-impl-session/SKILL.md`は本作業の外のため除く）で、変更はRES・各タスクの対象ファイル（`js/`・`test/`）のみで、対象外のファイルが変わっていないことを確認。`SHORTCUT_BINDINGS`の対応表の中身・既存の公開名・到達不能の枝（`dragHandle`・`CursorShapeRules`の(7)・各図形の`drawHandles`・`showHandles`）は変えていない。既存のテストの期待値は変えていない。
+    *   JSDoc：新しい・変えた関数・メソッド・typedef・定数と先頭の責務定義に記載漏れは見つからなかった。
+    *   監査から回された軽微な4点を直した（処理は不変）：(1)本RESのタスク5の「（新規・93件）」を「94件」へ。(2)`PressActionRules.js`のJSDocで「呼ぶときの引数はhit.bodyId。」を`isSelected`の説明の行へ戻し、「注：」の文の末尾からは外した。(3)`DragTracker.js`の`#suppressNextClick`のJSDocに`cancel({ suppressClick: true })`（中断時に左ボタンなら立てる）を追記。(4)`main.js`の`cancel`注入のコメントに、拡大縮小のドラッグの中断（`cancelDraftOrClearSelection`の(1)）を追記。
+    *   `node --test`：tests 2270 / suites 368 / pass 2270 / fail 0（全件合格）。
+    *   開発資料の更新予定：本タスクで新たに増えたものは無い（タスク14で各タスクの記録を反映する）。
 
 ### タスク13: 要件G テストプレイの確認項目を発注者へ提示する
 *   **作業内容** :

@@ -65,7 +65,7 @@ export class DragTracker {
 
     /**
      * 終了直後に発火するclickを1回だけ無視するためのフラグ（パン・左ドラッグ共通）。
-     * 左ボタンのセッション終了時に条件に応じて立て、consumeSuppressedClick()で消費する。
+     * 左ボタンのセッション終了時に条件に応じて立てる（中断のcancel({ suppressClick: true })でも、左ボタンなら立てる）。consumeSuppressedClick()で消費する。
      * clickを伴わずに終わった場合の残留は、呼び出し側が次の押下時にclearSuppressedClick()で解除する。
      * @type {boolean}
      */

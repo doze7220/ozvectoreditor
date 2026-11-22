@@ -899,6 +899,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return true;
         },
         // スポイトの待ち受け中は待ち受けだけをやめる（選択は残す。true）。待ち受けでなければ
+        // 拡大縮小のドラッグ中ならその中断（引き始めの形へ戻す。cancelDraftOrClearSelectionの(1)）、そうでなければ
         // 作成途中の図形の破棄／選択解除（何もしなかった場合はfalse）。判定はstyleEyedropper.cancelPickingが持つ
         cancel: () => styleEyedropper.cancelPicking(() => inputTracker.cancelDraftOrClearSelection()),
         // 全選択。選択モード以外では先に選択モードへ切り替える（ensureSelectMode。共通に使う操作は同関数のJSDoc参照）。
