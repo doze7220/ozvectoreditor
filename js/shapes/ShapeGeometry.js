@@ -1,7 +1,7 @@
 /**
  * 責務: 図形クラスが当たり判定・範囲選択で共通に使う幾何の計算（点と線分の距離・線分と軸平行矩形の交差・2次ベジェ曲線の点・
- * 3次ベジェ曲線の点・多角形の内側の判定（nonzero））と、パスの曲線の区間（点を通るなめらかな曲線）の形の決め方（制御点）を、
- * 状態を持たない関数として提供する。
+ * 3次ベジェ曲線の点・多角形の内側の判定（nonzero））・点へのアフィン変換（変形の式の唯一の箇所）と、
+ * パスの曲線の区間（点を通るなめらかな曲線）の形の決め方（制御点）を、状態を持たない関数として提供する。
  */
 
 /**
@@ -214,4 +214,28 @@ export function isPointInPolygonNonzero(px, py, points) {
         }
     }
     return winding !== 0;
+}
+
+/**
+ * 2次元のアフィン変換。点`(x, y)`を`(a·x + c·y + e, b·x + d·y + f)`へ写す（Canvasの`setTransform`と同じ並び）。
+ * @typedef {Object} AffineTransform
+ * @property {number} a - Xの係数（xへの掛け率）
+ * @property {number} b - Yへのxの係数
+ * @property {number} c - Xへのyの係数
+ * @property {number} d - Yの係数（yへの掛け率）
+ * @property {number} e - X方向の平行移動
+ * @property {number} f - Y方向の平行移動
+ */
+
+/**
+ * アフィン変換を点に当てた結果を返す（変換の式の唯一の箇所）。引数を書き換えず、戻り値は新しいオブジェクト。例外は投げない。
+ * @param {AffineTransform} transform - 当てる変換
+ * @param {{x: number, y: number}} point - 変換前の点（ワールド座標）
+ * @returns {{x: number, y: number}} 変換後の新しい点
+ */
+export function applyAffineTransformToPoint(transform, point) {
+    return {
+        x: transform.a * point.x + transform.c * point.y + transform.e,
+        y: transform.b * point.x + transform.d * point.y + transform.f,
+    };
 }

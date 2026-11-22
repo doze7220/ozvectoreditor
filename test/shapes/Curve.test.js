@@ -1,6 +1,6 @@
 /**
  * 責務: 2次ベジェ曲線（Curve）の当たり判定・塗れる形か（isFillable）・偽のctxによる描画命令・図形データとの相互変換
- * （fromJSONの受理と不正なデータのエラー文・toJSON・toDrawElement）・ハンドルの位置（getHandlePosition）・頂点のハンドル名の一覧（getVertexHandleNames）を、公開APIのみを通して検証する。
+ * （fromJSONの受理と不正なデータのエラー文・toJSON・toDrawElement）・ハンドルの位置（getHandlePosition）・頂点のハンドル名の一覧（getVertexHandleNames）・変形を当てた新しい図形の生成（createTransformed）を、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -532,5 +532,59 @@ describe('Curve.getVertexHandleNames', () => {
             assert.equal(typeof pos.x, 'number');
             assert.equal(typeof pos.y, 'number');
         });
+    });
+});
+
+describe('Curve.createTransformed', () => {
+    const FLIP_X = { a: -1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+    it('縦横別の倍率を動かない点(10, 20)まわりに当てる（スタイル・id・typeは同じ）', () => {
+        const shape = new Curve(10, 20, 30, 50, '#112233', 5, '#445566');
+        shape.id = 's1';
+        const t = { a: 2, b: 0, c: 0, d: 3, e: 10 - 2 * 10, f: 20 - 3 * 20 };
+        const out = shape.createTransformed(t);
+        assert.deepEqual(out.toJSON(), { type: 'curve', id: 's1', points: [{ x: 10, y: 20 }, { x: 30, y: 65 }, { x: 50, y: 110 }], strokeColor: '#112233', strokeWidth: 5, fillColor: '#445566' });
+        assert.equal(out.id, 's1');
+        assert.equal(out.type, shape.type);
+        assert.equal(out.strokeWidth, 5);
+    });
+    it('変形後のtoDrawElement()の形の座標・線の太さ・色が期待どおり（曲線は塗らないのでfillColorはnull）', () => {
+        const shape = new Curve(10, 20, 30, 50, '#112233', 5, '#445566');
+        shape.id = 's1';
+        const out = shape.createTransformed({ a: 2, b: 0, c: 0, d: 3, e: -10, f: -40 });
+        assert.deepEqual(out.toDrawElement(), { kind: 'quadratic', id: 's1', points: [{ x: 10, y: 20 }, { x: 30, y: 65 }, { x: 50, y: 110 }], strokeColor: '#112233', strokeWidth: 5, fillColor: null });
+    });
+    it('裏返し（横・縦・両方）で頂点が写る', () => {
+        const shape = new Curve(10, 20, 30, 50, '#112233', 5, '#445566');
+        const flipped = shape.createTransformed(FLIP_X);
+        assert.deepEqual(flipped.toJSON().points, [{ x: -10, y: 20 }, { x: -20, y: 35 }, { x: -30, y: 50 }]);
+        const both = shape.createTransformed({ a: -1, b: 0, c: 0, d: -1, e: 0, f: 0 });
+        assert.deepEqual(both.toJSON().points, shape.toJSON().points.map((p) => ({ x: -p.x, y: -p.y })));
+        const vflip = shape.createTransformed({ a: 1, b: 0, c: 0, d: -1, e: 0, f: 0 });
+        assert.deepEqual(vflip.toJSON().points, shape.toJSON().points.map((p) => ({ x: p.x, y: -p.y })));
+    });
+    it('自身は変わらず、戻り値と頂点を共有しない', () => {
+        const shape = new Curve(10, 20, 30, 50, '#112233', 5, '#445566');
+        const before = JSON.stringify(shape.toJSON());
+        const out = shape.createTransformed({ a: 2, b: 0, c: 0, d: 2, e: 1, f: 1 });
+        assert.equal(JSON.stringify(shape.toJSON()), before);
+        assert.notEqual(out, shape);
+        const outDraw = out.toDrawElement();
+        outDraw.points[0].x = 999;
+        out.translate(5, 5);
+        assert.equal(JSON.stringify(shape.toJSON()), before);
+    });
+    it('同じ自身から2回作っても2回目は1回目の影響を受けない', () => {
+        const shape = new Curve(10, 20, 30, 50, '#112233', 5, '#445566');
+        const t = { a: 2, b: 0, c: 0, d: 2, e: 0, f: 0 };
+        const first = shape.createTransformed(t);
+        first.translate(100, 100);
+        const second = shape.createTransformed(t);
+        assert.deepEqual(second.toJSON().points, [{ x: 20, y: 40 }, { x: 40, y: 70 }, { x: 60, y: 100 }]);
+        assert.deepEqual(first.toJSON().points, [{ x: 120, y: 140 }, { x: 140, y: 170 }, { x: 160, y: 200 }]);
+    });
+    it('回転を含む一般の変換でも頂点が写る', () => {
+        const shape = new Curve(10, 20, 30, 50, '#112233', 5, '#445566');
+        const out = shape.createTransformed({ a: 0, b: 1, c: -1, d: 0, e: 0, f: 0 });
+        assert.deepEqual(out.toJSON().points, shape.toJSON().points.map((p) => ({ x: -p.y, y: p.x })));
     });
 });

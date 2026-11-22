@@ -200,10 +200,11 @@
 *   **3章**：新しい節「25. 外枠のハンドルでの拡大縮小」（流れ・モジュールの分担・外枠の求め方・倍率の計算の手順・スナップ・`Esc`・確定・中断・発注者の決定・現場設計の決定・やらないこと・確認の状況）。3.の当たり分類と`Esc`（キーボード操作）・キーボードの受理判定の例外（拡大縮小のドラッグ中は`cancel`を`Shift`・`Alt`・`Ctrl`（Meta）を問わず通す。判定は`findCancelableDragBinding`の1か所で`#findBinding`より前、キーは`cancel`のエントリの`codes`から取る。手順1・2・4・6は今のまま。拡大縮小のドラッグ中以外の照合・「`Alt`押下中は常に不一致」は今のまま。発注者の決定（追加））、6.の記録する操作に拡大縮小、16.・17.の修飾キーを見る時点（`Shift`・`Alt`・`Ctrl`を拡大縮小のドラッグの追従のたびに読む）、17.の丸める箇所に外枠のハンドル（引いている辺・角の位置を刻みの目へ丸める）、18.の「`drawHandles`が呼ばれなくなること」に「外枠のハンドルは図形ごとの`drawHandles`・`hitTestHandle`を使わず`ScaleHandleRules`と`CanvasManager.render`の`scaleFrame`で作る。到達不能の枝は本作業では消していない」。15.の`drawHandles`の注記も同じ。
 *   **4章**：一覧に`ScaleHandleRules.js` → `_doc/arch/42_ScaleHandleRules.md`を足す。
 *   **`_doc/arch/`**：`42_ScaleHandleRules.md`（新規）・`06_InputTracker.md`（`SCALING_SELECTION`・`#scaleDrag`・`isScalingSelection`・`InputAssist`の5項目目・修飾キーの項・`cancelDraftOrClearSelection`(1)・行数）・`12_shapes.md`（19メソッド契約・`createTransformed`の契約と各クラス・`ShapeGeometry.applyAffineTransformToPoint`）・`03_VectorModel.md`（`replaceShapesKeepingIds`）・`04_CanvasManager.md`（`scaleFrame`・描画順・定数）・`14_edit.md`（`getSelectedGeometryBounds`・生成箇所）・`15_io.md`（`computeShapesGeometryBounds`・`#computeBounds`の引数）・`16_test.md`（新しいテストファイルと件数。`test/core/KeyboardShortcuts.test.js`の範囲に`findCancelableDragBinding`を足し、`#handleKeyDown`を通した修飾キー付きの`Esc`はテストできない箇所としてテストプレイで確かめる旨）・`30_UnitSnapRules.md`（使う側に`ScaleHandleRules`）・`32_InputModes.md`（`SCALING_SELECTION`）・`34_PressActionRules.md`（順0・第3引数）・`35_CursorShapeRules.md`（(3b)・`scaleHandle`・import）・`07_KeyboardShortcuts.md`（手順3・5の例外・`findCancelableDragBinding`・`CANCEL_BINDING`・修飾キーを問わないこと・`isCancelableDrag`）・`09_DragTracker.md`（`cancel`の省ける引数）・`02_main.md`（`shapeExtentReader`の生成位置・`getSelectionFrameBounds`・`scaleFrame`・`isCancelableDrag`の注入・生成順）。
+*   **1章（タスク1で判明）**：構成図の`ShapeGeometry`の説明に`applyAffineTransformToPoint`（点へのアフィン変換。変形の式の唯一の箇所。Phase 10-01）を足す。
 *   （各タスクの実行時に判明した分はここへ追記する。）
 
 ## 3. タスクリスト
-*   [ ] タスク1: 要件A 点の変換と第19メソッド（直線・今の曲線・矩形）とテスト
+*   [x] タスク1: 要件A 点の変換と第19メソッド（直線・今の曲線・矩形）とテスト
     *   **対象ファイル** :
         *   `./js/shapes/ShapeGeometry.js` : 更新（`AffineTransform`・`applyAffineTransformToPoint`）
         *   `./js/shapes/Line.js`・`./js/shapes/Curve.js`・`./js/shapes/Rect.js` : 更新（`createTransformed`。クラスJSDocの19メソッド・先頭の責務定義）
@@ -347,7 +348,10 @@
 
 ### タスク1: 要件A 点の変換と第19メソッド（直線・今の曲線・矩形）とテスト
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/shapes/ShapeGeometry.js`：typedef`AffineTransform`・`applyAffineTransformToPoint`を末尾に追加。
+    *   `Line.js`・`Curve.js`・`Rect.js`：`createTransformed(transform)`を追加（`Curve`・`Rect`は`fromJSON`と同形で`points`を写した値に置換、`id`を引き継ぐ）。クラスJSDocを19メソッドへ、先頭の責務定義に「変形を当てた新しい図形の生成」を追記、`applyAffineTransformToPoint`をimport。
+    *   テスト：`ShapeGeometry.test.js`（3件）、`Line`・`Curve`・`Rect`の各`test`に`createTransformed`の6件（倍率・変形後の`toDrawElement()`・裏返し・不変/非共有・独立性・回転）を追加。先頭の責務定義も追記。`node --test`：tests 2088 / suites 341 全件合格。
+    *   diff監査の指摘で修正：`ShapeGeometry.js`の先頭の責務定義に「点へのアフィン変換（変形の式の唯一の箇所）」を追記（3行のまま）。独立性のテストは期待値を固定の座標で比べる形に直した（`second`は変換のみ、`first`は変換後に`translate(100, 100)`した値）。変形後の`toDrawElement()`（座標・線の太さ・色・`fillColor`）を確かめるケースを3クラスに1件ずつ追加（2085→2088）。
 
 ### タスク2: 要件A 第19メソッド（円・弧・パス）とテスト
 *   **作業内容** :

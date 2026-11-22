@@ -1,9 +1,9 @@
 /**
- * 責務: 共通モジュールShapeGeometryのうち多角形の内側の判定（isPointInPolygonNonzero）・3次ベジェの点・曲線の区間の制御点を、公開APIのみを通して検証する。
+ * 責務: 共通モジュールShapeGeometryのうち多角形の内側の判定（isPointInPolygonNonzero）・3次ベジェの点・曲線の区間の制御点・点へのアフィン変換（applyAffineTransformToPoint）を、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { isPointInPolygonNonzero, cubicBezierPoint, computeSmoothSegmentControls } from '../../js/shapes/ShapeGeometry.js';
+import { applyAffineTransformToPoint, isPointInPolygonNonzero, cubicBezierPoint, computeSmoothSegmentControls } from '../../js/shapes/ShapeGeometry.js';
 
 /**
  * 頂点の座標の組から点の配列を作る。
@@ -374,5 +374,28 @@ describe('computeSmoothSegmentControls 角の点（Phase 09-02a）', () => {
         const snapshot = JSON.stringify([P5, flags, corners]);
         computeSmoothSegmentControls(P5, flags, false, corners);
         assert.equal(JSON.stringify([P5, flags, corners]), snapshot);
+    });
+});
+
+describe('applyAffineTransformToPoint', () => {
+    it('拡大・裏返し・平行移動を当てる（動かない点は固定）', () => {
+        const t = { a: 2, b: 0, c: 0, d: -1, e: 10, f: 20 };
+        assert.deepEqual(applyAffineTransformToPoint(t, { x: 3, y: 4 }), { x: 16, y: 16 });
+        // 動かない点(5, 5)を固定した横2倍・縦裏返し
+        const fixed = { a: 2, b: 0, c: 0, d: -1, e: 5 - 2 * 5, f: 5 + 5 };
+        assert.deepEqual(applyAffineTransformToPoint(fixed, { x: 5, y: 5 }), { x: 5, y: 5 });
+    });
+    it('回転を含む一般の変換（90度）を当てる', () => {
+        const t = { a: 0, b: 1, c: -1, d: 0, e: 0, f: 0 };
+        assert.deepEqual(applyAffineTransformToPoint(t, { x: 1, y: 0 }), { x: 0, y: 1 });
+        assert.deepEqual(applyAffineTransformToPoint(t, { x: 0, y: 1 }), { x: -1, y: 0 });
+    });
+    it('新しいオブジェクトを返し、引数を書き換えない', () => {
+        const t = { a: 1, b: 0, c: 0, d: 1, e: 1, f: 1 };
+        const p = { x: 2, y: 3 };
+        const r = applyAffineTransformToPoint(t, p);
+        assert.notEqual(r, p);
+        assert.deepEqual(p, { x: 2, y: 3 });
+        assert.deepEqual(t, { a: 1, b: 0, c: 0, d: 1, e: 1, f: 1 });
     });
 });

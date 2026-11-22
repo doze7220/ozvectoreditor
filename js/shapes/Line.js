@@ -1,8 +1,8 @@
 /**
- * 責務: 直線のデータ保持・Canvasへの描画処理・当たり判定、および図形データとの相互変換と描画要素（スプライトの書き出し用）への変換を担う。
+ * 責務: 直線のデータ保持・Canvasへの描画処理・当たり判定、図形データとの相互変換、描画要素（スプライトの書き出し用）への変換、および変形（アフィン変換）を当てた新しい図形の生成を担う。
  */
 
-import { distanceToSegment, segmentIntersectsRect } from './ShapeGeometry.js';
+import { applyAffineTransformToPoint, distanceToSegment, segmentIntersectsRect } from './ShapeGeometry.js';
 import { validateShapeData } from './ShapeDataValidation.js';
 
 /**
@@ -13,8 +13,8 @@ const LINE_POINT_COUNT = 2;
 
 /**
  * 直線の図形クラス（図形種別`'line'`）。頂点は`x1, y1`＝始点、`x2, y2`＝終点として保持する。
- * 共通メソッド契約（18メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（19メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames・createTransformed）を自律実装する。座標はすべてワールド座標。
  */
 export class Line {
     /**
@@ -348,6 +348,21 @@ export class Line {
         const [start, end] = data.points;
         const line = new Line(start.x, start.y, end.x, end.y, style.strokeColor, style.strokeWidth, style.fillColor);
         line.id = data.id;
+        return line;
+    }
+
+    /**
+     * アフィン変換を当てた新しいLineを返す（共通メソッド契約の第19メソッド）。自身は変えない。
+     * 戻り値は自身と配列・頂点のオブジェクトを共有しない。`type`・`id`（そのまま）・`strokeColor`・`strokeWidth`・`fillColor`は自身と同じ
+     * （線の太さは変えない）。`transform`の検証はしない（呼び出し側の責任）。
+     * @param {import('./ShapeGeometry.js').AffineTransform} transform - 当てる変換（点`(x, y)`→`(a·x + c·y + e, b·x + d·y + f)`）
+     * @returns {Line} 変換を当てた新しい図形
+     */
+    createTransformed(transform) {
+        const start = applyAffineTransformToPoint(transform, { x: this.x1, y: this.y1 });
+        const end = applyAffineTransformToPoint(transform, { x: this.x2, y: this.y2 });
+        const line = new Line(start.x, start.y, end.x, end.y, this.strokeColor, this.strokeWidth, this.fillColor);
+        line.id = this.id;
         return line;
     }
 }

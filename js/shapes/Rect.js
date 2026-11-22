@@ -1,9 +1,9 @@
 /**
  * 責務: 矩形（4頂点独立構造）のデータ保持・Canvasへの描画処理・当たり判定、
- * および図形データとの相互変換と描画要素（スプライトの書き出し用）への変換を担う。
+ * 図形データとの相互変換、描画要素（スプライトの書き出し用）への変換、および変形（アフィン変換）を当てた新しい図形の生成を担う。
  */
 
-import { distanceToSegment, segmentIntersectsRect, isPointInPolygonNonzero } from './ShapeGeometry.js';
+import { applyAffineTransformToPoint, distanceToSegment, segmentIntersectsRect, isPointInPolygonNonzero } from './ShapeGeometry.js';
 import { validateShapeData } from './ShapeDataValidation.js';
 
 /**
@@ -14,8 +14,8 @@ const RECT_POINT_COUNT = 4;
 
 /**
  * 矩形の図形クラス（図形種別`'rect'`）。頂点は`points[0]`＝topLeft、`[1]`＝topRight、`[2]`＝bottomRight、`[3]`＝bottomLeft（4頂点独立）。
- * 共通メソッド契約（18メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（19メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames・createTransformed）を自律実装する。座標はすべてワールド座標。
  */
 export class Rect {
     /**
@@ -368,5 +368,19 @@ export class Rect {
         rect.points = data.points.map((point) => ({ x: point.x, y: point.y }));
         rect.id = data.id;
         return rect;
+    }
+
+    /**
+     * アフィン変換を当てた新しいRectを返す（共通メソッド契約の第19メソッド）。自身は変えない。
+     * 戻り値は自身と配列・頂点のオブジェクトを共有しない。`type`・`id`（そのまま）・`strokeColor`・`strokeWidth`・`fillColor`は自身と同じ
+     * （線の太さは変えない）。`transform`の検証はしない（呼び出し側の責任）。
+     * @param {import('./ShapeGeometry.js').AffineTransform} transform - 当てる変換（点`(x, y)`→`(a·x + c·y + e, b·x + d·y + f)`）
+     * @returns {Rect} 変換を当てた新しい図形
+     */
+    createTransformed(transform) {
+        const transformed = new Rect(this.points[0].x, this.points[0].y, this.points[2].x, this.points[2].y, this.strokeColor, this.strokeWidth, this.fillColor);
+        transformed.points = this.points.map((point) => applyAffineTransformToPoint(transform, point));
+        transformed.id = this.id;
+        return transformed;
     }
 }
