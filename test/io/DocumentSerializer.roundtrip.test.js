@@ -539,10 +539,10 @@ describe('塗り・線なしの往復（作業データの版2）', () => {
         });
     }
 
-    it('serializeの version が 2 である', (t) => {
+    it('serializeの version が 3 である', (t) => {
         silenceWarn(t);
-        assert.equal(DocumentSerializer.serialize(makeFillStrokeShapes()).version, 2);
-        assert.equal(JSON.parse(DocumentSerializer.serializeToString(makeFillStrokeShapes())).version, 2);
+        assert.equal(DocumentSerializer.serialize(makeFillStrokeShapes()).version, 3);
+        assert.equal(JSON.parse(DocumentSerializer.serializeToString(makeFillStrokeShapes())).version, 3);
     });
 });
 
@@ -645,10 +645,10 @@ describe('区間の切り替えで作った図形の往復（Phase 09-02b）', (
         }
     }
 
-    it('作業データの版は2のまま・図形データのキーは増えない', () => {
+    it('作業データの版は3のまま・図形データのキーは増えない', () => {
         const path = switched(new Path(openPoints, false, '#102030', 3), [0, 1, 2], SegmentKindSwitch.TO_CURVE);
         const doc = DocumentSerializer.serialize([path]);
-        assert.equal(doc.version, 2);
+        assert.equal(doc.version, 3);
         assert.deepStrictEqual(Object.keys(doc.shapes[0]), [
             'type', 'id', 'points', 'closed', 'segments', 'corners', 'strokeColor', 'strokeWidth', 'fillColor',
         ]);
@@ -700,7 +700,7 @@ describe('曲がり方を持つ区間を含むパスの往復（Phase 09-03a）'
         }
     }
 
-    it('今の曲線と直線を結合した結果が往復で保たれ、作業データの版は2のまま', (t) => {
+    it('今の曲線と直線を結合した結果が往復で保たれ、作業データの版は3のまま', (t) => {
         const warn = silenceWarn(t);
         const curve = new Curve(0, 0, 60, 0);
         curve.setVertex(1, 30, 60);
@@ -717,8 +717,8 @@ describe('曲がり方を持つ区間を含むパスの往復（Phase 09-03a）'
             assertRestoredWithPaths(result, [joined]);
             assert.deepStrictEqual(result.shapes[0].toJSON(), joined.toJSON());
         }
-        assert.equal(DocumentSerializer.serialize([joined]).version, 2);
-        assert.equal(JSON.parse(DocumentSerializer.serializeToString([joined])).version, 2);
+        assert.equal(DocumentSerializer.serialize([joined]).version, 3);
+        assert.equal(JSON.parse(DocumentSerializer.serializeToString([joined])).version, 3);
         assert.equal(warn.mock.callCount(), 0);
     });
 });
@@ -776,7 +776,7 @@ describe('弧を結合した結果の往復（Phase 09-03b）', () => {
     ];
     for (const state of states) {
         for (const route of ROUTES) {
-            it(`${state.name}が保たれ、作業データの版は2のまま（${route.name}）`, (t) => {
+            it(`${state.name}が保たれ、作業データの版は3のまま（${route.name}）`, (t) => {
                 const warn = silenceWarn(t);
                 const path = state.build();
                 path.id = 'joined-arc';
@@ -786,7 +786,7 @@ describe('弧を結合した結果の往復（Phase 09-03b）', () => {
                 assertRestoredWithPaths(result, [path]);
                 assert.deepStrictEqual(result.shapes[0].toJSON(), path.toJSON());
                 assert.deepStrictEqual(result.shapes[0].segments, path.segments);
-                assert.equal(DocumentSerializer.serialize([path]).version, 2);
+                assert.equal(DocumentSerializer.serialize([path]).version, 3);
                 assert.equal(warn.mock.callCount(), 0);
             });
         }
@@ -900,10 +900,10 @@ describe('拡大縮小（createTransformed）した図形の往復（Phase 10-01
         });
     });
 
-    it('変換後の図形の作業データは版2で、図形データのキーが増えない', (t) => {
+    it('変換後の図形の作業データは版3で、図形データのキーが増えない', (t) => {
         silenceWarn(t);
         const doc = DocumentSerializer.serialize(makeTransformedShapes());
-        assert.equal(doc.version, 2);
+        assert.equal(doc.version, 3);
         assert.deepStrictEqual(doc.shapes.map((s) => Object.keys(s)), [
             ['type', 'id', 'points', 'strokeColor', 'strokeWidth', 'fillColor'],
             ['type', 'id', 'points', 'strokeColor', 'strokeWidth', 'fillColor'],
@@ -920,5 +920,58 @@ describe('拡大縮小（createTransformed）した図形の往復（Phase 10-01
         const result = roundTripByObject(shapes);
         result.shapes.forEach((s) => s.translate(30, 40));
         assert.deepStrictEqual(shapes.map((s) => s.toJSON()), EXPECTED_JSON);
+    });
+});
+
+describe('回した図形の往復（Phase 10-02）', () => {
+    /**
+     * 回した5種の図形（円・弧・矩形・直線・パス）を作る。
+     * @param {{a: number, b: number, c: number, d: number, e: number, f: number}} transform - 当てる変換
+     * @returns {object[]} 変換後の図形
+     */
+    function makeRotatedShapes(transform) {
+        const sources = [
+            new Ellipse(100, 100, 130, 140, 'circle', '#102030', 3, '#aabbcc'),
+            new Ellipse(100, 100, 130, 140, 'arc', '#102030', 3),
+            ShapeFactory.create('rect', 10, 20, 70, 50),
+            ShapeFactory.create('line', 0, 0, 40, 30),
+            new Path([{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 40, y: 30 }], false, '#102030', 3),
+        ];
+        sources.forEach((s, i) => { s.id = `r-${i}`; });
+        return sources.map((s) => s.createTransformed(transform));
+    }
+
+    const ROTATIONS = [
+        { name: '90度', transform: { a: 0, b: 1, c: -1, d: 0, e: 150, f: -20 } },
+        { name: '30度', transform: { a: Math.cos(Math.PI / 6), b: Math.sin(Math.PI / 6), c: -Math.sin(Math.PI / 6), d: Math.cos(Math.PI / 6), e: 12.5, f: 7.25 } },
+    ];
+
+    for (const rotation of ROTATIONS) {
+        for (const route of ROUTES) {
+            it(`${rotation.name}回した円・弧・矩形・直線・パスの作業データの往復（${route.name}）`, (t) => {
+                const warn = silenceWarn(t);
+                const shapes = makeRotatedShapes(rotation.transform);
+                const result = route.run(shapes);
+                assert.equal(result.ok, true);
+                assert.deepStrictEqual(result.skipped, []);
+                assert.equal(result.shapes.length, shapes.length);
+                result.shapes.forEach((restored, i) => {
+                    assert.notStrictEqual(restored, shapes[i]);
+                    assert.equal(restored.constructor, shapes[i].constructor);
+                    assert.deepStrictEqual(restored.toJSON(), shapes[i].toJSON());
+                });
+                assert.deepStrictEqual(result.shapes.map((s) => s.toDrawElement()), shapes.map((s) => s.toDrawElement()));
+                assert.equal(warn.mock.callCount(), 0);
+            });
+        }
+    }
+
+    it('回した円・弧はserializeの版3のまま読み込み時に点を変えない', (t) => {
+        silenceWarn(t);
+        const shapes = makeRotatedShapes(ROTATIONS[1].transform).slice(0, 2);
+        const doc = DocumentSerializer.serialize(shapes);
+        assert.equal(doc.version, 3);
+        const result = DocumentSerializer.deserialize(structuredClone(doc));
+        assert.deepStrictEqual(result.shapes.map((s) => s.toJSON().points), doc.shapes.map((s) => s.points));
     });
 });

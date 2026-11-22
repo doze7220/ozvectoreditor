@@ -15,7 +15,16 @@ const DOCUMENT_FORMAT = 'oz-vector-editor';
  * シリアライズは常にこの版で出力し、デシリアライズは1〜この版までを受理する（旧版はMIGRATIONSで現行版へ変換する）。
  * @type {number}
  */
-const CURRENT_DOCUMENT_VERSION = 2;
+const CURRENT_DOCUMENT_VERSION = 3;
+
+/**
+ * 版2→3の変換で、弧の開始角の制御点（points[3]）がすでに約束の位置（左端）にあるとみなす許容量の比。
+ * エディタは左端を半径から`xc - rx`で求め、平行移動では全点に同じ量を足すため、保存された`points[3].x`と
+ * `c.x - |右端.x - c.x|`は数ulpずれ得る。ちょうどの比較では、エディタが作った今あるデータの値を書き換えてしまうため、
+ * この比（丸めの誤差より十分大きい）の範囲内なら値をそのまま写す。points[3]は版2・版3のどちらの読み方でも形に効かない。
+ * @type {number}
+ */
+const ARC_START_POINT_TOLERANCE_RATIO = 1e-9;
 
 /**
  * 版1の作業データを版2へ変換する（全図形を塗りなしにする）。
@@ -39,6 +48,71 @@ function migrateVersion1To2(doc) {
 }
 
 /**
+ * 値が有限の数値の`x`・`y`を持つプレーンオブジェクト（点）かを判定する。
+ * @param {*} value - 判定対象
+ * @returns {boolean} 点であればtrue
+ */
+function isFinitePoint(value) {
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+        && Number.isFinite(value.x) && Number.isFinite(value.y);
+}
+
+/**
+ * 版2の円・弧の図形データの5つの点を、版3の読み方に合う今の約束の位置へそろえる。
+ * 約束の位置＝points[0]中心、[1]右端(xc + rx, yc)、[2]上端(xc, yc - ry)、[4]右端、[3]は円で右端・弧で左端(xc - rx, yc)。
+ * rx = |p1.x - c.x|、ry = |p2.y - c.y|。すでに約束の位置にある右端・上端・弧のpoints[3]は値をそのまま写す（計算し直さない）。
+ * `type`が'circle'・'arc'でない・pointsが長さ5の配列でない・いずれかの点がx・yが有限の数値のプレーンオブジェクトでない場合は、
+ * そのまま返す（後段の図形単位の検証に任せる）。引数を書き換えない。throwしない。
+ * @param {*} item - 版2の図形データ（`shapes`の要素。任意の値）
+ * @returns {*} 版3へそろえた図形データ（新しいオブジェクト）。対象外なら引数そのもの
+ */
+function alignEllipsePointsForVersion3(item) {
+    if (typeof item !== 'object' || item === null || Array.isArray(item)) return item;
+    if (item.type !== 'circle' && item.type !== 'arc') return item;
+    if (!Array.isArray(item.points) || item.points.length !== 5 || !item.points.every(isFinitePoint)) return item;
+
+    const [c, p1, p2, p3] = item.points;
+    const rx = Math.abs(p1.x - c.x);
+    const ry = Math.abs(p2.y - c.y);
+
+    const right = (p1.x >= c.x && p1.y === c.y)
+        ? { x: p1.x, y: p1.y }
+        : { x: c.x + rx, y: c.y };
+    const top = (p2.y <= c.y && p2.x === c.x)
+        ? { x: p2.x, y: p2.y }
+        : { x: c.x, y: c.y - ry };
+
+    let startControl;
+    if (item.type === 'circle') {
+        startControl = { x: right.x, y: right.y };
+    } else {
+        const tolerance = ARC_START_POINT_TOLERANCE_RATIO * Math.max(1, Math.abs(c.x), rx);
+        const aligned = p3.y === c.y && p3.x <= c.x && Math.abs((c.x - p3.x) - rx) <= tolerance;
+        startControl = aligned ? { x: p3.x, y: p3.y } : { x: c.x - rx, y: c.y };
+    }
+
+    return {
+        ...item,
+        points: [{ x: c.x, y: c.y }, right, top, startControl, { x: right.x, y: right.y }],
+    };
+}
+
+/**
+ * 版2の作業データを版3へ変換する（円・弧の5つの点を今の約束の位置へそろえる）。
+ * 版3は円・弧の点を共役な半径として読む（回転・裏返しを表せる）ため、版2で見た目に効かなかった点の向きをそろえる。
+ * `shapes`が配列なら各要素を`alignEllipsePointsForVersion3`で写し、配列でなければその値をそのまま入れる。
+ * 引数（doc・doc.shapes・各要素）を書き換えない。throwしない。
+ * @param {Object} doc - 版2の作業データ（プレーンオブジェクト）
+ * @returns {Object} 版3の作業データ（新しいオブジェクト）
+ */
+function migrateVersion2To3(doc) {
+    const shapes = Array.isArray(doc.shapes)
+        ? doc.shapes.map(alignEllipsePointsForVersion3)
+        : doc.shapes;
+    return { ...doc, version: 3, shapes };
+}
+
+/**
  * 作業データ形式のマイグレーション表。
  * キー＝変換元の版n、値＝「版nの作業データ（プレーンオブジェクト）を受け取り、版n+1の作業データを新しいオブジェクトとして返す関数」。
  * 関数は引数を書き換えてはならない。変換できない場合はErrorをthrowしてよい（全体の読み込み失敗として扱う）。
@@ -49,18 +123,19 @@ function migrateVersion1To2(doc) {
  *   3. 図形クラスのtoJSON/fromJSONを新版の図形データへ更新する
  *      （図形クラスは常に現行版のみを扱い、旧版の知識はこのMIGRATIONSに閉じる）
  *
- * 現時点の登録: 版1→版2（migrateVersion1To2。全図形のfillColorをnullにする）。
+ * 現時点の登録: 版1→版2（migrateVersion1To2。全図形のfillColorをnullにする）、
+ * 版2→版3（migrateVersion2To3。円・弧の5つの点を今の約束の位置へそろえる）。
  * @type {Readonly<Object<number, (doc: Object) => Object>>}
  */
-const MIGRATIONS = Object.freeze({ 1: migrateVersion1To2 });
+const MIGRATIONS = Object.freeze({ 1: migrateVersion1To2, 2: migrateVersion2To3 });
 
 /**
- * 作業データ形式（現行版2）の最上位の形。
+ * 作業データ形式（現行版3）の最上位の形。
  * 図形データの形は`{ type, id, points, strokeColor, strokeWidth, fillColor }`（pathは`closed`・`segments`が加わり、角の点があるときだけ`corners`も加わる）。
  * strokeColorは色の文字列またはnull（線なし）、fillColorは色の文字列またはnull（塗りなし。キーが無ければnullとして読む）。
  * @typedef {Object} DocumentData
  * @property {string} format 作業データ形式の識別子（'oz-vector-editor'）
- * @property {number} version 作業データ形式の版番号（1以上の整数。シリアライズは常に現行版の2）
+ * @property {number} version 作業データ形式の版番号（1以上の整数。シリアライズは常に現行版の3）
  * @property {Array<Object>} shapes 図形データ（{ type, id, points, strokeColor, strokeWidth, fillColor }）の配列（描画順）
  */
 
