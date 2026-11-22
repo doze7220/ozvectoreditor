@@ -105,7 +105,7 @@ export function collectFrameCorners(bounds) {
 }
 
 /**
- * 外枠の中心の唯一の求め方（`((min + max) / 2`）。検証はしない。引数を書き換えず、毎回新しいオブジェクトを返す。
+ * 外枠の中心の唯一の求め方（`(min + max) / 2`）。検証はしない。引数を書き換えず、毎回新しいオブジェクトを返す。
  * @param {{minX: number, minY: number, maxX: number, maxY: number}} bounds 外枠
  * @returns {{x: number, y: number}} 中心（ワールド）
  */
