@@ -1,8 +1,9 @@
 /**
  * 責務: 選択（V）の外枠の角の外側の回転の範囲の当たり・回転のカーソルの絵と向きと、回した角度・回転の変換・回している間の外枠の位置の規則を、状態を持たない関数として提供する。
- * `ScaleHandleRules`（外枠の角・中心・ハンドルの当たり）と`shapes/ShapeGeometry`（点への変換）だけをimportする。DOM・図形・VectorModel・修飾キーの読み取り・座標のスナップを知らない。
+ * `ScaleHandleRules`（外枠の角・ハンドルの当たり）・`ReferencePointRules`（基準点の位置）と`shapes/ShapeGeometry`（点への変換）だけをimportする。DOM・図形・VectorModel・修飾キーの読み取り・座標のスナップを知らない。
  */
-import { SCALE_HANDLE_NAMES, hitTestScaleHandle, collectFrameCorners, computeFrameCenter } from './ScaleHandleRules.js';
+import { SCALE_HANDLE_NAMES, hitTestScaleHandle, collectFrameCorners } from './ScaleHandleRules.js';
+import { resolveReferencePointPosition } from './ReferencePointRules.js';
 import { applyAffineTransformToPoint } from '../shapes/ShapeGeometry.js';
 
 /**
@@ -162,12 +163,14 @@ export function resolveRotationCursor(corner) {
 }
 
 /**
- * 回転の中心（引き始めの外枠の中心）を返す。式は`ScaleHandleRules.computeFrameCenter`の1か所（写さない）。
+ * 回転の中心（引き始めの外枠の上の基準点）を返す。位置の求め方は`ReferencePointRules.resolveReferencePointPosition`の1か所（写さない）。
+ * 基準点を省く・`null`・基準点の名前でない値は外枠の中心（`computeFrameCenter(frame.bounds)`と同じ値）。
  * @param {import('./ScaleHandleRules.js').ScaleFrame} frame 押下時の外枠
- * @returns {{x: number, y: number}} 中心（ワールド。新しいオブジェクト）
+ * @param {string|null} [referencePoint] 基準点の名前（`REFERENCE_POINT`の値）
+ * @returns {{x: number, y: number}} 回転の中心（ワールド。新しいオブジェクト）
  */
-export function computeRotationCenter(frame) {
-    return computeFrameCenter(frame.bounds);
+export function computeRotationCenter(frame, referencePoint) {
+    return resolveReferencePointPosition(frame.bounds, referencePoint);
 }
 
 /**

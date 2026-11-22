@@ -14,7 +14,8 @@ import {
     rotateScaleFrame,
     resolveDisplayedScaleFrame
 } from '../../js/core/RotationRules.js';
-import { collectScaleFrame } from '../../js/core/ScaleHandleRules.js';
+import { collectScaleFrame, computeFrameCenter } from '../../js/core/ScaleHandleRules.js';
+import { applyAffineTransformToPoint } from '../../js/shapes/ShapeGeometry.js';
 import { OperationMode } from '../../js/core/InputModes.js';
 
 const frameOf = (minX, minY, maxX, maxY, scale = 1) => collectScaleFrame(OperationMode.SELECT, { minX, minY, maxX, maxY }, scale);
@@ -111,6 +112,35 @@ describe('computeRotationCenter', () => {
         const c = computeRotationCenter(frame);
         assert.deepEqual(c, { x: 30, y: 60 });
         assert.notEqual(c, computeRotationCenter(frame));
+    });
+
+    test('9か所の基準点の位置', () => {
+        const frame = frameOf(10, 20, 50, 100);
+        const expected = {
+            nw: { x: 10, y: 20 }, n: { x: 30, y: 20 }, ne: { x: 50, y: 20 },
+            w: { x: 10, y: 60 }, center: { x: 30, y: 60 }, e: { x: 50, y: 60 },
+            sw: { x: 10, y: 100 }, s: { x: 30, y: 100 }, se: { x: 50, y: 100 }
+        };
+        for (const [name, position] of Object.entries(expected)) {
+            assert.deepEqual(computeRotationCenter(frame, name), position, name);
+        }
+    });
+
+    test('第2引数を省く・null・未知の名前は外枠の中心', () => {
+        const frame = frameOf(10, 20, 50, 100);
+        const center = computeFrameCenter(frame.bounds);
+        assert.deepEqual(computeRotationCenter(frame), center);
+        assert.deepEqual(computeRotationCenter(frame, null), center);
+        assert.deepEqual(computeRotationCenter(frame, 'unknown'), center);
+    });
+
+    test('左上を基準点にした回転で左上の角が動かない', () => {
+        const frame = frameOf(10, 20, 50, 100);
+        const transform = toRotationTransform(computeRotationCenter(frame, 'nw'), 90 * DEG);
+        const moved = applyAffineTransformToPoint(transform, { x: 10, y: 20 });
+        assert.deepEqual(moved, { x: 10, y: 20 });
+        const other = applyAffineTransformToPoint(transform, { x: 50, y: 20 });
+        assert.deepEqual(other, { x: 10, y: 60 });
     });
 });
 

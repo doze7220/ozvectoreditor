@@ -164,7 +164,7 @@ REQの要件と本計画の設計の対応：要件1（2行）＝要件A、要�
         *   コード修正完了後、JSDocコメントの記載漏れがないこと（新しい・変えた関数・メソッド・typedef・定数、先頭の責務定義）を確認する。
         *   開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る場合は、資料本体は修正せず、その旨を『開発資料の更新予定』欄に追記する。
         *   タスク完了後、作業レポート（本RES）の「4. 詳細作業内容」の本タスクの欄を記載し完成させ、本タスクを`[x]`にする。
-*   [ ] タスク3: 要件F 回転の中心を基準点にする（`RotationRules.computeRotationCenter`の第2引数）とテスト
+*   [x] タスク3: 要件F 回転の中心を基準点にする（`RotationRules.computeRotationCenter`の第2引数）とテスト
     *   **対象ファイル** :
         *   `./js/core/RotationRules.js` : 更新（`computeRotationCenter`・import・先頭の責務定義・JSDoc）
         *   `./test/core/RotationRules.test.js` : 更新（ケースの追加のみ）
@@ -298,7 +298,9 @@ REQの要件と本計画の設計の対応：要件1（2行）＝要件A、要�
 
 ### タスク3: 要件F 回転の中心を基準点にする（`RotationRules.computeRotationCenter`の第2引数）とテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/RotationRules.js`：`computeRotationCenter(frame, referencePoint)`の本体を`resolveReferencePointPosition(frame.bounds, referencePoint)`に変更。`./ReferencePointRules.js`のimportを追加し、使わなくなった`computeFrameCenter`を`./ScaleHandleRules.js`のimportから外した。先頭の責務定義（import先の列挙）と関数のJSDocを更新。ほかの関数は未変更。
+    *   `test/core/RotationRules.test.js`：ケースを3つ追加（9か所の基準点・第2引数省略/null/未知は中心・左上基準の90°回転で左上の角が動かない）。import に`computeFrameCenter`・`applyAffineTransformToPoint`を追加。既存ケースは未変更。
+    *   `node --test`：tests 2406 / suites 399 / pass 2406 / fail 0。
 
 ### タスク4: 要件F `InputTracker`の入力の補助`getReferencePoint`
 *   **作業内容** :
