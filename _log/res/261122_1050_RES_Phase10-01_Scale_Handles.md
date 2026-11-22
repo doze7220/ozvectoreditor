@@ -202,6 +202,7 @@
 *   **`_doc/arch/`**：`42_ScaleHandleRules.md`（新規）・`06_InputTracker.md`（`SCALING_SELECTION`・`#scaleDrag`・`isScalingSelection`・`InputAssist`の5項目目・修飾キーの項・`cancelDraftOrClearSelection`(1)・行数）・`12_shapes.md`（19メソッド契約・`createTransformed`の契約と各クラス・`ShapeGeometry.applyAffineTransformToPoint`）・`03_VectorModel.md`（`replaceShapesKeepingIds`）・`04_CanvasManager.md`（`scaleFrame`・描画順・定数）・`14_edit.md`（`getSelectedGeometryBounds`・生成箇所）・`15_io.md`（`computeShapesGeometryBounds`・`#computeBounds`の引数）・`16_test.md`（新しいテストファイルと件数。`test/core/KeyboardShortcuts.test.js`の範囲に`findCancelableDragBinding`を足し、`#handleKeyDown`を通した修飾キー付きの`Esc`はテストできない箇所としてテストプレイで確かめる旨）・`30_UnitSnapRules.md`（使う側に`ScaleHandleRules`）・`32_InputModes.md`（`SCALING_SELECTION`）・`34_PressActionRules.md`（順0・第3引数）・`35_CursorShapeRules.md`（(3b)・`scaleHandle`・import）・`07_KeyboardShortcuts.md`（手順3・5の例外・`findCancelableDragBinding`・`CANCEL_BINDING`・修飾キーを問わないこと・`isCancelableDrag`）・`09_DragTracker.md`（`cancel`の省ける引数）・`02_main.md`（`shapeExtentReader`の生成位置・`getSelectionFrameBounds`・`scaleFrame`・`isCancelableDrag`の注入・生成順）。
 *   **1章（タスク1で判明）**：構成図の`ShapeGeometry`の説明に`applyAffineTransformToPoint`（点へのアフィン変換。変形の式の唯一の箇所。Phase 10-01）を足す。
 *   **1章・`_doc/arch/15_io.md`・`14_edit.md`（タスク3で判明）**：`SpriteSerializer`の責務に線を含まない外枠の照会（`computeShapesGeometryBounds`・`#computeBounds`の`includeStroke`引数）、`ShapeExtentReader`に`getSelectedGeometryBounds`を足す（既に上の2章・`_doc/arch/`の項に概ね記載あり）。
+*   **`_doc/arch/03_VectorModel.md`（タスク4で判明）**：公開メソッド`replaceShapesKeepingIds(replacements)`（複数図形を同じidのまま位置へ差し替え・通知1回・別の位置のインスタンスは警告して飛ばす・選択集合とホバーと並びと`#nextId`に触れない・呼び出し元は`InputTracker`の拡大縮小のみ）を、公開メソッドの一覧・`replaceShape`との違いの説明に足す。`PROJECT_ARCHITECTURE.md`のVectorModelの公開メソッドの記述があれば同様。
 *   （各タスクの実行時に判明した分はここへ追記する。）
 
 ## 3. タスクリスト
@@ -237,7 +238,7 @@
         *   コード修正完了後、JSDocコメントの記載漏れがないこと（新しい・変えた関数・メソッド・typedef・定数、先頭の責務定義）を確認する。
         *   開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る場合は、資料本体は修正せず、その旨を『開発資料の更新予定』欄に追記する。
         *   タスク完了後、作業レポート（本RES）の「4. 詳細作業内容」の本タスクの欄を記載し完成させ、本タスクを`[x]`にする。
-*   [ ] タスク4: 要件D モデルの入口`replaceShapesKeepingIds`とテスト
+*   [x] タスク4: 要件D モデルの入口`replaceShapesKeepingIds`とテスト
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js` : 更新（`replaceShapesKeepingIds`）
         *   `./test/core/VectorModel.replaceShapesKeepingIds.test.js` : 新規
@@ -368,7 +369,9 @@
 
 ### タスク4: 要件D モデルの入口`replaceShapesKeepingIds`とテスト
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/core/VectorModel.js`：公開メソッド`replaceShapesKeepingIds(replacements)`を`replaceShape`の後に追加（配列でなければ`console.warn`して`0`。作業用の配列のコピー上で、組の順に`id`の位置へ`shape`を入れ`shape.id = id`、`id`なしの組は飛ばし、別の位置に既にあるインスタンスは`console.warn`して飛ばす・同じ位置の同じインスタンスは差し替えた扱い。1件以上で`#pruneSelectedVertices()`の後に通知1回、0件は通知なし。戻り値は件数）。図形種別・固有プロパティは持ち込まず、`id`の代入以外で図形に触れない。JSDocを手順・触れないもの・呼び出し側の責務まで記載。クラスJSDocに差し替えの入口の1行を追記（先頭の責務定義は3行のまま変更なし）。ファイルはLFのまま。
+    *   テスト：`test/core/VectorModel.replaceShapesKeepingIds.test.js`（新規・13件）。複数の差し替えが通知1回・位置とidの保持・選択集合／頂点の選択／ホバーの不変・存在しないidの飛ばし（混在・のみ）・別の位置のインスタンスの警告（のみ・混在）・同じ位置の同じインスタンス・配列でない引数（`null`・オブジェクト）・空配列で通知なし・引き始めのインスタンスへ戻せる・`#nextId`不変（次の採番が`shape-3`）・引数不変。期待値は固定値。`node --test`：tests 2138 / suites 345 全件合格（作業前2125→+13）。
+    *   監査指摘の修正：クラスJSDoc（`VectorModel.js:79`）の`replaceShape`の説明を「既定では新しいidを採番する」に直した（`options.keepId`との整合）。`node --test`全件合格（2138）。
 
 ### タスク5: 要件C 外枠のハンドルの規則`ScaleHandleRules`とテスト
 *   **作業内容** :

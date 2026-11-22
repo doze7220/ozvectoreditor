@@ -76,6 +76,7 @@ const ID_PATTERN = new RegExp(`^${ID_PREFIX}(\\d+)$`);
  * 状態を変更するAPIは変更後にonChangeの登録リスナーへ通知する。図形idの採番（`shape-<連番>`）も本クラスが担う。
  * 図形の生成はShapeFactoryへ委譲する（復元は`DocumentSerializer`→`ShapeFactory.fromJSON`が行い、本クラスは復元済みの図形一式を受け取るのみ）。図形固有の頂点構造には依存しない（ポリモーフィック呼び出しのみ）。
  * 新しく描く図形のスタイル（直前に使った値）も保持する（作業データ・履歴のスナップショットには含まれない）。
+ * 図形の差し替えの入口として、既定では新しいidを採番する`replaceShape`・並びを変えない`replaceShapesKeepingIds`（複数・同じidのまま・通知1回）を持つ。
  * 図形のスタイルについては、共通プロパティの`strokeColor`・`strokeWidth`・`fillColor`の3つだけを書く（図形固有のプロパティ名は知らない）。
  */
 export class VectorModel {
@@ -794,6 +795,52 @@ export class VectorModel {
         this.#pruneSelectedVertices();
         this.#notifyChange();
         return shape.id;
+    }
+
+    /**
+     * 複数の図形を、同じidのまま、それぞれの位置へ新しい図形インスタンスで差し替える（拡大縮小のドラッグの追従と中断で呼ぶ）。
+     * (1)`replacements`が配列でなければ、console.warnのうえ何もせず（通知もせず）0を返す。
+     * (2)配列の順に、各組の`id`の図形の位置へ`shape`を入れ、`shape.id`を`id`にする。
+     *    `id`の図形が無い組は飛ばす。`shape`が`id`の図形とは別の位置に既にあるインスタンスなら、
+     *    同じidの2要素を作らないためconsole.warnのうえ飛ばす（同じ位置の同じインスタンスは差し替えた扱いで件数に数える）。
+     * (3)1件以上差し替えたら、頂点の選択から選択中でなくなった図形の組を落とし（idが同じため通常は何も落ちない）、
+     *    変更を通知する（1回。組の数分は発行しない）。0件なら通知しない。
+     * 触れないもの：選択集合・ホバー（idが同じため）・作成中の図形・選択矩形・吸い付きの表示の点・新しく描く図形のスタイル
+     * （直前に使った値）・idの採番（#nextId）・図形の並び。履歴の記録（beginEdit/commitEdit）は呼び出し側の責務。
+     * 図形インスタンスには`id`の代入以外で触れない（図形種別・頂点・図形固有のプロパティを関知しない）。
+     * 受け取ったインスタンスをそのまま保持するため、呼び出し側は差し替え後にそのインスタンスを他の用途に流用しない。
+     * 引数の配列・要素は書き換えない。
+     * @param {Array<{ id: string, shape: Object }>} replacements 差し替える図形のidと、入れる図形（共通インターフェースを持つ図形インスタンス）の組
+     * @returns {number} 差し替えた図形の件数
+     */
+    replaceShapesKeepingIds(replacements) {
+        if (!Array.isArray(replacements)) {
+            console.warn('VectorModel.replaceShapesKeepingIds: 配列ではない引数のため、何も差し替えません。', replacements);
+            return 0;
+        }
+        const nextShapes = [...this.#shapes];
+        let count = 0;
+        for (const { id, shape } of replacements) {
+            const index = nextShapes.findIndex((s) => s.id === id);
+            if (index === -1) {
+                continue;
+            }
+            const existingIndex = nextShapes.indexOf(shape);
+            if (existingIndex !== -1 && existingIndex !== index) {
+                console.warn('VectorModel.replaceShapesKeepingIds: 別の位置に既にある図形インスタンスのため差し替えません。', shape);
+                continue;
+            }
+            shape.id = id;
+            nextShapes[index] = shape;
+            count++;
+        }
+        if (count === 0) {
+            return 0;
+        }
+        this.#shapes = nextShapes;
+        this.#pruneSelectedVertices();
+        this.#notifyChange();
+        return count;
     }
 
     /**
