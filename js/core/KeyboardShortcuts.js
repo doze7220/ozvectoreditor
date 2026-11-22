@@ -10,9 +10,9 @@ import { isTextInputElement, isSpaceOperatedInputElement } from './FocusKeyYield
 
 /**
  * 対応表エントリのShift規則（3値）。本ファイル内でのみ用いる（exportしない）。
- * ・FORBIDDEN：shiftKeyが偽であること（通常のショートカット。Ctrl+Shift+V・Shift+矢印以外のShift+V等は将来のShift併用操作のために予約）
+ * ・FORBIDDEN：shiftKeyが偽であること（通常のショートカット）
  * ・ANY：shiftKeyを問わない（拡大・縮小。JIS配列のCtrl+Shift+;、US配列のCtrl+Shift+=に対応するため）
- * ・REQUIRED：shiftKeyが真であること（Ctrl+Shift+Zのやり直し、Ctrl+Shift+Vの同じ位置に貼り付け、Shift+矢印キーの10px微調整）
+ * ・REQUIRED：shiftKeyが真であること（Ctrl+Shift+Zのやり直し、Ctrl+Shift+Vの同じ位置に貼り付け、Shift+矢印キーの10px微調整、Shift+H・Shift+Vの反転）
  * @readonly
  * @enum {string}
  */
@@ -95,6 +95,10 @@ const ShiftRule = Object.freeze({
  *     （ドラッグ中・キーリピートは受理判定により呼ばれない）
  * @property {(delta: {dx: number, dy: number}) => boolean} nudgeSelection 選んでいる図形または頂点を、受け取った移動量（ワールド座標のpx）だけ動かす。
  *     動かした場合のみtrue（動かす対象がないときはfalse＝ブラウザ側の既定の動きを妨げない）
+ * @property {() => boolean} flipHorizontal 選んでいる図形を、基準点を通る縦の線を軸に左右に反転する（Shift+H。オプションバーの横の反転のボタンと同一経路）。
+ *     反転した場合のみtrue（選択（V）で図形を選んでいない・外枠が求まらない・ドラッグ中はfalse＝preventDefault()しない）
+ * @property {() => boolean} flipVertical 選んでいる図形を、基準点を通る横の線を軸に上下に反転する（Shift+V。オプションバーの縦の反転のボタンと同一経路）。
+ *     反転した場合のみtrue（選択（V）で図形を選んでいない・外枠が求まらない・ドラッグ中はfalse＝preventDefault()しない）
  */
 
 /**
@@ -124,11 +128,12 @@ const NUDGE_DIRECTIONS = Object.freeze([
  * ・同一のcode・修飾キーの組み合わせに一致するエントリが2件以上存在しないこと（#findBindingは最初の一致を返す）。
  * ・新しいショートカットはエントリの追加（＋必要なら注入コールバックの追加）で対応する。
  * ・修飾キー規則：Shiftはshiftプロパティの3値（ShiftRule）で指定する。通常はFORBIDDEN、拡大・縮小のみANY、
- *   やり直しのCtrl+Shift+Zと同じ位置に貼り付けのCtrl+Shift+V、10px微調整のShift+矢印キー（4つ）のみREQUIRED。
+ *   やり直しのCtrl+Shift+Zと同じ位置に貼り付けのCtrl+Shift+V、10px微調整のShift+矢印キー（4つ）、反転のShift+H・Shift+VのみREQUIRED。
  *   矢印キー（ArrowLeft・ArrowRight・ArrowUp・ArrowDown）はShiftの有無で1px（FORBIDDEN）と10px（REQUIRED）に排他的に分かれる
  *   （ctrl: falseのみ。Ctrl付き・Alt付きの矢印キーは一致せず、ブラウザ・OSの操作のまま）。KeyZはShiftの有無で取り消し（FORBIDDEN）とやり直し（REQUIRED）に排他的に分かれる。
- *   KeyVはctrlの値とShift規則でV単体（ctrl: false。選択モードへの切り替え）・Ctrl+V（ctrl: true・FORBIDDEN。貼り付け）・
- *   Ctrl+Shift+V（ctrl: true・REQUIRED。同じ位置に貼り付け）の3通りに排他的に区別される（Shift+V単体はctrl: falseのFORBIDDENと一致せず予約のまま）。
+ *   KeyVはctrlの値とShift規則でV単体（ctrl: false・FORBIDDEN。選択モードへの切り替え）・Ctrl+V（ctrl: true・FORBIDDEN。貼り付け）・
+ *   Ctrl+Shift+V（ctrl: true・REQUIRED。同じ位置に貼り付け）・Shift+V（ctrl: false・REQUIRED。縦に反転）の4通りに排他的に区別される。
+ *   KeyHはShiftの有無でH単体（FORBIDDEN。キャンバス移動への切り替え）とShift+H（REQUIRED。横に反転）の2通りに排他的に分かれる（ctrl: falseのみ。Ctrl+Hは一致しない）。
  *   KeyIはctrlの値でI単体（ctrl: false。スポイトの待ち受けを始める）とCtrl+I（ctrl: true。選択の反転）に排他的に分かれる（いずれもFORBIDDEN）。
  *   KeyDはctrlの値でD単体（ctrl: false。線を黒・塗りを白にする）とCtrl+D（ctrl: true。複製）に排他的に分かれる（いずれもFORBIDDEN）。
  *   KeyZ・KeyX・KeyCも同様にctrlの値で区別される（Z・X・C単体＝表示の切り替え：ctrl: false、Ctrl+Z（取り消し）・Ctrl+X（切り取り）・Ctrl+C（コピー）：ctrl: true）。
@@ -138,7 +143,7 @@ const NUDGE_DIRECTIONS = Object.freeze([
  *   色の欄（手順4）にフォーカスがある間は何もせず、ブラウザのフォーカスの移動になる。ボタン・フォーカスなしでは実行され、
  *   受理するためpreventDefault()されてフォーカスは移らない。Shift+Tabは一致せず（FORBIDDEN）ブラウザのフォーカスの移動、
  *   Ctrl+Tabはctrlが一致せず、Alt+Tabは#findBindingがnullを返す。
- * ・index.htmlの各ボタンのtitle属性（例：「選択 (V)」）はこの表と手動で一致させている。
+ * ・index.htmlの各ボタンのtitle属性（例：「選択 (V)」「横に反転 (Shift+H)」）はこの表と手動で一致させている。
  * @type {ReadonlyArray<Readonly<ShortcutBinding>>}
  */
 const SHORTCUT_BINDINGS = Object.freeze([
@@ -203,6 +208,10 @@ const SHORTCUT_BINDINGS = Object.freeze([
         action: 'nudgeSelection',
         arg: Object.freeze({ dx: direction.x * step, dy: direction.y * step }),
     }))),
+    // 反転（Shift+H＝横に反転、Shift+V＝縦に反転）。H（キャンバス移動）・V（選択）とはShift規則で、Ctrl+V・Ctrl+Shift+Vとはctrlの値で排他的。
+    // キーリピートでは実行しない。actionを2つに分けるのはcore/がedit/の反転の軸（FLIP_AXIS）を知らないため（main.jsがperformFlipへつなぐ）
+    { codes: ['KeyH'], ctrl: false, shift: ShiftRule.REQUIRED, repeatable: false, action: 'flipHorizontal' },
+    { codes: ['KeyV'], ctrl: false, shift: ShiftRule.REQUIRED, repeatable: false, action: 'flipVertical' },
 ].map((binding) => Object.freeze(binding)));
 
 /**
@@ -324,8 +333,7 @@ export class KeyboardShortcuts {
      * ・Meta（⌘）はCtrlと同一視する（macOS対応）。ctrl: trueはctrlKey || metaKeyが真、ctrl: falseは両方が偽であること。
      * ・Shift：エントリのshift（ShiftRule）の3値で判定する。FORBIDDENはshiftKeyが偽であること、
      *   ANY（拡大・縮小のみ）はshiftKeyを問わない（JIS配列のCtrl+Shift+;、US配列のCtrl+Shift+=に対応するため）、
-     *   REQUIRED（やり直しのCtrl+Shift+Zと同じ位置に貼り付けのCtrl+Shift+V、10px微調整のShift+矢印キーのみ）はshiftKeyが真であること。
-     *   上記以外のShift+V等は引き続き不一致であり、将来のShift併用操作のために予約する。
+     *   REQUIRED（やり直しのCtrl+Shift+Zと同じ位置に貼り付けのCtrl+Shift+V、10px微調整のShift+矢印キー、反転のShift+H・Shift+Vのみ）はshiftKeyが真であること。
      * @param {KeyboardEvent} event
      * @returns {Readonly<ShortcutBinding> | null} 一致したエントリ（なければnull）
      */

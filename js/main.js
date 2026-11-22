@@ -51,6 +51,7 @@ import { DisplayState } from './core/DisplayState.js';
 import { UnitSnapSettings } from './core/UnitSnapSettings.js';
 import { TransformInputSettings } from './core/TransformInputSettings.js';
 import { TransformInputEditor } from './edit/TransformInputEditor.js';
+import { FLIP_AXIS } from './edit/TransformInputRules.js';
 import { OptionBarSizeGroup } from './palette/OptionBarSizeGroup.js';
 import { OptionBarTransformGroup } from './palette/OptionBarTransformGroup.js';
 import { DisplayWiring } from './wiring/DisplayWiring.js';
@@ -1067,6 +1068,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // 矢印キーによる微調整（選んでいる図形・頂点をワールド座標のpxで動かす。動かした場合のみtrue。
         // 動かす対象がないときはfalseを返し、ブラウザ側の既定の動きを妨げない）
         nudgeSelection: (delta) => nudgeEditor.nudge(delta.dx, delta.dy),
+        // 反転（Shift+H＝横に反転、Shift+V＝縦に反転。オプションバーの反転のボタンと同一経路のperformFlip。
+        // 反転した場合のみtrue。選択（V）で図形を選んでいない・ドラッグ中はfalseを返し、preventDefault()しない）
+        flipHorizontal: () => performFlip(FLIP_AXIS.HORIZONTAL),
+        flipVertical: () => performFlip(FLIP_AXIS.VERTICAL),
     });
 
     // Altキーの単独押下・単独解放でブラウザのメニューへフォーカスが移らないようにする（AltKeyGuardが

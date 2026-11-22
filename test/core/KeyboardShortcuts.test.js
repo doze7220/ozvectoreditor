@@ -61,6 +61,14 @@ describe('KeyboardShortcuts コンストラクタの配線検証', () => {
     it('isCancelableDrag だけを欠くと Error を投げ、欠落名が isCancelableDrag だけになる', () => {
         assert.deepEqual(getMissingNames(createActionsExcept('isCancelableDrag')), ['isCancelableDrag']);
     });
+
+    it('flipHorizontal だけを欠くと Error を投げ、欠落名が flipHorizontal だけになる', () => {
+        assert.deepEqual(getMissingNames(createActionsExcept('flipHorizontal')), ['flipHorizontal']);
+    });
+
+    it('flipVertical だけを欠くと Error を投げ、欠落名が flipVertical だけになる', () => {
+        assert.deepEqual(getMissingNames(createActionsExcept('flipVertical')), ['flipVertical']);
+    });
 });
 
 /**
