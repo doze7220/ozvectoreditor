@@ -215,7 +215,7 @@
         *   コード修正完了後、JSDocコメントの記載漏れがないこと（新しい・変えた関数・メソッド・typedef・定数、先頭の責務定義）を確認する。
         *   開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る場合は、資料本体は修正せず、その旨を『開発資料の更新予定』欄に追記する。
         *   タスク完了後、作業レポート（本RES）の「4. 詳細作業内容」の本タスクの欄を記載し完成させ、本タスクを`[x]`にする。
-*   [ ] タスク2: 要件A 第19メソッド（円・弧・パス）とテスト
+*   [x] タスク2: 要件A 第19メソッド（円・弧・パス）とテスト
     *   **対象ファイル** :
         *   `./js/shapes/Ellipse.js`・`./js/shapes/Path.js` : 更新（`createTransformed`。クラスJSDocの19メソッド・先頭の責務定義・`ELLIPSE_TYPES`のJSDocの列挙）
         *   `./test/shapes/Ellipse.test.js`・`./test/shapes/Path.test.js` : 更新（ケースの追加のみ）
@@ -355,7 +355,9 @@
 
 ### タスク2: 要件A 第19メソッド（円・弧・パス）とテスト
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `Ellipse.js`：`createTransformed(transform)`を追加（`b`・`c`が0でなければ指定の文言の`Error`。中心を写し、`rx' = |a|·rx`・`ry' = |d|·ry`、弧で`d < 0`のときだけ新しい中心の`y`に`ry'`を足す。`new Ellipse`の後に`#updatePointsFromRadii`で`points[1]`〜`[4]`をそろえ、`id`を引き継ぐ）。`applyAffineTransformToPoint`をimport。クラスJSDocを19メソッドへ、先頭の責務定義に「変形を当てた新しい図形の生成」を追記、`ELLIPSE_TYPES`のJSDocの列挙に`createTransformed`を追加。
+    *   `Path.js`：`createTransformed(transform)`を追加（`points`と`'bezier'`の`control1`・`control2`を写し、`new Path(写した頂点, closed, 色・太さ・塗り, 区間の配列, corners)`で作って`id`を引き継ぐ）。import・クラスJSDoc・先頭の責務定義を同様に更新。
+    *   テスト：`Ellipse.test.js`に`createTransformed`の14件（円の縦横倍率の`toJSON`・変形後の`toDrawElement`・円の裏返し・弧の上下の裏返し（`toJSON`と`toDrawElement`を固定値で）・弧の左右の裏返し・弧の裏返しなしの倍率・`b`/`c`の`Error`の文言一致・不変/非共有・独立性。監査の指摘で追加した5件：真円（rx=ry）に縦横別の倍率と原点以外の動かない点・弧を外枠の下端（y=100）基準で上下裏返し（中心(100,140)・`radiusY` 40・外枠のy[100,140]）・弧の縦横別倍率と上下の裏返しの同時（原点以外の動かない点）・弧の上下と左右の同時の裏返し（`a<0`かつ`d<0`、平行移動つき）・弧の縦横別倍率と原点以外の動かない点（`d>0`）。いずれも`toJSON()`と`toDrawElement()`を固定値で確認）、`Path.test.js`に9件（直線の区間の`toJSON`/`toDrawElement`・曲がり方を持つ区間の引っ張る点と`bezierPath`・`smooth`と`corners`の保持・`corners`キーが出ない・回転・不変/非共有・独立性。監査の指摘で追加した2件：直線・曲がり方を持つ・曲線の区間と角の点を含むパスの上下の裏返し（`d<0`）と上下左右の両方の裏返し（`a<0`かつ`d<0`）。固定値の`toJSON()`・`toDrawElement().points`・曲線の区間の制御点が頂点の写しに追従することを確認）を追加。両ファイル先頭の責務定義も追記。独立性のテストは固定の座標で比べる形（タスク1の監査の指摘どおり）。`node --test`：tests 2111 / suites 343 全件合格（作業前2088→+23）。
 
 ### タスク3: 要件B 線を含まない外枠の照会とテスト
 *   **作業内容** :
@@ -423,3 +425,5 @@
 * **修飾キーを押したままの`Esc`（発注者の決定（追加））**：拡大縮小のドラッグ中は`Shift`・`Alt`・`Ctrl`（Meta）を押したままでも`Esc`で中断して元の形に戻す。今の`#findBinding`は`Alt`押下で常に`null`、`cancel`のエントリは`ctrl: false`・`shift: FORBIDDEN`のため、例外を`#findBinding`より前の手順3に置き、判定をexportする状態なしの関数`findCancelableDragBinding`の1か所にまとめた（キーは`cancel`のエントリの`codes`から取る。対応表・`#findBinding`の照合は変えない。拡大縮小のドラッグ中以外は今のまま）。手順1・2（IME変換中・テキスト入力欄）は先に効く。手順4（色の欄等にフォーカス）・手順6（キーリピート）は`cancel`のエントリの値（`ctrl: false`・`repeatable: false`）のまま効く＝色の欄にフォーカスがある間は例外でも`Esc`で中断しない（今の`Esc`と同じ。ドラッグを始めた時点でフォーカスが色の欄に残っている場合に起こり得る。ウィンドウのフォーカスが外れれば中断として元に戻る）。
 * **`findCancelableDragBinding`のexport**：`KeyboardShortcuts.js`の公開名が1つ増える（今はクラスだけをexport）。`#handleKeyDown`は`document`に依存してテストを置けず、テストは`globalThis`へ代入しないため、例外の判定だけを`document`に触れない関数にしてexportし`node --test`で確かめる。対応表そのものは今までどおりexportしない（返すのは凍結済みの`cancel`のエントリ1つ）。呼び出し元は`#handleKeyDown`とテストだけ。
 * **OSが使う修飾キー付きの`Esc`**：Windowsでは`Ctrl`+`Esc`（スタートメニュー）・`Alt`+`Esc`（ウィンドウの切り替え）・`Ctrl`+`Shift`+`Esc`（タスクマネージャー）をOSが先に使い、ページに`keydown`が届かないことがある。その場合はウィンドウのフォーカスが外れ、`DragTracker`のblurの中断（`#onLeftDragCancel`）で同じく引き始めの形に戻る（`click`の抑止は立たないが、フォーカスが外れたためボタンを離した`click`は通常来ない）。テストプレイの9.に書いた。
+* **（タスク2）弧の上下の裏返しの目視確認**：弧は`d < 0`のとき中心の`y`に`ry'`を足すため、上下に裏返した弧は外枠の下端に中心が来る（上半分の弧のまま）。外枠の`getSelectedGeometryBounds`（`toDrawElement`の弧の両端と軸上の端点）と一致する前提で、タスク10の後のブラウザで「弧を含む選択の上辺を下へ越える」操作を目視確認することを勧める。
+* **（タスク2）`Path.createTransformed`の`corners`**：コンストラクタが`corners`を要素数`points`にそろえて写すため、`this.corners`をそのまま渡している（コンストラクタが複製するので共有しない）。

@@ -1,6 +1,6 @@
 /**
  * 責務: 円・弧（Ellipse）の当たり判定（輪郭（縮退時の分岐を含む）・内側）・塗れる形か（isFillable）・偽のctxによる描画命令・図形データとの相互変換
- * （fromJSONの受理と不正なデータのエラー文・toJSON・toDrawElement）・ハンドルの位置（getHandlePosition）・頂点のハンドル名の一覧（getVertexHandleNames）を、公開APIのみを通して検証する。
+ * （fromJSONの受理と不正なデータのエラー文・toJSON・toDrawElement）・ハンドルの位置（getHandlePosition）・頂点のハンドル名の一覧（getVertexHandleNames）・変形を当てた新しい図形の生成（createTransformed）を、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -778,5 +778,135 @@ describe('Ellipse.getVertexHandleNames', () => {
         assert.notEqual(e.getVertexHandleNames(), names);
         assert.deepEqual(e.getVertexHandleNames(), []);
         assert.equal(JSON.stringify(e.toJSON()), before);
+    });
+});
+
+describe('Ellipse.createTransformed', () => {
+    const TWO_PI = Math.PI * 2;
+    it('円に縦横別の倍率を当てると楕円になる（スタイル・id・typeは同じ）', () => {
+        const shape = new Ellipse(100, 100, 130, 140, 'circle', '#112233', 5, '#445566');
+        shape.id = 's1';
+        const out = shape.createTransformed({ a: 2, b: 0, c: 0, d: 0.5, e: 0, f: 0 });
+        assert.deepEqual(out.toJSON(), {
+            type: 'circle', id: 's1',
+            points: [{ x: 200, y: 50 }, { x: 260, y: 50 }, { x: 200, y: 30 }, { x: 260, y: 50 }, { x: 260, y: 50 }],
+            strokeColor: '#112233', strokeWidth: 5, fillColor: '#445566',
+        });
+        assert.equal(out.type, 'circle');
+        assert.equal(out.id, 's1');
+    });
+    it('変形後のtoDrawElement()の座標・半径・角度・線の太さ・色・塗りが期待どおり（円）', () => {
+        const shape = new Ellipse(100, 100, 130, 140, 'circle', '#112233', 5, '#445566');
+        shape.id = 's1';
+        const out = shape.createTransformed({ a: 2, b: 0, c: 0, d: 0.5, e: 0, f: 0 });
+        assert.deepEqual(out.toDrawElement(), {
+            kind: 'ellipse', id: 's1', x: 200, y: 50, radiusX: 60, radiusY: 20, startAngle: 0, endAngle: TWO_PI,
+            closed: true, strokeColor: '#112233', strokeWidth: 5, fillColor: '#445566',
+        });
+    });
+    it('円は上下・左右に裏返しても中心は写すだけ（半径は絶対値）', () => {
+        const shape = new Ellipse(100, 100, 130, 140, 'circle', '#112233', 5, '#445566');
+        const out = shape.createTransformed({ a: -1, b: 0, c: 0, d: -2, e: 0, f: 0 });
+        assert.deepEqual(out.toJSON().points, [{ x: -100, y: -200 }, { x: -70, y: -200 }, { x: -100, y: -280 }, { x: -70, y: -200 }, { x: -70, y: -200 }]);
+    });
+    it("弧の上下の裏返し（d < 0）は中心のyにry'を足し、上半分の弧のまま裏返した外枠に収まる", () => {
+        const shape = new Ellipse(100, 100, 130, 140, 'arc', '#112233', 5, '#445566');
+        shape.id = 'a1';
+        const out = shape.createTransformed({ a: 1, b: 0, c: 0, d: -2, e: 0, f: 0 });
+        assert.deepEqual(out.toJSON().points, [{ x: 100, y: -120 }, { x: 130, y: -120 }, { x: 100, y: -200 }, { x: 70, y: -120 }, { x: 130, y: -120 }]);
+        assert.deepEqual(out.toDrawElement(), {
+            kind: 'ellipse', id: 'a1', x: 100, y: -120, radiusX: 30, radiusY: 80, startAngle: Math.PI, endAngle: TWO_PI,
+            closed: false, strokeColor: '#112233', strokeWidth: 5, fillColor: null,
+        });
+        assert.equal(out.fillColor, '#445566');
+    });
+    it('弧の左右の裏返し（a < 0）は見た目が同じため中心を写すだけ', () => {
+        const shape = new Ellipse(100, 100, 130, 140, 'arc', '#112233', 5, null);
+        const out = shape.createTransformed({ a: -1, b: 0, c: 0, d: 1, e: 0, f: 0 });
+        assert.deepEqual(out.toJSON().points, [{ x: -100, y: 100 }, { x: -70, y: 100 }, { x: -100, y: 60 }, { x: -130, y: 100 }, { x: -70, y: 100 }]);
+    });
+    it('弧の上下に裏返さない拡大縮小では中心のyを足さない', () => {
+        const shape = new Ellipse(100, 100, 130, 140, 'arc', '#112233', 5, null);
+        const out = shape.createTransformed({ a: 2, b: 0, c: 0, d: 0.5, e: 0, f: 0 });
+        assert.deepEqual(out.toJSON().points, [{ x: 200, y: 50 }, { x: 260, y: 50 }, { x: 200, y: 30 }, { x: 140, y: 50 }, { x: 260, y: 50 }]);
+    });
+    it('真円（rx=ry）に縦横別の倍率と原点以外の動かない点（外枠の左下(70,130)）を当てると楕円になる', () => {
+        const shape = new Ellipse(100, 100, 130, 130, 'circle', '#112233', 5, '#445566');
+        shape.id = 'c1';
+        const out = shape.createTransformed({ a: 2, b: 0, c: 0, d: 0.5, e: -70, f: 65 });
+        assert.deepEqual(out.toJSON().points, [{ x: 130, y: 115 }, { x: 190, y: 115 }, { x: 130, y: 100 }, { x: 190, y: 115 }, { x: 190, y: 115 }]);
+        assert.deepEqual(out.toDrawElement(), {
+            kind: 'ellipse', id: 'c1', x: 130, y: 115, radiusX: 60, radiusY: 15, startAngle: 0, endAngle: TWO_PI,
+            closed: true, strokeColor: '#112233', strokeWidth: 5, fillColor: '#445566',
+        });
+    });
+    it('弧を外枠の下端（y=100）を基準に上下を裏返す（d < 0と平行移動）と、中心(100,140)・radiusY 40・外枠のyが[100,140]', () => {
+        const shape = new Ellipse(100, 100, 130, 140, 'arc', '#112233', 5, null);
+        shape.id = 'a1';
+        const out = shape.createTransformed({ a: 1, b: 0, c: 0, d: -1, e: 0, f: 200 });
+        assert.deepEqual(out.toJSON().points, [{ x: 100, y: 140 }, { x: 130, y: 140 }, { x: 100, y: 100 }, { x: 70, y: 140 }, { x: 130, y: 140 }]);
+        assert.deepEqual(out.toDrawElement(), {
+            kind: 'ellipse', id: 'a1', x: 100, y: 140, radiusX: 30, radiusY: 40, startAngle: Math.PI, endAngle: TWO_PI,
+            closed: false, strokeColor: '#112233', strokeWidth: 5, fillColor: null,
+        });
+    });
+    it('弧を外枠の下端を基準に縦横別の倍率と上下の裏返しを同時に当てる（a=2・d=-0.5・動かない点(100,100)）', () => {
+        const shape = new Ellipse(100, 100, 130, 140, 'arc', '#112233', 5, null);
+        shape.id = 'a1';
+        const out = shape.createTransformed({ a: 2, b: 0, c: 0, d: -0.5, e: -100, f: 150 });
+        assert.deepEqual(out.toJSON().points, [{ x: 100, y: 120 }, { x: 160, y: 120 }, { x: 100, y: 100 }, { x: 40, y: 120 }, { x: 160, y: 120 }]);
+        assert.deepEqual(out.toDrawElement(), {
+            kind: 'ellipse', id: 'a1', x: 100, y: 120, radiusX: 60, radiusY: 20, startAngle: Math.PI, endAngle: TWO_PI,
+            closed: false, strokeColor: '#112233', strokeWidth: 5, fillColor: null,
+        });
+    });
+    it('弧の上下と左右を同時に裏返す（a < 0かつd < 0。平行移動つき）', () => {
+        const shape = new Ellipse(100, 100, 130, 140, 'arc', '#112233', 5, null);
+        shape.id = 'a1';
+        const out = shape.createTransformed({ a: -1, b: 0, c: 0, d: -1, e: 300, f: 200 });
+        assert.deepEqual(out.toJSON().points, [{ x: 200, y: 140 }, { x: 230, y: 140 }, { x: 200, y: 100 }, { x: 170, y: 140 }, { x: 230, y: 140 }]);
+        assert.deepEqual(out.toDrawElement(), {
+            kind: 'ellipse', id: 'a1', x: 200, y: 140, radiusX: 30, radiusY: 40, startAngle: Math.PI, endAngle: TWO_PI,
+            closed: false, strokeColor: '#112233', strokeWidth: 5, fillColor: null,
+        });
+    });
+    it('弧に縦横別の倍率と原点以外の動かない点（外枠の左下(70,100)。d > 0）を当てる', () => {
+        const shape = new Ellipse(100, 100, 130, 140, 'arc', '#112233', 5, null);
+        shape.id = 'a1';
+        const out = shape.createTransformed({ a: 0.5, b: 0, c: 0, d: 2, e: 35, f: -100 });
+        assert.deepEqual(out.toJSON().points, [{ x: 85, y: 100 }, { x: 100, y: 100 }, { x: 85, y: 20 }, { x: 70, y: 100 }, { x: 100, y: 100 }]);
+        assert.deepEqual(out.toDrawElement(), {
+            kind: 'ellipse', id: 'a1', x: 85, y: 100, radiusX: 15, radiusY: 80, startAngle: Math.PI, endAngle: TWO_PI,
+            closed: false, strokeColor: '#112233', strokeWidth: 5, fillColor: null,
+        });
+    });
+    it('b・cが0でない変換はErrorを投げる（文言一致。自身は変わらない）', () => {
+        const shape = new Ellipse(100, 100, 130, 140, 'circle');
+        const before = JSON.stringify(shape.toJSON());
+        const message = 'Ellipse.createTransformed: 回転・傾きを含む変換は円・弧で表せません';
+        assert.throws(() => shape.createTransformed({ a: 1, b: 1, c: 0, d: 1, e: 0, f: 0 }), { message });
+        assert.throws(() => shape.createTransformed({ a: 1, b: 0, c: 0.5, d: 1, e: 0, f: 0 }), { message });
+        assert.throws(() => new Ellipse(0, 0, 10, 10, 'arc').createTransformed({ a: 0, b: 1, c: -1, d: 0, e: 0, f: 0 }), { message });
+        assert.equal(JSON.stringify(shape.toJSON()), before);
+    });
+    it('自身は変わらず、戻り値と頂点を共有しない', () => {
+        const shape = new Ellipse(100, 100, 130, 140, 'arc', '#112233', 5, '#445566');
+        const before = JSON.stringify(shape.toJSON());
+        const out = shape.createTransformed({ a: 2, b: 0, c: 0, d: -1, e: 1, f: 1 });
+        assert.equal(JSON.stringify(shape.toJSON()), before);
+        assert.notEqual(out, shape);
+        assert.notEqual(out.points, shape.points);
+        out.translate(5, 5);
+        out.setVertex(1, 500, 0);
+        assert.equal(JSON.stringify(shape.toJSON()), before);
+    });
+    it('同じ自身から2回作っても2回目は1回目の影響を受けない', () => {
+        const shape = new Ellipse(100, 100, 130, 140, 'circle', '#112233', 5, null);
+        const t = { a: 2, b: 0, c: 0, d: 2, e: 0, f: 0 };
+        const first = shape.createTransformed(t);
+        first.translate(100, 100);
+        const second = shape.createTransformed(t);
+        assert.deepEqual(second.toJSON().points, [{ x: 200, y: 200 }, { x: 260, y: 200 }, { x: 200, y: 120 }, { x: 260, y: 200 }, { x: 260, y: 200 }]);
+        assert.deepEqual(first.toJSON().points, [{ x: 300, y: 300 }, { x: 360, y: 300 }, { x: 300, y: 220 }, { x: 360, y: 300 }, { x: 360, y: 300 }]);
     });
 });

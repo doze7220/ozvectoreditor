@@ -1,11 +1,11 @@
 /**
  * 責務: パス（Path）の当たり判定（輪郭・内側）・頂点のハンドル・塗れる形（isFillable）・描画命令（塗り・線なし）・
- * fromJSONの不正な図形データのエラー文・図形データと描画要素への変換・ハンドルの位置（getHandlePosition）・頂点のハンドル名の一覧（getVertexHandleNames）・コンストラクタ（区間の種類の配列）を、公開APIのみを通して検証する。
+ * fromJSONの不正な図形データのエラー文・図形データと描画要素への変換・ハンドルの位置（getHandlePosition）・頂点のハンドル名の一覧（getVertexHandleNames）・コンストラクタ（区間の種類の配列）・変形を当てた新しい図形の生成（createTransformed）を、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { Path, SEGMENT_KIND_LINE, SEGMENT_KIND_SMOOTH, SEGMENT_KIND_BEZIER, readCornerFlags } from '../../js/shapes/Path.js';
-import { computeSmoothSegmentControls, cubicBezierPoint } from '../../js/shapes/ShapeGeometry.js';
+import { applyAffineTransformToPoint, computeSmoothSegmentControls, cubicBezierPoint } from '../../js/shapes/ShapeGeometry.js';
 
 /**
  * 標準のパスの頂点を新しく作る。頂点は(0,0)・(100,0)・(100,100)・(0,100)。
@@ -1677,5 +1677,176 @@ describe('Path の曲がり方を持つ区間（Phase 09-03a）', () => {
         assert.deepEqual(Path.fromJSON(data).toJSON().segments, [{ kind: 'line' }]);
         data.segments = [{ kind: 'arc' }];
         assertFromJSONError(data, "segments[0]のkindが'line'・'smooth'ではありません（arc）");
+    });
+});
+
+describe('Path.createTransformed', () => {
+    const SCALE = { a: 2, b: 0, c: 0, d: 3, e: 0, f: 0 };
+    /**
+     * 曲がり方を持つ区間を含む開いたパスを作る（頂点(0,0)・(100,0)・(100,100)。区間は曲がり方を持つ区間・直線の区間）。
+     * @returns {Path} 区間が混ざったパス
+     */
+    function makeBezierPath() {
+        const path = new Path(
+            [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }],
+            false, '#112233', 5, null,
+            [{ kind: 'bezier', control1: { x: 10, y: 20 }, control2: { x: 90, y: 20 } }, 'line'],
+        );
+        path.id = 'p1';
+        return path;
+    }
+    it('直線の区間のパスの頂点が写る（スタイル・id・closedは同じ）', () => {
+        const path = makePath(true);
+        path.id = 'p1';
+        path.strokeColor = '#112233';
+        path.strokeWidth = 5;
+        path.fillColor = '#445566';
+        const out = path.createTransformed(SCALE);
+        assert.deepEqual(out.toJSON(), {
+            type: 'path', id: 'p1',
+            points: [{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 300 }, { x: 0, y: 300 }],
+            closed: true,
+            segments: [{ kind: 'line' }, { kind: 'line' }, { kind: 'line' }, { kind: 'line' }],
+            strokeColor: '#112233', strokeWidth: 5, fillColor: '#445566',
+        });
+        assert.deepEqual(out.toDrawElement(), {
+            kind: 'polyline', id: 'p1',
+            points: [{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 300 }, { x: 0, y: 300 }],
+            closed: true, strokeColor: '#112233', strokeWidth: 5, fillColor: '#445566',
+        });
+    });
+    it('曲がり方を持つ区間の引っ張る点も写り、直線の区間は{ kind }のまま', () => {
+        const out = makeBezierPath().createTransformed({ a: -1, b: 0, c: 0, d: 2, e: 10, f: 0 });
+        assert.deepEqual(out.toJSON(), {
+            type: 'path', id: 'p1',
+            points: [{ x: 10, y: 0 }, { x: -90, y: 0 }, { x: -90, y: 200 }],
+            closed: false,
+            segments: [{ kind: 'bezier', control1: { x: 0, y: 40 }, control2: { x: -80, y: 40 } }, { kind: 'line' }],
+            strokeColor: '#112233', strokeWidth: 5, fillColor: null,
+        });
+        assert.deepEqual(out.toDrawElement(), {
+            kind: 'bezierPath', id: 'p1',
+            points: [{ x: 10, y: 0 }, { x: -90, y: 0 }, { x: -90, y: 200 }],
+            closed: false,
+            segments: [{ kind: 'cubic', control1: { x: 0, y: 40 }, control2: { x: -80, y: 40 } }, { kind: 'line' }],
+            strokeColor: '#112233', strokeWidth: 5, fillColor: null,
+        });
+    });
+    it('曲線の区間（smooth）と角の点（corners）が同じ並びで保たれ、制御点は頂点の写しに追従する', () => {
+        const path = new Path(makePoints(), false, '#000000', 2, null, SEGMENT_KIND_SMOOTH, [false, true, false, false]);
+        path.id = 'p1';
+        const out = path.createTransformed(SCALE);
+        assert.deepEqual(out.segments, [{ kind: 'smooth' }, { kind: 'smooth' }, { kind: 'smooth' }]);
+        assert.deepEqual(out.corners, [false, true, false, false]);
+        assert.deepEqual(out.toJSON().points, [{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 300 }, { x: 0, y: 300 }]);
+        assert.deepEqual(out.toJSON().corners, [false, true, false, false]);
+        const before = computeSmoothSegmentControls(path.points, path.segments.map((s) => s.kind === SEGMENT_KIND_SMOOTH), path.closed, path.corners);
+        const after = computeSmoothSegmentControls(out.points, out.segments.map((s) => s.kind === SEGMENT_KIND_SMOOTH), out.closed, out.corners);
+        after.forEach((control, i) => {
+            assert.ok(Math.abs(control.control1.x - before[i].control1.x * 2) < 1e-9);
+            assert.ok(Math.abs(control.control1.y - before[i].control1.y * 3) < 1e-9);
+            assert.ok(Math.abs(control.control2.x - before[i].control2.x * 2) < 1e-9);
+            assert.ok(Math.abs(control.control2.y - before[i].control2.y * 3) < 1e-9);
+        });
+    });
+    /**
+     * 直線・曲がり方を持つ・曲線の区間と角の点を含む開いたパスを作る（頂点(0,0)・(100,0)・(100,100)・(0,100)・(-50,150)。
+     * 区間は直線・曲がり方を持つ(120,30)(130,70)・曲線・曲線。角の点は頂点3）。
+     * @returns {Path} 区間が混ざったパス
+     */
+    function makeMixedPath() {
+        const path = new Path(
+            [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }, { x: -50, y: 150 }],
+            false, '#112233', 5, null,
+            ['line', { kind: 'bezier', control1: { x: 120, y: 30 }, control2: { x: 130, y: 70 } }, 'smooth', 'smooth'],
+            [false, false, false, true, false],
+        );
+        path.id = 'p1';
+        return path;
+    }
+    /**
+     * 変換後の曲線の区間の制御点が、変換前の制御点を同じ変換で写した点と一致することを確かめる。
+     * @param {Path} before - 変換前
+     * @param {Path} after - 変換後
+     * @param {{a: number, b: number, c: number, d: number, e: number, f: number}} t - 当てた変換
+     */
+    function assertSmoothControlsFollow(before, after, t) {
+        const isSmooth = (s) => s.kind === SEGMENT_KIND_SMOOTH;
+        const b = computeSmoothSegmentControls(before.points, before.segments.map(isSmooth), before.closed, before.corners);
+        const a = computeSmoothSegmentControls(after.points, after.segments.map(isSmooth), after.closed, after.corners);
+        b.forEach((control, i) => {
+            if (control === null) {
+                assert.equal(a[i], null);
+                return;
+            }
+            for (const key of ['control1', 'control2']) {
+                const expected = applyAffineTransformToPoint(t, control[key]);
+                assert.ok(Math.abs(a[i][key].x - expected.x) < 1e-9);
+                assert.ok(Math.abs(a[i][key].y - expected.y) < 1e-9);
+            }
+        });
+    }
+    it('直線・曲がり方を持つ・曲線の区間と角の点を含むパスの上下の裏返し（d < 0）', () => {
+        const t = { a: 1, b: 0, c: 0, d: -1, e: 0, f: 200 };
+        const path = makeMixedPath();
+        const out = path.createTransformed(t);
+        assert.deepEqual(out.toJSON(), {
+            type: 'path', id: 'p1',
+            points: [{ x: 0, y: 200 }, { x: 100, y: 200 }, { x: 100, y: 100 }, { x: 0, y: 100 }, { x: -50, y: 50 }],
+            closed: false,
+            segments: [{ kind: 'line' }, { kind: 'bezier', control1: { x: 120, y: 170 }, control2: { x: 130, y: 130 } }, { kind: 'smooth' }, { kind: 'smooth' }],
+            corners: [false, false, false, true, false],
+            strokeColor: '#112233', strokeWidth: 5, fillColor: null,
+        });
+        assert.deepEqual(out.toDrawElement().points, [{ x: 0, y: 200 }, { x: 100, y: 200 }, { x: 100, y: 100 }, { x: 0, y: 100 }, { x: -50, y: 50 }]);
+        assertSmoothControlsFollow(path, out, t);
+    });
+    it('直線・曲がり方を持つ・曲線の区間と角の点を含むパスの上下と左右の両方の裏返し（a < 0かつd < 0）', () => {
+        const t = { a: -1, b: 0, c: 0, d: -1, e: 100, f: 200 };
+        const path = makeMixedPath();
+        const out = path.createTransformed(t);
+        assert.deepEqual(out.toJSON(), {
+            type: 'path', id: 'p1',
+            points: [{ x: 100, y: 200 }, { x: 0, y: 200 }, { x: 0, y: 100 }, { x: 100, y: 100 }, { x: 150, y: 50 }],
+            closed: false,
+            segments: [{ kind: 'line' }, { kind: 'bezier', control1: { x: -20, y: 170 }, control2: { x: -30, y: 130 } }, { kind: 'smooth' }, { kind: 'smooth' }],
+            corners: [false, false, false, true, false],
+            strokeColor: '#112233', strokeWidth: 5, fillColor: null,
+        });
+        assert.deepEqual(out.toDrawElement().points, [{ x: 100, y: 200 }, { x: 0, y: 200 }, { x: 0, y: 100 }, { x: 100, y: 100 }, { x: 150, y: 50 }]);
+        assertSmoothControlsFollow(path, out, t);
+    });
+    it('角の点がないパスの変形後のtoJSON()にcornersのキーが出ない', () => {
+        assert.equal('corners' in makePath(false).createTransformed(SCALE).toJSON(), false);
+    });
+    it('回転を含む一般の変換でも頂点・引っ張る点が写る', () => {
+        const out = makeBezierPath().createTransformed({ a: 0, b: 1, c: -1, d: 0, e: 0, f: 0 });
+        assert.deepEqual(out.toJSON().points, [{ x: 0, y: 0 }, { x: 0, y: 100 }, { x: -100, y: 100 }]);
+        assert.deepEqual(out.toJSON().segments[0], { kind: 'bezier', control1: { x: -20, y: 10 }, control2: { x: -20, y: 90 } });
+    });
+    it('自身は変わらず、戻り値と頂点・区間・引っ張る点・cornersを共有しない', () => {
+        const path = makeBezierPath();
+        path.corners[1] = true;
+        const before = JSON.stringify(path.toJSON());
+        const out = path.createTransformed(SCALE);
+        assert.equal(JSON.stringify(path.toJSON()), before);
+        assert.notEqual(out, path);
+        out.points[0].x = 999;
+        out.segments[0].control1.x = 999;
+        out.segments[1].kind = 'smooth';
+        out.corners[1] = false;
+        out.translate(5, 5);
+        assert.equal(JSON.stringify(path.toJSON()), before);
+    });
+    it('同じ自身から2回作っても2回目は1回目の影響を受けない', () => {
+        const path = makeBezierPath();
+        const t = { a: 2, b: 0, c: 0, d: 2, e: 0, f: 0 };
+        const first = path.createTransformed(t);
+        first.translate(100, 100);
+        const second = path.createTransformed(t);
+        assert.deepEqual(second.toJSON().points, [{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 200 }]);
+        assert.deepEqual(second.toJSON().segments[0], { kind: 'bezier', control1: { x: 20, y: 40 }, control2: { x: 180, y: 40 } });
+        assert.deepEqual(first.toJSON().points, [{ x: 100, y: 100 }, { x: 300, y: 100 }, { x: 300, y: 300 }]);
+        assert.deepEqual(first.toJSON().segments[0], { kind: 'bezier', control1: { x: 120, y: 140 }, control2: { x: 280, y: 140 } });
     });
 });

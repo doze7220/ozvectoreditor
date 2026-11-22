@@ -1,9 +1,10 @@
 /**
  * 責務: パス（頂点の並びと閉じているか・区間の並び・角の点を持つ、直線の区間・点を通るなめらかな曲線の区間・
- * 曲がり方を持つ曲線の区間（引っ張る点を区間に持つ3次ベジェ）からなる線）のデータ保持・Canvasへの描画処理・当たり判定、および図形データとの相互変換と描画要素（スプライトの書き出し用）への変換を担う。
+ * 曲がり方を持つ曲線の区間（引っ張る点を区間に持つ3次ベジェ）からなる線）のデータ保持・Canvasへの描画処理・当たり判定、および図形データとの相互変換・描画要素（スプライトの書き出し用）への変換・変形を当てた新しい図形の生成を担う。
  */
 
 import {
+    applyAffineTransformToPoint,
     computeSmoothSegmentControls,
     cubicBezierPoint,
     distanceToSegment,
@@ -120,8 +121,8 @@ export function readCornerFlags(data) {
  * 区間ごとに種類を指定して作るのは、コンストラクタへ区間の指定の配列を渡す場合（`PathJoinRules`の結合・描き足し・閉じる。結果は元の区間を保つ）と`fromJSON`（`segments`を作り直す）。
  * 角の点：公開プロパティ`corners`（頂点と同じ並びの真偽値の配列）で、曲線の連なりの途中の点を、なめらかにつなぐか角を立てるかを点ごとに持つ。
  * 角が形に効くのは両側とも曲線の区間の点だけ（直線の区間との境目・開いたパスの端はもともと角）。図形データでは角の点が1つ以上あるときだけ`corners`を`segments`の直後に出す。
- * 共通メソッド契約（18メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（19メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames・createTransformed）を自律実装する。座標はすべてワールド座標。
  * パスは`ShapeFactory.create`の曲線のツールの描き始めでも作られる（頂点2つ・区間1つの曲線）。
  * 直線・曲線のツールで続けて引く線（点が3つ以上）も`PathJoinRules`が作り、作成途中の図形にもなる。
  */
@@ -671,5 +672,31 @@ export class Path {
         path.segments = data.segments.map(copySegment);
         path.id = data.id;
         return path;
+    }
+
+    /**
+     * アフィン変換を当てた新しいPathを返す（共通メソッド契約の第19メソッド）。自身は変えない。
+     * `points`をすべて写し、`'bezier'`の区間は引っ張る点`control1`・`control2`も写す（`'line'`・`'smooth'`は`{ kind }`のまま。
+     * `'smooth'`の制御点は頂点の1次式のため、同じ変換に追従する）。`closed`・区間の種類・`corners`・`type`・`id`（そのまま）・
+     * `strokeColor`・`strokeWidth`・`fillColor`は自身と同じ（線の太さは変えない）。
+     * 戻り値は自身と配列・頂点・区間・引っ張る点のオブジェクトを共有しない。`transform`の検証はしない（呼び出し側の責任）。
+     * @param {import('./ShapeGeometry.js').AffineTransform} transform - 当てる変換（点`(x, y)`→`(a·x + c·y + e, b·x + d·y + f)`）
+     * @returns {Path} 変換を当てた新しい図形
+     */
+    createTransformed(transform) {
+        const points = this.points.map((point) => applyAffineTransformToPoint(transform, point));
+        const segments = this.segments.map((segment) => {
+            if (segment.kind !== SEGMENT_KIND_BEZIER) {
+                return { kind: segment.kind };
+            }
+            return {
+                kind: segment.kind,
+                control1: applyAffineTransformToPoint(transform, segment.control1),
+                control2: applyAffineTransformToPoint(transform, segment.control2),
+            };
+        });
+        const transformed = new Path(points, this.closed, this.strokeColor, this.strokeWidth, this.fillColor, segments, this.corners);
+        transformed.id = this.id;
+        return transformed;
     }
 }
