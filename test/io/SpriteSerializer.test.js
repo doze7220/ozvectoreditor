@@ -1,5 +1,6 @@
 /**
  * 責務: SpriteSerializerが組み立てるスプライトデータ（描画要素・外枠・source・JSON文字列化）の中身を、公開APIのみを通して検証する。
+ * 拡大縮小（createTransformed）した全図形の種類の書き出し（描画要素・外枠）も含む。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -874,5 +875,134 @@ describe('SpriteSerializer.computeShapesGeometryBounds', () => {
         const expected = { minX: -23, minY: 2, maxX: 33, maxY: 43 };
         assertBoundsClose(SpriteSerializer.computeShapesBounds(shapes), expected);
         assertBoundsClose(SpriteSerializer.serialize(shapes).bounds, expected);
+    });
+});
+
+/**
+ * 拡大縮小（createTransformed）の確認用の変換。x方向は-2倍（左右の裏返し）・y方向は-0.5倍（上下の裏返し）・平行移動(100, 50)。
+ * 点(x, y)→(-2x + 100, -0.5y + 50)。
+ */
+const SCALE_TRANSFORM = { a: -2, b: 0, c: 0, d: -0.5, e: 100, f: 50 };
+
+/**
+ * 6種の図形（直線・今の曲線・矩形・円・弧・パス）を作って`SCALE_TRANSFORM`を当てた新しい図形を、この順で返す。
+ * 元の座標・変換後の座標は手計算の固定値（呼び出し側のテストの題・期待値に書く）。
+ * @returns {object[]} 変換後の図形（id は L1・C1・R1・E1・E2・P1）
+ */
+function makeScaledShapes() {
+    const line = withId(new Line(10, 20, 30, 40, '#ff0000', 4), 'L1');
+    const curve = withId(new Curve(0, 0, 100, 40, '#00ff00', 2), 'C1');
+    curve.setVertex(1, 30, -80);
+    const rect = withId(new Rect(10, 10, 90, 60, '#112233', 6, '#ff0000'), 'R1');
+    const circle = withId(new Ellipse(50, 50, 80, 20, 'circle', '#0000ff', 2, '#00ff00'), 'E1');
+    const arc = withId(new Ellipse(50, 50, 80, 20, 'arc', '#778899', 2), 'E2');
+    const bezier = { kind: 'bezier', control1: { x: 120, y: 30 }, control2: { x: 120, y: 70 } };
+    const path = withId(new Path(
+        [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }],
+        true, '#102030', 4, '#ffcc00', ['line', bezier, 'line', 'line'],
+    ), 'P1');
+    return [line, curve, rect, circle, arc, path].map((shape) => shape.createTransformed(SCALE_TRANSFORM));
+}
+
+describe('SpriteSerializer: createTransformed した図形の書き出し', () => {
+    it('直線の描画要素（(10,20)→(80,40)・(30,40)→(40,30)。太さ・色・idは変わらない）', () => {
+        const [el] = SpriteSerializer.serialize([makeScaledShapes()[0]]).elements;
+        assert.deepEqual(el, {
+            kind: 'polyline', id: 'L1', points: [{ x: 80, y: 40 }, { x: 40, y: 30 }],
+            closed: false, strokeColor: '#ff0000', strokeWidth: 4, fillColor: null,
+        });
+    });
+
+    it('今の曲線の描画要素（(0,0)→(100,50)・(30,-80)→(40,90)・(100,40)→(-100,30)）', () => {
+        const [el] = SpriteSerializer.serialize([makeScaledShapes()[1]]).elements;
+        assert.deepEqual(el, {
+            kind: 'quadratic', id: 'C1', points: [{ x: 100, y: 50 }, { x: 40, y: 90 }, { x: -100, y: 30 }],
+            strokeColor: '#00ff00', strokeWidth: 2, fillColor: null,
+        });
+    });
+
+    it('矩形の描画要素（頂点の並びのまま (80,45)・(-80,45)・(-80,20)・(80,20)）', () => {
+        const [el] = SpriteSerializer.serialize([makeScaledShapes()[2]]).elements;
+        assert.deepEqual(el, {
+            kind: 'polyline', id: 'R1',
+            points: [{ x: 80, y: 45 }, { x: -80, y: 45 }, { x: -80, y: 20 }, { x: 80, y: 20 }],
+            closed: true, strokeColor: '#112233', strokeWidth: 6, fillColor: '#ff0000',
+        });
+    });
+
+    it('円の描画要素（中心(50,50)→(0,25)・半径30→横60・縦15）', () => {
+        const [el] = SpriteSerializer.serialize([makeScaledShapes()[3]]).elements;
+        assert.deepEqual(el, {
+            kind: 'ellipse', id: 'E1', x: 0, y: 25, radiusX: 60, radiusY: 15,
+            startAngle: 0, endAngle: 2 * Math.PI, closed: true,
+            strokeColor: '#0000ff', strokeWidth: 2, fillColor: '#00ff00',
+        });
+    });
+
+    it('弧の描画要素（上下の裏返しで中心のyは25+15=40・横60・縦15・上半分のまま）', () => {
+        const [el] = SpriteSerializer.serialize([makeScaledShapes()[4]]).elements;
+        assert.deepEqual(el, {
+            kind: 'ellipse', id: 'E2', x: 0, y: 40, radiusX: 60, radiusY: 15,
+            startAngle: Math.PI, endAngle: 2 * Math.PI, closed: false,
+            strokeColor: '#778899', strokeWidth: 2, fillColor: null,
+        });
+    });
+
+    it('曲がり方を持つ区間を含むパスの描画要素（頂点と引っ張る点が写り、cubicの制御点は(-140,35)・(-140,15)）', () => {
+        const [el] = SpriteSerializer.serialize([makeScaledShapes()[5]]).elements;
+        assert.deepEqual(el, {
+            kind: 'bezierPath', id: 'P1',
+            points: [{ x: 100, y: 50 }, { x: -100, y: 50 }, { x: -100, y: 0 }, { x: 100, y: 0 }],
+            closed: true,
+            segments: [
+                { kind: 'line' },
+                { kind: 'cubic', control1: { x: -140, y: 35 }, control2: { x: -140, y: 15 } },
+                { kind: 'line' },
+                { kind: 'line' },
+            ],
+            strokeColor: '#102030', strokeWidth: 4, fillColor: '#ffcc00',
+        });
+    });
+
+    it('図形ごとの外枠（線の太さを含む／含まない）が固定の値になる', () => {
+        // 線の太さの半分: 直線2・曲線1・矩形3・円1・弧1・パス2
+        const expected = [
+            { geometry: { minX: 40, minY: 30, maxX: 80, maxY: 40 }, stroke: { minX: 38, minY: 28, maxX: 82, maxY: 42 } },
+            // 曲線: xは単調で[-100,100]。yは y'(t)=0 → t=0.4 で 0.36*50+0.48*90+0.16*30=66
+            { geometry: { minX: -100, minY: 30, maxX: 100, maxY: 66 }, stroke: { minX: -101, minY: 29, maxX: 101, maxY: 67 } },
+            { geometry: { minX: -80, minY: 20, maxX: 80, maxY: 45 }, stroke: { minX: -83, minY: 17, maxX: 83, maxY: 48 } },
+            { geometry: { minX: -60, minY: 10, maxX: 60, maxY: 40 }, stroke: { minX: -61, minY: 9, maxX: 61, maxY: 41 } },
+            { geometry: { minX: -60, minY: 25, maxX: 60, maxY: 40 }, stroke: { minX: -61, minY: 24, maxX: 61, maxY: 41 } },
+            // パス: 曲がり方を持つ区間のxの極値は-100-30=-130（-120·t(1-t)の最小は t=0.5 で-30）
+            { geometry: { minX: -130, minY: 0, maxX: 100, maxY: 50 }, stroke: { minX: -132, minY: -2, maxX: 102, maxY: 52 } },
+        ];
+        const shapes = makeScaledShapes();
+        shapes.forEach((shape, i) => {
+            assertBoundsClose(SpriteSerializer.computeShapesGeometryBounds([shape]), expected[i].geometry);
+            assertBoundsClose(SpriteSerializer.computeShapesBounds([shape]), expected[i].stroke);
+            assertBoundsClose(SpriteSerializer.serialize([shape]).bounds, expected[i].stroke);
+        });
+    });
+
+    it('6種を並べた書き出しの描画順・種類・外枠（和）が固定の値になる', () => {
+        const data = SpriteSerializer.serialize(makeScaledShapes());
+        assert.deepEqual(data.elements.map((e) => e.id), ['L1', 'C1', 'R1', 'E1', 'E2', 'P1']);
+        assert.deepEqual(
+            data.elements.map((e) => e.kind),
+            ['polyline', 'quadratic', 'polyline', 'ellipse', 'ellipse', 'bezierPath'],
+        );
+        assertBoundsClose(data.bounds, { minX: -132, minY: -2, maxX: 102, maxY: 67 });
+        assertBoundsClose(
+            SpriteSerializer.computeShapesGeometryBounds(makeScaledShapes()),
+            { minX: -130, minY: 0, maxX: 100, maxY: 66 },
+        );
+    });
+
+    it('source（作業データ）にも変換後の図形が入り、版は変わらない', () => {
+        const data = SpriteSerializer.serialize(makeScaledShapes());
+        assert.equal(data.source.version, 2);
+        assert.deepEqual(data.source.shapes.map((s) => s.type), ['line', 'curve', 'rect', 'circle', 'arc', 'path']);
+        assert.deepEqual(data.source.shapes[0].points, [{ x: 80, y: 40 }, { x: 40, y: 30 }]);
+        assert.deepEqual(data.source.shapes[4].points[0], { x: 0, y: 40 });
     });
 });

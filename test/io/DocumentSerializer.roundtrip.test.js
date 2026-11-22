@@ -1,6 +1,6 @@
 /**
- * 責務: DocumentSerializerの往復（図形インスタンス→作業データ→図形インスタンス）で5種の図形と
- * パス（塗り・線なしを含む）が元と同じ図形に戻ることを、公開APIのみを通して検証する。
+ * 責務: DocumentSerializerの往復（図形インスタンス→作業データ→図形インスタンス）で5種の図形とパス（塗り・線なし・
+ * 拡大縮小したcreateTransformedの結果を含む）が元と同じ図形に戻ることを、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -791,4 +791,134 @@ describe('弧を結合した結果の往復（Phase 09-03b）', () => {
             });
         }
     }
+});
+
+describe('拡大縮小（createTransformed）した図形の往復（Phase 10-01）', () => {
+    /** 変換。点(x, y)→(-2x + 100, -0.5y + 50)（左右・上下の裏返しを含む）。 */
+    const TRANSFORM = { a: -2, b: 0, c: 0, d: -0.5, e: 100, f: 50 };
+
+    /**
+     * 6種の図形を作って変換を当てた新しい図形を、直線・曲線・矩形・円・弧・パスの順で返す。
+     * @returns {object[]} 変換後の図形（id は L1・C1・R1・E1・E2・P1）
+     */
+    function makeTransformedShapes() {
+        const line = new Line(10, 20, 30, 40, '#ff0000', 4);
+        const curve = new Curve(0, 0, 100, 40, '#00ff00', 2);
+        curve.setVertex(1, 30, -80);
+        const rect = new Rect(10, 10, 90, 60, '#112233', 6, '#ff0000');
+        const circle = new Ellipse(50, 50, 80, 20, 'circle', '#0000ff', 2, '#00ff00');
+        const arc = new Ellipse(50, 50, 80, 20, 'arc', '#778899', 2);
+        const bezier = { kind: 'bezier', control1: { x: 120, y: 30 }, control2: { x: 120, y: 70 } };
+        const path = new Path(
+            [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }],
+            true, '#102030', 4, '#ffcc00', ['line', bezier, 'line', 'line'],
+        );
+        const sources = [line, curve, rect, circle, arc, path];
+        sources.forEach((s, i) => { s.id = ['L1', 'C1', 'R1', 'E1', 'E2', 'P1'][i]; });
+        return sources.map((s) => s.createTransformed(TRANSFORM));
+    }
+
+    /** 変換後の図形の作業データ（手計算の固定値）。 */
+    const EXPECTED_JSON = [
+        {
+            type: 'line', id: 'L1', points: [{ x: 80, y: 40 }, { x: 40, y: 30 }],
+            strokeColor: '#ff0000', strokeWidth: 4, fillColor: null,
+        },
+        {
+            type: 'curve', id: 'C1', points: [{ x: 100, y: 50 }, { x: 40, y: 90 }, { x: -100, y: 30 }],
+            strokeColor: '#00ff00', strokeWidth: 2, fillColor: null,
+        },
+        {
+            type: 'rect', id: 'R1', points: [{ x: 80, y: 45 }, { x: -80, y: 45 }, { x: -80, y: 20 }, { x: 80, y: 20 }],
+            strokeColor: '#112233', strokeWidth: 6, fillColor: '#ff0000',
+        },
+        {
+            type: 'circle', id: 'E1',
+            points: [{ x: 0, y: 25 }, { x: 60, y: 25 }, { x: 0, y: 10 }, { x: 60, y: 25 }, { x: 60, y: 25 }],
+            strokeColor: '#0000ff', strokeWidth: 2, fillColor: '#00ff00',
+        },
+        {
+            type: 'arc', id: 'E2',
+            points: [{ x: 0, y: 40 }, { x: 60, y: 40 }, { x: 0, y: 25 }, { x: -60, y: 40 }, { x: 60, y: 40 }],
+            strokeColor: '#778899', strokeWidth: 2, fillColor: null,
+        },
+        {
+            type: 'path', id: 'P1',
+            points: [{ x: 100, y: 50 }, { x: -100, y: 50 }, { x: -100, y: 0 }, { x: 100, y: 0 }], closed: true,
+            segments: [
+                { kind: 'line' },
+                { kind: 'bezier', control1: { x: -140, y: 35 }, control2: { x: -140, y: 15 } },
+                { kind: 'line' },
+                { kind: 'line' },
+            ],
+            strokeColor: '#102030', strokeWidth: 4, fillColor: '#ffcc00',
+        },
+    ];
+
+    it('変換後の図形の作業データが固定の値になる（往復の前提）', () => {
+        const shapes = makeTransformedShapes();
+        assert.deepStrictEqual(shapes.map((s) => s.toJSON()), EXPECTED_JSON);
+    });
+
+    for (const route of ROUTES) {
+        it(`6種それぞれが元と同じ図形に戻り、作業データが固定の値のまま（${route.name}）`, (t) => {
+            const warn = silenceWarn(t);
+            const shapes = makeTransformedShapes();
+            shapes.forEach((shape) => {
+                const result = route.run([shape]);
+                assertRestoredWithPaths(result, [shape]);
+            });
+            const result = route.run(shapes);
+            assertRestoredWithPaths(result, shapes);
+            assert.deepStrictEqual(result.shapes.map((s) => s.toJSON()), EXPECTED_JSON);
+            assert.deepStrictEqual(result.shapes.map((s) => s.type), ['line', 'curve', 'rect', 'circle', 'arc', 'path']);
+            assert.deepStrictEqual(result.shapes.map((s) => s.id), ['L1', 'C1', 'R1', 'E1', 'E2', 'P1']);
+            assert.equal(warn.mock.callCount(), 0);
+        });
+    }
+
+    it('円は楕円（横60・縦15）、弧は上半分の弧のまま復元され、角度は種別から決まる', (t) => {
+        silenceWarn(t);
+        const result = roundTripByObject(makeTransformedShapes());
+        const circle = result.shapes[3];
+        const arc = result.shapes[4];
+        assert.equal(circle.startAngle, 0);
+        assert.equal(circle.endAngle, 2 * Math.PI);
+        assert.equal(arc.startAngle, Math.PI);
+        assert.equal(arc.endAngle, 2 * Math.PI);
+        assert.deepStrictEqual(circle.toDrawElement().radiusX, 60);
+        assert.deepStrictEqual(circle.toDrawElement().radiusY, 15);
+        assert.deepStrictEqual([arc.toDrawElement().x, arc.toDrawElement().y], [0, 40]);
+    });
+
+    it('復元したパスの曲がり方を持つ区間・描画要素が変換後のまま保たれる', (t) => {
+        silenceWarn(t);
+        const path = roundTripByString(makeTransformedShapes()).shapes[5];
+        assert.deepStrictEqual(path.segments[1], { kind: 'bezier', control1: { x: -140, y: 35 }, control2: { x: -140, y: 15 } });
+        assert.deepStrictEqual(path.toDrawElement().segments[1], {
+            kind: 'cubic', control1: { x: -140, y: 35 }, control2: { x: -140, y: 15 },
+        });
+    });
+
+    it('変換後の図形の作業データは版2で、図形データのキーが増えない', (t) => {
+        silenceWarn(t);
+        const doc = DocumentSerializer.serialize(makeTransformedShapes());
+        assert.equal(doc.version, 2);
+        assert.deepStrictEqual(doc.shapes.map((s) => Object.keys(s)), [
+            ['type', 'id', 'points', 'strokeColor', 'strokeWidth', 'fillColor'],
+            ['type', 'id', 'points', 'strokeColor', 'strokeWidth', 'fillColor'],
+            ['type', 'id', 'points', 'strokeColor', 'strokeWidth', 'fillColor'],
+            ['type', 'id', 'points', 'strokeColor', 'strokeWidth', 'fillColor'],
+            ['type', 'id', 'points', 'strokeColor', 'strokeWidth', 'fillColor'],
+            ['type', 'id', 'points', 'closed', 'segments', 'strokeColor', 'strokeWidth', 'fillColor'],
+        ]);
+    });
+
+    it('復元した図形を動かしても変換後の図形が変わらない', (t) => {
+        silenceWarn(t);
+        const shapes = makeTransformedShapes();
+        const result = roundTripByObject(shapes);
+        result.shapes.forEach((s) => s.translate(30, 40));
+        assert.deepStrictEqual(shapes.map((s) => s.toJSON()), EXPECTED_JSON);
+    });
 });
