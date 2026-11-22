@@ -69,7 +69,7 @@
         *   辺・`keepAspect`なし：引く軸＝`s`、もう一方＝1。
         *   辺・`keepAspect`：引く軸＝`s`、もう一方の軸（長さが0でなければ）＝`|s|`（裏返らない）で、その軸の動かない点は中心。長さ0ならもう一方は1。
         *   角・`keepAspect`なし：`sX`・`sY`。
-        *   角・`keepAspect`：`m = |倍率を決めた向きの s|`。各軸の符号は、その軸の`raw`の符号（ハンドルがその向きで動かない点を越えたか）。`raw`がちょうど0ならその軸の`previous`の符号。`scaleX = 符号X · m`・`scaleY = 符号Y · m`。
+        *   角・`keepAspect`：`m = |倍率を決めた向きの s|`。倍率を決めた向きの符号は丸めた後の`s`の符号（丸めた目標に引く辺が乗るため）。もう一方の向きの符号は、その向きの`raw`の符号（ハンドルがその向きで動かない点を越えたか）。`raw`がちょうど0ならその向きの`previous`の符号。`scaleX = 符号X · m`・`scaleY = 符号Y · m`。
         *   長さ0の軸は常に1（`Shift`でも0のまま）。
     8.  戻り値`{ scaleX, scaleY, originX: 横の動かない点, originY: 縦の動かない点 }`。
 * **`toScaleTransform(scale)` → `AffineTransform`**：`{ a: scaleX, b: 0, c: 0, d: scaleY, e: originX − scaleX · originX, f: originY − scaleY · originY }`（動かない点を固定した縦横の拡大縮小・裏返し）。
@@ -203,6 +203,7 @@
 *   **1章（タスク1で判明）**：構成図の`ShapeGeometry`の説明に`applyAffineTransformToPoint`（点へのアフィン変換。変形の式の唯一の箇所。Phase 10-01）を足す。
 *   **1章・`_doc/arch/15_io.md`・`14_edit.md`（タスク3で判明）**：`SpriteSerializer`の責務に線を含まない外枠の照会（`computeShapesGeometryBounds`・`#computeBounds`の`includeStroke`引数）、`ShapeExtentReader`に`getSelectedGeometryBounds`を足す（既に上の2章・`_doc/arch/`の項に概ね記載あり）。
 *   **`_doc/arch/03_VectorModel.md`（タスク4で判明）**：公開メソッド`replaceShapesKeepingIds(replacements)`（複数図形を同じidのまま位置へ差し替え・通知1回・別の位置のインスタンスは警告して飛ばす・選択集合とホバーと並びと`#nextId`に触れない・呼び出し元は`InputTracker`の拡大縮小のみ）を、公開メソッドの一覧・`replaceShape`との違いの説明に足す。`PROJECT_ARCHITECTURE.md`のVectorModelの公開メソッドの記述があれば同様。
+*   **`_doc/arch/42_ScaleHandleRules.md`（タスク5で判明）**：新規ファイル`core/ScaleHandleRules.js`の公開名（上記）・非公開の補助・import（`InputModes`・`UnitSnapRules`）・`computeBoundsScale`の手順・辺のShiftで直前の倍率が0のとき`|previous|`を使うこと・テストの範囲（94件）を記載する。1章の構成図・`16_test.md`は上の記載どおり。
 *   （各タスクの実行時に判明した分はここへ追記する。）
 
 ## 3. タスクリスト
@@ -248,7 +249,7 @@
         *   コード修正完了後、JSDocコメントの記載漏れがないこと（新しい・変えた関数・メソッド・typedef・定数、先頭の責務定義）を確認する。
         *   開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る場合は、資料本体は修正せず、その旨を『開発資料の更新予定』欄に追記する。
         *   タスク完了後、作業レポート（本RES）の「4. 詳細作業内容」の本タスクの欄を記載し完成させ、本タスクを`[x]`にする。
-*   [ ] タスク5: 要件C 外枠のハンドルの規則`ScaleHandleRules`とテスト
+*   [x] タスク5: 要件C 外枠のハンドルの規則`ScaleHandleRules`とテスト
     *   **対象ファイル** :
         *   `./js/core/ScaleHandleRules.js` : 新規
         *   `./test/core/ScaleHandleRules.test.js` : 新規
@@ -375,7 +376,9 @@
 
 ### タスク5: 要件C 外枠のハンドルの規則`ScaleHandleRules`とテスト
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/core/ScaleHandleRules.js`（新規）：先頭の責務定義（3行以内）、`SCALE_HANDLE_NAMES`・`SCALE_HANDLE_HIT_SCREEN_PX`・`SCALE_EDGE_HANDLE_MIN_SCREEN_PX`、typedef `ScaleHandle`・`ScaleFrame`・`BoundsScale`・`BoundsScaleInput`、関数`collectScaleFrame`・`hitTestScaleHandle`・`resolveScaleHandleCursor`・`computeBoundsScale`（JSDocに手順1〜8）・`toScaleTransform`。importは`InputModes`の`OperationMode`と`UnitSnapRules`の`roundPointToUnit`のみ（`AffineTransform`はJSDocの`import()`型参照だけ）。丸めは`roundPointToUnit`を呼ぶだけ。モジュール内の非公開：`isPositiveFinite`・`isFiniteBounds`・`readAxis`・`snapAxisScale`・typedef`AxisState`（いずれもJSDocあり、exportしない）。
+    *   `test/core/ScaleHandleRules.test.js`（新規・93件）：8つのハンドルの位置と並び・小さい外枠（24pxちょうど／僅かに下・表示倍率による違い）・幅か高さが0・両方0・選択モード以外・boundsがnull/非有限・viewScale不正、当たり（境界6/6.5・倍率2で3/3.5・角優先・重なる小さい外枠でsw優先・null）、カーソルの向き、倍率と動かない点（角4・辺4・Shift（角・辺）・Alt・Shift+Alt・裏返り（横・縦・両方・Shiftの角）・ちょうど0でpreviousのまま（Shiftの角を含む・符号はpreviousの符号）・幅か高さが0の向き）、スナップ（刻み10の角・辺・Shift・Alt・Shift+Alt、刻みnull/0/負で丸めない、外枠の辺が半端な位置（minX=10.5）、丸めた結果が0でpreviousのまま）、`toScaleTransform`（4隅の写り先）、引数不変・未知のハンドル名のError。期待値は固定の値で手計算（各`it`の題に計算を記載）。`node --test`：tests 2232 / suites 363 全件合格（作業前2138→+94）。
+    *   diff監査の指摘で修正：`Shift`の角で、倍率を決めた向きの符号を丸める前の`raw`ではなく丸めた後の`s`の符号から取るよう直した（もう一方の向きは今のとおりその向きの`raw`の符号、ちょうど0なら`previous`の符号）。外枠の辺が半端な位置でカーソルが動かない点から半刻み以内のとき、引く辺が刻みの目に乗らなかった欠陥の修正。JSDoc手順7と上の要件C（RES:72）の文言も実態に合わせた。テスト1件追加（外枠`{10.5,0,110.5,50}`・`se`・(12,50)・刻み10で`Shift`あり`{-0.005, 0.005, 10.5, 0}`、`Shift`なし`{-0.005, 1, 10.5, 0}`）。既存の93件は変更なしで合格。
 
 ### タスク6: 要件D 入力状態・押下の分岐・カーソルの規則とテスト
 *   **作業内容** :
@@ -416,7 +419,7 @@
 ## 5. 懸念事項・要確認ポイント
 * **`Esc`の経路（REQの前提と実コードの食い違い。発注者の決定で方針(a)）**：REQは「`Esc`（今の`cancelDraftOrClearSelection`のドラッグ中の扱い）で元の形に戻る」としていたが、実コードではドラッグ中の`Esc`は`KeyboardShortcuts`の受理判定の手順5（`isDragging()`が真なら実行しない）で止まって`cancelDraftOrClearSelection`まで届かず、届いても(1)で何もせず`false`を返す（今のコードにはドラッグ中に`Esc`でやめる経路が無い）。計画立案の途中で発注者へ確かめ、**方針(a)**に決まった：`KeyboardShortcuts`の受理判定に「拡大縮小のドラッグ中は`cancel`だけを通す」例外を1つ足し（照会`isCancelableDrag`を注入で受け取る。対応表は変えない。修飾キーを問わないことは発注者の決定（追加）で、下の「修飾キーを押したままの`Esc`」の項）、`cancelDraftOrClearSelection`の(1)は拡大縮小のドラッグなら中断して引き始めの形に戻し`true`、それ以外のドラッグは今のまま`false`。このため`KeyboardShortcuts.js`を対象に加えた（REQの「変えない見込み」の一覧には無かったファイル）。
 * **`Esc`の後の`click`（計画の設計判断）**：`DragTracker.cancel()`は今、click抑止フラグを下ろす（blurの後に`click`は来ないため）。`Esc`の後もボタンは押されたままで、離すとキャンバスの`click`が来て、離した位置で選択が変わる（空白なら全解除）。`Esc`で元へ戻したのに選択が変わらないよう、`DragTracker.cancel`に省ける引数`suppressClick`を足し、`Esc`の経路だけ抑止を立てる（REQの変更対象の一覧に無かった`DragTracker.js`を加えた理由）。抑止が残った場合は次の押下の`clearSuppressedClick()`で消える（今の約束）。
-* **`Shift`の角のハンドルの「変化の大きいほう」の解釈**：現場設計の決定「縦横の倍率の大きさを、外枠に対して変化の大きいほうにそろえる」を、外枠に対するカーソルの動きの割合が大きいほう（`|raw − 1|`。符号付きの倍率`raw`で比べる）と解した（要件Cの手順4）。倍率の絶対値の大きいほう（`max(|sx|, |sy|)`）とは、縮めるとき・裏返したときに結果が変わる。テストプレイで違和感があれば手順4だけを直せばよい。
+* **`Shift`の角のハンドルの「変化の大きいほう」の解釈**：現場設計の決定「縦横の倍率の大きさを、外枠に対して変化の大きいほうにそろえる」を、外枠に対するカーソルの動きの割合が大きいほう（`|raw − 1|`。符号付きの倍率`raw`で比べる）と解した（要件Cの手順4）。倍率の絶対値の大きいほう（`max(|sx|, |sy|)`）とは、縮めるとき・裏返したときに結果が変わる。テストプレイで違和感があれば手順4だけを直せばよい。倍率を決めた向きの符号は丸めた後の`s`から、もう一方の向きの符号はその向きの`raw`から取る（決めた向きの辺を刻みの目に乗せるため。外枠の辺が半端な位置のとき、`raw`の符号とは逆になりうる）。
 * **ハンドルの下の本体のホバー**：外枠のハンドルの上でも、下にある図形の本体のホバーの強調は今のまま出る（REQに決まりが無く、ホバーの今のふるまいを変えないため）。押せばハンドルが優先され、カーソルはハンドルの向きの形になる。
 * **スポイトの待ち受け中**：外枠とハンドルは出たままだが、押下は何も始めず（今の待ち受けの早期`return`がハンドルの判定より前）、クリックはスポイトの取り込み、カーソルは`'cell'`（`CursorShapeRules`の(3a)が(3b)より前）。
 * **浮動小数の誤差**：倍率を割り算で求めるため、ちょうど表せない値では引いた辺・角の位置が刻みの目から`1e-12`程度ずれることがある。弧の外枠も三角関数の誤差（`1e-15`程度）を含む（今の書き出しの外枠と同じ性質）。テストはちょうど表せる値か小さな許容量で比べる。
@@ -434,3 +437,6 @@
 * **（タスク2）弧の上下の裏返しの目視確認**：弧は`d < 0`のとき中心の`y`に`ry'`を足すため、上下に裏返した弧は外枠の下端に中心が来る（上半分の弧のまま）。外枠の`getSelectedGeometryBounds`（`toDrawElement`の弧の両端と軸上の端点）と一致する前提で、タスク10の後のブラウザで「弧を含む選択の上辺を下へ越える」操作を目視確認することを勧める。
 * **（タスク2）`Path.createTransformed`の`corners`**：コンストラクタが`corners`を要素数`points`にそろえて写すため、`this.corners`をそのまま渡している（コンストラクタが複製するので共有しない）。
 * **（タスク3）`computeShapesGeometryBounds`の範囲**：`ellipse`の弧の外枠は両端点と軸上の端点のみで弦は含まない（線を含む外枠と同じ形の範囲）。線なし・塗りなしの図形も和に含む。`ShapeExtentReader`のクラスJSDocの生成箇所の記述は`// 7.10.`のままで、タスク10で`// 4.`へ直す。
+* **（タスク5）重なり優先のテスト**：辺のハンドルが出る条件（辺≧24px）では、辺と角の位置は常に`12 / viewScale`以上離れ、当たり半径`6 / viewScale`と重ならない。このため「角が優先」は手作りの`frame`（`n`と`nw`が同じ位置）と、外枠が小さく角どうしが重なるケース（最後の`sw`が優先）で確かめた。
+* **（タスク5）Shiftの辺で`previous`が使われる場合**：辺・`keepAspect`でカーソルがちょうど0の位置のとき、引く軸は`previous`の倍率、もう一方は`|その倍率|`になる（手順6→7の素直な読み）。`InputTracker`は`lastScale`に直前の`{scaleX, scaleY}`を渡すだけなので、`Shift`の辺のセッションでは`previous.scaleY = |previous.scaleX|`が保たれる。
+* **（タスク5）手順4の同率・長さ0の扱い**：角で`keepAspect`でも、片方の軸の長さが0（`bothPulled`でない）の入力は手順4を行わず、引く軸の`s`だけ（もう一方は1）にした（通常はハンドルが出ないため呼ばれない防御的な扱い）。
