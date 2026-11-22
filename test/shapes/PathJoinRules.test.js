@@ -2695,15 +2695,49 @@ describe('PathJoinRules 弧の結合（Phase 09-03b）', () => {
             }
         });
 
-        it('fromJSONで[3]・[4]が正準でない弧・[1]が中心より左の弧でも左端・右端（半径は絶対値、[3]・[4]を読まない）', () => {
+        it('fromJSONで[3]・[4]が正準でない弧・[1]が中心より左・[2]が中心より下の弧は点のとおり裏返った弧（始点が右側・終点が左側。[3]・[4]を読まない）', () => {
             const data = makeArc().toJSON();
             data.points = [
                 { x: 100, y: 200 }, { x: 40, y: 200 }, { x: 100, y: 230 },
                 { x: 999, y: 999 }, { x: -5, y: -5 },
             ];
             const arc = Ellipse.fromJSON(data);
+            assert.deepEqual(lineEndpointOf(arc.toJSON(), 'start'), { x: 160, y: 200 });
+            assert.deepEqual(lineEndpointOf(arc.toJSON(), 'end'), { x: 40, y: 200 });
+        });
+
+        it('回した弧（u=(0,60)・w=(30,0)）：始点＝中心−u・頂上＝中心+w・終点＝中心+u（端点と区間の引っ張る点を点のとおりに読む）', () => {
+            const data = makeArc().toJSON();
+            data.points = [
+                { x: 100, y: 200 }, { x: 100, y: 260 }, { x: 130, y: 200 },
+                { x: 0, y: 0 }, { x: 0, y: 0 },
+            ];
+            const arc = Ellipse.fromJSON(data);
+            assert.deepEqual(lineEndpointOf(arc.toJSON(), 'start'), { x: 100, y: 140 });
+            assert.deepEqual(lineEndpointOf(arc.toJSON(), 'end'), { x: 100, y: 260 });
+            const path = buildJoinedPath(arc, makeLine(100, 260, 150, 260), 0).toJSON();
+            assert.deepEqual(coordsOf(path.points).slice(0, 3), [[100, 140], [130, 200], [100, 260]]);
+            const k = 4 * (Math.SQRT2 - 1) / 3;
+            assertNearPoint(path.segments[0].control1, { x: 100 + 30 * k, y: 140 });
+            assertNearPoint(path.segments[0].control2, { x: 130, y: 200 - 60 * k });
+            assertNearPoint(path.segments[1].control1, { x: 130, y: 200 + 60 * k });
+            assertNearPoint(path.segments[1].control2, { x: 100 + 30 * k, y: 260 });
+        });
+
+        it('上下に裏返した弧（w が中心より下）：頂上が下側の下半分の弧として読み、端点は左端・右端のまま', () => {
+            const data = makeArc().toJSON();
+            data.points = [
+                { x: 100, y: 200 }, { x: 160, y: 200 }, { x: 100, y: 230 },
+                { x: 0, y: 0 }, { x: 0, y: 0 },
+            ];
+            const arc = Ellipse.fromJSON(data);
             assert.deepEqual(lineEndpointOf(arc.toJSON(), 'start'), { x: 40, y: 200 });
             assert.deepEqual(lineEndpointOf(arc.toJSON(), 'end'), { x: 160, y: 200 });
+            const path = buildJoinedPath(arc, makeLine(160, 200, 200, 200), 0).toJSON();
+            assert.deepEqual(coordsOf(path.points).slice(0, 3), [[40, 200], [100, 230], [160, 200]]);
+            const k = 4 * (Math.SQRT2 - 1) / 3;
+            assertNearPoint(path.segments[0].control1, { x: 40, y: 200 + 30 * k });
+            assertNearPoint(path.segments[1].control2, { x: 160, y: 200 + 30 * k });
         });
 
         it('endpointVertexIndexOf：直線0／1、頂点4つのパス0／3、今の曲線0／2、弧は null／null', () => {

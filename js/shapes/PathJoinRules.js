@@ -44,7 +44,7 @@ const QUARTER_ELLIPSE_BEZIER_K = 4 * (Math.SQRT2 - 1) / 3;
  * 結合できる線の端点の指定。`EndpointSnapRules`のtypedef`SnapTarget`もこの形を満たす。
  * @typedef {Object} EndpointRef
  * @property {*} shapeId 図形のid（不透明な値として扱う）
- * @property {'start'|'end'} end 'start'＝始点／'end'＝終点（結合できる線として読んだ頂点の並び＝`chainSourceOf`の結果の先頭／末尾。直線・パスは`points`の先頭／末尾、今の曲線は始点／終点、弧は左端／右端）
+ * @property {'start'|'end'} end 'start'＝始点／'end'＝終点（結合できる線として読んだ頂点の並び＝`chainSourceOf`の結果の先頭／末尾。直線・パスは`points`の先頭／末尾、今の曲線は始点／終点、弧は始点`P(π)`／終点`P(2π)`＝今の約束の位置では左端／右端）
  */
 
 /**
@@ -148,11 +148,14 @@ function chainSourceOf(data) {
 
 /**
  * 弧の`toJSON()`の値を開いたパスの図形データに読み替える（非公開。楕円の4分の1の近似の式の唯一の箇所）。
- * 弧の`points`の約束だけから読む（`[0]`中心・`[1]`右端の制御点・`[2]`上端の制御点）。半径は`Ellipse`の描画と同じ求め方（`rx = |right.x - xc|`・`ry = |top.y - yc|`）で、
- * `points[3]`・`[4]`（開始角・終了角の制御点）は読まない（正準の位置でない弧でも描画と同じ形になる）。
- * 弧の描く向き（左端π→頂上3π/2→右端2π）と同じ並びで、頂点は左端・頂上・右端の3つ（始点が左端・終点が右端）、区間は頂上で2つに分けた楕円の4分の1ずつ（どちらも`'bezier'`）。
- * 両端と頂上の点は弧の上にちょうど乗り、そこでの接線の向きも弧と同じ（左端・右端は縦、頂上は横）。ずれは半径の約0.03%以内（`QUARTER_ELLIPSE_BEZIER_K`）。
- * 半径が0の弧（点・線分に縮んだ弧）も同じ式で、縮んだ形（今の描画と同じ）になる。スタイル3つは元の値（`corners`なし）。引数を書き換えない。
+ * 弧の`points`の約束だけから読む（`[0]`中心・`[1]`右端の制御点・`[2]`上端の制御点）。`u = right - 中心`・`w = top - 中心`として、
+ * 輪郭`P(t) = 中心 + u cos t - w sin t`（`Ellipse`の読み方と同じ）の頂点を、始点`P(π) = 中心 - u`・頂上`P(3π/2) = 中心 + w`・終点`P(2π) = 中心 + u`とする。
+ * `points[3]`・`[4]`（開始角・終了角の制御点）は読まない。回した・裏返した・縦横別に伸ばした弧でも点のとおりに読む。
+ * 今の約束の位置（`u = (rx, 0)`・`w = (0, -ry)`）では始点が左端・頂上が上端・終点が右端で、今までと同じ値になる（点を先に求めてから`k`倍のずれを足す計算の順）。
+ * 区間は頂上で2つに分けた楕円の4分の1ずつ（どちらも`'bezier'`）。両端と頂上の点は弧の上にちょうど乗り、接線の向きも弧と同じ。
+ * ずれは半径の約0.03%以内（`QUARTER_ELLIPSE_BEZIER_K`。アフィン変換で保たれる）。
+ * 左右に裏返した弧（`u`が左向き）は始点が右側になる（弧の描く向きの始点）。
+ * 半径が0の弧（点・線分に縮んだ弧）も同じ式で、縮んだ形になる。スタイル3つは元の値（`corners`なし）。引数を書き換えない。
  * @param {{points: Array<{x: number, y: number}>, strokeColor: *, strokeWidth: *, fillColor: *}} data 弧の`toJSON()`の値
  * @returns {Object} 開いたパスの図形データ（`type: 'path'`・頂点3つ・曲がり方を持つ区間2つ）
  */
@@ -160,24 +163,31 @@ function arcChainSourceOf(data) {
     const [center, right, top] = data.points;
     const xc = center.x;
     const yc = center.y;
-    const rx = Math.abs(right.x - xc);
-    const ry = Math.abs(top.y - yc);
-    const kx = QUARTER_ELLIPSE_BEZIER_K * rx;
-    const ky = QUARTER_ELLIPSE_BEZIER_K * ry;
+    const ux = right.x - xc;
+    const uy = right.y - yc;
+    const wx = top.x - xc;
+    const wy = top.y - yc;
+    const k = QUARTER_ELLIPSE_BEZIER_K;
+    const startX = xc - ux;
+    const startY = yc - uy;
+    const apexX = xc + wx;
+    const apexY = yc + wy;
+    const endX = xc + ux;
+    const endY = yc + uy;
     return {
         type: 'path',
-        points: [{ x: xc - rx, y: yc }, { x: xc, y: yc - ry }, { x: xc + rx, y: yc }],
+        points: [{ x: startX, y: startY }, { x: apexX, y: apexY }, { x: endX, y: endY }],
         closed: false,
         segments: [
             {
                 kind: SEGMENT_KIND_BEZIER,
-                control1: { x: xc - rx, y: yc - ky },
-                control2: { x: xc - kx, y: yc - ry }
+                control1: { x: startX + k * wx, y: startY + k * wy },
+                control2: { x: apexX - k * ux, y: apexY - k * uy }
             },
             {
                 kind: SEGMENT_KIND_BEZIER,
-                control1: { x: xc + kx, y: yc - ry },
-                control2: { x: xc + rx, y: yc - ky }
+                control1: { x: apexX + k * ux, y: apexY + k * uy },
+                control2: { x: endX + k * wx, y: endY + k * wy }
             }
         ],
         strokeColor: data.strokeColor,
@@ -189,7 +199,7 @@ function arcChainSourceOf(data) {
 /**
  * 結合できる線の端点の座標を返す（端点の読み方の唯一の箇所。外から読む入口）。
  * `chainSourceOf`で読み替えた頂点の並びの先頭（`'start'`）・末尾（`'end'`）。直線・パスは`points`の先頭・末尾、今の曲線は始点・終点、
- * 弧は左端・右端（弧の`points`の先頭の中心・末尾の終了角の制御点ではない）。結合できる線の`toJSON()`の値を渡す。
+ * 弧は始点`P(π)`・終点`P(2π)`（今の約束の位置では左端・右端。弧の`points`の先頭の中心・末尾の終了角の制御点ではない）。結合できる線の`toJSON()`の値を渡す。
  * 使う側は`PathJoinRules`の中（`buildJoinedPath`・`buildJoinedPathAt`・`buildExtendedPath`）と`EndpointSnapRules`（`findNearestEndpoint`）。引数を書き換えない。
  * @param {Object} data 結合できる線の`toJSON()`の値
  * @param {'start'|'end'} end 'start'＝始点／'end'＝終点
