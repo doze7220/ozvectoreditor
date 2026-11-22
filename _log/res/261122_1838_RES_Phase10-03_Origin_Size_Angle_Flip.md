@@ -253,7 +253,7 @@ REQの要件と本計画の設計の対応：要件1（2行）＝要件A、要�
         *   コード修正完了後、JSDocコメントの記載漏れがないこと（新しい・変えた関数・メソッド・typedef・定数、先頭の責務定義）を確認する。
         *   開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る場合は、資料本体は修正せず、その旨を『開発資料の更新予定』欄に追記する。
         *   タスク完了後、作業レポート（本RES）の「4. 詳細作業内容」の本タスクの欄を記載し完成させ、本タスクを`[x]`にする。
-*   [ ] タスク12: 仕上げの確認（JSDoc・スコープ・全テスト）
+*   [x] タスク12: 仕上げの確認（JSDoc・スコープ・全テスト）
     *   **対象ファイル** :
         *   なし（確認のみ。見つかった漏れは直してよいが、**直してよいファイルはタスク1〜11の対象ファイルに限る**（その箇所を含むタスクの対象ファイルの範囲で直す。それ以外のファイルは変えない）。直したことを詳細作業内容に書く）
     *   **作業内容** :
@@ -361,7 +361,13 @@ REQの要件と本計画の設計の対応：要件1（2行）＝要件A、要�
 
 ### タスク12: 仕上げの確認（JSDoc・スコープ・全テスト）
 *   **作業内容** :
-    *   （未記入）
+    *   確認のみ。ソース・テスト・`index.html`は変更していない（漏れは見つからず、直したものは無い）。
+    *   責務定義：新規6ファイル（`ReferencePointRules`・`TransformInputSettings`・`TransformInputEditor`・`TransformInputRules`・`OptionBarSizeGroup`・`OptionBarTransformGroup`）と変えた`RotationRules`・`PositionInputEditor`・`KeyboardShortcuts`・`InputTracker`・`main.js`の先頭に3行以内の責務定義があることを確認。新規6ファイルの関数・メソッド・typedef・定数にJSDocの漏れなし。
+    *   スコープ：`git diff --stat 9e0ff31 HEAD`の変更ファイルは本RESの対象ファイル（src 11・test 9・`index.html`・本RES）のみ。「変えないファイル」・`KeyboardShortcuts`の既存エントリ・到達不能の枝に差分なし。`index.html`は旧idがすべて残り、消えた既存要素は位置のまとまりの`px`の`<span>`1つだけ（`px`の`<span>`は style・size の2か所）。
+    *   自己監査：図形種別の分岐・図形固有のプロパティ名の持ち込みなし（`target.type === 'shapes'`は対象の種類で図形種別ではない）。`InputTracker`の差分は`getReferencePoint`の照会と`computeRotationCenter`への受け渡しのみ。
+    *   `node --test`：tests 2467 / suites 400 / pass 2467 / fail 0。
+    *   行数（`wc -l`）：`InputTracker.js` 2035行（見積もり約2038行）・`main.js` 1187行。
+    *   開発資料への新たな影響：なし（既出の更新予定のみ）。
 
 ### タスク13: 要件8 テストプレイの確認項目を実コードで確かめ直して確定する
 *   **作業内容** :
