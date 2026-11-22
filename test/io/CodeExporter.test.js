@@ -724,3 +724,45 @@ describe('CodeExporter.toModuleText: 見た目の一致（角の点を含むパ�
         assert.notDeepStrictEqual(recordEditorDraw([cornered]), recordEditorDraw([plain]));
     });
 });
+
+describe('CodeExporter.toModuleText: ellipseのrotation（Phase 10-02）', () => {
+    const ellipseBase = {
+        kind: 'ellipse', id: 'e', x: 10, y: 20, radiusX: 5, radiusY: 3, startAngle: 0, endAngle: 6, closed: false, strokeColor: '#ff0000', strokeWidth: 2,
+    };
+
+    /**
+     * 描画要素を書き出したJSの`draw`で描いた記録のうち、`ellipse`の呼び出しだけを返す。
+     * @param {Array<object>} elements - 描画要素
+     * @returns {Promise<Array<Array<*>>>} `ellipse`の呼び出しの記録
+     */
+    async function recordEllipseCalls(elements) {
+        const sprite = await importSprite(dataWithElements(elements));
+        return recordExportedDraw(sprite).filter((entry) => entry[0] === 'ellipse');
+    }
+
+    it('rotationを有限の数値の要素は、そのままctx.ellipseの第5引数へ渡す', async () => {
+        const calls = await recordEllipseCalls([{ ...ellipseBase, rotation: 0.5 }, { ...ellipseBase, rotation: -2 }]);
+        assert.deepEqual(calls, [['ellipse', 10, 20, 5, 3, 0.5, 0, 6], ['ellipse', 10, 20, 5, 3, -2, 0, 6]]);
+    });
+
+    it('rotationが無い・数値でない要素は0を渡す', async () => {
+        const calls = await recordEllipseCalls([
+            { ...ellipseBase },
+            { ...ellipseBase, rotation: undefined },
+            { ...ellipseBase, rotation: Number.NaN },
+            { ...ellipseBase, rotation: '1' },
+            { ...ellipseBase, rotation: null },
+        ]);
+        assert.deepEqual(calls, Array.from({ length: 5 }, () => ['ellipse', 10, 20, 5, 3, 0, 0, 6]));
+    });
+
+    it('回した円・弧の見た目がエディタのEllipse.drawと一致する', async () => {
+        const rotate = (shape, angle) => shape.createTransformed({
+            a: Math.cos(angle), b: Math.sin(angle), c: -Math.sin(angle), d: Math.cos(angle), e: 5, f: 7,
+        });
+        const circle = rotate(new Ellipse(10, 20, 40, 50, 'circle', '#123456', 4, '#ffcc00'), Math.PI / 4);
+        const arc = rotate(new Ellipse(10, 20, 40, 60, 'arc', '#abcdef', 1), 1);
+        const quarter = rotate(new Ellipse(10, 20, 40, 60, 'arc', '#abcdef', 1), Math.PI / 2);
+        await assertSameAsEditor([circle, arc, quarter]);
+    });
+});

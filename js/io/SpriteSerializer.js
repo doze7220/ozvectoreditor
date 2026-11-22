@@ -12,10 +12,11 @@ const SPRITE_FORMAT = 'oz-vector-editor-sprite';
 
 /**
  * スプライトデータ形式（書き出し形式）の現行版番号（唯一の定義箇所）。作業データの版（`source.version`）とは別。
- * 版3: 曲線のパスの描画要素`bezierPath`を足した。古い読み手は未知の`kind`として描かず正しく描けないため版を上げた（`checkFormat`は版1〜3を受理する）。
+ * 版3: 曲線のパスの描画要素`bezierPath`を足した。古い読み手は未知の`kind`として描かず正しく描けないため版を上げた。
+ * 版4: 描画要素`ellipse`に回転の角度`rotation`（ラジアン）を足した。版3の読み手は未知のキーとして無視すると回した楕円を正しく描けないため版を上げた（`checkFormat`は版1〜4を受理する）。
  * @type {number}
  */
-const SPRITE_FORMAT_VERSION = 3;
+const SPRITE_FORMAT_VERSION = 4;
 
 /**
  * 線の太さの既定値（px）。`strokeWidth`が正の有限の数値でない要素はこの値として扱う（唯一の定義箇所。`CodeExporter`が埋め込みに使う）。
@@ -34,9 +35,9 @@ export const DEFAULT_STROKE_WIDTH = 2;
 
 /**
  * 描画要素（図形1つ分）。共通のキーは`kind`・`id`・`strokeColor`・`strokeWidth`・`fillColor`（`fillColor`は各`kind`のキー列の最後）。
- * `kind`ごとの追加のキー: `polyline`＝`points`・`closed`／`bezierPath`＝`points`・`closed`・`segments`／`quadratic`＝`points`／`ellipse`＝`x`・`y`・`radiusX`・`radiusY`・`startAngle`・`endAngle`・`closed`。
+ * `kind`ごとの追加のキー: `polyline`＝`points`・`closed`／`bezierPath`＝`points`・`closed`・`segments`／`quadratic`＝`points`／`ellipse`＝`x`・`y`・`radiusX`・`radiusY`・`rotation`・`startAngle`・`endAngle`・`closed`（`rotation`は`ctx.ellipse`の回転の角度。有限の数値でなければ0として扱う）。
  * `bezierPath`の`segments[i]`は`points[i]`→`points[(i + 1) % points.length]`の区間で、直線は`{kind: 'line'}`、3次ベジェは`{kind: 'cubic', control1: {x, y}, control2: {x, y}}`。
- * キー列: `polyline`＝`kind, id, points, closed, strokeColor, strokeWidth, fillColor`／`bezierPath`＝`kind, id, points, closed, segments, strokeColor, strokeWidth, fillColor`／`quadratic`＝`kind, id, points, strokeColor, strokeWidth, fillColor`（`fillColor`は常に`null`）／`ellipse`＝`kind, id, x, y, radiusX, radiusY, startAngle, endAngle, closed, strokeColor, strokeWidth, fillColor`。
+ * キー列: `polyline`＝`kind, id, points, closed, strokeColor, strokeWidth, fillColor`／`bezierPath`＝`kind, id, points, closed, segments, strokeColor, strokeWidth, fillColor`／`quadratic`＝`kind, id, points, strokeColor, strokeWidth, fillColor`（`fillColor`は常に`null`）／`ellipse`＝`kind, id, x, y, radiusX, radiusY, rotation, startAngle, endAngle, closed, strokeColor, strokeWidth, fillColor`。
  * @typedef {Object} DrawElement
  * @property {string} kind 描き方の種類（'polyline'|'bezierPath'|'quadratic'|'ellipse'）
  * @property {*} id 図形のID
@@ -46,10 +47,10 @@ export const DEFAULT_STROKE_WIDTH = 2;
  */
 
 /**
- * スプライトデータ（書き出し形式・版3）の最上位の形。
+ * スプライトデータ（書き出し形式・版4）の最上位の形。
  * @typedef {Object} SpriteData
  * @property {string} format 書き出し形式の識別子（'oz-vector-editor-sprite'）
- * @property {number} formatVersion 書き出し形式の版（現行は3。1以上の整数）
+ * @property {number} formatVersion 書き出し形式の版（現行は4。1以上の整数）
  * @property {SpriteBounds|null} bounds 外枠（図形0個ならnull）
  * @property {Array<DrawElement>} elements 描画データ（描画順）
  * @property {Object} source 作業データ（`DocumentSerializer.serialize`の戻り値）
@@ -177,6 +178,8 @@ function bezierPathRange(element) {
 
 /**
  * `ellipse`の形の範囲（弧の両端の点と、弧が通る軸上の端の点の最小・最大。弦は範囲に影響しない）。
+ * `rotation`が有限の数値で0でないときは、回した楕円として両端の点と、x・yそれぞれの極値の角度（範囲内のもの）の点の最小・最大を返す。
+ * `rotation`が0・キーが無い・数値でないときは回していない楕円の手順（値も従来と同じ）。
  * @param {DrawElement} element - `kind`が`ellipse`の描画要素
  * @returns {ShapeRange} 形の範囲
  */
@@ -186,6 +189,28 @@ function ellipseRange(element) {
     const fullTurn = 2 * Math.PI;
     if (endAngle < startAngle) {
         endAngle += fullTurn;
+    }
+    const rotation = element.rotation;
+    if (typeof rotation === 'number' && Number.isFinite(rotation) && rotation !== 0) {
+        const cosR = Math.cos(rotation);
+        const sinR = Math.sin(rotation);
+        const pointAt = (t) => {
+            const ex = radiusX * Math.cos(t);
+            const ey = radiusY * Math.sin(t);
+            return { x: x + ex * cosR - ey * sinR, y: y + ex * sinR + ey * cosR };
+        };
+        /** @type {Array<{x: number, y: number}>} */
+        const candidates = [pointAt(startAngle), pointAt(endAngle)];
+        const tx = Math.atan2(-radiusY * sinR, radiusX * cosR);
+        const ty = Math.atan2(radiusY * cosR, radiusX * sinR);
+        for (const base of [tx, tx + Math.PI, ty, ty + Math.PI]) {
+            for (let k = Math.ceil((startAngle - base) / fullTurn); base + fullTurn * k <= endAngle; k++) {
+                candidates.push(pointAt(base + fullTurn * k));
+            }
+        }
+        const rxs = candidates.map((p) => p.x);
+        const rys = candidates.map((p) => p.y);
+        return { minX: Math.min(...rxs), minY: Math.min(...rys), maxX: Math.max(...rxs), maxY: Math.max(...rys) };
     }
     if (endAngle - startAngle >= fullTurn) {
         return { minX: x - radiusX, minY: y - radiusY, maxX: x + radiusX, maxY: y + radiusY };

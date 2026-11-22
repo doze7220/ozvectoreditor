@@ -56,7 +56,7 @@ describe('SpriteSerializer.serialize: 描画要素', () => {
         const data = SpriteSerializer.serialize([withId(new Line(0, 0, 10, 10), 'a')]);
         assert.deepEqual(Object.keys(data), ['format', 'formatVersion', 'bounds', 'elements', 'source']);
         assert.equal(data.format, 'oz-vector-editor-sprite');
-        assert.equal(data.formatVersion, 3);
+        assert.equal(data.formatVersion, 4);
         assert.equal('version' in data, false);
         assert.equal(data.source.version, 2);
         assert.equal(data.source.format, 'oz-vector-editor');
@@ -582,13 +582,13 @@ describe('SpriteSerializer: 版3・bezierPath', () => {
         assert.deepEqual(SpriteSerializer.computeShapesBounds(shapes), SpriteSerializer.serialize(shapes).bounds);
     });
 
-    it('checkFormat は版3・2・1を supported、4を unsupportedVersion とする', () => {
+    it('checkFormat は版4・3・2・1を supported、5を unsupportedVersion とする', () => {
         const base = SpriteSerializer.serialize([]);
-        assert.equal(base.formatVersion, 3);
-        for (const formatVersion of [3, 2, 1]) {
+        assert.equal(base.formatVersion, 4);
+        for (const formatVersion of [4, 3, 2, 1]) {
             assert.equal(SpriteSerializer.checkFormat({ ...base, formatVersion }), 'supported');
         }
-        assert.equal(SpriteSerializer.checkFormat({ ...base, formatVersion: 4 }), 'unsupportedVersion');
+        assert.equal(SpriteSerializer.checkFormat({ ...base, formatVersion: 5 }), 'unsupportedVersion');
     });
 });
 
@@ -680,9 +680,9 @@ describe('SpriteSerializer: 区間の切り替えで作った図形（Phase 09-0
         assert.deepEqual(element.points, [{ x: 0, y: 0 }, { x: 90, y: 30 }]);
     });
 
-    it('書き出し形式の版は3のまま', () => {
+    it('書き出し形式の版は4のまま', () => {
         const path = switched(new Path(points, false), [0, 1], SegmentKindSwitch.TO_CURVE);
-        assert.equal(SpriteSerializer.serialize([path]).formatVersion, 3);
+        assert.equal(SpriteSerializer.serialize([path]).formatVersion, 4);
     });
 });
 
@@ -691,10 +691,10 @@ describe('SpriteSerializer: 曲がり方を持つ区間を含むパス（Phase 0
     const control2 = { x: 70, y: -20 };
     const points = [{ x: 0, y: 0 }, { x: 80, y: 30 }, { x: 140, y: 0 }];
 
-    it('bezierPath の区間の cubic の control1・control2 が作業データの引っ張る点と一致し、版は3', () => {
+    it('bezierPath の区間の cubic の control1・control2 が作業データの引っ張る点と一致し、版は4', () => {
         const path = withId(new Path(points, false, '#102030', 2, null, [{ kind: 'bezier', control1, control2 }, 'line']), 'bz');
         const data = SpriteSerializer.serialize([path]);
-        assert.equal(data.formatVersion, 3);
+        assert.equal(data.formatVersion, 4);
         const element = data.elements[0];
         assert.equal(element.kind, 'bezierPath');
         assert.deepEqual(element.segments.map((s) => s.kind), ['cubic', 'line']);
@@ -754,10 +754,10 @@ describe('SpriteSerializer: 弧を結合した結果（Phase 09-03b）', () => {
         return withId(plan.path, id);
     }
 
-    it('bezierPath の区間は cubic・cubic・line で、引っ張る点が作業データと一致し、版は3・外枠は形を囲む', () => {
+    it('bezierPath の区間は cubic・cubic・line で、引っ張る点が作業データと一致し、版は4・外枠は形を囲む', () => {
         const path = joinArc(new Line(160, 200, 220, 260, '#102030', 4), 'jn');
         const data = SpriteSerializer.serialize([path]);
-        assert.equal(data.formatVersion, 3);
+        assert.equal(data.formatVersion, 4);
         const element = data.elements[0];
         assert.equal(element.kind, 'bezierPath');
         assert.deepEqual(element.segments.map((s) => s.kind), ['cubic', 'cubic', 'line']);
@@ -1004,5 +1004,105 @@ describe('SpriteSerializer: createTransformed した図形の書き出し', () =
         assert.deepEqual(data.source.shapes.map((s) => s.type), ['line', 'curve', 'rect', 'circle', 'arc', 'path']);
         assert.deepEqual(data.source.shapes[0].points, [{ x: 80, y: 40 }, { x: 40, y: 30 }]);
         assert.deepEqual(data.source.shapes[4].points[0], { x: 0, y: 25 });
+    });
+});
+
+describe('SpriteSerializer: 回した楕円の外枠と版4（Phase 10-02）', () => {
+    /**
+     * 描画要素を返すだけの`Ellipse`を作る（`toDrawElement`を差し替える）。
+     * @param {object} fields - 描画要素の`ellipse`のキーのうち上書きする値
+     * @param {string|null} [strokeColor='#000000'] - 線の色
+     * @param {number} [strokeWidth=4] - 線の太さ
+     * @returns {Ellipse} 図形
+     */
+    function ellipseWith(fields, strokeColor = '#000000', strokeWidth = 4) {
+        const shape = withId(new Ellipse(0, 0, 1, 1, 'arc', strokeColor, strokeWidth), 'R');
+        const element = {
+            kind: 'ellipse', id: 'R', x: 100, y: 50, radiusX: 30, radiusY: 10, rotation: 0, startAngle: 0, endAngle: 2 * Math.PI,
+            closed: true, strokeColor, strokeWidth, fillColor: null, ...fields,
+        };
+        shape.toDrawElement = () => element;
+        return shape;
+    }
+
+    /**
+     * 回した楕円をサンプリングして求めた形の範囲を返す。
+     * @param {{x: number, y: number, radiusX: number, radiusY: number, rotation: number, startAngle: number, endAngle: number}} e - 描画要素の値
+     * @returns {{minX: number, minY: number, maxX: number, maxY: number}} 範囲
+     */
+    function sampledRange(e) {
+        let end = e.endAngle;
+        if (end < e.startAngle) {
+            end += 2 * Math.PI;
+        }
+        const range = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+        const steps = 200000;
+        for (let i = 0; i <= steps; i++) {
+            const t = e.startAngle + (end - e.startAngle) * i / steps;
+            const ex = e.radiusX * Math.cos(t);
+            const ey = e.radiusY * Math.sin(t);
+            const x = e.x + ex * Math.cos(e.rotation) - ey * Math.sin(e.rotation);
+            const y = e.y + ex * Math.sin(e.rotation) + ey * Math.cos(e.rotation);
+            range.minX = Math.min(range.minX, x);
+            range.minY = Math.min(range.minY, y);
+            range.maxX = Math.max(range.maxX, x);
+            range.maxY = Math.max(range.maxY, y);
+        }
+        return range;
+    }
+
+    it('formatVersionは4で、checkFormatは版1〜4をsupported・版5をunsupportedVersionとする', () => {
+        const base = SpriteSerializer.serialize([]);
+        assert.equal(base.formatVersion, 4);
+        for (const formatVersion of [1, 2, 3, 4]) {
+            assert.equal(SpriteSerializer.checkFormat({ ...base, formatVersion }), 'supported');
+        }
+        assert.equal(SpriteSerializer.checkFormat({ ...base, formatVersion: 5 }), 'unsupportedVersion');
+    });
+
+    it('45°回した全周の楕円の外枠は、サンプリングで求めた範囲と一致する（線を含まない）', () => {
+        const fields = { rotation: Math.PI / 4 };
+        const bounds = SpriteSerializer.computeShapesGeometryBounds([ellipseWith(fields)]);
+        const half = Math.sqrt((30 * 30 + 10 * 10) / 2);
+        assertBoundsClose(bounds, { minX: 100 - half, minY: 50 - half, maxX: 100 + half, maxY: 50 + half });
+    });
+
+    it('45°回した弧・30°回した弧の外枠は、サンプリングで求めた範囲と一致する', () => {
+        const cases = [
+            { rotation: Math.PI / 4, startAngle: Math.PI, endAngle: 2 * Math.PI },
+            { rotation: Math.PI / 6, startAngle: 1, endAngle: 2.5 },
+            { rotation: -2, startAngle: 5, endAngle: 1 },
+            { rotation: Math.PI / 2, startAngle: 3 * Math.PI / 2, endAngle: 5 * Math.PI / 2 },
+        ];
+        for (const fields of cases) {
+            const element = { x: 100, y: 50, radiusX: 30, radiusY: 10, ...fields };
+            assertBoundsClose(SpriteSerializer.computeShapesGeometryBounds([ellipseWith(fields, null)]), sampledRange(element), 1e-3);
+        }
+    });
+
+    it('線を含む外枠は、回した楕円の形の範囲を線の太さの半分だけ広げる', () => {
+        const fields = { rotation: Math.PI / 4, startAngle: Math.PI, endAngle: 2 * Math.PI };
+        const geometry = SpriteSerializer.computeShapesGeometryBounds([ellipseWith(fields)]);
+        const withStroke = SpriteSerializer.serialize([ellipseWith(fields)]).bounds;
+        assertBoundsClose(withStroke, {
+            minX: geometry.minX - 2, minY: geometry.minY - 2, maxX: geometry.maxX + 2, maxY: geometry.maxY + 2,
+        });
+    });
+
+    it('rotationが0・キー無し・数値でない要素の外枠は回していない楕円の手順と同じ', () => {
+        const expected = { minX: 70, minY: 40, maxX: 130, maxY: 60 };
+        for (const fields of [{ rotation: 0 }, { rotation: undefined }, { rotation: Number.NaN }, { rotation: '1' }, { rotation: Infinity }]) {
+            assertBoundsClose(SpriteSerializer.computeShapesGeometryBounds([ellipseWith(fields)]), expected, 0);
+        }
+        const noKey = ellipseWith({});
+        const element = { ...noKey.toDrawElement() };
+        delete element.rotation;
+        noKey.toDrawElement = () => element;
+        assertBoundsClose(SpriteSerializer.computeShapesGeometryBounds([noKey]), expected, 0);
+    });
+
+    it('serializeした円・弧の描画要素は`rotation`を持ち、回していなければ0', () => {
+        const data = SpriteSerializer.serialize([new Ellipse(10, 20, 40, 60, 'circle'), new Ellipse(10, 20, 40, 60, 'arc')]);
+        assert.deepEqual(data.elements.map((e) => e.rotation), [0, 0]);
     });
 });

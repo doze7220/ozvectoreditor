@@ -414,11 +414,11 @@ describe('FileContentReader.deserializeFromText: 曲線のパスを含むスプ�
         return shapes;
     }
 
-    it('版3のJS・CRLFのJSから曲線のパスを含む全図形が元どおり（区間の種類も）戻る', (t) => {
+    it('版4のJS・CRLFのJSから曲線のパスを含む全図形が元どおり（区間の種類も）戻る', (t) => {
         t.mock.method(console, 'warn', () => {});
         const shapes = sampleShapesWithSmoothPaths();
         const data = SpriteSerializer.serialize(shapes);
-        assert.equal(data.formatVersion, 3);
+        assert.equal(data.formatVersion, 4);
         const text = CodeExporter.toModuleText(data);
         for (const source of [text, text.replace(/\n/g, '\r\n')]) {
             const result = FileContentReader.deserializeFromText(source);
