@@ -272,7 +272,7 @@
         *   コード修正完了後、JSDocコメントの記載漏れがないこと（新しい・変えた関数・メソッド・typedef・定数、先頭の責務定義）を確認する。
         *   開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る場合は、資料本体は修正せず、その旨を『開発資料の更新予定』欄に追記する。
         *   タスク完了後、作業レポート（本RES）の「4. 詳細作業内容」の本タスクの欄を記載し完成させ、本タスクを`[x]`にする。
-*   [ ] タスク7: 要件E `Esc`の後の`click`の抑止（`DragTracker.cancel`の引数）
+*   [x] タスク7: 要件E `Esc`の後の`click`の抑止（`DragTracker.cancel`の引数）
     *   **対象ファイル** :
         *   `./js/core/DragTracker.js` : 更新（`cancel({ suppressClick })`・JSDoc）
     *   **作業内容** :
@@ -390,7 +390,7 @@
 
 ### タスク7: 要件E `Esc`の後の`click`の抑止（`DragTracker.cancel`の引数）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/core/DragTracker.js`：`cancel({ suppressClick = false } = {})`に変更。`suppressClick`が真で中断したセッションが左ボタンなら`#suppressNextClick = true`、それ以外（省いたとき＝blur・`setMode`・`abortOngoingOperation`の経路）は従来どおり`false`（`suppressClick && button === 0`の1式）。セッションなしは何もしない（従来どおり）。`cancel`のJSDocに引数・挙動を追記。先頭の責務定義（「blur時の中断、終了直後のclick抑止」）は実態と合うため変更なし。`#handleWindowBlur`は引数なしの`cancel()`のまま。CRLFを保った。テストは置かない（`window`購読に依存）。`node --test`全件合格を確認。
 
 ### タスク8: 要件D・E `InputTracker`の配線
 *   **作業内容** :

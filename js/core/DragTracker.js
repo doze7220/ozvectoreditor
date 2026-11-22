@@ -133,17 +133,23 @@ export class DragTracker {
     }
 
     /**
-     * 実行中のセッションを中断する。セッションを破棄してclick抑止フラグを解除したうえでonCancelを呼ぶ。
+     * 実行中のセッションを中断する。セッションを破棄してclick抑止フラグを更新したうえでonCancelを呼ぶ。
+     * 既定（blur・setMode・abortOngoingOperationの経路）ではフラグを解除する（blur後にclickは来ないため）。
+     * `suppressClick`が真で、中断したセッションが左ボタンのときは、解除せずフラグを立てる
+     * （Escでの中断の後もボタンは押されたままで、離したときのclickを1回無視するため。clickが来なかった場合の残留は
+     * 次の押下のclearSuppressedClick()で解除される）。
      * セッションがない場合は何もしない（click抑止フラグにも触れない）。
+     * @param {Object} [options]
+     * @param {boolean} [options.suppressClick=false] 真なら、左ボタンのセッションの中断の後のclickを1回抑止する
      */
-    cancel() {
+    cancel({ suppressClick = false } = {}) {
         if (this.#session === null) {
             return;
         }
 
-        const { handlers } = this.#session;
+        const { handlers, button } = this.#session;
         this.#session = null;
-        this.#suppressNextClick = false;
+        this.#suppressNextClick = suppressClick && button === 0;
         handlers.onCancel?.();
     }
 
