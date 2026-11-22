@@ -260,3 +260,53 @@ describe('resolveVertexPressAction：引数不変・新しいオブジェクト'
         );
     });
 });
+
+describe('resolvePressAction：回転の範囲（第4引数）', () => {
+    it('回転の範囲あり・空白はrotateSelection（角の名前をそのまま返す）', () => {
+        const { isSelected } = makeIsSelected([]);
+        assert.deepEqual(
+            resolvePressAction({ handle: null, bodyId: null }, isSelected, null, 'nw'),
+            { type: 'rotateSelection', corner: 'nw' },
+        );
+    });
+
+    it('図形の本体・図形ごとのハンドルより優先され、isSelectedを呼ばない', () => {
+        const b = makeIsSelected(['s1']);
+        assert.deepEqual(
+            resolvePressAction({ handle: null, bodyId: 's1' }, b.isSelected, null, 'se'),
+            { type: 'rotateSelection', corner: 'se' },
+        );
+        assert.deepEqual(
+            resolvePressAction({ handle: { shapeId: 's1', handle: 'v0' }, bodyId: 's1' }, b.isSelected, null, 'ne'),
+            { type: 'rotateSelection', corner: 'ne' },
+        );
+        assert.deepEqual(b.calls, []);
+    });
+
+    it('外枠のハンドルが回転の範囲より優先される', () => {
+        const { isSelected } = makeIsSelected([]);
+        assert.deepEqual(
+            resolvePressAction({ handle: null, bodyId: null }, isSelected, 'e', 'nw'),
+            { type: 'scaleSelection', handle: 'e' },
+        );
+    });
+
+    it('空文字・null・省略は回転の範囲なしの扱い（今と同じ結果・同じisSelectedの呼び出し）', () => {
+        const hit = { handle: null, bodyId: 's1' };
+        for (const args of [[''], [null], [undefined], []]) {
+            const b = makeIsSelected(['s1']);
+            assert.deepEqual(resolvePressAction(hit, b.isSelected, null, ...args), { type: 'moveSelection' });
+            assert.deepEqual(b.calls, ['s1']);
+        }
+        const { isSelected } = makeIsSelected([]);
+        assert.deepEqual(resolvePressAction({ handle: null, bodyId: null }, isSelected, null, ''), { type: 'marquee' });
+    });
+
+    it('呼ぶたびに新しいオブジェクト・hitを書き換えない', () => {
+        const { isSelected } = makeIsSelected([]);
+        const hit = Object.freeze({ handle: null, bodyId: null });
+        const a = resolvePressAction(hit, isSelected, null, 'sw');
+        assert.notEqual(a, resolvePressAction(hit, isSelected, null, 'sw'));
+        assert.deepEqual(hit, { handle: null, bodyId: null });
+    });
+});

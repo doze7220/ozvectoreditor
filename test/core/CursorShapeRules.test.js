@@ -5,6 +5,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { resolveCursorShape } from '../../js/core/CursorShapeRules.js';
 import { InputState, OperationMode } from '../../js/core/InputModes.js';
+import { resolveRotationCursor } from '../../js/core/RotationRules.js';
 
 /**
  * 既定（選択モード・IDLE・当たりなし）の入力を作り、overridesで上書きする。
@@ -309,5 +310,47 @@ describe('resolveCursorShape：短絡評価と引数不変', () => {
         const input = Object.freeze(makeInput({ hit, isSelected: () => true }));
         assert.equal(resolveCursorShape(input), 'move');
         assert.deepEqual(hit, { handle: null, bodyId: 's1' });
+    });
+});
+
+describe('resolveCursorShape：回転のカーソル(3c)', () => {
+    it('IDLEで回転の範囲の上は回転のカーソル（角ごとに別の値）', () => {
+        const values = ['nw', 'ne', 'se', 'sw'].map((rotationCorner) => {
+            const value = resolveCursorShape(makeInput({ rotationCorner }));
+            assert.equal(value, resolveRotationCursor(rotationCorner));
+            assert.ok(value.startsWith('url("data:image/svg+xml,'));
+            return value;
+        });
+        assert.equal(new Set(values).size, 4);
+    });
+
+    it('ROTATING_SELECTIONでも回転のカーソル（左ドラッグ状態・スペース押下中でも）', () => {
+        assert.equal(
+            resolveCursorShape(makeInput({ state: InputState.ROTATING_SELECTION, isLeftDragState: true, isSpacePressed: true, rotationCorner: 'se' })),
+            resolveRotationCursor('se'),
+        );
+    });
+
+    it('外枠のハンドルが優先される', () => {
+        assert.equal(resolveCursorShape(makeInput({ scaleHandle: 'nw', rotationCorner: 'nw' })), 'nwse-resize');
+    });
+
+    it('パン中・スペース押下中・待ち受け中が優先される', () => {
+        assert.equal(resolveCursorShape(makeInput({ isPanning: true, rotationCorner: 'nw' })), 'grabbing');
+        assert.equal(resolveCursorShape(makeInput({ isSpacePressed: true, rotationCorner: 'nw' })), 'grab');
+        assert.equal(resolveCursorShape(makeInput({ isPickingShape: () => true, rotationCorner: 'nw' })), 'cell');
+    });
+
+    it('頂点の選択モード・ほかの状態では出ない', () => {
+        assert.equal(resolveCursorShape(makeInput({ mode: OperationMode.VERTEX, rotationCorner: 'nw' })), 'default');
+        assert.equal(resolveCursorShape(makeInput({ state: InputState.MOVING_SELECTION, rotationCorner: 'nw' })), 'move');
+        assert.equal(resolveCursorShape(makeInput({ state: InputState.SCALING_SELECTION, rotationCorner: 'nw' })), 'default');
+        assert.equal(resolveCursorShape(makeInput({ state: InputState.MARQUEE_SELECTING, rotationCorner: 'nw' })), 'default');
+    });
+
+    it('未知の角の名前・null・省略は回転の範囲なしの扱い', () => {
+        assert.equal(resolveCursorShape(makeInput({ rotationCorner: 'x' })), 'default');
+        assert.equal(resolveCursorShape(makeInput({ rotationCorner: null })), 'default');
+        assert.equal(resolveCursorShape(makeInput({ hit: { handle: null, bodyId: 's1' } })), 'pointer');
     });
 });
