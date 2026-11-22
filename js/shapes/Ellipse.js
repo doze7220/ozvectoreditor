@@ -388,6 +388,26 @@ export class Ellipse {
     }
 
     /**
+     * ワールド座標の点を楕円の局所座標（中心を原点とし、`rotation`だけ逆に回した座標）へ写す。
+     * 縦横に沿った枝は`{ x − 中心x, y − 中心y }`（今の`dx`・`dy`そのもの）、そうでなければ`rotation`の逆回転を当てる。
+     * @param {EllipseGeometry} g - `#readGeometry`の結果
+     * @param {number} x - 点のX座標（ワールド座標）
+     * @param {number} y - 点のY座標（ワールド座標）
+     * @returns {{x: number, y: number}} 局所座標の点（新しいオブジェクト）
+     * @private
+     */
+    #toLocalPoint(g, x, y) {
+        const dx = x - g.x;
+        const dy = y - g.y;
+        if (g.axisAligned) {
+            return { x: dx, y: dy };
+        }
+        const cos = Math.cos(g.rotation);
+        const sin = Math.sin(g.rotation);
+        return { x: dx * cos + dy * sin, y: -dx * sin + dy * cos };
+    }
+
+    /**
      * 輪郭上の媒介変数`theta`の点（ワールド座標）を返す。縦横に沿った枝は今の式そのもの
      * （`x + radiusX·cosθ`・`y + radiusY·sinθ`）、そうでなければ`rotation`だけ回した楕円の点。
      * @param {EllipseGeometry} g - `#readGeometry`の結果
@@ -488,31 +508,33 @@ export class Ellipse {
 
     /**
      * 指定された座標(x, y)が図形の境界線上にあるかを判定する。
-     * 通常は距離比率r = sqrt((dx/rx)^2 + (dy/ry)^2)が1に近いかで判定し、許容幅は`tolerance + strokeWidth / 2`を
-     * 平均半径で割った比率とする。`rx < 1 || ry < 1`（つぶれた円・弧）では比率の式を使わず、
+     * `#readGeometry`の形を読み、点を楕円の局所座標（中心を原点に`rotation`だけ逆に回した座標。縦横に沿った枝は今の`dx`・`dy`そのもの）へ写して判定する。
+     * 通常は距離比率r = sqrt((lx/rx)^2 + (ly/ry)^2)が1に近いかで判定し、許容幅は`tolerance + strokeWidth / 2`を
+     * 平均半径（主軸の半径`rx`ともう一方の半径`ry`の平均）で割った比率とする。`rx < 1 || ry < 1`（つぶれた円・弧）では比率の式を使わず、
      * `#distanceToOutline`による輪郭の折れ線までの距離が`tolerance + strokeWidth / 2`以下かで判定する。
-     * 弧は角度を(0, 2π]へ写して`startAngle`〜`endAngle`の範囲外（空隙）を除外する（右端のatan2=0は2πとして当たる）。
+     * 弧は角度（縦横に沿った枝は`atan2(ly, lx)`、一般の枝は媒介変数の角度`atan2(ly / ry, lx / rx)`）を`(endAngle − 2π, endAngle]`へ写し、
+     * `startAngle`より小さければ範囲外（空隙）として除外する（今の約束の位置の弧では右端のatan2=0は2πとして当たる）。
      * @param {number} x - 判定するX座標
      * @param {number} y - 判定するY座標
      * @param {number} tolerance - 当たり判定の許容誤差
      * @returns {boolean} 当たっている場合はtrue、そうでない場合はfalse
      */
     hitTest(x, y, tolerance) {
-        const xc = this.points[0].x;
-        const yc = this.points[0].y;
-        const rx = Math.abs(this.points[1].x - xc);
-        const ry = Math.abs(this.points[2].y - yc);
+        const g = this.#readGeometry();
+        const rx = g.radiusX;
+        const ry = g.radiusY;
 
         // 最優先ガード: 0除算によるNaN/Infinity暴走や画面全域での誤爆を防止（縮退時は折れ線への距離で判定）
         if (rx < 1 || ry < 1) {
-            return this.#distanceToOutline(x, y, xc, yc, rx, ry) <= tolerance + this.strokeWidth / 2;
+            return this.#distanceToOutline(x, y, g) <= tolerance + this.strokeWidth / 2;
         }
 
-        const dx = x - xc;
-        const dy = y - yc;
-        
-        // 楕円の境界線判定：距離比率 r = sqrt((dx/rx)^2 + (dy/ry)^2) が 1 に近いかどうか
-        const value = (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry);
+        const local = this.#toLocalPoint(g, x, y);
+        const lx = local.x;
+        const ly = local.y;
+
+        // 楕円の境界線判定：距離比率 r = sqrt((lx/rx)^2 + (ly/ry)^2) が 1 に近いかどうか
+        const value = (lx * lx) / (rx * rx) + (ly * ly) / (ry * ry);
         const r = Math.sqrt(value);
         
         // tolerance と strokeWidth を加味した許容誤差の近似
@@ -526,11 +548,15 @@ export class Ellipse {
 
         // 弧の場合の角度フィルタ：空隙部分での誤爆を防止
         if (this.type !== 'circle') {
-            let angle = Math.atan2(dy, dx);
-            if (angle <= 0) {
-                angle += Math.PI * 2;
+            const TWO_PI = Math.PI * 2;
+            let angle = g.axisAligned ? Math.atan2(ly, lx) : Math.atan2(ly / ry, lx / rx);
+            while (angle <= g.endAngle - TWO_PI) {
+                angle += TWO_PI;
             }
-            if (angle < this.startAngle || angle > this.endAngle) {
+            while (angle > g.endAngle) {
+                angle -= TWO_PI;
+            }
+            if (angle < g.startAngle) {
                 return false;
             }
         }
@@ -541,12 +567,12 @@ export class Ellipse {
     /**
      * 指定された座標(x, y)が塗られた内側にあるかを判定する（共通メソッド契約の第15メソッド）。
      * 塗られている（`isFillable()`が真で`fillColor`が文字列。`draw`の塗る条件と同じ）ときだけ判定し、そうでなければ常にfalse（弧は`fillColor`が文字列でもfalse）。
-     * 許容誤差は使わない。`rx`・`ry`は`draw`と同じ式で求め、`rx * rx > 0 && ry * ry > 0`でなければ（半径0、および2乗が0へ丸められる半径）
+     * 許容誤差は使わない。`rx`・`ry`は`#readGeometry`の主軸・もう一方の半径で、`rx * rx > 0 && ry * ry > 0`でなければ（半径0、および2乗が0へ丸められる半径）
      * 面積0としてfalse（以後の除算の分母は0にならず、NaN・Infinityは生じない）。半径が正なら`rx < 1 || ry < 1`でも楕円の式で厳密に判定する。
-     * 式は`(dx² / rx²) + (dy² / ry²) < 1`で、`hitTest`の`value`と同じ式（境目で丸めの差が出ないため）。境界上の点は含めない
+     * 式は局所座標（中心を原点に`rotation`だけ逆に回した座標。縦横に沿った枝は今の`dx`・`dy`そのもの）での`(lx² / rx²) + (ly² / ry²) < 1`で、`hitTest`の`value`と同じ式（境目で丸めの差が出ないため）。境界上の点は含めない
      * （境界は輪郭の当たり`hitTest`が受け持つ）。通常の分岐では内側（`value < 1`）と輪郭（`|r − 1| ≤ allowedDiff`、`allowedDiff > 0`）の和が
      * `r ≤ 1 + allowedDiff`を隙間なく覆うため、`hitTest`の平均半径の近似は見直していない（`hitTest`の式を変えるときは和に隙間ができないか確かめ直すこと）。
-     * 注意：弧の塗り（弓形・扇形）や`Ellipse`の回転を入れるときは、本メソッドの式（回転を含まない軸平行の楕円の式）と`isFillable()`の判定を見直すこと。
+     * 回した・裏返した円も局所座標で判定するため、傾いた楕円の内側で正しく働く。注意：弧の塗り（弓形・扇形）を入れるときは、`isFillable()`の判定と本メソッドの式を見直すこと。
      * @param {number} x - 判定するX座標（ワールド座標）
      * @param {number} y - 判定するY座標（ワールド座標）
      * @returns {boolean} 塗られていて、かつ楕円の内側（境界を除く）ならtrue
@@ -556,44 +582,41 @@ export class Ellipse {
             return false;
         }
 
-        const xc = this.points[0].x;
-        const yc = this.points[0].y;
-        const rx = Math.abs(this.points[1].x - xc);
-        const ry = Math.abs(this.points[2].y - yc);
+        const g = this.#readGeometry();
+        const rx = g.radiusX;
+        const ry = g.radiusY;
 
         if (!(rx * rx > 0 && ry * ry > 0)) {
             return false;
         }
 
-        const dx = x - xc;
-        const dy = y - yc;
-        return (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry) < 1;
+        const local = this.#toLocalPoint(g, x, y);
+        return (local.x * local.x) / (rx * rx) + (local.y * local.y) / (ry * ry) < 1;
     }
 
     /**
      * 点(x, y)から輪郭（中心線）の折れ線までの最短距離を返す。縮退時（rx/ryが1未満）の当たり判定用。
-     * `intersectsRect`と同じパラメータ化（θ = startAngle + (endAngle − startAngle) × i / N、i = 0..N、
-     * N = ELLIPSE_INTERSECT_SEGMENTS）で点をサンプリングし、隣接点を結ぶ各線分への距離の最小値を返す。
+     * `intersectsRect`と同じパラメータ化（θ = g.startAngle + (g.endAngle − g.startAngle) × i / N、i = 0..N、
+     * N = ELLIPSE_INTERSECT_SEGMENTS）で点を`#pointOnOutline`によりサンプリングし、隣接点を結ぶ各線分への距離の最小値を返す。
      * 弧は描画されている部分のみが対象となる。長さ0の線分は点までの距離として扱い、0除算しない。
      * @param {number} x - 判定するX座標（ワールド座標）
      * @param {number} y - 判定するY座標（ワールド座標）
-     * @param {number} xc - 中心のX座標（ワールド座標）
-     * @param {number} yc - 中心のY座標（ワールド座標）
-     * @param {number} rx - X軸方向の半径（絶対値）
-     * @param {number} ry - Y軸方向の半径（絶対値）
+     * @param {EllipseGeometry} g - `#readGeometry`の結果
      * @returns {number} 折れ線までの最短距離（ワールド座標の長さ）
      * @private
      */
-    #distanceToOutline(x, y, xc, yc, rx, ry) {
+    #distanceToOutline(x, y, g) {
         const segments = ELLIPSE_INTERSECT_SEGMENTS;
-        const angleSpan = this.endAngle - this.startAngle;
-        let prevX = xc + rx * Math.cos(this.startAngle);
-        let prevY = yc + ry * Math.sin(this.startAngle);
+        const angleSpan = g.endAngle - g.startAngle;
+        const first = this.#pointOnOutline(g, g.startAngle);
+        let prevX = first.x;
+        let prevY = first.y;
         let minDistance = Math.hypot(x - prevX, y - prevY);
         for (let i = 1; i <= segments; i++) {
-            const theta = this.startAngle + angleSpan * i / segments;
-            const px = xc + rx * Math.cos(theta);
-            const py = yc + ry * Math.sin(theta);
+            const theta = g.startAngle + angleSpan * i / segments;
+            const point = this.#pointOnOutline(g, theta);
+            const px = point.x;
+            const py = point.y;
             const abx = px - prevX;
             const aby = py - prevY;
             const lengthSquared = abx * abx + aby * aby;
@@ -615,10 +638,11 @@ export class Ellipse {
     /**
      * 選択矩形に輪郭線（中心線。`strokeWidth`は含めない）の一部でも掛かるかを判定する範囲選択用の共通メソッド
      * （共通メソッド契約の第10メソッド）。塗り内部は判定しない。矩形の境界上も交差とみなす。
-     * rx/ryはdraw()と同じ式で求め、外接矩形[xc − rx, xc + rx] × [yc − ry, yc + ry]が判定矩形と重ならなければfalseを返す（早期棄却）。
+     * 形は`draw()`と同じ`#readGeometry`の値で読む。縦横に沿った枝は外接矩形[xc − rx, xc + rx] × [yc − ry, yc + ry]、回した形は
+     * 回した楕円を必ず含む保守的な正方形（半分の幅・高さが`max(rx, ry)`）が判定矩形と重ならなければfalseを返す（早期棄却。結果は変えない）。
      * 重なる場合はθ = startAngle + (endAngle − startAngle) × i / N（i = 0..N、N = ELLIPSE_INTERSECT_SEGMENTS）で
-     * 点(xc + rx·cosθ, yc + ry·sinθ)をサンプリングし、隣接点を結ぶN本の線分のいずれかが交差すればtrueを返す。
-     * draw()のctx.ellipse(xc, yc, rx, ry, 0, startAngle, endAngle)と同じパラメータ化のため、円・弧をtypeで分岐せず同一処理で扱い、
+     * 輪郭上の点（`#pointOnOutline`。縦横に沿った枝は(xc + rx·cosθ, yc + ry·sinθ)）をサンプリングし、隣接点を結ぶN本の線分のいずれかが交差すればtrueを返す。
+     * draw()のctx.ellipse(xc, yc, rx, ry, rotation, startAngle, endAngle)と同じパラメータ化のため、円・弧をtypeで分岐せず同一処理で扱い、
      * 弧は描画されている弧部分のみが判定対象となる（弦は含めない）。
      * 縮退した楕円（rx/ryが0）でもサンプル点が線分状・点状に並ぶだけで0除算を起こさず、輪郭が掛かればtrueを返す。
      * 折れ線近似のため、真の輪郭とのずれ（最大で半径×(1−cos(π/N))程度）がある。
@@ -629,24 +653,28 @@ export class Ellipse {
      * @returns {boolean} 輪郭線の一部でも矩形に掛かればtrue
      */
     intersectsRect(minX, minY, maxX, maxY) {
-        const xc = this.points[0].x;
-        const yc = this.points[0].y;
-        const rx = Math.abs(this.points[1].x - xc);
-        const ry = Math.abs(this.points[2].y - yc);
+        const g = this.#readGeometry();
+        const xc = g.x;
+        const yc = g.y;
+        // 早期棄却の外接矩形の半分の幅・高さ：縦横に沿った枝は半径そのもの、回した形は必ず含む保守的な値（max(rx, ry)）
+        const halfW = g.axisAligned ? g.radiusX : Math.max(g.radiusX, g.radiusY);
+        const halfH = g.axisAligned ? g.radiusY : Math.max(g.radiusX, g.radiusY);
 
         // 早期棄却：外接矩形と判定矩形が重ならなければ交差しない
-        if (xc + rx < minX || xc - rx > maxX || yc + ry < minY || yc - ry > maxY) {
+        if (xc + halfW < minX || xc - halfW > maxX || yc + halfH < minY || yc - halfH > maxY) {
             return false;
         }
 
         const segments = ELLIPSE_INTERSECT_SEGMENTS;
-        const angleSpan = this.endAngle - this.startAngle;
-        let prevX = xc + rx * Math.cos(this.startAngle);
-        let prevY = yc + ry * Math.sin(this.startAngle);
+        const angleSpan = g.endAngle - g.startAngle;
+        const first = this.#pointOnOutline(g, g.startAngle);
+        let prevX = first.x;
+        let prevY = first.y;
         for (let i = 1; i <= segments; i++) {
-            const theta = this.startAngle + angleSpan * i / segments;
-            const px = xc + rx * Math.cos(theta);
-            const py = yc + ry * Math.sin(theta);
+            const theta = g.startAngle + angleSpan * i / segments;
+            const point = this.#pointOnOutline(g, theta);
+            const px = point.x;
+            const py = point.y;
             if (segmentIntersectsRect(prevX, prevY, px, py, minX, minY, maxX, maxY)) {
                 return true;
             }

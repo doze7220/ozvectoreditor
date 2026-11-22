@@ -1057,3 +1057,96 @@ describe('Ellipse の形の読み方（回転・裏返し）と描画・描画�
         assert.equal(JSON.stringify(shape.toJSON()), before);
     });
 });
+
+describe('Ellipse の当たり判定（回した・裏返した円・弧）', () => {
+    // 中心(100,100)の円・弧を90度（画面の時計回り）回した形：u=(0,40)・w=(20,0)
+    const rotated90 = (type) => fromPoints(type, [[100, 100], [100, 140], [120, 100], [100, 140], [100, 140]]);
+
+    it('90度回した円：輪郭は縦長の楕円（半径 横20・縦40）の上で当たり、回す前の位置（横40）では外れる', () => {
+        const shape = rotated90('circle');
+        assert.equal(shape.hitTest(100, 140, 0), true);
+        assert.equal(shape.hitTest(120, 100, 0), true);
+        assert.equal(shape.hitTest(100, 60, 0), true);
+        assert.equal(shape.hitTest(140, 100, 0), false);
+        assert.equal(shape.hitTest(100, 100, 0), false);
+    });
+
+    it('90度回した円：内側（hitTestFill）は縦長の楕円の内側だけで、境界上は含まない', () => {
+        const shape = rotated90('circle');
+        assert.equal(shape.hitTestFill(100, 130), true);
+        assert.equal(shape.hitTestFill(110, 100), true);
+        assert.equal(shape.hitTestFill(130, 100), false);
+        assert.equal(shape.hitTestFill(120, 100), false);
+    });
+
+    it('45度回した円：長軸・短軸の向きで当たり、半径の外・内の判定が回転に従う', () => {
+        const s = Math.SQRT1_2;
+        const shape = fromPoints('circle', [[0, 0], [40 * s, 40 * s], [20 * s, -20 * s], [40 * s, 40 * s], [40 * s, 40 * s]]);
+        assert.equal(shape.hitTest(40 * s, 40 * s, 0), true);
+        assert.equal(shape.hitTest(-40 * s, -40 * s, 0), true);
+        assert.equal(shape.hitTest(20 * s, -20 * s, 0), true);
+        assert.equal(shape.hitTest(40 * s, -40 * s, 0), false);
+        assert.equal(shape.hitTestFill(30 * s, 30 * s), true);
+        assert.equal(shape.hitTestFill(30 * s, -30 * s), false);
+    });
+
+    it('90度回した弧：描かれる右半分だけで当たり、反対側（空隙）では外れる', () => {
+        const shape = rotated90('arc');
+        assert.equal(shape.hitTest(120, 100, 0), true);
+        assert.equal(shape.hitTest(80, 100, 0), false);
+        // 媒介変数 t = 5π/4（描かれる側）と 3π/4（空隙側）の輪郭上の点：中心 + u·cos t − w·sin t
+        const c = Math.SQRT1_2;
+        assert.equal(shape.hitTest(100 + 20 * c, 100 - 40 * c, 0), true);
+        assert.equal(shape.hitTest(100 - 20 * c, 100 - 40 * c, 0), false);
+        assert.equal(shape.hitTestFill(110, 100), false);
+    });
+
+    it('上下に裏返した弧は下半分、左右に裏返した弧は上半分で当たる', () => {
+        const down = fromPoints('arc', [[100, 100], [130, 100], [100, 140], [70, 100], [130, 100]]);
+        assert.equal(down.hitTest(100, 140, 0), true);
+        assert.equal(down.hitTest(100, 60, 0), false);
+        const up = fromPoints('arc', [[100, 100], [70, 100], [100, 60], [130, 100], [70, 100]]);
+        assert.equal(up.hitTest(100, 60, 0), true);
+        assert.equal(up.hitTest(100, 140, 0), false);
+    });
+
+    it('非直交の共役半径の弧（回した後に縦横別に伸ばした形）：両端と頂上で当たり、反対側では外れる', () => {
+        const shape = fromPoints('arc', [[10, 10], [60, 10], [40, 50], [-40, 10], [60, 10]]);
+        const c = Math.SQRT1_2;
+        // 頂上（中心＋w）、描かれる側（t = 5π/4）と空隙側（t = 3π/4）の輪郭上の点：中心 + u·cos t − w·sin t
+        assert.equal(shape.hitTest(40, 50, 0), true);
+        assert.equal(shape.hitTest(10 - 50 * c + 30 * c, 10 + 40 * c, 0), true);
+        assert.equal(shape.hitTest(10 - 50 * c - 30 * c, 10 - 40 * c, 0), false);
+        assert.equal(shape.hitTest(-20, -30, 0), false);
+    });
+
+    it('縮んだ回した弧（半径が1未満）：折れ線までの距離で判定し、輪郭の近くで当たり遠くで外れる', () => {
+        const shape = fromPoints('arc', [[100, 100], [100, 100.5], [100.3, 100], [100, 100.5], [100, 100.5]]);
+        assert.equal(shape.hitTest(100, 100.5, 0), true);
+        assert.equal(shape.hitTest(100, 110, 0), false);
+    });
+
+    it('90度回した円：範囲選択は輪郭が掛かるときだけ true（内側だけ・横の外側は false）', () => {
+        const shape = rotated90('circle');
+        assert.equal(shape.intersectsRect(99, 138, 101, 142), true);
+        assert.equal(shape.intersectsRect(118, 98, 122, 102), true);
+        assert.equal(shape.intersectsRect(95, 95, 105, 105), false);
+        assert.equal(shape.intersectsRect(130, 98, 150, 102), false);
+        assert.equal(shape.intersectsRect(200, 200, 210, 210), false);
+    });
+
+    it('90度回した弧：範囲選択は描かれる右半分だけに掛かる', () => {
+        const shape = rotated90('arc');
+        assert.equal(shape.intersectsRect(118, 98, 122, 102), true);
+        assert.equal(shape.intersectsRect(78, 98, 82, 102), false);
+    });
+
+    it('当たり判定は図形を書き換えない', () => {
+        const shape = rotated90('arc');
+        const before = JSON.stringify(shape.toJSON());
+        shape.hitTest(120, 100, 2);
+        shape.hitTestFill(110, 100);
+        shape.intersectsRect(0, 0, 500, 500);
+        assert.equal(JSON.stringify(shape.toJSON()), before);
+    });
+});
