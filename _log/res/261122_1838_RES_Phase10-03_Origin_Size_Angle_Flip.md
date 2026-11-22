@@ -270,7 +270,7 @@ REQの要件と本計画の設計の対応：要件1（2行）＝要件A、要�
         *   5章の末尾の確認項目（0〜9）を、実装したコード（`index.html`のid・`title`・記号、`main.js`の配線、規則の受理の条件）と照らして確かめ、違う記述（記号・`title`の文言・押せる条件・欄に出る値の例）を実コードに合わせて直し、確定させる。直した点を詳細作業内容に書く。
         *   ソースコードは変えない。
         *   タスク完了後、作業レポート（本RES）の「4. 詳細作業内容」の本タスクの欄を記載し完成させ、本タスクを`[x]`にする。
-*   [ ] タスク14: 開発資料（`PROJECT_ARCHITECTURE.md`と、`_doc/arch/`の該当ファイル）への反映
+*   [x] タスク14: 開発資料（`PROJECT_ARCHITECTURE.md`と、`_doc/arch/`の該当ファイル）への反映
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` : 更新
         *   `./_doc/arch/`の該当ファイル（2章『開発資料の更新予定』に挙げたもの）: 更新、`./_doc/arch/44_ReferencePointRules.md`・`./_doc/arch/45_TransformInputSettings.md` : 新規
@@ -377,7 +377,11 @@ REQの要件と本計画の設計の対応：要件1（2行）＝要件A、要�
 
 ### タスク14: 開発資料（`PROJECT_ARCHITECTURE.md`と、`_doc/arch/`の該当ファイル）への反映
 *   **作業内容** :
-    *   （未記入）
+    *   書き換え前に行末をバイト数で実測（CRの数とLFの数）。**CRLF**：`PROJECT_ARCHITECTURE.md`・`01_index_html.md`・`02_main.md`・`03_VectorModel.md`・`06_InputTracker.md`・`13_palette.md`・`14_edit.md`・`16_test.md`・`41_NudgeTargetRules.md`。**LF**：`07_KeyboardShortcuts.md`・`26_StatusReadoutRules.md`・`42_ScaleHandleRules.md`・`43_RotationRules.md`。いずれも混在なしで、書き換え後も同じ行末（CRの数とLFの数が一致／新規はCRが0）であることを確認した。新規の`44_ReferencePointRules.md`・`45_TransformInputSettings.md`は直前の`42`・`43`・`31`にそろえてLF。
+    *   `PROJECT_ARCHITECTURE.md`：1章（index.htmlの説明に2行・構成図に新規6ファイル（`ReferencePointRules`・`TransformInputSettings`・`TransformInputRules`・`TransformInputEditor`・`OptionBarSizeGroup`・`OptionBarTransformGroup`）とテスト5ファイル・既存の`RotationRules`・`ScaleHandleRules`・`StatusReadoutRules`・`NudgeTargetRules`・`KeyboardShortcuts`・`PositionInputRules`・`PositionInputEditor`・`ShapeExtentReader`の説明・「存在しないもの」（10-01・10-02の項から実装したものを除き、10-03のやらないことを足した。「大きさ・角度の数値の欄」の項を削除。「1行固定」を「ツールバーは2行・ステータスバーは1行」に）・フォルダ分割の方針（`core/`・`edit/`の段落）・依存方向（(3)を6ファイルに・規則どうしの新しい向き・`InputTracker`の補助））、2章（選択状態に基準点・比率の鍵・作業データの保存しないものに追加）、3章（同期の経路に`transformInputSettings.onChange`・3.（`Shift`+`H`・`Shift`+`V`と`performFlip`）・6.（数値入力・反転の記録）・13.（2行・新しいまとまり・`px`の決定・やらないこと）・20.（位置の定義の置き換え・発注者の決定の注・`px`の決定）・21.（位置の欄の記述）・25.（基準点を使わない・`W:`・`H:`の記述）・26.（回転の中心＝基準点）・新しい27.）、4章（一覧に44・45）。
+    *   `_doc/arch/`：新規`44_ReferencePointRules.md`・`45_TransformInputSettings.md`。更新`01_index_html.md`（2行・新しいまとまり・`px`の削除・寸法・幅の見積もり・ツールパレットの位置の数値）・`02_main.md`（`// 3.4.`・`// 4.`・`// 7.10.`・`// 7.13.`・`// 7.14.`・`// 8.`・起動時の同期・注入の一覧・生成順・行数1187）・`03_VectorModel.md`（`replaceShapesKeepingIds`の呼び出し元）・`06_InputTracker.md`（`getReferencePoint`・回転の中心・行数2035）・`07_KeyboardShortcuts.md`（反転の2エントリ・`ShortcutActions`・予約の記述・keydownのテスト）・`13_palette.md`（新しい2部品・ツールバーの2行）・`14_edit.md`（`TransformInputRules`・`TransformInputEditor`・`PositionInputEditor`の基準点・`ShapeExtentReader`の使う側・入力の数値の判定3行の二重）・`16_test.md`（Phase 10-03の追加分・書き換えたケース・テストできない箇所・件数 tests 2467 / suites 400・`globalThis`の例外）・`26`・`41`・`42`（使う側）・`43_RotationRules.md`（`computeRotationCenter`の第2引数・import・件数37）。
+    *   行数は`wc -l`で実測した値を書いた：`main.js` 1187行・`InputTracker.js` 2035行。`node --test`：tests 2467 / suites 400 / pass 2467 / fail 0（ソースは変えていないため作業前と同じ）。
+    *   計画との差：(1) 計画では`PROJECT_ARCHITECTURE.md`3章に「`Shift`+`V`等は将来の予約」の記述があるとしていたが、`PROJECT_ARCHITECTURE.md`には該当の記述が無く（3章3.は`KeyV`が`ctrl`・`shift`の組で排他的とだけ書いていた）、予約の記述は`_doc/arch/07_KeyboardShortcuts.md`にあったためそちらを直した（`PROJECT_ARCHITECTURE.md`3章3.には`Shift`+`H`・`Shift`+`V`を足した）。(2) `TransformInputEditor`は`ReferencePointRules`から`resolveReferencePointPosition`に加えて`DEFAULT_REFERENCE_POINT`もimportしている（`getReferencePoint`の既定値のため）ので、資料にはその実態を書いた。
 
 ## 5. 懸念事項・要確認ポイント
 * (1) **2行目の並びと`px`（発注者の決定で解決済み 2026-11-22）**：REQは「並びは`X` `Y` `W` 鍵 `H` `px`」。資料3章13.の「数値の欄を足すときは、まとまり・UI部品・ブロックを足すだけで既存のものを変えない（大きさ・角度の欄を足すときも同じ）」に従い、幅・高さ・鍵は新しいまとまり`#option-size-group`に置き、位置のまとまり（`#option-position-group`・`OptionBarPositionGroup`）とは分けたまま（区切りの罫線が`Y`と`W`の間に入る）。**発注者の決定により、位置のまとまりの`px`の`<span class="option-unit">px</span>`だけを`index.html`から消し、2行目は`X: [ ] Y: [ ] │ W: [ ] 🔒 H: [ ] px │ ∠ [ ] ° 基準点 ⇆ ⇅ │ 整列・分布 │ 角`とする**（単位は大きさのまとまりの`px`1つ）。`OptionBarPositionGroup.js`が読む要素は`#option-position-x`・`#option-position-y`だけのため、JSは変わらない（「変えないファイル」のまま）。まとまり・UI部品・ブロックの分け方は変えない。資料3章13.・20.にこの決定を記録する（2章『開発資料の更新予定』）。角度・基準点・反転は1つのまとまり`#option-transform-group`にまとめた（並びは角度・基準点・反転）。
@@ -389,7 +393,8 @@ REQの要件と本計画の設計の対応：要件1（2行）＝要件A、要�
 * (7) **`Shift`+`H`・`Shift`+`V`の今までのふるまい**：今までは一致せずブラウザの既定のまま（実質何も起きない）だった。本作業の後は、選択（`V`）で図形を選んでいるときだけ受理し、それ以外では今までどおり一致しても受理しない（`false`）。`Ctrl`+`Shift`+`H`は一致しない（今までどおりブラウザの操作）。
 * (8) **ステータスバーの`W:`・`H:`と幅・高さの欄の違い**：ステータスバーは線を含む外枠（今のまま）、幅・高さの欄は線を含まない外枠のため、線の太さの分だけ値が違う（REQの発注者の決定どおり）。
 * (9) **入力の数値の受理の3行**：空・数値でない文字列を弾く手順（`typeof text !== 'string' || text.trim() === ''`・`Number(text)`・`Number.isFinite`）は、`PositionInputRules.resolvePositionDelta`の中にもあり、`TransformInputRules`の非公開`parseInputNumber`にも書く（`PositionInputRules`を変えないため。受理の条件（正の値・0を弾く等）は欄ごとに違う）。共通の関数へまとめる場合は`PositionInputRules`を変えることになるため、本作業では行わない。この判断は開発資料（3章27.の「計画の設計判断」・`_doc/arch/14_edit.md`）にも残す（2章『開発資料の更新予定』）。
-* (10) **`InputTracker`の行数**：見積もりは約2038行（+約11行）。
+* (10) **`InputTracker`の行数**：見積もりは約2038行（+約11行）。実測は2035行（+8行）。
+* (11) **開発資料への反映（タスク14）で判断した点**：(a) `index.html`の資料（`_doc/arch/01_index_html.md`）の既存の「約1261px」などの1行の幅の見積もりは歴史的な記述として残し、「2行にしたため古い。新しい項が正」と明記した（消さない方針）。(b) `PROJECT_ARCHITECTURE.md`の3章25.・26.の「第7引数の5項目目`getSelectionFrameBounds`」「回転の中心は引き始めの外枠の中心」などPhase 10-01・10-02の時点の記述は、そのPhaseの記述として残し、変わった箇所に「Phase 10-03で…」を足した。(c) `_doc/arch/16_test.md`の「書き方の決まり」の`globalThis`へ代入しないという規則に、`KeyboardShortcuts.keydown.test.js`だけの例外を足した。将来この規則を使う側で例外が増える場合は、ファイルを分けて`after`で必ず元に戻す形（`test/core/KeyboardShortcuts.keydown.test.js`）にそろえる。(d) `_doc/arch/`の行末はファイルごとに混在している（CRLFは01・02・03・06・13・14・16・41、LFは07・26・31・42〜45）ため、今後の書き換えでもファイルごとに実測してから行う。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる。タスク13で実コードと照らして確定済み）
 * **0. 準備**：`Ctrl`+`F5`で最新にする。新しいキャンバスに、直線（`1`）・矩形（`4`）・円（`5`）・弧（`3`）・塗った矩形（オプションバーの🪣で塗りあり）・曲線のパス（`2`で3点以上打って終える）・水平な直線（`1`で`Shift`を押しながら横に引く）を描いておく。線の太い矩形も1つ用意する（太さの欄に`10`）。
