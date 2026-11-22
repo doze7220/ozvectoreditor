@@ -49,6 +49,10 @@ import { PathCornerEditor } from './edit/PathCornerEditor.js';
 import { OptionBarCornerGroup } from './palette/OptionBarCornerGroup.js';
 import { DisplayState } from './core/DisplayState.js';
 import { UnitSnapSettings } from './core/UnitSnapSettings.js';
+import { TransformInputSettings } from './core/TransformInputSettings.js';
+import { TransformInputEditor } from './edit/TransformInputEditor.js';
+import { OptionBarSizeGroup } from './palette/OptionBarSizeGroup.js';
+import { OptionBarTransformGroup } from './palette/OptionBarTransformGroup.js';
 import { DisplayWiring } from './wiring/DisplayWiring.js';
 import { drawToolIcons } from './wiring/ToolIconWiring.js';
 
@@ -78,6 +82,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // ページを開いたときはON・1px。キャンバスの切り替え・取り消し/やり直し・?devの復元では触れない。
     // inputTrackerの第7引数が照会で参照するため、inputTrackerより前に生成する（コンストラクタは照会を呼ばないが、後に宣言するとデッドゾーンになるのを避ける）
     const unitSnapSettings = new UnitSnapSettings();
+
+    // 3.4. TransformInputSettings (基準点・比率の鍵の持ち主。保存せず、履歴・取り消し/やり直しの対象外。アプリ全体で1つ)
+    // ページを開いたときは基準点＝中心・鍵＝外れている。キャンバスの切り替え・取り消し/やり直しでは触れない。
+    // inputTrackerの第7引数が照会で参照するため、inputTrackerより前に生成する
+    const transformInputSettings = new TransformInputSettings();
 
     // 3.5. 履歴（取り消し・やり直し）配線
     // スナップショットの取得・適用の実体はSnapshotAdapter（edit/。core/からio/をimportしないため、DocumentSerializerを使う処理はedit/に置く）が持ち、
@@ -165,7 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     // 外枠の照会（edit/ShapeExtentReader。状態を持たない照会）。ShapeExtentReaderの生成はDisplayWiringの内部とここの2か所で、
     // renderCurrentStateの外枠のハンドルとInputTrackerの注入（getSelectionFrameBounds）が使うため、ここ（// 4.）で生成する。
-    // 「// 7.10.」「// 7.11.」はこの同じインスタンスを使い続ける（新しいインスタンスは作らない）
+    // 「// 7.10.」「// 7.11.」「// 7.13.」「// 7.14.」はこの同じインスタンスを使い続ける（新しいインスタンスは作らない）
     const shapeExtentReader = new ShapeExtentReader({ model });
     // 編集操作の記録先（EditRecorder）としてhistoryManagerを、吸い付きの照会と反映としてendpointSnapperを注入する
     // 第6引数は、塗った内側を当たりに含めないかの照会（アウトライン表示の間は含めない）
@@ -182,6 +191,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // 今効いているスナップの刻み（number|null）。点を打つとき・図形や頂点を動かすときの丸めに使われ、Ctrlの間の一時無効はInputTracker側で扱う
         getUnitSnapStep: () => unitSnapSettings.getActiveStep(),
         getSelectionFrameBounds: () => shapeExtentReader.getSelectedGeometryBounds(),
+        // 回転のドラッグの中心にする基準点の名前の照会（実体はtransformInputSettings.getReferencePoint()。InputTrackerは設定を知らない）
+        getReferencePoint: () => transformInputSettings.getReferencePoint(),
     });
 
     /**
@@ -738,7 +749,8 @@ document.addEventListener('DOMContentLoaded', () => {
         model,
         getMode: () => inputTracker.getMode(),
         shapeExtentReader,
-        nudgeEditor
+        nudgeEditor,
+        getReferencePoint: () => transformInputSettings.getReferencePoint()
     });
 
     // 欄の文字列をそのまま渡し、戻り値をそのまま返すだけ（isDragging()は見ない。見ると打ち込んだ値が失われる）
@@ -756,6 +768,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     model.onChange(syncOptionBarPositionGroup);
+    // 基準点のボタンを押したとき、図形が変わらなくても（model.onChangeが来なくても）位置の欄を基準点の位置に直す
+    transformInputSettings.onChange(syncOptionBarPositionGroup);
 
     // 7.11. オプションバー（整列・分布のまとまり）配線
     // 表示（8ボタンの押せる/押せない）はOptionBarAlignGroup（palette/）が、変更の手順（1件の編集操作と各操作で動くかの照会）は
@@ -852,6 +866,75 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     model.onChange(syncOptionBarCornerGroup);
+
+    // 7.13. オプションバー（大きさのまとまり）配線
+    // 表示（幅・高さの欄・比率の鍵）はOptionBarSizeGroup（palette/）が、欄の内容・変換・押せる条件の規則はTransformInputRules（edit/）が、
+    // 手順（1件の編集操作と表示内容の照会）はTransformInputEditor（edit/）が持つ。基準点・鍵の状態は3.4.のtransformInputSettingsが持つ。
+    // ここは生成・注入・同期のみを行う（判定・計算を書かない）。外枠の照会は4.で生成した同じshapeExtentReaderを使う。
+    // 表示の同期はmodel.onChangeに加え、基準点・鍵のボタンが図形を変えない（model.onChangeが来ない）ためtransformInputSettings.onChangeでも行う。
+    const transformInputEditor = new TransformInputEditor({
+        model,
+        getMode: () => inputTracker.getMode(),
+        shapeExtentReader,
+        editRecorder: historyManager,
+        getReferencePoint: () => transformInputSettings.getReferencePoint(),
+        isAspectLocked: () => transformInputSettings.isAspectLocked()
+    });
+
+    // 欄の文字列をそのまま渡し、戻り値をそのまま返すだけ（isDragging()は見ない。見ると打ち込んだ値が失われる＝位置の欄と同じ）
+    const optionBarSizeGroup = new OptionBarSizeGroup(document.getElementById('option-size-group'), {
+        onSizeChange: (axis, text) => transformInputEditor.setSize(axis, text),
+        onAspectLockToggle: () => { transformInputSettings.toggleAspectLock(); }
+    });
+
+    /**
+     * オプションバーの大きさのまとまりの幅・高さの欄と比率の鍵の表示を、現在の選択・操作モード・外枠・鍵の実値
+     * （transformInputEditor.getSizeView()）に同期する（optionBarSizeGroup.render）。
+     * model.onChangeとtransformInputSettings.onChangeのコールバックとして登録し、起動時にも明示的に1回呼び出す。DOMの更新はOptionBarSizeGroupが担い、ここは橋渡しのみ。
+     */
+    function syncOptionBarSizeGroup() {
+        optionBarSizeGroup.render(transformInputEditor.getSizeView());
+    }
+
+    model.onChange(syncOptionBarSizeGroup);
+    transformInputSettings.onChange(syncOptionBarSizeGroup);
+
+    // 7.14. オプションバー（変形のまとまり）配線
+    // 表示（角度の欄・基準点の3×3・反転の2ボタン）はOptionBarTransformGroup（palette/）が、手順はTransformInputEditor（7.13.で生成した同じインスタンス）が持つ。
+    // ここは生成・注入・同期とドラッグ中の受理判定のみを行う（判定・計算を書かない）。同期はmodel.onChangeとtransformInputSettings.onChangeで行う。
+    /**
+     * 選んでいる図形を基準点を通る縦（横）の線を軸に反転する。オプションバーの反転のボタンと反転のキーの同じ経路。
+     * (1) ドラッグ中（InputTracker.isDragging()が真）なら何もせずfalse（不受理）。ドラッグが開いている編集操作と
+     *     beginEdit／commitEditの対を崩さないため。
+     * (2) それ以外はtransformInputEditor.flip(axis)の結果を返す。
+     * @param {string} axis - FLIP_AXISの値
+     * @returns {boolean} 図形を反転した場合のみtrue（不受理・押せない状態ではfalse）
+     */
+    function performFlip(axis) {
+        if (inputTracker.isDragging()) {
+            return false;
+        }
+        return transformInputEditor.flip(axis);
+    }
+
+    // 角度の文字列・基準点の名前・反転の軸をそのまま渡すだけ
+    const optionBarTransformGroup = new OptionBarTransformGroup(document.getElementById('option-transform-group'), {
+        onAngleChange: (text) => transformInputEditor.rotateBy(text),
+        onReferencePointSelect: (referencePoint) => { transformInputSettings.setReferencePoint(referencePoint); },
+        onFlip: (axis) => performFlip(axis)
+    });
+
+    /**
+     * オプションバーの変形のまとまりの角度の欄・基準点の3×3・反転の2ボタンの表示を、現在の選択・操作モード・基準点の実値
+     * （transformInputEditor.getTransformView()）に同期する（optionBarTransformGroup.render）。
+     * model.onChangeとtransformInputSettings.onChangeのコールバックとして登録し、起動時にも明示的に1回呼び出す。DOMの更新はOptionBarTransformGroupが担い、ここは橋渡しのみ。
+     */
+    function syncOptionBarTransformGroup() {
+        optionBarTransformGroup.render(transformInputEditor.getTransformView());
+    }
+
+    model.onChange(syncOptionBarTransformGroup);
+    transformInputSettings.onChange(syncOptionBarTransformGroup);
 
     // 8. キーボードショートカット配線
     /**
@@ -1079,6 +1162,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // オプションバーの角のまとまりのチェックボックス（押せる/押せない・チェック・「−」）も同様に、index.htmlの初期disabled属性や
     // onChange通知に依存させず、選択集合・頂点の選択・図形の実値で明示的に1回同期する
     syncOptionBarCornerGroup();
+
+    // オプションバーの大きさのまとまり（幅・高さ・比率の鍵）と変形のまとまり（角度・基準点・反転）も同様に、index.htmlの初期状態や
+    // onChange通知に依存させず、選択・操作モード・図形の実値と設定の実値で明示的に1回同期する
+    syncOptionBarSizeGroup();
+    syncOptionBarTransformGroup();
 
     // キャンバス名の表示・読み込み中の覆い要素・キャンバスパレットも同様に、onChange通知に依存させず
     // 状態の実値で明示的に1回同期する（名前の表示・覆い要素はCanvasLibrary、パレットはCanvasFileOperationsの状態。

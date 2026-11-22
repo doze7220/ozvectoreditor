@@ -232,7 +232,7 @@ REQの要件と本計画の設計の対応：要件1（2行）＝要件A、要�
         *   コード修正完了後、JSDocコメントの記載漏れがないこと（新しい・変えた関数・メソッド・typedef・定数、先頭の責務定義）を確認する（`index.html`は`.js`ではないため、CSSのコメントが実態に合うことを確かめる）。
         *   開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る場合は、資料本体は修正せず、その旨を『開発資料の更新予定』欄に追記する。
         *   タスク完了後、作業レポート（本RES）の「4. 詳細作業内容」の本タスクの欄を記載し完成させ、本タスクを`[x]`にする。
-*   [ ] タスク10: 要件H `main.js`の配線（設定の持ち主・注入・大きさと変形のまとまり）
+*   [x] タスク10: 要件H `main.js`の配線（設定の持ち主・注入・大きさと変形のまとまり）
     *   **対象ファイル** :
         *   `./js/main.js` : 更新（import・`// 3.4.`・`// 4.`の注入とコメント・`// 7.10.`の注入と登録・`// 7.13.`・`// 7.14.`・起動時の同期）
     *   **作業内容** :
@@ -345,7 +345,10 @@ REQの要件と本計画の設計の対応：要件1（2行）＝要件A、要�
 
 ### タスク10: 要件H `main.js`の配線（設定の持ち主・注入・大きさと変形のまとまり）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/main.js`：import 4つ（`TransformInputSettings`・`TransformInputEditor`・`OptionBarSizeGroup`・`OptionBarTransformGroup`）、`// 3.4.`で`transformInputSettings`を生成、`// 4.`の`inputTracker`第7引数に`getReferencePoint`（コメント付き）、`shapeExtentReader`のコメントに`// 7.13.`・`// 7.14.`を追記、`// 7.10.`の`PositionInputEditor`に`getReferencePoint`注入と`transformInputSettings.onChange(syncOptionBarPositionGroup)`、`// 7.13.`（`transformInputEditor`・`optionBarSizeGroup`・`syncOptionBarSizeGroup`＋`model.onChange`/`transformInputSettings.onChange`登録）、`// 7.14.`（`performFlip`・`optionBarTransformGroup`・`syncOptionBarTransformGroup`＋2登録）、起動時の同期に`syncOptionBarSizeGroup();`・`syncOptionBarTransformGroup();`。新しい3関数にJSDoc記載済み。
+    *   行数：`wc -l`実測 1182行（見積もり約1185行）。
+    *   `node --test`：tests 2456 / suites 399 / pass 2456 / fail 0。
+    *   計画との差：要件Hのimportに挙がっている`FLIP_AXIS`（`edit/TransformInputRules.js`）は、使うのが`// 8.`（タスク11）だけで未使用importになるため、タスク11で足す。
 
 ### タスク11: 要件E 反転のキー（`KeyboardShortcuts`の2エントリ・`main.js`の`// 8.`）とテスト
 *   **作業内容** :
