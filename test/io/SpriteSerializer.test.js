@@ -97,7 +97,7 @@ describe('SpriteSerializer.serialize: 描画要素', () => {
         const circle = withId(new Ellipse(10, 20, 40, 60, 'circle', '#123456', 4), 'E1');
         const [el] = SpriteSerializer.serialize([circle]).elements;
         assert.deepEqual(Object.keys(el), [
-            'kind', 'id', 'x', 'y', 'radiusX', 'radiusY', 'startAngle', 'endAngle', 'closed', 'strokeColor', 'strokeWidth', 'fillColor',
+            'kind', 'id', 'x', 'y', 'radiusX', 'radiusY', 'rotation', 'startAngle', 'endAngle', 'closed', 'strokeColor', 'strokeWidth', 'fillColor',
         ]);
         assert.equal(el.kind, 'ellipse');
         assert.equal(el.x, 10);
@@ -933,7 +933,7 @@ describe('SpriteSerializer: createTransformed した図形の書き出し', () =
     it('円の描画要素（中心(50,50)→(0,25)・半径30→横60・縦15）', () => {
         const [el] = SpriteSerializer.serialize([makeScaledShapes()[3]]).elements;
         assert.deepEqual(el, {
-            kind: 'ellipse', id: 'E1', x: 0, y: 25, radiusX: 60, radiusY: 15,
+            kind: 'ellipse', id: 'E1', x: 0, y: 25, radiusX: 60, radiusY: 15, rotation: 0,
             startAngle: 0, endAngle: 2 * Math.PI, closed: true,
             strokeColor: '#0000ff', strokeWidth: 2, fillColor: '#00ff00',
         });
@@ -942,7 +942,7 @@ describe('SpriteSerializer: createTransformed した図形の書き出し', () =
     it('弧の描画要素（上下の裏返しで中心のyは25+15=40・横60・縦15・上半分のまま）', () => {
         const [el] = SpriteSerializer.serialize([makeScaledShapes()[4]]).elements;
         assert.deepEqual(el, {
-            kind: 'ellipse', id: 'E2', x: 0, y: 40, radiusX: 60, radiusY: 15,
+            kind: 'ellipse', id: 'E2', x: 0, y: 40, radiusX: 60, radiusY: 15, rotation: 0,
             startAngle: Math.PI, endAngle: 2 * Math.PI, closed: false,
             strokeColor: '#778899', strokeWidth: 2, fillColor: null,
         });

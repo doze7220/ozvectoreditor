@@ -1,5 +1,5 @@
 /**
- * 責務: 円・楕円・弧のデータ保持・Canvasへの描画処理・当たり判定、
+ * 責務: 円・楕円・弧（傾いた楕円・楕円の弧を含む）のデータ保持・Canvasへの描画処理・当たり判定、
  * および図形データとの相互変換・描画要素（スプライトの書き出し用）への変換・変形を当てた新しい図形の生成を担う。
  */
 
@@ -20,16 +20,32 @@ const ELLIPSE_POINT_COUNT = 5;
 
 /**
  * 本クラスが扱う図形種別（`fromJSON`の`type`検証に用いる）。
- * 種別を増やす場合に揃える箇所：本一覧・種別で分岐する全箇所（コンストラクタ、`draw`、`drawHover`、`drawOutline`、`#updatePointsFromRadii`、
- * `hitTest`、`toDrawElement`、`isFillable`、`createTransformed`。`!== 'circle'`の分岐は弧として扱われる）・`ShapeFactory`の対応表・`index.html`のボタン。
+ * 種別を増やす場合に揃える箇所：本一覧・種別で分岐する全箇所（コンストラクタ、`#readGeometry`、`draw`、`drawHover`、`drawOutline`、`#updatePointsFromRadii`、
+ * `hitTest`、`toDrawElement`、`isFillable`。`!== 'circle'`の分岐は弧として扱われる。`createTransformed`は現状まだ種別で分岐する（のちに5つの点を写すだけに変わる））・`ShapeFactory`の対応表・`index.html`のボタン。
  * `hitTestFill`は種別の分岐を持たない（塗れるかを`isFillable()`に通すだけ）が、塗れる種別（扇形など）を増やすときは式の見直しが要る。
  * @type {ReadonlyArray<string>}
  */
 const ELLIPSE_TYPES = Object.freeze(['circle', 'arc']);
 
 /**
+ * 円・弧の形（`#readGeometry`の結果。非公開）。`ctx.ellipse(x, y, radiusX, radiusY, rotation, startAngle, endAngle)`
+ * （時計回り。`anticlockwise`は渡さない）にそのまま渡せる値と、縦横に沿った枝で求めたかを持つ。
+ * @typedef {Object} EllipseGeometry
+ * @property {number} x - 中心のX座標（ワールド座標）
+ * @property {number} y - 中心のY座標（ワールド座標）
+ * @property {number} radiusX - 主軸（回転後のX軸側）の半径（0以上）
+ * @property {number} radiusY - もう一方の半径（0以上）
+ * @property {number} rotation - 傾き（ラジアン。画面の時計回りが正）。縦横に沿った枝は0
+ * @property {number} startAngle - 描画開始角（媒介変数の角度。弧は`[0, 2π)`）
+ * @property {number} endAngle - 描画終了角（媒介変数の角度）
+ * @property {boolean} axisAligned - 縦横に沿った枝（`u`が横向き・`w`が縦向き）で求めたらtrue（今の式そのもので読む）
+ */
+
+/**
  * 円・弧の図形クラス（図形種別`'circle'`|`'arc'`。`type`で振る舞いを分岐する）。頂点は`points[0]`＝中心、`[1]`＝右端制御点、
  * `[2]`＝上端制御点、`[3]`＝開始角制御点、`[4]`＝終了角制御点。開始角・終了角は`type`から決まり、図形データには保存しない。
+ * 形は`u = points[1] − points[0]`・`w = points[2] − points[0]`を共役な半径として読み（輪郭＝中心＋`u`·cos t − `w`·sin t）、
+ * 傾いた楕円・楕円の弧・上下に裏返った弧を表せる（今の約束の位置では`u`が横向き・`w`が上向きで、縦横に沿った楕円）。
  * 共通メソッド契約（19メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
  * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames・createTransformed）を自律実装する。座標はすべてワールド座標。
  */
@@ -60,7 +76,7 @@ export class Ellipse {
         const rx = Math.abs(x2 - x1);
         const ry = Math.abs(y2 - y1);
 
-        /** @type {{x: number, y: number}[]} 頂点配列（長さ5固定）。points[0]=中心, [1]=右端, [2]=上端, [3]=開始角点（弧は左端・円は右端）, [4]=終了角点（右端） */
+        /** @type {{x: number, y: number}[]} 頂点配列（長さ5固定）。points[0]=中心, [1]=右端, [2]=上端, [3]=開始角点（弧は左端・円は右端）, [4]=終了角点（右端）。以上は今の約束の位置。形は`u = points[1] − points[0]`・`w = points[2] − points[0]`を共役な半径として読む（`points[3]`・`[4]`は形に効かない） */
         this.points = [
             { x: x1, y: y1 },
             { x: x1 + rx, y: y1 },
@@ -98,13 +114,10 @@ export class Ellipse {
             return;
         }
 
-        const xc = this.points[0].x;
-        const yc = this.points[0].y;
-        const rx = Math.abs(this.points[1].x - xc);
-        const ry = Math.abs(this.points[2].y - yc);
+        const g = this.#readGeometry();
 
         ctx.beginPath();
-        ctx.ellipse(xc, yc, rx, ry, 0, this.startAngle, this.endAngle);
+        ctx.ellipse(g.x, g.y, g.radiusX, g.radiusY, g.rotation, g.startAngle, g.endAngle);
         if (this.type === 'circle') {
             ctx.closePath();
         }
@@ -127,13 +140,10 @@ export class Ellipse {
      * @param {number} [viewScale=1] - 現在の表示倍率。強調の上乗せ幅を画面上で一定に保つために用いる（図形本体の`strokeWidth`部分は倍率に比例して表示される）。省略時は倍率1.0として現行と同じ見た目になる
      */
     drawHover(ctx, viewScale = 1) {
-        const xc = this.points[0].x;
-        const yc = this.points[0].y;
-        const rx = Math.abs(this.points[1].x - xc);
-        const ry = Math.abs(this.points[2].y - yc);
+        const g = this.#readGeometry();
 
         ctx.beginPath();
-        ctx.ellipse(xc, yc, rx, ry, 0, this.startAngle, this.endAngle);
+        ctx.ellipse(g.x, g.y, g.radiusX, g.radiusY, g.rotation, g.startAngle, g.endAngle);
         if (this.type === 'circle') {
             ctx.closePath();
         }
@@ -145,7 +155,7 @@ export class Ellipse {
 
     /**
      * アウトライン表示として、輪郭だけを画面上1pxの細線で描画する（共通メソッド契約の第16メソッド）。
-     * 輪郭のパスは`draw`と同じ（`ctx.ellipse(xc, yc, rx, ry, 0, startAngle, endAngle)`。円のみ`closePath`、弧は閉じない）。
+     * 輪郭のパスは`draw`と同じ（`#readGeometry`の形を`ctx.ellipse(x, y, radiusX, radiusY, rotation, startAngle, endAngle)`へ渡す。円のみ`closePath`、弧は閉じない）。
      * 塗らず（`fill`を呼ばない）、図形のスタイル（`strokeColor`・`strokeWidth`・`fillColor`）は読まないため、線なしの図形でも描く。
      * `draw`は変えない（`io/CodeExporter.js`の`DRAW_SOURCE`と手で揃えているため、本メソッドを別に持つ）。
      * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
@@ -153,13 +163,10 @@ export class Ellipse {
      * @param {string} color - 輪郭線の色（`strokeStyle`へそのまま渡す）
      */
     drawOutline(ctx, viewScale = 1, color) {
-        const xc = this.points[0].x;
-        const yc = this.points[0].y;
-        const rx = Math.abs(this.points[1].x - xc);
-        const ry = Math.abs(this.points[2].y - yc);
+        const g = this.#readGeometry();
 
         ctx.beginPath();
-        ctx.ellipse(xc, yc, rx, ry, 0, this.startAngle, this.endAngle);
+        ctx.ellipse(g.x, g.y, g.radiusX, g.radiusY, g.rotation, g.startAngle, g.endAngle);
         if (this.type === 'circle') {
             ctx.closePath();
         }
@@ -287,6 +294,116 @@ export class Ellipse {
     getVertexIndexForHandle(handleName) {
         const lookup = { right: 1, up: 2, left: 1, down: 2 };
         return lookup[handleName] ?? null;
+    }
+
+    /**
+     * 円・弧の形（描画に使う中心・2つの半径・傾き・開始角・終了角）を求める唯一の箇所。
+     * `u = points[1] − points[0]`・`w = points[2] − points[0]`を共役な半径として読む（輪郭＝中心＋`u`·cos t − `w`·sin t、
+     * `t`は`startAngle`〜`endAngle`）。`points[3]`・`[4]`は読まない。
+     * 1. 縦横に沿った枝（`uy === 0 && wx === 0`）：今の式（`radiusX = |points[1].x − xc|`・`radiusY = |points[2].y − yc|`）のまま、`rotation`は0。
+     *    円は`this.startAngle`・`this.endAngle`。弧は`flipX = ux < 0`・`flipY = wy > 0`で範囲を取り直す（どちらも偽なら今の値そのもの）。
+     * 2. 一般の枝：2×2行列`[[ux, −wx], [uy, −wy]]`を`R(φ)·diag(sx, sy)·R(θ)`に分解し、`radiusX = sx`・`radiusY = |sy|`・`rotation = φ`。
+     *    弧は`sy ≥ 0`なら`[start + θ, end + θ]`、`sy < 0`（裏返った形）なら`[−(end + θ), −(start + θ)]`。
+     * 弧の開始角は最後に`[0, 2π)`へ正規化する（差は保つ）。今の約束の位置の弧は`[π, 2π]`のまま。
+     * 分解の取り方により、同じ形に対して`rotation`・半径の並び・開始角が別の等価な値になることがある。
+     * @returns {EllipseGeometry} 描画・書き出しに使う形
+     * @private
+     */
+    #readGeometry() {
+        const TWO_PI = Math.PI * 2;
+        const c = this.points[0];
+        const ux = this.points[1].x - c.x;
+        const uy = this.points[1].y - c.y;
+        const wx = this.points[2].x - c.x;
+        const wy = this.points[2].y - c.y;
+        const isArc = this.type !== 'circle';
+        const start = this.startAngle;
+        const end = this.endAngle;
+
+        let radiusX;
+        let radiusY;
+        let rotation;
+        let axisAligned;
+        let startAngle = start;
+        let endAngle = end;
+
+        if (uy === 0 && wx === 0) {
+            radiusX = Math.abs(this.points[1].x - c.x);
+            radiusY = Math.abs(this.points[2].y - c.y);
+            rotation = 0;
+            axisAligned = true;
+            if (isArc) {
+                const flipX = ux < 0;
+                const flipY = wy > 0;
+                if (flipX && flipY) {
+                    startAngle = start - Math.PI;
+                    endAngle = end - Math.PI;
+                } else if (flipX) {
+                    startAngle = Math.PI - end;
+                    endAngle = Math.PI - start;
+                } else if (flipY) {
+                    startAngle = -end;
+                    endAngle = -start;
+                }
+            }
+        } else {
+            const e = (ux - wy) / 2;
+            const f = (ux + wy) / 2;
+            const g = (uy - wx) / 2;
+            const h = (uy + wx) / 2;
+            const q = Math.hypot(e, h);
+            const r = Math.hypot(f, g);
+            const sx = q + r;
+            const sy = q - r;
+            const a1 = Math.atan2(g, f);
+            const a2 = Math.atan2(h, e);
+            const theta = (a2 - a1) / 2;
+            radiusX = sx;
+            radiusY = Math.abs(sy);
+            rotation = (a2 + a1) / 2;
+            axisAligned = false;
+            if (isArc) {
+                if (sy >= 0) {
+                    startAngle = start + theta;
+                    endAngle = end + theta;
+                } else {
+                    startAngle = -(end + theta);
+                    endAngle = -(start + theta);
+                }
+            }
+        }
+
+        if (isArc) {
+            while (startAngle < 0) {
+                startAngle += TWO_PI;
+                endAngle += TWO_PI;
+            }
+            while (startAngle >= TWO_PI) {
+                startAngle -= TWO_PI;
+                endAngle -= TWO_PI;
+            }
+        }
+
+        return { x: c.x, y: c.y, radiusX, radiusY, rotation, startAngle, endAngle, axisAligned };
+    }
+
+    /**
+     * 輪郭上の媒介変数`theta`の点（ワールド座標）を返す。縦横に沿った枝は今の式そのもの
+     * （`x + radiusX·cosθ`・`y + radiusY·sinθ`）、そうでなければ`rotation`だけ回した楕円の点。
+     * @param {EllipseGeometry} g - `#readGeometry`の結果
+     * @param {number} theta - 媒介変数の角度（ラジアン）
+     * @returns {{x: number, y: number}} 輪郭上の点（新しいオブジェクト）
+     * @private
+     */
+    #pointOnOutline(g, theta) {
+        if (g.axisAligned) {
+            return { x: g.x + g.radiusX * Math.cos(theta), y: g.y + g.radiusY * Math.sin(theta) };
+        }
+        const ex = g.radiusX * Math.cos(theta);
+        const ey = g.radiusY * Math.sin(theta);
+        const cosR = Math.cos(g.rotation);
+        const sinR = Math.sin(g.rotation);
+        return { x: g.x + ex * cosR - ey * sinR, y: g.y + ex * sinR + ey * cosR };
     }
 
     /**
@@ -541,28 +658,27 @@ export class Ellipse {
 
     /**
      * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第13メソッド。呼び出し元は`SpriteSerializer`のみ）。
-     * 形（キー順もこの順）: `{ kind: 'ellipse', id, x, y, radiusX, radiusY, startAngle, endAngle, closed, strokeColor, strokeWidth, fillColor }`。
-     * `draw`と同じ式（`x`・`y`＝`points[0]`、`radiusX`＝`|points[1].x − x|`、`radiusY`＝`|points[2].y − y|`、
-     * `startAngle`・`endAngle`は自身の同名プロパティ、`closed`は`type === 'circle'`）で求める。回転は常に0のためキーを持たない。
+     * 形（キー順もこの順。`rotation`は`ctx.ellipse`の引数の順で`radiusY`の後）:
+     * `{ kind: 'ellipse', id, x, y, radiusX, radiusY, rotation, startAngle, endAngle, closed, strokeColor, strokeWidth, fillColor }`。
+     * `x`・`y`・`radiusX`・`radiusY`・`rotation`・`startAngle`・`endAngle`は`draw`と同じ`#readGeometry`の形（今の約束の位置では`rotation`は0で、
+     * ほかの値は従来と同じ）、`closed`は`type === 'circle'`。回した・裏返した円・弧では分解の取り方により等価な別の値になることがある。
      * `id`・`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる（`strokeColor`の`null`も）。
      * `fillColor`は塗れる形（円）のときだけ図形の値、塗れない形（弧）は`null`。値はすべてプリミティブのため、戻り値と自身は状態を共有しない。
-     * @returns {{kind: string, id: *, x: number, y: number, radiusX: number, radiusY: number, startAngle: number, endAngle: number, closed: boolean, strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい描画要素
+     * @returns {{kind: string, id: *, x: number, y: number, radiusX: number, radiusY: number, rotation: number, startAngle: number, endAngle: number, closed: boolean, strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい描画要素
      */
     toDrawElement() {
-        const xc = this.points[0].x;
-        const yc = this.points[0].y;
-        const rx = Math.abs(this.points[1].x - xc);
-        const ry = Math.abs(this.points[2].y - yc);
+        const g = this.#readGeometry();
 
         return {
             kind: 'ellipse',
             id: this.id,
-            x: xc,
-            y: yc,
-            radiusX: rx,
-            radiusY: ry,
-            startAngle: this.startAngle,
-            endAngle: this.endAngle,
+            x: g.x,
+            y: g.y,
+            radiusX: g.radiusX,
+            radiusY: g.radiusY,
+            rotation: g.rotation,
+            startAngle: g.startAngle,
+            endAngle: g.endAngle,
             closed: this.type === 'circle',
             strokeColor: this.strokeColor,
             strokeWidth: this.strokeWidth,
