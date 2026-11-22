@@ -206,6 +206,7 @@
 *   **`_doc/arch/42_ScaleHandleRules.md`（タスク5で判明）**：新規ファイル`core/ScaleHandleRules.js`の公開名（上記）・非公開の補助・import（`InputModes`・`UnitSnapRules`）・`computeBoundsScale`の手順・辺のShiftで直前の倍率が0のとき`|previous|`を使うこと・テストの範囲（94件）を記載する。1章の構成図・`16_test.md`は上の記載どおり。
 *   **`_doc/arch/32_InputModes.md`・`34_PressActionRules.md`・`35_CursorShapeRules.md`（タスク6で判明）**：`SCALING_SELECTION`の追加、`resolvePressAction`の第3引数・順0・`PressAction`の`scaleSelection`、`resolveCursorShape`の`scaleHandle`・(3b)・`CursorShapeRules → ScaleHandleRules`のimport・戻り値の型（上の記載どおり。`CursorShapeRules.js`先頭の「importはInputModes.jsのみ」の記述が資料にあれば直す）。
 *   **`_doc/arch/06_InputTracker.md`・1章の`InputTracker`の行数（タスク8で判明）**：`InputTracker.js`は1729行→1867行（+138行）。`isScalingSelection()`・`#scaleDrag`・`InputAssist`の5項目目`getSelectionFrameBounds`・`SCALING_SELECTION`の配線・`cancelDraftOrClearSelection`(1)・修飾キーの項（先頭の責務定義に拡大縮小のドラッグでShift・Alt・Ctrlを規則の関数へ渡すことを追記済み）を反映する。
+*   **（タスク10で判明）**：`_doc/arch/07_KeyboardShortcuts.md`・1章の`KeyboardShortcuts`の説明（`isCancelableDrag`・`CANCEL_BINDING`・`findCancelableDragBinding`のexport・手順3・5の例外）、`_doc/arch/02_main.md`（`shapeExtentReader`を`// 4.`で生成・`getSelectionFrameBounds`・`scaleFrame`・`isCancelableDrag`の注入）、`_doc/arch/14_edit.md`（生成箇所`// 4.`）、`_doc/arch/16_test.md`（`KeyboardShortcuts.test.js`に6件追加・全体2254件）。
 *   （各タスクの実行時に判明した分はここへ追記する。）
 
 ## 3. タスクリスト
@@ -302,7 +303,7 @@
         *   コード修正完了後、JSDocコメントの記載漏れがないこと（新しい・変えた関数・メソッド・typedef・定数、先頭の責務定義）を確認する。
         *   開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る場合は、資料本体は修正せず、その旨を『開発資料の更新予定』欄に追記する。
         *   タスク完了後、作業レポート（本RES）の「4. 詳細作業内容」の本タスクの欄を記載し完成させ、本タスクを`[x]`にする。
-*   [ ] タスク10: 要件D・E `Esc`の受理（`KeyboardShortcuts`の例外）と`main.js`の配線とテスト
+*   [x] タスク10: 要件D・E `Esc`の受理（`KeyboardShortcuts`の例外）と`main.js`の配線とテスト
     *   **対象ファイル** :
         *   `./js/core/KeyboardShortcuts.js` : 更新（`isCancelableDrag`・`CANCEL_BINDING`・`findCancelableDragBinding`・手順3・5の例外・JSDoc）
         *   `./js/main.js` : 更新（import・`shapeExtentReader`の生成位置・`getSelectionFrameBounds`・`renderCurrentState`の`scaleFrame`・`isCancelableDrag`）
@@ -416,7 +417,11 @@
 
 ### タスク10: 要件D・E `Esc`の受理（`KeyboardShortcuts`の例外）と`main.js`の配線とテスト
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/core/KeyboardShortcuts.js`（LFのまま）：`ShortcutActions`に`isCancelableDrag`を足しコンストラクタの必須名に追加。`SHORTCUT_BINDINGS`の直後に非export定数`CANCEL_BINDING`（`action === 'cancel'`のエントリ）と、export関数`findCancelableDragBinding(event, isCancelableDrag)`（`event.code`が`CANCEL_BINDING.codes`に含まれるときだけ照会を1回呼び、真なら`CANCEL_BINDING`、それ以外は`null`。修飾キー・`repeat`は読まない）。`#handleKeyDown`の手順3は`dragCancelBinding ?? #findBinding(event)`、手順5は`dragCancelBinding === null && isDragging()`のときだけ実行しない。対応表・`#findBinding`の処理・`#matchesShiftRule`は不変。JSDoc：先頭の責務定義（3行）・`ShortcutActions`（`isCancelableDrag`・`cancel`）・`CANCEL_BINDING`・`findCancelableDragBinding`・クラスJSDoc・コンストラクタ`@param`・`#handleKeyDown`の手順3・5・`#findBinding`。
+    *   `js/main.js`：`collectScaleFrame`のimport。`shapeExtentReader`の生成を`// 4.`の`InputTracker`の生成の前へ移し（コメントで2か所の生成の1つ・移した理由を記載）、`// 7.10.`の生成行は「生成済みの同じインスタンスを使う」コメントに置き換えた（インスタンスは2のまま）。`InputTracker`の第7引数に`getSelectionFrameBounds`、`renderCurrentState`に`scaleFrame: collectScaleFrame(inputTracker.getMode(), shapeExtentReader.getSelectedGeometryBounds(), viewTransform.getScale())`（JSDoc・`showHandles: false`のコメントを実態に直した）、`// 8.`の`KeyboardShortcuts`の注入に`isCancelableDrag: () => inputTracker.isScalingSelection()`。判定・計算・新しい再描画の経路は足していない。`// 7.11.`のコメント「7.10.で生成した同じshapeExtentReader」を「4.で生成した…」に直した。
+    *   `js/edit/ShapeExtentReader.js`：クラスJSDocの生成箇所の1行の`// 7.10.`を`// 4.`に直しただけ。
+    *   `test/core/KeyboardShortcuts.test.js`：先頭の責務定義を拡張。`isCancelableDrag`だけを欠く配線検証・`findCancelableDragBinding`のケース（16通りの修飾キーで照会が真ならcancelのエントリ（凍結・`repeatable: false`・codes`['Escape']`）／偽ならnull・`Escape`以外は照会を呼ばずnull・照会は1回・eventを書き換えない）。期待値は固定値。
+    *   `node --test`：tests 2254 / suites 366 全件合格（+6件・+1スイート）。
 
 ### タスク11: 要件F 保存・書き出しのテスト
 *   **作業内容** :
@@ -464,4 +469,7 @@
 * **（タスク8）`handleClick`の外枠のハンドルの判定位置**：RESの指示どおり待ち受け（`isPickingShape`）の判定の後・`hit.handle`の前。`#findScaleHandle`はクリックのたびに照会（`getSelectionFrameBounds`）を呼ぶ。`#classifyPoint`は今までどおり先に1回行う。
 * **（タスク8）`#onLeftDragCancel`の戻し**：閾値以前の中断は`#isEditOpen`が偽のため戻さない（図形を変えていないため）。`#scaleDrag`の`null`確認を足している（防御）。
 * **（タスク9）目視確認**：外枠のハンドルの見た目（外枠の青い1pxの線・白い四角に青い枠）はタスク10の後にブラウザで確認する。ハンドルの大きさは頂点のハンドルと同じ（`VERTEX_HANDLE_SIZE`）で、`handles`の後ろ（角）が前面に重なる。`CanvasManager`は受け取った位置を描くだけ。
+* **（タスク10）ファイルの行末**：変更したファイルはすべてLF（作業前にCRを数えて確認）のままにした。
+* **（タスク10）目視確認の推奨**：ブラウザで、拡大縮小のドラッグ中に`Esc`（`Shift`・`Alt`・`Ctrl`を押したままも）で元の形に戻りボタンを離しても選択が変わらないこと、外枠と8つのハンドルの見た目、弧を含む選択の上辺を下へ越える操作、色の欄にフォーカスがある間の`Esc`（例外でも効かない）を確認する。`#handleKeyDown`はテストできない。
+* **（タスク10）`ShapeExtentReader`の生成位置に関するコメント**：`js/`を`7.10.`で検索し、ほかに生成位置を前提にしたコメントは無いことを確認した（`main.js`の`// 7.10.`の見出しと、移し先のコメント内の言及のみ）。
 * **（タスク9）開発資料の更新予定**：`_doc/arch/04_CanvasManager.md`（`render`の描画順に(2-3)外枠とハンドル・`scaleFrame`引数を追記）。

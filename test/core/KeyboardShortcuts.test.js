@@ -1,9 +1,10 @@
 /**
- * 責務：KeyboardShortcuts（キー→操作の対応表と受理判定）のうち、document非依存で確かめられる起動時の配線漏れの検出を検証する。
+ * 責務：KeyboardShortcuts（キー→操作の対応表と受理判定）のうち、document非依存で確かめられる起動時の配線漏れの検出と、
+ * 拡大縮小のドラッグ中のcancel（Esc）の例外の判定（findCancelableDragBinding）を検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { KeyboardShortcuts } from '../../js/core/KeyboardShortcuts.js';
+import { KeyboardShortcuts, findCancelableDragBinding } from '../../js/core/KeyboardShortcuts.js';
 
 /**
  * 指定した名前を除く、どのプロパティ名にも関数を返すコールバック群（Proxy）を作る補助。
@@ -54,5 +55,76 @@ describe('KeyboardShortcuts コンストラクタの配線検証', () => {
 
     it('nudgeSelection だけを欠くと Error を投げ、欠落名が nudgeSelection だけになる', () => {
         assert.deepEqual(getMissingNames(createActionsExcept('nudgeSelection')), ['nudgeSelection']);
+    });
+
+    it('isCancelableDrag だけを欠くと Error を投げ、欠落名が isCancelableDrag だけになる', () => {
+        assert.deepEqual(getMissingNames(createActionsExcept('isCancelableDrag')), ['isCancelableDrag']);
+    });
+});
+
+/**
+ * Shift・Alt・Ctrl・Metaの押下の全16通りの組み合わせ（keydownイベントのcode付き）を作る補助。
+ * @param {string} code event.code
+ * @returns {Array<{code: string, shiftKey: boolean, altKey: boolean, ctrlKey: boolean, metaKey: boolean}>} 16件のイベント
+ */
+function createAllModifierEvents(code) {
+    const events = [];
+    for (let bits = 0; bits < 16; bits++) {
+        events.push({
+            code,
+            shiftKey: (bits & 1) !== 0,
+            altKey: (bits & 2) !== 0,
+            ctrlKey: (bits & 4) !== 0,
+            metaKey: (bits & 8) !== 0,
+        });
+    }
+    return events;
+}
+
+describe('findCancelableDragBinding 拡大縮小のドラッグ中のcancelの例外', () => {
+    it('修飾キーの16通りすべてで、照会が true なら cancel のエントリ（凍結済み・repeatable: false）を返す', () => {
+        const events = createAllModifierEvents('Escape');
+        assert.equal(events.length, 16);
+        for (const event of events) {
+            const binding = findCancelableDragBinding(event, () => true);
+            assert.notEqual(binding, null);
+            assert.equal(binding.action, 'cancel');
+            assert.equal(binding.repeatable, false);
+            assert.deepEqual(binding.codes, ['Escape']);
+            assert.ok(Object.isFrozen(binding));
+        }
+    });
+
+    it('修飾キーの16通りすべてで、照会が false なら null を返す（今の対応表の照合へ進む）', () => {
+        for (const event of createAllModifierEvents('Escape')) {
+            assert.equal(findCancelableDragBinding(event, () => false), null);
+        }
+    });
+
+    it('Escape 以外の code は照会が true でも null で、照会を呼ばない', () => {
+        for (const code of ['KeyV', 'Space', 'Enter', 'Delete', 'Digit1']) {
+            let calls = 0;
+            const result = findCancelableDragBinding({ code, shiftKey: false, altKey: false, ctrlKey: false, metaKey: false }, () => {
+                calls += 1;
+                return true;
+            });
+            assert.equal(result, null);
+            assert.equal(calls, 0);
+        }
+    });
+
+    it('Escape では照会を1回だけ呼ぶ', () => {
+        let calls = 0;
+        findCancelableDragBinding({ code: 'Escape', shiftKey: false, altKey: false, ctrlKey: false, metaKey: false }, () => {
+            calls += 1;
+            return false;
+        });
+        assert.equal(calls, 1);
+    });
+
+    it('event を書き換えない', () => {
+        const event = Object.freeze({ code: 'Escape', shiftKey: true, altKey: true, ctrlKey: true, metaKey: false });
+        assert.doesNotThrow(() => findCancelableDragBinding(event, () => true));
+        assert.deepEqual({ ...event }, { code: 'Escape', shiftKey: true, altKey: true, ctrlKey: true, metaKey: false });
     });
 });

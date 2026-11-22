@@ -12,6 +12,7 @@ import { KeyboardShortcuts } from './core/KeyboardShortcuts.js';
 import { AltKeyGuard } from './core/AltKeyGuard.js';
 import { invertSelection } from './core/SelectionRules.js';
 import { collectVertexHandles } from './core/VertexHandleRules.js';
+import { collectScaleFrame } from './core/ScaleHandleRules.js';
 import { WindowManager } from './core/WindowManager.js';
 import { ViewTransform } from './core/ViewTransform.js';
 import { HistoryManager } from './core/HistoryManager.js';
@@ -161,11 +162,16 @@ document.addEventListener('DOMContentLoaded', () => {
         model,
         applyStyle: (style) => shapeStyleEditor.applyStyle(style)
     });
+    // 外枠の照会（edit/ShapeExtentReader。状態を持たない照会）。ShapeExtentReaderの生成はDisplayWiringの内部とここの2か所で、
+    // renderCurrentStateの外枠のハンドルとInputTrackerの注入（getSelectionFrameBounds）が使うため、ここ（// 4.）で生成する。
+    // 「// 7.10.」「// 7.11.」はこの同じインスタンスを使い続ける（新しいインスタンスは作らない）
+    const shapeExtentReader = new ShapeExtentReader({ model });
     // 編集操作の記録先（EditRecorder）としてhistoryManagerを、吸い付きの照会と反映としてendpointSnapperを注入する
     // 第6引数は、塗った内側を当たりに含めないかの照会（アウトライン表示の間は含めない）
     // 第7引数は入力の補助：Alt+ドラッグで選択中の図形を複製する補助（実体はclipboardController.duplicateInPlaceWithinEdit()）と、
     // スポイトの待ち受けの照会・クリックした図形の受け渡し（実体はstyleEyedropper。InputTrackerはスポイト・スタイルを知らない）、
-    // スナップの刻みの照会（実体はunitSnapSettings.getActiveStep()。ONなら刻み、OFFならnull＝丸めない。InputTrackerはスナップの設定を知らない）
+    // スナップの刻みの照会（実体はunitSnapSettings.getActiveStep()。ONなら刻み、OFFならnull＝丸めない。InputTrackerはスナップの設定を知らない）、
+    // 外枠のハンドルの照会（実体はshapeExtentReader.getSelectedGeometryBounds()。選んでいる図形全体の線を含まない外枠か、選択なしでnull）
     const inputTracker = new InputTracker(canvas, model, viewTransform, historyManager, endpointSnapper, () => displayState.isOutline(), {
         // clipboardControllerは後の「// 7.5.」でconst宣言されるが、呼ばれるのはAlt+ドラッグ中（起動完了後）だけで、
         // InputTrackerのコンストラクタはduplicateSelectionを呼ばない（既存のinputTrackerの前方参照と同じ扱い）
@@ -174,6 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pickShape: (shapeId) => { styleEyedropper.pickFrom(shapeId); },
         // 今効いているスナップの刻み（number|null）。点を打つとき・図形や頂点を動かすときの丸めに使われ、Ctrlの間の一時無効はInputTracker側で扱う
         getUnitSnapStep: () => unitSnapSettings.getActiveStep(),
+        getSelectionFrameBounds: () => shapeExtentReader.getSelectedGeometryBounds(),
     });
 
     /**
@@ -182,7 +189,9 @@ document.addEventListener('DOMContentLoaded', () => {
      * 再描画を要求するローカル関数。表示の状態（`displayState.getState()`のアウトライン表示・背景の白/黒・グリッドの表示）も
      * あわせて渡す。model.onChange・viewTransform.onChange・displayState.onChangeのコールバックと
      * resizeハンドラの4経路から同一の引数構成で呼び出すことで、再描画トリガーの重複定義を避ける。
-     * 図形の外枠のハンドルは`showHandles: false`で常に描かず、頂点のハンドルは`collectVertexHandles`が現在の操作モード・
+     * 図形ごとのハンドル（drawHandles）は`showHandles: false`で常に描かない。選んでいる図形全体の外枠とそのハンドルは、
+     * `collectScaleFrame`が現在の操作モード・線を含まない外枠（`shapeExtentReader.getSelectedGeometryBounds()`）・表示倍率から
+     * 求めた位置を`scaleFrame`として渡す（選択モードで選択があるときだけ値が入る。描くのはCanvasManager）。頂点のハンドルは`collectVertexHandles`が現在の操作モード・
      * 選択中の図形・選択中の頂点から求めた位置の一覧を`vertexHandles`として渡す（頂点の選択のモードのときだけ中身が入る）。
      */
     function renderCurrentState() {
@@ -193,9 +202,11 @@ document.addEventListener('DOMContentLoaded', () => {
             darkBackground: display.darkBackground,
             showGrid: display.gridVisible,
             selectedIds: model.getSelectedIds(),
-            // 外枠のハンドル（drawHandles）はどのモードでも描かない。去就は変形のPhaseで決める（図形のdrawHandlesは残してある）
+            // 図形ごとのハンドル（drawHandles）はどのモードでも描かない。外枠のハンドルは図形ごとのdrawHandlesを使わず下のscaleFrameで描く
+            // （図形のdrawHandlesは残してある。去就はPhaseのクローズで決める）
             showHandles: false,
             vertexHandles: collectVertexHandles(inputTracker.getMode(), shapes, model.getSelectedIds(), model.getSelectedVertices()),
+            scaleFrame: collectScaleFrame(inputTracker.getMode(), shapeExtentReader.getSelectedGeometryBounds(), viewTransform.getScale()),
             hoveredId: model.getHoveredId(),
             draftShape: model.getDraftShape(),
             selectionRect: model.getSelectionRect(),
@@ -715,8 +726,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 表示（X・Yの数値の欄）はOptionBarPositionGroup（palette/）が、欄の内容と移動量の規則はPositionInputRules（edit/）が、
     // 手順はPositionInputEditor（edit/）が、移動と記録はNudgeEditor（7.9.で生成した同じインスタンス）が持つ。
     // ここは生成・注入・同期のみを行う（判定・計算を書かない）。表示の同期はmodel.onChangeのみで行う（機能専用の同期経路は足さない）。
-    // ShapeExtentReaderは状態を持たない照会で、DisplayWiringが内部に持つものとは別に、ここでも1つ生成する。
-    const shapeExtentReader = new ShapeExtentReader({ model });
+    // shapeExtentReader（edit/ShapeExtentReader。状態を持たない照会）は、renderCurrentStateとInputTrackerの注入も使うため「// 4.」で生成済み。
+    // DisplayWiringが内部に持つものとは別の、生成済みの同じインスタンスをここでも使う（新しいインスタンスは作らない）。
     const positionInputEditor = new PositionInputEditor({
         model,
         getMode: () => inputTracker.getMode(),
@@ -742,7 +753,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 7.11. オプションバー（整列・分布のまとまり）配線
     // 表示（8ボタンの押せる/押せない）はOptionBarAlignGroup（palette/）が、変更の手順（1件の編集操作と各操作で動くかの照会）は
-    // ShapeAlignEditor（edit/）が、移動量の規則はShapeAlignRules（edit/）が、外枠の照会は7.10.で生成した同じshapeExtentReaderが持つ。
+    // ShapeAlignEditor（edit/）が、移動量の規則はShapeAlignRules（edit/）が、外枠の照会は4.で生成した同じshapeExtentReaderが持つ。
     // ここは生成・注入・同期のみを行う（判定・計算を書かない）。表示の同期はmodel.onChangeのみで行う（機能専用の同期経路は足さない）。
     // キーボードショートカットは割り当てない（ボタンのみ）。
     const shapeAlignEditor = new ShapeAlignEditor({ model, editRecorder: historyManager, shapeExtentReader });
@@ -864,6 +875,8 @@ document.addEventListener('DOMContentLoaded', () => {
     new KeyboardShortcuts({
         // ドラッグ中（パン・左ドラッグ。閾値以前を含む）か。受理判定専用
         isDragging: () => inputTracker.isDragging(),
+        // Escで中断できるドラッグ（拡大縮小のドラッグ中）か。受理判定専用（真の間はcancelだけがShift・Alt・Ctrlを問わず通る）
+        isCancelableDrag: () => inputTracker.isScalingSelection(),
         // 操作モード切替（ツールパレットの選択・頂点の選択・キャンバス移動のボタンと同一経路のselectModeTool。
         // 線を引いている途中なら描いた分を残して終えてから切り替える）
         setMode: (mode) => {
