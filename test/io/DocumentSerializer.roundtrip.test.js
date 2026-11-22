@@ -834,12 +834,12 @@ describe('拡大縮小（createTransformed）した図形の往復（Phase 10-01
         },
         {
             type: 'circle', id: 'E1',
-            points: [{ x: 0, y: 25 }, { x: 60, y: 25 }, { x: 0, y: 10 }, { x: 60, y: 25 }, { x: 60, y: 25 }],
+            points: [{ x: 0, y: 25 }, { x: -60, y: 25 }, { x: 0, y: 40 }, { x: -60, y: 25 }, { x: -60, y: 25 }],
             strokeColor: '#0000ff', strokeWidth: 2, fillColor: '#00ff00',
         },
         {
             type: 'arc', id: 'E2',
-            points: [{ x: 0, y: 40 }, { x: 60, y: 40 }, { x: 0, y: 25 }, { x: -60, y: 40 }, { x: 60, y: 40 }],
+            points: [{ x: 0, y: 25 }, { x: -60, y: 25 }, { x: 0, y: 40 }, { x: 60, y: 25 }, { x: -60, y: 25 }],
             strokeColor: '#778899', strokeWidth: 2, fillColor: null,
         },
         {
@@ -877,7 +877,7 @@ describe('拡大縮小（createTransformed）した図形の往復（Phase 10-01
         });
     }
 
-    it('円は楕円（横60・縦15）、弧は上半分の弧のまま復元され、角度は種別から決まる', (t) => {
+    it('円は楕円（横60・縦15）、弧は上下・左右に裏返った弧（下半分）として復元され、角度は種別から決まる', (t) => {
         silenceWarn(t);
         const result = roundTripByObject(makeTransformedShapes());
         const circle = result.shapes[3];
@@ -888,7 +888,7 @@ describe('拡大縮小（createTransformed）した図形の往復（Phase 10-01
         assert.equal(arc.endAngle, 2 * Math.PI);
         assert.deepStrictEqual(circle.toDrawElement().radiusX, 60);
         assert.deepStrictEqual(circle.toDrawElement().radiusY, 15);
-        assert.deepStrictEqual([arc.toDrawElement().x, arc.toDrawElement().y], [0, 40]);
+        assert.deepStrictEqual([arc.toDrawElement().x, arc.toDrawElement().y], [0, 25]);
     });
 
     it('復元したパスの曲がり方を持つ区間・描画要素が変換後のまま保たれる', (t) => {

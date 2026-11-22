@@ -939,11 +939,11 @@ describe('SpriteSerializer: createTransformed した図形の書き出し', () =
         });
     });
 
-    it('弧の描画要素（上下の裏返しで中心のyは25+15=40・横60・縦15・上半分のまま）', () => {
+    it('弧の描画要素（5つの点を写した位置で中心は(0,25)・横60・縦15・上下・左右に裏返った下半分）', () => {
         const [el] = SpriteSerializer.serialize([makeScaledShapes()[4]]).elements;
         assert.deepEqual(el, {
-            kind: 'ellipse', id: 'E2', x: 0, y: 40, radiusX: 60, radiusY: 15, rotation: 0,
-            startAngle: Math.PI, endAngle: 2 * Math.PI, closed: false,
+            kind: 'ellipse', id: 'E2', x: 0, y: 25, radiusX: 60, radiusY: 15, rotation: 0,
+            startAngle: 0, endAngle: Math.PI, closed: false,
             strokeColor: '#778899', strokeWidth: 2, fillColor: null,
         });
     });
@@ -1003,6 +1003,6 @@ describe('SpriteSerializer: createTransformed した図形の書き出し', () =
         assert.equal(data.source.version, 2);
         assert.deepEqual(data.source.shapes.map((s) => s.type), ['line', 'curve', 'rect', 'circle', 'arc', 'path']);
         assert.deepEqual(data.source.shapes[0].points, [{ x: 80, y: 40 }, { x: 40, y: 30 }]);
-        assert.deepEqual(data.source.shapes[4].points[0], { x: 0, y: 40 });
+        assert.deepEqual(data.source.shapes[4].points[0], { x: 0, y: 25 });
     });
 });

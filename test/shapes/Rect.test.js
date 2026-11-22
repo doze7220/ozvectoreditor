@@ -670,3 +670,46 @@ describe('Rect.createTransformed', () => {
         assert.deepEqual(out.toJSON().points, shape.toJSON().points.map((p) => ({ x: -p.y, y: p.x })));
     });
 });
+
+describe('Rect.createTransformed（回転・Phase 10-02）', () => {
+    const ROTATE_90 = { a: 0, b: 1, c: -1, d: 0, e: 0, f: 0 };
+    const COS = Math.cos(Math.PI / 6);
+    const SIN = Math.sin(Math.PI / 6);
+    const ROTATE_30 = { a: COS, b: SIN, c: -SIN, d: COS, e: 5, f: -7 };
+    /**
+     * 点を30°回して(5, -7)だけ動かした位置を返す（ROTATE_30の式）。
+     * @param {{x: number, y: number}} p - 元の点
+     * @returns {{x: number, y: number}} 写した点
+     */
+    const rotate30 = (p) => ({ x: COS * p.x - SIN * p.y + 5, y: SIN * p.x + COS * p.y - 7 });
+    it('90°回転（ちょうど）の点が厳密に写り、種別・id・線の太さ・色は変わらない', () => {
+        const shape = new Rect(10, 20, 30, 50, '#112233', 5, '#445566');
+        shape.id = 's1';
+        const out = shape.createTransformed(ROTATE_90);
+        assert.deepEqual(out.toJSON().points, shape.toJSON().points.map((p) => ({ x: -p.y, y: p.x })));
+        assert.deepEqual(out.toDrawElement().points, shape.toDrawElement().points.map((p) => ({ x: -p.y, y: p.x })));
+        assert.equal(out.toDrawElement().kind, 'polyline');
+        assert.equal(out.type, shape.type);
+        assert.equal(out.id, 's1');
+        assert.equal(out.strokeColor, '#112233');
+        assert.equal(out.strokeWidth, 5);
+        assert.equal(out.fillColor, '#445566');
+    });
+    it('一般の角度（30°と平行移動）の点が写り（許容量1e-9）、線の太さ・色・idは変わらない', () => {
+        const shape = new Rect(10, 20, 30, 50, '#112233', 5, '#445566');
+        shape.id = 's1';
+        const before = JSON.stringify(shape.toJSON());
+        const out = shape.createTransformed(ROTATE_30);
+        const expected = shape.toJSON().points.map(rotate30);
+        const actual = out.toJSON().points;
+        assert.equal(actual.length, expected.length);
+        actual.forEach((p, i) => {
+            assert.ok(Math.abs(p.x - expected[i].x) < 1e-9);
+            assert.ok(Math.abs(p.y - expected[i].y) < 1e-9);
+        });
+        assert.equal(out.strokeWidth, 5);
+        assert.equal(out.strokeColor, '#112233');
+        assert.equal(out.id, 's1');
+        assert.equal(JSON.stringify(shape.toJSON()), before);
+    });
+});

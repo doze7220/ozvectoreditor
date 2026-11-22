@@ -1850,3 +1850,61 @@ describe('Path.createTransformed', () => {
         assert.deepEqual(first.toJSON().segments[0], { kind: 'bezier', control1: { x: 120, y: 140 }, control2: { x: 280, y: 140 } });
     });
 });
+
+describe('Path.createTransformed（回転・Phase 10-02）', () => {
+    const ROTATE_90 = { a: 0, b: 1, c: -1, d: 0, e: 0, f: 0 };
+    const COS = Math.cos(Math.PI / 6);
+    const SIN = Math.sin(Math.PI / 6);
+    const ROTATE_30 = { a: COS, b: SIN, c: -SIN, d: COS, e: 5, f: -7 };
+    /**
+     * 点を30°回して(5, -7)だけ動かした位置を返す（ROTATE_30の式）。
+     * @param {{x: number, y: number}} p - 元の点
+     * @returns {{x: number, y: number}} 写した点
+     */
+    const rotate30 = (p) => ({ x: COS * p.x - SIN * p.y + 5, y: SIN * p.x + COS * p.y - 7 });
+    /**
+     * 直線の区間・曲がり方を持つ区間・角の点を含む閉じたパスを作る。
+     * @returns {Path} 区間が混ざったパス
+     */
+    function makeMixedPath() {
+        const path = new Path(
+            [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }],
+            true, '#112233', 5, '#445566',
+            ['line', { kind: 'bezier', control1: { x: 120, y: 30 }, control2: { x: 120, y: 70 } }, 'line', 'line'],
+        );
+        path.corners[1] = true;
+        path.id = 'p1';
+        return path;
+    }
+    it('90°回転（ちょうど）で頂点と曲がり方を持つ区間の引っ張る点が厳密に写り、角の点・区間の種類・スタイル・idは変わらない', () => {
+        const path = makeMixedPath();
+        const out = path.createTransformed(ROTATE_90);
+        const json = out.toJSON();
+        assert.deepEqual(json.points, [{ x: 0, y: 0 }, { x: 0, y: 100 }, { x: -100, y: 100 }, { x: -100, y: 0 }]);
+        assert.deepEqual(json.segments[1], { kind: 'bezier', control1: { x: -30, y: 120 }, control2: { x: -70, y: 120 } });
+        assert.deepEqual(json.segments.map((s) => s.kind), ['line', 'bezier', 'line', 'line']);
+        assert.equal(json.closed, true);
+        assert.deepEqual(out.corners, path.corners);
+        assert.equal(out.strokeWidth, 5);
+        assert.equal(out.strokeColor, '#112233');
+        assert.equal(out.fillColor, '#445566');
+        assert.equal(out.id, 'p1');
+        const draw = out.toDrawElement();
+        assert.deepEqual(draw.points, json.points);
+        assert.deepEqual(draw.segments[1], { kind: 'cubic', control1: { x: -30, y: 120 }, control2: { x: -70, y: 120 } });
+    });
+    it('一般の角度（30°と平行移動）で頂点と引っ張る点が写り（許容量1e-9）、自身は変わらない', () => {
+        const path = makeMixedPath();
+        const before = JSON.stringify(path.toJSON());
+        const out = path.createTransformed(ROTATE_30);
+        const json = out.toJSON();
+        const close = (actual, expected) => {
+            assert.ok(Math.abs(actual.x - expected.x) < 1e-9);
+            assert.ok(Math.abs(actual.y - expected.y) < 1e-9);
+        };
+        path.toJSON().points.forEach((p, i) => close(json.points[i], rotate30(p)));
+        close(json.segments[1].control1, rotate30({ x: 120, y: 30 }));
+        close(json.segments[1].control2, rotate30({ x: 120, y: 70 }));
+        assert.equal(JSON.stringify(path.toJSON()), before);
+    });
+});

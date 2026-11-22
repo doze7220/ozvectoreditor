@@ -21,7 +21,7 @@ const ELLIPSE_POINT_COUNT = 5;
 /**
  * 本クラスが扱う図形種別（`fromJSON`の`type`検証に用いる）。
  * 種別を増やす場合に揃える箇所：本一覧・種別で分岐する全箇所（コンストラクタ、`#readGeometry`、`draw`、`drawHover`、`drawOutline`、`#updatePointsFromRadii`、
- * `hitTest`、`toDrawElement`、`isFillable`。`!== 'circle'`の分岐は弧として扱われる。`createTransformed`は現状まだ種別で分岐する（のちに5つの点を写すだけに変わる））・`ShapeFactory`の対応表・`index.html`のボタン。
+ * `hitTest`、`toDrawElement`、`isFillable`。`!== 'circle'`の分岐は弧として扱われる。`createTransformed`は種別で分岐せず5つの点を写すだけ）・`ShapeFactory`の対応表・`index.html`のボタン。
  * `hitTestFill`は種別の分岐を持たない（塗れるかを`isFillable()`に通すだけ）が、塗れる種別（扇形など）を増やすときは式の見直しが要る。
  * @type {ReadonlyArray<string>}
  */
@@ -179,6 +179,7 @@ export class Ellipse {
     /**
      * 選択時のハンドル（操作点）を描画する。
      * 中心（円形: move）、右端・上端（正方形: points[1], points[2]）、左端・下端（正方形: 計算値ダミー）の計5個を描画。
+     * 注意：今の約束の位置（`points[1]`が中心の右の同じ高さ・`points[2]`が中心の上の同じ横位置）を前提にした式で、回した・裏返した円・弧では正しくない。選択（`V`）・頂点の選択（`A`）からは呼ばれない到達不能の枝のため式は変えない。
      * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
      * @param {number} [viewScale=1] - 現在の表示倍率。ハンドルの大きさ・枠線幅を画面上で一定に保つために用いる。省略時は倍率1.0として現行と同じ見た目になる
      */
@@ -219,6 +220,7 @@ export class Ellipse {
     /**
      * 座標(x, y)にあるハンドルを判定してその名前を返す。
      * 優先順位: 中心('move') -> 右端('right') -> 上端('up') -> 左端('left') -> 下端('down')
+     * 注意：今の約束の位置（`points[1]`が中心の右の同じ高さ・`points[2]`が中心の上の同じ横位置）を前提にした式で、回した・裏返した円・弧では正しくない。選択（`V`）・頂点の選択（`A`）からは呼ばれない到達不能の枝のため式は変えない。
      * @param {number} x - 判定するX座標
      * @param {number} y - 判定するY座標
      * @param {number} tolerance - 当たり判定の許容誤差
@@ -251,6 +253,7 @@ export class Ellipse {
      * 位置は`hitTestHandle`・`drawHandles`と同じ式（`rx`・`ry`は`hitTestHandle`と同じ求め方）：
      * 'move'＝中心、'right'＝(xc + rx, yc)、'up'＝(xc, yc − ry)、'left'＝(xc − rx, yc)、'down'＝(xc, yc + ry)。
      * 'left'・'down'は`points`に実体がなく、中心からの対称位置として計算した位置（ダミーのハンドル）である。
+     * 注意：今の約束の位置（`points[1]`が中心の右の同じ高さ・`points[2]`が中心の上の同じ横位置）を前提にした式で、回した・裏返した円・弧では正しくない。選択（`V`）・頂点の選択（`A`）からは呼ばれない到達不能の枝のため式は変えない。
      * 対応表を引かず`===`の厳密比較で分岐するため、ハンドル名でない値（`null`・`undefined`・未知の文字列・文字列以外・
      * `Object.prototype`のキー名）は例外にせず`null`を返す。
      * 戻り値は新しいオブジェクトで、書き換えても自身は変わらない。
@@ -288,6 +291,7 @@ export class Ellipse {
      * 'move' は InputTracker 側で処理されるため含まない。
      * 左端('left')・下端('down')は、計算によって対称位置にあるダミーハンドルであり、
      * ドラッグ時には右端('right')・上端('up')と同じインデックス(1, 2)を返し、setVertex 側で中心からの距離として正規化させる設計意図を持つ。
+     * 注意：今の約束の位置（`points[1]`が中心の右の同じ高さ・`points[2]`が中心の上の同じ横位置）を前提にした式で、回した・裏返した円・弧では正しくない。選択（`V`）・頂点の選択（`A`）からは呼ばれない到達不能の枝のため式は変えない。
      * @param {string} handleName - ハンドル名
      * @returns {number|null} 頂点インデックス。該当しない場合はnull
      */
@@ -457,6 +461,7 @@ export class Ellipse {
      * 単純な座標代入を行わず、中心からの絶対距離(rx, ry)を再計算して
      * 正準位置（右端・上端）へ再配置する正規化を行う。
      * これにより、左端や下端をドラッグしても図形が反転ワープする不具合を防止する。
+     * 注意：今の約束の位置（`points[1]`が中心の右の同じ高さ・`points[2]`が中心の上の同じ横位置）を前提にした式で、回した・裏返した円・弧では正しくない。選択（`V`）・頂点の選択（`A`）からは呼ばれない到達不能の枝のため式は変えない。
      * @param {number} vertexIndex - 更新する頂点のインデックス (0, 1, 2)
      * @param {number} x - 新しいX座標
      * @param {number} y - 新しいY座標
@@ -769,29 +774,17 @@ export class Ellipse {
     /**
      * アフィン変換を当てた新しいEllipse（円・弧）を返す（共通メソッド契約の第19メソッド）。自身は変えない。
      * 戻り値は自身と配列・頂点のオブジェクトを共有しない。`type`・`id`（そのまま）・`strokeColor`・`strokeWidth`・`fillColor`は自身と同じ（線の太さは変えない）。
-     * 今の持ち方（中心・右端・上端の5点、半径は中心からの距離）は回転・傾きを表せないため、`b !== 0 || c !== 0`の変換は`Error`にする。
-     * 中心`(xc, yc)`・`rx = |points[1].x − xc|`・`ry = |points[2].y − yc|`（`draw`と同じ読み方）から、新しい中心は中心を変換で写した点、
-     * 半径は`rx' = |a|·rx`・`ry' = |d|·ry`（縦横別の倍率で楕円・楕円の弧になる）。
-     * 弧は上半分を描き外枠が`[yc − ry, yc]`のため、`d < 0`（上下の裏返し）のときだけ新しい中心の`y`に`ry'`を足す
-     * （上下に裏返らず、裏返した後の外枠`[yc', yc' + ry']`に上半分の弧のまま収める）。左右の裏返し（`a < 0`）は見た目が同じため何もしない。円は上下・左右とも何もしない。
-     * `points[1]`〜`[4]`は`#updatePointsFromRadii`で今の約束の位置にそろえる。開始角・終了角は`type`から決まるため変わらない。
-     * `transform`の検証は`b`・`c`以外はしない（呼び出し側の責任）。
-     * @param {import('./ShapeGeometry.js').AffineTransform} transform - 当てる変換（点`(x, y)`→`(a·x + c·y + e, b·x + d·y + f)`）。`b`・`c`は0であること
+     * 5つの点（`points[0]`〜`[4]`）をそのまま`applyAffineTransformToPoint`で写すだけ（`Rect`と同じ形）。拡大縮小・回転・傾き・裏返しの組み合わせを同じ入口で表せる
+     * （回した円・弧は傾いた楕円・楕円の弧になり、弧の上下の裏返しは下半分の弧になる）。`Error`は投げない。
+     * 点は約束の位置にそろえ直さない（裏返した円・弧の`points[1]`〜`[4]`は写した位置のまま。形は`#readGeometry`が読む）。種別で分岐しない。
+     * `transform`の検証はしない（呼び出し側の責任）。
+     * @param {import('./ShapeGeometry.js').AffineTransform} transform - 当てる変換（点`(x, y)`→`(a·x + c·y + e, b·x + d·y + f)`）
      * @returns {Ellipse} 変換を当てた新しい図形
-     * @throws {Error} `transform.b`か`transform.c`が0でない場合
      */
     createTransformed(transform) {
-        if (transform.b !== 0 || transform.c !== 0) {
-            throw new Error('Ellipse.createTransformed: 回転・傾きを含む変換は円・弧で表せません');
-        }
-        const rx = Math.abs(this.points[1].x - this.points[0].x);
-        const ry = Math.abs(this.points[2].y - this.points[0].y);
         const center = applyAffineTransformToPoint(transform, this.points[0]);
-        const newRx = Math.abs(transform.a) * rx;
-        const newRy = Math.abs(transform.d) * ry;
-        const centerY = (this.type !== 'circle' && transform.d < 0) ? center.y + newRy : center.y;
-        const transformed = new Ellipse(center.x, centerY, center.x, centerY, this.type, this.strokeColor, this.strokeWidth, this.fillColor);
-        transformed.#updatePointsFromRadii(newRx, newRy);
+        const transformed = new Ellipse(center.x, center.y, center.x, center.y, this.type, this.strokeColor, this.strokeWidth, this.fillColor);
+        transformed.points = this.points.map((point) => applyAffineTransformToPoint(transform, point));
         transformed.id = this.id;
         return transformed;
     }
