@@ -203,7 +203,7 @@ REQの要件と本計画の設計の対応：要件1（2行）＝要件A、要�
         *   コード修正完了後、JSDocコメントの記載漏れがないこと（新しい・変えた関数・メソッド・typedef・定数、先頭の責務定義）を確認する。
         *   開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る場合は、資料本体は修正せず、その旨を『開発資料の更新予定』欄に追記する。
         *   タスク完了後、作業レポート（本RES）の「4. 詳細作業内容」の本タスクの欄を記載し完成させ、本タスクを`[x]`にする。
-*   [ ] タスク7: 要件D 変形の数値入力・反転の手順（新規`edit/TransformInputEditor.js`）とテスト（保存・書き出しを含む）
+*   [x] タスク7: 要件D 変形の数値入力・反転の手順（新規`edit/TransformInputEditor.js`）とテスト（保存・書き出しを含む）
     *   **対象ファイル** :
         *   `./js/edit/TransformInputEditor.js` : 新規
         *   `./test/edit/TransformInputEditor.test.js` : 新規
@@ -325,7 +325,10 @@ REQの要件と本計画の設計の対応：要件1（2行）＝要件A、要�
 
 ### タスク7: 要件D 変形の数値入力・反転の手順（新規`edit/TransformInputEditor.js`）とテスト（保存・書き出しを含む）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/edit/TransformInputEditor.js`を新規作成（先頭の責務定義・クラス・コンストラクタ・`getSizeView`・`getTransformView`・`setSize`・`rotateBy`・`flip`・非公開`#resolveFrame`・`#apply`・非公開フィールド6つにJSDoc記載済み。importは`NudgeTargetRules`の`resolveNudgeTarget`・`ReferencePointRules`の`DEFAULT_REFERENCE_POINT`・`resolveReferencePointPosition`・`./TransformInputRules.js`のみ。図形種別の分岐・`try/catch`なし）。
+    *   `test/edit/TransformInputEditor.test.js`を新規作成（23件：押せない条件（SELECTで選択なし・VERTEX・CREATE・PAN）、表示、幅（9か所の基準点・鍵あり・複数選択・水平な直線の高さ）、高さ、角度（90度・30度）、反転（横・縦・基準点・弧）、円・パス、記録1回・通知1回、選択・id・並び・スタイル不変、実物の`HistoryManager`＋`SnapshotAdapter`で取り消し1件・360度は記録なし、`DocumentSerializer`の往復と`SpriteSerializer.serialize`の形（`formatVersion` 4・`source.version` 3・基準点/鍵のキー無し））。
+    *   `node --test`：tests 2456 / suites 399 / pass 2456 / fail 0。
+    *   計画との差：弧・円の座標に三角関数由来の約1e-14の誤差が出るため、弧の反転のテストは許容誤差（1e-9）で比べている。
 
 ### タスク8: 要件G 大きさ・変形のまとまりのUI部品（新規`palette/OptionBarSizeGroup.js`・`palette/OptionBarTransformGroup.js`）
 *   **作業内容** :
