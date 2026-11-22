@@ -213,7 +213,7 @@ REQの要件と本計画の設計の対応：要件1（2行）＝要件A、要�
         *   コード修正完了後、JSDocコメントの記載漏れがないこと（新しい・変えた関数・メソッド・typedef・定数、先頭の責務定義）を確認する。
         *   開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る場合は、資料本体は修正せず、その旨を『開発資料の更新予定』欄に追記する。
         *   タスク完了後、作業レポート（本RES）の「4. 詳細作業内容」の本タスクの欄を記載し完成させ、本タスクを`[x]`にする。
-*   [ ] タスク8: 要件G 大きさ・変形のまとまりのUI部品（新規`palette/OptionBarSizeGroup.js`・`palette/OptionBarTransformGroup.js`）
+*   [x] タスク8: 要件G 大きさ・変形のまとまりのUI部品（新規`palette/OptionBarSizeGroup.js`・`palette/OptionBarTransformGroup.js`）
     *   **対象ファイル** :
         *   `./js/palette/OptionBarSizeGroup.js` : 新規
         *   `./js/palette/OptionBarTransformGroup.js` : 新規
@@ -332,7 +332,10 @@ REQの要件と本計画の設計の対応：要件1（2行）＝要件A、要�
 
 ### タスク8: 要件G 大きさ・変形のまとまりのUI部品（新規`palette/OptionBarSizeGroup.js`・`palette/OptionBarTransformGroup.js`）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/palette/OptionBarSizeGroup.js`を新規作成（importなし。先頭の責務定義・typedef`SizeInputView`（二重定義の相手を明記）・`OptionBarSizeGroupActions`・定数`AXIS_WIDTH`/`AXIS_HEIGHT`・クラス・非公開フィールド・メソッドにJSDoc記載済み。幅・高さの欄の`change`/`blur`、鍵の`click`、`render`で`disabled`・`aria-pressed`）。
+    *   `js/palette/OptionBarTransformGroup.js`を新規作成（importなし。typedef`TransformInputView`・`OptionBarTransformGroupActions`・定数`FLIP_HORIZONTAL`/`FLIP_VERTICAL`・クラス等にJSDoc記載済み。角度の欄は`change`のたび戻り値によらず`#lastView.angle`で書き戻し、基準点は`dataset.referencePoint`を渡すだけ）。
+    *   コンストラクタの`Error`は、コールバックが関数でないときに投げる（SizeGroupは`onSizeChange`・`onAspectLockToggle`、TransformGroupは3つすべて）。テストは書いていない（DOM部品、計画どおり）。
+    *   `node --test`：tests 2456 / suites 399 / pass 2456 / fail 0。
 
 ### タスク9: 要件A オプションバーの2行と新しいまとまり（`index.html`）
 *   **作業内容** :
