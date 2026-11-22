@@ -1,11 +1,11 @@
 /**
- * 責務：ユーザー入力（図形作成（直線・曲線のツールでは点を打って続けて引く）・選択・範囲選択・本体ドラッグ・ハンドルドラッグ・頂点の複数選択とまとめ移動・外枠のハンドルでの拡大縮小・パン・ズーム。キーはスペースパンのみ）の解釈と
- * Model・ビュー変換への反映（修飾キーの読み取りは、規則の関数へ渡すこと、Altで注入された複製を呼ぶかを決めること、Ctrlの間に端点への吸い付きの照会を省くこと、Shiftで線を引いている途中の向きを限定するかを決めること、拡大縮小のドラッグでShift・Alt・Ctrlを規則の関数へ渡すことにだけ使う。待ち受け中のクリックは図形のidを外へ渡すだけ）、状態依存の操作（一括削除・取消・全選択・進行中操作の中断・線を引いている途中の最後の点の削除と終える）の公開、編集操作の開始・確定の通知（注入された記録先へ）、
+ * 責務：ユーザー入力（図形作成（直線・曲線のツールでは点を打って続けて引く）・選択・範囲選択・本体ドラッグ・ハンドルドラッグ・頂点の複数選択とまとめ移動・外枠のハンドルでの拡大縮小・外枠の角の外側での回転・パン・ズーム。キーはスペースパンのみ）の解釈と
+ * Model・ビュー変換への反映（修飾キーの読み取りは、規則の関数へ渡すこと、Altで注入された複製を呼ぶかを決めること、Ctrlの間に端点への吸い付きの照会を省くこと、Shiftで線を引いている途中の向きを限定するかを決めること、拡大縮小のドラッグでShift・Alt・Ctrlを規則の関数へ渡すこと、回転のドラッグでShiftを規則の関数へ渡すことにだけ使う。待ち受け中のクリックは図形のidを外へ渡すだけ）、状態依存の操作（一括削除・取消・全選択・進行中操作の中断・線を引いている途中の最後の点の削除と終える）の公開、編集操作の開始・確定の通知（注入された記録先へ）、
  * および入力状態に応じたカーソル形状のキャンバスへの適用（形の判定は規則の関数へ渡すだけで本クラスは持たない）を担う。
  */
 
 import { DragTracker } from './DragTracker.js';
-import { InputState, OperationMode } from './InputModes.js';
+import { InputState, OperationMode, CANCELABLE_DRAG_STATES } from './InputModes.js';
 import { isTextInputElement, isSpaceYieldedElement } from './FocusKeyYieldRules.js';
 import { SHAPE_TYPES } from './ShapeFactory.js';
 import { classifyPointHit } from './PointHitRules.js';
@@ -16,6 +16,7 @@ import { resolveClickSelection, resolveMarqueeSelection, resolveVertexMarqueeSel
 import { constrainMoveDirection } from './MoveDirectionRules.js';
 import { resolveUnitSnapStep, roundPointToUnit, roundDeltaToUnit, roundConstrainedDeltaToUnit, roundPointFromOriginToUnit, roundConstrainedPointFromOriginToUnit } from './UnitSnapRules.js';
 import { collectScaleFrame, hitTestScaleHandle, computeBoundsScale, toScaleTransform } from './ScaleHandleRules.js';
+import { hitTestRotationZone, computeRotationCenter, computeRotationAngle, toRotationTransform } from './RotationRules.js';
 
 /**
  * 当たり分類（#classifyPoint）の結果。ホバー・押下・クリック・カーソル形状の判定で共通に用いる。
@@ -33,7 +34,7 @@ export const WHEEL_ZOOM_STEP = 1.1;
 
 /**
  * クリックとドラッグを区別する移動量の閾値。スクリーン座標のCSSピクセル。
- * 左ドラッグ（ハンドルドラッグ・本体ドラッグ・範囲選択・拡大縮小）は、押下点からの移動距離がこれを超えた時点で初めて実際の操作を開始する
+ * 左ドラッグ（ハンドルドラッグ・本体ドラッグ・範囲選択・拡大縮小・回転）は、押下点からの移動距離がこれを超えた時点で初めて実際の操作を開始する
  * （DragTracker.begin()のthresholdとして渡す。パンには用いない）。
  * @type {number}
  */
@@ -173,7 +174,7 @@ export function hasCtrlModifier(event) {
 
 /**
  * キャンバスのマウス入力とスペースキー（スペースパン）を解釈し、VectorModelの対応APIを呼び出す状態遷移マシン
- * （IDLE / DRAWING / DRAGGING_HANDLE / MOVING_SELECTION / MARQUEE_SELECTING / SCALING_SELECTION。値の定義はInputModes.js）。操作モード（currentMode）と
+ * （IDLE / DRAWING / DRAGGING_HANDLE / MOVING_SELECTION / MARQUEE_SELECTING / SCALING_SELECTION / ROTATING_SELECTION。値の定義はInputModes.js）。操作モード（currentMode）と
  * 図形種別（currentShapeType）を独立した状態として保持し、操作モード・入力状態・当たり分類（#classifyPoint）を
  * CursorShapeRules.resolveCursorShapeへ渡して得た形をキャンバスのカーソルへ適用する（形の判定表は本クラスは持たない）。
  * 当たり分類はホバー・押下・クリック・カーソル形状の判定で共用する。
@@ -181,9 +182,9 @@ export function hasCtrlModifier(event) {
  * フォーカスしている要素の判定（テキスト入力中・Spaceを部品に譲る要素）はFocusKeyYieldRulesの関数へ渡すだけで本クラスは持たない。
  * パン（中ボタンドラッグ・スペース＋左ドラッグ・キャンバス移動モードの左ドラッグ）は、DRAWINGを保持したまま
  * 行えるよう、InputStateとは直交するprivateフラグ（パン中：#isPanning、スペース押下中：#isSpacePressed）で表現する。
- * パンと左ドラッグ（ハンドルドラッグ・本体ドラッグ・範囲選択・拡大縮小）のライフサイクル（開始ボタン・移動量閾値・直前位置・
+ * パンと左ドラッグ（ハンドルドラッグ・本体ドラッグ・範囲選択・拡大縮小・回転）のライフサイクル（開始ボタン・移動量閾値・直前位置・
  * window capture購読による追従/終了・blur時の中断・終了直後のclick抑止）は、本クラスが生成・所有するDragTracker（#drag）へ
- * 委譲し、本クラスはドラッグの意味の解釈（パン量、頂点変形・選択集合の平行移動・範囲選択・拡大縮小のModel反映）のみを行う。
+ * 委譲し、本クラスはドラッグの意味の解釈（パン量、頂点変形・選択集合の平行移動・範囲選択・拡大縮小・回転のModel反映）のみを行う。
  * ズーム・パンによる表示の変更はViewTransformへ委譲する。
  * 修飾キー（Ctrl＝ctrlKey||metaKey）の読み取りは行うが、クリック・範囲選択の次の選択の決定はSelectionRulesの関数へ渡すだけで本クラスは持たない
  * （結果の反映は#applySelectionChangeが受け渡す。頂点の選択のモードの範囲選択の確定では、範囲に入る頂点の組の収集をVertexHandleRulesへ、
@@ -199,7 +200,7 @@ export function hasCtrlModifier(event) {
  * Space以外のキー（ショートカット）は解釈しない。削除・取消・全選択・進行中操作の中断・線を引いている途中の終える／最後の点の削除は状態依存の公開メソッド
  * （finishLineDrawing・removeLastLinePoint・deleteLastLinePointOrSelectionを含む）として提供し、
  * 削除ボタン・ショートカット（KeyboardShortcuts）・切り取り（`ClipboardController.cut()`へ`main.js`が注入）・作業データの復元・取り消し/やり直しの前処理からはmain.js経由で呼び出される。
- * 編集操作（図形の作成・一括削除・選択集合の平行移動・ハンドルによる変形・外枠のハンドルでの拡大縮小）は、変更処理を注入された記録先（EditRecorder）の
+ * 編集操作（図形の作成・一括削除・選択集合の平行移動・ハンドルによる変形・外枠のハンドルでの拡大縮小・回転）は、変更処理を注入された記録先（EditRecorder）の
  * beginEdit()／commitEdit()で挟んで開始・確定を伝える（履歴の保持・適用は行わない。記録先はコンストラクタ第4引数）。
  * 範囲選択・クリック選択・全選択・選択解除・ホバー・パン・ズーム・モード/図形種別の切り替えは編集操作として伝えない。
  * 端点への吸い付きの照会と反映（直線・曲線のツールで描くときの描き足し・結合・閉じる）は、注入された補助（EndpointSnapAssist。コンストラクタ第5引数）へ
@@ -225,7 +226,12 @@ export function hasCtrlModifier(event) {
  * 本クラスは持たない）を押して引くと拡大縮小（SCALING_SELECTION）になる。押下の時点の選択中の図形のインスタンスを#scaleDragに控え、追従のたびに
  * 規則の関数が返した変換を控えの図形へ当てて（図形のcreateTransformed）、VectorModel.replaceShapesKeepingIdsで同じidの位置へ差し替えるだけ。
  * 離すと確定して取り消し1件、中断（Escのcancel・blur・setMode・abortOngoingOperation）では控えのインスタンスへ戻して記録しない（ほかの左ドラッグは中断しても反映済みの変化が残り1件として確定する）。
- * 「Escで中断できるドラッグか」の判定は公開のisScalingSelection()の1か所。
+ * 選択モードで外枠の角の外側の回転の範囲（当たり・角度・変換・カーソルの向きはRotationRulesの関数。本クラスは持たない）を押して引くと回転（ROTATING_SELECTION）になる。
+ * 押下の時点の外枠・回転の中心・押した位置・選択中の図形のインスタンス・直前の角度を#rotateDragに控え、追従のたびに規則の関数が返した角度の変換を控えの図形へ当てて
+ * （図形のcreateTransformed）、同じくreplaceShapesKeepingIdsで差し替えるだけ（Shiftは追従のたびのイベントで読んで規則の関数へ渡す。Alt・Ctrlは読まない）。
+ * 離す・中断では、控え（#rotateDrag）を消してから図形の差し替えを通知する（離したときは今の図形のインスタンスのまま、中断は控えのインスタンスへ戻す。
+ * 回している間の外枠はgetRotationDragView()の控えから描かれるため、縦横の外枠へ戻すための再描画を今のmodel.onChangeの経路で起こす）。離して取り消し1件、中断は記録しない。
+ * 「Escで中断できるドラッグか」の判定は公開のisScalingSelection()の1か所（対象の状態の一覧はInputModesのCANCELABLE_DRAG_STATES）。
  * Altを押して始めた本体ドラッグ・移動用ハンドルのドラッグで移動量が閾値を超えた時点（beginEdit()の後）に、
  * 注入された複製を呼ぶだけで、複製の仕方・idの採番は知らない。
  * 「クリックした図形を外へ渡す待ち受け」（isPickingShape）の間は、選択モード・IDLEの左ボタンの押下で何も始めず、
@@ -272,7 +278,7 @@ export class InputTracker {
     #appliedMoveDelta = null;
 
     /**
-     * ドラッグのライフサイクル管理（コンストラクタで生成・所有）。パンと左ドラッグ（ハンドルドラッグ・本体ドラッグ・範囲選択・拡大縮小）が利用する。
+     * ドラッグのライフサイクル管理（コンストラクタで生成・所有）。パンと左ドラッグ（ハンドルドラッグ・本体ドラッグ・範囲選択・拡大縮小・回転）が利用する。
      * セッションは同時に1つのみ。
      * click抑止フラグの所有者もこのインスタンスである。
      * @type {DragTracker}
@@ -373,6 +379,15 @@ export class InputTracker {
      * @type {{handle: string, bounds: {minX: number, minY: number, maxX: number, maxY: number}, originals: Array<Object>, lastScale: {scaleX: number, scaleY: number}}|null}
      */
     #scaleDrag = null;
+
+    /**
+     * 外枠の角の外側での回転（ROTATING_SELECTION）の控え。corner＝押した角の名前、frame＝押下時の外枠（collectScaleFrameの結果そのもの）、
+     * center＝回転の中心、origin＝押した位置、originals＝押下時に選択中だった図形のインスタンス（描画順。引き始めの形として毎回の計算の元・中断で戻す先になる）、
+     * rawAngle＝直前の丸めない角度（規則の関数のpreviousRawへ渡す）、angle＝直前に当てた角度（getRotationDragViewが返す）。
+     * #beginRotateSelectionで設定（それ以外の押下ではnull）し、#finishLeftDrag()で必ずnullに戻す（離す・中断では差し替えの通知の前にnullにする）。
+     * @type {{corner: string, frame: Object, center: {x: number, y: number}, origin: {x: number, y: number}, originals: Array<Object>, rawAngle: number, angle: number}|null}
+     */
+    #rotateDrag = null;
 
     /**
      * @param {HTMLCanvasElement} canvas - イベントをリッスンするキャンバス
@@ -499,12 +514,12 @@ export class InputTracker {
      * 有効な値の場合は常に（同じモードの再指定でも）、以下の順に処理する（モード切り替え時に前モードの状態が残留することを防ぐため）。
      * (1)進行中操作の中断（#abortOngoingOperation()。abortOngoingOperation()と同一の処理）：ドラッグセッション
      * （パン・左ドラッグ。閾値以前を含む）中であればDragTracker.cancel()で中断し（onCancel経由で、パンは#finishPan()、
-     * 左ドラッグは#onLeftDragCancel()によりIDLEへ戻る。拡大縮小（SCALING_SELECTION）は控えの図形のインスタンスへ戻して記録しない。
+     * 左ドラッグは#onLeftDragCancel()によりIDLEへ戻る。拡大縮小・回転（SCALING_SELECTION・ROTATING_SELECTION）は控えの図形のインスタンスへ戻して記録しない。
      * ほかの左ドラッグの頂点・位置の変更は確定済みのまま残り、範囲選択は選択矩形を破棄して確定しない）、
      * なおIDLE以外の状態（作成途中）であればcancelDraft()で作成途中の図形を破棄してIDLE状態へ戻す。
-     * 中断した左ドラッグのうち拡大縮小以外（本体ドラッグ・moveハンドル・ハンドル変形）で頂点・位置の変化が残った場合は、#finishLeftDrag()で
+     * 中断した左ドラッグのうち拡大縮小・回転以外（本体ドラッグ・moveハンドル・ハンドル変形）で頂点・位置の変化が残った場合は、#finishLeftDrag()で
      * 1件の編集操作として記録先へ確定する（選択集合のクリアより前のため、記録される選択集合は操作中のもの）。
-     * 作成途中の図形の破棄・範囲選択の中断・拡大縮小の中断は編集操作として伝えない。
+     * 作成途中の図形の破棄・範囲選択の中断・拡大縮小・回転の中断は編集操作として伝えない。
      * (2)currentModeの更新、(3)選択集合・ホバー状態の無条件クリア、(4)カーソル形状の再評価。
      * 中断処理の共通化に伴い、作成途中の図形の破棄（cancelDraftの変更通知）は選択集合・ホバーのクリアより前に行われる
      * （従来はクリアの後。最終状態は同一）。
@@ -572,7 +587,7 @@ export class InputTracker {
     // ---- 公開API（状態依存の操作：削除・取消・全選択・中断） ----
 
     /**
-     * ドラッグ中かを返す。ドラッグ中＝パン・左ドラッグ（ハンドルドラッグ・本体ドラッグ・範囲選択・拡大縮小）の
+     * ドラッグ中かを返す。ドラッグ中＝パン・左ドラッグ（ハンドルドラッグ・本体ドラッグ・範囲選択・拡大縮小・回転）の
      * DragTrackerセッション中（閾値以前を含む）。ショートカットの受理判定（KeyboardShortcuts）に用いる。
      * @returns {boolean} ドラッグ中ならtrue
      */
@@ -581,13 +596,29 @@ export class InputTracker {
     }
 
     /**
-     * 外枠のハンドルでの拡大縮小のドラッグ（SCALING_SELECTION。押下から離す・中断まで。閾値以前を含む）の最中かを返す。
+     * 外枠のハンドルでの拡大縮小・外枠の角の外側での回転のドラッグ（SCALING_SELECTION・ROTATING_SELECTION。押下から離す・中断まで。閾値以前を含む。
+     * Escで中断して引き始めの形に戻すドラッグ）の最中かを返す。
      * **「Escで中断できるドラッグか」の判定の唯一の箇所**（main.jsがKeyboardShortcutsのisCancelableDragへ注入し、
      * cancelDraftOrClearSelectionの(1)もこのメソッドを呼ぶ。ほかの箇所でstateをこの判定のために直接比べない）。
-     * @returns {boolean} 拡大縮小のドラッグ中ならtrue
+     * 対象の入力状態の一覧はInputModesのCANCELABLE_DRAG_STATES（名前は拡大縮小の時代のまま。意味を回転へ広げた）。
+     * @returns {boolean} 拡大縮小・回転のドラッグ中ならtrue
      */
     isScalingSelection() {
-        return this.state === InputState.SCALING_SELECTION;
+        return CANCELABLE_DRAG_STATES.includes(this.state);
+    }
+
+    /**
+     * 回転のドラッグ（ROTATING_SELECTION）で閾値を超えて回している間の、回している外枠の表示用の控えを返す（読み取り専用の照会。呼び出し元はmain.jsのrenderCurrentStateだけ）。
+     * 外枠の傾け方・位置は規則（RotationRulesのresolveDisplayedScaleFrame）が求め、本メソッドは控えを渡すだけ。
+     * 閾値以前（図形がまだ回っていない）・回転のドラッグでないとき・控えがないときはnull。
+     * @returns {{frame: Object, center: {x: number, y: number}, angle: number}|null} 押下時の外枠（控えのそのまま）・回転の中心の写し・直前に当てた角度。回していなければnull
+     */
+    getRotationDragView() {
+        if (this.state !== InputState.ROTATING_SELECTION || !this.#isEditOpen || this.#rotateDrag === null) {
+            return null;
+        }
+        const drag = this.#rotateDrag;
+        return { frame: drag.frame, center: { x: drag.center.x, y: drag.center.y }, angle: drag.angle };
     }
 
     /**
@@ -619,7 +650,7 @@ export class InputTracker {
 
     /**
      * 作成途中の図形の破棄、または選択解除を行う。Escショートカットの実体。以下の順に判定する。
-     * (1)ドラッグ中（パン・左ドラッグ。閾値以前を含む）の場合：拡大縮小のドラッグ中（isScalingSelection()が真）なら、
+     * (1)ドラッグ中（パン・左ドラッグ。閾値以前を含む）の場合：拡大縮小・回転のドラッグ中（isScalingSelection()が真）なら、
      * DragTracker.cancel({ suppressClick: true })で中断し（#onLeftDragCancelが控えの図形のインスタンスへ戻して記録しない。
      * 中断の後に離したときのclickを1回抑止する）trueを返す。それ以外のドラッグ（パン・本体ドラッグ・ハンドル変形・範囲選択）は何もしない（false）。
      * (2)DRAWING状態なら、線を引いている途中（直線・曲線のツール）は注入された補助のfinishDrawnLine(#drawStartSnap)で開いたまま終えて残し
@@ -628,7 +659,7 @@ export class InputTracker {
      * (3)頂点の選択が1つ以上あれば、clearSelectedVertices()で頂点の選択だけを空にする（図形の選択・頂点の表示はそのまま）。
      * (4)選択モードまたは頂点の選択のモード かつ IDLE状態 かつ 選択集合が空でなければ、clearSelection()で全解除する（変更通知1回）。
      * (5)それ以外は何もしない。
-     * @returns {boolean} (1)の拡大縮小の中断・(2)(3)(4)を実行したらtrue。falseの場合、呼び出し側はpreventDefault()しない
+     * @returns {boolean} (1)の拡大縮小・回転の中断・(2)(3)(4)を実行したらtrue。falseの場合、呼び出し側はpreventDefault()しない
      */
     cancelDraftOrClearSelection() {
         if (this.#drag.isActive()) {
@@ -686,13 +717,13 @@ export class InputTracker {
     /**
      * 進行中の入力操作を強制中断する。図形一式の入れ替え（VectorModel.replaceAllShapes）の前処理として、
      * 作業データの復元時、および取り消し・やり直し（履歴の適用）の前処理としてmain.jsから呼ばれる。
-     * 中断した左ドラッグのうち拡大縮小以外（本体ドラッグ・moveハンドル・ハンドル変形）で頂点・位置の変化が残った場合は、#finishLeftDrag()で
+     * 中断した左ドラッグのうち拡大縮小・回転以外（本体ドラッグ・moveハンドル・ハンドル変形）で頂点・位置の変化が残った場合は、#finishLeftDrag()で
      * 1件の編集操作として記録先へ確定する（中断で残った変化も単独で取り消せるようにするため）。
-     * 作成途中の図形の破棄・範囲選択の中断・拡大縮小の中断は編集操作として伝えない。
+     * 作成途中の図形の破棄・範囲選択の中断・拡大縮小・回転の中断は編集操作として伝えない。
      * 受理条件：常に受け付ける（どの操作モード・入力状態からでも呼べる。何も進行していなければ何もしない）。
      * 中断するもの（setModeの中断処理と同一。#abortOngoingOperation()）：
-     * ・パン・左ドラッグ（ハンドルドラッグ・本体ドラッグ・範囲選択・拡大縮小。閾値以前を含む）のドラッグセッション。
-     *   範囲選択は選択矩形を破棄して確定しない。拡大縮小は控えの図形のインスタンスへ戻す（記録しない）。
+     * ・パン・左ドラッグ（ハンドルドラッグ・本体ドラッグ・範囲選択・拡大縮小・回転。閾値以前を含む）のドラッグセッション。
+     *   範囲選択は選択矩形を破棄して確定しない。拡大縮小・回転は控えの図形のインスタンスへ戻す（記録しない）。
      *   それ以外は、ドラッグ中に反映済みの頂点・位置は取り消さず残る。
      * ・作成途中の図形（cancelDraft()で破棄してIDLE状態へ戻す）。
      * 変更しないもの：操作モード・図形種別・選択集合・ホバー状態（これらのクリアは呼び出し側・replaceAllShapesの責務）、
@@ -762,7 +793,7 @@ export class InputTracker {
     /**
      * 進行中の入力操作の中断処理の本体（setMode・abortOngoingOperationが共用する）。以下の順に処理する。
      * (1)ドラッグセッション（パン・左ドラッグ。閾値以前を含む）中であればDragTracker.cancel()で中断する
-     * （onCancel経由で、パンは#finishPan()、左ドラッグは#onLeftDragCancel()によりIDLEへ戻る。拡大縮小は控えの図形のインスタンスへ戻って記録されない。
+     * （onCancel経由で、パンは#finishPan()、左ドラッグは#onLeftDragCancel()によりIDLEへ戻る。拡大縮小・回転は控えの図形のインスタンスへ戻って記録されない。
      * ほかの左ドラッグは反映済みの変化が残る）。
      * (2)なおIDLE以外の状態（DRAWING。作成途中のままパンしていた場合を含む）であれば、cancelDraft()で作成途中の図形を
      * 破棄してIDLE状態へ戻す。
@@ -918,7 +949,9 @@ export class InputTracker {
             this.model.clearHovered();
         }
 
-        this.#updateCursor(hit, this.#findScaleHandle(point)?.handle ?? null);
+        const scaleHandle = this.#findScaleHandle(point)?.handle ?? null;
+        const rotationCorner = scaleHandle === null ? (this.#findRotationZone(point)?.corner ?? null) : null;
+        this.#updateCursor(hit, scaleHandle, rotationCorner);
     }
 
     /**
@@ -939,9 +972,11 @@ export class InputTracker {
      * 当たり分類の前に何もせず終了する（左ボタンの押下で何も始めない。(2)(4)のパンは先に判定済みのため働く）。
      * (6)IDLE状態かつ選択モード中のみ、押下点（ワールド座標）を#classifyPointで当たり分類し、何を始めるかの分岐はPressActionRules.resolvePressActionが決める。
      * 外枠のハンドル（#findScaleHandle）に当たっていればその名前をresolvePressActionの第3引数へ渡し（図形の本体・ハンドルより優先。scaleSelectionなら#beginScaleSelectionで拡大縮小を開始する）、
+     * 外枠のハンドルに当たっていなければ#findRotationZoneで回転の範囲（外枠の角の外側）を調べ、その角の名前をresolvePressActionの第4引数へ渡す
+     * （rotateSelectionなら#beginRotateSelectionで回転を開始する。図形の本体・図形ごとのハンドルより優先。Alt・Ctrlは見ない＝複製を立てない）。
      * 結果を今の非公開メソッドへ振り分ける（左ドラッグは#beginLeftDragで開始し、閾値以内で離した場合は離した後のclickで判定する。
      * MOVING_SELECTIONは#beginMoveSelection経由で開始し、開始できたときに押した時点のevent.altKeyを記憶する
-     * （Alt+ドラッグの複製の判定。Altを見るのは押した時点だけで、頂点のハンドル・範囲選択・拡大縮小では記憶しない））。
+     * （Alt+ドラッグの複製の判定。Altを見るのは押した時点だけで、頂点のハンドル・範囲選択・拡大縮小・回転では記憶しない））。
      * 分岐の表（外枠のハンドル・moveハンドル・頂点のハンドル・選択集合内の本体・選択集合外の本体・空白）はPressActionRules.resolvePressActionのJSDocを参照。
      * スペース押下中・中ボタン・キャンバス移動モードは(2)(4)のパン判定が先に成立するため、範囲選択は起きない。
      * この分岐の表はCtrlで変えない（Ctrlは閾値以内で離した後のclickと範囲選択の確定でのみ見る）。
@@ -1009,13 +1044,16 @@ export class InputTracker {
         const hit = this.#classifyPoint(point);
 
         const scaleHit = this.#findScaleHandle(point);
-        const action = resolvePressAction(hit, (id) => this.model.isSelected(id), scaleHit ? scaleHit.handle : null);
+        const rotationHit = scaleHit ? null : this.#findRotationZone(point);
+        const action = resolvePressAction(hit, (id) => this.model.isSelected(id), scaleHit ? scaleHit.handle : null, rotationHit ? rotationHit.corner : null);
         if (action === null) {
             return;
         }
 
         if (action.type === 'scaleSelection') {
             this.#beginScaleSelection(event, point, scaleHit);
+        } else if (action.type === 'rotateSelection') {
+            this.#beginRotateSelection(event, point, rotationHit);
         } else if (action.type === 'moveSelection') {
             this.#beginMoveSelection(event, point);
         } else if (action.type === 'dragHandle') {
@@ -1066,7 +1104,7 @@ export class InputTracker {
      * 作成開始位置はクリック位置のワールド座標とする。
      * 選択モード・頂点の選択のモード・図形作成モード以外のモード（キャンバス移動モード等）では、IDLE状態のクリックを無視する。
      * 左ボタンのパン（スペース＋左ドラッグ・キャンバス移動モード）終了直後、閾値を超えて動かした左ドラッグの
-     * 終了直後、およびEscで中断した拡大縮小のドラッグの後（閾値以内でも。cancelDraftOrClearSelectionの(1)）のclickは、
+     * 終了直後、およびEscで中断した拡大縮小・回転のドラッグの後（閾値以内でも。cancelDraftOrClearSelectionの(1)）のclickは、
      * DragTrackerのclick抑止フラグをconsumeSuppressedClick()で消費したうえで1回だけ無視する
      * （作成開始・確定・選択・選択解除を起こさない）。それ以外で左ドラッグを閾値以内で離した場合のclickは抑止せず、上記の通常処理を行う
      * （ハンドル上で離した場合は選択集合を維持し、選択集合内の図形の本体上で離した場合はその図形のみの単一選択になる）。
@@ -1207,7 +1245,8 @@ export class InputTracker {
      * shiftKeyで移動方向を限定する。本体ドラッグ・頂点のハンドルのドラッグのどちらでも、ctrlKey・metaKey（Ctrl）が
      * 押されていれば丸めを省き、端点のハンドルのドラッグでは端点への吸い付きの照会も省く）。範囲選択中は、押下点のワールド位置を
      * 固定したまま選択矩形をズーム後のカーソル位置まで伸ばし直す。拡大縮小のドラッグ中は、ホイールイベントのshiftKey・altKey・Ctrlで
-     * 倍率を求め直して追従し直す。
+     * 倍率を求め直して追従し直す。回転のドラッグ中は、ホイールイベントのshiftKey（15度刻み）で角度を求め直して追従し直す
+     * （回転ではaltKey・Ctrlは使わない）。
      * @param {WheelEvent} event
      */
     handleWheel(event) {
@@ -1236,11 +1275,11 @@ export class InputTracker {
         this.#updateCursor();
     }
 
-    // ---- 左ドラッグ（ハンドルドラッグ・選択集合の平行移動・範囲選択・拡大縮小） ----
+    // ---- 左ドラッグ（ハンドルドラッグ・選択集合の平行移動・範囲選択・拡大縮小・回転） ----
 
     /**
      * 現在のInputStateが左ドラッグ（DragTrackerのセッションで追従する選択モードのドラッグ）の状態かを返す。
-     * DRAGGING_HANDLE・MOVING_SELECTION・MARQUEE_SELECTING・SCALING_SELECTION。パン（InputStateと直交する）は含まない。
+     * DRAGGING_HANDLE・MOVING_SELECTION・MARQUEE_SELECTING・SCALING_SELECTION・ROTATING_SELECTION。パン（InputStateと直交する）は含まない。
      * @returns {boolean}
      */
     #isLeftDragState() {
@@ -1248,7 +1287,8 @@ export class InputTracker {
             this.state === InputState.DRAGGING_HANDLE ||
             this.state === InputState.MOVING_SELECTION ||
             this.state === InputState.MARQUEE_SELECTING ||
-            this.state === InputState.SCALING_SELECTION
+            this.state === InputState.SCALING_SELECTION ||
+            this.state === InputState.ROTATING_SELECTION
         );
     }
 
@@ -1260,13 +1300,33 @@ export class InputTracker {
      */
     #findScaleHandle(point) {
         const viewScale = this.viewTransform.getScale();
-        const frame = collectScaleFrame(this.currentMode, this.#inputAssist.getSelectionFrameBounds(), viewScale);
+        const frame = this.#collectCurrentScaleFrame();
         const handle = hitTestScaleHandle(frame, point, viewScale);
         return handle === null ? null : { handle, bounds: frame.bounds };
     }
 
     /**
-     * 左ドラッグ（頂点ハンドルのドラッグ、選択集合の平行移動、範囲選択、または外枠のハンドルでの拡大縮小）を開始する。handleMouseDownから左ボタン押下時に呼ばれる。
+     * 今の外枠（ハンドルの出し方を含む）を求める（受け渡しのみ。collectScaleFrame(操作モード, 注入された補助のgetSelectionFrameBounds(), 表示倍率)）。
+     * 外枠のハンドルの当たり（#findScaleHandle）と回転の範囲の当たり（#findRotationZone）で共用する。
+     * @returns {import('./ScaleHandleRules.js').ScaleFrame} 今の外枠
+     */
+    #collectCurrentScaleFrame() {
+        return collectScaleFrame(this.currentMode, this.#inputAssist.getSelectionFrameBounds(), this.viewTransform.getScale());
+    }
+
+    /**
+     * 押下点が外枠の角の外側の回転の範囲かを調べる（受け渡しのみ。当たりはRotationRulesのhitTestRotationZone）。
+     * @param {{x: number, y: number}} point 判定位置（ワールド座標）
+     * @returns {{corner: string, frame: Object}|null} 当たった角の名前と、そのとき使った外枠（#collectCurrentScaleFrameの結果）。当たらなければnull
+     */
+    #findRotationZone(point) {
+        const frame = this.#collectCurrentScaleFrame();
+        const corner = hitTestRotationZone(frame, point, this.viewTransform.getScale());
+        return corner === null ? null : { corner, frame };
+    }
+
+    /**
+     * 左ドラッグ（頂点ハンドルのドラッグ、選択集合の平行移動、範囲選択、外枠のハンドルでの拡大縮小、または外枠の角の外側での回転）を開始する。handleMouseDownから左ボタン押下時に呼ばれる。
      * DragTrackerのセッションを閾値DRAG_START_THRESHOLD（スクリーンpx）・click抑止'whenMoved'（閾値を超えて動かした場合のみ
      * 直後のclickを抑止）で開始し、成功した場合のみ次を記憶してnextStateへ遷移し、カーソル形状を更新する。
      * MARQUEE_SELECTINGなら押下点#marqueeAnchor、MOVING_SELECTIONなら押下点#moveOriginと反映済みの移動量#appliedMoveDelta（{ dx: 0, dy: 0 }）、
@@ -1277,16 +1337,16 @@ export class InputTracker {
      * DRAGGING_HANDLE以外の押下では空配列にする）。
      * 閾値以内では図形・選択矩形は変化しない。
      * 追従（onMove）は#applyLeftDragUpdate、開始（onStart）は#onLeftDragStart、
-     * 終了（onEnd：左ボタンの解放）は#onLeftDragEnd、中断（onCancel：blur・setMode・abortOngoingOperation・Esc（cancelDraftOrClearSelectionの(1)。拡大縮小のドラッグ中のみ））は#onLeftDragCancelが担う。
+     * 終了（onEnd：左ボタンの解放）は#onLeftDragEnd、中断（onCancel：blur・setMode・abortOngoingOperation・Esc（cancelDraftOrClearSelectionの(1)。拡大縮小・回転のドラッグ中のみ））は#onLeftDragCancelが担う。
      * DRAGGING_HANDLEで開始できたときは、注入された補助のresolveDragEndpoint(図形id, ハンドル名)で端点のハンドルかを解決し、
      * 端点なら#dragEndpoint（{ shapeId, end }）に、そうでなければnullにする（頂点の番号の規約は補助側が持つ）。
      * この解決は#vertexDragOriginsが1つだけのときに限る（頂点を2つ以上動かすときは端点への吸い付きをせず、#dragEndpointはnullのまま）。
      * @param {MouseEvent} event ドラッグを開始したmousedownイベント
-     * @param {'DRAGGING_HANDLE'|'MOVING_SELECTION'|'MARQUEE_SELECTING'|'SCALING_SELECTION'} nextState 遷移先の状態（InputStateの値。SCALING_SELECTIONでは#moveOrigin等は
-     *     nullのまま、#vertexDragOriginsは空のまま。#scaleDragは呼び出し側の#beginScaleSelectionが先に設定する）
+     * @param {'DRAGGING_HANDLE'|'MOVING_SELECTION'|'MARQUEE_SELECTING'|'SCALING_SELECTION'|'ROTATING_SELECTION'} nextState 遷移先の状態（InputStateの値。SCALING_SELECTION・ROTATING_SELECTIONでは#moveOrigin等は
+     *     nullのまま、#vertexDragOriginsは空のまま。#scaleDrag・#rotateDragは呼び出し側の#beginScaleSelection・#beginRotateSelectionが先に設定する）
      * @param {{x: number, y: number}} point 押下点（ワールド座標）
      * @param {{shapeId: string, handle: string} | null} [target=null] DRAGGING_HANDLEの操作対象（頂点ハンドルが属する図形のid（単一）と
-     *     ハンドル名）。MOVING_SELECTION（選択集合の全図形が対象）・MARQUEE_SELECTING・SCALING_SELECTIONでは不要
+     *     ハンドル名）。MOVING_SELECTION（選択集合の全図形が対象）・MARQUEE_SELECTING・SCALING_SELECTION・ROTATING_SELECTIONでは不要
      * @returns {boolean} 開始できたか（DragTrackerがセッション中で開始できなかった場合はfalseで、何も記憶・遷移しない）
      */
     #beginLeftDrag(event, nextState, point, target = null) {
@@ -1366,7 +1426,7 @@ export class InputTracker {
     }
 
     /**
-     * 外枠のハンドルでの拡大縮小のドラッグ（SCALING_SELECTION）を開始する。handleMouseDownから呼ばれる。
+     * 外枠のハンドルでの拡大縮小のドラッグ（SCALING_SELECTION。回転は#beginRotateSelection）を開始する。handleMouseDownから呼ばれる。
      * #scaleDragに引くハンドル名・押下時の外枠・押下時に選択中の図形のインスタンス（描画順）・直前の倍率（{ scaleX: 1, scaleY: 1 }）を控えてから
      * #beginLeftDragを呼ぶ（#beginLeftDrag内の#updateCursorがハンドルの向きのカーソルにするため先に控える）。開始できなければ#scaleDragをnullへ戻す。
      * Altの複製の記憶（#duplicateOnMove）は立てない（Altは追従のたびに外枠の中心を動かさない指定として読む）。
@@ -1387,8 +1447,32 @@ export class InputTracker {
     }
 
     /**
+     * 外枠の角の外側での回転のドラッグ（ROTATING_SELECTION）を開始する。handleMouseDownから呼ばれる。
+     * #rotateDragに押した角・押下時の外枠・回転の中心（RotationRulesのcomputeRotationCenter）・押した位置・押下時に選択中の図形のインスタンス（描画順）・
+     * 直前の角度（丸めない角度・当てた角度とも0）を控えてから#beginLeftDragを呼ぶ（#beginLeftDrag内の#updateCursorが回転のカーソルにするため先に控える）。
+     * 開始できなければ#rotateDragをnullへ戻す。Alt・Ctrlは見ない（#duplicateOnMoveを立てない）。
+     * @param {MouseEvent} event ドラッグを開始したmousedownイベント
+     * @param {{x: number, y: number}} point 押下点（ワールド座標）
+     * @param {{corner: string, frame: Object}} rotationHit 押した角と外枠（#findRotationZoneの結果）
+     */
+    #beginRotateSelection(event, point, rotationHit) {
+        this.#rotateDrag = {
+            corner: rotationHit.corner,
+            frame: rotationHit.frame,
+            center: computeRotationCenter(rotationHit.frame),
+            origin: point,
+            originals: this.model.getShapes().filter((shape) => this.model.isSelected(shape.id)),
+            rawAngle: 0,
+            angle: 0,
+        };
+        if (!this.#beginLeftDrag(event, InputState.ROTATING_SELECTION, point)) {
+            this.#rotateDrag = null;
+        }
+    }
+
+    /**
      * 左ドラッグの移動量が閾値を超えた時点の処理（DragTrackerのonStart）。
-     * 状態がMOVING_SELECTION（本体ドラッグ・moveハンドル）・DRAGGING_HANDLE（ハンドル変形）・SCALING_SELECTION（拡大縮小）のときのみ、記録先の
+     * 状態がMOVING_SELECTION（本体ドラッグ・moveハンドル）・DRAGGING_HANDLE（ハンドル変形）・SCALING_SELECTION（拡大縮小）・ROTATING_SELECTION（回転）のときのみ、記録先の
      * beginEdit()を呼んで#isEditOpenを立てる（まだ図形は動いていない時点の状態が「前の状態」になる。確定は#finishLeftDrag()）。
      * その後、MOVING_SELECTIONかつ#duplicateOnMove（Alt+ドラッグ）なら注入された補助のduplicateSelection()を呼ぶ
      * （開いた編集操作の中で複製し、以後の追従は複製を動かす。閾値以内で離したときは本メソッドが呼ばれないため複製しない）。
@@ -1397,7 +1481,7 @@ export class InputTracker {
      * あわせて、押下前のホバー表示が古いまま残らないようホバー状態をクリアし、カーソル形状を更新する。
      */
     #onLeftDragStart() {
-        if (this.state === InputState.MOVING_SELECTION || this.state === InputState.DRAGGING_HANDLE || this.state === InputState.SCALING_SELECTION) {
+        if (this.state === InputState.MOVING_SELECTION || this.state === InputState.DRAGGING_HANDLE || this.state === InputState.SCALING_SELECTION || this.state === InputState.ROTATING_SELECTION) {
             this.#editRecorder.beginEdit();
             this.#isEditOpen = true;
             if (this.state === InputState.MOVING_SELECTION && this.#duplicateOnMove) {
@@ -1420,6 +1504,7 @@ export class InputTracker {
      * MARQUEE_SELECTINGなら押下点（#marqueeAnchor）と現在のカーソル位置（いずれもワールド座標）を対角2点として
      * 選択矩形をModelへ設定する（正規化しない。選択集合は確定時まで変更しない）。
      * SCALING_SELECTIONなら#applyScaleUpdateへ振り分ける（Shift・Alt・Ctrlは追従のたびの本イベントで読む）。
+     * ROTATING_SELECTIONなら#applyRotateUpdateへ振り分ける（Shiftは追従のたびの本イベントで読む。Alt・Ctrlは読まない）。
      * DRAGGING_HANDLEなら、押下時に#vertexDragOriginsへ記憶した頂点インデックス・位置を使い（追従では解決し直さない）、
      * 動かす頂点すべてをmodel.updateVertices()へ1回で渡す（変更通知は1回。選択集合は変更しない）。
      * 対象図形が存在しない、またはアンカー（押した頂点）が#vertexDragOriginsに無い場合は何もしない。
@@ -1433,7 +1518,7 @@ export class InputTracker {
      * スナップの刻みで丸めた位置（roundPointFromOriginToUnit。Ctrlの間・スナップOFFでは丸めずカーソル位置）を頂点の座標にする。
      * 位置が得られない（#unitSnapHandleOriginがnull）ときは丸めない。Shiftは頂点のハンドルには効かせない。
      * 端点への吸い付きは頂点が1つだけのとき（#dragEndpointがあるとき）にしか起きない。
-     * @param {MouseEvent} event カーソル位置とshiftKey・ctrlKey・metaKeyを持つイベント（window captureのmousemove、またはwheel。shiftKeyはMOVING_SELECTIONの移動方向の限定とSCALING_SELECTIONの比率の保持に、altKeyはSCALING_SELECTIONの中心からの拡大縮小にのみ、Ctrlの有無は丸め・端点への吸い付きの省略に使う）
+     * @param {MouseEvent} event カーソル位置とshiftKey・ctrlKey・metaKeyを持つイベント（window captureのmousemove、またはwheel。shiftKeyはMOVING_SELECTIONの移動方向の限定とSCALING_SELECTIONの比率の保持に、altKeyはSCALING_SELECTIONの中心からの拡大縮小にのみ（ROTATING_SELECTIONの15度刻みにもshiftKey）、Ctrlの有無は丸め・端点への吸い付きの省略に使う）
      */
     #applyLeftDragUpdate(event) {
         if (!this.#isLeftDragState()) {
@@ -1449,6 +1534,11 @@ export class InputTracker {
 
         if (this.state === InputState.SCALING_SELECTION) {
             this.#applyScaleUpdate(event, { x, y });
+            return;
+        }
+
+        if (this.state === InputState.ROTATING_SELECTION) {
+            this.#applyRotateUpdate(event, { x, y });
             return;
         }
 
@@ -1539,10 +1629,51 @@ export class InputTracker {
             previous: drag.lastScale,
         });
         drag.lastScale = { scaleX: scale.scaleX, scaleY: scale.scaleY };
-        const transform = toScaleTransform(scale);
+        this.#replaceWithTransformed(drag.originals, toScaleTransform(scale));
+    }
+
+    /**
+     * 回転のドラッグの追従（#applyLeftDragUpdateから）。角度の計算・丸めは規則の関数（RotationRulesのcomputeRotationAngle・toRotationTransform）へ渡すだけ。
+     * previousRawは#rotateDrag.rawAngle、snapToStepはevent.shiftKey（追従のイベントで読む。Alt・Ctrlは読まない＝スナップを当てない）。
+     * 控え（rawAngle・angle）を先に更新してから（描画がgetRotationDragViewで新しい角度を読むため）、押下時のインスタンスから毎回求めた回転を#replaceWithTransformedで差し替える。
+     * @param {MouseEvent} event カーソル位置とshiftKeyを持つ追従のイベント（mousemoveまたはwheel）
+     * @param {{x: number, y: number}} point カーソル位置（ワールド座標）
+     */
+    #applyRotateUpdate(event, point) {
+        const drag = this.#rotateDrag;
+        if (drag === null) {
+            return;
+        }
+        const result = computeRotationAngle({
+            center: drag.center,
+            origin: drag.origin,
+            pointer: point,
+            previousRaw: drag.rawAngle,
+            snapToStep: Boolean(event.shiftKey),
+        });
+        drag.rawAngle = result.raw;
+        drag.angle = result.angle;
+        this.#replaceWithTransformed(drag.originals, toRotationTransform(drag.center, drag.angle));
+    }
+
+    /**
+     * 押下時のインスタンスそれぞれにcreateTransformedで変換を当てた新しい図形を、model.replaceShapesKeepingIdsで同じidの位置へ1回で差し替える
+     * （変更通知1回。拡大縮小・回転の追従で共有する。引き始めの図形から毎回求めるため誤差がたまらない）。
+     * @param {Array<Object>} originals 押下時に選択中だった図形のインスタンス（描画順）
+     * @param {Object} transform 当てる変換（ShapeGeometryのアフィン変換の形）
+     */
+    #replaceWithTransformed(originals, transform) {
         this.model.replaceShapesKeepingIds(
-            drag.originals.map((shape) => ({ id: shape.id, shape: shape.createTransformed(transform) })),
+            originals.map((shape) => ({ id: shape.id, shape: shape.createTransformed(transform) })),
         );
+    }
+
+    /**
+     * 控えのインスタンスを同じidの位置へ戻す（拡大縮小・回転の中断で引き始めの形に戻す。変更通知1回）。
+     * @param {Array<Object>} originals 押下時に選択中だった図形のインスタンス（描画順）
+     */
+    #restoreOriginals(originals) {
+        this.model.replaceShapesKeepingIds(originals.map((shape) => ({ id: shape.id, shape })));
     }
 
     /**
@@ -1553,6 +1684,10 @@ export class InputTracker {
      * #finishLeftDragの前に注入された補助のjoinDraggedEndpoint(#dragEndpoint, #dragSnap)を呼ぶ（結合・閉じる）。
      * この反映は閾値超過時にbeginEdit()済みの編集操作の中で行われ、#finishLeftDragのcommitEdit()で頂点の移動とあわせて1件になる。
      * 吸い付いていなければ従来どおり頂点を動かしただけで終わる（中断の#onLeftDragCancelでは結合しない）。
+     * ROTATING_SELECTIONで閾値を超えて動かし（#isEditOpen）#rotateDragがあるときは、#finishLeftDragの前に#rotateDragをnullにしてから、
+     * 今の図形（model.getShapes()のうち控えのoriginalsと同じidのインスタンスそのもの）を同じインスタンスのままreplaceShapesKeepingIdsへ渡して1回通知する
+     * （図形は変わらない。回している間の外枠の表示を回した後の形を囲む縦横の外枠へ戻すための再描画で、今のmodel.onChangeの経路を使う。
+     * commitEditは前後の作業データで比べるため記録は1件のまま）。
      * @param {MouseEvent} event 終了のきっかけとなったイベント（通常はmouseup。buttons検知時はmousemove）。範囲選択のCtrlはこのイベントから読む
      * @param {boolean} moved 閾値を超えて動かしたか
      */
@@ -1563,14 +1698,28 @@ export class InputTracker {
         if (this.state === InputState.DRAGGING_HANDLE && moved && this.#dragEndpoint && this.#dragSnap) {
             this.#snapAssist.joinDraggedEndpoint(this.#dragEndpoint, this.#dragSnap);
         }
+        if (this.state === InputState.ROTATING_SELECTION && this.#isEditOpen && this.#rotateDrag !== null) {
+            const originals = this.#rotateDrag.originals;
+            this.#rotateDrag = null;
+            const currentShapes = this.model.getShapes();
+            const entries = [];
+            for (const original of originals) {
+                const current = currentShapes.find((shape) => shape.id === original.id);
+                if (current) {
+                    entries.push({ id: current.id, shape: current });
+                }
+            }
+            this.model.replaceShapesKeepingIds(entries);
+        }
         this.#finishLeftDrag();
     }
 
     /**
-     * 左ドラッグの中断処理（DragTrackerのonCancel：window blur・setMode・abortOngoingOperation・Esc（cancelDraftOrClearSelectionの(1)。拡大縮小のドラッグ中のみ）による強制中断）。
+     * 左ドラッグの中断処理（DragTrackerのonCancel：window blur・setMode・abortOngoingOperation・Esc（cancelDraftOrClearSelectionの(1)。拡大縮小・回転のドラッグ中のみ）による強制中断）。
      * MARQUEE_SELECTINGなら選択矩形を破棄するのみで選択集合は変更しない（確定しない）。
      * SCALING_SELECTIONで閾値超過（beginEdit済み＝#isEditOpen）なら、#finishLeftDragの前に控えのインスタンス（#scaleDrag.originals）を
      * model.replaceShapesKeepingIdsで同じidの位置へ戻して引き始めの形にする（commitEditは前後が同じため記録されない。閾値以前は何も変えていないため戻さない）。
+     * ROTATING_SELECTIONで閾値超過（#isEditOpen）なら、#rotateDragをnullにしてから控えのインスタンス（originals）を同じく戻す（回している間の外枠を残さないため控えを先に消す）。
      * それ以外（本体ドラッグ・ハンドル変形）は反映済みの変化を取り消さず、#finishLeftDragで1件として確定される。その後#finishLeftDragで後始末する。
      */
     #onLeftDragCancel() {
@@ -1578,7 +1727,12 @@ export class InputTracker {
             this.model.clearSelectionRect();
         }
         if (this.state === InputState.SCALING_SELECTION && this.#isEditOpen && this.#scaleDrag !== null) {
-            this.model.replaceShapesKeepingIds(this.#scaleDrag.originals.map((shape) => ({ id: shape.id, shape })));
+            this.#restoreOriginals(this.#scaleDrag.originals);
+        }
+        if (this.state === InputState.ROTATING_SELECTION && this.#isEditOpen && this.#rotateDrag !== null) {
+            const originals = this.#rotateDrag.originals;
+            this.#rotateDrag = null;
+            this.#restoreOriginals(originals);
         }
         this.#finishLeftDrag();
     }
@@ -1667,11 +1821,11 @@ export class InputTracker {
 
     /**
      * 左ドラッグの終了・中断時の後始末（#onLeftDragEnd・#onLeftDragCancelから呼ばれる）。
-     * IDLE状態へ戻し、作業用フィールド（activeHandle・activeShapeId・#moveOrigin・#appliedMoveDelta・#marqueeAnchor・#unitSnapHandleOrigin・#scaleDrag）をnullに、#vertexDragOriginsを空配列に、#duplicateOnMoveをfalseにして、
-     * カーソル形状を再評価する。ドラッグ中に反映した変更（頂点・位置）はここでは取り消さない（拡大縮小の中断だけは呼び出し前の#onLeftDragCancelで引き始めの形に戻してある）。
+     * IDLE状態へ戻し、作業用フィールド（activeHandle・activeShapeId・#moveOrigin・#appliedMoveDelta・#marqueeAnchor・#unitSnapHandleOrigin・#scaleDrag・#rotateDrag）をnullに、#vertexDragOriginsを空配列に、#duplicateOnMoveをfalseにして、
+     * カーソル形状を再評価する。ドラッグ中に反映した変更（頂点・位置）はここでは取り消さない（拡大縮小・回転の中断だけは呼び出し前の#onLeftDragCancelで引き始めの形に戻してある。回転の離す・中断は呼び出し前に#rotateDragを消して図形の差し替えを通知済み）。
      * 範囲選択の確定・選択矩形の破棄は呼び出し前に済ませること。click抑止フラグの管理はDragTrackerが担う。
-     * 冒頭で、#isEditOpenが立っていれば（閾値超過時にbeginEdit()済みの移動・変形・拡大縮小）記録先のcommitEdit()を呼んで下ろす
-     * （編集操作の終了・中断の共通の確定箇所。拡大縮小以外の中断で残った変化も1件として記録される。拡大縮小の中断は呼び出し前に引き始めの形へ戻してあり、
+     * 冒頭で、#isEditOpenが立っていれば（閾値超過時にbeginEdit()済みの移動・変形・拡大縮小・回転）記録先のcommitEdit()を呼んで下ろす
+     * （編集操作の終了・中断の共通の確定箇所。拡大縮小・回転以外の中断で残った変化も1件として記録される。拡大縮小・回転の中断は呼び出し前に引き始めの形へ戻してあり、
      * 結果が開始前と同一なら記録先は記録しない）。
      * 確定の後、#resetSnapState()で吸い付きの作業用フィールド（#dragEndpoint・#dragSnapを含む）と表示を消す。
      */
@@ -1691,6 +1845,7 @@ export class InputTracker {
         this.#duplicateOnMove = false;
         this.#marqueeAnchor = null;
         this.#scaleDrag = null;
+        this.#rotateDrag = null;
         this.#updateCursor();
     }
 
@@ -1849,10 +2004,13 @@ export class InputTracker {
      * 判定表はCursorShapeRules.jsにある。DOMへの適用は本クラスが担う。
      * 外枠のハンドル名（scaleHandle）は、拡大縮小のドラッグ中（#scaleDragあり）は引いているハンドル（#scaleDrag.handle）を必ず渡す
      * （nullのままだとSCALING_SELECTIONで当たり分類の枝へ落ちるため）。それ以外は引数のscaleHandleを渡す。
+     * 回転の範囲の角の名前（rotationCorner）は、回転のドラッグ中（#rotateDragあり）は押した角（#rotateDrag.corner。回している間は押した角の向きのまま）を必ず渡し、
+     * それ以外は引数のrotationCornerを渡す。
      * @param {PointHit | null} [hit=null] カーソル位置の当たり分類（#classifyPointの結果）。座標が不明なときはnull
      * @param {string | null} [scaleHandle=null] カーソル位置にある外枠のハンドル名（#findScaleHandleの結果。なければnull）
+     * @param {string | null} [rotationCorner=null] カーソル位置にある回転の範囲の角の名前（#findRotationZoneの結果のcorner。なければnull）
      */
-    #updateCursor(hit = null, scaleHandle = null) {
+    #updateCursor(hit = null, scaleHandle = null, rotationCorner = null) {
         this.canvas.style.cursor = resolveCursorShape({
             isPanning: this.#isPanning,
             isSpacePressed: this.#isSpacePressed,
@@ -1862,7 +2020,8 @@ export class InputTracker {
             isPickingShape: () => this.#inputAssist.isPickingShape(),
             hit,
             isSelected: (id) => this.model.isSelected(id),
-            scaleHandle: this.#scaleDrag !== null ? this.#scaleDrag.handle : scaleHandle
+            scaleHandle: this.#scaleDrag !== null ? this.#scaleDrag.handle : scaleHandle,
+            rotationCorner: this.#rotateDrag !== null ? this.#rotateDrag.corner : rotationCorner
         });
     }
 }
