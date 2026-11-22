@@ -141,10 +141,12 @@ const NO_SNAP_ASSIST = Object.freeze({
  * @property {() => ({minX: number, minY: number, maxX: number, maxY: number}|null)} getSelectionFrameBounds 選んでいる図形全体の外枠
  *     （線の太さを含まない。外枠のハンドルの元）の照会。選択なしは`null`。外枠のハンドルの当たり・押下・カーソルのたびに呼ぶ。
  *     戻り値は検証せずScaleHandleRulesの関数へ渡す。既定は常に`null`（外枠のハンドルなし）
+ * @property {() => (string|null)} getReferencePoint 基準点の名前の照会。回転のドラッグの押下（#beginRotateSelection）で1回だけ呼び、
+ *     戻り値は検証せずRotationRulesのcomputeRotationCenterへ渡す。既定は常に`null`（外枠の中心）
  */
 
 /**
- * 第7引数の補助が注入されなかった場合の既定値（複製しない・待ち受けなし・図形を渡さない・丸めない・外枠のハンドルなし）。
+ * 第7引数の補助が注入されなかった場合の既定値（複製しない・待ち受けなし・図形を渡さない・丸めない・外枠のハンドルなし・回転の中心は外枠の中心）。
  * @type {InputAssist}
  */
 const NO_INPUT_ASSIST = Object.freeze({
@@ -157,6 +159,9 @@ const NO_INPUT_ASSIST = Object.freeze({
         return null;
     },
     getSelectionFrameBounds() {
+        return null;
+    },
+    getReferencePoint() {
         return null;
     },
 });
@@ -221,7 +226,7 @@ export function hasCtrlModifier(event) {
  * 頂点の選択のモード（OperationMode.VERTEX）では、頂点のハンドルのクリックでCtrlの有無により頂点の選択へ足す・外す・その頂点だけに選び直し、
  * 範囲選択（MARQUEE_SELECTING）で範囲に入る頂点をまとめて選び、選んだ頂点のハンドルのドラッグで選んだ頂点をまとめて動かす
  * （選択の次の状態の決定はSelectionRules、押下時の分岐はPressActionRulesへ渡す）。
- * 入力の解釈の外へ委ねる補助（InputAssist。コンストラクタ第7引数。項目はduplicateSelection・isPickingShape・pickShape・getUnitSnapStep・getSelectionFrameBounds）も注入される。
+ * 入力の解釈の外へ委ねる補助（InputAssist。コンストラクタ第7引数。項目はduplicateSelection・isPickingShape・pickShape・getUnitSnapStep・getSelectionFrameBounds・getReferencePoint）も注入される。
  * 選択モードで選んだ図形全体の外枠のハンドル（外枠の出し方・位置・当たり・倍率と動かない点の計算・スナップの当て方・変換の組み立てはScaleHandleRulesの関数。
  * 本クラスは持たない）を押して引くと拡大縮小（SCALING_SELECTION）になる。押下の時点の選択中の図形のインスタンスを#scaleDragに控え、追従のたびに
  * 規則の関数が返した変換を控えの図形へ当てて（図形のcreateTransformed）、VectorModel.replaceShapesKeepingIdsで同じidの位置へ差し替えるだけ。
@@ -400,8 +405,8 @@ export class InputTracker {
      * @param {() => boolean} [isFillHitExcluded=() => false] - 塗った内側を当たりに含めないかの照会（真なら含めない。
      *     当たり分類のたびに呼ぶ）。省略時は常に含める（従来どおり動作する）。関数でなければ`console.warn`して既定（常に含める）を使う
      * @param {InputAssist} [inputAssist=NO_INPUT_ASSIST] - 入力の解釈の外へ委ねる補助（実体はmain.jsが注入する）。
-     *     項目（duplicateSelection・isPickingShape・pickShape・getUnitSnapStep・getSelectionFrameBounds）ごとに、関数でなければ既定へ置き換える（`console.warn`は出さない）。
-     *     省略時は従来どおり動作する（複製しない・図形を渡す待ち受けなし・丸めない・外枠のハンドルなし）
+     *     項目（duplicateSelection・isPickingShape・pickShape・getUnitSnapStep・getSelectionFrameBounds・getReferencePoint）ごとに、関数でなければ既定へ置き換える（`console.warn`は出さない）。
+     *     省略時は従来どおり動作する（複製しない・図形を渡す待ち受けなし・丸めない・外枠のハンドルなし・回転の中心は外枠の中心）
      */
     constructor(canvas, model, viewTransform, editRecorder = NO_EDIT_RECORDER, snapAssist = NO_SNAP_ASSIST, isFillHitExcluded = () => false, inputAssist = NO_INPUT_ASSIST) {
         this.canvas = canvas;
@@ -430,6 +435,9 @@ export class InputTracker {
             getSelectionFrameBounds: typeof inputAssist?.getSelectionFrameBounds === 'function'
                 ? () => inputAssist.getSelectionFrameBounds()
                 : NO_INPUT_ASSIST.getSelectionFrameBounds,
+            getReferencePoint: typeof inputAssist?.getReferencePoint === 'function'
+                ? () => inputAssist.getReferencePoint()
+                : NO_INPUT_ASSIST.getReferencePoint,
         };
 
         /**
@@ -1448,7 +1456,7 @@ export class InputTracker {
 
     /**
      * 外枠の角の外側での回転のドラッグ（ROTATING_SELECTION）を開始する。handleMouseDownから呼ばれる。
-     * #rotateDragに押した角・押下時の外枠・回転の中心（RotationRulesのcomputeRotationCenter）・押した位置・押下時に選択中の図形のインスタンス（描画順）・
+     * #rotateDragに押した角・押下時の外枠・回転の中心（引き始めの外枠の上の基準点。RotationRulesのcomputeRotationCenterへ入力の補助のgetReferencePointの戻り値を渡して求める）・押した位置・押下時に選択中の図形のインスタンス（描画順）・
      * 直前の角度（丸めない角度・当てた角度とも0）を控えてから#beginLeftDragを呼ぶ（#beginLeftDrag内の#updateCursorが回転のカーソルにするため先に控える）。
      * 開始できなければ#rotateDragをnullへ戻す。Alt・Ctrlは見ない（#duplicateOnMoveを立てない）。
      * @param {MouseEvent} event ドラッグを開始したmousedownイベント
@@ -1459,7 +1467,7 @@ export class InputTracker {
         this.#rotateDrag = {
             corner: rotationHit.corner,
             frame: rotationHit.frame,
-            center: computeRotationCenter(rotationHit.frame),
+            center: computeRotationCenter(rotationHit.frame, this.#inputAssist.getReferencePoint()),
             origin: point,
             originals: this.model.getShapes().filter((shape) => this.model.isSelected(shape.id)),
             rawAngle: 0,

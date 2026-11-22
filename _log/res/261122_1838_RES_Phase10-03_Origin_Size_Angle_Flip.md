@@ -174,7 +174,7 @@ REQの要件と本計画の設計の対応：要件1（2行）＝要件A、要�
         *   コード修正完了後、JSDocコメントの記載漏れがないこと（新しい・変えた関数・メソッド・typedef・定数、先頭の責務定義）を確認する。
         *   開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る場合は、資料本体は修正せず、その旨を『開発資料の更新予定』欄に追記する。
         *   タスク完了後、作業レポート（本RES）の「4. 詳細作業内容」の本タスクの欄を記載し完成させ、本タスクを`[x]`にする。
-*   [ ] タスク4: 要件F `InputTracker`の入力の補助`getReferencePoint`
+*   [x] タスク4: 要件F `InputTracker`の入力の補助`getReferencePoint`
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` : 更新（typedef`InputAssist`・`NO_INPUT_ASSIST`・コンストラクタの正規化・`#beginRotateSelection`の1か所・JSDoc）
     *   **作業内容** :
@@ -304,7 +304,10 @@ REQの要件と本計画の設計の対応：要件1（2行）＝要件A、要�
 
 ### タスク4: 要件F `InputTracker`の入力の補助`getReferencePoint`
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/InputTracker.js`：typedef`InputAssist`に`getReferencePoint`、`NO_INPUT_ASSIST`に`getReferencePoint() { return null; }`、コンストラクタの正規化に1項目を追加。`#beginRotateSelection`の`center`を`computeRotationCenter(rotationHit.frame, this.#inputAssist.getReferencePoint())`に変更。JSDoc（NO_INPUT_ASSIST・クラス・コンストラクタ第7引数・`#beginRotateSelection`）の列挙・説明を更新。拡大縮小の経路は未変更。
+    *   行数：`wc -l`実測 2035行（見積もり約2038行）。
+    *   `node --test`：tests 2406 / suites 399 / pass 2406 / fail 0（`InputTracker`のテストは無い。注入前は既定`null`＝外枠の中心で今と同じ）。
+    *   なお`#rotateDrag`のフィールドJSDoc（385行付近）の「center＝回転の中心」の文言は、意味が変わらないため未変更。
 
 ### タスク5: 要件C 位置の欄を基準点にする（`edit/PositionInputEditor.js`）とテスト
 *   **作業内容** :
