@@ -144,7 +144,7 @@ REQの要件と本計画の設計の対応：要件1（2行）＝要件A、要�
 *   （各タスクの実行時に影響が判明した場合は、この欄へ追記する。資料本体への反映は最終タスクで行う）
 
 ## 3. タスクリスト
-*   [ ] タスク1: 要件B 基準点の規則（新規`core/ReferencePointRules.js`）とテスト
+*   [x] タスク1: 要件B 基準点の規則（新規`core/ReferencePointRules.js`）とテスト
     *   **対象ファイル** :
         *   `./js/core/ReferencePointRules.js` : 新規
         *   `./test/core/ReferencePointRules.test.js` : 新規
@@ -286,7 +286,9 @@ REQの要件と本計画の設計の対応：要件1（2行）＝要件A、要�
 
 ### タスク1: 要件B 基準点の規則（新規`core/ReferencePointRules.js`）とテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/ReferencePointRules.js`を新規作成（`REFERENCE_POINT`・`DEFAULT_REFERENCE_POINT`・非公開の表`REFERENCE_POINT_AXES`・`isReferencePoint`・`resolveReferencePointPosition`。importは`ScaleHandleRules.js`の`SCALE_HANDLE_NAMES`・`computeFrameCenter`のみ。名前の文字は`includes`で読まず表で引く。先頭の責務定義・全項目にJSDoc記載済み）。
+    *   `test/core/ReferencePointRules.test.js`を新規作成（9か所・中心＝`computeFrameCenter`・null/未知は中心・幅0/高さ0/両方0・非破壊）。
+    *   `node --test`：tests 2391 / suites 395 / pass 2391 / fail 0。
 
 ### タスク2: 要件B 基準点・比率の鍵の設定の持ち主（新規`core/TransformInputSettings.js`）とテスト
 *   **作業内容** :
