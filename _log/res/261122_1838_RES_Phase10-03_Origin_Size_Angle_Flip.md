@@ -193,7 +193,7 @@ REQの要件と本計画の設計の対応：要件1（2行）＝要件A、要�
         *   コード修正完了後、JSDocコメントの記載漏れがないこと（新しい・変えた関数・メソッド・typedef・定数、先頭の責務定義）を確認する。
         *   開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る場合は、資料本体は修正せず、その旨を『開発資料の更新予定』欄に追記する。
         *   タスク完了後、作業レポート（本RES）の「4. 詳細作業内容」の本タスクの欄を記載し完成させ、本タスクを`[x]`にする。
-*   [ ] タスク6: 要件D 幅・高さ・角度・反転の規則（新規`edit/TransformInputRules.js`）とテスト
+*   [x] タスク6: 要件D 幅・高さ・角度・反転の規則（新規`edit/TransformInputRules.js`）とテスト
     *   **対象ファイル** :
         *   `./js/edit/TransformInputRules.js` : 新規
         *   `./test/edit/TransformInputRules.test.js` : 新規
@@ -318,7 +318,10 @@ REQの要件と本計画の設計の対応：要件1（2行）＝要件A、要�
 
 ### タスク6: 要件D 幅・高さ・角度・反転の規則（新規`edit/TransformInputRules.js`）とテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `js/edit/TransformInputRules.js`を新規作成（先頭の責務定義・`SIZE_AXIS`・`FLIP_AXIS`・`ANGLE_INPUT_IDLE_TEXT`・typedef`SizeInputView`・`TransformInputView`・`canTransformSelection`・`buildSizeInputView`・`buildTransformInputView`・`resolveSizeTransform`・`resolveRotationTransform`・`resolveFlipTransform`・非公開の`parseInputNumber`・`hasFiniteBounds`。全項目にJSDoc記載済み。importは`StatusReadoutRules`の`formatReadoutNumber`・`ScaleHandleRules`の`toScaleTransform`・`RotationRules`の`toRotationTransform`のみ）。
+    *   `test/edit/TransformInputRules.test.js`を新規作成（手計算の固定値。要件Iの項目を網羅）。
+    *   `node --test`：tests 2433 / suites 399 / pass 2433 / fail 0。
+    *   計画との差：外枠の有限判定を非公開の補助`hasFiniteBounds`に切り出した（`canTransformSelection`内の判定と同じ内容）。
 
 ### タスク7: 要件D 変形の数値入力・反転の手順（新規`edit/TransformInputEditor.js`）とテスト（保存・書き出しを含む）
 *   **作業内容** :
