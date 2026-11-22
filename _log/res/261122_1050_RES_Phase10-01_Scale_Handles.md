@@ -205,6 +205,7 @@
 *   **`_doc/arch/03_VectorModel.md`（タスク4で判明）**：公開メソッド`replaceShapesKeepingIds(replacements)`（複数図形を同じidのまま位置へ差し替え・通知1回・別の位置のインスタンスは警告して飛ばす・選択集合とホバーと並びと`#nextId`に触れない・呼び出し元は`InputTracker`の拡大縮小のみ）を、公開メソッドの一覧・`replaceShape`との違いの説明に足す。`PROJECT_ARCHITECTURE.md`のVectorModelの公開メソッドの記述があれば同様。
 *   **`_doc/arch/42_ScaleHandleRules.md`（タスク5で判明）**：新規ファイル`core/ScaleHandleRules.js`の公開名（上記）・非公開の補助・import（`InputModes`・`UnitSnapRules`）・`computeBoundsScale`の手順・辺のShiftで直前の倍率が0のとき`|previous|`を使うこと・テストの範囲（94件）を記載する。1章の構成図・`16_test.md`は上の記載どおり。
 *   **`_doc/arch/32_InputModes.md`・`34_PressActionRules.md`・`35_CursorShapeRules.md`（タスク6で判明）**：`SCALING_SELECTION`の追加、`resolvePressAction`の第3引数・順0・`PressAction`の`scaleSelection`、`resolveCursorShape`の`scaleHandle`・(3b)・`CursorShapeRules → ScaleHandleRules`のimport・戻り値の型（上の記載どおり。`CursorShapeRules.js`先頭の「importはInputModes.jsのみ」の記述が資料にあれば直す）。
+*   **`_doc/arch/06_InputTracker.md`・1章の`InputTracker`の行数（タスク8で判明）**：`InputTracker.js`は1729行→1867行（+138行）。`isScalingSelection()`・`#scaleDrag`・`InputAssist`の5項目目`getSelectionFrameBounds`・`SCALING_SELECTION`の配線・`cancelDraftOrClearSelection`(1)・修飾キーの項（先頭の責務定義に拡大縮小のドラッグでShift・Alt・Ctrlを規則の関数へ渡すことを追記済み）を反映する。
 *   （各タスクの実行時に判明した分はここへ追記する。）
 
 ## 3. タスクリスト
@@ -281,7 +282,7 @@
         *   コード修正完了後、JSDocコメントの記載漏れがないこと（新しい・変えた関数・メソッド・typedef・定数、先頭の責務定義）を確認する。
         *   開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る場合は、資料本体は修正せず、その旨を『開発資料の更新予定』欄に追記する。
         *   タスク完了後、作業レポート（本RES）の「4. 詳細作業内容」の本タスクの欄を記載し完成させ、本タスクを`[x]`にする。
-*   [ ] タスク8: 要件D・E `InputTracker`の配線
+*   [x] タスク8: 要件D・E `InputTracker`の配線
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` : 更新
     *   **作業内容** :
@@ -394,7 +395,16 @@
 
 ### タスク8: 要件D・E `InputTracker`の配線
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/core/InputTracker.js`のみ変更（LFのまま。1729行→1867行、**+138行**。見積もり+150〜190行の下限未満）。
+    *   import：`collectScaleFrame`・`hitTestScaleHandle`・`computeBoundsScale`・`toScaleTransform`。`InputAssist`に`getSelectionFrameBounds`（既定`NO_INPUT_ASSIST`は`null`、コンストラクタの関数でなければ既定へ置き換える処理に同じ形で追加）。
+    *   フィールド`#scaleDrag`（`{ handle, bounds, originals, lastScale }|null`。`#finishLeftDrag`で`null`）。公開`isScalingSelection()`（「`Esc`で中断できるドラッグか」の判定の唯一の箇所。`state === InputState.SCALING_SELECTION`の比較はほかに振り分け用が4か所ある。`cancelDraftOrClearSelection`の(1)はこれを呼び、真なら`this.#drag.cancel({ suppressClick: true })`して`true`、それ以外のドラッグは`false`のまま）。
+    *   非公開`#findScaleHandle(point)`（`collectScaleFrame`→`hitTestScaleHandle`の受け渡しだけ）・`#beginScaleSelection`（`#scaleDrag`を先に入れて`#beginLeftDrag`。開始できなければ`null`。`#duplicateOnMove`は立てない）・`#applyScaleUpdate`（`computeBoundsScale`・`toScaleTransform`・`replaceShapesKeepingIds`。`lastScale`を更新）。
+    *   `handleMouseMove`（外枠のハンドル名を`#updateCursor`の第2引数へ）・`handleMouseDown`（`resolvePressAction`の第3引数・`scaleSelection`で`#beginScaleSelection`）・`handleClick`（選択モードで待ち受けの判定の後・`hit.handle`の前に`#findScaleHandle`が非`null`なら`return`）・`#isLeftDragState`・`#onLeftDragStart`（`beginEdit`の対象に追加）・`#applyLeftDragUpdate`（`SCALING_SELECTION`を`#applyScaleUpdate`へ）・`#onLeftDragCancel`（`SCALING_SELECTION`かつ`#isEditOpen`なら`originals`を`replaceShapesKeepingIds`で戻してから`#finishLeftDrag`）・`#updateCursor(hit, scaleHandle)`（`#scaleDrag`があれば`#scaleDrag.handle`を必ず渡す）。
+    *   JSDoc：先頭の責務定義（外枠のハンドルでの拡大縮小・修飾キーの用途に拡大縮小のドラッグでShift・Alt・Ctrlを規則の関数へ渡すことを追記）・クラスJSDoc・`InputAssist`・`NO_INPUT_ASSIST`・コンストラクタの`@param`・`state`の説明・`#beginLeftDrag`の`nextState`・`handleWheel`・`handleMouseMove`・`handleMouseDown`・`handleClick`・`setMode`・`cancelDraftOrClearSelection`・`abortOngoingOperation`・`#abortOngoingOperation`・`#onLeftDragCancel`・`#finishLeftDrag`（拡大縮小だけ中断で引き始めの形に戻り記録されないことを反映。処理は変えていない）。
+    *   `node --test`：tests 2248 / suites 365 全件合格（作業前と同数。`InputTracker`のテストは置かない方針）。
+    *   diff監査の指摘で修正（JSDoc・コメントのみ、処理は不変）：`#isEditOpen`・`#applyLeftDragUpdate`の`@param`・`#beginLeftDrag`（種類と中断の経路にEsc）・クラスJSDoc・フィールドの左ドラッグ／編集操作の列挙に拡大縮小を追記。上記`isScalingSelection()`の記述を直した。修正後も`InputTracker.js`は1867行、`node --test`全件合格。
+    *   再監査の指摘で修正（JSDoc・コメントのみ、処理は不変）：`DRAG_START_THRESHOLD`・`isDragging()`・左ドラッグの区切りコメント・`activeHandle`/`activeShapeId`の未使用の状態・`#beginLeftDrag`の`target`の`@param`・`handleMouseDown`のAltを記憶しない左ドラッグ・`#finishLeftDrag`の`#isEditOpen`の説明の列挙に拡大縮小を追記し、`#finishLeftDrag`の重複した1文をまとめた。修正後も`InputTracker.js`は1867行、`node --test`全件合格（tests 2248 / suites 365）。
+    *   3回目の修正（JSDocのみ、処理は不変）：`handleMouseDown`の分岐の表の列挙に外枠のハンドルを先頭に足し、`handleClick`のclickを抑止する場合に`Esc`で中断した拡大縮小のドラッグの後（閾値以内でも）を足して閾値以内の言い切りを「それ以外で」に直した。修正後は`InputTracker.js`1868行、`node --test`全件合格（tests 2248 / suites 365）。
 
 ### タスク9: 要件D 外枠とハンドルの描画（`CanvasManager.render`の`scaleFrame`）
 *   **作業内容** :
@@ -445,3 +455,7 @@
 * **（タスク5）Shiftの辺で`previous`が使われる場合**：辺・`keepAspect`でカーソルがちょうど0の位置のとき、引く軸は`previous`の倍率、もう一方は`|その倍率|`になる（手順6→7の素直な読み）。`InputTracker`は`lastScale`に直前の`{scaleX, scaleY}`を渡すだけなので、`Shift`の辺のセッションでは`previous.scaleY = |previous.scaleX|`が保たれる。
 * **（タスク5）手順4の同率・長さ0の扱い**：角で`keepAspect`でも、片方の軸の長さが0（`bothPulled`でない）の入力は手順4を行わず、引く軸の`s`だけ（もう一方は1）にした（通常はハンドルが出ないため呼ばれない防御的な扱い）。
 * **タスク6（カーソル・押下の規則）**：(3b)は`typeof scaleHandle === 'string'`で見るため空文字は`resolveScaleHandleCursor('')`が`null`を返して(4)以降へ進む。`PressActionRules`の順0は空文字を「ハンドルなし」とする（RESの「空でない文字列」どおり）。`SCALING_SELECTION`中に`scaleHandle`が`null`のまま呼ぶと(4)に当たらず(6)以降の当たり分類の枝へ落ちる（`InputTracker`の`#updateCursor`が拡大縮小中は`#scaleDrag.handle`を必ず渡す前提。タスク8で確認）。`isLeftDragState`の説明に`SCALING_SELECTION`を足したが、実際に真にするのは`InputTracker#isLeftDragState`（タスク8）。
+* **（タスク8）`Esc`の後のclick抑止の前提**：`handleMouseDown`の先頭が`this.#drag.clearSuppressedClick()`で、拡大縮小のハンドルの押下の分岐（選択モードの枝の後半）より手前に必ず通る。`Esc`の中断後に`click`が来ず抑止フラグが残っても、次の押下で消える。
+* **（タスク8）カーソル**：`#updateCursor`は`#scaleDrag !== null`なら`#scaleDrag.handle`を必ず`scaleHandle`へ渡す。`#beginScaleSelection`は`#beginLeftDrag`（内で`#updateCursor`）の前に`#scaleDrag`を入れる。ブラウザでの確認はタスク10の後。
+* **（タスク8）`handleClick`の外枠のハンドルの判定位置**：RESの指示どおり待ち受け（`isPickingShape`）の判定の後・`hit.handle`の前。`#findScaleHandle`はクリックのたびに照会（`getSelectionFrameBounds`）を呼ぶ。`#classifyPoint`は今までどおり先に1回行う。
+* **（タスク8）`#onLeftDragCancel`の戻し**：閾値以前の中断は`#isEditOpen`が偽のため戻さない（図形を変えていないため）。`#scaleDrag`の`null`確認を足している（防御）。
