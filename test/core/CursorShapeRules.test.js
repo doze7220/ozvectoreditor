@@ -197,6 +197,68 @@ describe('resolveCursorShape：頂点の選択モード', () => {
     });
 });
 
+describe('resolveCursorShape：外枠のハンドル（scaleHandle）', () => {
+    it('選択モード・IDLEで4方向のresizeを返す', () => {
+        assert.equal(resolveCursorShape(makeInput({ scaleHandle: 'nw' })), 'nwse-resize');
+        assert.equal(resolveCursorShape(makeInput({ scaleHandle: 'se' })), 'nwse-resize');
+        assert.equal(resolveCursorShape(makeInput({ scaleHandle: 'ne' })), 'nesw-resize');
+        assert.equal(resolveCursorShape(makeInput({ scaleHandle: 'sw' })), 'nesw-resize');
+        assert.equal(resolveCursorShape(makeInput({ scaleHandle: 'e' })), 'ew-resize');
+        assert.equal(resolveCursorShape(makeInput({ scaleHandle: 'w' })), 'ew-resize');
+        assert.equal(resolveCursorShape(makeInput({ scaleHandle: 'n' })), 'ns-resize');
+        assert.equal(resolveCursorShape(makeInput({ scaleHandle: 's' })), 'ns-resize');
+    });
+
+    it('SCALING_SELECTION状態でも返す', () => {
+        assert.equal(
+            resolveCursorShape(makeInput({ state: InputState.SCALING_SELECTION, isLeftDragState: true, scaleHandle: 'e' })),
+            'ew-resize',
+        );
+    });
+
+    it('ハンドルの下に本体・図形のハンドルがあってもresizeが優先される', () => {
+        const hit = { handle: { shapeId: 's1', handle: 'move' }, bodyId: 's1' };
+        assert.equal(resolveCursorShape(makeInput({ hit, isSelected: () => true, scaleHandle: 'n' })), 'ns-resize');
+    });
+
+    it('パン中はgrabbing、スペース押下中はgrab、待ち受け中はcellが優先される', () => {
+        assert.equal(resolveCursorShape(makeInput({ isPanning: true, scaleHandle: 'n' })), 'grabbing');
+        assert.equal(resolveCursorShape(makeInput({ isSpacePressed: true, scaleHandle: 'n' })), 'grab');
+        assert.equal(resolveCursorShape(makeInput({ isPickingShape: () => true, scaleHandle: 'n' })), 'cell');
+    });
+
+    it('スペース押下中でも拡大縮小のドラッグ中（左ドラッグ状態）はresizeを維持する', () => {
+        assert.equal(
+            resolveCursorShape(makeInput({ isSpacePressed: true, isLeftDragState: true, state: InputState.SCALING_SELECTION, scaleHandle: 'sw' })),
+            'nesw-resize',
+        );
+    });
+
+    it('MOVING_SELECTION・DRAGGING_HANDLE・MARQUEE_SELECTINGでは使わない', () => {
+        assert.equal(resolveCursorShape(makeInput({ state: InputState.MOVING_SELECTION, scaleHandle: 'e' })), 'move');
+        assert.equal(resolveCursorShape(makeInput({ state: InputState.DRAGGING_HANDLE, scaleHandle: 'e' })), 'move');
+        assert.equal(resolveCursorShape(makeInput({ state: InputState.MARQUEE_SELECTING, scaleHandle: 'e' })), 'default');
+    });
+
+    it('頂点の選択・作成・キャンバス移動のモードでは使わない', () => {
+        assert.equal(resolveCursorShape(makeInput({ mode: OperationMode.VERTEX, scaleHandle: 'e' })), 'default');
+        assert.equal(resolveCursorShape(makeInput({ mode: OperationMode.CREATE, scaleHandle: 'e' })), 'crosshair');
+        assert.equal(resolveCursorShape(makeInput({ mode: OperationMode.PAN, scaleHandle: 'e' })), 'grab');
+    });
+
+    it('scaleHandleが省略・undefined・nullなら従来と同じ', () => {
+        const hit = { handle: null, bodyId: 's1' };
+        assert.equal(resolveCursorShape(makeInput({ hit, isSelected: () => true })), 'move');
+        assert.equal(resolveCursorShape(makeInput({ hit, isSelected: () => true, scaleHandle: undefined })), 'move');
+        assert.equal(resolveCursorShape(makeInput({ hit, isSelected: () => true, scaleHandle: null })), 'move');
+        assert.equal(resolveCursorShape(makeInput({ scaleHandle: null })), 'default');
+    });
+
+    it('未知のハンドル名は無視して今の判定へ進む', () => {
+        assert.equal(resolveCursorShape(makeInput({ scaleHandle: 'zz' })), 'default');
+    });
+});
+
 describe('resolveCursorShape：短絡評価と引数不変', () => {
     it('パン中はisPickingShape・isSelectedを呼ばない', () => {
         let calls = 0;

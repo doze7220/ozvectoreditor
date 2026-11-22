@@ -179,6 +179,69 @@ describe('resolveVertexPressAction：ハンドルなし', () => {
     });
 });
 
+describe('resolvePressAction：外枠のハンドル（第3引数）', () => {
+    it('外枠のハンドル名があればscaleSelection（空白の上でも）', () => {
+        const { isSelected } = makeIsSelected([]);
+        assert.deepEqual(
+            resolvePressAction({ handle: null, bodyId: null }, isSelected, 'se'),
+            { type: 'scaleSelection', handle: 'se' },
+        );
+    });
+
+    it('本体が選択集合内の上でもscaleSelection', () => {
+        const { isSelected } = makeIsSelected(['s1']);
+        assert.deepEqual(
+            resolvePressAction({ handle: null, bodyId: 's1' }, isSelected, 'n'),
+            { type: 'scaleSelection', handle: 'n' },
+        );
+    });
+
+    it('選択集合外の本体の上でもscaleSelection', () => {
+        const { isSelected } = makeIsSelected([]);
+        assert.deepEqual(
+            resolvePressAction({ handle: null, bodyId: 's2' }, isSelected, 'w'),
+            { type: 'scaleSelection', handle: 'w' },
+        );
+    });
+
+    it('図形ごとのハンドル（moveと頂点）より優先される', () => {
+        const { isSelected } = makeIsSelected([]);
+        assert.deepEqual(
+            resolvePressAction({ handle: { shapeId: 's1', handle: 'move' }, bodyId: 's1' }, isSelected, 'nw'),
+            { type: 'scaleSelection', handle: 'nw' },
+        );
+        assert.deepEqual(
+            resolvePressAction({ handle: { shapeId: 's1', handle: 'v0' }, bodyId: 's1' }, isSelected, 'ne'),
+            { type: 'scaleSelection', handle: 'ne' },
+        );
+    });
+
+    it('isSelectedを呼ばない', () => {
+        const { isSelected, calls } = makeIsSelected(['s1']);
+        resolvePressAction({ handle: null, bodyId: 's1' }, isSelected, 'e');
+        assert.deepEqual(calls, []);
+    });
+
+    it('nullと省略は従来と同じ結果（本体・空白・ハンドル・isSelectedの呼び出し）', () => {
+        const a = makeIsSelected(['s1']);
+        assert.deepEqual(resolvePressAction({ handle: null, bodyId: 's1' }, a.isSelected, null), { type: 'moveSelection' });
+        assert.deepEqual(a.calls, ['s1']);
+        const b = makeIsSelected([]);
+        assert.equal(resolvePressAction({ handle: null, bodyId: 's2' }, b.isSelected, null), null);
+        assert.deepEqual(b.calls, ['s2']);
+        assert.deepEqual(resolvePressAction({ handle: null, bodyId: null }, b.isSelected), { type: 'marquee' });
+        const handle = { shapeId: 's1', handle: 'v0' };
+        const result = resolvePressAction({ handle, bodyId: 's1' }, b.isSelected, null);
+        assert.equal(result.type, 'dragHandle');
+        assert.equal(result.target, handle);
+    });
+
+    it('空文字は外枠のハンドルなしの扱い', () => {
+        const { isSelected } = makeIsSelected([]);
+        assert.deepEqual(resolvePressAction({ handle: null, bodyId: null }, isSelected, ''), { type: 'marquee' });
+    });
+});
+
 describe('resolveVertexPressAction：引数不変・新しいオブジェクト', () => {
     it('hitを書き換えない', () => {
         const { isVertexSelected } = makeIsVertexSelected([]);

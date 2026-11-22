@@ -204,6 +204,7 @@
 *   **1章・`_doc/arch/15_io.md`・`14_edit.md`（タスク3で判明）**：`SpriteSerializer`の責務に線を含まない外枠の照会（`computeShapesGeometryBounds`・`#computeBounds`の`includeStroke`引数）、`ShapeExtentReader`に`getSelectedGeometryBounds`を足す（既に上の2章・`_doc/arch/`の項に概ね記載あり）。
 *   **`_doc/arch/03_VectorModel.md`（タスク4で判明）**：公開メソッド`replaceShapesKeepingIds(replacements)`（複数図形を同じidのまま位置へ差し替え・通知1回・別の位置のインスタンスは警告して飛ばす・選択集合とホバーと並びと`#nextId`に触れない・呼び出し元は`InputTracker`の拡大縮小のみ）を、公開メソッドの一覧・`replaceShape`との違いの説明に足す。`PROJECT_ARCHITECTURE.md`のVectorModelの公開メソッドの記述があれば同様。
 *   **`_doc/arch/42_ScaleHandleRules.md`（タスク5で判明）**：新規ファイル`core/ScaleHandleRules.js`の公開名（上記）・非公開の補助・import（`InputModes`・`UnitSnapRules`）・`computeBoundsScale`の手順・辺のShiftで直前の倍率が0のとき`|previous|`を使うこと・テストの範囲（94件）を記載する。1章の構成図・`16_test.md`は上の記載どおり。
+*   **`_doc/arch/32_InputModes.md`・`34_PressActionRules.md`・`35_CursorShapeRules.md`（タスク6で判明）**：`SCALING_SELECTION`の追加、`resolvePressAction`の第3引数・順0・`PressAction`の`scaleSelection`、`resolveCursorShape`の`scaleHandle`・(3b)・`CursorShapeRules → ScaleHandleRules`のimport・戻り値の型（上の記載どおり。`CursorShapeRules.js`先頭の「importはInputModes.jsのみ」の記述が資料にあれば直す）。
 *   （各タスクの実行時に判明した分はここへ追記する。）
 
 ## 3. タスクリスト
@@ -259,7 +260,7 @@
         *   コード修正完了後、JSDocコメントの記載漏れがないこと（新しい・変えた関数・メソッド・typedef・定数、先頭の責務定義）を確認する。
         *   開発資料（`PROJECT_ARCHITECTURE.md`）の記載に影響が出る場合は、資料本体は修正せず、その旨を『開発資料の更新予定』欄に追記する。
         *   タスク完了後、作業レポート（本RES）の「4. 詳細作業内容」の本タスクの欄を記載し完成させ、本タスクを`[x]`にする。
-*   [ ] タスク6: 要件D 入力状態・押下の分岐・カーソルの規則とテスト
+*   [x] タスク6: 要件D 入力状態・押下の分岐・カーソルの規則とテスト
     *   **対象ファイル** :
         *   `./js/core/InputModes.js` : 更新（`SCALING_SELECTION`）
         *   `./js/core/PressActionRules.js` : 更新（第3引数・順0・typedef）
@@ -382,7 +383,10 @@
 
 ### タスク6: 要件D 入力状態・押下の分岐・カーソルの規則とテスト
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `js/core/InputModes.js`：`InputState`に`SCALING_SELECTION: 'SCALING_SELECTION'`を末尾に1エントリ追加し、JSDocの列挙に説明を足した（既存の値は不変）。
+    *   `js/core/PressActionRules.js`：`resolvePressAction(hit, isSelected, scaleHandle = null)`。順0＝`scaleHandle`が空でない文字列なら`{ type: 'scaleSelection', handle: scaleHandle }`（`isSelected`は呼ばない）。順1〜5は不変。typedef`PressAction`・戻り値の説明・判定順の説明・先頭の責務定義（外枠のハンドルは第3引数で受ける旨）を更新。`resolveVertexPressAction`は不変。
+    *   `js/core/CursorShapeRules.js`：`CursorShapeInput`に省ける`scaleHandle`、(3b)を(3a)の後・(4)の前に追加（`state`が`IDLE`か`SCALING_SELECTION`で`scaleHandle`が文字列、`resolveScaleHandleCursor`が`null`でなければその値）。`import { resolveScaleHandleCursor } from './ScaleHandleRules.js'`、戻り値の型に4つのresizeを追加、先頭の責務定義のimportの記述・判定順の説明・`isLeftDragState`の説明に`SCALING_SELECTION`を反映。既存の枝（(7)ハンドルの枝等）は消していない。
+    *   テスト（ケースの追加のみ。既存の期待値は不変）：`PressActionRules.test.js`に7件（空白・選択集合内の本体・集合外の本体・moveと頂点ハンドルより優先・`isSelected`を呼ばない・null／省略で従来どおり（呼び出し回数を含む）・空文字）、`CursorShapeRules.test.js`に9件（8方向・`SCALING_SELECTION`・ハンドルの下の本体・パン／スペース／待ち受けの優先・スペース中の拡大縮小ドラッグ・MOVING等では使わない・VERTEX／CREATE／PANでは使わない・省略／undefined／null・未知の名前）。`node --test`：tests 2248 / suites 365 全件合格（作業前2232→+16）。CRLFを保った。
 
 ### タスク7: 要件E `Esc`の後の`click`の抑止（`DragTracker.cancel`の引数）
 *   **作業内容** :
@@ -440,3 +444,4 @@
 * **（タスク5）重なり優先のテスト**：辺のハンドルが出る条件（辺≧24px）では、辺と角の位置は常に`12 / viewScale`以上離れ、当たり半径`6 / viewScale`と重ならない。このため「角が優先」は手作りの`frame`（`n`と`nw`が同じ位置）と、外枠が小さく角どうしが重なるケース（最後の`sw`が優先）で確かめた。
 * **（タスク5）Shiftの辺で`previous`が使われる場合**：辺・`keepAspect`でカーソルがちょうど0の位置のとき、引く軸は`previous`の倍率、もう一方は`|その倍率|`になる（手順6→7の素直な読み）。`InputTracker`は`lastScale`に直前の`{scaleX, scaleY}`を渡すだけなので、`Shift`の辺のセッションでは`previous.scaleY = |previous.scaleX|`が保たれる。
 * **（タスク5）手順4の同率・長さ0の扱い**：角で`keepAspect`でも、片方の軸の長さが0（`bothPulled`でない）の入力は手順4を行わず、引く軸の`s`だけ（もう一方は1）にした（通常はハンドルが出ないため呼ばれない防御的な扱い）。
+* **タスク6（カーソル・押下の規則）**：(3b)は`typeof scaleHandle === 'string'`で見るため空文字は`resolveScaleHandleCursor('')`が`null`を返して(4)以降へ進む。`PressActionRules`の順0は空文字を「ハンドルなし」とする（RESの「空でない文字列」どおり）。`SCALING_SELECTION`中に`scaleHandle`が`null`のまま呼ぶと(4)に当たらず(6)以降の当たり分類の枝へ落ちる（`InputTracker`の`#updateCursor`が拡大縮小中は`#scaleDrag.handle`を必ず渡す前提。タスク8で確認）。`isLeftDragState`の説明に`SCALING_SELECTION`を足したが、実際に真にするのは`InputTracker#isLeftDragState`（タスク8）。

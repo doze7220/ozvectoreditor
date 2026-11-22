@@ -10,6 +10,7 @@
  * DRAGGING_HANDLE: 選択集合内の1図形の頂点ハンドルを押下・ドラッグ中（閾値以前を含む。閾値を超えたかはDragTrackerが保持する）。
  * MOVING_SELECTION: 選択集合の全図形を平行移動するドラッグを押下・ドラッグ中（moveハンドル・本体ドラッグ。閾値以前を含む）。
  * MARQUEE_SELECTING: 範囲選択を押下・ドラッグ中（閾値以前を含む）。
+ * SCALING_SELECTION: 選択モードで外枠のハンドルを押下・ドラッグし、選んでいる図形をまとめて拡大縮小している状態（閾値以前を含む）。
  * @readonly
  * @enum {string}
  */
@@ -19,6 +20,7 @@ export const InputState = {
     DRAGGING_HANDLE: 'DRAGGING_HANDLE',
     MOVING_SELECTION: 'MOVING_SELECTION',
     MARQUEE_SELECTING: 'MARQUEE_SELECTING',
+    SCALING_SELECTION: 'SCALING_SELECTION',
 };
 
 /**
