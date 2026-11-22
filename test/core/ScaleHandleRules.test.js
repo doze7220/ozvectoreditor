@@ -9,6 +9,8 @@ import {
     SCALE_HANDLE_HIT_SCREEN_PX,
     SCALE_EDGE_HANDLE_MIN_SCREEN_PX,
     collectScaleFrame,
+    collectFrameCorners,
+    computeFrameCenter,
     hitTestScaleHandle,
     resolveScaleHandleCursor,
     computeBoundsScale,
@@ -617,5 +619,51 @@ describe('toScaleTransform：変換の組み立て', () => {
         const b = toScaleTransform(scale);
         assert.notEqual(a, b);
         assert.deepEqual(scale, { scaleX: 1.5, scaleY: 2, originX: 0, originY: 0 });
+    });
+});
+
+describe('collectFrameCorners：外枠の角の位置', () => {
+    it('nw・ne・se・swの順で位置を返す', () => {
+        assert.deepEqual(collectFrameCorners(B), [
+            { name: 'nw', x: 0, y: 0 },
+            { name: 'ne', x: 100, y: 0 },
+            { name: 'se', x: 100, y: 50 },
+            { name: 'sw', x: 0, y: 50 }
+        ]);
+    });
+
+    it('幅0・高さ0でも4つ返す', () => {
+        const corners = collectFrameCorners({ minX: 5, minY: 7, maxX: 5, maxY: 7 });
+        assert.equal(corners.length, 4);
+        assert.deepEqual(corners.map(c => c.name), ['nw', 'ne', 'se', 'sw']);
+        assert.ok(corners.every(c => c.x === 5 && c.y === 7));
+    });
+
+    it('毎回新しいオブジェクトを返し、引数を書き換えない', () => {
+        const a = collectFrameCorners(B);
+        const b = collectFrameCorners(B);
+        assert.notEqual(a, b);
+        assert.notEqual(a[0], b[0]);
+        assert.deepEqual(B, { minX: 0, minY: 0, maxX: 100, maxY: 50 });
+    });
+});
+
+describe('computeFrameCenter：外枠の中心', () => {
+    it('ちょうど表せる値の中心を返す', () => {
+        assert.deepEqual(computeFrameCenter(B), { x: 50, y: 25 });
+    });
+
+    it('丸めの入る値でも(min + max) / 2と厳密に一致する', () => {
+        const bounds = { minX: 0.1, minY: 0.2, maxX: 0.3, maxY: 0.7 };
+        const c = computeFrameCenter(bounds);
+        assert.equal(c.x, (0.1 + 0.3) / 2);
+        assert.equal(c.y, (0.2 + 0.7) / 2);
+    });
+
+    it('毎回新しいオブジェクトを返し、引数を書き換えない', () => {
+        const a = computeFrameCenter(B);
+        const b = computeFrameCenter(B);
+        assert.notEqual(a, b);
+        assert.deepEqual(B, { minX: 0, minY: 0, maxX: 100, maxY: 50 });
     });
 });

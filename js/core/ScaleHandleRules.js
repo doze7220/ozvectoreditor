@@ -89,6 +89,31 @@ function isFiniteBounds(bounds) {
 }
 
 /**
+ * 外枠の4つの角の位置の唯一の求め方。並びは`nw (minX, minY)`・`ne (maxX, minY)`・`se (maxX, maxY)`・`sw (minX, maxY)`。
+ * 幅・高さが0でも4つ返す。検証はしない。引数を書き換えず、毎回新しいオブジェクトを返す。
+ * @param {{minX: number, minY: number, maxX: number, maxY: number}} bounds 外枠
+ * @returns {ScaleHandle[]} 角のハンドル4つ（`nw`・`ne`・`se`・`sw`の順）
+ */
+export function collectFrameCorners(bounds) {
+    const { minX, minY, maxX, maxY } = bounds;
+    return [
+        { name: SCALE_HANDLE_NAMES.NW, x: minX, y: minY },
+        { name: SCALE_HANDLE_NAMES.NE, x: maxX, y: minY },
+        { name: SCALE_HANDLE_NAMES.SE, x: maxX, y: maxY },
+        { name: SCALE_HANDLE_NAMES.SW, x: minX, y: maxY }
+    ];
+}
+
+/**
+ * 外枠の中心の唯一の求め方（`((min + max) / 2`）。検証はしない。引数を書き換えず、毎回新しいオブジェクトを返す。
+ * @param {{minX: number, minY: number, maxX: number, maxY: number}} bounds 外枠
+ * @returns {{x: number, y: number}} 中心（ワールド）
+ */
+export function computeFrameCenter(bounds) {
+    return { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 };
+}
+
+/**
  * 出す外枠とハンドルを組み立てる（描画と当たりが共有する唯一の組み立て）。
  * - `mode`が選択（`OperationMode.SELECT`）以外・`bounds`が`null`・`viewScale`が正の有限でない・`bounds`の値が有限でない → `null`。
  * - 幅・高さがともに0 → `null`（外枠もハンドルも出さない）。
@@ -111,8 +136,9 @@ export function collectScaleFrame(mode, bounds, viewScale) {
     if (width === 0 && height === 0) {
         return null;
     }
-    const cx = (minX + maxX) / 2;
-    const cy = (minY + maxY) / 2;
+    const center = computeFrameCenter({ minX, minY, maxX, maxY });
+    const cx = center.x;
+    const cy = center.y;
     const showTopBottom = width === 0 ? true : (height === 0 ? false : width * viewScale >= SCALE_EDGE_HANDLE_MIN_SCREEN_PX);
     const showLeftRight = height === 0 ? true : (width === 0 ? false : height * viewScale >= SCALE_EDGE_HANDLE_MIN_SCREEN_PX);
     /** @type {ScaleHandle[]} */
@@ -130,10 +156,7 @@ export function collectScaleFrame(mode, bounds, viewScale) {
         handles.push({ name: SCALE_HANDLE_NAMES.W, x: minX, y: cy });
     }
     if (width !== 0 && height !== 0) {
-        handles.push({ name: SCALE_HANDLE_NAMES.NW, x: minX, y: minY });
-        handles.push({ name: SCALE_HANDLE_NAMES.NE, x: maxX, y: minY });
-        handles.push({ name: SCALE_HANDLE_NAMES.SE, x: maxX, y: maxY });
-        handles.push({ name: SCALE_HANDLE_NAMES.SW, x: minX, y: maxY });
+        handles.push(...collectFrameCorners({ minX, minY, maxX, maxY }));
     }
     return { bounds: { minX, minY, maxX, maxY }, handles };
 }
@@ -201,10 +224,10 @@ export function resolveScaleHandleCursor(name) {
  * @param {number} max 外枠の最大値
  * @param {number} pointerValue カーソル位置のこの軸の値
  * @param {boolean} fromCenter 中心を動かさないか
+ * @param {number} center 外枠の中心のこの軸の値（`computeFrameCenter`の結果）
  * @returns {AxisState} 軸の状態
  */
-function readAxis(dir, min, max, pointerValue, fromCenter) {
-    const center = (min + max) / 2;
+function readAxis(dir, min, max, pointerValue, fromCenter, center) {
     if (dir === 0 || max - min === 0) {
         return { pulled: false, origin: center, raw: 1, target: 0, pointer: pointerValue };
     }
@@ -250,8 +273,9 @@ export function computeBoundsScale(input) {
     const isCorner = handle.length === 2;
     const dirX = handle.includes('w') ? -1 : (handle.includes('e') ? 1 : 0);
     const dirY = handle.includes('n') ? -1 : (handle.includes('s') ? 1 : 0);
-    const axisX = readAxis(dirX, bounds.minX, bounds.maxX, pointer.x, fromCenter);
-    const axisY = readAxis(dirY, bounds.minY, bounds.maxY, pointer.y, fromCenter);
+    const center = computeFrameCenter(bounds);
+    const axisX = readAxis(dirX, bounds.minX, bounds.maxX, pointer.x, fromCenter, center.x);
+    const axisY = readAxis(dirY, bounds.minY, bounds.maxY, pointer.y, fromCenter, center.y);
     const snapped = roundPointToUnit({ x: pointer.x, y: pointer.y }, step);
 
     const bothPulled = axisX.pulled && axisY.pulled;
