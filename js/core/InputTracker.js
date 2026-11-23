@@ -448,7 +448,7 @@ export class InputTracker {
         this.viewTransform = viewTransform;
 
         /**
-         * 現在の内部状態（InputStateの値：IDLE / DRAWING / DRAGGING_HANDLE / MOVING_SELECTION / MARQUEE_SELECTING / SCALING_SELECTION）。状態遷移マシンの起点。
+         * 現在の内部状態（InputStateの値：IDLE / DRAWING / DRAGGING_HANDLE / MOVING_SELECTION / MARQUEE_SELECTING / SCALING_SELECTION / ROTATING_SELECTION）。状態遷移マシンの起点。
          * @type {string}
          */
         this.state = InputState.IDLE;
@@ -473,14 +473,14 @@ export class InputTracker {
          * DRAGGING_HANDLE状態中に操作している頂点ハンドルの名前（押下時の各図形のhitTestHandleの戻り値）。
          * 押下時に記憶する（アンカー＝押した頂点のハンドル名）。頂点インデックスへの解決（shape.getVertexIndexForHandle()）は
          * 追従ではなく押下の時点（#beginLeftDragの#vertexDragOriginsの組み立て）で1回だけ行う。
-         * IDLE/DRAWING/MOVING_SELECTION/MARQUEE_SELECTING/SCALING_SELECTION状態では未使用（null）。
+         * IDLE/DRAWING/MOVING_SELECTION/MARQUEE_SELECTING/SCALING_SELECTION/ROTATING_SELECTION状態では未使用（null）。
          * @type {string|null}
          */
         this.activeHandle = null;
 
         /**
          * DRAGGING_HANDLE状態中に操作している図形のid（単一。頂点ハンドルが属する図形）。
-         * IDLE/DRAWING/MOVING_SELECTION/MARQUEE_SELECTING/SCALING_SELECTION状態では未使用（null）。
+         * IDLE/DRAWING/MOVING_SELECTION/MARQUEE_SELECTING/SCALING_SELECTION/ROTATING_SELECTION状態では未使用（null）。
          * @type {string|null}
          */
         this.activeShapeId = null;

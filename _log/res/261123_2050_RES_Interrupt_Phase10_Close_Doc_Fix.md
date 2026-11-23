@@ -415,7 +415,7 @@ Phase 10のクローズに伴うSurvey（`./_log/res/261123_1315_RES_Survey_Phas
             新: （見出し39px＋本体337px＋枠2px）で、
             ```
         *   直した記述が同じ資料の別の箇所・別のファイルと矛盾しないかを確かめ、触ったファイルの行末をバイト数で確かめる。4章に、直した番号と前後の記述の要点、行末の実測値を書く。
-*   [ ] タスク7: 要件7 `_doc/arch/06_InputTracker.md`・`js/core/InputTracker.js`（No.30〜No.32・C2）
+*   [x] タスク7: 要件7 `_doc/arch/06_InputTracker.md`・`js/core/InputTracker.js`（No.30〜No.32・C2）
     *   **対象ファイル** :
         *   `./_doc/arch/06_InputTracker.md` :（更新。記述の修正）
         *   `./js/core/InputTracker.js` :（更新。コメントの文字だけ）
@@ -719,7 +719,9 @@ Phase 10のクローズに伴うSurvey（`./_log/res/261123_1315_RES_Survey_Phas
 
 ### タスク7: 要件7 `_doc/arch/06_InputTracker.md`・`js/core/InputTracker.js`（No.30〜No.32・C2）
 *   **作業内容** :
-    *   （未実施）
+    *   No.30（06の33行）：「拡大縮小だけ」を「拡大縮小・回転だけ」へ（`InputTracker.js`の`#onLeftDragCancel`が`ROTATING_SELECTION`で`#restoreOriginals`を呼ぶことと一致）。No.31（31行）：`#updateCursor(hit, scaleHandle, rotationCorner)`へ（第3引数はPhase 10-02。`InputTracker.js`の定義と一致）。No.32（43行）：回転のドラッグの追従イベント（15°刻み・Phase 10-02・3章26.）を追記（`snapToStep: Boolean(event.shiftKey)`を確認）。
+    *   C2：`InputTracker.js`のJSDoc 3か所（451行・476行・483行）に`ROTATING_SELECTION`を追記。コードは未変更。
+    *   旧の文字列は計画どおりの回数だけ現れ、`python`の`rb`／`wb`で置き換えた。行末の実測（バイト数、CRLF／LF）：06 53944→54096、57／57→57／57。`InputTracker.js` 142447→142506、2020／2020→2020／2020。`git diff --stat`は2ファイル計6行の変更のみ。
 
 ### タスク8: 要件8 `_doc/arch/12_shapes.md`（No.33〜No.37）
 *   **作業内容** :
