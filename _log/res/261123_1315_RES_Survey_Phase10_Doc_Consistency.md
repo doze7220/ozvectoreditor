@@ -67,7 +67,7 @@ Phase 10「変形」（10-01〜10-04）と、クローズ前のInterrupt「使�
 * **禁止**：ソースコード・資料ファイルの変更・作成、リポジトリの状態を変えるgit操作、過去のコミットを取り出しての実行。終わりに`git status`で、変更が本RESだけであることを確認する。
 
 ## 3. タスクリスト
-* [ ] タスク1: 1章（構成図・フォルダの責務・依存方向）と4章の表
+* [x] タスク1: 1章（構成図・フォルダの責務・依存方向）と4章の表
   * **対象ファイル**:
     * `./PROJECT_ARCHITECTURE.md` :（監査。差分の `+` 行＝現在の行 20・29・31〜33・36・41〜46・53〜55・65・78〜79・99〜102・106・129・131・136〜137・139・145・151・198〜200・221〜223・225・228・822〜825（42行）。1章「プロジェクトフォルダ構造」の構成図、フォルダの責務`core/`・`shapes/`・`io/`・`edit/`（行221〜225）、依存方向（行228）、4章の表（行822〜825））
     * 照合に使う主なコード :（監査。`./js/`・`./test/`・`./asset/`（ファイルの一覧とimport文の検索）。説明の照合に必要な`./js/core/`・`./js/shapes/`・`./js/io/`・`./js/edit/`・`./js/palette/`のファイルの先頭とimport文）
@@ -342,11 +342,50 @@ Phase 10「変形」（10-01〜10-04）と、クローズ前のInterrupt「使�
 ## 4. 調査結果
 ### タスク1: 1章（構成図・フォルダの責務・依存方向）と4章の表
 * **調査内容**:
-  * （タスク実行時に記載）
+  * `PROJECT_ARCHITECTURE.md`の対象の`+`行（20・29・31〜33・36・41〜46・53〜55・65・78〜79・99〜102・106・129・131・136〜137・139・145・151・198〜200・221〜223・225・228・822〜825）を開き、`git ls-files js test asset`・`index.html`・`js/`のimport文の全件検索（`^import`・`from '`・`import('`。import文とJSDocの`import()`型参照は別に集計）・各ファイルのexport・`index.html`の要素と照合した。構成図は、図の木をスクリプトで解析して`git ls-files js test asset`と全件突き合わせた。
 * **事実（実コードの記述）**:
-  * （タスク実行時に記載）
+  * 構成図（1章の木）：図に載るファイル169件（`PROJECT_ARCHITECTURE.md`・`PROJECT_CONSTITUTION.md`・`index.html`・`sprite-check.html`の4件を含む）と`git ls-files js test asset`の167件を突き合わせた。図にあって実在しないもの＝無し（上の4件はルートに実在）。実在して図に無いもの＝`asset/sprite/select-arrow.js`・`vertex-arrow.js`の2件だけで、図は`asset/sprite/`のコメントに2つのファイル名を書いている（一致）。`git diff --name-status cc72e0d d524ef1 -- js test`の`A`の17件（`js/`8・`test/`9）はすべて図にあり、置き場（`core/`・`edit/`・`palette/`、`test/core/`・`test/edit/`）も実在の場所と一致。テストの行129・131・136・137・139・145・151・198〜200は`test/core/`・`test/edit/`に実在。
+  * 構成図の説明（行20・29・31〜33・36・41〜46・53〜55・65・78〜79・99〜102・106）：
+    * 行20（`index.html`）：`#tool-eyedropper`（💉）・`#tool-select`・`#tool-vertex`（中身無し。`ToolIconWiring`が`<canvas>`を入れる＝`js/wiring/ToolIconWiring.js:28`）・`#unit-snap-group`（🧲のボタンと単位のボタン）・ツールバー2行（1行目＝操作・取り消し・削除/結合・スタイル・重なり順、2行目＝位置・大きさ・変形・整列・分布・角＝`index.html:530〜`の`.toolbar-row`2つ、`#option-size-group`566・`#option-transform-group`574）・`--toolbar-height: 80px`（`index.html:12`。定義は1か所）・ステータスバー右側＝表示の切り替え・スナップ・表示倍率の順（`index.html:617〜634`）。一致。
+    * 行29：`CANCELABLE_DRAG_STATES`＝`[SCALING_SELECTION, ROTATING_SELECTION]`（`js/core/InputModes.js:32`）、`InputModes`はimportなし。一致。使う側の列挙は5章（タスク1）の相違（`ScaleHandleRules`が抜けている）。
+    * 行31：`resolvePressAction(hit, isSelected, scaleHandle = null, rotationCorner = null)`＝外枠のハンドルは第3引数・回転の範囲の角は第4引数（`js/core/PressActionRules.js:35〜42`）。`InputTracker`から使う（`InputTracker.js:13`）。一致。
+    * 行32：`CursorShapeRules`は`resolveScaleHandleCursor`（`ScaleHandleRules`）・`resolveRotationCursor`（`RotationRules`）をimport（`CursorShapeRules.js:7・8`）。`InputTracker`から使う（`InputTracker.js:14`）。一致。
+    * 行33：`PointHitRules`のimportは`VertexHandleRules`の1件だけ（`PointHitRules.js:6`）。一致。
+    * 行36：`UnitSnapRules`のimport元は`InputTracker.js:17`・`wiring/DisplayWiring.js:9`・`ScaleHandleRules.js:6`の3件で、列挙どおり（`UnitSnapSettings.js`にある語はコメントでimportではない）。一致。
+    * 行41：`VertexHandleRules`のexport＝`collectVertexHandles`・`isVertexHandle`・`collectVertexHandlesInRect`・`computeVertexHandlesBounds`（記述の4つの働きと対応）。import元＝`PointHitRules.js:6`・`InputTracker.js:12`・`main.js:14`・`edit/PositionInputEditor.js:8`で列挙どおり。一致。
+    * 行42：`NudgeTargetRules`のimportは`InputModes`のみ（`NudgeTargetRules.js:5`）。export＝`resolveNudgeTarget`・`buildNudgeGroupKey`。使う側の列挙は5章（タスク1）の相違（`PathCornerEditor`が抜けている）。
+    * 行43：`ScaleHandleRules`のimportは`InputModes`・`UnitSnapRules`のみ（`ScaleHandleRules.js:5・6`）、`AffineTransform`は`import()`型参照だけ（同:317）。`collectScaleFrame`・`hitTestScaleHandle`・`resolveScaleHandleCursor`・`computeBoundsScale`・`toScaleTransform`・`collectFrameCorners`（97）・`computeFrameCenter`（112）が実在。使う側＝`InputTracker.js:18`・`CursorShapeRules.js:7`・`main.js:15`・`RotationRules.js:5`・`ReferencePointRules.js:5`・`edit/TransformInputRules.js:7`。一致（末尾の一文の読み方は『推測・所見』）。
+    * 行44：`RotationRules`のimportは`ScaleHandleRules`（`SCALE_HANDLE_NAMES`・`hitTestScaleHandle`・`collectFrameCorners`）・`ReferencePointRules`（`resolveReferencePointPosition`）・`shapes/ShapeGeometry`（`applyAffineTransformToPoint`）のみ（`RotationRules.js:5〜7`）。`hitTestRotationZone`・`resolveRotationCursor`・`computeRotationAngle`・`toRotationTransform`・`resolveDisplayedScaleFrame`・`computeRotationCenter(frame, referencePoint)`（172。基準点を省く・名前でない値は外枠の中心＝`ReferencePointRules.js:59〜`）が実在。使う側＝`InputTracker.js:19`・`CursorShapeRules.js:8`・`main.js:16`・`edit/TransformInputRules.js:8`。一致。
+    * 行45：`ReferencePointRules`のimportは`ScaleHandleRules`のみ（`ReferencePointRules.js:5`）。基準点9か所（`REFERENCE_POINT`の9エントリ）。使う側＝`RotationRules.js:6`・`TransformInputSettings.js:5`・`edit/PositionInputEditor.js:7`・`edit/TransformInputEditor.js:7`。一致。
+    * 行46：`TransformInputSettings`のimportは`ReferencePointRules`のみ（`TransformInputSettings.js:5`）。生成は`main.js:87〜`の1か所。一致（保存しない・履歴の対象外は、`HistoryManager`・保存系へのimportが無い構造から確かめた範囲）。
+    * 行53：`StatusReadoutRules`のimport元＝`wiring/DisplayWiring.js:6`・`edit/PositionInputRules.js:6`・`edit/TransformInputRules.js:6`。一致（`PositionInputEditor`にある語はコメント）。
+    * 行54：`findCancelableDragBinding`のexport（`KeyboardShortcuts.js:234`）は`Shift`・`Alt`・`Ctrl`・`Meta`を読まずEscのcodeだけで判定。対応表の末尾（`KeyboardShortcuts.js:213・214`）が`Shift`+`H`・`Shift`+`V`の2エントリ。一致。
+    * 行55：`DragTracker.cancel({ suppressClick = false } = {})`（`DragTracker.js:145`）。一致。
+    * 行65：`applyAffineTransformToPoint`は`shapes/ShapeGeometry.js:236`のexportで、図形クラス5つの`createTransformed`が使う（`Line.js:325`・`Curve.js:379`・`Rect.js:358`・`Ellipse.js:703`・`Path.js:665`）。`core/RotationRules`も使う（`RotationRules.js:7・243〜`）。一致（「図形クラスだけが使う」と例外の一文の関係は『推測・所見』）。
+    * 行78・79：`OptionBarSizeGroup.js`（幅・高さの数値の欄・比率の鍵）・`OptionBarTransformGroup.js`（角度の欄・基準点・反転）が実在し、責務の1行目が記述と同じ。`index.html:566〜590`に幅・高さの欄、比率の鍵（`#option-size-lock`）、角度の欄（`#option-angle`）、基準点の9つのボタン（`data-reference-point`）、反転の2つのボタンが実在。一致。
+    * 行99〜102：`PositionInputRules`のimportは`core/StatusReadoutRules`のみ（`PositionInputRules.js:6`）。`TransformInputRules`のimportは`StatusReadoutRules`・`ScaleHandleRules`の`toScaleTransform`・`RotationRules`の`toRotationTransform`のみ（`TransformInputRules.js:6〜8`）。入力の数値の判定3行（文字列かつ空でない→`Number`→`Number.isFinite`）は`TransformInputRules.js:120〜126`の非公開`parseInputNumber`と`PositionInputRules.js:48〜52`にある。`PositionInputEditor`は`HistoryManager`を持たず`nudgeEditor.nudgeWithoutGrouping`へ任せる（`PositionInputEditor.js:48・75`）。`FLIP_AXIS`のexport（`TransformInputRules.js:21`）を`main.js:54`が使う。`TransformInputEditor`は`getSizeView`・`getTransformView`・`setSize`・`rotateBy`・`flip`を持つ。一致。
+    * 行106：`ShapeExtentReader`は`getSelectedBounds`・`getSelectedGeometryBounds`（線を含まない外枠）・`getSelectedBoundsPerShape`（1つずつ）・`getAllBounds`を持つ（`ShapeExtentReader.js:37〜76`）。外枠のハンドルの位置の元は`main.js:221`の`getSelectedGeometryBounds()`。一致（基準点の基準になるのは`PositionInputEditor.js`・`TransformInputEditor.js`が`resolveReferencePointPosition`を使う形で確認）。
+  * フォルダの責務：
+    * 行221（`core/`）：`edit/`から`core/`のimportは`NudgeTargetRules`・`VertexHandleRules`・`StatusReadoutRules`・`ReferencePointRules`・`ScaleHandleRules`（`toScaleTransform`）・`RotationRules`（`toRotationTransform`）の関数だけ（`edit/`の`../core/`import全件）。`ScaleHandleRules`・`RotationRules`は`InputTracker`・`CursorShapeRules`と`main.js`の両方から使う（上の使う側）。状態を持つ設定＝`DisplayState`・`UnitSnapSettings`・`TransformInputSettings`・`CanvasCursorTracker`が実在。`InputTracker`の注入`getReferencePoint`は`main.js:196`、`InputTracker`は`ReferencePointRules`をimportしない。一致（`RotationRules`の使うものの読み方は『推測・所見』）。
+    * 行222（`shapes/`）：`PathJoinRules`の`isJoinableLine`（81）・`isDrawnLineShape`（66）・`segmentKindsOf`（101）・`segmentSpecsOf`（115）・`lineEndpointOf`（208）・`endpointVertexIndexOf`（224）はexport、`chainSourceOf`（130）・`arcChainSourceOf`（162）は非公開。`PathSegmentKindRules`は`PathJoinRules`の`segmentKindsOf`・`segmentSpecsOf`を使う（`PathSegmentKindRules.js:7・95・116・147`）。`PathCornerRules`・`EndpointSnapRules`・`PathSegmentKindRules`が実在。一致。
+    * 行223（`io/`）：`DocumentSerializer`・`CanvasStorage`・`DocumentFileIO`・`SpriteSerializer`（`computeShapesBounds`・`computeShapesGeometryBounds`＝線を含む・含まない）・`CodeExporter`（`toModuleText`・`extractSpriteDataText`）・`FileContentReader`の6ファイルで、`js/io/`の実在の全ファイルと一致。
+    * 行225（`edit/`）：挙げられた`ShapeOrderRules`・`ShapeOrderEditor`・`NudgeEditor`・`PositionInputRules`・`PositionInputEditor`・`TransformInputRules`・`TransformInputEditor`・`ShapeAlignRules`・`ShapeAlignEditor`・`PathCornerEditor`・`ShapeExtentReader`・`StyleEyedropper`・`ClipboardController`が実在。`shouldRestoreSelection`（`SnapshotAdapter.js`）・`prepareSwitch`（`CanvasLibrary.js`）・`prepareInsert`（`CanvasFileOperations.js`）・`applyStyle`・`resetColors`（`ShapeStyleEditor.js`）・`#collectTargets`（`PathCornerEditor.js`）が実在。`edit/`に`InputModes`・`OperationMode`のimportは無い。`NudgeEditor`・`PositionInputEditor`・`TransformInputEditor`は`getMode()`の戻り値を`resolveNudgeTarget`へ渡すだけ（`NudgeEditor.js:90`・`PositionInputEditor.js:83`・`TransformInputEditor.js:134`）。`TransformInputEditor`・`NudgeEditor`は`editRecorder`を受け取る（`TransformInputEditor.js:59`・`NudgeEditor.js:50`）、`PositionInputEditor`は受け取らない。`ShapeExtentReader`の生成は`DisplayWiring.js:65`と`main.js:179`（`// 4.`＝`main.js:159`の節内。`renderCurrentState`のハンドル＝`main.js:221`、`InputTracker`の注入`getSelectionFrameBounds`＝`main.js:194`、`PositionInputEditor`＝`main.js:748`、`ShapeAlignEditor`＝`main.js:776`が共有）の2か所。生成の移動は`git show cc72e0d:js/main.js`（719行目）と`b5a5be0:js/main.js`（168行目）で確かめた。一致。
+  * 依存方向（行228）：`js/`・`asset/`の`import`文を全件検索した（`import()`型参照は別に数えた）。
+    * `core/`のimport文：`io/`・`edit/`・`palette/`・`wiring/`・`asset/`へのものは0件。`shapes/`へのimport文は`ShapeFactory.js:5〜9`（5件）と`RotationRules.js:7`（1件）で、ファイルは2つだけ。一致。
+    * `import()`型参照：`core/`から`shapes/`へは`ScaleHandleRules.js:317`（1件）と`RotationRules.js:211・236`（2件）の2ファイルだけ。一致。
+    * `io/`のimport文：`io/`内（`CodeExporter→SpriteSerializer`・`FileContentReader→DocumentSerializer・SpriteSerializer・CodeExporter`・`SpriteSerializer→DocumentSerializer`）と`DocumentSerializer.js:5`の`core/ShapeFactory`だけ。`edit/`へは0件。一致。
+    * `palette/`・`asset/`：import文0件。一致。`check/ → io`：`SpriteCheckInspector.js:5`の`io/SpriteSerializer`のみ（ほかは`check/`内）。一致。
+    * `wiring/`：`palette/`（`ViewToggleGroup`・`UnitSnapGroup`）・`edit/`（`ShapeExtentReader`）・`core/`・`asset/`をimport。`wiring/`をimportするのは`main.js:57・58`だけ。一致。
+    * `edit/`のimport文：`shapes/`へは`PathJoiner.js:5`・`EndpointSnapper.js:6・14`・`PathCornerEditor.js:7・8`だけ。`core/`へは`NudgeEditor`・`PositionInputEditor`・`PathCornerEditor`・`PositionInputRules`・`TransformInputEditor`・`TransformInputRules`の6ファイルだけで、記述どおりの名前だけ（`VectorModel`・`HistoryManager`・`ShapeExtentReader`のimport文は0件）。`edit/`内のimport＝`ShapeStyleEditor`・`StyleEyedropper→StylePanelRules`、`ShapeOrderEditor→ShapeOrderRules`、`ShapeAlignEditor→ShapeAlignRules`、`PositionInputEditor→PositionInputRules`、`TransformInputEditor→TransformInputRules`の形で記述と同じ。一致。
+    * `shapes/`内：`EndpointSnapRules→PathJoinRules`、`PathCornerRules→Path`、`PathSegmentKindRules→Path・Line・PathJoinRules・PathCornerRules`、`PathJoinRules→Path・Line`のみ。図形クラスは`ShapeGeometry`・`ShapeDataValidation`のみimport（規則のファイルへは0件）。一致。
+    * `core/`内の例外：`PointHitRules→VertexHandleRules`（6）・`ScaleHandleRules→UnitSnapRules`（6）・`CursorShapeRules→ScaleHandleRules`（7）・`RotationRules→ScaleHandleRules`（5）・`CursorShapeRules→RotationRules`（8）・`ReferencePointRules→ScaleHandleRules`（5）・`RotationRules→ReferencePointRules`（6）・`TransformInputSettings→ReferencePointRules`（5）はすべて実在し、列挙に無い規則どうしのimportは0件。循環は無い。`RotationRules`は`computeFrameCenter`をimportしていない（`RotationRules.js:5`の名前に無い）。`core/`内の状態を持つ部品のimportは`InputTracker→DragTracker`の1件だけ（`InputTracker.js:7`）。`InputTracker`は`edit/`をimportしない。`InputTracker`のコンストラクタの第7引数`inputAssist`の注入の6関数は`main.js:189〜196`に実在。一致。
+  * 4章の表（822〜825）：`_doc/arch/42_ScaleHandleRules.md`・`43_RotationRules.md`・`44_ReferencePointRules.md`・`45_TransformInputSettings.md`が実在し、`ScaleHandleRules.js`等が`js/core/`に実在。一致。
 * **推測・所見**:
-  * （タスク実行時に記載）
+  * 行43の末尾「外枠の角の位置`collectFrameCorners`・外枠の中心`computeFrameCenter`（Phase 10-02）は`RotationRules`・`ReferencePointRules`（中心の式）・`edit/TransformInputRules`（`toScaleTransform`）からも使う」は、3つの使う側と2つの関数・`toScaleTransform`の対応が列挙の順にしか分からず、読み方が分かれる。実態は、`collectFrameCorners`を使うのは`RotationRules`、`computeFrameCenter`を使うのは`ReferencePointRules`だけで、`edit/TransformInputRules`が使うのは`toScaleTransform`。`RotationRules`が`computeFrameCenter`を使うと読める余地がある（実際は`RotationRules.js:167`のJSDocにあるだけ）。
+  * 行221「`RotationRules`は`ScaleHandleRules`の外枠の角・中心・当たりを使う側」の「中心」は、`RotationRules`が直接使うのは角（`collectFrameCorners`）・当たり（`hitTestScaleHandle`）・名前（`SCALE_HANDLE_NAMES`）で、中心は`ReferencePointRules`経由（`RotationRules.js:172〜174`）。行228の「`RotationRules`は`computeFrameCenter`をimportしなくなった」と合わせて読めば矛盾しないが、行221だけを読むと直接使うと読める。行228のPhase 10-02の例外(1)も`computeFrameCenter`を挙げ、後のPhase 10-03の記述が打ち消す形になっている（階層的な読み方が必要）。
+  * 行65「図形クラスだけが使う共通の関数」と、同じ行の「`core/RotationRules`も…使う」は、例外を書き添えた形で、文だけを読むと食い違うように読める。
+  * `edit/TransformInputRules.js:137・170・184`は`shapes/ShapeGeometry`を`import()`型参照している（JSDocのみ）。行228は型参照の例外を`core/`の2か所だけと書き、`edit/`から`shapes/`への型参照は資料の例外に載っていない（資料に書かれていない事項のため相違とはしない）。
+  * 照合できなかった主張：行20の見え方（`💉（仮）`・`🧲（仮）`の表示、ツールバー2行の収まり具合）は、要素・CSSの値の存在だけを確かめ、実際のブラウザでの見え方は確かめていない。行221の「置く理由：…ほかに置き場所が無く」は設計の理由で照合対象外。
 ### タスク2: 1章「存在しないもの」
 * **調査内容**:
   * （タスク実行時に記載）
@@ -470,6 +509,8 @@ Phase 10「変形」（10-01〜10-04）と、クローズ前のInterrupt「使�
 ## 5. 開発資料との相違
 * （タスク実行時に記載。相違が一件もなかった場合は、タスク18で「相違なし」と明記する）
 * 形式: **タスクn：（対象：資料のファイルと節）**： （資料の記述） → （実コードの実態。`ファイル:行`）
+* **タスク1：（対象：`PROJECT_ARCHITECTURE.md`1章の構成図 `InputModes.js`の行29）**： 使う側として「`InputTracker`・`KeyboardShortcuts`・`ToolRules`・`CursorShapeRules`・`VertexHandleRules`・`NudgeTargetRules`・`wiring/ToolIconWiring`・`main.js`から使う」と8つを列挙 → `InputModes`のimport元はもう1つ、`js/core/ScaleHandleRules.js:5`（`OperationMode`）がある。列挙が1件足りない（行43の`ScaleHandleRules`の説明には`InputModes`をimportすると書かれている）。
+* **タスク1：（対象：`PROJECT_ARCHITECTURE.md`1章の構成図 `NudgeTargetRules.js`の行42）**： 使う側として「`edit/NudgeEditor`・`edit/PositionInputEditor`・`edit/TransformInputEditor`から使う」と3つを列挙 → `NudgeTargetRules`のimport元はもう1つ、`js/edit/PathCornerEditor.js:6`（`resolveNudgeTarget`）がある。列挙が1件足りない（行225・228の記述には`PathCornerEditor → core/NudgeTargetRules`が挙がっている）。
 
 ## 6. 懸念事項・今後の修正における注意点
 * （タスク18で、「読み方が分かれる記述」と「照合できなかった主張」の一覧を記載する）
