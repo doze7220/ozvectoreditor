@@ -166,7 +166,7 @@
         *   5クラスの`drawHandles`をJSDocごと消す。クラスJSDocの契約を「18メソッド」にして一覧から`drawHandles`を除く。`第N`メソッドを「2.」のとおり1つずつ繰り上げる（第10→第9から昇順に置き換えると二重に繰り上がらない。関係のない語は変えない）。`getHandlePosition`等のJSDocの「`hitTestHandle`・`drawHandles`と同じ」、`Path`のクラスJSDocの`drawHandles`を直す。
         *   `test/shapes/Path.test.js`の`drawHandles`の1件を削除する。
         *   `node --test`全件合格。`js/`のGrepで`drawHandles`・`showHandles`・`dragHandle`・`MOVE_HANDLE_NAME`・`19メソッド`・「moveハンドル」・「到達不能」が0件、`test/`のGrepで`drawHandles`・`dragHandle`が0件であることを確かめる。JSDocの記載漏れの確認。「4.」の記入と、開発資料の更新予定欄への追記（影響が判明した場合。資料本体は修正しない）。
-*   [ ] タスク6: テストプレイの確認項目の裏取りと、JSDocの総点検（要件5）
+*   [x] タスク6: テストプレイの確認項目の裏取りと、JSDocの総点検（要件5）
     *   **対象ファイル** :
         *   `./_log/res/261123_1213_RES_Interrupt_Handle_Dead_Branches.md` :（更新。ソース・テストは変更しない。JSDocの漏れ・誤りが見つかった場合は、タスク1〜5の対象ファイルのJSDocに限り直してよい）
     *   **作業内容** :
@@ -226,11 +226,17 @@
     *   着手時に`drawHandles`をGrepし直し、残りが図形クラス5つの定義・JSDocと`test/shapes/Path.test.js`の1件だけであることを確認。
     *   `Line.js`・`Curve.js`・`Rect.js`・`Ellipse.js`・`Path.js`：`drawHandles`をJSDocごと消した。クラスJSDocの契約を「18メソッド」にして一覧から`drawHandles`を除いた。「第N」メソッドは、`drawHandles`（2番目）が抜けた分だけ第5以降を1つずつ繰り上げた（第10〜第19→第9〜第18。`Ellipse.hitTestHandle`の第5→第4を含む。`js/`のGrepで第2〜第9の番号はこの1件のみだったため漏れなし）。`getHandlePosition`のJSDocの「`hitTestHandle`・`drawHandles`と同じ…」（Line・Curve・Rect・Path）と`Path`のクラスJSDocの`drawHandles`への言及を直した。
     *   `test/shapes/Path.test.js`：`drawHandles`の1件を削除。
-    *   `node --test`全件合格：tests 2470 / suites 401（見込みどおり）。`js/`で`drawHandles`・`showHandles`・`dragHandle`・`MOVE_HANDLE_NAME`・`19メソッド`・「moveハンドル」・「到達不能」が0件、`test/`で`drawHandles`・`dragHandle`が0件。行末は各ファイルの元のまま（5つの図形クラスはCRLF、Path.test.jsはLF。RESの「行末」欄の記載と実測が異なるが元のまま保った）。
+    *   `node --test`全件合格：tests 2470 / suites 401（見込みどおり）。`js/`で`drawHandles`・`showHandles`・`dragHandle`・`MOVE_HANDLE_NAME`・`19メソッド`・「moveハンドル」・「到達不能」が0件、`test/`で`drawHandles`・`dragHandle`が0件。行末は各ファイルの元のまま（`git ls-files --eol`の実測：Line.js・Curve.js・Rect.js＝LF、Ellipse.js・Path.js・Path.test.js＝CRLF。RESの「行末」欄の記載どおり）。
 
 ### タスク6: テストプレイの確認項目の裏取りと、JSDocの総点検（要件5）
 *   **作業内容** :
-    *   （未実施）
+    *   ソース・テストは変更していない（変更はこのRESのみ）。使い捨てのスクリプトはリポジトリの外（セッションの一時フォルダ）に置き、作業後に作業前のソースの取り出し（`git archive 52b5980 js`）とともに消した。
+    *   **当たり分類の裏取り**：作業前（`52b5980`）と今のソースを同じ入力で比べた。作業前の`InputTracker.#classifyPoint`の後からの絞り込みは、スクリプト内で同じ式を再現した。選択集合の全図形を選んだ状態で、手前を円・弧（回していない・30度回した）、奥を「その点が先頭のパス」または「その点が始点の線」として、手前の図形の5か所（中心・右・上・左・下）で判定した。8通り（円・弧 × 回していない・回した × 奥がパス・線）・40か所すべてで、作業前は`handle`が`null`（隠れて当たらない）、作業後は奥の頂点（パスは`vertex-0`、線は`start`）が当たった。直線の中点（手前）の上にパスの頂点があるときも、作業前は`null`・作業後はそのパスの頂点が当たり、ほかの図形の頂点が無い中点は作業後も`handle`が`null`（`bodyId`は直線）。
+    *   **回した円の5か所**：半径20の円を中心(100, 100)のまわりに30度回すと、中心はそのまま、右・左は中心から横に17.32（＝半径×cos30度。右端の制御点との横の差）、上・下は中心から縦に17.32（上端の制御点との縦の差）の位置になった。回した後の円の見た目の右端などとは一致しない（円の右端は中心から横に20）。円・弧どちらも、回したときは「見た目の端」ではなく、この5か所に重なった点が対象になる。回していない円・弧は半径どおり（中心から横・縦に半径ぶん）。
+    *   **選択（`V`）の押下・カーソルの前後比較**：`resolvePressAction`は`hit.handle`が`null`の入力（`bodyId`＝なし・選択中・選択外 × 本体が選択中か × 外枠のハンドル3通り × 回転の角3通り）の72通りで、結果と`isSelected`の呼び出し（回数・引数）が作業前と同じ。`resolveCursorShape`は`hit.handle`が`null`の入力を、4モード×7状態×パン・スペース・左ドラッグ・待ち受けの有無・`hit`の4通り・選択の有無・外枠のハンドル4通り・回転の角4通りの57344通りで、結果と`isPickingShape`・`isSelected`の呼び出しの並びが作業前と同じ（差0件）。`SELECT`の`hit.handle`は`resolvePressAction`・`resolveCursorShape`の呼び出し元から常に`null`なので、比べた範囲が実際の入力の全体。
+    *   **配線の確認（コードを読んだ）**：`InputTracker`の`#classifyPoint`は`classifyPointHit`の結果をそのまま返し、ホバー・押下・クリック・カーソルが同じ1つの結果を使う。`VERTEX`の押下は`resolveVertexPressAction`へ渡し、クリックは`hit.handle`の枝で選択を更新する。`SELECT`の押下は`resolvePressAction`（`dragHandle`の枝なし）。`main.js`の`renderCurrentState`は`selectedIds`・`showHandles`を渡さず、`collectVertexHandles`・`collectScaleFrame`を渡す。
+    *   **JSDocの総点検**：`js/`のGrepで`drawHandles`・`showHandles`・`dragHandle`・`MOVE_HANDLE_NAME`・`19メソッド`・「moveハンドル」・「到達不能」・「移動用ハンドル」・「半径の編集」が0件、`test/`で`drawHandles`・`dragHandle`が0件。5つの図形クラスの契約の一覧（18メソッド）の並びと「第Nメソッド」が一致（`hitTestHandle`第4、`intersectsRect`第9、`toJSON`第10、`fromJSON`第11、`toDrawElement`第12、`isFillable`第13、`hitTestFill`第14、`drawOutline`第15、`getHandlePosition`第16、`getVertexHandleNames`第17、`createTransformed`第18）。タスク1〜5で変えた14個のソースの先頭の責務定義はすべて保たれている。直す必要のある漏れ・誤りは見つからず、ソースは変えていない。`CursorShapeRules.js`の(7)欠番・`main.js`の「図形ごとのハンドルは描かない」は意図した記述。
+    *   `node --test`全件合格：tests 2470 / suites 401（タスク5後と同じ）。開発資料への新たな影響は見つからなかった（更新予定欄のとおり）。
 
 ### タスク7（固定タスク）: 『開発資料の更新予定』を確認し、開発資料へ反映する
 *   **作業内容** :
@@ -244,8 +250,9 @@
 * **タスク4の残り**：`Line.js`・`Ellipse.js`のクラスJSDoc（「19メソッド」・`drawHandles`）と`Line.getHandlePosition`・`Ellipse.getHandlePosition`のJSDocの「第17メソッド」・`Line.getHandlePosition`の「`drawHandles`と同じ式」・`Line.drawHandles`のJSDoc（移動ハンドル・中点の円）・`Ellipse.drawHandles`は、タスク5（`drawHandles`を消す・番号の繰り上げ）で直す。（訂正）`Ellipse.hitTestHandle`の「第5メソッド」も`drawHandles`（2番目）が抜けて第4メソッドになるため、タスク5で繰り上げた（「番号はそのまま」は誤り）。`Ellipse`の`hitTestHandle`・`getHandlePosition`・`getVertexIndexForHandle`は未使用引数が残る（契約の形を揃えるため）。
 * **タスク5の確認**：`js/shapes/`で「第2〜第9メソッド」の番号は`Ellipse.hitTestHandle`の1件のみで、ほかに繰り上げ漏れはない。タスク6のJSDoc総点検でも番号の並び（契約の一覧の順）を見ること。
 * 自動テストの対象外（目視で確かめる箇所）：`CanvasManager.render`の描画、`InputTracker`の配線、`main.js`の`renderCurrentState`。
-* **テストプレイの確認項目（下書き。タスク6で裏取りして確定する。最初に`Ctrl`+`F5`で読み込み直す）**：
-    1. 直線のツールで点を3つ以上打ってパスを描く。その後、円のツールで、円の中心がパスの点の上に来るように円を描く。`V`でパスと円を両方選び（`Ctrl`+クリックか範囲選択）、`A`に切り替えると、円の中心に重なったパスの点をドラッグで動かせる。円の右・上・左・下の端がパスの点に重なるように描いたときも同じ。弧でも同じ。円を`V`で外枠の角の外側から回した後も、中心などに重なった点がつかめる。点の上ではカーソルが移動の形になり、クリックするとその点が選ばれる（青くなる）。
+* **テストプレイの確認項目（タスク6で実コードと突き合わせて確定した。最初に`Ctrl`+`F5`で読み込み直す）**：
+* **タスク6の補足**：`InputTracker`のJSDocの「ハンドルドラッグ」は、頂点の選択（`A`）の頂点のドラッグ（`DRAGGING_HANDLE`）を指す語として今も正しいため直していない。回した円・弧の確認項目1の「5か所」は見た目の端ではない（下の確認項目の補足を参照）。
+    1. 直線のツールで点を3つ以上打ってパスを描く。その後、円のツールで、円の中心がパスの点の上に来るように円を描く。`V`でパスと円を両方選び（`Ctrl`+クリックか範囲選択）、`A`に切り替えると、円の中心に重なったパスの点をドラッグで動かせる。円の右・上・左・下の端がパスの点に重なるように描いたときも同じ。弧でも同じ。円を`V`で外枠の角の外側から回した後も、中心などに重なった点がつかめる（回した後の「右・上・左・下」は円の見た目の端ではなく、中心から回した後の右端の制御点との横の差・上端の制御点との縦の差だけ離れた位置。30度回した半径20の円なら、中心から横・縦に約17.3の4か所と中心。回す前の円・弧は、中心から半径ぶんの上下左右）。点の上ではカーソルが移動の形になり、クリックするとその点が選ばれる（青くなる）。
     2. 先にパスを描き、その点の上に真ん中が来るように後から直線を描く。両方を選んで`A`にすると、直線の真ん中に重なったパスの点をドラッグで動かせる。ほかの図形の点が無い直線の真ん中には、今までどおり点は出ず、押して引くと範囲選択になる。
     3. `A`の今までの操作が変わらない：点のドラッグ、点の`Ctrl`+クリックでの追加・解除、範囲選択、複数の点のまとめ移動、矢印キー、位置の欄、「角」の切り替え、線の端の点をほかの線の端へ近づけたときの吸い付きとつながり。点どうしが重なる所では手前の図形の点がつかまれる。円・弧には点が出ない。
     4. `V`の今までの操作が変わらない：クリックでの選択、`Ctrl`+クリック、本体のドラッグでの移動（直線の真ん中の線の上を含む）、`Alt`+ドラッグの複製、外枠のハンドルでの拡大縮小、外枠の角の外側での回転、空白からの範囲選択、カーソルの形。塗りのない円の中心は今までどおり空白の扱い（押して引くと範囲選択）。`V`では図形ごとの点が出ず、外枠とそのハンドルだけが出る。
