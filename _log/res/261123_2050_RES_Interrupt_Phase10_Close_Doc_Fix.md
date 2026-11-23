@@ -283,7 +283,7 @@ Phase 10のクローズに伴うSurvey（`./_log/res/261123_1315_RES_Survey_Phas
             新: (d) 回した円・弧の座標と、弧の外枠の値（反転の前から）に三角関数由来の約1e-14の誤差が出る（裏返した円・弧の座標には出ない。テストは許容誤差で比べる）。
             ```
         *   直した記述が同じ資料の別の箇所・別のファイルと矛盾しないかを確かめ、触ったファイルの行末をバイト数で確かめる。4章に、直した番号と前後の記述の要点、行末の実測値を書く。
-*   [ ] タスク5: 要件5 `PROJECT_ARCHITECTURE.md` の追加（A1〜A4）
+*   [x] タスク5: 要件5 `PROJECT_ARCHITECTURE.md` の追加（A1〜A4）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新。記述の修正）
         *   本RESファイル :（更新。3章のチェック・4章の担当の欄。必要なら5章の末尾）
@@ -705,7 +705,10 @@ Phase 10のクローズに伴うSurvey（`./_log/res/261123_1315_RES_Survey_Phas
 
 ### タスク5: 要件5 `PROJECT_ARCHITECTURE.md` の追加（A1〜A4）
 *   **作業内容** :
-    *   （未実施）
+    *   A1（652行）：「線を含む外枠」の正本が`SpriteSerializer.computeShapesBounds`であることを明示し、線を含まない外枠（`ShapeExtentReader.getSelectedGeometryBounds`）は27.を参照する書き方にした。「2通りにしない」の約束は残した。実コード照合：両メソッドが`SpriteSerializer.js:315`・`ShapeExtentReader.js:47`に存在。
+    *   A2（629・644・661・716行。タスク3で5行減ったため計画の番号から−5）：「1章「存在しないもの」のPhase 08-03／08-04／08-05／09-02bの分のとおり（」を外し、各列挙末尾の閉じ括弧を外した。列挙の項目は変えていない。
+    *   A3（246・248・250行）：「Phase 09-03aの時点」「Phase 09-02aの時点」「その時点（Phase 09-01a・09-03a）」と時点を書き添え、今の版は3と付記。A4（767行）：「Phase 10-03の完了時は」を件数の前に追加（件数は不変）。
+    *   旧の文字列はすべて1回だけ現れ、`python`の`rb`／`wb`で置き換えた。行末の実測：`PROJECT_ARCHITECTURE.md` 398050→398031バイト、CRLF／LF 820／820→820／820（変化なし）。`git diff --stat`は9行の変更のみ。
 
 ### タスク6: 要件6 `_doc/arch/01_index_html.md`・`02_main.md`・`index.html`（No.25〜No.29・A5・C1）
 *   **作業内容** :
