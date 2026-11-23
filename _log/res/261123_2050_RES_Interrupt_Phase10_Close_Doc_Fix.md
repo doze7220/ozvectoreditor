@@ -358,7 +358,7 @@ Phase 10のクローズに伴うSurvey（`./_log/res/261123_1315_RES_Survey_Phas
             新: （件数は`_doc/arch/16_test.md`。Phase 10-03の完了時はtests 2467 / suites 400）
             ```
         *   直した記述が同じ資料の別の箇所・別のファイルと矛盾しないかを確かめ、触ったファイルの行末をバイト数で確かめる。4章に、直した番号と前後の記述の要点、行末の実測値を書く。
-*   [ ] タスク6: 要件6 `_doc/arch/01_index_html.md`・`02_main.md`・`index.html`（No.25〜No.29・A5・C1）
+*   [x] タスク6: 要件6 `_doc/arch/01_index_html.md`・`02_main.md`・`index.html`（No.25〜No.29・A5・C1）
     *   **対象ファイル** :
         *   `./_doc/arch/01_index_html.md` :（更新。記述の修正）
         *   `./_doc/arch/02_main.md` :（更新。記述の修正）
@@ -712,7 +712,10 @@ Phase 10のクローズに伴うSurvey（`./_log/res/261123_1315_RES_Survey_Phas
 
 ### タスク6: 要件6 `_doc/arch/01_index_html.md`・`02_main.md`・`index.html`（No.25〜No.29・A5・C1）
 *   **作業内容** :
-    *   （未実施）
+    *   No.25（01の12行）：`y 108〜約450`を`y 108〜486`へ。No.26・27（15行）：まとまりを7つにし大きさ・変形の2グループ（Phase 10-03）を追記、`user-select: text`の欄を太さ・位置・幅・高さ・角度へ。照合：`index.html`の`.toolbar-group`は`#option-style-group`〜`#option-corner-group`ほか、`user-select: text`のセレクタは`#option-stroke-width`・`position-x/y`・`size-width/height`・`angle`の6欄（436〜446行）で一致。No.28（15行・17行）：CSSコメント名を「ツールバーの各行の幅の見積もり」へ（`index.html:487`で一致）。
+    *   No.29（02の4行）：`resetViewToCenter`を追記（`js/main.js:306`に存在）。A5（02の3行）：切り出しの例外を`wiring/DisplayWiring`・`wiring/ToolIconWiring`の2つとした（`js/wiring/`の2ファイルと一致。同じ行のPhase 10-03・10-02時点の「切り出しはしていない」は未変更）。
+    *   C1（`index.html`の236・237行のコメント）：x 28〜74、y 108〜486、見出し39px＋本体337px＋枠2pxへ。宣言は未変更。
+    *   旧の文字列はすべて1回だけ現れ、`python`の`rb`／`wb`で置き換えた。行末の実測（バイト数、CRLF／LF）：01 33974→34069、20／20→20／20。02 41346→41461、84／84→84／84。`index.html` 42208→42199、CRLF／LF 0／689→0／689（`rb`で数え直した値。変化なし）。`git diff --stat`は3ファイル計7行の変更のみ。
 
 ### タスク7: 要件7 `_doc/arch/06_InputTracker.md`・`js/core/InputTracker.js`（No.30〜No.32・C2）
 *   **作業内容** :
