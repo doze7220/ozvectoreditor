@@ -603,7 +603,7 @@ Phase 10のクローズに伴うSurvey（`./_log/res/261123_1315_RES_Survey_Phas
             新: 版3・版4への版上げはどちらもエンジンへ連絡済み（Phase 09-04・Phase 10-04。2章））。
             ```
         *   直した記述が同じ資料の別の箇所・別のファイルと矛盾しないかを確かめ、触ったファイルの行末をバイト数で確かめる。4章に、直した番号と前後の記述の要点、行末の実測値を書く。
-*   [ ] タスク11: 要件10（後半） `_doc/arch/40`・`42`・`43`（No.19・No.20・No.23・No.45）
+*   [x] タスク11: 要件10（後半） `_doc/arch/40`・`42`・`43`（No.19・No.20・No.23・No.45）
     *   **対象ファイル** :
         *   `./_doc/arch/40_asset_sprite.md` :（更新。記述の修正）
         *   `./_doc/arch/42_ScaleHandleRules.md` :（更新。記述の修正）
@@ -745,7 +745,8 @@ Phase 10のクローズに伴うSurvey（`./_log/res/261123_1315_RES_Survey_Phas
 
 ### タスク11: 要件10（後半） `_doc/arch/40`・`42`・`43`（No.19・No.20・No.23・No.45）
 *   **作業内容** :
-    *   （未実施）
+    *   No.45（40の2行）：`SpriteSerializer.js`の`SPRITE_FORMAT_VERSION = 4`・`checkFormat`が版1〜4を受理することと一致。生成物は版2のままの記述を残した。No.20（42の6行）：`shapes/ShapeGeometry`の`AffineTransform`を`import()`型参照で参照するJSDocは`RotationRules.js:211・236`と`ScaleHandleRules.js:317`で、`core/`のファイルとしては`RotationRules`・`ScaleHandleRules`の2か所。1章228行の「2か所だけ」と一致（`RotationRules.js:7`は型参照ではなく通常のimport文）。No.19（42の8行）：`RotationRules.js:5`のimportは`SCALE_HANDLE_NAMES`・`hitTestScaleHandle`・`collectFrameCorners`で`computeFrameCenter`を含まない（1章228行の「importしなくなった」と一致）。No.23（43の2行）：`resolveDisplayedScaleFrame`は`rotationView`が`null`なら`frame`を返す（43の8行と一致）。「引数を書き換えない」は残した。
+    *   旧の文字列はすべて1回だけ現れ、`python`の`rb`／`wb`で置き換えた。行末の実測（バイト数、CRLF／LF）：40 2692→2685、0／6→0／6。42 9003→9010、0／11→0／11。43 9206→9336、0／14→0／14。`git diff --stat`は3ファイル4行の変更のみ。
 
 ### タスク12: 要件11 確認と懸念事項の記述（固定タスク）
 *   **作業内容** :
