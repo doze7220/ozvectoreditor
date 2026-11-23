@@ -490,7 +490,7 @@ Phase 10のクローズに伴うSurvey（`./_log/res/261123_1315_RES_Survey_Phas
             新: 弧の始点・終点は、今の約束の位置では左端・右端（回した・左右に裏返した弧では点のとおり。`points`の先頭の中心
             ```
         *   直した記述が同じ資料の別の箇所・別のファイルと矛盾しないかを確かめ、触ったファイルの行末をバイト数で確かめる。4章に、直した番号と前後の記述の要点、行末の実測値を書く。
-*   [ ] タスク9: 要件9 `_doc/arch/16_test.md`（No.38〜No.42・No.46・No.47）
+*   [x] タスク9: 要件9 `_doc/arch/16_test.md`（No.38〜No.42・No.46・No.47）
     *   **対象ファイル** :
         *   `./_doc/arch/16_test.md` :（更新。記述の修正）
         *   本RESファイル :（更新。3章のチェック・4章の担当の欄。必要なら5章の末尾）
@@ -731,7 +731,10 @@ Phase 10のクローズに伴うSurvey（`./_log/res/261123_1315_RES_Survey_Phas
 
 ### タスク9: 要件9 `_doc/arch/16_test.md`（No.38〜No.42・No.46・No.47）
 *   **作業内容** :
-    *   （未実施）
+    *   No.38（188行）：`VectorModel.replaceShapesKeepingIds.test.js`が`console.warn`を一時的に差し替え`finally`で戻す補助を持つことを確かめ、「`t.mock.method`で抑止」を計画の新の文へ。No.39（19行）：`PointHitRules.test.js`の`hitTestHandle: () => 'bogus'`の偽の図形1件を確かめ、例外の旨を追記。
+    *   No.40（194行）・No.41（207行）：配線の列挙から`isScalingSelection`を外し、本文に「今はテストが無い」を追加（`Esc`の`document`依存の理由は外した）。見出し「テストできない箇所」・236行の「（Node.js v24.20.0で確認）」（No.43）・件数の記載は未変更。
+    *   No.42（236行）：`HistoryManager`を使う`test/edit/`のテスト（`ClipboardController`・`PathCornerEditor`・`PathCornerEditor.segmentSwitch`・`ShapeOrderEditor`・`ShapeStyleEditor`・`StyleEyedropper`・`TransformInputEditor`）の存在を確かめ、計画の新の文へ。No.46（34行）：`SpriteSerializer.js:19`の`SPRITE_FORMAT_VERSION = 4`と一致。No.47（228行）：`DocumentSerializer.js`の`CURRENT_DOCUMENT_VERSION = 3`・`MIGRATIONS`が1→2・2→3と一致。
+    *   旧の文字列はすべて1回だけ現れ、`python`の`rb`／`wb`で置き換えた。行末の実測（バイト数、CRLF／LF）：16_test 131429→131945、237／237→237／237（変化なし）。`git diff --stat`は1ファイル7行の変更のみ。
 
 ### タスク10: 要件10（前半） `_doc/arch/07`・`14`・`15`・`32`（No.5・No.7〜No.9・No.11・No.12・No.14）
 *   **作業内容** :
