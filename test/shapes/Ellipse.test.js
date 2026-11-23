@@ -716,14 +716,12 @@ describe('Ellipse.toJSON と toDrawElement', () => {
 });
 
 describe('Ellipse.getHandlePosition', () => {
-    it('円・弧それぞれで5つのハンドルの位置（左端・下端は計算上の位置）', () => {
+    it('円・弧それぞれで5つの名前（move・right・up・left・down）の位置はすべてnull（位置なし）', () => {
         for (const type of ['circle', 'arc']) {
             const ellipse = new Ellipse(10, 20, 40, 60, type);
-            assert.deepEqual(ellipse.getHandlePosition('move'), { x: 10, y: 20 });
-            assert.deepEqual(ellipse.getHandlePosition('right'), { x: 40, y: 20 });
-            assert.deepEqual(ellipse.getHandlePosition('up'), { x: 10, y: -20 });
-            assert.deepEqual(ellipse.getHandlePosition('left'), { x: -20, y: 20 });
-            assert.deepEqual(ellipse.getHandlePosition('down'), { x: 10, y: 60 });
+            for (const name of ['move', 'right', 'up', 'left', 'down']) {
+                assert.equal(ellipse.getHandlePosition(name), null);
+            }
         }
     });
 
@@ -742,23 +740,34 @@ describe('Ellipse.getHandlePosition', () => {
         }
     });
 
-    it('返したオブジェクトを書き換えても図形は変わらず、毎回新しいオブジェクト', () => {
-        const ellipse = new Ellipse(0, 0, 50, 50);
-        const before = JSON.stringify(ellipse);
-        const pos = ellipse.getHandlePosition('right');
-        pos.x = 999;
-        pos.y = 999;
-        assert.equal(JSON.stringify(ellipse), before);
-        assert.notEqual(ellipse.getHandlePosition('right'), ellipse.getHandlePosition('right'));
-        assert.deepEqual(ellipse.getHandlePosition('right'), { x: 50, y: 0 });
+});
+
+describe('Ellipse.hitTestHandle・getVertexIndexForHandle（頂点のハンドルを持たない）', () => {
+    it('hitTestHandleは5か所（円・弧・回した円）でnull', () => {
+        const rotate = { a: 0, b: 1, c: -1, d: 0, e: 0, f: 0 };
+        const shapes = [
+            new Ellipse(10, 20, 40, 60, 'circle'),
+            new Ellipse(10, 20, 40, 60, 'arc'),
+            new Ellipse(10, 20, 40, 60, 'circle').createTransformed(rotate),
+        ];
+        for (const ellipse of shapes) {
+            const p = ellipse.points;
+            const xc = p[0].x;
+            const yc = p[0].y;
+            const rx = Math.abs(p[1].x - xc);
+            const ry = Math.abs(p[2].y - yc);
+            const spots = [[xc, yc], [xc + rx, yc], [xc, yc - ry], [xc - rx, yc], [xc, yc + ry]];
+            for (const [x, y] of spots) {
+                assert.equal(ellipse.hitTestHandle(x, y, 1000), null);
+            }
+        }
     });
 
-    it('返した位置をhitTestHandleへ渡すとそのハンドル名が返る（円・弧）', () => {
+    it('getVertexIndexForHandleは5つの名前でnull', () => {
         for (const type of ['circle', 'arc']) {
-            const ellipse = new Ellipse(100, 100, 160, 140, type);
+            const ellipse = new Ellipse(10, 20, 40, 60, type);
             for (const name of ['move', 'right', 'up', 'left', 'down']) {
-                const pos = ellipse.getHandlePosition(name);
-                assert.equal(ellipse.hitTestHandle(pos.x, pos.y, 1), name);
+                assert.equal(ellipse.getVertexIndexForHandle(name), null);
             }
         }
     });

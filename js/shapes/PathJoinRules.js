@@ -215,7 +215,7 @@ export function lineEndpointOf(data, end) {
  * 結合できる線の端点が図形データの何番目の頂点か（`getVertexIndexForHandle`が返す番号＝`points[i]`の`i`）を返す。
  * 端点のハンドルの判定（`EndpointSnapRules.resolveEndpointHandle`）の頂点の番号の読み方の唯一の箇所。
  * 直線・パスは0／`points.length - 1`、今の曲線は0／2（制御点の番号1は端点でない）。
- * 弧は`null`（弧の端は`chainSourceOf`が中心と半径から求めた点で、弧のハンドル（`'left'`・`'right'`・`'up'`・`'down'`・`'move'`）は半径の編集のハンドルであり端点のハンドルではない）。
+ * 弧は`null`（弧の端は`chainSourceOf`が中心と半径から求めた点で、弧は頂点のハンドルを持たないためハンドル名から番号は得られない）。
  * 結合できる線の`toJSON()`の値を渡す。引数を書き換えない。
  * @param {{type?: string, points: Array<{x: number, y: number}>}} data 結合できる線の`toJSON()`の値
  * @param {'start'|'end'} end 'start'＝始点／'end'＝終点

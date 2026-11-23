@@ -78,12 +78,12 @@ export class Line {
     }
 
     /**
-     * 点(x, y)が始点・終点・移動（中点）のいずれかのハンドルの許容誤差(tolerance)以内にあるかを判定する。
-     * 複数のハンドルが同時にtolerance以内となる場合は、start → end → move の優先順位で先着1件を返す。
+     * 点(x, y)が始点・終点のいずれかのハンドルの許容誤差(tolerance)以内にあるかを判定する。中点には頂点でないハンドルを持たない。
+     * 複数のハンドルが同時にtolerance以内となる場合は、start → end の優先順位で先着1件を返す。
      * @param {number} x - 判定対象点のX座標（ワールド座標）
      * @param {number} y - 判定対象点のY座標（ワールド座標）
      * @param {number} tolerance - 許容誤差（ワールド座標の長さ。呼び出し側が画面上の許容誤差をワールド換算して渡す）
-     * @returns {'start'|'end'|'move'|null} 該当したハンドルの種別。いずれにも該当しなければnull
+     * @returns {'start'|'end'|null} 該当したハンドルの種別。いずれにも該当しなければnull
      */
     hitTestHandle(x, y, tolerance) {
         const distTo = (hx, hy) => Math.hypot(x - hx, y - hy);
@@ -91,31 +91,26 @@ export class Line {
         if (distTo(this.x1, this.y1) <= tolerance) return 'start';
         if (distTo(this.x2, this.y2) <= tolerance) return 'end';
 
-        const midX = (this.x1 + this.x2) / 2;
-        const midY = (this.y1 + this.y2) / 2;
-        if (distTo(midX, midY) <= tolerance) return 'move';
-
         return null;
     }
 
     /**
      * ハンドル名（`hitTestHandle`の戻り値）から、そのハンドルの位置を返す（共通メソッド契約の第17メソッド）。
-     * 位置は`hitTestHandle`・`drawHandles`と同じ式（`'start'`＝始点、`'end'`＝終点、`'move'`＝中点）で求める。
+     * 位置は`hitTestHandle`・`drawHandles`と同じ式（`'start'`＝始点、`'end'`＝終点）で求める。中点（`'move'`）のハンドルは無く、`null`。
      * ハンドル名でない値（`null`・`undefined`・未知の文字列・文字列以外・`'constructor'`等の`Object.prototype`のキー名）は`null`。
      * 戻り値は新しいオブジェクトで、書き換えても自身は変わらない。
-     * @param {*} handleName - ハンドル名（'start'|'end'|'move'）。任意の値を受け、これ以外は`null`を返す
+     * @param {*} handleName - ハンドル名（'start'|'end'）。任意の値を受け、これ以外は`null`を返す
      * @returns {{x: number, y: number}|null} ハンドルの位置（ワールド座標）。該当なしはnull
      */
     getHandlePosition(handleName) {
         if (handleName === 'start') return { x: this.x1, y: this.y1 };
         if (handleName === 'end') return { x: this.x2, y: this.y2 };
-        if (handleName === 'move') return { x: (this.x1 + this.x2) / 2, y: (this.y1 + this.y2) / 2 };
         return null;
     }
 
     /**
      * 頂点として扱えるハンドル名の一覧を返す（共通メソッド契約の第18メソッド）。
-     * 始点・終点の2つ（`'move'`＝中点は頂点ではないため含めない）。
+     * 始点・終点の2つ（中点のハンドルは無い）。
      * 並びは`getVertexIndexForHandle`が返す頂点の番号の昇順。一覧の各名前は`hitTestHandle`が返しうる名前で、
      * `getVertexIndexForHandle`が番号を、`getHandlePosition`が位置を返す。
      * 戻り値は毎回新しい配列で、書き換えても自身は変わらない。

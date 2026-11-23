@@ -220,13 +220,9 @@ describe('computeVertexHandlesBounds', () => {
         assert.equal(computeVertexHandlesBounds(shapes, []), null);
     });
 
-    test('円・弧は getVertexHandleNames が空でも、渡されたハンドル名の位置が求まる', () => {
+    test('円・弧は getVertexHandleNames が空で、渡されたハンドル名の位置も求まらない（null）', () => {
         assert.deepEqual(circle.getVertexHandleNames(), []);
-        const pos = circle.getHandlePosition('right');
-        assert.deepEqual(
-            computeVertexHandlesBounds(shapes, [{ shapeId: 'e', handle: 'right' }]),
-            { minX: pos.x, minY: pos.y, maxX: pos.x, maxY: pos.y }
-        );
+        assert.equal(computeVertexHandlesBounds(shapes, [{ shapeId: 'e', handle: 'right' }]), null);
     });
 
     test('引数を書き換えない', () => {

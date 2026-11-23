@@ -218,67 +218,30 @@ export class Ellipse {
     }
 
     /**
-     * 座標(x, y)にあるハンドルを判定してその名前を返す。
-     * 優先順位: 中心('move') -> 右端('right') -> 上端('up') -> 左端('left') -> 下端('down')
-     * 注意：今の約束の位置（`points[1]`が中心の右の同じ高さ・`points[2]`が中心の上の同じ横位置）を前提にした式で、回した・裏返した円・弧では正しくない。選択（`V`）・頂点の選択（`A`）からは呼ばれない到達不能の枝のため式は変えない。
-     * @param {number} x - 判定するX座標
-     * @param {number} y - 判定するY座標
-     * @param {number} tolerance - 当たり判定の許容誤差
-     * @returns {string|null} ヒットしたハンドル名。該当なしの場合はnull
+     * 座標(x, y)にあるハンドルを判定する（共通メソッド契約の第5メソッド）。
+     * 円・弧は頂点のハンドルを持たないため常に`null`（当たらない）。引数は契約の形を揃えるために受け取り、使わない。
+     * @param {number} x - 判定するX座標（使わない）
+     * @param {number} y - 判定するY座標（使わない）
+     * @param {number} tolerance - 当たり判定の許容誤差（使わない）
+     * @returns {null} 常にnull
      */
     hitTestHandle(x, y, tolerance) {
-        const xc = this.points[0].x;
-        const yc = this.points[0].y;
-        const rx = Math.abs(this.points[1].x - xc);
-        const ry = Math.abs(this.points[2].y - yc);
-
-        const checkHit = (hx, hy) => Math.hypot(x - hx, y - hy) <= tolerance;
-
-        // 中心 ('move')
-        if (checkHit(xc, yc)) return 'move';
-        // 右端 ('right')
-        if (checkHit(xc + rx, yc)) return 'right';
-        // 上端 ('up')
-        if (checkHit(xc, yc - ry)) return 'up';
-        // 左端 ('left')
-        if (checkHit(xc - rx, yc)) return 'left';
-        // 下端 ('down')
-        if (checkHit(xc, yc + ry)) return 'down';
-
         return null;
     }
 
     /**
-     * ハンドル名（`hitTestHandle`の戻り値）から、そのハンドルの位置を返す（共通メソッド契約の第17メソッド）。
-     * 位置は`hitTestHandle`・`drawHandles`と同じ式（`rx`・`ry`は`hitTestHandle`と同じ求め方）：
-     * 'move'＝中心、'right'＝(xc + rx, yc)、'up'＝(xc, yc − ry)、'left'＝(xc − rx, yc)、'down'＝(xc, yc + ry)。
-     * 'left'・'down'は`points`に実体がなく、中心からの対称位置として計算した位置（ダミーのハンドル）である。
-     * 注意：今の約束の位置（`points[1]`が中心の右の同じ高さ・`points[2]`が中心の上の同じ横位置）を前提にした式で、回した・裏返した円・弧では正しくない。選択（`V`）・頂点の選択（`A`）からは呼ばれない到達不能の枝のため式は変えない。
-     * 対応表を引かず`===`の厳密比較で分岐するため、ハンドル名でない値（`null`・`undefined`・未知の文字列・文字列以外・
-     * `Object.prototype`のキー名）は例外にせず`null`を返す。
-     * 戻り値は新しいオブジェクトで、書き換えても自身は変わらない。
-     * @param {*} handleName - ハンドル名（'move'|'right'|'up'|'left'|'down'）。任意の値を受け、これ以外は`null`を返す
-     * @returns {{x: number, y: number}|null} ハンドルの位置（ワールド座標）。該当なしはnull
+     * ハンドル名から、そのハンドルの位置を返す（共通メソッド契約の第17メソッド）。
+     * 円・弧は頂点のハンドルを持たないため常に`null`（位置なし）。引数は契約の形を揃えるために受け取り、使わない。
+     * @param {*} handleName - ハンドル名（使わない）
+     * @returns {null} 常にnull
      */
     getHandlePosition(handleName) {
-        const xc = this.points[0].x;
-        const yc = this.points[0].y;
-        const rx = Math.abs(this.points[1].x - xc);
-        const ry = Math.abs(this.points[2].y - yc);
-
-        if (handleName === 'move') return { x: xc, y: yc };
-        if (handleName === 'right') return { x: xc + rx, y: yc };
-        if (handleName === 'up') return { x: xc, y: yc - ry };
-        if (handleName === 'left') return { x: xc - rx, y: yc };
-        if (handleName === 'down') return { x: xc, y: yc + ry };
         return null;
     }
 
     /**
      * 頂点として扱えるハンドル名の一覧を返す（共通メソッド契約の第18メソッド）。
-     * 円・弧は頂点として扱えるハンドルを持たないため常に空配列（`'move'`・`'right'`・`'up'`・`'left'`・`'down'`も含めない）。
-     * 並びは`getVertexIndexForHandle`が返す頂点の番号の昇順。一覧の各名前は`hitTestHandle`が返しうる名前で、
-     * `getVertexIndexForHandle`が番号を、`getHandlePosition`が位置を返す。
+     * 円・弧は頂点として扱えるハンドルを持たないため常に空配列（`hitTestHandle`・`getHandlePosition`・`getVertexIndexForHandle`も常に`null`）。
      * 戻り値は毎回新しい配列で、書き換えても自身は変わらない。
      * @returns {string[]} 頂点のハンドル名の配列
      */
@@ -288,16 +251,12 @@ export class Ellipse {
 
     /**
      * ハンドル名から対応する頂点インデックス（this.pointsのインデックス）を返す。
-     * 'move' は InputTracker 側で処理されるため含まない。
-     * 左端('left')・下端('down')は、計算によって対称位置にあるダミーハンドルであり、
-     * ドラッグ時には右端('right')・上端('up')と同じインデックス(1, 2)を返し、setVertex 側で中心からの距離として正規化させる設計意図を持つ。
-     * 注意：今の約束の位置（`points[1]`が中心の右の同じ高さ・`points[2]`が中心の上の同じ横位置）を前提にした式で、回した・裏返した円・弧では正しくない。選択（`V`）・頂点の選択（`A`）からは呼ばれない到達不能の枝のため式は変えない。
-     * @param {string} handleName - ハンドル名
-     * @returns {number|null} 頂点インデックス。該当しない場合はnull
+     * 円・弧は頂点のハンドルを持たないため常に`null`（番号なし）。引数は契約の形を揃えるために受け取り、使わない。
+     * @param {string} handleName - ハンドル名（使わない）
+     * @returns {null} 常にnull
      */
     getVertexIndexForHandle(handleName) {
-        const lookup = { right: 1, up: 2, left: 1, down: 2 };
-        return lookup[handleName] ?? null;
+        return null;
     }
 
     /**
@@ -461,7 +420,8 @@ export class Ellipse {
      * 単純な座標代入を行わず、中心からの絶対距離(rx, ry)を再計算して
      * 正準位置（右端・上端）へ再配置する正規化を行う。
      * これにより、左端や下端をドラッグしても図形が反転ワープする不具合を防止する。
-     * 注意：今の約束の位置（`points[1]`が中心の右の同じ高さ・`points[2]`が中心の上の同じ横位置）を前提にした式で、回した・裏返した円・弧では正しくない。選択（`V`）・頂点の選択（`A`）からは呼ばれない到達不能の枝のため式は変えない。
+     * 注意：円・弧は頂点のハンドルを持たないため画面の操作からは番号が渡らない。`VectorModel.updateVertices`が種別を分けず呼ぶ契約のメソッドで、
+     * テストの図形の組み立てが使うため残す。今の約束の位置（`points[1]`が中心の右の同じ高さ・`points[2]`が中心の上の同じ横位置）を前提にした式で、回した・裏返した円・弧では正しくない。
      * @param {number} vertexIndex - 更新する頂点のインデックス (0, 1, 2)
      * @param {number} x - 新しいX座標
      * @param {number} y - 新しいY座標
@@ -475,12 +435,12 @@ export class Ellipse {
             this.points[0].y = y;
             this.#updatePointsFromRadii(rx, ry);
         } else if (vertexIndex === 1) {
-            // 右端（または左端）ハンドルの移動: x座標から新しいrxを計算
+            // 頂点の番号1（中心の右）の移動: x座標から新しいrxを計算
             const rx = Math.abs(x - this.points[0].x);
             const ry = Math.abs(this.points[2].y - this.points[0].y);
             this.#updatePointsFromRadii(rx, ry);
         } else if (vertexIndex === 2) {
-            // 上端（または下端）ハンドルの移動: y座標から新しいryを計算
+            // 頂点の番号2（中心の上）の移動: y座標から新しいryを計算
             const rx = Math.abs(this.points[1].x - this.points[0].x);
             const ry = Math.abs(y - this.points[0].y);
             this.#updatePointsFromRadii(rx, ry);
@@ -747,7 +707,7 @@ export class Ellipse {
      * 5頂点を`data`の座標値から新規オブジェクトとして設定し直す。
      * `points[3]`/`[4]`（開始角・終了角制御点）も再計算せず`data`の値をそのまま採用する
      * （往復で`toJSON()`の内容を一致させるため。描画・当たり判定は`points[0..2]`と角度のみに依存し、
-     * 不整合な値でも`right`/`up`/`left`/`down`のハンドル操作で正準位置へ再計算され、`move`では平行移動されるだけ）。
+     * 不整合な値でも形は`points[0..2]`だけから読まれ、`[3]`・`[4]`は変形・平行移動で一緒に写るだけ）。
      * 座標・色・太さ・種別を`data`の値どおりに復元し、角度は`type`から同一値に決まるため、`toJSON()`の出力から
      * 復元した図形は描画・当たり判定・頂点操作・`toJSON()`の結果が元の図形と一致する（往復の一致）。
      * `id`は検証せず`data.id`をそのまま保持する（欠落なら`undefined`）。idの正規化・振り直しは

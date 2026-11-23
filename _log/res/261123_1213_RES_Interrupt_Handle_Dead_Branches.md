@@ -140,7 +140,7 @@
         *   `InputModes.js`：`MOVING_SELECTION`の「moveハンドル・」と、`SELECT`の「ハンドルドラッグ」（→外枠のハンドルでの拡大縮小・外枠の角の外側での回転）のコメントだけを直す。
         *   テストは「2.」の表のとおり（`PressActionRules.test.js`は行末が混在しているため、触らない行の行末を変えない）。
         *   `node --test`全件合格。JSDocの記載漏れの確認。「4.」の記入と、開発資料の更新予定欄への追記（影響が判明した場合。資料本体は修正しない）。
-*   [ ] タスク4: 直線の`move`と、円・弧の図形ごとのハンドルの式を消す（要件2(4)・要件3）
+*   [x] タスク4: 直線の`move`と、円・弧の図形ごとのハンドルの式を消す（要件2(4)・要件3）
     *   **対象ファイル** :
         *   `./js/shapes/Line.js` :（更新）
         *   `./js/shapes/Ellipse.js` :（更新）
@@ -213,7 +213,12 @@
 
 ### タスク4: 直線の`move`と、円・弧の図形ごとのハンドルの式を消す（要件2(4)・要件3）
 *   **作業内容** :
-    *   （未実施）
+    *   着手時に`hitTestHandle(`・`getHandlePosition(`・`getVertexIndexForHandle(`・`.setVertex(`を`js/`でGrepし直し、呼び出し元が「2.」の表のとおり（`PointHitRules`・`VertexHandleRules`・`InputTracker`・`NudgeEditor`・`PathCornerEditor`・`EndpointSnapRules`・`VectorModel.updateVertices`・図形クラス内）であることを確認。
+    *   `Line.js`：`hitTestHandle`の中点の判定と`getHandlePosition`の`'move'`を消し、JSDoc（概要・優先順位・`@returns`・`@param`・`getVertexHandleNames`）を直した。
+    *   `Ellipse.js`：`hitTestHandle`・`getHandlePosition`・`getVertexIndexForHandle`の本体を`return null;`だけにし（引数は残し、使わないとJSDocに明記）、「到達不能の枝」の注意・ダミーハンドルの説明を消した。`getVertexHandleNames`のJSDocを合わせた。`setVertex`は式を変えずJSDocの注意と本体のコメント（頂点の番号1・2の移動）を直した。`fromJSON`のJSDocの「ハンドル操作で正準位置へ再計算…」を直した。
+    *   `EndpointSnapRules.js`・`PathJoinRules.js`：JSDocのみ（弧は頂点のハンドルを持たず番号が得られない旨）。
+    *   テスト：`Line.test.js`（`'move'`の期待を`null`・名前の並びから`'move'`を除去・「中点では`hitTestHandle`が`null`」1件追加）、`Ellipse.test.js`（5つの名前で`null`の期待に変更・`getHandlePosition`の2件削除・新`describe`で`hitTestHandle`と`getVertexIndexForHandle`の2件追加）、`VertexHandleRules.test.js`（`null`の期待へ変更）。行末は各ファイルの元のまま（Line.js＝LF、Ellipse.js・`EndpointSnapRules.js`・`PathJoinRules.js`・`Line.test.js`・`VertexHandleRules.test.js`＝CRLF、`Ellipse.test.js`は触った範囲がCRLF）。
+    *   `node --test`全件合格：tests 2471 / suites 401（見込みどおり）。
 
 ### タスク5: 各図形クラスの`drawHandles`を消し、共通メソッド契約を18にする（要件2(2)）
 *   **作業内容** :
@@ -232,6 +237,7 @@
 * **`Ellipse.getHandlePosition`の扱いの解釈**：`test/core/VertexHandleRules.test.js`の1件が「円のハンドル名を渡すと位置が求まる」ことを期待している。この期待は消す処理（円・弧のハンドルの位置）のふるまいそのものなので、「使っているから残す」ではなくREQの(b)（消したことで必然的に変わる期待値）として`null`の期待へ変える計画にした。REQ要件2(4)の例「円・弧は『当たらない』『位置なし』」に合わせている。
 * **`CursorShapeRules`の(4)の`DRAGGING_HANDLE`**：選択モードで`DRAGGING_HANDLE`になる経路は無いが、REQ要件2の範囲に無いため残す（報告のみ）。
 * **要件1の絞り込みと要件2(4)の重なり**：図形側から頂点でないハンドルを消すだけでも今の5種別の不具合は直るが、保証は規則側（`PointHitRules`）に置き、図形側の整理とは独立に成り立つようにした。
+* **タスク4の残り**：`Line.js`・`Ellipse.js`のクラスJSDoc（「19メソッド」・`drawHandles`）と`Line.getHandlePosition`・`Ellipse.getHandlePosition`のJSDocの「第17メソッド」・`Line.getHandlePosition`の「`drawHandles`と同じ式」・`Line.drawHandles`のJSDoc（移動ハンドル・中点の円）・`Ellipse.drawHandles`は、タスク5（`drawHandles`を消す・番号の繰り上げ）で直す。`Ellipse.hitTestHandle`は`drawHandles`の消える前でも契約の第5メソッドのため番号はそのまま。`Ellipse`の`hitTestHandle`・`getHandlePosition`・`getVertexIndexForHandle`は未使用引数が残る（契約の形を揃えるため）。
 * 自動テストの対象外（目視で確かめる箇所）：`CanvasManager.render`の描画、`InputTracker`の配線、`main.js`の`renderCurrentState`。
 * **テストプレイの確認項目（下書き。タスク6で裏取りして確定する。最初に`Ctrl`+`F5`で読み込み直す）**：
     1. 直線のツールで点を3つ以上打ってパスを描く。その後、円のツールで、円の中心がパスの点の上に来るように円を描く。`V`でパスと円を両方選び（`Ctrl`+クリックか範囲選択）、`A`に切り替えると、円の中心に重なったパスの点をドラッグで動かせる。円の右・上・左・下の端がパスの点に重なるように描いたときも同じ。弧でも同じ。円を`V`で外枠の角の外側から回した後も、中心などに重なった点がつかめる。点の上ではカーソルが移動の形になり、クリックするとその点が選ばれる（青くなる）。

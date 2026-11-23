@@ -446,11 +446,11 @@ describe('Line.toJSON / toDrawElement の fillColor', () => {
 });
 
 describe('Line.getHandlePosition', () => {
-    it("'start'・'end'・'move'（中点）の位置を返す", () => {
+    it("'start'・'end'の位置を返し、'move'（中点）は位置なし（null）", () => {
         const line = new Line(10, 20, 50, 100);
         assert.deepEqual(line.getHandlePosition('start'), { x: 10, y: 20 });
         assert.deepEqual(line.getHandlePosition('end'), { x: 50, y: 100 });
-        assert.deepEqual(line.getHandlePosition('move'), { x: 30, y: 60 });
+        assert.equal(line.getHandlePosition('move'), null);
     });
 
     it('未知の名前・null・undefined・文字列以外はnull', () => {
@@ -470,7 +470,7 @@ describe('Line.getHandlePosition', () => {
 
     it('返したオブジェクトを書き換えても図形は変わらず、呼ぶたびに新しいオブジェクト', () => {
         const line = new Line(10, 20, 50, 100);
-        for (const name of ['start', 'end', 'move']) {
+        for (const name of ['start', 'end']) {
             const pos = line.getHandlePosition(name);
             pos.x = 999;
             pos.y = -999;
@@ -484,10 +484,15 @@ describe('Line.getHandlePosition', () => {
 
     it('返した位置をhitTestHandleへ渡すとそのハンドル名が返る', () => {
         const line = new Line(10, 20, 50, 100);
-        for (const name of ['start', 'end', 'move']) {
+        for (const name of ['start', 'end']) {
             const pos = line.getHandlePosition(name);
             assert.equal(line.hitTestHandle(pos.x, pos.y, 1), name);
         }
+    });
+
+    it('中点ではhitTestHandleがnull（中点のハンドルは無い）', () => {
+        const line = new Line(10, 20, 50, 100);
+        assert.equal(line.hitTestHandle(30, 60, 1), null);
     });
 });
 
