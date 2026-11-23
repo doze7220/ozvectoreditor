@@ -450,7 +450,7 @@ Phase 10のクローズに伴うSurvey（`./_log/res/261123_1315_RES_Survey_Phas
             新: MARQUEE_SELECTING/SCALING_SELECTION/ROTATING_SELECTION状態では未使用（null）。
             ```
         *   直した記述が同じ資料の別の箇所・別のファイルと矛盾しないかを確かめ、触ったファイルの行末をバイト数で確かめる。4章に、直した番号と前後の記述の要点、行末の実測値を書く。
-*   [ ] タスク8: 要件8 `_doc/arch/12_shapes.md`（No.33〜No.37）
+*   [x] タスク8: 要件8 `_doc/arch/12_shapes.md`（No.33〜No.37）
     *   **対象ファイル** :
         *   `./_doc/arch/12_shapes.md` :（更新。記述の修正）
         *   本RESファイル :（更新。3章のチェック・4章の担当の欄。必要なら5章の末尾）
@@ -725,7 +725,9 @@ Phase 10のクローズに伴うSurvey（`./_log/res/261123_1315_RES_Survey_Phas
 
 ### タスク8: 要件8 `_doc/arch/12_shapes.md`（No.33〜No.37）
 *   **作業内容** :
-    *   （未実施）
+    *   No.33（42行）：`getHandlePosition`の呼び出し元を、`VertexHandleRules.js`（26・68行の`getHandlePosition`）と`NudgeEditor.js`（143行）を読んで`core/VertexHandleRules`・`edit/NudgeEditor`まで広げた。No.34（44行）：`TransformInputEditor`の`#apply`が`createTransformed`を呼び、`setSize`・`rotateBy`・`flip`から使われることを確かめ、`edit/TransformInputEditor`（幅・高さ・角度の欄と反転。Phase 10-03）を足した。Survey 5章の契機は「位置・大きさ・角度の欄・反転」だが、位置の欄は`NudgeEditor`の平行移動で`TransformInputEditor`の受け持ちではない。この食い違いは現場設計セッションへ報告済みで、「位置」を除いて書いてよいと確認されている。No.35（43行）：`PathCornerEditor.js`の`getVertexHandleNames`を呼ぶ箇所（152行付近の頂点の選択の付け替え）を確かめ、使う側に`edit/PathCornerEditor`を足した。
+    *   No.36（72行）：「90°回した弧も」を「横の半径が縦より小さい弧を90°回した形も」へ。No.37（79行の2か所）：頂点3つの括弧を「始点・頂上・終点」へ、始点・終点の位置に「今の約束の位置では」と、回した・左右に裏返した弧は点のとおりである旨を足した。同じファイルの8行（`lineEndpointOf`の「今の約束の位置では左端・右端」）・13行（`arcChainSourceOf`の「今の約束の位置では左端…」）と食い違わないことを確かめた。
+    *   旧の文字列はすべて1回だけ現れ、`python`の`rb`／`wb`で置き換えた。行末の実測（バイト数、CRLF／LF）：12_shapes 64464→64915、91／91→91／91。`git diff --stat`は1ファイル5行の変更のみ。
 
 ### タスク9: 要件9 `_doc/arch/16_test.md`（No.38〜No.42・No.46・No.47）
 *   **作業内容** :
