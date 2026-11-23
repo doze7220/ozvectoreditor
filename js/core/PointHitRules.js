@@ -1,31 +1,33 @@
 /**
- * 責務: 選択モード・頂点の選択のモードの当たり分類の規則（ある点が選択集合の図形のハンドル・図形の本体・空白のどれに当たるか）を、
- * 図形の公開メソッドと選択中かの照会だけで判定する、状態を持たない関数として提供する。
+ * 責務: 選択モード・頂点の選択のモードの当たり分類の規則（ある点が選択集合の図形の頂点のハンドル・図形の本体・空白のどれに当たるか）を、
+ * 図形の公開メソッドと選択中かの照会だけで判定する、状態を持たない関数として提供する。頂点でないハンドルは当たりにせず、奥の頂点を隠さない。
  * 塗った内側・ハンドルを当たりに含めるかは引数で受け取る。
  */
+import { isVertexHandle } from './VertexHandleRules.js';
 
 /**
  * 当たり分類の結果。ホバー・押下・クリック・カーソル形状の判定で共通に用いる（正本。`InputTracker`はこれを参照する）。
  * handleもbodyIdもnullの場合は「空白」を表す。
  * @typedef {Object} PointHit
  * @property {{shapeId: string, handle: string} | null} handle
- *     選択集合の図形のハンドル（前面優先。`includeHandles`が偽のときは常にnull）。shapeId：ハンドルが属する図形のid（単一）、handle：hitTestHandleの戻り値
+ *     選択集合の図形の頂点のハンドル（前面優先。頂点でないハンドルは当たりにしない。`includeHandles`が偽のときは常にnull）。shapeId：ハンドルが属する図形のid（単一）、handle：hitTestHandleの戻り値（その図形のgetVertexHandleNamesの名前）
  * @property {string | null} bodyId
  *     本体の図形のid（単一）。選択集合の図形の輪郭を優先し、それ以外は手前（図形配列の後ろ）から輪郭または塗った内側
  *     （塗った内側は`includeFill`が真のときだけ当たりに含める）
  */
 
 /**
- * ハンドルの当たりを判定する。選択集合の図形だけを対象に、図形配列の後ろ（描画順で前面）から
- * `shape.hitTestHandle`を呼び、最初に非nullとなった図形とハンドル名を返す
- * （`CanvasManager`がハンドルを図形配列の順に描くため、重なり順と一致する）。
+ * 頂点のハンドルの当たりを判定する。選択集合の図形だけを対象に、図形配列の後ろ（描画順で前面）から
+ * `shape.hitTestHandle`を呼び、ハンドル名が返り、かつそれが頂点のハンドル（`isVertexHandle`）である最初の図形とハンドル名を返す。
+ * 頂点でないハンドル名は当たりにせず、打ち切らずに次（奥）の図形へ進む（手前の頂点でないハンドルが奥の頂点を隠さないため）。
+ * 頂点どうしが重なるときは手前の図形が優先される（`CanvasManager`が頂点のハンドルを図形配列の順にまとめて描くため、重なり順と一致する）。
  * `shapes`は読むだけで書き換えず、`isSelected`は呼ぶだけ。
- * @param {Array<{id: string, hitTestHandle: function(number, number, number): (string|null)}>} shapes - 図形の配列（描画順。後ろが手前）
+ * @param {Array<{id: string, hitTestHandle: function(number, number, number): (string|null), getVertexHandleNames: function(): string[]}>} shapes - 図形の配列（描画順。後ろが手前）
  * @param {function(string): boolean} isSelected - 選択集合に含まれるかの照会
  * @param {number} x - 判定する点のX座標（ワールド座標）
  * @param {number} y - 判定する点のY座標（ワールド座標）
  * @param {number} tolerance - ハンドルの当たりの許容誤差（ワールドの長さ）
- * @returns {{shapeId: string, handle: string} | null} 当たったハンドル。なければnull
+ * @returns {{shapeId: string, handle: string} | null} 当たった頂点のハンドル。なければnull
  */
 function findHandleHit(shapes, isSelected, x, y, tolerance) {
     for (let i = shapes.length - 1; i >= 0; i--) {
@@ -34,7 +36,7 @@ function findHandleHit(shapes, isSelected, x, y, tolerance) {
             continue;
         }
         const handleName = shape.hitTestHandle(x, y, tolerance);
-        if (handleName) {
+        if (handleName && isVertexHandle(shape, handleName)) {
             return { shapeId: shape.id, handle: handleName };
         }
     }
@@ -76,10 +78,10 @@ function findBodyHit(shapes, isSelected, x, y, tolerance, includeFill) {
 
 /**
  * 指定した点の当たり分類を行う。`handle`と`bodyId`は独立に求める（ハンドルが当たっても`bodyId`を求める）。
- * 規則：ハンドル（選択集合・手前優先）→ 本体（選択集合の図形の輪郭・手前優先 → 手前から輪郭、または`includeFill`が真のときの塗った内側）。
+ * 規則：頂点のハンドル（選択集合・手前優先。頂点でないハンドルは当たりにしない）→ 本体（選択集合の図形の輪郭・手前優先 → 手前から輪郭、または`includeFill`が真のときの塗った内側）。
  * `includeFill`が偽のとき塗った内側は空白になる（ハンドルと選択集合の図形の輪郭の優先は変わらない）。
  * `includeHandles`が偽のときは`findHandleHit`を呼ばず`handle`を常にnullにする（`bodyId`・`includeFill`の意味は変わらない）。
- * 使う図形のメンバーは`id`・`hitTestHandle`・`hitTest`・`hitTestFill`のみ。
+ * 使う図形のメンバーは`id`・`hitTestHandle`・`getVertexHandleNames`・`hitTest`・`hitTestFill`のみ。
  * `shapes`は読むだけで書き換えず、`isSelected`は呼ぶだけ。例外を投げない（図形が契約を満たす前提）。
  * @param {Array<Object>} shapes - 図形の配列（描画順。後ろが手前。`model.getShapes()`の戻り値）
  * @param {function(string): boolean} isSelected - 選択集合に含まれるかの照会

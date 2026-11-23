@@ -9,7 +9,7 @@ import { InputState, OperationMode, CANCELABLE_DRAG_STATES } from './InputModes.
 import { isTextInputElement, isSpaceYieldedElement } from './FocusKeyYieldRules.js';
 import { SHAPE_TYPES } from './ShapeFactory.js';
 import { classifyPointHit } from './PointHitRules.js';
-import { isVertexHandle, collectVertexHandlesInRect } from './VertexHandleRules.js';
+import { collectVertexHandlesInRect } from './VertexHandleRules.js';
 import { resolvePressAction, resolveVertexPressAction } from './PressActionRules.js';
 import { resolveCursorShape } from './CursorShapeRules.js';
 import { resolveClickSelection, resolveMarqueeSelection, resolveVertexMarqueeSelection, resolveVertexClickSelection } from './SelectionRules.js';
@@ -221,7 +221,7 @@ export function hasCtrlModifier(event) {
  * 全頂点の更新をmodel.updateVerticesへ1回で渡す（updateVertexは使わない。端点への吸い付きはドラッグする頂点が1つのときだけ）。
  * 図形種別の分岐・図形固有のプロパティ名は持たない。
  * 当たり分類の規則（ハンドル・本体の優先順位）はPointHitRules.classifyPointHitに委ねる。#classifyPointは、操作モードからハンドルを当たりに含めるか
- * （includeHandles。頂点の選択のモードのみ真）を決めて渡し、頂点の選択のモードでは当たったハンドルをVertexHandleRules.isVertexHandleで頂点のハンドルに絞り込む
+ * （includeHandles。頂点の選択のモードのみ真）を決めて渡し、結果をそのまま返す（頂点のハンドルだけに絞り込むのはPointHitRulesの側）
  * （塗った内側を当たりに含めるかは、コンストラクタ第6引数で注入された照会に従う）。
  * 頂点の選択のモード（OperationMode.VERTEX）では、頂点のハンドルのクリックでCtrlの有無により頂点の選択へ足す・外す・その頂点だけに選び直し、
  * 範囲選択（MARQUEE_SELECTING）で範囲に入る頂点をまとめて選び、選んだ頂点のハンドルのドラッグで選んだ頂点をまとめて動かす
@@ -1933,33 +1933,24 @@ export class InputTracker {
      * カーソル形状（#updateCursor）で共通に用いる（クリック時に古いホバー状態へ依存しないため）。
      * 規則の正本はPointHitRules.classifyPointHit。本メソッドはモデルの図形配列・選択中かの照会・座標・許容誤差を渡して結果を返すだけで、
      * 図形のメソッド（hitTest・hitTestHandle・hitTestFill）を直接呼ばない。規則の要約：
-     * ・ハンドル（今のまま）：選択集合の図形を対象に、図形配列の後ろ（前面）から最初に当たったハンドル。
+     * ・ハンドル：選択集合の図形を対象に、図形配列の後ろ（前面）から最初に当たった頂点のハンドル（頂点でないハンドルは当たりにせず、奥の図形へ進む）。
      * ・本体：選択集合の図形の輪郭を手前優先で優先し、なければ手前から輪郭または塗った内側（選択集合の内側を優先しない）。
      *   塗った内側を当たりに含めるかは、注入された照会（#isFillHitExcluded）の否定をそのまま渡して決める（含めないときは輪郭だけ）。
      * ・ハンドルを当たりに含めるのは頂点の選択のモードだけ（includeHandles。選択モードでは含めず、handleは常にnull）。
-     *   頂点の選択のモードでは、当たったハンドルがその図形の頂点のハンドル（isVertexHandle）でなければ、handleをnullにしてbodyIdだけを返す。
      * 許容誤差は#getWorldHitTolerance()（画面上hitTolerance pxのワールド換算値）。
      * @param {{x: number, y: number}} point 判定位置（ワールド座標）
      * @returns {PointHit} 当たり分類の結果（handle・bodyIdともnullなら空白）
      */
     #classifyPoint(point) {
-        const isVertexMode = this.currentMode === OperationMode.VERTEX;
-        const hit = classifyPointHit(
+        return classifyPointHit(
             this.model.getShapes(),
             (id) => this.model.isSelected(id),
             point.x,
             point.y,
             this.#getWorldHitTolerance(),
             !this.#isFillHitExcluded(),
-            isVertexMode
+            this.currentMode === OperationMode.VERTEX
         );
-        if (isVertexMode && hit.handle) {
-            const shape = this.model.getShapes().find((s) => s.id === hit.handle.shapeId);
-            if (!isVertexHandle(shape, hit.handle.handle)) {
-                return { handle: null, bodyId: hit.bodyId };
-            }
-        }
-        return hit;
     }
 
     // ---- 座標取得 ----

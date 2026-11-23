@@ -259,3 +259,138 @@ describe('classifyPointHit: includeHandles', () => {
         assert.equal(classifyPointHit(shapes, selectedBy([]), 50, 50, TOLERANCE, false, false).bodyId, null);
     });
 });
+
+/**
+ * 指定した位置を最初の頂点にし、残りを遠くに置いた開いたパスを作る。
+ * @param {string} id 図形id
+ * @param {{x: number, y: number}} first 最初の頂点の位置
+ * @returns {Path} パス（頂点は'vertex-0'・'vertex-1'・'vertex-2'）
+ */
+function makePathStartingAt(id, first) {
+    const path = new Path([first, { x: first.x + 500, y: first.y }, { x: first.x + 500, y: first.y + 500 }], false, '#000000', 2, null);
+    path.id = id;
+    return path;
+}
+
+/**
+ * 円・弧の回した後の図形の`points`から、頂点でないハンドルがあった5か所（中心・右・上・左・下）を求める。
+ * 直す前の`hitTestHandle`と同じ式（図形のハンドルのメソッドは呼ばない）。
+ * @param {Ellipse} shape 円または弧
+ * @returns {Array<{x: number, y: number}>} 中心・右・上・左・下の位置
+ */
+function fiveNonVertexPositions(shape) {
+    const xc = shape.points[0].x;
+    const yc = shape.points[0].y;
+    const rx = Math.abs(shape.points[1].x - xc);
+    const ry = Math.abs(shape.points[2].y - yc);
+    return [
+        { x: xc, y: yc },
+        { x: xc + rx, y: yc },
+        { x: xc, y: yc - ry },
+        { x: xc - rx, y: yc },
+        { x: xc, y: yc + ry },
+    ];
+}
+
+/**
+ * 点(cx, cy)のまわりに角度angleだけ回すアフィン変換を作る。
+ * @param {number} cx 回転の中心のX座標
+ * @param {number} cy 回転の中心のY座標
+ * @param {number} angle 回転角（ラジアン）
+ * @returns {{a: number, b: number, c: number, d: number, e: number, f: number}} アフィン変換
+ */
+function rotationAround(cx, cy, angle) {
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    return { a: cos, b: sin, c: -sin, d: cos, e: cx - (cos * cx - sin * cy), f: cy - (sin * cx + cos * cy) };
+}
+
+describe('classifyPointHit: 頂点でないハンドル', () => {
+    const FIVE_NAMES = ['中心', '右', '上', '左', '下'];
+
+    test('手前が円・奥がパス：円の中心・右・上・左・下に重なったパスの頂点が当たる', () => {
+        const front = makeCircle('c', 100, 100, 20, null);
+        const positions = fiveNonVertexPositions(front);
+        positions.forEach((pos, i) => {
+            const shapes = [makePathStartingAt('p', pos), front];
+            const hit = classifyPointHit(shapes, selectedBy(['p', 'c']), pos.x, pos.y, TOLERANCE, true, true);
+            assert.deepEqual(hit.handle, { shapeId: 'p', handle: 'vertex-0' }, FIVE_NAMES[i]);
+        });
+    });
+
+    test('手前が弧・奥が線：弧の中心・右・上・左・下に重なった線の頂点が当たる', () => {
+        const front = new Ellipse(100, 100, 120, 80, 'arc', '#000000', 2, null);
+        front.id = 'a';
+        const positions = fiveNonVertexPositions(front);
+        positions.forEach((pos, i) => {
+            const back = makeLine('l', [pos.x, pos.y, pos.x + 500, pos.y]);
+            const hit = classifyPointHit([back, front], selectedBy(['l', 'a']), pos.x, pos.y, TOLERANCE, true, true);
+            assert.deepEqual(hit.handle, { shapeId: 'l', handle: 'start' }, FIVE_NAMES[i]);
+        });
+    });
+
+    test('手前が回した円・奥が線：回した後の5か所に重なった線の頂点が当たる', () => {
+        const front = makeCircle('c', 100, 100, 20, null).createTransformed(rotationAround(100, 100, Math.PI / 6));
+        const positions = fiveNonVertexPositions(front);
+        positions.forEach((pos, i) => {
+            const back = makeLine('l', [pos.x, pos.y, pos.x + 500, pos.y]);
+            const hit = classifyPointHit([back, front], selectedBy(['l', 'c']), pos.x, pos.y, TOLERANCE, true, true);
+            assert.deepEqual(hit.handle, { shapeId: 'l', handle: 'start' }, FIVE_NAMES[i]);
+        });
+    });
+
+    test('手前が回した弧・奥がパス：回した後の5か所に重なったパスの頂点が当たる', () => {
+        const arc = new Ellipse(100, 100, 120, 80, 'arc', '#000000', 2, null);
+        arc.id = 'a';
+        const front = arc.createTransformed(rotationAround(100, 100, Math.PI / 6));
+        const positions = fiveNonVertexPositions(front);
+        positions.forEach((pos, i) => {
+            const shapes = [makePathStartingAt('p', pos), front];
+            const hit = classifyPointHit(shapes, selectedBy(['p', 'a']), pos.x, pos.y, TOLERANCE, true, true);
+            assert.deepEqual(hit.handle, { shapeId: 'p', handle: 'vertex-0' }, FIVE_NAMES[i]);
+        });
+    });
+
+    test('手前が直線の中点・奥がパス：中点に重なったパスの頂点が当たる', () => {
+        const front = makeLine('l', [100, 100, 140, 100]);
+        const shapes = [makePathStartingAt('p', { x: 120, y: 100 }), front];
+        const hit = classifyPointHit(shapes, selectedBy(['p', 'l']), 120, 100, TOLERANCE, true, true);
+        assert.deepEqual(hit.handle, { shapeId: 'p', handle: 'vertex-0' });
+    });
+
+    test('手前が直線の中点・奥が線：中点に重なった線の頂点が当たる', () => {
+        const front = makeLine('f', [100, 100, 140, 100]);
+        const back = makeLine('b', [120, 100, 620, 100]);
+        const hit = classifyPointHit([back, front], selectedBy(['b', 'f']), 120, 100, TOLERANCE, true, true);
+        assert.deepEqual(hit.handle, { shapeId: 'b', handle: 'start' });
+    });
+
+    test('円の中心で奥に頂点が無いとき、handleはnullでbodyIdはincludeHandlesが偽のときと同じ', () => {
+        const front = makeCircle('c', 100, 100, 20, null);
+        const back = makeRect('r', [300, 300, 400, 400], null);
+        const on = classifyPointHit([back, front], selectedBy(['r', 'c']), 100, 100, TOLERANCE, true, true);
+        const off = classifyPointHit([back, front], selectedBy(['r', 'c']), 100, 100, TOLERANCE, true, false);
+        assert.equal(on.handle, null);
+        assert.equal(on.bodyId, off.bodyId);
+    });
+
+    test('頂点どうしの重なりは手前の図形が優先される', () => {
+        const front = makeLine('l', [100, 100, 140, 100]);
+        const shapes = [makePathStartingAt('p', { x: 140, y: 100 }), front];
+        const hit = classifyPointHit(shapes, selectedBy(['p', 'l']), 140, 100, TOLERANCE, true, true);
+        assert.deepEqual(hit.handle, { shapeId: 'l', handle: 'end' });
+    });
+
+    test('hitTestHandleが頂点でない名前を返す図形（getVertexHandleNamesに無い名前）が手前でも、奥の頂点が当たる', () => {
+        const fake = {
+            id: 'f',
+            hitTestHandle: () => 'bogus',
+            getVertexHandleNames: () => ['vertex-0'],
+            hitTest: () => false,
+            hitTestFill: () => false,
+        };
+        const shapes = [makePathStartingAt('p', { x: 50, y: 50 }), fake];
+        const hit = classifyPointHit(shapes, selectedBy(['p', 'f']), 50, 50, TOLERANCE, true, true);
+        assert.deepEqual(hit.handle, { shapeId: 'p', handle: 'vertex-0' });
+    });
+});

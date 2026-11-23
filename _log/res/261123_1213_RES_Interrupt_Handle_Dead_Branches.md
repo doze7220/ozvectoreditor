@@ -105,7 +105,7 @@
     *   `42_ScaleHandleRules.md`（LF）：10行目（到達不能の枝）。`32_InputModes.md`（LF）：`SELECT`・`MOVING_SELECTION`の説明に「moveハンドル・ハンドルドラッグ」があれば。`27_SelectionRules.md`・`41_NudgeTargetRules.md`：`hit.handle`・`'move'`に触れた記述の確認。
 
 ## 3. タスクリスト
-*   [ ] タスク1: 当たり分類で頂点のハンドルだけを当たりにする（要件1・要件4）
+*   [x] タスク1: 当たり分類で頂点のハンドルだけを当たりにする（要件1・要件4）
     *   **対象ファイル** :
         *   `./test/core/PointHitRules.test.js` :（更新。追加のみ）
         *   `./js/core/PointHitRules.js` :（更新）
@@ -189,7 +189,10 @@
 
 ### タスク1: 当たり分類で頂点のハンドルだけを当たりにする（要件1・要件4）
 *   **作業内容** :
-    *   （未実施）
+    *   `test/core/PointHitRules.test.js`へ、新しい`describe`「classifyPointHit: 頂点でないハンドル」を追加（9件、補助関数3つ：`makePathStartingAt`・`fiveNonVertexPositions`・`rotationAround`、いずれもJSDoc付き。回した図形は`createTransformed`で作成）。修正前に`node --test test/core/PointHitRules.test.js`を実行し、8件失敗（⑧頂点どうしの重なりだけ通る）を確認。
+    *   `PointHitRules.js`：`isVertexHandle`をimportし、`findHandleHit`の条件を`handleName && isVertexHandle(shape, handleName)`に変更。先頭の責務定義・`PointHit`・`findHandleHit`・`classifyPointHit`のJSDocを合わせた（使う図形のメンバーに`getVertexHandleNames`を追加）。
+    *   `InputTracker.js`：`#classifyPoint`の後からの絞り込みを消し`classifyPointHit`の結果をそのまま返すようにした。importから`isVertexHandle`を除去。クラスJSDoc・`#classifyPoint`のJSDocを合わせた。
+    *   `node --test`全件合格：tests 2476 / suites 401（見込みどおり）。行末は各ファイルの元のまま（InputTracker・テストはCRLF、PointHitRulesはLF）。
 
 ### タスク2: `showHandles`・`selectedIds`と`drawHandles`を呼ぶ段を消す（要件2(1)）
 *   **作業内容** :
