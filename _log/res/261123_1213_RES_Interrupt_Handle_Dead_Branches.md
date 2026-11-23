@@ -174,7 +174,7 @@
         *   選択（`V`）の押下・カーソルが、`hit.handle`が`null`の入力に対して作業前後で同じであることを、作業前のソース（`git show 52b5980:<パス>`で一時フォルダへ取り出す。読み取りのみ）と`resolvePressAction`・`resolveCursorShape`の結果を総当たりで比べて確かめる。
         *   タスク1〜5で変えた全ファイルのJSDocの記載漏れと、先頭の責務定義が保たれていることを確かめる。
         *   「4.」の記入と、開発資料の更新予定欄への追記（影響が判明した場合。資料本体は修正しない）。
-*   [ ] タスク7（固定タスク）: 『開発資料の更新予定』を確認し、開発資料へ反映する
+*   [x] タスク7（固定タスク）: 『開発資料の更新予定』を確認し、開発資料へ反映する
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新）
         *   `./_doc/arch/`の`02_main.md`・`04_CanvasManager.md`・`06_InputTracker.md`・`10_ShapeFactory.md`・`12_shapes.md`・`16_test.md`・`18_PointHitRules.md`・`34_PressActionRules.md`・`35_CursorShapeRules.md`・`38_VertexHandleRules.md`・`42_ScaleHandleRules.md` :（更新）
@@ -240,7 +240,12 @@
 
 ### タスク7（固定タスク）: 『開発資料の更新予定』を確認し、開発資料へ反映する
 *   **作業内容** :
-    *   （未実施）
+    *   行末は書き換える前後に`git ls-files --eol`とPythonのバイト数（CRLF・LFの数）で実測し、保った（書き換え後：CRLF＝`PROJECT_ARCHITECTURE.md`・02・04・06・12・16、LF＝10・18・34・35・38・42。混在・単独のCRは無し）。編集は行内の置換だけで行い、新しい行は元の行末で足した。
+    *   `PROJECT_ARCHITECTURE.md`：1章（`PointHitRules.js`のツリーの説明に`VertexHandleRules`のimport、`VertexHandleRules.js`の使い手に`PointHitRules`、依存方向に例外`PointHitRules → VertexHandleRules`、「存在しないもの」の弧の半径のハンドル・moveハンドル）、2章（契約の数の変遷に「`drawHandles`を消して18・`createTransformed`は第18」、`Ellipse`の「到達不能の枝」を「ハンドルの式」の決着の記述に、曲がり方を持つ区間の`drawHandles`）、3章3.（絞り込みは`PointHitRules.findHandleHit`の中。クリックの「外枠のハンドルの上は何もしない」・moveハンドル）、11.・12.（弧のハンドル・moveハンドル）、15.（`drawHandles`の項）、17.（第17→第16メソッド・`'move'`・円・弧の位置）、18.（`showHandles`の項・`drawHandles`が呼ばれなくなる項を決着の記述に・`includeHandles`の絞り込みの場所・直線の中点`move`）、19.（線の中点`'move'`）、24.（18メソッド）、25.（第19→第18メソッド・図形ごとのハンドルより優先）、26.（図形ごとのハンドルより優先・到達不能の枝・(i)）。過去のPhaseの「やらないこと」の項は、当時の記述のまま「後に消した」を添えた。
+    *   `_doc/arch/`：`02_main.md`（行数1183・`showHandles`・`selectedIds`）、`04_CanvasManager.md`（`render`の引数・描画順から`drawHandles`の段を除く）、`06_InputTracker.md`（`dragHandle`・moveハンドル・`#classifyPoint`の絞り込み・`isVertexHandle`のimport・行数2020）、`10_ShapeFactory.md`（18メソッド）、`12_shapes.md`（契約18・一覧・第14〜第18メソッド・ハンドル名の契約・`Line`・`Ellipse`・弧の記述・ハンドルの式の決着）、`16_test.md`（本作業の項を新設：追加12・削除9・書き換え・件数 tests 2470 / suites 401、`PointHitRules.test.js`の説明、08-02aの「テストできない箇所」の`#classifyPoint`の絞り込み、`drawHandles`を含む「テストできない箇所」（Node.js v24.20.0で確認の項））、`18_PointHitRules.md`（import・規則(1)・使う側・注意・テスト）、`34_PressActionRules.md`（`dragHandle`・`MOVE_HANDLE_NAME`・判定の表を順0・0b・1〜3に・テスト27件）、`35_CursorShapeRules.md`（(7)欠番・テスト49件）、`38_VertexHandleRules.md`（`isVertexHandle`の使い手・円のハンドル名は位置が求まらない）、`42_ScaleHandleRules.md`（到達不能の枝の注意）。`27_SelectionRules.md`・`32_InputModes.md`・`41_NudgeTargetRules.md`は`hit.handle`・`'move'`・moveハンドルに触れた記述が無く、変更なし。
+    *   過去の経緯の記録（`16_test.md`の過去の作業の項の件数と記述、契約の数の変遷の途中の数、`12_shapes.md`の「（Phase 07-05）」の理由、`PROJECT_ARCHITECTURE.md`の過去のPhaseの決定の記述）は書き換えず、必要な所に「後にInterruptで消した」の添え書きだけを足した。`02_main.md`・`06_InputTracker.md`の行数は実測値（`wc -l`：1183・2020。作業前のソースは1187・2035で、差はそれぞれ-4・-15）。
+    *   反映後のGrep：`drawHandles`・`showHandles`・`dragHandle`・`MOVE_HANDLE_NAME`・`19メソッド`・`第1[0-9]メソッド`・「到達不能」・「moveハンドル」・`isVertexHandle`・`'move'`の残りは、本作業の記述（決着・消した旨）、契約の数の変遷・過去のPhaseの「当時」の記述、`16_test.md`の過去の項、作業後も正しい記述（カーソルの`'move'`・`Path`の`'move'`は`null`・`isVertexHandle`の定義と使い手）だけであることを確かめた。
+    *   `node --test`全件合格：tests 2470 / suites 401 / pass 2470 / fail 0。ソース・テストは変更していない。
 
 ## 5. 懸念事項・要確認ポイント
 * **`Ellipse.setVertex`は消さない**：本番では円・弧の頂点の番号が渡らないが、既存のテスト（往復・書き出し・当たり判定）が楕円・動かした円を組み立てる手段として使っており、REQの「少しでも使われていれば残す」に当たるため。
@@ -250,8 +255,9 @@
 * **タスク4の残り**：`Line.js`・`Ellipse.js`のクラスJSDoc（「19メソッド」・`drawHandles`）と`Line.getHandlePosition`・`Ellipse.getHandlePosition`のJSDocの「第17メソッド」・`Line.getHandlePosition`の「`drawHandles`と同じ式」・`Line.drawHandles`のJSDoc（移動ハンドル・中点の円）・`Ellipse.drawHandles`は、タスク5（`drawHandles`を消す・番号の繰り上げ）で直す。（訂正）`Ellipse.hitTestHandle`の「第5メソッド」も`drawHandles`（2番目）が抜けて第4メソッドになるため、タスク5で繰り上げた（「番号はそのまま」は誤り）。`Ellipse`の`hitTestHandle`・`getHandlePosition`・`getVertexIndexForHandle`は未使用引数が残る（契約の形を揃えるため）。
 * **タスク5の確認**：`js/shapes/`で「第2〜第9メソッド」の番号は`Ellipse.hitTestHandle`の1件のみで、ほかに繰り上げ漏れはない。タスク6のJSDoc総点検でも番号の並び（契約の一覧の順）を見ること。
 * 自動テストの対象外（目視で確かめる箇所）：`CanvasManager.render`の描画、`InputTracker`の配線、`main.js`の`renderCurrentState`。
-* **テストプレイの確認項目（タスク6で実コードと突き合わせて確定した。最初に`Ctrl`+`F5`で読み込み直す）**：
+* **タスク7の補足（開発資料）**：`PROJECT_ARCHITECTURE.md`・`_doc/arch/`は過去のPhaseの決定・当時の数値を残す書き方のため、今を説明する記述だけを直し、過去の項は「後にInterruptで消した」の添え書きにとどめた。次の資料の更新時は、`12_shapes.md`の契約18メソッドの一覧と`PROJECT_ARCHITECTURE.md`2章の契約の数の変遷を同時に直すこと。目視確認の推奨：`PROJECT_ARCHITECTURE.md`の3章18.（611行付近の決着の記述）と`_doc/arch/16_test.md`の本作業の項。
 * **タスク6の補足**：`InputTracker`のJSDocの「ハンドルドラッグ」は、頂点の選択（`A`）の頂点のドラッグ（`DRAGGING_HANDLE`）を指す語として今も正しいため直していない。回した円・弧の確認項目1の「5か所」は見た目の端ではない（下の確認項目の補足を参照）。
+* **テストプレイの確認項目（タスク6で実コードと突き合わせて確定した。最初に`Ctrl`+`F5`で読み込み直す）**：
     1. 直線のツールで点を3つ以上打ってパスを描く。その後、円のツールで、円の中心がパスの点の上に来るように円を描く。`V`でパスと円を両方選び（`Ctrl`+クリックか範囲選択）、`A`に切り替えると、円の中心に重なったパスの点をドラッグで動かせる。円の右・上・左・下の端がパスの点に重なるように描いたときも同じ。弧でも同じ。円を`V`で外枠の角の外側から回した後も、中心などに重なった点がつかめる（回した後の「右・上・左・下」は円の見た目の端ではなく、中心から回した後の右端の制御点との横の差・上端の制御点との縦の差だけ離れた位置。30度回した半径20の円なら、中心から横・縦に約17.3の4か所と中心。回す前の円・弧は、中心から半径ぶんの上下左右）。点の上ではカーソルが移動の形になり、クリックするとその点が選ばれる（青くなる）。
     2. 先にパスを描き、その点の上に真ん中が来るように後から直線を描く。両方を選んで`A`にすると、直線の真ん中に重なったパスの点をドラッグで動かせる。ほかの図形の点が無い直線の真ん中には、今までどおり点は出ず、押して引くと範囲選択になる。
     3. `A`の今までの操作が変わらない：点のドラッグ、点の`Ctrl`+クリックでの追加・解除、範囲選択、複数の点のまとめ移動、矢印キー、位置の欄、「角」の切り替え、線の端の点をほかの線の端へ近づけたときの吸い付きとつながり。点どうしが重なる所では手前の図形の点がつかまれる。円・弧には点が出ない。
