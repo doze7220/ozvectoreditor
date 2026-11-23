@@ -85,7 +85,7 @@ Phase 10のクローズに伴うSurvey（`./_log/res/261123_1315_RES_Survey_Phas
 *   本作業は開発資料の修正そのものが目的で、テンプレートの「書き換えは最終タスクのみ」の定めは適用しない（REQの指示）。各タスクで担当する資料を直接直す。責務マッピングの変更はない。
 
 ## 3. タスクリスト
-*   [ ] タスク1: 要件1 `PROJECT_ARCHITECTURE.md` 1章（No.1〜No.4）
+*   [x] タスク1: 要件1 `PROJECT_ARCHITECTURE.md` 1章（No.1〜No.4）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新。記述の修正）
         *   本RESファイル :（更新。3章のチェック・4章の担当の欄。必要なら5章の末尾）
@@ -651,7 +651,11 @@ Phase 10のクローズに伴うSurvey（`./_log/res/261123_1315_RES_Survey_Phas
 
 ### タスク1: 要件1 `PROJECT_ARCHITECTURE.md` 1章（No.1〜No.4）
 *   **作業内容** :
-    *   （未実施）
+    *   No.1（29行）：`InputModes`の使う側に`ScaleHandleRules`を追記。実コードの照合：`InputModes`のimport元は`js/`の9ファイル（`ScaleHandleRules.js:5`を含む）で一致。
+    *   No.2（42行）：`NudgeTargetRules`の使う側に`edit/PathCornerEditor`を追記。import元は`PathCornerEditor.js:6`を含む4ファイルで一致。
+    *   No.3（218行）：10-02・10-03の列挙末尾から「エンジンでの版4の確認と連絡票（Phase 10-04）」の2か所を削除。No.4（218行）：「エンジンでの版3の確認と連絡票（Phase 09-04）」を削除。行内のほかの項目・265行(c)は未変更。
+    *   旧の文字列はすべて1回だけ現れ、置き換えた（`python`の`rb`／`wb`）。No.2の旧は、RES記載どおりだと一意だったが、短縮形では2回現れるため全文で置き換えた。
+    *   行末の実測：`PROJECT_ARCHITECTURE.md` 398982→398838バイト、CRLF／LF 825／825→825／825（変化なし）。`git diff --stat`は3行の変更のみ。
 
 ### タスク2: 要件2 `PROJECT_ARCHITECTURE.md` 3章3.・17.（No.6・No.10・No.44）
 *   **作業内容** :
