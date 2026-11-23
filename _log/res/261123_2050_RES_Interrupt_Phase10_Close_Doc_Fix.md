@@ -634,7 +634,7 @@ Phase 10のクローズに伴うSurvey（`./_log/res/261123_1315_RES_Survey_Phas
             新: オブジェクトを返す関数は新しいオブジェクトを返し（`resolveDisplayedScaleFrame`は`rotationView`が`null`なら`frame`をそのまま返す）、いずれも引数を書き換えない。
             ```
         *   直した記述が同じ資料の別の箇所・別のファイルと矛盾しないかを確かめ、触ったファイルの行末をバイト数で確かめる。4章に、直した番号と前後の記述の要点、行末の実測値を書く。
-*   [ ] タスク12: 要件11 確認と懸念事項の記述（固定タスク）
+*   [x] タスク12: 要件11 確認と懸念事項の記述（固定タスク）
     *   **対象ファイル** :
         *   本RESファイル :（更新。資料・コードは変えない）
     *   **作業内容** :
@@ -750,7 +750,16 @@ Phase 10のクローズに伴うSurvey（`./_log/res/261123_1315_RES_Survey_Phas
 
 ### タスク12: 要件11 確認と懸念事項の記述（固定タスク）
 *   **作業内容** :
-    *   （未実施）
+    *   `node --check js/core/InputTracker.js`：エラーなし。`node --test`（ルート）：tests 2470 / suites 401 / pass 2470 / fail 0 / cancelled 0 / skipped 0 / todo 0（変更前と同じ件数）。
+    *   `git diff aef1085 -- js index.html`：変更は`index.html`236・237行のコメント2行（C1）と`js/core/InputTracker.js`のJSDoc 3行（451・476・483行付近。C2）だけ。`git diff --stat aef1085`：16ファイル（`PROJECT_ARCHITECTURE.md`、`_doc/arch/`の12ファイル、`index.html`、`js/core/InputTracker.js`、本RES）。REQの対象15ファイルと本RES以外の変更なし。
+    *   行末の実測（バイト数、CRLF／LF）：`PROJECT_ARCHITECTURE.md` 398031、820／820。01 34069、20／20。02 41461、84／84。06 54096、57／57。07 18732、0／23。12 64915、91／91。14 54796、118／118。15 22001、37／37。16 131945、237／237。32 6423、0／8。40 2685、0／6。42 9010、0／11。43 9336、0／14。`InputTracker.js` 142506、2020／2020。`index.html` 42199、0／689。2章の表と比べ、CRLFのファイルはCRLFの数＝LFの総数、LFのファイルはCRLF 0で、行末の種類は変わっていない（`PROJECT_ARCHITECTURE.md`は計画どおり825→820）。
+    *   No.43の箇所（`16_test.md`236行の「（Node.js v24.20.0で確認）」）は`git diff aef1085`に現れず未変更。`PROJECT_ARCHITECTURE.md`265行(c)も差分の範囲（`@@ -265`）に無く未変更。
+    *   番号ごとの結果（4章タスク1〜11の記述と`git diff aef1085`の両方に照らした。「完了」＝資料の記述を実コードに合わせて修正済み。直せなかったもの・直さないと判断したものはない）：
+        *   No.1・2（T1）完了／No.3・4（T1）完了／No.5（T10）完了／No.6（T2）完了／No.7・8・9（T10）完了／No.10（T2）完了／No.11・12（T10）完了／No.13（T3）完了／No.14（T10）完了
+        *   No.15・16・17・18（T4）完了／No.19・20（T11）完了／No.21・22（T4）完了／No.23（T11）完了／No.24（T4）完了
+        *   No.25〜29（T6）完了／No.30〜32（T7）完了／No.33・34・35・36・37（T8）完了／No.38〜42（T9）完了
+        *   No.44（T2）完了／No.45（T11）完了／No.46・47（T9）完了／A1（T5）・A2（T3の615行＋T5の629・644・661・716行）・A3・A4（T5）・A5（T6）完了／C1（T6）・C2（T7）完了
+    *   例外は1件：No.34は、Survey 5章の契機の「位置」が実コード（`TransformInputEditor`は幅・高さ・角度・反転。位置は`NudgeEditor`）と食い違うため、「位置」を除いて直した（現場設計セッションへ報告し、推奨どおり直してよいと確認済み）。Survey 5章と実コードの食い違いは、計画・実行を通してこの1件だけで、タスク1〜11の記述にほかの報告はない。
 
 ## 5. 懸念事項・要確認ポイント
 （懸念事項・今後の修正における注意点。計画時に気づいたもの。各タスクで気づいた点は末尾に追記する）
@@ -766,3 +775,6 @@ Phase 10のクローズに伴うSurvey（`./_log/res/261123_1315_RES_Survey_Phas
 * **No.34**：Survey 5章の契機の書き方（「位置・大きさ・角度の欄・反転の入力」）のうち「位置」は`TransformInputEditor`の受け持ちではない。資料へは幅・高さ・角度・反転と書く（「のみ」の断定が誤りである点はSurveyのとおり）。
 * **C1の近く**：`index.html`のツールのまとまりのCSSコメント「「選択・キャンバス移動・スポイト」と「図形」の2つ」に頂点の選択が無い。対象外のため触れない。
 * **目視確認**：不要（画面のふるまいは変わらない）。
+* **タスク10のNo.12**：計画の新の文の括弧を、実際のimportに合わせて直した（計画と差がある唯一の置き換え）。
+* **監査の観点外メモ（直していない）**：`PROJECT_ARCHITECTURE.md` 43行（`ScaleHandleRules.js`の項）は`collectFrameCorners`・`computeFrameCenter`の使う側に`RotationRules`・`ReferencePointRules`・`edit/TransformInputRules`を並べる。実コードでは`RotationRules.js:5`のimportは`collectFrameCorners`までで`computeFrameCenter`を含まず、`computeFrameCenter`を使うのは`js/core/ReferencePointRules.js`（5・59行）と`ScaleHandleRules.js`自身。並べ方が両関数をまとめて指すため、No.19（`42_ScaleHandleRules.md`8行）と同じ種類の取り違えに読める余地がある。REQの対象外なので触れていない。
+* **確認の結果（タスク12）**：`node --test`は2470 / 401 / fail 0で変更前と同じ。コードの変更はC1・C2のコメントだけ。目視確認は不要。
