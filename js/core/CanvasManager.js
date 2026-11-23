@@ -179,24 +179,20 @@ export class CanvasManager {
 
     /**
      * 背景を配色の組の背景色で塗り、背景グリッド・原点表示と指定された図形リストを全て描画する。
-     * 状態の判定は一切行わず、渡された引数（hoveredId / selectedIds / draftShape / selectionRect / view /
+     * 状態の判定は一切行わず、渡された引数（hoveredId / draftShape / selectionRect / view /
      * outline / darkBackground / showGrid）をそのまま描画に反映するだけの純粋なレンダラーとして振る舞う。
      * 描画変換は毎フレーム`setTransform`で「dpr × ビュー変換」を明示設定する（累積させない）。
      * 図形・選択矩形はワールド座標で描画される。
      * 新しい引数（outline・darkBackground・showGrid）の省略時の値では、従来（白の背景・グリッドあり・通常描画）と同じ見た目になる。
      * 描画順：背景の塗り → 背景グリッド（showGridが偽なら省略） → 軸線・原点マーク
      * → (1)全図形の draw（outlineが真なら drawOutline。＋ホバー中図形の drawHover）
-     * → (2)選択集合に含まれる図形の drawHandles（図形配列の順。後ろの図形ほど前面。showHandlesが偽なら省略）
-     *   → (2-2)頂点のハンドル（vertexHandles。同じ位置で描く）
-     *   → (2-3)外枠とそのハンドル（scaleFrame。頂点のハンドルの後・作成中の図形の前。省略・nullなら描かない）
+     * → (2)頂点のハンドル（vertexHandles。全図形の描画後・作成中の図形の前）
+     *   → (2-2)外枠とそのハンドル（scaleFrame。頂点のハンドルの後・作成中の図形の前。省略・nullなら描かない）
      * → (3)作成中の図形 → (3-2)吸い付きの表示 → (4)選択矩形。
-     * ハンドルを全図形の描画後にまとめて描くのは、複数選択時に前面の図形が背面図形のハンドルを覆い隠さないためである。
-     * @param {Array<Object>} shapes - draw(ctx) / drawOutline(ctx, viewScale, color) / drawHover(ctx, viewScale) / drawHandles(ctx, viewScale) メソッドを持つ図形オブジェクトの配列
+     * 頂点のハンドルを全図形の描画後にまとめて描くのは、複数選択時に前面の図形が背面図形のハンドルを覆い隠さないためである。
+     * @param {Array<Object>} shapes - draw(ctx) / drawOutline(ctx, viewScale, color) / drawHover(ctx, viewScale) メソッドを持つ図形オブジェクトの配列
      * @param {Object} [state] - 描画状態
      * @param {string|null} [state.hoveredId] - ホバー中の図形id（単一）。一致する図形の drawHover(ctx, viewScale) を追加で呼び出す
-     * @param {Array<string>} [state.selectedIds] - 選択集合（選択中の図形idの配列。0個以上）。
-     *     含まれる図形の drawHandles(ctx, viewScale) を全図形の描画後に呼び出す。省略時は空配列
-     * @param {boolean} [state.showHandles] - 偽なら選択集合の図形の drawHandles の段を行わない。省略時は真
      * @param {Array<{shapeId: string, handles: Array<{x: number, y: number, selected: boolean}>}>} [state.vertexHandles] -
      *     描く頂点のハンドル（ワールド座標の位置と、選ばれているか）。全図形の描画後・作成中の図形の前に描く。省略時は空配列
      * @param {{bounds: {minX: number, minY: number, maxX: number, maxY: number}, handles: Array<{name: string, x: number, y: number}>, corners?: Array<{x: number, y: number}>}|null} [state.scaleFrame] -
@@ -215,7 +211,7 @@ export class CanvasManager {
      * @param {boolean} [state.darkBackground] - 真なら黒の背景用の配色の組、偽なら白の背景用の配色の組を使う。省略時は偽
      * @param {boolean} [state.showGrid] - 偽なら背景グリッド（細線・太線）のみ描かない（軸線・原点マークは常に描く）。省略時は真
      */
-    render(shapes, { hoveredId = null, selectedIds = [], draftShape = null, selectionRect = null, view = DEFAULT_VIEW, snapPoint = null, outline = false, darkBackground = false, showGrid = true, showHandles = true, vertexHandles = [], scaleFrame = null } = {}) {
+    render(shapes, { hoveredId = null, draftShape = null, selectionRect = null, view = DEFAULT_VIEW, snapPoint = null, outline = false, darkBackground = false, showGrid = true, vertexHandles = [], scaleFrame = null } = {}) {
         const dpr = this.#pixelRatio;
         const scheme = darkBackground ? COLOR_SCHEMES.dark : COLOR_SCHEMES.light;
 
@@ -253,21 +249,10 @@ export class CanvasManager {
             }
         }
 
-        // 5. 選択集合に含まれる図形のハンドルを、全図形の描画後に図形配列の順で描画する
-        //    （所属判定用のSetはこのフレーム内の一時値であり、インスタンスには保持しない）
-        const selectedSet = new Set(selectedIds);
-        if (showHandles && selectedSet.size > 0) {
-            for (const shape of shapes) {
-                if (selectedSet.has(shape.id)) {
-                    shape.drawHandles(this.ctx, view.scale);
-                }
-            }
-        }
-
-        // 5-2. 頂点のハンドルを、drawHandlesと同じ位置（全図形の描画後・作成中の図形の前）に描画する
+        // 5. 頂点のハンドルを、全図形の描画後・作成中の図形の前に描画する
         this.#drawVertexHandles(vertexHandles, view.scale);
 
-        // 5-3. 外枠とそのハンドルを、頂点のハンドルの後・作成中の図形の前に描画する（渡されたときだけ）
+        // 5-2. 外枠とそのハンドルを、頂点のハンドルの後・作成中の図形の前に描画する（渡されたときだけ）
         if (scaleFrame) {
             this.#drawScaleFrame(scaleFrame, view.scale);
         }

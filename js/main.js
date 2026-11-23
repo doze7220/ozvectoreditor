@@ -197,12 +197,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     /**
-     * Modelの現在の状態（shapes/selectedIds/hoveredId/draftShape/selectionRect/snapPoint）とビュー変換の現在の状態
+     * Modelの現在の状態（shapes/hoveredId/draftShape/selectionRect/snapPoint）とビュー変換の現在の状態
      * （`viewTransform.getState()`による倍率・オフセットのスナップショット）をCanvasManagerへ渡し、
      * 再描画を要求するローカル関数。表示の状態（`displayState.getState()`のアウトライン表示・背景の白/黒・グリッドの表示）も
      * あわせて渡す。model.onChange・viewTransform.onChange・displayState.onChangeのコールバックと
      * resizeハンドラの4経路から同一の引数構成で呼び出すことで、再描画トリガーの重複定義を避ける。
-     * 図形ごとのハンドル（drawHandles）は`showHandles: false`で常に描かない。選んでいる図形全体の外枠とそのハンドルは、
+     * 図形ごとのハンドルは描かない。選んでいる図形全体の外枠とそのハンドルは、
      * `collectScaleFrame`が現在の操作モード・線を含まない外枠（`shapeExtentReader.getSelectedGeometryBounds()`）・表示倍率から
      * 求めた位置を`scaleFrame`として渡す（選択モードで選択があるときだけ値が入る。描くのはCanvasManager）。
      * 回転のドラッグ中は`inputTracker.getRotationDragView()`の控えを`resolveDisplayedScaleFrame`に渡し、傾いた外枠（`corners`付き）を`scaleFrame`にする
@@ -216,10 +216,6 @@ document.addEventListener('DOMContentLoaded', () => {
             outline: display.outline,
             darkBackground: display.darkBackground,
             showGrid: display.gridVisible,
-            selectedIds: model.getSelectedIds(),
-            // 図形ごとのハンドル（drawHandles）はどのモードでも描かない。外枠のハンドルは図形ごとのdrawHandlesを使わず下のscaleFrameで描く
-            // （図形のdrawHandlesは残してある。去就はPhaseのクローズで決める）
-            showHandles: false,
             vertexHandles: collectVertexHandles(inputTracker.getMode(), shapes, model.getSelectedIds(), model.getSelectedVertices()),
             scaleFrame: resolveDisplayedScaleFrame(
                 collectScaleFrame(inputTracker.getMode(), shapeExtentReader.getSelectedGeometryBounds(), viewTransform.getScale()),

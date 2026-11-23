@@ -115,7 +115,7 @@
         *   `PointHitRules.js`：`import { isVertexHandle } from './VertexHandleRules.js';`を足し、`findHandleHit`の条件を`handleName && isVertexHandle(shape, handleName)`にする（偽なら次の図形へ）。`findHandleHit`・`classifyPointHit`・typedef`PointHit`・先頭の責務定義（3行以内）のJSDocを「頂点として扱えるハンドルだけ。頂点でないハンドルは奥の頂点を隠さない」に直し、使う図形のメンバーに`getVertexHandleNames`を足す。`CanvasManager`がハンドルを図形配列の順に描く旨の説明は`vertexHandles`の描画に合う表現にする。
         *   `InputTracker.js`：`#classifyPoint`の後からの絞り込みを消して結果をそのまま返す。import行から`isVertexHandle`を除く。クラスJSDoc（223〜225行付近）・`#classifyPoint`のJSDoc（1936〜1940行付近）を合わせる。ほかのメソッドは触らない。
         *   `node --test`全件合格。JSDocの記載漏れの確認。「4.」の記入と、開発資料の更新予定欄への追記（影響が判明した場合。資料本体は修正しない）。
-*   [ ] タスク2: `showHandles`・`selectedIds`と`drawHandles`を呼ぶ段を消す（要件2(1)）
+*   [x] タスク2: `showHandles`・`selectedIds`と`drawHandles`を呼ぶ段を消す（要件2(1)）
     *   **対象ファイル** :
         *   `./js/core/CanvasManager.js` :（更新）
         *   `./js/main.js` :（更新）
@@ -196,7 +196,10 @@
 
 ### タスク2: `showHandles`・`selectedIds`と`drawHandles`を呼ぶ段を消す（要件2(1)）
 *   **作業内容** :
-    *   （未実施）
+    *   着手時に`js/`の`.render(`・`showHandles`をGrepし直し、`CanvasManager.render`の呼び出しが`main.js`の`renderCurrentState`1か所だけ・常に`showHandles: false`であることを確認（`test/`に`showHandles`の参照なし）。
+    *   `CanvasManager.render`：引数`selectedIds`・`showHandles`と`selectedSet`を含む段を消し、頂点のハンドルの段を5、外枠を5-2に繰り上げた。JSDoc（描画順・`@param shapes`・`state.selectedIds`・`state.showHandles`・引数の列挙）を合わせた。
+    *   `main.js`：`selectedIds: model.getSelectedIds(),`・`showHandles: false,`とコメント2行を消し、`renderCurrentState`のJSDocを直した（`collectVertexHandles`へ渡す`model.getSelectedIds()`は残した）。
+    *   `node --test`全件合格：tests 2476 / suites 401（見込みどおり）。行末は元のまま（CanvasManager＝LF、main.js＝CRLF）。
 
 ### タスク3: 選択（`V`）のハンドルの枝を消す（要件2(3)）
 *   **作業内容** :
