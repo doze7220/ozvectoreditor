@@ -103,6 +103,7 @@
     *   `35_CursorShapeRules.md`（LF）：3行目（(7)を欠番にする）・テストの件数。
     *   `38_VertexHandleRules.md`（LF）：4・6〜8・11・12行（`isVertexHandle`の使う側が`PointHitRules`になる・円のハンドル名は位置が求まらない）。
     *   `42_ScaleHandleRules.md`（LF）：10行目（到達不能の枝）。`32_InputModes.md`（LF）：`SELECT`・`MOVING_SELECTION`の説明に「moveハンドル・ハンドルドラッグ」があれば。`27_SelectionRules.md`・`41_NudgeTargetRules.md`：`hit.handle`・`'move'`に触れた記述の確認。
+*   （タスク5で判明）`12_shapes.md`・`PROJECT_ARCHITECTURE.md`の「第Nメソッド」の繰り上げは、`hitTestHandle`も第5→第4になる（`drawHandles`が2番目のため）。第10〜第19だけでなく第5以降すべてが対象。
 
 ## 3. タスクリスト
 *   [x] タスク1: 当たり分類で頂点のハンドルだけを当たりにする（要件1・要件4）
@@ -156,7 +157,7 @@
         *   `EndpointSnapRules.js`・`PathJoinRules.js`：弧のハンドル・直線の`'move'`のJSDocを、弧は頂点のハンドルを持たない／番号の得られないハンドル名は`null`、という説明に直す（コードは変えない）。
         *   テストは「2.」の表と「追加」のとおり（`Ellipse.test.js`は行末が混在）。
         *   `node --test`全件合格。JSDocの記載漏れの確認。「4.」の記入と、開発資料の更新予定欄への追記（影響が判明した場合。資料本体は修正しない）。
-*   [ ] タスク5: 各図形クラスの`drawHandles`を消し、共通メソッド契約を18にする（要件2(2)）
+*   [x] タスク5: 各図形クラスの`drawHandles`を消し、共通メソッド契約を18にする（要件2(2)）
     *   **対象ファイル** :
         *   `./js/shapes/Line.js`・`./js/shapes/Curve.js`・`./js/shapes/Rect.js`・`./js/shapes/Ellipse.js`・`./js/shapes/Path.js` :（更新）
         *   `./test/shapes/Path.test.js` :（更新）
@@ -222,7 +223,10 @@
 
 ### タスク5: 各図形クラスの`drawHandles`を消し、共通メソッド契約を18にする（要件2(2)）
 *   **作業内容** :
-    *   （未実施）
+    *   着手時に`drawHandles`をGrepし直し、残りが図形クラス5つの定義・JSDocと`test/shapes/Path.test.js`の1件だけであることを確認。
+    *   `Line.js`・`Curve.js`・`Rect.js`・`Ellipse.js`・`Path.js`：`drawHandles`をJSDocごと消した。クラスJSDocの契約を「18メソッド」にして一覧から`drawHandles`を除いた。「第N」メソッドは、`drawHandles`（2番目）が抜けた分だけ第5以降を1つずつ繰り上げた（第10〜第19→第9〜第18。`Ellipse.hitTestHandle`の第5→第4を含む。`js/`のGrepで第2〜第9の番号はこの1件のみだったため漏れなし）。`getHandlePosition`のJSDocの「`hitTestHandle`・`drawHandles`と同じ…」（Line・Curve・Rect・Path）と`Path`のクラスJSDocの`drawHandles`への言及を直した。
+    *   `test/shapes/Path.test.js`：`drawHandles`の1件を削除。
+    *   `node --test`全件合格：tests 2470 / suites 401（見込みどおり）。`js/`で`drawHandles`・`showHandles`・`dragHandle`・`MOVE_HANDLE_NAME`・`19メソッド`・「moveハンドル」・「到達不能」が0件、`test/`で`drawHandles`・`dragHandle`が0件。行末は各ファイルの元のまま（5つの図形クラスはCRLF、Path.test.jsはLF。RESの「行末」欄の記載と実測が異なるが元のまま保った）。
 
 ### タスク6: テストプレイの確認項目の裏取りと、JSDocの総点検（要件5）
 *   **作業内容** :
@@ -237,7 +241,8 @@
 * **`Ellipse.getHandlePosition`の扱いの解釈**：`test/core/VertexHandleRules.test.js`の1件が「円のハンドル名を渡すと位置が求まる」ことを期待している。この期待は消す処理（円・弧のハンドルの位置）のふるまいそのものなので、「使っているから残す」ではなくREQの(b)（消したことで必然的に変わる期待値）として`null`の期待へ変える計画にした。REQ要件2(4)の例「円・弧は『当たらない』『位置なし』」に合わせている。
 * **`CursorShapeRules`の(4)の`DRAGGING_HANDLE`**：選択モードで`DRAGGING_HANDLE`になる経路は無いが、REQ要件2の範囲に無いため残す（報告のみ）。
 * **要件1の絞り込みと要件2(4)の重なり**：図形側から頂点でないハンドルを消すだけでも今の5種別の不具合は直るが、保証は規則側（`PointHitRules`）に置き、図形側の整理とは独立に成り立つようにした。
-* **タスク4の残り**：`Line.js`・`Ellipse.js`のクラスJSDoc（「19メソッド」・`drawHandles`）と`Line.getHandlePosition`・`Ellipse.getHandlePosition`のJSDocの「第17メソッド」・`Line.getHandlePosition`の「`drawHandles`と同じ式」・`Line.drawHandles`のJSDoc（移動ハンドル・中点の円）・`Ellipse.drawHandles`は、タスク5（`drawHandles`を消す・番号の繰り上げ）で直す。`Ellipse.hitTestHandle`は`drawHandles`の消える前でも契約の第5メソッドのため番号はそのまま。`Ellipse`の`hitTestHandle`・`getHandlePosition`・`getVertexIndexForHandle`は未使用引数が残る（契約の形を揃えるため）。
+* **タスク4の残り**：`Line.js`・`Ellipse.js`のクラスJSDoc（「19メソッド」・`drawHandles`）と`Line.getHandlePosition`・`Ellipse.getHandlePosition`のJSDocの「第17メソッド」・`Line.getHandlePosition`の「`drawHandles`と同じ式」・`Line.drawHandles`のJSDoc（移動ハンドル・中点の円）・`Ellipse.drawHandles`は、タスク5（`drawHandles`を消す・番号の繰り上げ）で直す。（訂正）`Ellipse.hitTestHandle`の「第5メソッド」も`drawHandles`（2番目）が抜けて第4メソッドになるため、タスク5で繰り上げた（「番号はそのまま」は誤り）。`Ellipse`の`hitTestHandle`・`getHandlePosition`・`getVertexIndexForHandle`は未使用引数が残る（契約の形を揃えるため）。
+* **タスク5の確認**：`js/shapes/`で「第2〜第9メソッド」の番号は`Ellipse.hitTestHandle`の1件のみで、ほかに繰り上げ漏れはない。タスク6のJSDoc総点検でも番号の並び（契約の一覧の順）を見ること。
 * 自動テストの対象外（目視で確かめる箇所）：`CanvasManager.render`の描画、`InputTracker`の配線、`main.js`の`renderCurrentState`。
 * **テストプレイの確認項目（下書き。タスク6で裏取りして確定する。最初に`Ctrl`+`F5`で読み込み直す）**：
     1. 直線のツールで点を3つ以上打ってパスを描く。その後、円のツールで、円の中心がパスの点の上に来るように円を描く。`V`でパスと円を両方選び（`Ctrl`+クリックか範囲選択）、`A`に切り替えると、円の中心に重なったパスの点をドラッグで動かせる。円の右・上・左・下の端がパスの点に重なるように描いたときも同じ。弧でも同じ。円を`V`で外枠の角の外側から回した後も、中心などに重なった点がつかめる。点の上ではカーソルが移動の形になり、クリックするとその点が選ばれる（青くなる）。

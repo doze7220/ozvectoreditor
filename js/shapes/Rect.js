@@ -14,7 +14,7 @@ const RECT_POINT_COUNT = 4;
 
 /**
  * 矩形の図形クラス（図形種別`'rect'`）。頂点は`points[0]`＝topLeft、`[1]`＝topRight、`[2]`＝bottomRight、`[3]`＝bottomLeft（4頂点独立）。
- * 共通メソッド契約（19メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * 共通メソッド契約（18メソッド：draw・drawHover・hitTest・hitTestHandle・setVertex・translate・
  * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames・createTransformed）を自律実装する。座標はすべてワールド座標。
  */
 export class Rect {
@@ -47,7 +47,7 @@ export class Rect {
     }
 
     /**
-     * 塗れる形かを返す（共通メソッド契約の第14メソッド）。矩形は常に塗れる。データには保存しない。
+     * 塗れる形かを返す（共通メソッド契約の第13メソッド）。矩形は常に塗れる。データには保存しない。
      * @returns {boolean} 常に`true`
      */
     isFillable() {
@@ -87,28 +87,6 @@ export class Rect {
     }
 
     /**
-     * 選択中に4隅のハンドルを描き分けて描画する。
-     * Line/Curveと同一配色（白塗り／青枠）・同一サイズ（画面上で一辺8pxの正方形）で4頂点すべてに描画する。
-     * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
-     * @param {number} [viewScale=1] - 現在の表示倍率。ハンドルの大きさ・枠線幅を画面上で一定に保つために用いる。省略時は倍率1.0として現行と同じ見た目になる
-     */
-    drawHandles(ctx, viewScale = 1) {
-        const handleSize = 8 / viewScale; // 画面上8px一定（ワールド長へ換算）
-        const half = handleSize / 2;
-
-        ctx.fillStyle = '#ffffff';
-        ctx.strokeStyle = '#4a90e2';
-        ctx.lineWidth = 1.5 / viewScale;
-
-        this.points.forEach(({ x: hx, y: hy }) => {
-            ctx.beginPath();
-            ctx.rect(hx - half, hy - half, handleSize, handleSize);
-            ctx.fill();
-            ctx.stroke();
-        });
-    }
-
-    /**
      * 点(x, y)が矩形本体の許容誤差(tolerance)以内にあるかを判定する当たり判定。
      * 4辺（[0,1],[1,2],[2,3],[3,0]）それぞれについて点-線分距離を求め、
      * いずれか1辺でもtolerance以内であればtrueを返す。
@@ -127,7 +105,7 @@ export class Rect {
     }
 
     /**
-     * 点(x, y)が塗られた矩形の内側にあるかを判定する内側の当たり判定（共通メソッド契約の第15メソッド）。
+     * 点(x, y)が塗られた矩形の内側にあるかを判定する内側の当たり判定（共通メソッド契約の第14メソッド）。
      * 塗られている（`draw`が塗りを描く条件と同じ`isFillable()`が真で`fillColor`が文字列）ときだけ判定し、塗られていなければ常に`false`。
      * 許容誤差は使わない。境界（辺の上・頂点の上）は内側に含めない（輪郭の`hitTest`が受け持つ）。
      * `points[0]`→`[1]`→`[2]`→`[3]`（閉じる辺`[3]`→`[0]`を含む）の4頂点の多角形としてnonzeroで判定し、
@@ -145,7 +123,7 @@ export class Rect {
 
     /**
      * 選択矩形に輪郭線（中心線。`strokeWidth`は含めない）の一部でも掛かるかを判定する範囲選択用の共通メソッド
-     * （共通メソッド契約の第10メソッド）。塗り内部は判定しない（選択矩形が矩形の内側に収まり辺と交差しない場合はfalse）。
+     * （共通メソッド契約の第9メソッド）。塗り内部は判定しない（選択矩形が矩形の内側に収まり辺と交差しない場合はfalse）。
      * 4辺（[0,1],[1,2],[2,3],[3,0]。hitTestと同じ辺の組）のいずれかが交差すればtrueを返す。矩形の境界上も交差とみなす。
      * @param {number} minX - 判定矩形の左端X座標（ワールド座標。呼び出し側で正規化済み（minX ≤ maxX））
      * @param {number} minY - 判定矩形の上端Y座標（ワールド座標。呼び出し側で正規化済み（minY ≤ maxY））
@@ -218,8 +196,8 @@ export class Rect {
     }
 
     /**
-     * ハンドル名（`hitTestHandle`の戻り値）から、そのハンドルの位置を返す（共通メソッド契約の第17メソッド）。
-     * 位置は`hitTestHandle`・`drawHandles`と同じ頂点の写し（`getVertexIndexForHandle`で得た番号の`points[番号]`）。
+     * ハンドル名（`hitTestHandle`の戻り値）から、そのハンドルの位置を返す（共通メソッド契約の第16メソッド）。
+     * 位置は`hitTestHandle`と同じ頂点の写し（`getVertexIndexForHandle`で得た番号の`points[番号]`）。
      * `getVertexIndexForHandle`は対応表を引くため、添字が文字列へ変換され、`['topLeft']`のような文字列以外の値でも番号が返り得る。そのため先に文字列であることを確かめる。
      * また`'constructor'`等では関数などを返し得るため、番号が0〜3の整数であることを確かめてから写し、
      * ハンドル名でない値（`null`・`undefined`・未知の文字列・文字列以外・`Object.prototype`のキー名）は例外にせず`null`を返す。
@@ -239,7 +217,7 @@ export class Rect {
     }
 
     /**
-     * 頂点として扱えるハンドル名の一覧を返す（共通メソッド契約の第18メソッド）。
+     * 頂点として扱えるハンドル名の一覧を返す（共通メソッド契約の第17メソッド）。
      * 4つの角（`points`の並びと同じ）。
      * 並びは`getVertexIndexForHandle`が返す頂点の番号の昇順。一覧の各名前は`hitTestHandle`が返しうる名前で、
      * `getVertexIndexForHandle`が番号を、`getHandlePosition`が位置を返す。
@@ -283,7 +261,7 @@ export class Rect {
     }
 
     /**
-     * アウトライン表示として、輪郭だけを画面上1pxの細線で描画する（共通メソッド契約の第16メソッド）。
+     * アウトライン表示として、輪郭だけを画面上1pxの細線で描画する（共通メソッド契約の第15メソッド）。
      * 輪郭のパスは`draw`と同じ（`points[0]`→`[1]`→`[2]`→`[3]`を結んで閉じる）。
      * 塗らず（`fill`を呼ばない）、図形のスタイル（`strokeColor`・`strokeWidth`・`fillColor`）は読まないため、線なしの図形でも描く。
      * `draw`は変えない（`io/CodeExporter.js`の`DRAW_SOURCE`と手で揃えているため、本メソッドを別に持つ）。
@@ -305,7 +283,7 @@ export class Rect {
     }
 
     /**
-     * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第13メソッド。呼び出し元は`SpriteSerializer`のみ）。
+     * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第12メソッド。呼び出し元は`SpriteSerializer`のみ）。
      * 形（キー順もこの順）: `{ kind: 'polyline', id, points: [topLeft, topRight, bottomRight, bottomLeft]（各{x, y}）, closed: true, strokeColor, strokeWidth, fillColor }`。
      * `draw`と同じ式（`points[0]`→`[1]`→`[2]`→`[3]`を結んで閉じる）で求め、`id`・`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる（`strokeColor`の`null`も）。
      * `fillColor`は塗れる形のときだけ図形の値（矩形は常に図形の値）、塗れない形は`null`。
@@ -325,7 +303,7 @@ export class Rect {
     }
 
     /**
-     * 自身を図形データ（1図形のJSON表現・現行版）へ変換する（共通メソッド契約の第11メソッド）。
+     * 自身を図形データ（1図形のJSON表現・現行版）へ変換する（共通メソッド契約の第10メソッド）。
      * 形（キー順もこの順）: `{ type: 'rect', id, points: [topLeft{x, y}, topRight{x, y}, bottomRight{x, y}, bottomLeft{x, y}], strokeColor, strokeWidth, fillColor }`。
      * `fillColor`は塗れない形でも保持している値をそのまま出力する。
      * 座標はワールド座標。`points`は各頂点を新規オブジェクトとして複製するため、戻り値と自身は内部配列・頂点を共有しない。
@@ -345,7 +323,7 @@ export class Rect {
     }
 
     /**
-     * 図形データ（`toJSON()`の形）から矩形を復元する（共通メソッド契約の第12メソッド）。
+     * 図形データ（`toJSON()`の形）から矩形を復元する（共通メソッド契約の第11メソッド）。
      * topLeft・bottomRightでコンストラクタを仮生成した後、4頂点を`data`の座標値から新規オブジェクトとして設定し直す
      * （4頂点は独立して編集され得るため、軸平行な矩形としての再計算は行わない）。
      * 座標・色・太さ・種別を`data`の値どおりに復元するため、`toJSON()`の出力から復元した図形は
@@ -371,7 +349,7 @@ export class Rect {
     }
 
     /**
-     * アフィン変換を当てた新しいRectを返す（共通メソッド契約の第19メソッド）。自身は変えない。
+     * アフィン変換を当てた新しいRectを返す（共通メソッド契約の第18メソッド）。自身は変えない。
      * 戻り値は自身と配列・頂点のオブジェクトを共有しない。`type`・`id`（そのまま）・`strokeColor`・`strokeWidth`・`fillColor`は自身と同じ
      * （線の太さは変えない）。`transform`の検証はしない（呼び出し側の責任）。
      * @param {import('./ShapeGeometry.js').AffineTransform} transform - 当てる変換（点`(x, y)`→`(a·x + c·y + e, b·x + d·y + f)`）

@@ -21,7 +21,7 @@ const CURVE_POINT_COUNT = 3;
 
 /**
  * 2次ベジェ曲線の図形クラス（図形種別`'curve'`）。頂点は`points[0]`＝始点、`[1]`＝制御点、`[2]`＝終点。
- * 共通メソッド契約（19メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * 共通メソッド契約（18メソッド：draw・drawHover・hitTest・hitTestHandle・setVertex・translate・
  * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames・createTransformed）を自律実装する。座標はすべてワールド座標。
  */
 export class Curve {
@@ -53,7 +53,7 @@ export class Curve {
     }
 
     /**
-     * 塗れる形かを返す（共通メソッド契約の第14メソッド）。曲線は常に塗れない。データには保存しない。
+     * 塗れる形かを返す（共通メソッド契約の第13メソッド）。曲線は常に塗れない。データには保存しない。
      * @returns {boolean} 常に`false`
      */
     isFillable() {
@@ -90,53 +90,6 @@ export class Curve {
     }
 
     /**
-     * 選択中に始点・制御点・終点の3ハンドルを描き分けて描画する。
-     * 始点・終点は正方形、制御点はひし形で視覚的に区別し、
-     * 始点⇔制御点・終点⇔制御点を結ぶ点線ヘルパーを併せて描画する。
-     * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
-     * @param {number} [viewScale=1] - 現在の表示倍率。ハンドルの大きさ・枠線幅、および点線ヘルパーの線幅・破線間隔を画面上で一定に保つために用いる。省略時は倍率1.0として現行と同じ見た目になる
-     */
-    drawHandles(ctx, viewScale = 1) {
-        const handleSize = 8 / viewScale; // 画面上8px一定（ワールド長へ換算）
-        const half = handleSize / 2;
-        const [start, control, end] = this.points;
-
-        // 始点⇔制御点・終点⇔制御点を結ぶ点線ヘルパー
-        ctx.setLineDash([2 / viewScale, 2 / viewScale]);
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
-        ctx.lineWidth = 1 / viewScale;
-        ctx.beginPath();
-        ctx.moveTo(start.x, start.y);
-        ctx.lineTo(control.x, control.y);
-        ctx.moveTo(end.x, end.y);
-        ctx.lineTo(control.x, control.y);
-        ctx.stroke();
-        ctx.setLineDash([]); // 他図形の描画に影響を残さないため必ずクリアする
-
-        ctx.fillStyle = '#ffffff';
-        ctx.strokeStyle = '#4a90e2';
-        ctx.lineWidth = 1.5 / viewScale;
-
-        // 始点・終点ハンドル（正方形）
-        [start, end].forEach(({ x: hx, y: hy }) => {
-            ctx.beginPath();
-            ctx.rect(hx - half, hy - half, handleSize, handleSize);
-            ctx.fill();
-            ctx.stroke();
-        });
-
-        // 制御点ハンドル（ひし形）
-        ctx.beginPath();
-        ctx.moveTo(control.x, control.y - half);
-        ctx.lineTo(control.x + half, control.y);
-        ctx.lineTo(control.x, control.y + half);
-        ctx.lineTo(control.x - half, control.y);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-    }
-
-    /**
      * 点(x, y)がベジェ曲線本体の許容誤差(tolerance)以内にあるかを判定する当たり判定。
      * B(t) = (1-t)^2 P0 + 2(1-t)t P1 + t^2 P2 をt=0〜1の範囲で100分割し、
      * 各分割点と入力点との最短距離がtolerance以内であればtrueを返す。
@@ -163,7 +116,7 @@ export class Curve {
     }
 
     /**
-     * 点(x, y)が塗られた内側にあるかを判定する内側の当たり判定（共通メソッド契約の第15メソッド）。
+     * 点(x, y)が塗られた内側にあるかを判定する内側の当たり判定（共通メソッド契約の第14メソッド）。
      * 塗られている条件は`draw`と同じ（`isFillable()`が真で`fillColor`が文字列）。曲線は塗れない形
      * （`isFillable()`が常に偽）で、面積を持たないため内側の点は無く、常に`false`を返す。
      * 曲線と始点・終点を結ぶ弦で囲まれた部分も内側としない。許容誤差は使わない。
@@ -199,8 +152,8 @@ export class Curve {
     }
 
     /**
-     * ハンドル名（`hitTestHandle`の戻り値）から、そのハンドルの位置を返す（共通メソッド契約の第17メソッド）。
-     * 位置は`hitTestHandle`・`drawHandles`と同じ頂点（`'start'`＝`points[0]`、`'control'`＝`points[1]`、`'end'`＝`points[2]`）の写し。
+     * ハンドル名（`hitTestHandle`の戻り値）から、そのハンドルの位置を返す（共通メソッド契約の第16メソッド）。
+     * 位置は`hitTestHandle`と同じ頂点（`'start'`＝`points[0]`、`'control'`＝`points[1]`、`'end'`＝`points[2]`）の写し。
      * ハンドル名でない値（`null`・`undefined`・未知の文字列・文字列以外・`'move'`・`'constructor'`等の`Object.prototype`のキー名）は`null`。
      * 戻り値は新しいオブジェクトで、書き換えても自身は変わらない。
      * @param {*} handleName - ハンドル名（'start'|'control'|'end'）。任意の値を受け、これ以外は`null`を返す
@@ -216,7 +169,7 @@ export class Curve {
     }
 
     /**
-     * 頂点として扱えるハンドル名の一覧を返す（共通メソッド契約の第18メソッド）。
+     * 頂点として扱えるハンドル名の一覧を返す（共通メソッド契約の第17メソッド）。
      * 始点・制御点・終点の3つ。
      * 並びは`getVertexIndexForHandle`が返す頂点の番号の昇順。一覧の各名前は`hitTestHandle`が返しうる名前で、
      * `getVertexIndexForHandle`が番号を、`getHandlePosition`が位置を返す。
@@ -229,7 +182,7 @@ export class Curve {
 
     /**
      * 選択矩形に輪郭線（中心線。`strokeWidth`は含めない）の一部でも掛かるかを判定する範囲選択用の共通メソッド
-     * （共通メソッド契約の第10メソッド）。塗り内部は判定しない。矩形の境界上も交差とみなす。
+     * （共通メソッド契約の第9メソッド）。塗り内部は判定しない。矩形の境界上も交差とみなす。
      * 早期棄却として制御多角形（points[0..2]）の外接矩形が判定矩形と重ならなければfalseを返す
      * （ベジェ曲線は制御点の凸包内にあるため正しい）。重なる場合はB(t)をt = i / N（i = 0..N、N = CURVE_INTERSECT_SEGMENTS）で
      * サンプリングし、隣接点を結ぶN本の線分のいずれかが交差すればtrueを返す。
@@ -334,7 +287,7 @@ export class Curve {
     }
 
     /**
-     * アウトライン表示として、輪郭だけを画面上1pxの細線で描画する（共通メソッド契約の第16メソッド）。
+     * アウトライン表示として、輪郭だけを画面上1pxの細線で描画する（共通メソッド契約の第15メソッド）。
      * 輪郭のパスは`draw`と同じ（`points[0]`から`points[1]`を制御点に`points[2]`への2次ベジェ。閉じない）。
      * 塗らず（`fill`を呼ばない）、図形のスタイル（`strokeColor`・`strokeWidth`・`fillColor`）は読まないため、線なしの図形でも描く。
      * `draw`は変えない（`io/CodeExporter.js`の`DRAW_SOURCE`と手で揃えているため、本メソッドを別に持つ）。
@@ -353,7 +306,7 @@ export class Curve {
     }
 
     /**
-     * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第13メソッド。呼び出し元は`SpriteSerializer`のみ）。
+     * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第12メソッド。呼び出し元は`SpriteSerializer`のみ）。
      * 形（キー順もこの順）: `{ kind: 'quadratic', id, points: [始点{x, y}, 制御点{x, y}, 終点{x, y}], strokeColor, strokeWidth, fillColor }`。
      * `draw`と同じ式（`points[0]`から`points[1]`を制御点に`points[2]`への2次ベジェ）で求め、`id`・`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる（`strokeColor`の`null`も）。
      * `fillColor`は塗れる形のときだけ図形の値、塗れない形（曲線）は常に`null`。
@@ -372,7 +325,7 @@ export class Curve {
     }
 
     /**
-     * 自身を図形データ（1図形のJSON表現・現行版）へ変換する（共通メソッド契約の第11メソッド）。
+     * 自身を図形データ（1図形のJSON表現・現行版）へ変換する（共通メソッド契約の第10メソッド）。
      * 形（キー順もこの順）: `{ type: 'curve', id, points: [始点{x, y}, 制御点{x, y}, 終点{x, y}], strokeColor, strokeWidth, fillColor }`。
      * `fillColor`は塗れない形でも保持している値をそのまま出力する。
      * 座標はワールド座標。`points`は各頂点を新規オブジェクトとして複製するため、戻り値と自身は内部配列・頂点を共有しない。
@@ -392,7 +345,7 @@ export class Curve {
     }
 
     /**
-     * 図形データ（`toJSON()`の形）から曲線を復元する（共通メソッド契約の第12メソッド）。
+     * 図形データ（`toJSON()`の形）から曲線を復元する（共通メソッド契約の第11メソッド）。
      * 始点・終点でコンストラクタを仮生成した後、3頂点（制御点を含む）を`data`の座標値から新規オブジェクトとして設定し直す。
      * 座標・色・太さ・種別を`data`の値どおりに復元するため、`toJSON()`の出力から復元した図形は
      * 描画・当たり判定・頂点操作・`toJSON()`の結果が元の図形と一致する（往復の一致）。
@@ -417,7 +370,7 @@ export class Curve {
     }
 
     /**
-     * アフィン変換を当てた新しいCurveを返す（共通メソッド契約の第19メソッド）。自身は変えない。
+     * アフィン変換を当てた新しいCurveを返す（共通メソッド契約の第18メソッド）。自身は変えない。
      * 戻り値は自身と配列・頂点のオブジェクトを共有しない。`type`・`id`（そのまま）・`strokeColor`・`strokeWidth`・`fillColor`は自身と同じ
      * （線の太さは変えない）。`transform`の検証はしない（呼び出し側の責任）。
      * @param {import('./ShapeGeometry.js').AffineTransform} transform - 当てる変換（点`(x, y)`→`(a·x + c·y + e, b·x + d·y + f)`）

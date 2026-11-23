@@ -46,7 +46,7 @@ const ELLIPSE_TYPES = Object.freeze(['circle', 'arc']);
  * `[2]`＝上端制御点、`[3]`＝開始角制御点、`[4]`＝終了角制御点。開始角・終了角は`type`から決まり、図形データには保存しない。
  * 形は`u = points[1] − points[0]`・`w = points[2] − points[0]`を共役な半径として読み（輪郭＝中心＋`u`·cos t − `w`·sin t）、
  * 傾いた楕円・楕円の弧・上下に裏返った弧を表せる（今の約束の位置では`u`が横向き・`w`が上向きで、縦横に沿った楕円）。
- * 共通メソッド契約（19メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * 共通メソッド契約（18メソッド：draw・drawHover・hitTest・hitTestHandle・setVertex・translate・
  * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames・createTransformed）を自律実装する。座標はすべてワールド座標。
  */
 export class Ellipse {
@@ -93,7 +93,7 @@ export class Ellipse {
     }
 
     /**
-     * 塗れる形かを返す（共通メソッド契約の第14メソッド）。円は塗れ、弧は塗れない（`type`で分岐）。データには保存しない。
+     * 塗れる形かを返す（共通メソッド契約の第13メソッド）。円は塗れ、弧は塗れない（`type`で分岐）。データには保存しない。
      * @returns {boolean} `type`が`'circle'`ならtrue、弧ならfalse
      */
     isFillable() {
@@ -154,7 +154,7 @@ export class Ellipse {
     }
 
     /**
-     * アウトライン表示として、輪郭だけを画面上1pxの細線で描画する（共通メソッド契約の第16メソッド）。
+     * アウトライン表示として、輪郭だけを画面上1pxの細線で描画する（共通メソッド契約の第15メソッド）。
      * 輪郭のパスは`draw`と同じ（`#readGeometry`の形を`ctx.ellipse(x, y, radiusX, radiusY, rotation, startAngle, endAngle)`へ渡す。円のみ`closePath`、弧は閉じない）。
      * 塗らず（`fill`を呼ばない）、図形のスタイル（`strokeColor`・`strokeWidth`・`fillColor`）は読まないため、線なしの図形でも描く。
      * `draw`は変えない（`io/CodeExporter.js`の`DRAW_SOURCE`と手で揃えているため、本メソッドを別に持つ）。
@@ -177,48 +177,7 @@ export class Ellipse {
     }
 
     /**
-     * 選択時のハンドル（操作点）を描画する。
-     * 中心（円形: move）、右端・上端（正方形: points[1], points[2]）、左端・下端（正方形: 計算値ダミー）の計5個を描画。
-     * 注意：今の約束の位置（`points[1]`が中心の右の同じ高さ・`points[2]`が中心の上の同じ横位置）を前提にした式で、回した・裏返した円・弧では正しくない。選択（`V`）・頂点の選択（`A`）からは呼ばれない到達不能の枝のため式は変えない。
-     * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
-     * @param {number} [viewScale=1] - 現在の表示倍率。ハンドルの大きさ・枠線幅を画面上で一定に保つために用いる。省略時は倍率1.0として現行と同じ見た目になる
-     */
-    drawHandles(ctx, viewScale = 1) {
-        const xc = this.points[0].x;
-        const yc = this.points[0].y;
-        const rx = Math.abs(this.points[1].x - xc);
-        const ry = Math.abs(this.points[2].y - yc);
-
-        ctx.fillStyle = '#ffffff';
-        ctx.strokeStyle = '#4a90e2';
-        ctx.lineWidth = 1.5 / viewScale;
-        
-        const half = 4 / viewScale; // 画面上4px一定（ワールド長へ換算）
-
-        // 中心（moveハンドル: 円形）
-        ctx.beginPath();
-        ctx.arc(xc, yc, half, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-
-        const handlePositions = [
-            { x: xc + rx, y: yc },     // 右端
-            { x: xc, y: yc - ry },     // 上端
-            { x: xc - rx, y: yc },     // 左端 (ダミー)
-            { x: xc, y: yc + ry }      // 下端 (ダミー)
-        ];
-
-        // 各端点（正方形）
-        handlePositions.forEach(pos => {
-            ctx.beginPath();
-            ctx.rect(pos.x - half, pos.y - half, half * 2, half * 2);
-            ctx.fill();
-            ctx.stroke();
-        });
-    }
-
-    /**
-     * 座標(x, y)にあるハンドルを判定する（共通メソッド契約の第5メソッド）。
+     * 座標(x, y)にあるハンドルを判定する（共通メソッド契約の第4メソッド）。
      * 円・弧は頂点のハンドルを持たないため常に`null`（当たらない）。引数は契約の形を揃えるために受け取り、使わない。
      * @param {number} x - 判定するX座標（使わない）
      * @param {number} y - 判定するY座標（使わない）
@@ -230,7 +189,7 @@ export class Ellipse {
     }
 
     /**
-     * ハンドル名から、そのハンドルの位置を返す（共通メソッド契約の第17メソッド）。
+     * ハンドル名から、そのハンドルの位置を返す（共通メソッド契約の第16メソッド）。
      * 円・弧は頂点のハンドルを持たないため常に`null`（位置なし）。引数は契約の形を揃えるために受け取り、使わない。
      * @param {*} handleName - ハンドル名（使わない）
      * @returns {null} 常にnull
@@ -240,7 +199,7 @@ export class Ellipse {
     }
 
     /**
-     * 頂点として扱えるハンドル名の一覧を返す（共通メソッド契約の第18メソッド）。
+     * 頂点として扱えるハンドル名の一覧を返す（共通メソッド契約の第17メソッド）。
      * 円・弧は頂点として扱えるハンドルを持たないため常に空配列（`hitTestHandle`・`getHandlePosition`・`getVertexIndexForHandle`も常に`null`）。
      * 戻り値は毎回新しい配列で、書き換えても自身は変わらない。
      * @returns {string[]} 頂点のハンドル名の配列
@@ -530,7 +489,7 @@ export class Ellipse {
     }
 
     /**
-     * 指定された座標(x, y)が塗られた内側にあるかを判定する（共通メソッド契約の第15メソッド）。
+     * 指定された座標(x, y)が塗られた内側にあるかを判定する（共通メソッド契約の第14メソッド）。
      * 塗られている（`isFillable()`が真で`fillColor`が文字列。`draw`の塗る条件と同じ）ときだけ判定し、そうでなければ常にfalse（弧は`fillColor`が文字列でもfalse）。
      * 許容誤差は使わない。`rx`・`ry`は`#readGeometry`の主軸・もう一方の半径で、`rx * rx > 0 && ry * ry > 0`でなければ（半径0、および2乗が0へ丸められる半径）
      * 面積0としてfalse（以後の除算の分母は0にならず、NaN・Infinityは生じない）。半径が正なら`rx < 1 || ry < 1`でも楕円の式で厳密に判定する。
@@ -602,7 +561,7 @@ export class Ellipse {
 
     /**
      * 選択矩形に輪郭線（中心線。`strokeWidth`は含めない）の一部でも掛かるかを判定する範囲選択用の共通メソッド
-     * （共通メソッド契約の第10メソッド）。塗り内部は判定しない。矩形の境界上も交差とみなす。
+     * （共通メソッド契約の第9メソッド）。塗り内部は判定しない。矩形の境界上も交差とみなす。
      * 形は`draw()`と同じ`#readGeometry`の値で読む。縦横に沿った枝は外接矩形[xc − rx, xc + rx] × [yc − ry, yc + ry]、回した形は
      * 回した楕円を必ず含む保守的な正方形（半分の幅・高さが`max(rx, ry)`）が判定矩形と重ならなければfalseを返す（早期棄却。結果は変えない）。
      * 重なる場合はθ = startAngle + (endAngle − startAngle) × i / N（i = 0..N、N = ELLIPSE_INTERSECT_SEGMENTS）で
@@ -650,7 +609,7 @@ export class Ellipse {
     }
 
     /**
-     * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第13メソッド。呼び出し元は`SpriteSerializer`のみ）。
+     * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第12メソッド。呼び出し元は`SpriteSerializer`のみ）。
      * 形（キー順もこの順。`rotation`は`ctx.ellipse`の引数の順で`radiusY`の後）:
      * `{ kind: 'ellipse', id, x, y, radiusX, radiusY, rotation, startAngle, endAngle, closed, strokeColor, strokeWidth, fillColor }`。
      * `x`・`y`・`radiusX`・`radiusY`・`rotation`・`startAngle`・`endAngle`は`draw`と同じ`#readGeometry`の形（今の約束の位置では`rotation`は0で、
@@ -680,7 +639,7 @@ export class Ellipse {
     }
 
     /**
-     * 自身を図形データ（1図形のJSON表現・現行版）へ変換する（共通メソッド契約の第11メソッド）。
+     * 自身を図形データ（1図形のJSON表現・現行版）へ変換する（共通メソッド契約の第10メソッド）。
      * 形（キー順もこの順）: `{ type: 'circle'|'arc', id, points: [中心{x, y}, 右端制御点{x, y}, 上端制御点{x, y}, 開始角制御点{x, y}, 終了角制御点{x, y}], strokeColor, strokeWidth, fillColor }`。
      * `fillColor`は塗れない形（弧）でも保持している値をそのまま出力する。
      * 座標はワールド座標。`points`は各頂点を新規オブジェクトとして複製するため、戻り値と自身は内部配列・頂点を共有しない。
@@ -702,7 +661,7 @@ export class Ellipse {
     }
 
     /**
-     * 図形データ（`toJSON()`の形）から円・弧を復元する（共通メソッド契約の第12メソッド）。
+     * 図形データ（`toJSON()`の形）から円・弧を復元する（共通メソッド契約の第11メソッド）。
      * 中心と`type`でコンストラクタを仮生成して`startAngle`/`endAngle`を`type`から求めた後、
      * 5頂点を`data`の座標値から新規オブジェクトとして設定し直す。
      * `points[3]`/`[4]`（開始角・終了角制御点）も再計算せず`data`の値をそのまま採用する
@@ -732,7 +691,7 @@ export class Ellipse {
     }
 
     /**
-     * アフィン変換を当てた新しいEllipse（円・弧）を返す（共通メソッド契約の第19メソッド）。自身は変えない。
+     * アフィン変換を当てた新しいEllipse（円・弧）を返す（共通メソッド契約の第18メソッド）。自身は変えない。
      * 戻り値は自身と配列・頂点のオブジェクトを共有しない。`type`・`id`（そのまま）・`strokeColor`・`strokeWidth`・`fillColor`は自身と同じ（線の太さは変えない）。
      * 5つの点（`points[0]`〜`[4]`）をそのまま`applyAffineTransformToPoint`で写すだけ（`Rect`と同じ形）。拡大縮小・回転・傾き・裏返しの組み合わせを同じ入口で表せる
      * （回した円・弧は傾いた楕円・楕円の弧になり、弧の上下の裏返しは下半分の弧になる）。`Error`は投げない。

@@ -923,23 +923,6 @@ describe('Path の描画命令', () => {
         assert.equal(closed.log.filter(([name]) => name === 'closePath').length, 1);
         assert.deepEqual(closed.log.slice(-2), [['set', 'lineWidth', 8], ['stroke']]);
     });
-
-    it('drawHandles: 全頂点に一辺8 / viewScaleの正方形を頂点中心に描く', () => {
-        const { ctx, log } = makeRecordingCtx();
-        makePath(false).drawHandles(ctx, 2);
-        const rects = log.filter(([name]) => name === 'rect');
-        assert.deepEqual(rects, [
-            ['rect', -2, -2, 4, 4],
-            ['rect', 98, -2, 4, 4],
-            ['rect', 98, 98, 4, 4],
-            ['rect', -2, 98, 4, 4],
-        ]);
-        assert.deepEqual(log.slice(0, 3), [
-            ['set', 'fillStyle', '#ffffff'],
-            ['set', 'strokeStyle', '#4a90e2'],
-            ['set', 'lineWidth', 0.75],
-        ]);
-    });
 });
 
 describe('Path.drawOutline の描画命令', () => {

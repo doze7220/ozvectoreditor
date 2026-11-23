@@ -115,13 +115,13 @@ export function readCornerFlags(data) {
  * `{ kind: 'line' }`（直線の区間）・`{ kind: 'smooth' }`（打った点の曲線の区間）・`{ kind: 'bezier', control1, control2 }`（曲がり方を持つ区間）。
  * 打った点の曲線の区間の形は両端の頂点と前後の頂点から`computeSmoothSegmentControls`で決まり、制御点は作業データにも図形にも持たない（描くたび・判定するたびに求める）。
  * 曲がり方を持つ区間は引っ張る点`control1`（始点側）・`control2`（終点側）をワールド座標の絶対座標で区間に持ち、形は両端の頂点と引っ張る点の3次ベジェで決まる。
- * 引っ張る点は頂点ではない（ハンドルにならない。`getVertexHandleNames`・`hitTestHandle`・`drawHandles`は`points`だけを扱う）。
+ * 引っ張る点は頂点ではない（ハンドルにならない。`getVertexHandleNames`・`hitTestHandle`は`points`だけを扱う）。
  * 曲がり方を持つ区間とのつなぎ目は常に角（隣の打った点の曲線の区間は、隣を打った点の曲線の区間として数えず仮の点を使う）。
  * 頂点を動かす（`setVertex`）と、その頂点につながる曲がり方を持つ区間の、その頂点の側の引っ張る点が同じだけついていく（反対側は動かない）。`translate`は引っ張る点もすべて動かす。
  * 区間ごとに種類を指定して作るのは、コンストラクタへ区間の指定の配列を渡す場合（`PathJoinRules`の結合・描き足し・閉じる。結果は元の区間を保つ）と`fromJSON`（`segments`を作り直す）。
  * 角の点：公開プロパティ`corners`（頂点と同じ並びの真偽値の配列）で、曲線の連なりの途中の点を、なめらかにつなぐか角を立てるかを点ごとに持つ。
  * 角が形に効くのは両側とも曲線の区間の点だけ（直線の区間との境目・開いたパスの端はもともと角）。図形データでは角の点が1つ以上あるときだけ`corners`を`segments`の直後に出す。
- * 共通メソッド契約（19メソッド：draw・drawHandles・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * 共通メソッド契約（18メソッド：draw・drawHover・hitTest・hitTestHandle・setVertex・translate・
  * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames・createTransformed）を自律実装する。座標はすべてワールド座標。
  * パスは`ShapeFactory.create`の曲線のツールの描き始めでも作られる（頂点2つ・区間1つの曲線）。
  * 直線・曲線のツールで続けて引く線（点が3つ以上）も`PathJoinRules`が作り、作成途中の図形にもなる。
@@ -168,7 +168,7 @@ export class Path {
     }
 
     /**
-     * 塗れる形か（共通メソッド契約の第14メソッド）。閉じたパスのみ`true`。データには保存しない。
+     * 塗れる形か（共通メソッド契約の第13メソッド）。閉じたパスのみ`true`。データには保存しない。
      * @returns {boolean} 閉じたパスなら`true`
      */
     isFillable() {
@@ -313,27 +313,6 @@ export class Path {
     }
 
     /**
-     * 選択中に全頂点のハンドルを描画する。`Rect`と同一配色（白塗り／青枠）・同一サイズ（画面上で一辺8pxの正方形）。
-     * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
-     * @param {number} [viewScale=1] - 現在の表示倍率。ハンドルの大きさ・枠線幅を画面上で一定に保つために用いる
-     */
-    drawHandles(ctx, viewScale = 1) {
-        const handleSize = 8 / viewScale;
-        const half = handleSize / 2;
-
-        ctx.fillStyle = '#ffffff';
-        ctx.strokeStyle = '#4a90e2';
-        ctx.lineWidth = 1.5 / viewScale;
-
-        this.points.forEach(({ x: hx, y: hy }) => {
-            ctx.beginPath();
-            ctx.rect(hx - half, hy - half, handleSize, handleSize);
-            ctx.fill();
-            ctx.stroke();
-        });
-    }
-
-    /**
      * ホバー時の強調表示を描画する。`draw`と同じパスに半透明の太線を重ねる。
      * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
      * @param {number} [viewScale=1] - 現在の表示倍率。強調の上乗せ幅を画面上で一定に保つために用いる
@@ -347,7 +326,7 @@ export class Path {
     }
 
     /**
-     * アウトライン表示用に、`draw`と同じパスを細い1色の線だけで描画する（共通メソッド契約の第16メソッド）。
+     * アウトライン表示用に、`draw`と同じパスを細い1色の線だけで描画する（共通メソッド契約の第15メソッド）。
      * `fill`を呼ばず、`strokeColor`・`strokeWidth`・`fillColor`を読まない（線なし・塗りなしの図形でも輪郭を描く）。
      * 順序は パス（閉じたパスは`closePath`を含む） → `strokeStyle` → `lineWidth` → `stroke()`。
      * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
@@ -375,7 +354,7 @@ export class Path {
     }
 
     /**
-     * 点(x, y)が塗られたパスの内側にあるかを判定する（共通メソッド契約の第15メソッド）。許容誤差は使わない。
+     * 点(x, y)が塗られたパスの内側にあるかを判定する（共通メソッド契約の第14メソッド）。許容誤差は使わない。
      * 塗られている（`draw`が塗りを描く条件と同じ`isFillable()`かつ`fillColor`が文字列）ときだけ内側を判定し、塗られていなければ常に`false`
      * （開いたパスは`fillColor`が文字列でも`false`）。
      * 内側は、`#fillPolygon`の頂点の並び（区間がすべて直線なら`points`と同じ。曲線の区間は折れ線で近似）の多角形を
@@ -441,8 +420,8 @@ export class Path {
     }
 
     /**
-     * ハンドル名（`hitTestHandle`の戻り値）から、そのハンドルの位置を返す（共通メソッド契約の第17メソッド）。
-     * 位置は`hitTestHandle`・`drawHandles`と同じ頂点の写し（`getVertexIndexForHandle`で得た番号の`points[番号]`）。
+     * ハンドル名（`hitTestHandle`の戻り値）から、そのハンドルの位置を返す（共通メソッド契約の第16メソッド）。
+     * 位置は`hitTestHandle`と同じ頂点の写し（`getVertexIndexForHandle`で得た番号の`points[番号]`）。
      * 番号が範囲内の整数であることを確かめてから写し、ハンドル名でない値（`null`・`undefined`・未知の文字列・文字列以外・
      * `'move'`・範囲外の番号・`Object.prototype`のキー名）は例外にせず`null`を返す。
      * 戻り値は新しいオブジェクトで、書き換えても自身は変わらない。
@@ -458,7 +437,7 @@ export class Path {
     }
 
     /**
-     * 頂点として扱えるハンドル名の一覧を返す（共通メソッド契約の第18メソッド）。
+     * 頂点として扱えるハンドル名の一覧を返す（共通メソッド契約の第17メソッド）。
      * `points`の頂点の数だけ`'vertex-<i>'`（頂点が0個なら空配列）。
      * 並びは`getVertexIndexForHandle`が返す頂点の番号の昇順。一覧の各名前は`hitTestHandle`が返しうる名前で、
      * `getVertexIndexForHandle`が番号を、`getHandlePosition`が位置を返す。
@@ -538,7 +517,7 @@ export class Path {
     }
 
     /**
-     * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第13メソッド。呼び出し元は`SpriteSerializer`のみ）。
+     * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第12メソッド。呼び出し元は`SpriteSerializer`のみ）。
      * 区間がすべて直線なら`polyline`、曲線の区間（曲がり方を持つ区間を含む）を1つ以上持つなら`bezierPath`（曲がり方を持つ区間の`cubic`の制御点は引っ張る点）。
      * `polyline`の形（キー順もこの順）: `{ kind: 'polyline', id, points: 各頂点{x, y}, closed, strokeColor, strokeWidth, fillColor }`。
      * `bezierPath`の形（キー順もこの順）: `{ kind: 'bezierPath', id, points: 各頂点{x, y}, closed, segments, strokeColor, strokeWidth, fillColor }`。
@@ -582,7 +561,7 @@ export class Path {
     }
 
     /**
-     * 自身を図形データへ変換する（共通メソッド契約の第11メソッド）。
+     * 自身を図形データへ変換する（共通メソッド契約の第10メソッド）。
      * 形（キー順もこの順）: `{ type: 'path', id, points: [{x, y}, ...], closed, segments: [{ kind }, ...], strokeColor, strokeWidth, fillColor }`。
      * `segments`の要素は`'line'`・`'smooth'`なら`{ kind }`、`'bezier'`なら`{ kind, control1: {x, y}, control2: {x, y} }`（絶対座標の引っ張る点）。
      * `fillColor`は塗れない形でも保持している値をそのまま出力する。
@@ -606,7 +585,7 @@ export class Path {
     }
 
     /**
-     * 図形データ（`toJSON()`の形）からパスを復元する（共通メソッド契約の第12メソッド）。
+     * 図形データ（`toJSON()`の形）からパスを復元する（共通メソッド契約の第11メソッド）。
      * 共通項目は`validateShapeData`（頂点数は`{ min: 2 }`。戻り値は既定値を解決した`{ strokeColor, strokeWidth, fillColor }`）で検証し、その後にパス固有の項目（`closed`・閉じたパスの頂点数・`segments`）を検証する。
      * コンストラクタが`data`の頂点を複製して生成し、`segments`は`data.segments`の区間（`'line'`・`'smooth'`・`'bezier'`。混ざってよい。`'bezier'`は引っ張る点も写す）から`copySegment`で作り直す。`data`内の配列・オブジェクトは流用しない。
      * `id`は検証せず`data.id`をそのまま保持する。余分なプロパティ（最上位・区間の要素とも）は無視する。
@@ -675,7 +654,7 @@ export class Path {
     }
 
     /**
-     * アフィン変換を当てた新しいPathを返す（共通メソッド契約の第19メソッド）。自身は変えない。
+     * アフィン変換を当てた新しいPathを返す（共通メソッド契約の第18メソッド）。自身は変えない。
      * `points`をすべて写し、`'bezier'`の区間は引っ張る点`control1`・`control2`も写す（`'line'`・`'smooth'`は`{ kind }`のまま。
      * `'smooth'`の制御点は頂点の1次式のため、同じ変換に追従する）。`closed`・区間の種類・`corners`・`type`・`id`（そのまま）・
      * `strokeColor`・`strokeWidth`・`fillColor`は自身と同じ（線の太さは変えない）。
