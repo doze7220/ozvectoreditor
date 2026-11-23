@@ -136,11 +136,6 @@ describe('resolveCursorShape：選択モード', () => {
         assert.equal(resolveCursorShape(makeInput({ hit: null })), 'default');
     });
 
-    it('ハンドル上はmove（本体が選択外でも）', () => {
-        const hit = { handle: { shapeId: 's1', handle: 'v0' }, bodyId: 's1' };
-        assert.equal(resolveCursorShape(makeInput({ hit })), 'move');
-    });
-
     it('選択集合内の図形の本体上はmove', () => {
         const input = makeInput({
             hit: { handle: null, bodyId: 's1' },
@@ -295,10 +290,9 @@ describe('resolveCursorShape：短絡評価と引数不変', () => {
         assert.deepEqual(args, ['s1']);
     });
 
-    it('isSelectedはハンドル上・本体なし・hitがnull・ドラッグ状態では呼ばない', () => {
+    it('isSelectedは本体なし・hitがnull・ドラッグ状態では呼ばない', () => {
         let calls = 0;
         const isSelected = () => { calls++; return false; };
-        resolveCursorShape(makeInput({ hit: { handle: { shapeId: 's1', handle: 'v0' }, bodyId: 's1' }, isSelected }));
         resolveCursorShape(makeInput({ hit: { handle: null, bodyId: null }, isSelected }));
         resolveCursorShape(makeInput({ hit: null, isSelected }));
         resolveCursorShape(makeInput({ state: InputState.MOVING_SELECTION, hit: { handle: null, bodyId: 's1' }, isSelected }));

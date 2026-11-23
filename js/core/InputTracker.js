@@ -194,7 +194,7 @@ export function hasCtrlModifier(event) {
  * 修飾キー（Ctrl＝ctrlKey||metaKey）の読み取りは行うが、クリック・範囲選択の次の選択の決定はSelectionRulesの関数へ渡すだけで本クラスは持たない
  * （結果の反映は#applySelectionChangeが受け渡す。頂点の選択のモードの範囲選択の確定では、範囲に入る頂点の組の収集をVertexHandleRulesへ、
  * 頂点の選択の次の状態の決定をSelectionRulesの頂点用の規則へ渡し、結果の反映は#applyVertexSelectionChangeが受け渡す）。
- * 本体ドラッグ・移動用ハンドルのドラッグ（MOVING_SELECTION）では、追従のたびのイベントのshiftKeyとCtrl（hasCtrlModifier）も読み取るが、
+ * 本体ドラッグ（MOVING_SELECTION）では、追従のたびのイベントのshiftKeyとCtrl（hasCtrlModifier）も読み取るが、
  * 移動方向の限定はMoveDirectionRules、移動量の丸め（スナップ。Ctrlの間は丸めない）はUnitSnapRulesの関数へ渡すだけで本クラスは持たない。
  * 移動量は、押した位置からの移動量（限定・丸めの適用後）と反映済みの移動量の差分で求める。
  * 直線・曲線のツールで線を引いている途中（DRAWINGで、注入された補助のisDrawingLine()が真）は、mousemove・click・Escの枝で補助の線を引く手順
@@ -237,7 +237,7 @@ export function hasCtrlModifier(event) {
  * 離す・中断では、控え（#rotateDrag）を消してから図形の差し替えを通知する（離したときは今の図形のインスタンスのまま、中断は控えのインスタンスへ戻す。
  * 回している間の外枠はgetRotationDragView()の控えから描かれるため、縦横の外枠へ戻すための再描画を今のmodel.onChangeの経路で起こす）。離して取り消し1件、中断は記録しない。
  * 「Escで中断できるドラッグか」の判定は公開のisScalingSelection()の1か所（対象の状態の一覧はInputModesのCANCELABLE_DRAG_STATES）。
- * Altを押して始めた本体ドラッグ・移動用ハンドルのドラッグで移動量が閾値を超えた時点（beginEdit()の後）に、
+ * Altを押して始めた本体ドラッグで移動量が閾値を超えた時点（beginEdit()の後）に、
  * 注入された複製を呼ぶだけで、複製の仕方・idの採番は知らない。
  * 「クリックした図形を外へ渡す待ち受け」（isPickingShape）の間は、選択モード・IDLEの左ボタンの押下で何も始めず、
  * クリックは当たった図形のidをpickShapeへ渡すだけ（選択は変えない。Ctrlも見ない）で、カーソルは'cell'になる。
@@ -470,10 +470,9 @@ export class InputTracker {
         this.currentShapeType = SHAPE_TYPES[0];
 
         /**
-         * DRAGGING_HANDLE状態中に操作している頂点ハンドルの名前（押下時の各図形のhitTestHandleの戻り値。'move'以外）。
+         * DRAGGING_HANDLE状態中に操作している頂点ハンドルの名前（押下時の各図形のhitTestHandleの戻り値）。
          * 押下時に記憶する（アンカー＝押した頂点のハンドル名）。頂点インデックスへの解決（shape.getVertexIndexForHandle()）は
          * 追従ではなく押下の時点（#beginLeftDragの#vertexDragOriginsの組み立て）で1回だけ行う。
-         * moveハンドルの押下はMOVING_SELECTIONへ遷移するため、ここには記憶しない。
          * IDLE/DRAWING/MOVING_SELECTION/MARQUEE_SELECTING/SCALING_SELECTION状態では未使用（null）。
          * @type {string|null}
          */
@@ -525,7 +524,7 @@ export class InputTracker {
      * 左ドラッグは#onLeftDragCancel()によりIDLEへ戻る。拡大縮小・回転（SCALING_SELECTION・ROTATING_SELECTION）は控えの図形のインスタンスへ戻して記録しない。
      * ほかの左ドラッグの頂点・位置の変更は確定済みのまま残り、範囲選択は選択矩形を破棄して確定しない）、
      * なおIDLE以外の状態（作成途中）であればcancelDraft()で作成途中の図形を破棄してIDLE状態へ戻す。
-     * 中断した左ドラッグのうち拡大縮小・回転以外（本体ドラッグ・moveハンドル・ハンドル変形）で頂点・位置の変化が残った場合は、#finishLeftDrag()で
+     * 中断した左ドラッグのうち拡大縮小・回転以外（本体ドラッグ・ハンドル変形）で頂点・位置の変化が残った場合は、#finishLeftDrag()で
      * 1件の編集操作として記録先へ確定する（選択集合のクリアより前のため、記録される選択集合は操作中のもの）。
      * 作成途中の図形の破棄・範囲選択の中断・拡大縮小・回転の中断は編集操作として伝えない。
      * (2)currentModeの更新、(3)選択集合・ホバー状態の無条件クリア、(4)カーソル形状の再評価。
@@ -725,7 +724,7 @@ export class InputTracker {
     /**
      * 進行中の入力操作を強制中断する。図形一式の入れ替え（VectorModel.replaceAllShapes）の前処理として、
      * 作業データの復元時、および取り消し・やり直し（履歴の適用）の前処理としてmain.jsから呼ばれる。
-     * 中断した左ドラッグのうち拡大縮小・回転以外（本体ドラッグ・moveハンドル・ハンドル変形）で頂点・位置の変化が残った場合は、#finishLeftDrag()で
+     * 中断した左ドラッグのうち拡大縮小・回転以外（本体ドラッグ・ハンドル変形）で頂点・位置の変化が残った場合は、#finishLeftDrag()で
      * 1件の編集操作として記録先へ確定する（中断で残った変化も単独で取り消せるようにするため）。
      * 作成途中の図形の破棄・範囲選択の中断・拡大縮小・回転の中断は編集操作として伝えない。
      * 受理条件：常に受け付ける（どの操作モード・入力状態からでも呼べる。何も進行していなければ何もしない）。
@@ -979,13 +978,13 @@ export class InputTracker {
      * (5c)IDLE状態かつ選択モード中で、注入された補助のisPickingShape()が真（クリックした図形を外へ渡す待ち受け中）なら、
      * 当たり分類の前に何もせず終了する（左ボタンの押下で何も始めない。(2)(4)のパンは先に判定済みのため働く）。
      * (6)IDLE状態かつ選択モード中のみ、押下点（ワールド座標）を#classifyPointで当たり分類し、何を始めるかの分岐はPressActionRules.resolvePressActionが決める。
-     * 外枠のハンドル（#findScaleHandle）に当たっていればその名前をresolvePressActionの第3引数へ渡し（図形の本体・ハンドルより優先。scaleSelectionなら#beginScaleSelectionで拡大縮小を開始する）、
+     * 外枠のハンドル（#findScaleHandle）に当たっていればその名前をresolvePressActionの第3引数へ渡し（図形の本体より優先。scaleSelectionなら#beginScaleSelectionで拡大縮小を開始する）、
      * 外枠のハンドルに当たっていなければ#findRotationZoneで回転の範囲（外枠の角の外側）を調べ、その角の名前をresolvePressActionの第4引数へ渡す
-     * （rotateSelectionなら#beginRotateSelectionで回転を開始する。図形の本体・図形ごとのハンドルより優先。Alt・Ctrlは見ない＝複製を立てない）。
+     * （rotateSelectionなら#beginRotateSelectionで回転を開始する。図形の本体より優先。Alt・Ctrlは見ない＝複製を立てない）。
      * 結果を今の非公開メソッドへ振り分ける（左ドラッグは#beginLeftDragで開始し、閾値以内で離した場合は離した後のclickで判定する。
      * MOVING_SELECTIONは#beginMoveSelection経由で開始し、開始できたときに押した時点のevent.altKeyを記憶する
      * （Alt+ドラッグの複製の判定。Altを見るのは押した時点だけで、頂点のハンドル・範囲選択・拡大縮小・回転では記憶しない））。
-     * 分岐の表（外枠のハンドル・moveハンドル・頂点のハンドル・選択集合内の本体・選択集合外の本体・空白）はPressActionRules.resolvePressActionのJSDocを参照。
+     * 分岐の表（外枠のハンドル・回転の範囲・選択集合内の本体・選択集合外の本体・空白）はPressActionRules.resolvePressActionのJSDocを参照。
      * スペース押下中・中ボタン・キャンバス移動モードは(2)(4)のパン判定が先に成立するため、範囲選択は起きない。
      * この分岐の表はCtrlで変えない（Ctrlは閾値以内で離した後のclickと範囲選択の確定でのみ見る）。
      * @param {MouseEvent} event
@@ -1064,8 +1063,6 @@ export class InputTracker {
             this.#beginRotateSelection(event, point, rotationHit);
         } else if (action.type === 'moveSelection') {
             this.#beginMoveSelection(event, point);
-        } else if (action.type === 'dragHandle') {
-            this.#beginLeftDrag(event, InputState.DRAGGING_HANDLE, point, action.target);
         } else if (action.type === 'marquee') {
             this.#beginLeftDrag(event, InputState.MARQUEE_SELECTING, point);
         }
@@ -1086,11 +1083,11 @@ export class InputTracker {
      * スナップの刻みで丸めた位置（roundPointToUnit。スナップOFFでは丸めずクリック位置）でstartDraftする。
      * Ctrl（hasCtrlModifier）を見るのはこのclickイベント。Ctrlの間は吸い付きを照会せず（照会結果がnullのときと同じ経路）、丸めもしない。
      * IDLE状態かつ選択モード中では、クリック位置を#classifyPointで当たり分類し（ホバー状態は参照しない）、
-     * 当たり分類の直後・ハンドルの判定より前に、注入された補助のisPickingShape()が真（クリックした図形を外へ渡す待ち受け中）なら、
+     * 当たり分類の直後・外枠のハンドルの判定より前に、注入された補助のisPickingShape()が真（クリックした図形を外へ渡す待ち受け中）なら、
      * 当たった本体のid（hit.bodyId）があればpickShape(bodyId)を呼び、いずれにしても終了する（選択は変えない。Ctrlも見ない。
      * 空白では何もしない）。待ち受けでなければ、
      * 外枠のハンドル（#findScaleHandle）の上なら何もしない（押して閾値以内で離しただけ・Ctrl+クリックで選択を変えない）。
-     * 選択集合の図形のハンドル上なら何もしない（選択集合を維持。Ctrlの有無によらない）。それ以外は、選択集合・当たった本体のid・
+     * それ以外は、選択集合・当たった本体のid・
      * Ctrlの有無（hasCtrlModifier。見るのはclickイベント＝確定の時点）をSelectionRulesのresolveClickSelectionへ渡し、結果を#applySelectionChangeで反映する。
      * Ctrlなし：図形の本体上ならその図形のみの単一選択（setSelection([bodyId])）、空白なら選択集合が空でなければ全解除（clearSelection()）。
      * Ctrlあり：本体上なら選択集合へ1つ追加、選択中の図形なら外す（ほかの選択は残る）。空白では何もしない（解除しない）。
@@ -1115,7 +1112,7 @@ export class InputTracker {
      * 終了直後、およびEscで中断した拡大縮小・回転のドラッグの後（閾値以内でも。cancelDraftOrClearSelectionの(1)）のclickは、
      * DragTrackerのclick抑止フラグをconsumeSuppressedClick()で消費したうえで1回だけ無視する
      * （作成開始・確定・選択・選択解除を起こさない）。それ以外で左ドラッグを閾値以内で離した場合のclickは抑止せず、上記の通常処理を行う
-     * （ハンドル上で離した場合は選択集合を維持し、選択集合内の図形の本体上で離した場合はその図形のみの単一選択になる）。
+     * （外枠のハンドル上で離した場合は選択集合を維持し、選択集合内の図形の本体上で離した場合はその図形のみの単一選択になる）。
      * @param {MouseEvent} event
      */
     handleClick(event) {
@@ -1159,9 +1156,6 @@ export class InputTracker {
                 return;
             }
             if (this.#findScaleHandle({ x, y }) !== null) {
-                return;
-            }
-            if (hit.handle) {
                 return;
             }
             this.#applySelectionChange(
@@ -1421,7 +1415,7 @@ export class InputTracker {
     }
 
     /**
-     * 選択集合の平行移動のドラッグ（MOVING_SELECTION。moveハンドル・選択中の図形の本体）を開始する。handleMouseDownから呼ばれる。
+     * 選択集合の平行移動のドラッグ（MOVING_SELECTION。選択中の図形の本体）を開始する。handleMouseDownから呼ばれる。
      * #beginLeftDragの戻り値（開始できたか）が真のときだけ、押した時点のevent.altKeyを#duplicateOnMoveへ記憶する
      * （閾値超過時に#onLeftDragStartが複製を呼ぶ。押した後のAltは見ない）。
      * @param {MouseEvent} event ドラッグを開始したmousedownイベント
@@ -1480,7 +1474,7 @@ export class InputTracker {
 
     /**
      * 左ドラッグの移動量が閾値を超えた時点の処理（DragTrackerのonStart）。
-     * 状態がMOVING_SELECTION（本体ドラッグ・moveハンドル）・DRAGGING_HANDLE（ハンドル変形）・SCALING_SELECTION（拡大縮小）・ROTATING_SELECTION（回転）のときのみ、記録先の
+     * 状態がMOVING_SELECTION（本体ドラッグ）・DRAGGING_HANDLE（ハンドル変形）・SCALING_SELECTION（拡大縮小）・ROTATING_SELECTION（回転）のときのみ、記録先の
      * beginEdit()を呼んで#isEditOpenを立てる（まだ図形は動いていない時点の状態が「前の状態」になる。確定は#finishLeftDrag()）。
      * その後、MOVING_SELECTIONかつ#duplicateOnMove（Alt+ドラッグ）なら注入された補助のduplicateSelection()を呼ぶ
      * （開いた編集操作の中で複製し、以後の追従は複製を動かす。閾値以内で離したときは本メソッドが呼ばれないため複製しない）。

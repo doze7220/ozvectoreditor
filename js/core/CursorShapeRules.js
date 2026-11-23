@@ -50,7 +50,7 @@ import { resolveRotationCursor } from './RotationRules.js';
  * (4)DRAGGING_HANDLE・MOVING_SELECTION状態 → 'move'、
  * (5)MARQUEE_SELECTING状態 → 'default'、
  * (6)当たり分類なし（hit === null。座標不明） → 'default'、
- * (7)選択集合の図形のハンドル上（hit.handle） → 'move'、
+ * (7)欠番（図形ごとのハンドルの枝は消した）、
  * (8)選択集合内の図形の本体上（hit.bodyIdが選択集合内） → 'move'、
  * (9)それ以外の図形の本体上（hit.bodyId） → 'pointer'、
  * (10)それ以外 → 'default'。
@@ -128,10 +128,6 @@ export function resolveCursorShape(input) {
 
     if (hit === null) {
         return 'default';
-    }
-
-    if (hit.handle) {
-        return 'move';
     }
 
     if (hit.bodyId && isSelected(hit.bodyId)) {

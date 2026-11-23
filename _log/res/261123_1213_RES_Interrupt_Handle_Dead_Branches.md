@@ -124,7 +124,7 @@
         *   `CanvasManager.render`：引数`selectedIds`・`showHandles`と「5.」の段（`selectedSet`を含む）を消す。JSDocの描画順(2)・`@param shapes`の`drawHandles`・`@param state.selectedIds`・`@param state.showHandles`・渡された引数の列挙の`selectedIds`を消し、頂点のハンドルの説明（「`drawHandles`と同じ位置」）を「全図形の描画後・作成中の図形の前」だけにする。まとめて描く理由（前面の図形が覆い隠さないため）は頂点のハンドルの説明として残す。ほかのコメントの番号は、抜けた番号に合わせる範囲だけ直してよい。描く順・ほかの段は変えない。
         *   `main.js`：`selectedIds: model.getSelectedIds(),`・`showHandles: false,`とその説明のコメント2行を消し、`renderCurrentState`のJSDocの`drawHandles`・`showHandles`・（渡す状態としての）`selectedIds`の記述を直す。
         *   `node --test`全件合格。JSDocの記載漏れの確認。「4.」の記入と、開発資料の更新予定欄への追記（影響が判明した場合。資料本体は修正しない）。
-*   [ ] タスク3: 選択（`V`）のハンドルの枝を消す（要件2(3)）
+*   [x] タスク3: 選択（`V`）のハンドルの枝を消す（要件2(3)）
     *   **対象ファイル** :
         *   `./js/core/PressActionRules.js` :（更新）
         *   `./js/core/CursorShapeRules.js` :（更新）
@@ -203,7 +203,13 @@
 
 ### タスク3: 選択（`V`）のハンドルの枝を消す（要件2(3)）
 *   **作業内容** :
-    *   （未実施）
+    *   着手時に`resolvePressAction(`・`resolveCursorShape(`・`classifyPointHit(`の呼び出し元を`js/`でGrepし直し、各1か所（`InputTracker`の`handleMouseDown`・`#updateCursor`・`#classifyPoint`）であることを確認。
+    *   `PressActionRules.js`：`MOVE_HANDLE_NAME`・`if (hit.handle) {…}`の枝・typedef`PressAction`の`dragHandle`を消し、JSDocの判定表・`isSelected`を呼ぶ条件・`@returns`を合わせ、`hit.handle`は読まない旨を足した。`resolveVertexPressAction`のコードは変えず、JSDocの「'move'ハンドルの除外…」を「頂点のハンドルだけに絞り込むのは`PointHitRules`」に直した。
+    *   `CursorShapeRules.js`：`SELECT`の`if (hit.handle) return 'move';`を消し、JSDocの(7)を欠番にした（(8)〜(10)・(2a)・(4)は変更なし）。
+    *   `InputTracker.js`：`handleMouseDown`の`dragHandle`の枝、`handleClick`の`SELECT`の`if (hit.handle) { return; }`を消し、移動用ハンドル・moveハンドル・図形ごとのハンドルに触れたコメント、クリックのJSDoc（「選択集合の図形のハンドル上なら何もしない」を削除、「ハンドル上で離した場合」を外枠のハンドルに）を直した。
+    *   `InputModes.js`：`MOVING_SELECTION`の「moveハンドル・」を除き、`SELECT`の「ハンドルドラッグ」を「外枠のハンドルでの拡大縮小・外枠の角の外側での回転」に直した（コメントのみ）。
+    *   テスト：`PressActionRules.test.js`の`describe('resolvePressAction：ハンドルあり')`（5件）を削除、「nullと省略は…」のハンドルの4行を削除しケース名から「・ハンドル」を除いた。`CursorShapeRules.test.js`の「ハンドル上はmove（本体が選択外でも）」を削除、「isSelectedは…」の`hit.handle`ありの1行を削除しケース名から「ハンドル上・」を除いた。行末は元のまま（PressActionRules.js・CursorShapeRules.test.js＝LF、CursorShapeRules.js・InputTracker.js・InputModes.js＝CRLF、PressActionRules.test.jsは触らない行の行末を維持）。
+    *   `node --test`全件合格：tests 2470 / suites 400（見込みどおり）。
 
 ### タスク4: 直線の`move`と、円・弧の図形ごとのハンドルの式を消す（要件2(4)・要件3）
 *   **作業内容** :
