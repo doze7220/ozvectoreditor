@@ -292,7 +292,7 @@
         *   `ItemListWiring`：`itemRenameEditor`の注入。編集の開始（`canStartNameEdit`。`hasModifier`は`readCtrlModifier(event) || event.shiftKey`）、確定は`itemRenameEditor.rename(id, text)`を呼ぶだけ、`openCanvasId`が変わったら`panel.cancelNameEdit()`。
         *   `main.js`：`new ItemRenameEditor({ model, editRecorder: historyManager })`を`// 7.15.`で生成して渡す。
         *   コードの最後のタスクとして、全新規・更新ファイルのJSDocの記載漏れ、未使用のimport・未使用の公開メソッドが無いことを確認する。
-*   [ ] タスク10: 開発資料の反映その1（`PROJECT_ARCHITECTURE.md`）
+*   [x] タスク10: 開発資料の反映その1（`PROJECT_ARCHITECTURE.md`）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新。本タスクのみ例外として許可）
     *   **作業内容** :
@@ -378,7 +378,13 @@
 
 ### タスク10: 開発資料の反映その1
 *   **作業内容** :
-    *   （未実施）
+    *   `PROJECT_ARCHITECTURE.md`（CRLFのまま。バイト列で`\r\n`と`\n`の数が一致することを確認）を実コード（`ItemListWiring`・`ItemListPanel`・`main.js`・`index.html`・`ThumbnailRenderer`等）と照らして反映した。
+    *   1章：構成図へ新しい8ファイル（`ItemListRules`・`ListSelectionRules`・`ListScrollRules`・`ThumbnailRules`・`ThumbnailRenderer`・`ItemRenameEditor`・`ItemListPanel`・`ItemListWiring`）とテスト7ファイル、`index.html`の説明（パネル・`--item-list-width`・`--canvas-area-width`が`body`の規則）、既存行の使う側・`getShapeBounds`、フォルダ分割の方針（core・edit・palette・wiring）、依存方向（例外(3)が8ファイル、規則どうしのimport、`wiring/`が`core/`のレンダラーをimport、`shapeExtentReader`の共有先）、「存在しないもの」（Phase 11-02で入ったものとやらないこと）。
+    *   2章：「アイテム」の公開操作を`renameItem`へ、名前の項の追記、スタイルの読み書きの例外（サムネイルの写しの`strokeWidth`）、選択状態へ「一覧の選択の表示と`Shift`の起点」。
+    *   3章：同期の経路・2.（`resizeAndRenderViews`）・4.（領域の幅）・1.（読み込み完了前）・6.（名前の変更を記録する／一覧の選択は記録しない）・8.（一覧の操作の受け付け）・15.（隠す対象に一覧・`visibility: hidden`・`displayState.onChange`の登録順）・16.（一覧での選択）・18.（頂点の選択での一覧の行）を直し、新しい節「28. 図形の一覧」を足した。4章：一覧表へ48〜53（`_doc/arch/`の新規6ファイル。タスク11で作る）を足した。
+    *   `node --test`：tests 2764 / pass 2764 / fail 0。
+    *   判断：節28の「発注者の決定」はRES・REQの「今回やらないこと」から読めた分だけを書いた。「確認の状況」は、実ブラウザでの確認が未実施である旨を書いた（テストプレイ後に直す）。3章14.の「図形の一覧のPhaseで…並べ替え」の古いやらないことの記述は、履歴の記述のため触れていない。
+    *   （実装統括AIによる反映漏れの補正）3章28.の「発注者の決定」を、REQに「発注者の決定」と書かれた3点（幅の固定・枠いっぱいのサムネイル・図形を描くツールでは何も起きない）に直した。
 
 ### タスク11: 開発資料の反映その2
 *   **作業内容** :
@@ -401,6 +407,7 @@
 *   （タスク1・修正時の注意）`--canvas-area-width`は`body`の規則にある。`:root`へ戻すと`body.float-windows-hidden`の上書きが効かなくなる。`displayState.onChange(resizeAndRenderViews)`は`new DisplayWiring`の直後に置く順序が必要。
 *   500個の絵での重さ（下の10.）。
 *   （タスク9）名前の編集は、実ブラウザで確かめたい：`Enter`・`Esc`・`blur`の各出口で二重の確定が起きないか、`Esc`で選択が外れないか、編集中に重なり順の変更等で行の並びが変わっても欄が閉じないか、名前の欄の中のドラッグで行が押されないか。DOMのため自動テストは無い。
+*   （タスク10）`PROJECT_ARCHITECTURE.md`の4章の表へ`_doc/arch/48`〜`53`を足した。ファイルはタスク11で作る（それまで表のパスは未存在）。節28の「確認の状況」は未実施と書いたため、テストプレイの後に直すこと。
 *   （タスク9・修正時の注意）`ItemListPanel.render`の並べ替えは編集中の行の要素を動かさない前提（動かすと`blur`で確定する）。`#finishNameEdit`以外から欄を除かない。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
