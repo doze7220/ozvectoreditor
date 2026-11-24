@@ -167,7 +167,7 @@
 ## 3. タスクリスト
 ※ 全タスク共通：コード修正の後、(1) 足した・変えたクラス・関数・データ構造のJSDoc（ファイル先頭の責務を含む）の漏れが無いことを確かめる、(2) `node --test`の全件合格を確かめる、(3) 本RESの該当タスクを`[x]`にし、4章の詳細作業内容を書く、(4) 開発資料に影響が出る場合は資料本体を直さず「開発資料の更新予定」へ追記する。対象ファイルに無いファイルは変えない。
 
-*   [ ] タスク1: 描き込む先の規則と、入れ子のまま入れる計算
+*   [x] タスク1: 描き込む先の規則と、入れ子のまま入れる計算
     *   **対象ファイル** :
         *   `./js/core/InsertTargetRules.js` :（新規）
         *   `./js/core/ItemTreeRules.js` :（更新）
@@ -310,7 +310,10 @@
 
 ### タスク1: 描き込む先の規則と、入れ子のまま入れる計算
 *   **作業内容** :
-    *   (未実施)
+    *   `js/core/InsertTargetRules.js`（新規・CRLF）：`resolveInsertTarget`（規則1〜5）と`resolveInsertMarkId`を実装。importなし・状態なし・引数を書き換えない。
+    *   `js/core/ItemTreeRules.js`（LFのまま）：`insertItemsAbove(items, isTarget, addedItems)`を末尾へ追加。通り道のフォルダだけ新しいオブジェクト、通らないフォルダは同じ参照。
+    *   テスト：`test/core/InsertTargetRules.test.js`（新規・CRLF）、`test/core/ItemTreeRules.test.js`末尾へ`insertItemsAbove`のdescribeを追加（importにも追記）。
+    *   `node --test`：tests 2785 / pass 2785 / fail 0。
 
 ### タスク2: VectorModelが描き込む先を持つ
 *   **作業内容** :
