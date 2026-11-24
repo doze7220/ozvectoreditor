@@ -58,7 +58,7 @@ describe('SpriteSerializer.serialize: 描画要素', () => {
         assert.equal(data.format, 'oz-vector-editor-sprite');
         assert.equal(data.formatVersion, 4);
         assert.equal('version' in data, false);
-        assert.equal(data.source.version, 3);
+        assert.equal(data.source.version, 4);
         assert.equal(data.source.format, 'oz-vector-editor');
     });
 
@@ -135,7 +135,7 @@ describe('SpriteSerializer.serialize: 外枠', () => {
         const data = SpriteSerializer.serialize([]);
         assert.deepEqual(data.elements, []);
         assert.equal(data.bounds, null);
-        assert.deepEqual(data.source, { format: 'oz-vector-editor', version: 3, shapes: [] });
+        assert.deepEqual(data.source, { format: 'oz-vector-editor', version: 4, shapes: [] });
     });
 
     it('線は線の太さの半分だけ広がる', () => {
@@ -1000,7 +1000,7 @@ describe('SpriteSerializer: createTransformed した図形の書き出し', () =
 
     it('source（作業データ）にも変換後の図形が入り、版は変わらない', () => {
         const data = SpriteSerializer.serialize(makeScaledShapes());
-        assert.equal(data.source.version, 3);
+        assert.equal(data.source.version, 4);
         assert.deepEqual(data.source.shapes.map((s) => s.type), ['line', 'curve', 'rect', 'circle', 'arc', 'path']);
         assert.deepEqual(data.source.shapes[0].points, [{ x: 80, y: 40 }, { x: 40, y: 30 }]);
         assert.deepEqual(data.source.shapes[4].points[0], { x: 0, y: 25 });

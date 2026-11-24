@@ -271,12 +271,16 @@ describe('CanvasFileOperations: インポート', () => {
         silenceWarn(t);
         const h = createHarness();
         const good = makeShapes().slice(0, 2).map((shape) => shape.toJSON());
+        const goodNames = ['直線 1', '曲線 1'];
         const text = makeTextWithShapesData([good[0], makeBadShapeData(), good[1]]);
         const result = await h.ops.importFile(makeFile('part.json', text));
         assert.equal(result, true);
         assert.deepStrictEqual(h.calls, ['prepareInsert', 'insertDocument']);
         assert.equal(h.insertCalls.length, 1);
-        assert.deepStrictEqual(h.insertCalls[0].documentData.shapes, good);
+        assert.deepStrictEqual(
+            h.insertCalls[0].documentData.shapes,
+            good.map((data, i) => ({ ...data, name: goodNames[i], visible: true, locked: false }))
+        );
         assert.equal(h.insertCalls[0].dx, 0);
         assert.equal(h.insertCalls[0].dy, 0);
         assert.deepStrictEqual(h.ops.getState().fileNotice, notice('partialRead', 'part.json', 1));
@@ -292,7 +296,12 @@ describe('CanvasFileOperations: インポート', () => {
         assert.equal(h.insertCalls.length, 1);
         assert.deepStrictEqual(
             h.insertCalls[0].documentData.shapes,
-            shapes.map((shape) => shape.toJSON())
+            shapes.map((shape, i) => ({
+                ...shape.toJSON(),
+                name: ['直線 1', '曲線 1', '矩形 1', '弧 1', '円 1'][i],
+                visible: true,
+                locked: false,
+            }))
         );
         assert.equal(h.ops.getState().fileNotice, null);
     });

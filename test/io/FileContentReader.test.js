@@ -437,3 +437,61 @@ describe('FileContentReader.deserializeFromText: 曲線のパスを含むスプ�
         assertPathsRestored(result.shapes, shapes);
     });
 });
+
+describe('FileContentReader: 版4の入れ子と名前（Phase 11-01）', () => {
+    /**
+     * 名前・フォルダを含むアイテムの入れ子を作る。
+     * @returns {Array<object>} アイテム
+     */
+    function makeItems() {
+        const inner = new Line(0, 0, 10, 10);
+        inner.id = 'shape-2';
+        const outer = new Rect(0, 0, 10, 10);
+        outer.id = 'shape-3';
+        return [
+            { kind: 'group', id: 'group-1', name: '親', visible: false, locked: true, children: [
+                { kind: 'shape', shape: inner, name: '中', visible: true, locked: false },
+            ] },
+            { kind: 'shape', shape: outer, name: '外', visible: true, locked: true },
+        ];
+    }
+
+    /**
+     * 素の図形で作ったスプライトデータのsourceを、アイテムの入れ子のsourceに差し替える。
+     * @param {Array<object>} items - アイテム
+     * @returns {object} スプライトデータ
+     */
+    function makeSpriteData(items) {
+        const plain = items.length > 0 ? SpriteSerializer.serialize(sampleShapesOfAllKinds()) : SpriteSerializer.serialize([]);
+        return { ...plain, source: DocumentSerializer.serialize(items) };
+    }
+
+    it('JSから読むとitemsに入れ子・名前・表示・ロックが戻る', (t) => {
+        t.mock.method(console, 'warn', () => {});
+        const items = makeItems();
+        const result = FileContentReader.deserializeFromText(CodeExporter.toModuleText(makeSpriteData(items)));
+        assert.equal(result.ok, true);
+        assert.deepStrictEqual(result.items.map((i) => [i.kind, i.name, i.visible, i.locked]), [
+            ['group', '親', false, true],
+            ['shape', '外', true, true],
+        ]);
+        assert.equal(result.items[0].children[0].name, '中');
+        assert.deepStrictEqual(result.shapes.map((s) => s.id), ['shape-2', 'shape-3']);
+    });
+
+    it('作業データのJSONから読んでも入れ子が戻る', (t) => {
+        t.mock.method(console, 'warn', () => {});
+        const result = FileContentReader.deserializeFromText(DocumentSerializer.serializeToString(makeItems()));
+        assert.equal(result.items[0].children.length, 1);
+    });
+
+    it('読み込み不可の結果にitemsが空配列で入る', (t) => {
+        t.mock.method(console, 'warn', () => {});
+        for (const text of ['何でもない', 'const x = 1;']) {
+            const result = FileContentReader.deserializeFromText(text);
+            assert.equal(result.ok, false);
+            assert.deepStrictEqual(result.items, []);
+            assert.deepStrictEqual(result.shapes, []);
+        }
+    });
+});

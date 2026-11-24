@@ -193,7 +193,7 @@
         *   クラスの責務・各JSDocを実態に合わせる（「図形固有の頂点構造・作業データ形式を知らない」ことは変わらない）。
         *   テスト：`commitDraft`の名前（各ツールの種別・続けて引く線の`replaceDraft`→`commitDraft`。表示・ロックなし）、入れ子の`replaceAllShapes`→`getItems`・`getShapes`（描画順）、`getItems`を書き換えてもモデルが変わらない、図形とフォルダの`id`の重複・欠落・連番の繰り上げ（`group-9`を保持した後の採番）、削除（空のフォルダが残る・フォルダの`id`は無視）、`reorderShapes`（フォルダの位置・入れ子・空のフォルダが保たれ、図形が消えない・二重にならない・名前が図形について動く）、`replaceShape`（`keepId`の有無・`removeIds`が別のフォルダの中・結果が`targetId`の名前・表示・ロック・所属を持つ・種別が変わっても名前が変わらない）、`replaceShapesKeepingIds`、`addShapesWithNewIds`（入れ子ごと外側の末尾・新しい`id`・名前の引き継ぎ・素の図形は既存の名前と重ならない・フォルダだけなら何も変えず通知なし）、通知の回数。
         *   共通の締め。既存の`VectorModel.*.test.js`は書き換えずに合格すること。
-*   [ ] タスク4: 作業データの版4（`DocumentSerializer`・`FileContentReader`）
+*   [x] タスク4: 作業データの版4（`DocumentSerializer`・`FileContentReader`）
     *   **対象ファイル** :
         *   `./js/io/DocumentSerializer.js` : 更新
         *   `./js/io/FileContentReader.js` : 更新（失敗の結果オブジェクトに`items: []`を足し、JSDocを直すだけ）
@@ -287,7 +287,10 @@
 
 ### タスク4: 作業データの版4
 *   **作業内容** :
-    *   （未実施）
+    *   `js/io/DocumentSerializer.js`（LF）：`GROUP_TYPE`・`CURRENT_DOCUMENT_VERSION = 4`・`migrateVersion3To4`・`MIGRATIONS[3]`を足した。`serialize`は`resolveItems(values)`の結果を要素へ変換（非公開`#itemToElement`。図形＝`{...toJSON(), name, visible, locked}`、フォルダ＝`{type:'group', id, name, visible, locked, children}`）。`deserialize`は非公開`#readElements`（再帰）で読み、読み飛ばしは非公開`#recordSkip`の1か所（`{ index: path[0], path, type, reason }`・警告1回、文面は`図形 #1/2（type）…`）。読めた要素に`resolveItems`を1回通して`items`、`shapes = listShapes(items)`。`RangeError`は`#readElements`内の図形単位の`catch`では再送出し（変えない）、`deserialize`の外側の`catch`（`#readElements`・`resolveItems`・`listShapes`を1つの`try`に含む）で例外の種類によらず`#failure`にする（`RangeError`は「入れ子が深すぎて読み込めません: …」、それ以外は「図形を読み込めません: …」。`throw`は残さない）。`#failure`の結果に`items: []`。typedef・責務・JSDocを更新。
+    *   `js/io/FileContentReader.js`（CRLF保持）：失敗の結果に`items: []`、JSDocのみ。
+    *   既存テストの書き換えは2章の表のタスク4の行だけ（roundtrip・migration・SpriteSerializer・TransformInputEditor・CanvasFileOperations）。新規`test/io/DocumentSerializer.items.test.js`、`test/io/FileContentReader.test.js`へ3件追記。`node --test`は2578件全件合格（2549 + 29）。
+    *   行末：`DocumentSerializer.js`・roundtrip・新規テストはLF、`FileContentReader.js`・`CanvasFileOperations.test.js`・`TransformInputEditor.test.js`はCRLFのまま。
 
 ### タスク5: スプライトの書き出し
 *   **作業内容** :
@@ -323,6 +326,8 @@
 * **キャンバスの記録**：版3の記録は、開いただけでは書き換わらない（自動保存は編集操作だけ）。編集して保存されると版4になり、本作業の前のエディタでは開けなくなる（許容。REQ要件2）。念のため、確認の前に作業データファイルを残しておくこと（下の0.）。
 
 * **タスク3の実装メモ**：`#shapes`は毎回`listShapes`で平らにするため、`getSelectedIds`・`setSelection`等の読み取りは呼ぶたびに全図形を走査する（図形数が多いと計算量は増えるが状態の食い違いは起きない）。`replaceShape`の`removeIds`は図形のアイテムだけを除き、フォルダは空でも残す。`addShapesWithNewIds`はフォルダのidも`group-<連番>`で新しく発行する。
+
+* **タスク4の実装メモ**：フォルダの読み飛ばしの`reason`は`フォルダのchildrenが配列ではありません`。版3以前のフォルダ要素は`children: null`を入れるため、同じ文面になる。`RangeError`は`ShapeFactory.fromJSON`が投げた場合も全体失敗になる（図形の不備は通常`Error`）。再帰の限界はブラウザで`RangeError`とは限らない（Firefoxは`InternalError`）ため、外側の`catch`は種類で分けず全体失敗にする。`SpriteSerializer.serialize`は未対応のため、アイテムを渡すスプライトの書き出しはタスク5まで未対応（`FileContentReader`のテストは`source`を差し替えて組んだ）。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0. **準備**：本作業の前に保存した、いつもの絵の作業データファイル（`.ozve.json`）と書き出したJSを1つずつ用意する。画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。

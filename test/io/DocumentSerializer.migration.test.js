@@ -1,5 +1,5 @@
 /**
- * 責務: DocumentSerializerの版1→版2（全図形をfillColor: nullにする）・版2→版3（円・弧の5つの点を今の約束の位置へそろえる）の
+ * 責務: DocumentSerializerの版1→版2（全図形をfillColor: nullにする）・版2→版3（円・弧の5つの点を今の約束の位置へそろえる）・版3→版4（図形に名前・表示・ロックを補う）の
  * マイグレーションの契約を、公開APIのみを通して検証する。
  */
 import { describe, it } from 'node:test';
@@ -287,7 +287,7 @@ describe('DocumentSerializer: 版2→版3のマイグレーション（円・弧
         assert.deepEqual(doc, snapshot);
     });
 
-    it('現行版（版3）の作業データは変換されず、回した円・弧の点がそのまま読める', (t) => {
+    it('版3の作業データは円・弧の点が変換されず、回した円・弧の点がそのまま読める', (t) => {
         silenceWarn(t);
         const rotated = [
             { x: 100, y: 100 }, { x: 100, y: 130 }, { x: 60, y: 100 }, { x: 100, y: 70 }, { x: 100, y: 130 },

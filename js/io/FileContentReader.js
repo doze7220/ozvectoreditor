@@ -36,7 +36,7 @@ import { CodeExporter } from './CodeExporter.js';
  */
 export class FileContentReader {
     /**
-     * ファイルのテキストを中身で判別し、図形を復元する。例外を投げない。
+     * ファイルのテキストを中身で判別し、アイテムの入れ子（`items`）と図形（`shapes`）を復元する。例外を投げない。
      * @param {string} text - ファイルのテキスト（作業データのJSON・スプライトのJS。スプライトのJSONは作業データとして判定され読み込み不可）
      * @returns {import('./DocumentSerializer.js').DeserializeResult} 結果オブジェクト（`DocumentSerializer`の結果と同じ形）
      */
@@ -83,10 +83,10 @@ export class FileContentReader {
     /**
      * 本クラス自身が判定した読み込み不可の結果オブジェクトを生成し、console.warnで1回報告する。
      * @param {string} reason - 読み込み不可の理由
-     * @returns {import('./DocumentSerializer.js').DeserializeResult} ok=false・shapes/skippedが空配列の結果オブジェクト
+     * @returns {import('./DocumentSerializer.js').DeserializeResult} ok=false・items/shapes/skippedが空配列の結果オブジェクト
      */
     static #failure(reason) {
         console.warn('FileContentReader: ファイルを読み込めませんでした: ' + reason);
-        return { ok: false, shapes: [], skipped: [], error: reason };
+        return { ok: false, items: [], shapes: [], skipped: [], error: reason };
     }
 }
