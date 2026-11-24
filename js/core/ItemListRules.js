@@ -1,5 +1,5 @@
 /**
- * 責務：図形の一覧の行の並び、行の操作（押す・カーソルを置く・名前の編集）の判定の規則。
+ * 責務：図形の一覧の行の並び、行の操作（押す・カーソルを置く・名前の編集・行のドラッグ）の判定の規則。
  * 状態を持たず、DOMにも`VectorModel`にも触れない。importは`ItemTreeRules`・`InputModes`だけ。
  */
 import { listShapeItems } from './ItemTreeRules.js';
@@ -73,6 +73,34 @@ export function resolveRowPressAction({ mode, isPicking, isDragging, isLocked })
  */
 export function canSetInsertTargetByRow({ mode, isPicking, isDragging, isLocked }) {
     return mode === OperationMode.CREATE && !isPicking && !isDragging && !isLocked;
+}
+
+/**
+ * 行のドラッグ（並べ替え）を始めてよいかを判定する。操作モードは見ない。
+ * 左ボタンで、修飾キーなし・編集中の行でない（名前の欄の中の押下を含む）・キャンバスのドラッグ/パン中でない・ロック中でないときだけ真。
+ * @param {Object} params - 判定の材料
+ * @param {number} params.button - `MouseEvent.button`
+ * @param {boolean} params.hasModifier - `Ctrl`（`⌘`）・`Shift`を押しているか
+ * @param {boolean} params.isEditingRow - 押した行が名前の編集中か
+ * @param {boolean} params.isDragging - キャンバスの左ドラッグ・パンの最中か
+ * @param {boolean} params.isLocked - 一覧がロック中か
+ * @returns {boolean} 始めてよいなら true
+ */
+export function canStartRowDrag({ button, hasModifier, isEditingRow, isDragging, isLocked }) {
+    return button === 0 && !hasModifier && !isEditingRow && !isDragging && !isLocked;
+}
+
+/**
+ * 行のドラッグが始まったとき、押した行を選ぶかを判定する。
+ * 選択・頂点の選択モードで、スポイトの待ち受け中でなく、押した行が選ばれていないときだけ真。
+ * @param {Object} params - 判定の材料
+ * @param {string} params.mode - 操作モード（OperationMode の値）
+ * @param {boolean} params.isPicking - スポイトの待ち受け中か
+ * @param {boolean} params.isSelected - 押した行が選ばれているか
+ * @returns {boolean} 選ぶなら true
+ */
+export function shouldSelectPressedRow({ mode, isPicking, isSelected }) {
+    return (mode === OperationMode.SELECT || mode === OperationMode.VERTEX) && !isPicking && !isSelected;
 }
 
 /**

@@ -13,6 +13,8 @@ import {
     isOwnHover,
     canStartNameEdit,
     canSetInsertTargetByRow,
+    canStartRowDrag,
+    shouldSelectPressedRow,
     resolveNameEditKey
 } from '../../js/core/ItemListRules.js';
 import { OperationMode } from '../../js/core/InputModes.js';
@@ -269,5 +271,44 @@ describe('canSetInsertTargetByRow', () => {
         assert.equal(canSetInsertTargetByRow({ ...base, isPicking: true }), false);
         assert.equal(canSetInsertTargetByRow({ ...base, isDragging: true }), false);
         assert.equal(canSetInsertTargetByRow({ ...base, isLocked: true }), false);
+    });
+});
+
+describe('canStartRowDrag', () => {
+    const base = { button: 0, hasModifier: false, isEditingRow: false, isDragging: false, isLocked: false };
+
+    it('左ボタンで、修飾キーなし・編集中でない・ドラッグ中でない・ロック中でないときだけ真', () => {
+        assert.equal(canStartRowDrag(base), true);
+    });
+
+    it('左以外のボタンは偽', () => {
+        assert.equal(canStartRowDrag({ ...base, button: 1 }), false);
+        assert.equal(canStartRowDrag({ ...base, button: 2 }), false);
+    });
+
+    it('修飾キー・編集中の行・ドラッグ中・ロック中はそれぞれ偽', () => {
+        assert.equal(canStartRowDrag({ ...base, hasModifier: true }), false);
+        assert.equal(canStartRowDrag({ ...base, isEditingRow: true }), false);
+        assert.equal(canStartRowDrag({ ...base, isDragging: true }), false);
+        assert.equal(canStartRowDrag({ ...base, isLocked: true }), false);
+    });
+});
+
+describe('shouldSelectPressedRow', () => {
+    const base = { mode: OperationMode.SELECT, isPicking: false, isSelected: false };
+
+    it('選択・頂点の選択モードで、待ち受け中でなく、押した行が選ばれていないときだけ真', () => {
+        assert.equal(shouldSelectPressedRow(base), true);
+        assert.equal(shouldSelectPressedRow({ ...base, mode: OperationMode.VERTEX }), true);
+    });
+
+    it('ほかの操作モード（作成・パン）は偽', () => {
+        assert.equal(shouldSelectPressedRow({ ...base, mode: OperationMode.CREATE }), false);
+        assert.equal(shouldSelectPressedRow({ ...base, mode: OperationMode.PAN }), false);
+    });
+
+    it('スポイトの待ち受け中・押した行が選ばれている場合は偽', () => {
+        assert.equal(shouldSelectPressedRow({ ...base, isPicking: true }), false);
+        assert.equal(shouldSelectPressedRow({ ...base, isSelected: true }), false);
     });
 });

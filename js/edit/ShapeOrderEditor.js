@@ -1,12 +1,12 @@
 /**
- * 責務: 選択中の図形の重なり順の変更を、並べ替えの規則（`./ShapeOrderRules.js`）で求めた並びに従って
- * モデルへ反映する1件の編集操作を担う。DOMに触れない。
+ * 責務: 選択中の図形の重なり順の変更（規則`./ShapeOrderRules.js`で求めた並び）と、並び全体の指定
+ * （一覧の行のドラッグ）を、モデルへ反映する1件の編集操作を担う。DOMに触れない。
  */
 import { canReorderSelected, reorderSelected } from './ShapeOrderRules.js';
 
 /**
- * 選択中の図形の重なり順を変える1件の編集操作を行うクラス。
- * キー（`main.js`の`performShapeOrder`）の手順である。
+ * 選択中の図形の重なり順を変える1件の編集操作と、並び全体を指定する1件の編集操作（`applyOrder`）を行うクラス。
+ * `apply`はキー（`main.js`の`performShapeOrder`）の手順、`applyOrder`は一覧の行のドラッグの手順である。
  *
  * 依存の制約:
  *   - importは`./ShapeOrderRules.js`のみ（`edit/`内の例外）。VectorModel・HistoryManagerはimportせず、インスタンスを注入で受け取る。
@@ -16,8 +16,10 @@ import { canReorderSelected, reorderSelected } from './ShapeOrderRules.js';
  *   - `try/catch`を持たない。
  *
  * 前提（呼び出し側の責務）:
- *   - ドラッグ中でないこと（`main.js`の`performShapeOrder()`が判定する）。
- *   - 選択モード以外・キャンバスの読み込み中は選択集合が空のため何もしない（操作モードは知らない）。
+ *   - ドラッグ中でないこと（`apply`は`main.js`の`performShapeOrder()`が判定する。`applyOrder`は一覧の行のドラッグの配線が、
+ *     ドラッグの終わりにだけ呼ぶことで守る）。
+ *   - `apply`は選択モード以外・キャンバスの読み込み中は選択集合が空のため何もしない（操作モードは知らない）。
+ *     `applyOrder`は選択が空でも働く。
  *   本クラスは進行中の入力操作の中断・モード切り替えを行わない
  *   （選択モードで選択集合が空でない状態では作成途中の図形が無い）。
  */
@@ -66,11 +68,38 @@ export class ShapeOrderEditor {
             return false;
         }
         const nextIds = reorderSelected(ids, isSelected, operation);
+        return this.#commitOrder(nextIds);
+    }
 
+    /**
+     * 並び全体を指定して図形の重なり順を変える（一覧の行のドラッグの結果）。選択集合は変えない（選択が空でも働く）。
+     *
+     * 処理順:
+     *   1. 今の図形のidの並びと同じなら、何も呼ばずに`false`（`beginEdit`も呼ばないため履歴は増えない）。
+     *   2. `editRecorder.beginEdit()` → `model.reorderShapes(orderedIds)` → `editRecorder.commitEdit()`。
+     *   3. `reorderShapes`の戻り値を返す（並びの正本は`model.reorderShapes`。フォルダの位置と入れ子を保つ）。
+     *
+     * @param {Array<string>} orderedIds 今の全図形のidをちょうど1回ずつ並べた配列（描画順。先頭＝最も奥）
+     * @returns {boolean} 並びを変えたか
+     */
+    applyOrder(orderedIds) {
+        const ids = this.#model.getShapes().map((shape) => shape.id);
+        if (ids.length === orderedIds.length && ids.every((id, i) => id === orderedIds[i])) {
+            return false;
+        }
+        return this.#commitOrder(orderedIds);
+    }
+
+    /**
+     * 並びを1件の編集操作としてモデルへ反映する（`apply`と`applyOrder`で共有する）。
+     * `editRecorder.beginEdit()` → `model.reorderShapes(orderedIds)` → `editRecorder.commitEdit()`の順に呼ぶ。
+     * @param {Array<string>} orderedIds 新しい並び（描画順）
+     * @returns {boolean} `reorderShapes`の戻り値（並びを変えたか）
+     */
+    #commitOrder(orderedIds) {
         this.#editRecorder.beginEdit();
-        const changed = this.#model.reorderShapes(nextIds);
+        const changed = this.#model.reorderShapes(orderedIds);
         this.#editRecorder.commitEdit();
-
         return changed;
     }
 }

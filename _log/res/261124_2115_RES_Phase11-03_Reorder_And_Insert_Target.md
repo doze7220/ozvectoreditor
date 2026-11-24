@@ -249,7 +249,7 @@
         *   `test/edit/ShapeOrderEditor.test.js`の先頭の責務コメントの「押せる/押せないの照会」を除く。
         *   確かめ方：`js/`・`index.html`・`test/`に`OptionBarOrderGroup`（先頭が小文字の変数名も）・`option-order-group`・`option-bring-`・`option-send-`・`getAvailability`（`ShapeAlignEditor`・`ShapeAlignRules`・`main.js`の`shapeAlignEditor`のものを除く）・`ShapeOrderAvailability`の言及が残らない。さらに`重なり順`・`最前面へ`・`ボタンと同一経路`・`4ボタン`で検索し、残る当たりがどれも消したボタン・まとまりに言及していない（キー・並びの規則・図形の並び、または別のボタンの話だけである）ことを1件ずつ確かめる。`ShapeOrderEditor`・`ShapeOrderRules`とそのテストは`押せる`・`ボタン`でも検索する。
 
-*   [ ] タスク7: 行のドラッグの規則と、並び全体を指定する編集操作
+*   [x] タスク7: 行のドラッグの規則と、並び全体を指定する編集操作
     *   **対象ファイル** :
         *   `./js/core/ListDragRules.js` :（新規）
         *   `./js/core/ItemListRules.js` :（更新）
@@ -361,7 +361,12 @@
 
 ### タスク7: 行のドラッグの規則と、並び全体を指定する編集操作
 *   **作業内容** :
-    *   (未実施)
+    *   `js/core/ListDragRules.js`（新規・CRLF）：`resolveDraggedIds`・`resolveDropIndex`・`resolveDropMark`・`reorderRowsForDrop`・`isSameOrder`・`toDrawOrder`・`resolveAutoScrollTop`。定数（帯24px・90〜900px/秒・経過50ms）はファイル内で持ち、exportしない。importなし。`selectedIds`は`Set`・配列のどちらも受ける。
+    *   `js/core/ItemListRules.js`（LFのまま）：`canStartRowDrag`・`shouldSelectPressedRow`を足し、ファイル先頭の責務に「行のドラッグ」を足した。
+    *   `js/edit/ShapeOrderEditor.js`（LFのまま）：`applyOrder(orderedIds)`と、`apply`と共有する非公開`#commitOrder`を足した（`apply`の結果・呼び出し順は変えていない）。責務・クラスJSDoc・前提を直した。
+    *   `js/core/VectorModel.js`（LFのまま）：`reorderShapes`のJSDocだけ直した。
+    *   テスト：`test/core/ListDragRules.test.js`（新規・CRLF）、`test/core/ItemListRules.test.js`・`test/edit/ShapeOrderEditor.test.js`の末尾へ追加（前者はimportにも追記、後者はimportに`ITEM_KIND`を追記し責務コメントに「並び全体の指定」を足した）。
+    *   `node --test`：tests 2901 / pass 2901 / fail 0。
 
 ### タスク8: 一覧のパネルのドラッグの表示と通知
 *   **作業内容** :
@@ -413,6 +418,8 @@
 *   （タスク3）`EndpointSnapper`の終え方のテストは、2点の線を終えるには点を1つ打って（`clickDrawnLine`）から`finishDrawnLine`を呼ぶ必要がある（始点だけだと何も残らない）。
 *   `ItemListRowDrag`の`window`のcaptureの`mousedown`は、行のドラッグ中だけ止める（それ以外では何もしない）。
 *   （タスク5）`ItemListWiring.sync`のスクロール対象は、選択が1つ以上なら選ばれている行、無ければ印の行。`#handleRowClick`の描くツールの枝では`#handleRowHover`を呼ばない（ツールが変わらずホバーが消えないため）。
+
+*   （タスク7）`applyOrder`の「今と同じ並び」判定は`ShapeOrderEditor`内で`getShapes()`のidと比べる（`ListDragRules.isSameOrder`は`edit/`から使わない。`edit/`が`core/`の規則をimportしないため）。`resolveAutoScrollTop`は、帯の境目ちょうど（`y === top + band`）は帯の外（`null`）。`canStartRowDrag`の`hasModifier`は呼び出し側が`Ctrl`（`⌘`）・`Shift`から求める。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0. **準備**：画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。**絵A**：矩形（`4`）・円（`5`）などを5つ以上、少しずつ重ねて描く。`V`で1つずつ選び、オプションバーの塗りのボタン（🪣）を入れて塗りの色を変え、色の違う塗った図形にする。**絵B（行の多い絵）**：📁で別の新しいキャンバスを作り、8個ほど描いて`Ctrl`+`A` → `Ctrl`+`D`を4回繰り返すと128個になる（`Ctrl`+`D`のたびに複製だけが選ばれるので、毎回`Ctrl`+`A`から行う）。行が一覧に収まらなければよい。
