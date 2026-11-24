@@ -227,7 +227,7 @@
             *   `resolveVisibleRowRange({ scrollTop, height, rowHeight, rowCount, overscan })` → `{ start, end }`（`end`は含まない。前後に`overscan`行を足し`0`〜`rowCount`に収める。`rowCount`が0・`height`か`rowHeight`が正でないなら`{ start: 0, end: 0 }`。スクロール位置が行の総高さを超えていても範囲は`rowCount`以内）。
             *   `hasSelectionChanged(previousIds, nextIds)`、`resolveSelectionScrollTop(...)`（要件5）。
         *   テスト：ふつうのクリック（起点・置き換え）、`Ctrl`（追加・解除・起点）、`Shift`（起点から下・上（逆向き）・同じ行・起点が無い・起点の行が無くなった・起点が選ばれていない・何も選ばれていない・それまでの選択が置き換わる・起点が変わらない）、`Ctrl`+`Shift`は`Shift`と同じ、`Ctrl`で外した後の`Shift`、引数を書き換えない。見えている範囲（先頭・途中・末尾・余裕の頭打ち・0件・高さ0）。選択が変わったか（同じ・並び違い・増減・空）。スクロール（中心が見えている・境目・上へ・下へ・複数のうち1つ見えている・全部見えていないときいちばん上・選択なし・高さ0・表示が行より低い）。
-*   [ ] タスク4: サムネイルの規則と描画（要件3）
+*   [x] タスク4: サムネイルの規則と描画（要件3）
     *   **対象ファイル** :
         *   `./js/core/ThumbnailRules.js` :（新規）
         *   `./js/core/ThumbnailRenderer.js` :（新規）
@@ -330,7 +330,12 @@
 
 ### タスク4: サムネイルの規則と描画
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/ThumbnailRules.js`（新規・LF）：`THUMBNAIL_SIZE_PX`・`computeThumbnailFit`・`resolveThumbnailStrokeWidth`・`buildThumbnailKey`・`needsThumbnailRedraw`を実装。importは`SpriteFitRules`だけ。余白2px・線の下限1pxは非公開の定数。
+    *   `js/core/ThumbnailRenderer.js`（新規・LF）：`drawThumbnail(canvas, shape, bounds, pixelRatio)`を実装。importは`ThumbnailRules`だけ。
+    *   `js/edit/ShapeExtentReader.js`：`getShapeBounds(shape)`を足した（`computeShapesBounds([shape])`）。
+    *   `test/core/ThumbnailRules.test.js`・`ThumbnailRenderer.test.js`（新規・LF）、`test/edit/ShapeExtentReader.test.js`（末尾へ追加だけ）。
+    *   `node --test`：tests 2742 / pass 2742 / fail 0。
+    *   判断：`buildThumbnailKey`は`${pixelRatio}|${JSON.stringify(shapeData)}`。`drawThumbnail`は`getContext('2d')`が偽（null）なら描かずに終える（防御）。`ShapeExtentReader`の先頭の責務の行（3行以内）とクラスJSDocに「渡された図形1つの外枠」を足した。`ThumbnailRenderer.test.js`に実際の図形（Rect・Line・Ellipse・Curve・Path）での描画・線も塗りもない図形で何も描かないこと・描画前後の`toJSON()`不変を足し、`ShapeExtentReader.test.js`の`getShapeBounds`に線なしのテストを足した。
 
 ### タスク5: 名前を変える規則と編集操作
 *   **作業内容** :

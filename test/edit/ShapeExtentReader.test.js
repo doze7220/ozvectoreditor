@@ -208,3 +208,34 @@ describe('ShapeExtentReader の副作用', () => {
         assert.equal(changeCount, 0);
     });
 });
+
+describe('ShapeExtentReader.getShapeBounds', () => {
+    it('図形1つの外枠で、正本（図形1つのcomputeShapesBounds）と同じ値（線の太さの半分を含む）', () => {
+        const { model, reader } = setup();
+        const shapes = model.getShapes();
+        shapes.forEach((shape) => {
+            assert.deepEqual(reader.getShapeBounds(shape), SpriteSerializer.computeShapesBounds([shape]));
+        });
+        assert.deepEqual(reader.getShapeBounds(shapes[1]), { minX: 99, minY: 99, maxX: 121, maxY: 131 });
+    });
+
+    it('選択に依らず、モデルを変えず、onChangeを呼ばない', () => {
+        const { model, reader, ids } = setup();
+        const shape = model.getShapes()[0];
+        const jsonBefore = model.getShapes().map((s) => s.toJSON());
+        let changeCount = 0;
+        model.onChange(() => { changeCount += 1; });
+        const unselected = reader.getShapeBounds(shape);
+        model.setSelection([ids[2]]);
+        const afterSelect = changeCount;
+        assert.deepEqual(reader.getShapeBounds(shape), unselected);
+        assert.equal(changeCount, afterSelect);
+        assert.deepEqual(model.getShapes().map((s) => s.toJSON()), jsonBefore);
+    });
+
+    it('線なし（strokeColorがnull）の図形は線の太さの分だけ広げない', () => {
+        const { reader } = setup();
+        const noStroke = new Rect(0, 0, 10, 10, null, 8, '#ff0000');
+        assert.deepEqual(reader.getShapeBounds(noStroke), { minX: 0, minY: 0, maxX: 10, maxY: 10 });
+    });
+});
