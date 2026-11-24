@@ -37,6 +37,7 @@ import { ShapeStyleEditor } from './edit/ShapeStyleEditor.js';
 import { StyleEyedropper } from './edit/StyleEyedropper.js';
 import { OptionBarStyleGroup } from './palette/OptionBarStyleGroup.js';
 import { ShapeOrderEditor } from './edit/ShapeOrderEditor.js';
+import { ItemRenameEditor } from './edit/ItemRenameEditor.js';
 import { NudgeEditor } from './edit/NudgeEditor.js';
 import { PositionInputEditor } from './edit/PositionInputEditor.js';
 import { ShapeExtentReader } from './edit/ShapeExtentReader.js';
@@ -947,6 +948,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 7.15. 図形の一覧配線
     // 表示・サムネイル・スクロールはItemListWiring（wiring/）が、行のDOMはItemListPanel（palette/）が、判定は各規則（core/）が持つ。
     // ここは生成のみを行う（判定・計算を書かない）。外枠の照会は4.で生成した同じshapeExtentReaderを使う。同期はmodel.onChangeで行う。
+    // 名前の変更の編集操作（記録つき）はItemRenameEditor（edit/）が持ち、ここで生成して渡す。
+    const itemRenameEditor = new ItemRenameEditor({ model, editRecorder: historyManager });
     const itemListWiring = new ItemListWiring({
         model,
         shapeExtentReader,
@@ -956,7 +959,8 @@ document.addEventListener('DOMContentLoaded', () => {
         isDragging: () => inputTracker.isDragging(),
         isPicking: () => styleEyedropper.isPicking(),
         selectSelectTool: () => selectTool(OperationMode.SELECT),
-        readCtrlModifier: hasCtrlModifier
+        readCtrlModifier: hasCtrlModifier,
+        itemRenameEditor
     });
 
     // 8. キーボードショートカット配線

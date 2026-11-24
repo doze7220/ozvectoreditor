@@ -280,7 +280,7 @@
         *   `ItemListPanel`：コールバック`onRowClick(id, event)`・`onRowHover(id | null)`を足す。`click`・`mousemove`・`mouseleave`を`.item-list`のイベント委譲で1本ずつ。行は`event.target.closest('.item-row')`で求める。`mousedown`は`preventDefault()`しない。
         *   `ItemListWiring`：注入を足す（`displayState`・`canvasLibrary`・`getMode`・`isDragging`・`isPicking`・`selectSelectTool`・`readCtrlModifier`）。要件4・6のとおり。起点`#anchorId`・自分の出したホバー`#hoveredRowId`・最後に見た`openCanvasId`を持つ。`canvasLibrary.onChange`：`openCanvasId`が変わったら起点を忘れる／ロック中なら自分のホバーを消す。`displayState.onChange`：隠れたら自分のホバーを消す。ロック中かは`isListLocked(canvasLibrary.getState())`で使うときに照会する（写しを持たない）。行のホバーは`resolveRowHover`へ今の値と照会の関数（`queryLocked: () => isListLocked(canvasLibrary.getState())`・`queryExists: (id) => model.getShapes().some((shape) => shape.id === id)`）を渡し、返った`ROW_HOVER_ACTION`に従って要件6のとおり反映するだけにする（判定を書かない。呼ぶ前に`getState()`・`getShapes()`・`getItems()`を呼ばない。ロック中か・図形があるかの照会は、規則がその段まで進んだときだけ走る）。自分のホバーを消す処理は1つの非公開メソッドにまとめ（`isOwnHover`を使う）、`clear`・`canvasLibrary.onChange`・`displayState.onChange`の3か所から使う。
         *   `main.js`：`getMode: () => inputTracker.getMode()`・`isDragging: () => inputTracker.isDragging()`・`isPicking: () => styleEyedropper.isPicking()`・`selectSelectTool: () => selectTool(OperationMode.SELECT)`・`readCtrlModifier: hasCtrlModifier`を渡すだけ（判定を書かない）。
-*   [ ] タスク9: 名前を変える画面（要件7）
+*   [x] タスク9: 名前を変える画面（要件7）
     *   **対象ファイル** :
         *   `./js/palette/ItemListPanel.js` :（更新）
         *   `./js/wiring/ItemListWiring.js` :（更新）
@@ -370,7 +370,11 @@
 
 ### タスク9: 名前を変える画面
 *   **作業内容** :
-    *   （未実施）
+    *   `js/palette/ItemListPanel.js`：コールバック`onNameEditRequest`・`onNameCommit`・`resolveNameEditKey`（関数でなければ`Error`）、公開`startNameEdit(id, name)`・`cancelNameEdit()`を足した。`dblclick`（`.item-row-name`の上）で通知。出口は`#finishNameEdit(shouldCommit)`の1つ（控え`#editing`を先に`null`→値を読む→欄を除く→`<span>`を戻す→確定なら`onNameCommit`）。`keydown`は`resolveNameEditKey`の結果が`null`でなければ`preventDefault`・`stopPropagation`の後に終える。`blur`は控えが自分の欄のときだけ確定。欄は`spellcheck=false`・`autocomplete='off'`・`maxlength`なし。`mousedown`が欄の中で始まった`click`・欄の中の`click`は通知しない。`render`：無くなった行が編集中なら要素を除く前に控えを`null`、並べ替えは編集中の行を固定し`cursor`から手前の要素を末尾へ移す。
+    *   `js/wiring/ItemListWiring.js`：`itemRenameEditor`の注入。`#handleNameEditRequest`（`canStartNameEdit`、`hasModifier = readCtrlModifier(event) || event.shiftKey === true`、通ったら`sync({ allowScroll: false })`の後`startNameEdit`）。確定は`itemRenameEditor.rename`を呼ぶだけ。`openCanvasId`が変わったら`panel.cancelNameEdit()`。
+    *   `js/main.js`（CRLFのまま）：`ItemRenameEditor`のimportと、`// 7.15.`での生成・注入。`index.html`（LFのまま）：`.item-row-name-input`のCSS（`user-select: text`）。
+    *   `node --test`：tests 2764 / pass 2764 / fail 0。行末：`main.js`はCRLF、ほかはLF（バイト列で確認）。全ファイルのJSDoc・未使用のimport・未使用の公開メソッドが無いことを確認した（`getThumbnailCanvas`等の公開メソッドはすべて`ItemListWiring`が使用）。
+    *   判断：`#handleNameEditRequest`は`buildItemRows`で今の名前を求めて渡した（行が無ければ何もしない）。ダブルクリックの`dblclick`の対象は名前の`<span>`（`.item-row-name`）の上のみ。
 
 ### タスク10: 開発資料の反映その1
 *   **作業内容** :
@@ -396,6 +400,8 @@
 *   （タスク1）パネルを出す・隠す（Tab・🧰）と、キャンバスの領域の右端が変わるため、絵の位置は変えずに描き直しが走る。隠したとき・出したときに絵が跳ばないか、キャンバスパレット（x 790〜1032）と一覧が重ならないかを目視で確かめたい。`#ruler-horizontal`の幅が追従するかも確かめたい。
 *   （タスク1・修正時の注意）`--canvas-area-width`は`body`の規則にある。`:root`へ戻すと`body.float-windows-hidden`の上書きが効かなくなる。`displayState.onChange(resizeAndRenderViews)`は`new DisplayWiring`の直後に置く順序が必要。
 *   500個の絵での重さ（下の10.）。
+*   （タスク9）名前の編集は、実ブラウザで確かめたい：`Enter`・`Esc`・`blur`の各出口で二重の確定が起きないか、`Esc`で選択が外れないか、編集中に重なり順の変更等で行の並びが変わっても欄が閉じないか、名前の欄の中のドラッグで行が押されないか。DOMのため自動テストは無い。
+*   （タスク9・修正時の注意）`ItemListPanel.render`の並べ替えは編集中の行の要素を動かさない前提（動かすと`blur`で確定する）。`#finishNameEdit`以外から欄を除かない。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0. **準備**：画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。**絵A**：新しいキャンバスに、直線（`1`）・曲線（`2`）・弧（`3`）・矩形（`4`）・円（`5`）を1つずつと、直線のツールで3点以上打った線（「パス」になる）、黒い線だけの図形、白い塗りの図形（矩形を描いて`V`で選び`D`を押す＝線が黒・塗りが白）を描く。**絵B（図形の多い絵）**：別の新しいキャンバスに8個ほど描き、「`Ctrl`+`A`（全選択）→ `Ctrl`+`D`（複製）」を6回繰り返すと512個になる（複製は前面に入り、複製した図形だけが選ばれるため、毎回`Ctrl`+`A`をし直すと倍になる）。

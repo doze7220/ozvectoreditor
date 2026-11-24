@@ -85,6 +85,13 @@
         .item-row-name[hidden] {
             display: none;
         }
+        .item-row-name-input {
+            flex: 1;
+            min-width: 0;
+            box-sizing: border-box;
+            font-size: 13px;
+            user-select: text;
+        }
         /* display: noneにしない（スクロール位置が失われるブラウザがあるため）。visibility: hiddenはマウスの操作も受けない */
         body.float-windows-hidden .item-list-panel {
             visibility: hidden;

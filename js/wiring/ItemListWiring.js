@@ -6,8 +6,10 @@ import {
     ROW_HOVER_ACTION,
     ROW_PRESS_ACTION,
     buildItemRows,
+    canStartNameEdit,
     isListLocked,
     isOwnHover,
+    resolveNameEditKey,
     resolveRowHover,
     resolveRowPressAction
 } from '../core/ItemListRules.js';
@@ -47,6 +49,8 @@ export class ItemListWiring {
     #selectSelectTool;
     /** @type {(event: MouseEvent) => boolean} `Ctrl`（`Meta`）が押されているかの読み取り */
     #readCtrlModifier;
+    /** @type {import('../edit/ItemRenameEditor.js').ItemRenameEditor} 名前を変える編集操作 */
+    #itemRenameEditor;
     /** @type {string|null} `Shift`＋クリックの範囲の起点の図形id */
     #anchorId = null;
     /** @type {string|null} 自分が出したホバーとして記録している図形id */
@@ -66,8 +70,9 @@ export class ItemListWiring {
      * @param {() => boolean} deps.isPicking - スポイトの待ち受け中かの照会
      * @param {() => void} deps.selectSelectTool - 選択ツールへ切り替える
      * @param {(event: MouseEvent) => boolean} deps.readCtrlModifier - `Ctrl`（`Meta`）が押されているかの読み取り
+     * @param {import('../edit/ItemRenameEditor.js').ItemRenameEditor} deps.itemRenameEditor - 名前を変える編集操作
      */
-    constructor({ model, shapeExtentReader, displayState, canvasLibrary, getMode, isDragging, isPicking, selectSelectTool, readCtrlModifier }) {
+    constructor({ model, shapeExtentReader, displayState, canvasLibrary, getMode, isDragging, isPicking, selectSelectTool, readCtrlModifier, itemRenameEditor }) {
         this.#model = model;
         this.#shapeExtentReader = shapeExtentReader;
         this.#canvasLibrary = canvasLibrary;
@@ -76,12 +81,16 @@ export class ItemListWiring {
         this.#isPicking = isPicking;
         this.#selectSelectTool = selectSelectTool;
         this.#readCtrlModifier = readCtrlModifier;
+        this.#itemRenameEditor = itemRenameEditor;
         this.#lastOpenCanvasId = canvasLibrary.getState().openCanvasId;
         this.#panel = new ItemListPanel(document.getElementById('item-list-panel'), {
             thumbnailSize: THUMBNAIL_SIZE_PX,
             onScroll: () => this.#requestSync(),
             onRowClick: (id, event) => this.#handleRowClick(id, event),
-            onRowHover: (id) => this.#handleRowHover(id)
+            onRowHover: (id) => this.#handleRowHover(id),
+            onNameEditRequest: (id, event) => this.#handleNameEditRequest(id, event),
+            onNameCommit: (id, text) => this.#itemRenameEditor.rename(id, text),
+            resolveNameEditKey
         });
         model.onChange(() => this.#requestSync());
         window.addEventListener('resize', () => this.#requestSync());
@@ -91,6 +100,8 @@ export class ItemListWiring {
                 this.#lastOpenCanvasId = state.openCanvasId;
                 // 図形のidは別のキャンバスと同じ値になり得るため、起点を忘れる
                 this.#anchorId = null;
+                // キャンバスを切り替えてもidが同じ図形があり得るため、編集中の名前は捨てる
+                this.#panel.cancelNameEdit();
             }
             if (isListLocked(state)) this.#clearOwnHover();
         });
@@ -162,6 +173,25 @@ export class ItemListWiring {
         this.sync({ allowScroll: false });
         // 切り替え（setMode）がホバーを消すため、その行のホバーを当て直す
         this.#handleRowHover(id);
+    }
+
+    /**
+     * 名前の編集の開始を処理する。始めるかは`canStartNameEdit`に任せ、始めるなら表示を今の`model`にそろえて欄を出す。
+     * @param {string} id - ダブルクリックされた行の図形id
+     * @param {MouseEvent} event - ダブルクリックのイベント
+     * @returns {void}
+     */
+    #handleNameEditRequest(id, event) {
+        const canStart = canStartNameEdit({
+            isDragging: this.#isDragging(),
+            isLocked: isListLocked(this.#canvasLibrary.getState()),
+            hasModifier: this.#readCtrlModifier(event) || event.shiftKey === true
+        });
+        if (!canStart) return;
+        const row = buildItemRows(this.#model.getItems()).find((candidate) => candidate.id === id);
+        if (!row) return;
+        this.sync({ allowScroll: false });
+        this.#panel.startNameEdit(id, row.name);
     }
 
     /**
