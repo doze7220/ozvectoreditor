@@ -183,7 +183,7 @@
         *   「要件3」「要件2」のとおり、`#selectedGroupIds`・`getSelectedGroupIds()`・`setSelection`/`setSelectionByUser`の引数・`clearSelection`等の候補・`#applyState`の引数（`selectedGroupIds`・`revealIds`）・`setGroupCollapsed`・`onCollapsedChange`を足す。`onCollapsedChange`は、`#applyState`で折りたたみが変わったことを覚え、`#notifyChange`の最後に1回だけ呼んで消す。既存の通知の回数を変えない。責務のJSDocに2つの状態を足す。
         *   テスト：要件3の外れる/残るすべての場合（選び直し・別の指定・足すだけ・中の図形が外れた・中に図形1つのフォルダ・全選択相当・反転相当・`clearSelection`・移動/スタイル/名前/並び/同じidの差し替え/同じidのまま閉じる結合では残る・削除/新しいidになる結合/追加/`replaceAllShapes`では外れる・同じidのまま閉じる結合でもほかの図形が選択から外れればそのフォルダは外れる・図形と食い違う指定は受け付けない）、空のフォルダだけ（図形の選択は空・描き込む先はそのまま・外すと描き込む先も無し・`false`を返す条件）、頂点の選択との関係、通知の回数。折りたたみ：変える/変わらない/無いid、自動で開く（置き換え・足す・変わらない選択では閉じたまま・フォルダの選択だけが変わったとき・多段・`keepsCollapsed`・貼り付け・新しいidになる結合（開く）・選んだまま折りたたんだ後の、同じidのまま閉じる結合（`replaceShape`の`keepId: true`・`removeIds: []`）では、図形だけを選んでいるときも図形1つのフォルダを選んでいるときも開かず`onCollapsedChange`も呼ばない・インポートしたフォルダは閉じたまま・描き込む先だけの変化や作図では開かない）、`onCollapsedChange`の回数。
 
-*   [ ] タスク5: 入れ子を動かす公開操作
+*   [x] タスク5: 入れ子を動かす公開操作
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js` :（更新）
         *   `./test/core/VectorModel.rearrangeItems.test.js` :（新規）
@@ -335,7 +335,9 @@
 
 ### タスク5: 入れ子を動かす公開操作
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/VectorModel.js`（LF）：`rearrangeItems(nextItems, { selectedIds, selectedGroupIds, selectsNewGroups })`と非公開の検証`#isValidRearrangement`をJSDoc付きで追加。`GroupTreeRules`から`isSameTree`をimport。`deleteShapes`のJSDocにフォルダごとの削除は`rearrangeItems`で行う旨を追記（コード不変）。
+    *   `test/core/VectorModel.rearrangeItems.test.js`（新規・CRLF）21件。`node --test`は tests 3071 / pass 3071 / fail 0。
+    *   順序：検証（配列・図形のインスタンス・フォルダのid。外れたら`console.warn`して`false`）→`isSameTree`で同じなら`false`→`resolveItems(nextItems)`→新しいフォルダ（idが`null`／`undefined`）に前順で`group-`のidを採番→`#applyState`（図形の選択は残った図形だけ、フォルダの候補は`selectedGroupIds`（省けば今の値）＋`selectsNewGroups`なら新しいフォルダ）→消えた図形のホバーを消し`#pruneSelectedVertices()`→通知1回。`revealIds`は渡さず折りたたみの変化も覚えないため`onCollapsedChange`は呼ばれない。
 
 ### タスク6: 取り消し/やり直し
 *   **作業内容** :
@@ -405,6 +407,7 @@
 *   （タスク2）`resolveSelectedGroupIds`の(3)は`previousItems`のフォルダ内の図形が`selectedIds`に全部あることを見るため、フォルダの中身が増えた（新しい図形が入った）だけでも、増えた図形が選ばれていなければ落ちる（(2)）。`resolveRevealIds`の`additive`では前の選択に無い図形だけを返す（フォルダの選択の変化は見ない）。
 *   （タスク3）`restoreCollapsed`は入れ子の中のフォルダも含め、`items`のフォルダすべてを今の状態/記録で決め直す（`items`側の`collapsed`は使わない）。`expandGroupsContaining`は、`canExpand`が偽のフォルダの上のフォルダも、対象の図形を含んでいれば開く。`DocumentSerializer`は`element.collapsed`を無加工で持ち`resolveItems`が`true`以外を消すため、読み込み結果のフォルダに`collapsed: undefined`のキーは残らない。開発資料への影響：新しいファイル`GroupCollapseRules`が増える点は既存の更新予定（57〜61）に含まれており、追記は無い。
 *   （タスク4）`setSelectionByUser`の「何もしない」判定は、結果のフォルダの選択（不変条件を通した値）が空かで見ている。`setGroupCollapsed`は`#applyState({ items })`を通すため、折りたたみの変更でもフォルダの選択の不変条件が再評価されるが値は変わらない。`#resolveReveal`と`#applyState`で不変条件を2回計算するが、候補が空なら入れ子を見ずに返る。
+*   （タスク5）`rearrangeItems`の検証は、図形のアイテムの`shape`が今の図形インスタンスであること・フォルダの`id`が`null`／`undefined`か今あるフォルダであること・どの要素も`kind`が`shape`／`group`であることまで見る（図形が減るのは許す＝除く操作のため）。`selectedIds`・`selectedGroupIds`は`Iterable`で受け、`undefined`だけを「省く」と扱う（空の配列は指定）。新しいフォルダの採番は前順。呼び出し側（`GroupEditor`・`ShapeOrderEditor`）は、新しいフォルダのアイテムを`id`なしで渡すこと。
 *   DOM（`ItemListPanel`・`ItemListWiring`・`main.js`・CSS）と`InputTracker`は自動テストの対象外で、下のテストプレイで確かめる。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）

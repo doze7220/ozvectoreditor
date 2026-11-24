@@ -7,7 +7,7 @@ import { ShapeFactory, SHAPE_TYPES } from './ShapeFactory.js';
 import { ITEM_KIND, toItems, listItems, listShapeItems, listShapes, placeShapeItems, filterShapes, insertItemsAbove } from './ItemTreeRules.js';
 import { resolveItems, applyItemRename } from './ItemAttributeRules.js';
 import { resolveInsertTarget } from './InsertTargetRules.js';
-import { itemIdOf } from './GroupTreeRules.js';
+import { itemIdOf, isSameTree } from './GroupTreeRules.js';
 import { resolveGroupCandidates, resolveSelectedGroupIds, resolveRevealIds } from './GroupSelectionRules.js';
 import { setCollapsed, expandGroupsContaining } from './GroupCollapseRules.js';
 
@@ -796,6 +796,7 @@ export class VectorModel {
      * 除去した図形のidは選択集合・ホバー状態・頂点の選択（その図形の組）からも除去する（存在しない図形のidが残留することを防ぐため）。
      * 描き込む先の図形を除去したときは、下の行（前の並びで近い、残っている図形）へ付け替える（無ければ無し）。
      * 存在しないidは無視する。1件以上削除した場合のみ変更を通知する（1回。図形数分は発行しない）。
+     * フォルダごとの削除（フォルダと中身をまとめて取り除く操作）は、このメソッドではなく`rearrangeItems`で行う。
      * @param {Iterable<string>} ids 削除する図形idの集合
      */
     deleteShapes(ids) {
@@ -1113,6 +1114,60 @@ export class VectorModel {
     }
 
     /**
+     * 入れ子を新しい形へ動かす唯一の公開操作（まとめる・解除・フォルダの削除・フォルダの中での並べ替え・空のフォルダの追加）。以下の順に処理する。
+     * (1)検証：図形のアイテムはすべて今持っている図形インスタンスで重複なし、フォルダは`id`が`null`か`undefined`（新しいフォルダ）か、今あるフォルダのidで重複なし。
+     *    外れたら`console.warn`して何も変えず`false`を返す。
+     * (2)今と構造（種類・id・並び）が同じ（`GroupTreeRules.isSameTree`）なら、何も変えず通知もせず`false`を返す。
+     * (3)`resolveItems`で整える（新しいフォルダの名前「フォルダ n」はここで決まる）。引数のアイテムは書き換えない。
+     * (4)新しいフォルダに`#issueId`で`group-<連番>`を採番する。
+     * (5)`#applyState`で反映する：図形の選択は`selectedIds`（省けば今の値）のうち残った図形、選んでいるフォルダの候補は`selectedGroupIds`（省けば今の値）に
+     *    `selectsNewGroups`が真なら新しいフォルダを足したもの（不変条件で絞られる）。消えた図形のホバーと頂点の選択を落とし、変更を通知する（1回）。
+     * 折りたたみは入れたアイテムの値のまま保ち、`onCollapsedChange`は呼ばない（折りたたみの変化を覚えない）。
+     * 触れないもの：作成中の図形・選択矩形・吸い付きの表示の点・新しく描く図形のスタイル・図形インスタンスの中身。描き込む先は規則（`InsertTargetRules`）で決まる。
+     * 履歴の記録（beginEdit/commitEdit）は呼び出し側の責務。
+     * @param {Array<Object>} nextItems 新しいアイテムの入れ子（図形のアイテムとフォルダのアイテム。新しいフォルダは`id`を持たない）
+     * @param {Object} [options] オプション
+     * @param {Iterable<string>} [options.selectedIds] 新しい図形の選択（省けば今の値。残った図形だけが選ばれる）
+     * @param {Iterable<string>} [options.selectedGroupIds] 選んでいるフォルダの候補（省けば今の値）
+     * @param {boolean} [options.selectsNewGroups=false] 真なら新しいフォルダを選んでいるフォルダの候補に足す
+     * @returns {boolean} 入れ子を変えたか
+     */
+    rearrangeItems(nextItems, { selectedIds, selectedGroupIds, selectsNewGroups = false } = {}) {
+        if (!this.#isValidRearrangement(nextItems)) {
+            console.warn('VectorModel.rearrangeItems: 今ある図形・フォルダだけ（重複なし）で作った入れ子ではないため、何も変えません。', nextItems);
+            return false;
+        }
+        if (isSameTree(this.#items, nextItems)) {
+            return false;
+        }
+        const resolved = resolveItems(nextItems);
+        const newGroupIds = [];
+        for (const item of listItems(resolved)) {
+            if (item.kind === ITEM_KIND.GROUP && (item.id === null || item.id === undefined)) {
+                item.id = this.#issueId(GROUP_ID_PREFIX);
+                newGroupIds.push(item.id);
+            }
+        }
+        const remainingIds = new Set(listShapes(resolved).map((s) => s.id));
+        const baseIds = selectedIds === undefined ? this.#selectedIds : selectedIds;
+        const nextSelectedIds = new Set([...baseIds].filter((id) => remainingIds.has(id)));
+        const baseGroupIds = selectedGroupIds === undefined ? this.#selectedGroupIds : selectedGroupIds;
+        const candidateIds = new Set(baseGroupIds);
+        if (selectsNewGroups) {
+            for (const id of newGroupIds) {
+                candidateIds.add(id);
+            }
+        }
+        this.#applyState({ items: resolved, selectedIds: nextSelectedIds, selectedGroupIds: candidateIds });
+        if (this.#hoveredId !== null && !remainingIds.has(this.#hoveredId)) {
+            this.#hoveredId = null;
+        }
+        this.#pruneSelectedVertices();
+        this.#notifyChange();
+        return true;
+    }
+
+    /**
      * アイテム（図形・フォルダ）の名前を変える。
      * `applyItemRename`が`null`（idのアイテムが無い・整えた名前が空・今の名前と同じ）なら、何も変えず（通知もせず）falseを返す。
      * そうでなければ入れ子を入れ替え、変更を通知して（1回）trueを返す。
@@ -1223,6 +1278,52 @@ export class VectorModel {
             nextGroupIds,
             additive,
         });
+    }
+
+    /**
+     * `rearrangeItems`へ渡された入れ子が、今ある図形インスタンス（重複なし）と、新しい（idが`null`／`undefined`）または今あるフォルダ（重複なし）だけでできているかを調べる。
+     * @param {*} nextItems 検証する入れ子
+     * @returns {boolean} 受け付けられるか
+     * @private
+     */
+    #isValidRearrangement(nextItems) {
+        if (!Array.isArray(nextItems)) {
+            return false;
+        }
+        const currentShapes = new Set(this.#shapes);
+        const currentGroupIds = new Set(listItems(this.#items).filter((item) => item.kind === ITEM_KIND.GROUP).map(itemIdOf));
+        const usedShapes = new Set();
+        const usedGroupIds = new Set();
+        const visit = (list) => {
+            if (!Array.isArray(list)) {
+                return false;
+            }
+            for (const item of list) {
+                if (item === null || typeof item !== 'object') {
+                    return false;
+                }
+                if (item.kind === ITEM_KIND.GROUP) {
+                    if (item.id !== null && item.id !== undefined) {
+                        if (!currentGroupIds.has(item.id) || usedGroupIds.has(item.id)) {
+                            return false;
+                        }
+                        usedGroupIds.add(item.id);
+                    }
+                    if (!visit(item.children)) {
+                        return false;
+                    }
+                } else if (item.kind === ITEM_KIND.SHAPE) {
+                    if (!currentShapes.has(item.shape) || usedShapes.has(item.shape)) {
+                        return false;
+                    }
+                    usedShapes.add(item.shape);
+                } else {
+                    return false;
+                }
+            }
+            return true;
+        };
+        return visit(nextItems);
     }
 
     /**
