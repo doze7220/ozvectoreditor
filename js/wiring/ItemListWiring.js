@@ -88,6 +88,7 @@ export class ItemListWiring {
         this.#panel = new ItemListPanel(document.getElementById('item-list-panel'), {
             thumbnailSize: THUMBNAIL_SIZE_PX,
             onScroll: () => this.#requestSync(),
+            onRowPress: () => {},
             onRowClick: (id, event) => this.#handleRowClick(id, event),
             onRowHover: (id) => this.#handleRowHover(id),
             onNameEditRequest: (id, event) => this.#handleNameEditRequest(id, event),

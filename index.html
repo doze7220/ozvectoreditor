@@ -58,6 +58,7 @@
             overflow-y: auto;
         }
         .item-row {
+            position: relative;
             display: flex;
             align-items: center;
             gap: 8px;
@@ -73,6 +74,25 @@
         .item-row.insert-target {
             background-color: #eef4ff;
             box-shadow: inset 3px 0 0 #1a73e8;
+        }
+        .item-row.dragging {
+            opacity: 0.4;
+        }
+        .item-row.drop-before::before,
+        .item-row.drop-after::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: #1a73e8;
+            pointer-events: none;
+        }
+        .item-row.drop-before::before {
+            top: 0;
+        }
+        .item-row.drop-after::after {
+            bottom: 0;
         }
         .item-row-thumbnail {
             flex: none;

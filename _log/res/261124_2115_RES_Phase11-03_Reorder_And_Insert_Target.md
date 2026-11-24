@@ -263,7 +263,7 @@
         *   `VectorModel.reorderShapes`のJSDocの「並べ替えの規則を`core/`へ持ち込まず…規則は`edit/ShapeOrderRules.js`が持つ」は、`core/ListDragRules`ができて事実と食い違うため、「並べ替えの規則を`VectorModel`へ持ち込まず…規則は`edit/ShapeOrderRules.js`と`core/ListDragRules.js`が持つ」という内容に直す。
         *   テスト：ドロップ位置（各行の上半分・下半分・一番上・一番下・上下へ外れた（スクロール中の見えている端）・左右へ外れた・行0・寸法0）、線を出す行、動かした後の並び（1行・連続・離れた複数行・同じ位置・先頭・末尾・全行）、`toDrawOrder`・`isSameOrder`、自動スクロールの量（帯の外・帯の中の深さ・外れた・左右へ外れた・端で止まる・経過時間の上限・低い一覧）、`canStartRowDrag`・`shouldSelectPressedRow`の全分岐、`applyOrder`（偽の依存：順・同じ並びでは何も呼ばない。実物：記録1件・取り消し/やり直し・選択が残る・フォルダの位置と入れ子が残る・名前が図形について動く）。
 
-*   [ ] タスク8: 一覧のパネルのドラッグの表示と通知
+*   [x] タスク8: 一覧のパネルのドラッグの表示と通知
     *   **対象ファイル** :
         *   `./js/palette/ItemListPanel.js` :（更新）
         *   `./js/wiring/ItemListWiring.js` :（更新。必須になるコールバック`onRowPress`へ、何もしない関数を渡すだけ）
@@ -370,7 +370,10 @@
 
 ### タスク8: 一覧のパネルのドラッグの表示と通知
 *   **作業内容** :
-    *   (未実施)
+    *   `js/palette/ItemListPanel.js`（LFのまま）：必須コールバック`onRowPress(id, event, isEditingRow)`（関数でなければ`Error`。typedef・`@throws`にも追記）、`list`の`mousedown`で行の上なら毎回呼ぶ（`preventDefault()`なし。名前の欄・修飾キー・左以外でも呼ぶ）。`setDraggedRows(ids)`・`showDropMark(mark)`・`getListArea()`（typedef`ItemListArea`）を足した。線・動かす行はクラスだけで、`.item-list`の子は足していない。控えに残ったidの行が除かれていても`#rows`に無ければ飛ばす。クラスJSDocに追記。
+    *   `js/wiring/ItemListWiring.js`（LFのまま）：`onRowPress: () => {}`を渡しただけ（タスク9で差し替え）。
+    *   `index.html`（LFのまま）：`.item-row { position: relative; }`、`.item-row.dragging`（opacity 0.4）、`.drop-before::before`・`.drop-after::after`（2pxの青い線、absolute・`pointer-events: none`）。行の高さは変えない。
+    *   テストは追加していない（DOM。計画どおり対象外）。
 
 ### タスク9: 行のドラッグの進行と配線
 *   **作業内容** :

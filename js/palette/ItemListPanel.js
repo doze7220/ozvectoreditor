@@ -32,6 +32,18 @@
  */
 
 /**
+ * 一覧の箱の位置と寸法（行のドラッグのドロップ位置・自動スクロールの計算用。クライアント座標px）。
+ * @typedef {Object} ItemListArea
+ * @property {number} left 箱の左端
+ * @property {number} right 箱の右端
+ * @property {number} top 箱の上端
+ * @property {number} height 見えている高さ（`clientHeight`）
+ * @property {number} scrollTop スクロール位置
+ * @property {number} maxScrollTop スクロールできる最大の位置（0以上）
+ * @property {number} rowHeight 1行の高さ（行が無ければ0）
+ */
+
+/**
  * 編集中の名前の欄の控え。
  * @typedef {Object} ItemListNameEdit
  * @property {string} id 編集中の行の図形id
@@ -43,6 +55,7 @@
  * @typedef {Object} ItemListPanelOptions
  * @property {number} thumbnailSize サムネイルのCSS上の大きさ（正方形の一辺、px）
  * @property {() => void} onScroll 一覧がスクロールされたときに呼ばれる
+ * @property {(id: string, event: MouseEvent, isEditingRow: boolean) => void} onRowPress 行の上で`mousedown`されるたびに行のid・`MouseEvent`・その行が名前の編集中かで呼ばれる（名前の欄の中・修飾キー付き・左以外のボタンでも呼ぶ。`preventDefault()`しない）
  * @property {(id: string, event: MouseEvent) => void} onRowClick 行がクリックされたときに行のidと`MouseEvent`で呼ばれる（行の無い所のクリックでは呼ばれない）
  * @property {(id: string|null) => void} onRowHover カーソルが行の上を動いたときにその行のid、行の無い所・一覧の外へ出たときに`null`で呼ばれる
  * @property {(id: string, event: MouseEvent) => void} onNameEditRequest 名前の`<span>`がダブルクリックされたときに行のidと`MouseEvent`で呼ばれる
@@ -52,6 +65,10 @@
 
 /**
  * 図形の一覧のパネルのUI部品。importを持たず、図形・VectorModel・InputTracker・HistoryManagerを参照しない。
+ *
+ * ■ 行のドラッグの表示
+ *   - `setDraggedRows`（行の`dragging`・一覧の`row-dragging`）・`showDropMark`（行の`drop-before`／`drop-after`）はクラスだけを書く。線はCSSの疑似要素で描き、`.item-list`の子に要素を足さない。
+ *   - 控えに残ったidの行が`render`で除かれていても失敗しない（行が無ければ飛ばす）。
  *
  * ■ 構成
  *   - ルート要素（`#item-list-panel`）の中の`#item-list`に、行（`<div class="item-row" data-item-id>`）を並べる。
@@ -68,6 +85,8 @@ export class ItemListPanel {
     #thumbnailSize;
     /** @type {() => void} */
     #onScroll;
+    /** @type {(id: string, event: MouseEvent, isEditingRow: boolean) => void} */
+    #onRowPress;
     /** @type {(id: string, event: MouseEvent) => void} */
     #onRowClick;
     /** @type {(id: string|null) => void} */
@@ -84,16 +103,23 @@ export class ItemListPanel {
     #editing = null;
     /** @type {boolean} 直近の`mousedown`が名前の欄の中で始まったか */
     #mouseDownInInput = false;
+    /** @type {Set<string>} `dragging`を書いている行のid */
+    #draggedIds = new Set();
+    /** @type {{id: string, edge: 'before'|'after'}|null} 線を出している行と側 */
+    #dropMark = null;
 
     /**
      * 要素を解決してイベントを配線する。要素が欠ければ`console.warn`して配線しない（以後の公開メソッドは何もしない）。
      * @param {HTMLElement} rootElement パネルのルート要素（`#item-list-panel`）
      * @param {ItemListPanelOptions} options 設定
-     * @throws {Error} `onScroll`・`onRowClick`・`onRowHover`・`onNameEditRequest`・`onNameCommit`・`resolveNameEditKey`のいずれかが関数でないとき
+     * @throws {Error} `onScroll`・`onRowPress`・`onRowClick`・`onRowHover`・`onNameEditRequest`・`onNameCommit`・`resolveNameEditKey`のいずれかが関数でないとき
      */
     constructor(rootElement, options) {
         if (!options || typeof options.onScroll !== 'function') {
             throw new Error('ItemListPanel: options.onScrollは関数である必要があります。');
+        }
+        if (typeof options.onRowPress !== 'function') {
+            throw new Error('ItemListPanel: options.onRowPressは関数である必要があります。');
         }
         if (typeof options.onRowClick !== 'function') {
             throw new Error('ItemListPanel: options.onRowClickは関数である必要があります。');
@@ -111,6 +137,7 @@ export class ItemListPanel {
             throw new Error('ItemListPanel: options.resolveNameEditKeyは関数である必要があります。');
         }
         this.#onScroll = options.onScroll;
+        this.#onRowPress = options.onRowPress;
         this.#onRowClick = options.onRowClick;
         this.#onRowHover = options.onRowHover;
         this.#onNameEditRequest = options.onNameEditRequest;
@@ -131,6 +158,8 @@ export class ItemListPanel {
         // 名前の欄の中のクリック・ドラッグ（欄から文字を選ぶドラッグの終わりのclick）は行を押したことにしない
         list.addEventListener('mousedown', (event) => {
             this.#mouseDownInInput = this.#isInNameInput(event.target);
+            const id = this.#findRowId(event);
+            if (id !== null) this.#onRowPress(id, event, this.#editing !== null && this.#editing.id === id);
         });
         list.addEventListener('click', (event) => {
             const startedInInput = this.#mouseDownInInput;
@@ -234,6 +263,68 @@ export class ItemListPanel {
             if (entry.insertTarget) return id;
         }
         return null;
+    }
+
+    /**
+     * 動かしている行のクラスを書き換える（今までの分は消す）。一覧には`row-dragging`を付ける。空なら全部消す。一覧に無い行のidは飛ばす。
+     * @param {string[]} ids 動かしている行のid
+     * @returns {void}
+     */
+    setDraggedRows(ids) {
+        if (!this.#wired) return;
+        for (const id of this.#draggedIds) {
+            const entry = this.#rows.get(id);
+            if (entry) entry.element.classList.remove('dragging');
+        }
+        this.#draggedIds = new Set();
+        for (const id of ids) {
+            const entry = this.#rows.get(id);
+            if (!entry) continue;
+            entry.element.classList.add('dragging');
+            this.#draggedIds.add(id);
+        }
+        this.#list.classList.toggle('row-dragging', this.#draggedIds.size > 0);
+    }
+
+    /**
+     * 入る場所の線を出す行を切り替える（今までの線は消す）。`null`・一覧に無い行なら消すだけ。
+     * @param {{id: string, edge: 'before'|'after'}|null} mark 線を出す行と側（`before`＝行の上端、`after`＝行の下端）
+     * @returns {void}
+     */
+    showDropMark(mark) {
+        if (!this.#wired) return;
+        if (this.#dropMark) {
+            const previous = this.#rows.get(this.#dropMark.id);
+            if (previous) previous.element.classList.remove('drop-before', 'drop-after');
+            this.#dropMark = null;
+        }
+        if (!mark) return;
+        const entry = this.#rows.get(mark.id);
+        if (!entry) return;
+        entry.element.classList.add(mark.edge === 'before' ? 'drop-before' : 'drop-after');
+        this.#dropMark = { id: mark.id, edge: mark.edge };
+    }
+
+    /**
+     * 一覧の箱の位置と寸法を返す（クライアント座標px）。
+     * @returns {ItemListArea} 配線されていなければ全て0
+     */
+    getListArea() {
+        if (!this.#wired) {
+            return { left: 0, right: 0, top: 0, height: 0, scrollTop: 0, maxScrollTop: 0, rowHeight: 0 };
+        }
+        const list = this.#list;
+        const rect = list.getBoundingClientRect();
+        const first = list.firstElementChild;
+        return {
+            left: rect.left,
+            right: rect.right,
+            top: rect.top,
+            height: list.clientHeight,
+            scrollTop: list.scrollTop,
+            maxScrollTop: Math.max(0, list.scrollHeight - list.clientHeight),
+            rowHeight: first ? first.offsetHeight : 0
+        };
     }
 
     /**
