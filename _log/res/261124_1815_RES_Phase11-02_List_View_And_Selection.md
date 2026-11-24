@@ -263,7 +263,7 @@
         *   `.item-list`の`scroll` → `onScroll()`。`focus` → 自分で`blur()`（要件4のフォーカス）。
         *   CSS：`.item-row`（`display: flex; align-items: center; gap; height: 36px; box-sizing: border-box; padding; border-bottom`）・`.item-row.selected`・`.item-row-thumbnail`（`flex: none; background-color: #b0b0b0`）・`.item-row-name`（`flex: 1; min-width: 0`と省略表示。`[hidden]`で消えること）。
         *   この時点ではまだどこからも使われない。
-*   [ ] タスク7: 一覧の配線（表示・サムネイル・スクロール）（要件2・3・5）
+*   [x] タスク7: 一覧の配線（表示・サムネイル・スクロール）（要件2・3・5）
     *   **対象ファイル** :
         *   `./js/wiring/ItemListWiring.js` :（新規）
         *   `./js/main.js` :（更新）
@@ -355,7 +355,10 @@
 
 ### タスク7: 一覧の配線（表示・サムネイル・スクロール）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/wiring/ItemListWiring.js`（新規・LF）：`new ItemListWiring({ model, shapeExtentReader })`。`ItemListPanel`を生成し、`model.onChange`・`window`の`resize`・パネルの`onScroll`で`#requestSync()`（`requestAnimationFrame`・予約中かは`#isSyncRequested`の1つ）。公開`sync({ allowScroll = true } = {})`を要件2の順で実装。`#drawVisibleThumbnails`は余裕4行（定数）・鍵`WeakMap`で`drawThumbnail`。
+    *   `js/main.js`（CRLFのまま）：import・`// 7.15. 図形の一覧配線`（`// 7.14.`の後・`// 8.`の前）・`syncOptionBarTransformGroup()`の次に`itemListWiring.sync()`を明示的に1回。
+    *   `node --test`：tests 2764 / pass 2764 / fail 0。
+    *   判断：選ばれている行の添字は`rows`から`model.isSelected`で求めた（`getSelectedIds()`は呼ばない）。`ItemListWiring`は`onScroll`のコールバック内で`this`を使うため、`#panel`の生成前に`onScroll`が呼ばれない前提（生成中は呼ばれない）。
 
 ### タスク8: 一覧で選ぶ・行にカーソルを置く
 *   **作業内容** :

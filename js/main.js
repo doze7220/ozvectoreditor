@@ -55,6 +55,7 @@ import { FLIP_AXIS } from './edit/TransformInputRules.js';
 import { OptionBarSizeGroup } from './palette/OptionBarSizeGroup.js';
 import { OptionBarTransformGroup } from './palette/OptionBarTransformGroup.js';
 import { DisplayWiring } from './wiring/DisplayWiring.js';
+import { ItemListWiring } from './wiring/ItemListWiring.js';
 import { drawToolIcons } from './wiring/ToolIconWiring.js';
 
 // DOMが読み込まれた後に初期化を行う
@@ -943,6 +944,11 @@ document.addEventListener('DOMContentLoaded', () => {
     model.onChange(syncOptionBarTransformGroup);
     transformInputSettings.onChange(syncOptionBarTransformGroup);
 
+    // 7.15. 図形の一覧配線
+    // 表示・サムネイル・スクロールはItemListWiring（wiring/）が、行のDOMはItemListPanel（palette/）が、判定は各規則（core/）が持つ。
+    // ここは生成のみを行う（判定・計算を書かない）。外枠の照会は4.で生成した同じshapeExtentReaderを使う。同期はmodel.onChangeで行う。
+    const itemListWiring = new ItemListWiring({ model, shapeExtentReader });
+
     // 8. キーボードショートカット配線
     /**
      * 表示中キャンバスの中心を基準に、ホイール1刻みと同じ刻み幅（WHEEL_ZOOM_STEP）で拡大・縮小する。
@@ -1178,6 +1184,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // onChange通知に依存させず、選択・操作モード・図形の実値と設定の実値で明示的に1回同期する
     syncOptionBarSizeGroup();
     syncOptionBarTransformGroup();
+
+    // 図形の一覧（行・選択の見た目・サムネイル）も同様に、onChange通知に依存させず、図形一式と選択の実値で明示的に1回同期する
+    itemListWiring.sync();
 
     // キャンバス名の表示・読み込み中の覆い要素・キャンバスパレットも同様に、onChange通知に依存させず
     // 状態の実値で明示的に1回同期する（名前の表示・覆い要素はCanvasLibrary、パレットはCanvasFileOperationsの状態。
