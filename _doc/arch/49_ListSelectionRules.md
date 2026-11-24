@@ -1,0 +1,8 @@
+*   **ListSelectionRules.js**：図形の一覧の行のクリック・`Ctrl`＋クリック・`Shift`＋クリックでの次の選択と、`Shift`の起点の次の値を、状態を持たない関数として提供する（Phase 11-02で新設。流れは`PROJECT_ARCHITECTURE.md`3章28.）。
+    *   **公開**：`resolveListClickSelection({ rowIds, selectedIds, hitId, additive, range, anchorId })` → `{ ids, anchorId }`（typedef`ListClickSelection`）。`rowIds`は行の図形idの並び（上の行から）、`selectedIds`は今の選択、`hitId`は押した行、`additive`は`Ctrl`（`Meta`）、`range`は`Shift`、`anchorId`は今の起点（無ければ`null`）。
+    *   **規則**：`range`（`additive`によらず優先）＝起点（`anchorId`が`rowIds`にあり`selectedIds`に含まれるならそれ、そうでなければ`rowIds`の順で最初の選ばれている行、無ければ`hitId`）から`hitId`までの`rowIds`の連続した部分（逆向きも可。`rowIds`の並びで返す）。返す`anchorId`は**渡されたまま**（起点は、ふつうのクリックか`Ctrl`＋クリックでだけ変わる）。`additive`＝`SelectionRules.resolveClickSelection(selectedIds, hitId, true)`の`ids`（選択中なら外し、未選択なら末尾へ足す）。`anchorId`は`hitId`（外したときも。外した行は選ばれていないため、次の`Shift`では「いちばん上の選ばれている行」に切り替わる）。どちらでもなければ`ids = [hitId]`・`anchorId = hitId`。`hitId`が`rowIds`に無いときは、選択の写しと渡された起点をそのまま返す（防御）。引数を書き換えず、新しい配列を返す。
+    *   **読むもの**：渡された配列と値だけ。importは`core/SelectionRules`（`resolveClickSelection`）のみ（`core/`の規則どうしのimport。循環しない）。
+    *   **知らないこと**：DOM・`VectorModel`・図形・`InputTracker`・操作モード・修飾キーのイベント（`Ctrl`・`Shift`の読み取りは呼び出し側）。起点を覚えない（覚えるのは`wiring/ItemListWiring`の一時的な値`#anchorId`。保存・履歴・作業データ・書き出しに入れない）。
+    *   **使う側**：`wiring/ItemListWiring`だけ（`#handleRowClick`）。結果の`ids`を`model.setSelection`へ、`anchorId`を起点へ渡す。
+    *   **注意**：キャンバスの切り替え（`openCanvasId`が変わった）で`wiring/`が起点を忘れる（図形のidは別のキャンバスと同じ値になり得るため）。選択から外れた図形の頂点の選択は、`VectorModel`が今の規則で落とす（`wiring/`は`clearSelectedVertices()`を呼ばない）。
+    *   **テスト**：`test/core/ListSelectionRules.test.js`（16件。`_doc/arch/16_test.md`）。

@@ -7,6 +7,6 @@
     *   **`filterShapes(items, keep)`**：`keep(shape)`が偽の図形のアイテムだけを除いた新しい入れ子を返す。フォルダは中身が空になっても残す（フォルダは新しいオブジェクト、残す図形のアイテムは同じ参照）。`keep`は図形1つにつき1回、前順で呼び、フォルダでは呼ばない。`VectorModel`の`deleteShapes`・`addShapesWithNewIds`・`replaceShape`（統合で除く図形の除去）が使う。
     *   **読むもの**：渡された入れ子だけ。図形は不透明に扱い、アイテムかどうかの判定で値の`kind`を見ることを除き、図形のプロパティを読まない。引数を書き換えず、毎回新しい配列・オブジェクトを返す。
     *   **知らないこと**：DOM・`VectorModel`・図形クラス・図形種別・図形固有のプロパティ名・名前・表示・ロックの規則・作業データ形式。importを持たない。
-    *   **使う側**：`core/VectorModel`（`#items`の操作）・`core/ItemAttributeRules`（`toItems`・`listItems`・`ITEM_KIND`）・`io/DocumentSerializer`（`ITEM_KIND`・`listShapes`）・`io/SpriteSerializer`（`toItems`・`listShapes`）・`edit/ClipboardController`（`listShapeItems`）。`core/`・`io/`・`edit/`のどこからも「状態を持たない規則」としてimportされる（`edit → core`の例外。`14_edit.md`）。
+    *   **使う側**：`core/VectorModel`（`#items`の操作）・`core/ItemAttributeRules`（`toItems`・`listItems`・`ITEM_KIND`）・`io/DocumentSerializer`（`ITEM_KIND`・`listShapes`）・`io/SpriteSerializer`（`toItems`・`listShapes`）・`edit/ClipboardController`（`listShapeItems`）・`core/ItemListRules`（`listShapeItems`。一覧の行の並び。Phase 11-02）。`core/`・`io/`・`edit/`のどこからも「状態を持たない規則」としてimportされる（`edit → core`の例外。`14_edit.md`）。
     *   **置き場所の理由**：入れ子の計算を`VectorModel`に持たせると状態を持つクラスが計算の規則まで抱え、`io/`・`edit/`が同じ計算を使えない。状態を持たない新しいファイルに分けたため、`VectorModel`は`#items`だけを状態にでき、`io/`は`core/`の規則だけをimportして入れ子を平らにできる。
     *   **テスト**：`test/core/ItemTreeRules.test.js`（26件。`_doc/arch/16_test.md`）。

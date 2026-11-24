@@ -297,7 +297,7 @@
         *   `./PROJECT_ARCHITECTURE.md` :（更新。本タスクのみ例外として許可）
     *   **作業内容** :
         *   「開発資料の更新予定」の`PROJECT_ARCHITECTURE.md`の項を、実コードを確かめながら1章・2章・3章・4章の一覧表へ反映する。**書き換える前に行末を実測し、保つ**。記載基準（冒頭）に従い、1ファイルのJSDocで分かることは書かない。3章の新しい節「28. 図形の一覧」には、モジュールの分担・同期の流れ・選択と起点・スクロール・ホバー・名前の編集（`stopPropagation`・控えを先に`null`にする・行を動かさない理由）・大きさの同期・発注者の決定・判断した点・やらないこと・確認の状況を書く。
-*   [ ] タスク11: 開発資料の反映その2（`_doc/arch/`）
+*   [x] タスク11: 開発資料の反映その2（`_doc/arch/`）
     *   **対象ファイル** :
         *   `./_doc/arch/`の「開発資料の更新予定」に挙げたファイル :（更新・新規6ファイル。本タスクのみ例外として許可）
     *   **作業内容** :
@@ -388,7 +388,12 @@
 
 ### タスク11: 開発資料の反映その2
 *   **作業内容** :
-    *   （未実施）
+    *   `_doc/arch/`を実コード（`ItemListWiring`・`ItemListPanel`・`ItemListRules`等・`main.js`・`index.html`・テスト）と照らして反映した。**行末**は書き換える前にバイト列で実測し、保った：CRLF＝`01`・`02`・`03`・`04`・`11`・`12`・`13`・`14`・`16`・`33`、LF＝`20`・`23`・`27`・`32`・`36`・`37`・`46`・`47`と新規6ファイル（計画時の実測と一致。混在なし。反映後も同じことをバイト列で確認）。
+    *   新規（LF）：`48_ItemListRules.md`・`49_ListSelectionRules.md`・`50_ListScrollRules.md`・`51_ThumbnailRules.md`・`52_ThumbnailRenderer.md`・`53_ItemListWiring.md`（書き方は`46`・`47`・`37`・`36`に合わせた）。
+    *   更新：`01`（パネルの節・`--item-list-width`・`--canvas-area-width`が`body`の規則・z-index・隠し方・キャンバスパレットの位置・`resizeAndRenderViews`）・`02`（行数を`wc -l`の実測1216行へ、`// 7.15.`の行、注入の一覧、`resizeAndRenderViews`、起動時の`itemListWiring.sync()`、一覧の配線の項）・`03`（`renameItem`）・`04`・`23`（`resize()`が呼ばれる場面）・`11`（一覧は管理対象外）・`12`（サムネイルでの`createTransformed`・`draw`・`toJSON`の呼び出し元）・`13`（`ItemListPanel`の項）・`14`（`ItemRenameEditor`の項、`edit → core`の例外が8つ、`ShapeExtentReader.getShapeBounds`）・`16`（Phase 11-02の件数・テストできない箇所・件数）・`20`・`27`・`32`・`37`・`46`（使う側）・`33`（名前の欄・`stopPropagation`の理由）・`36`（一覧との関係・登録位置）・`47`（`applyItemRename`・使う側・件数を40件）。
+    *   `16_test.md`の件数は`node --test`の実測：tests 2764 / suites 449 / pass 2764 / fail 0（作業前は 2650 / 426。差は新設7ファイル96件＋追加14件＝114）。各テストファイルの件数は`it`・`test`の数と、実測の差の合計が一致することで確かめた。`47`の`ItemAttributeRules.test.js`は29件から40件へ。
+    *   `PROJECT_ARCHITECTURE.md`との食い違いの確認：4章の一覧表の48〜53のパス・ファイル名が実在する新規6ファイルと一致する。1章・3章28.の記載（モジュールの分担・同期の流れ・サムネイル・名前の編集・領域の大きさの同期・やらないこと）と、`_doc/arch/`の新しい記載に矛盾が無いことを読み比べた（`PROJECT_ARCHITECTURE.md`自体は変えていない）。
+    *   判断：`ItemListPanel`・`ItemRenameEditor`の項は、既存の部品と同じく`13_palette.md`・`14_edit.md`の中の項として書いた（新規ファイルを足さない）。`02_main.md`の行数の履歴の文は、前の値（1183行）を残して今の値を先頭に足した。
 
 ## 5. 懸念事項・要確認ポイント
 **計画での判断（REQに書かれていない細部）**
@@ -408,6 +413,9 @@
 *   500個の絵での重さ（下の10.）。
 *   （タスク9）名前の編集は、実ブラウザで確かめたい：`Enter`・`Esc`・`blur`の各出口で二重の確定が起きないか、`Esc`で選択が外れないか、編集中に重なり順の変更等で行の並びが変わっても欄が閉じないか、名前の欄の中のドラッグで行が押されないか。DOMのため自動テストは無い。
 *   （タスク10）`PROJECT_ARCHITECTURE.md`の4章の表へ`_doc/arch/48`〜`53`を足した。ファイルはタスク11で作る（それまで表のパスは未存在）。節28の「確認の状況」は未実施と書いたため、テストプレイの後に直すこと。
+*   （タスク11）`PROJECT_ARCHITECTURE.md`4章の一覧表の資料の置き場所は、既存の部品と同じ扱いで食い違いは無かった。`ItemListPanel`（`palette/`）・`ItemRenameEditor`（`edit/`）は、既存の`OptionBar…`・`ShapeStyleEditor`等と同じく表に個別の行を持たず、フォルダの行（`palette/`＝`13_palette.md`・`edit/`＝`14_edit.md`）に含まれる。個別の行があるのは`ItemListRules`・`ListSelectionRules`・`ListScrollRules`・`ThumbnailRules`・`ThumbnailRenderer`・`wiring/ItemListWiring`（48〜53。`core/`の規則・レンダラー・`wiring/`の既存の扱いと同じ）。1章の構成図には`ItemListPanel.js`・`ItemRenameEditor.js`の行がある。
+*   （タスク11）`16_test.md`・`PROJECT_ARCHITECTURE.md`3章28.の「確認の状況」は、実ブラウザでの確認が未実施である旨を書いた。テストプレイの後に両方を直すこと。`02_main.md`の行数（1216行）は、`main.js`を変えるたびに`wc -l`で直す。
+*   （タスク11）`16_test.md`冒頭近くの「注入される依存は素のオブジェクトの偽物。例外は12ファイル」の数は、`ItemRenameEditor.test.js`（実物の組み合わせ）が加わっても書き換えていない（Phase 11-01も同様に件数を直さず、新しい節の中で「数え方に加わる」と書いたため合わせた）。
 *   （タスク9・修正時の注意）`ItemListPanel.render`の並べ替えは編集中の行の要素を動かさない前提（動かすと`blur`で確定する）。`#finishNameEdit`以外から欄を除かない。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
