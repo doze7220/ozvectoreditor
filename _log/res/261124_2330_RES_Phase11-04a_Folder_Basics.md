@@ -144,7 +144,7 @@
 ## 3. タスクリスト
 ※ 全タスク共通：(a) コード修正の後、JSDocの記載漏れ（新しいファイルの先頭の3行以内の責務、関数・引数・戻り値・typedef、意味が変わった既存のJSDoc）が無いことを確認する。(b) `node --test`が全件合格することを確認する。(c) 本RESの「4. 詳細作業内容」の担当の欄を書き、タスクを`[x]`にする。(d) 開発資料に影響が出たら資料本体は直さず『開発資料の更新予定』へ追記する。(e) 行末を保つ。
 
-*   [ ] タスク1: 入れ子を動かす計算の規則
+*   [x] タスク1: 入れ子を動かす計算の規則
     *   **対象ファイル** :
         *   `./js/core/GroupTreeRules.js` :（新規）
         *   `./test/core/GroupTreeRules.test.js` :（新規）
@@ -310,7 +310,9 @@
 
 ### タスク1: 入れ子を動かす計算の規則
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/GroupTreeRules.js`（新規・CRLF）：`itemIdOf`・`hasGroupItem`・`wrapUnits`・`unwrapGroups`・`removeItems`・`listSiblingLists`・`mapSiblingLists`・`isSameTree`をJSDoc付きで作成。importは`ItemTreeRules`の`ITEM_KIND`のみ。
+    *   `test/core/GroupTreeRules.test.js`（新規・CRLF）：指定の観点で38件。`node --test`は tests 2950 / pass 2950 / fail 0。
+    *   `wrapUnits`：`group`は`{...group, children: まとまり(前順)}`で置き、まとまりが無ければ並びは変えない（写しを返す）。`unwrapGroups`：`groupIds`に入れ子の中のフォルダが含まれても解除できる（中から先に解除）。`mapSiblingLists`：`fn`の結果の中のフォルダの`children`へ再帰する（`fn`は外側 → 結果の前順のフォルダの順に、空の並びでも1回）。`isSameTree`は種類とidと並びだけを見る。
 
 ### タスク2: フォルダを選んでいる状態の規則
 *   **作業内容** :
@@ -391,6 +393,8 @@
 *   **`ShapeOrderEditor.test.js`の偽のmodelの受け口を替える**（要件9の表の3行目）。期待する並び・呼び出し順・戻り値は変えない。
 *   **`VectorModel.deleteShapes`は製品コードからの呼び出し元が無くなる**（削除は`rearrangeItems`へ一本化。既存のテストが使うため残す）。
 *   **`?dev`の復元で、違いが折りたたみだけのとき**は履歴に記録されず自動保存の契機にもならない（開発用の画面だけ。次の編集で保存される）。
+*   （タスク1）`mapSiblingLists`の`fn`は、並びを書き換えず新しい配列を返すこと（`wrapUnits`の無いときの写しもこれで作る）。`unwrapGroups`は`groupIds`が入れ子の中のフォルダを含んでも解除する（`GroupEditor`が渡すのは選んでいるまとまりのフォルダ）。
+*   （タスク1）`git add -N`で新しいファイル2件を意図的追加の状態にした（`git ls-files --eol`の実測のため。内容のステージはしていない）。
 *   DOM（`ItemListPanel`・`ItemListWiring`・`main.js`・CSS）と`InputTracker`は自動テストの対象外で、下のテストプレイで確かめる。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
