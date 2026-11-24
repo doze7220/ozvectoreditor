@@ -76,7 +76,7 @@ import { FileContentReader } from '../io/FileContentReader.js';
  *      ※ 手順3は`#isProcessing`が真の間に走るため、本クラスの`getState()`の合成後の`busy`で判定してはならない（常に真になる）。
  *   4. `prepareInsert()`（進行中の入力操作の中断と選択モードへの切り替え。実体は注入される）。
  *   5. `inserter.insertDocument(DocumentSerializer.serialize(読めた図形), 0, 0)`（ファイル内の座標のまま。ビュー変換に触れない）。
- *      新しいid・最前面への追加・追加した図形のみの選択・1件の編集操作の記録・自動保存は`insertDocument`の既存の働きに任せる。
+ *      新しいid・追加（入る位置はShapeInserterが決める＝描き込む先のすぐ上、無ければ最前面）・追加した図形のみの選択・1件の編集操作の記録・自動保存は`insertDocument`の既存の働きに任せる。
  *      読めた図形だけを作業データへ戻して渡すことで、`insertDocument`内の再デシリアライズでスキップの`console.warn`が重複しない。
  *   6. スキップが1件以上なら通知`partialRead`（件数は判定時と`insertDocument`の合計）。
  *   - 手順3の同一性の確認から手順5までは`await`を挟まない同期区間。

@@ -1076,7 +1076,7 @@ export class InputTracker {
      * DRAWING状態（直線・曲線のツール以外）では、まず注入された吸い付きの補助のcommitDrawnLine(#drawStartSnap, #drawEndSnap)を呼ぶ
      * （描き終えの端点は、クリック位置で取り直さず直前のmousemoveで照会した#drawEndSnapを使う）。
      * trueなら補助が反映済み（記録も補助側）。falseのときだけ従来どおり、作成中の図形を確定登録する。
-     * 確定登録（commitDraft）の直前に記録先のbeginEdit()、直後にcommitEdit()を呼び、図形の作成を1件の編集操作として伝える
+     * 確定登録（commitDraft({ atInsertTarget: true })。描き込む先のすぐ上へ入り、描き込む先が無ければ末尾）の直前に記録先のbeginEdit()、直後にcommitEdit()を呼び、図形の作成を1件の編集操作として伝える
      * （作成の開始・作成途中の破棄は伝えない）。その後IDLE状態へ遷移し、#resetSnapState()で吸い付きの状態と表示を消す。
      * IDLE状態かつ図形作成モード中の描き始めは、丸めていないクリック位置で吸い付きを照会し（ホバー状態は参照しない）、
      * 結果を#drawStartSnapに保持・表示し、吸い付いていれば端点の座標をそのまま、吸い付かなかったときだけクリック位置を
@@ -1133,7 +1133,7 @@ export class InputTracker {
             }
             if (!this.#snapAssist.commitDrawnLine(this.#drawStartSnap, this.#drawEndSnap)) {
                 this.#editRecorder.beginEdit();
-                this.model.commitDraft();
+                this.model.commitDraft({ atInsertTarget: true });
                 this.#editRecorder.commitEdit();
             }
             this.state = InputState.IDLE;

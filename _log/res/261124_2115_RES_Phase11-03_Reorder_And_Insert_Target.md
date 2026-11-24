@@ -189,7 +189,7 @@
         *   `SnapshotAdapter.restore`で`{ keepInsertTarget: true }`を渡す（JSDocも）。
         *   テスト：要件3の表の全経路、省いたときの並びが今と同じこと、`atInsertTarget`（描き込む先なし・外側・フォルダの中・複数・入れ子の追加）、足した後の選択と描き込む先、`setSelectionByUser`の戻り値と通知、`clearSelection`で残る、`replaceShape`の`select: false`（選択あり＝変わらない／なし＝結果の図形／`keepId`の真偽）、`replaceShape`の`select: true`、削除で下の行へ・下に無ければ無し、`reorderShapes`・`replaceShapesKeepingIds`・`renameItem`で変わらない、`replaceAllShapes`の2通り、通知1回。
 
-*   [ ] タスク3: 入る位置（描く・貼り付け・複製・インポート）
+*   [x] タスク3: 入る位置（描く・貼り付け・複製・インポート）
     *   **対象ファイル** :
         *   `./js/edit/ShapeInserter.js` :（更新）
         *   `./js/edit/ClipboardController.js` :（更新。JSDocだけ）
@@ -325,7 +325,12 @@
 
 ### タスク3: 入る位置（描く・貼り付け・複製・インポート）
 *   **作業内容** :
-    *   (未実施)
+    *   `js/edit/ShapeInserter.js`（CRLFのまま）：省ける依存`insertsAtTarget`（既定`false`）を足し、`addShapesWithNewIds(result.items, { atInsertTarget })`を呼ぶ。責務・クラス・`insertDocument`・コンストラクタのJSDocの「最前面」「末尾」を直した。
+    *   `js/main.js`（CRLFのまま）：`// 7.5.`の`ShapeInserter`の生成だけ`insertsAtTarget: true`を足した。
+    *   `js/edit/EndpointSnapper.js`（LFのまま）：`#commitDrawnShape`の`commitDraft({ atInsertTarget: true })`とそのJSDoc。`js/core/InputTracker.js`（CRLFのまま）：`handleClick`の`commitDraft({ atInsertTarget: true })`とそのJSDoc。
+    *   `js/edit/ClipboardController.js`（3か所）・`js/edit/CanvasFileOperations.js`（1か所）：JSDocの「最前面」を「入る位置は`ShapeInserter`が決める（描き込む先のすぐ上、無ければ最前面）」へ直した（コードは変えていない）。
+    *   テスト：`test/edit/ShapeInserter.insertTarget.test.js`（新規・CRLF・10件）、`test/edit/EndpointSnapper.insertTarget.test.js`（新規・CRLF・8件）。
+    *   `node --test`：tests 2841 / pass 2841 / fail 0。
 
 ### タスク4: 選択を外す操作の区別
 *   **作業内容** :
@@ -390,6 +395,7 @@
 *   （タスク2）`setSelectionByUser`は図形の選択を直接書くため、頂点の選択の`pruneSelectedVertices`を呼ぶ（`setSelection`と同じ）。
 *   `.item-list`の子に行以外の要素を足さないこと（`render`・`getSelectedRowIds`・`getViewport`が子＝行を前提にしている）。
 *   `DragTracker`の取りこぼしの保険では、ボタンが離れたことを次の`mousemove`で知り、その位置で離したものとして扱う。
+*   （タスク3）`EndpointSnapper`の終え方のテストは、2点の線を終えるには点を1つ打って（`clickDrawnLine`）から`finishDrawnLine`を呼ぶ必要がある（始点だけだと何も残らない）。
 *   `ItemListRowDrag`の`window`のcaptureの`mousedown`は、行のドラッグ中だけ止める（それ以外では何もしない）。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）

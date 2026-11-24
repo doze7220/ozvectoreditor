@@ -1,5 +1,5 @@
 /**
- * 責務: 作業データ形式のオブジェクトの図形を、平行移動したうえで新しいidで現在のキャンバスの最前面へ追加し、追加した図形だけを選択する
+ * 責務: 作業データ形式のオブジェクトの図形を、平行移動したうえで新しいidで現在のキャンバスへ（描き込む先のすぐ上、無ければ最前面）追加し、追加した図形だけを選択する
  * 1件の編集操作を担う（貼り付け・複製・インポートの共通処理）。ほかに、開いている編集操作の中で記録せずに追加する入口を持つ（Alt+ドラッグの複製が使う）。DOMに触れない。
  */
 import { DocumentSerializer } from '../io/DocumentSerializer.js';
@@ -55,26 +55,35 @@ export class ShapeInserter {
     #editRecorder;
 
     /**
+     * 真なら描き込む先のすぐ上へ追加する（描き込む先が無ければ末尾）。偽なら常にいちばん外側の末尾（最前面）へ追加する。
+     * @type {boolean}
+     */
+    #insertsAtTarget;
+
+    /**
      * @param {Object} deps - 依存オブジェクト
      * @param {import('../core/VectorModel.js').VectorModel} deps.model - 図形の追加先のVectorModel
      * @param {EditRecorder} deps.editRecorder - 編集操作の記録先（実体はHistoryManager）
+     * @param {boolean} [deps.insertsAtTarget=false] - 真なら描き込む先のすぐ上へ追加する。省くと偽（末尾＝最前面）
      */
-    constructor({ model, editRecorder }) {
+    constructor({ model, editRecorder, insertsAtTarget = false }) {
         this.#model = model;
         this.#editRecorder = editRecorder;
+        this.#insertsAtTarget = insertsAtTarget;
     }
 
     /**
-     * 作業データ形式のオブジェクトの図形を、(dx, dy)だけ平行移動したうえで新しいidで現在のキャンバスの最前面へ追加し、
-     * 追加した図形だけを選択する。
+     * 作業データ形式のオブジェクトの図形を、(dx, dy)だけ平行移動したうえで新しいidで現在のキャンバスへ追加し、
+     * 追加した図形だけを選択する。追加する位置は、insertsAtTargetが真なら描き込む先のすぐ上（描き込む先が無ければ最前面）、偽なら最前面。
      *
      * 処理順:
      *   1. DocumentSerializer.deserialize(documentData)で図形インスタンスを生成する。ok=falseなら何も変更せず
      *      （履歴にも記録せず）、insertedIds=[]で返す。
      *   2. 復元できた図形が0件なら何も変更せず返す（全図形がスキップされた場合を含む）。
      *   3. 各図形にtranslate(dx, dy)を呼ぶ（dx・dyがともに0なら呼ばない。追加前のインスタンスに対して行うため変更通知は発生しない）。
-     *   4. editRecorder.beginEdit() → model.addShapesWithNewIds(result.items) → editRecorder.commitEdit()。
-     *      入れ子（フォルダ）・名前・表示・ロックを保ったまま、いちばん外側の末尾へ追加する。0件の判定とtranslateは
+     *   4. editRecorder.beginEdit() → model.addShapesWithNewIds(result.items, { atInsertTarget: insertsAtTarget }) → editRecorder.commitEdit()。
+     *      入れ子（フォルダ）・名前・表示・ロックを保ったまま、insertsAtTargetが真なら描き込む先のすぐ上（同じ並びの直後）、
+     *      偽または描き込む先なしならいちばん外側の末尾へ追加する。0件の判定とtranslateは
      *      平らな図形（result.shapes。result.itemsの図形と同じインスタンス）に対して行う。
      *   5. { ok: true, insertedIds, skipped, error: null }を返す。
      *
@@ -140,7 +149,7 @@ export class ShapeInserter {
         if (record) {
             this.#editRecorder.beginEdit();
         }
-        const insertedIds = this.#model.addShapesWithNewIds(result.items);
+        const insertedIds = this.#model.addShapesWithNewIds(result.items, { atInsertTarget: this.#insertsAtTarget });
         if (record) {
             this.#editRecorder.commitEdit();
         }
