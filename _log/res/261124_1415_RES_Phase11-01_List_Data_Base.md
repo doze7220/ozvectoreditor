@@ -238,7 +238,7 @@
         *   残りの確認：`js/`で`serialize(`・`serializeToString(`・`SpriteSerializer.serialize(`・`replaceAllShapes(`・`addShapesWithNewIds(`の呼び出し元（JSDocを除く）がすべてアイテムを渡していることを`grep`で確かめ、結果をレポートに書く。
         *   テスト：`CanvasFileOperations`＝出力（作業ファイル）→開く・インポートで入れ子・名前・表示・ロックが保たれる、出力（エンジン用）のJS→開く・インポートも同じ、フォルダだけのファイル（開く＝フォルダごと開く・通知なし／インポート＝`noShapes`）、`children`が不備のフォルダと入れ子の中の読めない図形で`partialRead`の件数、図形がすべて読めないフォルダで`readFailed`。実物の`VectorModel`・`ShapeInserter`・`HistoryManager`・`SnapshotAdapter`を組み合わせたインポートの取り消し。`CanvasLibrary`＝メモリ上の偽の保存先で、開く（ファイル）→編集→`flushPendingSave`→別のキャンバス→戻るで、記録の`document`と`getItems()`が保たれる。
         *   共通の締め。
-*   [ ] タスク8: 図形を作り直す操作での引き継ぎのテスト
+*   [x] タスク8: 図形を作り直す操作での引き継ぎのテスト
     *   **対象ファイル** :
         *   `./test/edit/PathJoiner.items.test.js`・`./test/edit/EndpointSnapper.items.test.js`・`./test/edit/PathCornerEditor.items.test.js`・`./test/edit/TransformInputEditor.items.test.js`・`./test/edit/ShapeOrderEditor.items.test.js` : 新規（`js/`は変更しない）
     *   **作業内容** :
@@ -314,7 +314,13 @@
 
 ### タスク8: 図形を作り直す操作での引き継ぎのテスト
 *   **作業内容** :
-    *   （未実施）
+    *   `js/`は変更せず、新規テスト5ファイル（LF・計28件）を追加した。いずれも実物の`VectorModel`・`SnapshotAdapter`・`HistoryManager`と各手順のクラスを組み合わせ、フォルダの中の図形（名前あり・`visible: false`・`locked: true`）で、操作後のid・名前・表示・ロック・フォルダの入れ子（`outline`）と、取り消し/やり直しでの作業データJSONの一致、記録が1件（取り消し後に`canUndo()`が偽）を確かめる。
+    *   `test/edit/PathJoiner.items.test.js`（5件）：2本の結合（奥の線の名前等を引き継ぎ新しいid・除かれた側の名前が消える）、閉じる（元のid）、「直線 2」の結合がパスになっても名前が変わらない、選択の順に依らず奥が基準、除かれた側が別のフォルダ（空のフォルダが残る）。
+    *   `test/edit/EndpointSnapper.items.test.js`（9件）：描き足し・描き始めが端点の描き足し・閉じる・描いた線での2本の結合・端点のドラッグでの結合と閉じる、線を続けて引いて終える（点2つ＝「直線 4」、点4つ＝「パス 6」）・始点で閉じる（「パス 3」。いずれもフォルダの中の名前も数え、新しい図形は最外の末尾・表示・ロックなし）。
+    *   `test/edit/PathCornerEditor.items.test.js`（4件）：角の切り替え、区間の切り替え（曲線に・直線に・別のフォルダの2つを同時に）。
+    *   `test/edit/TransformInputEditor.items.test.js`（5件）：幅・高さ・角度の数値入力、反転（横・縦。フォルダの中と外の図形を同時に）。
+    *   `test/edit/ShapeOrderEditor.items.test.js`（5件）：4操作で平らな並びが指定どおり・入れ子の骨組み（フォルダの位置・id・名前等）が不変・名前等が図形について動く、フォルダの中の図形を最前面へ送っても各フォルダが残り所属は位置のものになる。
+    *   `InputTracker`を通すドラッグは本タスクでは試験せず（タスク3の`VectorModel`のテストで担保）。失敗は無く、`js/`は直していない。`node --test`は2650件全件合格（2622 + 28）。
 
 ### タスク9: 開発資料の反映その1
 *   **作業内容** :
@@ -350,5 +356,7 @@
 5. **ファイル**：「出力（作業ファイル）」→「開く」、「インポート」、「出力（エンジン用）」で書き出したJSを「開く」、ができる。書き出したJSを確認用ページ（`sprite-check.html`）で開くと、今までどおり描かれる。
 6. **名前のデータ（任意）**：新しく描いた図形を含む絵を「出力（作業ファイル）」で出し、テキストエディタで開くと、`"version": 4`と、各図形の`"name"`（「パス 1」など）・`"visible": true`・`"locked": false`が入っている。複製した図形は元と同じ名前になっている。
     * 注意：名前の種類はデータ上の種類で決まる。直線のツールで点を3つ以上打った線は「パス n」、曲線のツールで点を2つだけ打って終えた線は「直線 n」になる（懸念事項の1つ目）。準備した古いファイルを開いて出力すると、奥の図形から順に種類ごとの番号が付く。
+
+* **タスク8の実装メモ**：端点のドラッグでの結合は、奥の線（先頭の図形）の名前・表示・ロックを引き継ぎ新しいidになる（`planEndpointDragJoin`の対象が奥側）ことを実測して固定した。区間の切り替えを別々の図形の点にまたがって行うには、各図形で2点以上選ぶ必要がある（1点だけだと切り替え対象にならない場合がある）。テストの補助関数（`setupReal`・`outline`等）は、`test/`に共有の補助ファイルを置かない決まりのため、各ファイルに重複して持つ。
 
 * **タスク7の実装メモ**：`CanvasFileOperations`の`downloadText`の引数順は`(text, name)`、`downloadSpriteModule`は`(text, name)`（新規テストの偽物はこれに合わせた）。`CanvasLibrary.items.test.js`は`flushPendingSave`で保留を確定してから終えるため、タイマーは残らない。
