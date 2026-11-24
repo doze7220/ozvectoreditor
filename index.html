@@ -6,28 +6,60 @@
     <title>OZ Vector Editor</title>
     <style>
         /* 画面の領域の寸法の唯一の定義箇所（ツールバー・ステータスバー・定規・キャンバスの領域・フロートウィンドウの既定の位置の基準）。
-           キャンバスの領域は、ツールバー・横の定規の下、縦の定規の右、ステータスバーの上（定規の太さ--ruler-sizeの分だけ狭い）。
+           キャンバスの領域は、ツールバー・横の定規の下、縦の定規の右、ステータスバーの上、図形の一覧のパネルの左（定規の太さ--ruler-sizeの分と、パネルの幅--item-list-widthの分だけ狭い。パネルを隠している間は右端まで）。
            --canvas-area-width・--canvas-area-heightとフロートウィンドウの既定の位置の基準はそれに追従する */
         :root {
             --toolbar-height: 80px;          /* ツールバーの高さ（2行固定。各行はこの半分） */
             --statusbar-height: 28px;        /* ステータスバーの高さ（1行固定） */
             --ruler-size: 20px;              /* 定規の太さ（横の定規の高さ・縦の定規の幅。唯一の定義箇所） */
+            --item-list-width: 240px;        /* 図形の一覧のパネルの幅（右端。唯一の定義箇所） */
             /* ツールバー・ステータスバー・定規・定規の角の地の色（1か所で共有する） */
             --frame-background-color: #f0f0f0;
             /* キャンバスの領域（上端＝ツールバー＋横の定規、左端＝縦の定規の幅。幅・高さはそれに追従する） */
             --canvas-area-top: calc(var(--toolbar-height) + var(--ruler-size));
             --canvas-area-left: var(--ruler-size);
-            --canvas-area-width: calc(100vw - var(--canvas-area-left));
             --canvas-area-height: calc(100vh - var(--canvas-area-top) - var(--statusbar-height));
             /* フロートウィンドウの既定の位置の基準（キャンバスの領域の左上から余白を空ける） */
             --float-window-margin: 8px;
             --float-window-top: calc(var(--canvas-area-top) + var(--float-window-margin));
             --float-window-left: calc(var(--canvas-area-left) + var(--float-window-margin));
         }
+        /* キャンバスの領域の右端（図形の一覧のパネルの幅の分）と幅。:rootに置くと、bodyのクラスで上書きしても
+           :rootで解決済みの値には届かないため、bodyに置く（使う側はすべてbodyの子孫）。0pxの単位は省かない（calcの引き算が無効になる） */
         body {
+            --canvas-area-right: var(--item-list-width);
+            --canvas-area-width: calc(100vw - var(--canvas-area-left) - var(--canvas-area-right));
             margin: 0;
             overflow: hidden;
             background-color: #f9f9f9;
+        }
+        /* 図形の一覧のパネルを隠している間（Tab・🧰）は、キャンバスの領域を右端まで広げる */
+        body.float-windows-hidden {
+            --canvas-area-right: 0px;
+        }
+        /* 図形の一覧のパネル（右端。フロートウィンドウではない）。重なりはツールバー・定規と同じ8
+           （キャンバス1・覆い5より前面、フロートウィンドウ10以上より背面） */
+        .item-list-panel {
+            position: fixed;
+            top: var(--toolbar-height);
+            bottom: var(--statusbar-height);
+            right: 0;
+            width: var(--item-list-width);
+            box-sizing: border-box;
+            z-index: 8;
+            background-color: var(--frame-background-color);
+            border-left: 1px solid #ccc;
+            font-family: sans-serif;
+            user-select: none;
+        }
+        .item-list {
+            height: 100%;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+        /* display: noneにしない（スクロール位置が失われるブラウザがあるため）。visibility: hiddenはマウスの操作も受けない */
+        body.float-windows-hidden .item-list-panel {
+            visibility: hidden;
         }
         /* キャンバスと読み込み中の覆い要素を、同じキャンバスの領域（ツールバー・横の定規とステータスバーの間、縦の定規の右）に置く。
            <canvas>は置換要素のためleftとrightを両方指定しても伸びず、width/heightをCSSで明示する必要がある。
@@ -326,12 +358,12 @@
             text-overflow: ellipsis;
         }
         /* キャンバスパレット（ツールバーの呼び出し口#launcher-canvasで開閉。hidden属性で初期非表示）。
-           キャンバスの領域の右上に置く（top: 定規の下の--float-window-top＝108px、right: 余白8px、幅240px）。
-           1280×800での範囲はx 1030〜1272、y 108〜約625（一覧の最大240pxを含む見積もり）で、ステータスバーの上端772pxより上。
+           キャンバスの領域の右上に置く（top: 定規の下の--float-window-top＝108px、right: 図形の一覧のパネルの幅＋余白8px、幅240px）。
+           1280×800での範囲はx 790〜1032、y 108〜約625（一覧の最大240pxを含む見積もり）で、ステータスバーの上端772pxより上。
            ツールパレット（x 28〜74）・?devの確認用ウィンドウ（left: 82px・幅360px）とは、画面幅が約700px以上なら重ならない */
         #window-canvas-palette {
             top: var(--float-window-top);
-            right: var(--float-window-margin);
+            right: calc(var(--item-list-width) + var(--float-window-margin));
             width: 240px;
         }
         /* キャンバスパレットの一覧（キャンバス数が多い場合はパレット内で縦スクロールする） */
@@ -606,6 +638,7 @@
             </div>
         </div>
     </header>
+    <aside id="item-list-panel" class="item-list-panel"><div id="item-list" class="item-list"></div></aside>
     <footer id="status-bar" class="status-bar">
         <div class="status-bar-side status-bar-left">
             <div class="status-bar-group status-bar-group-shrink">

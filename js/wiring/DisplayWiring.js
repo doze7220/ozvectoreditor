@@ -168,7 +168,8 @@ export class DisplayWiring {
 
     /**
      * フロートウィンドウの表示の状態（`displayState.isFloatWindowsVisible()`）を、`body`のクラス`float-windows-hidden`
-     * （index.htmlのCSSがすべての`.float-window`を隠す）と🧰の押し込み（表示中＝押し込み）に同期する。
+     * （index.htmlのCSSがすべての`.float-window`と図形の一覧のパネル`.item-list-panel`を隠し、キャンバスの領域の右端を
+     * パネルの幅の分だけ右端まで広げる。広がった領域の大きさへの追従はmain.jsの`resizeAndRenderViews`が行う）と🧰の押し込み（表示中＝押し込み）に同期する。
      * displayState.onChangeに登録し、起動時にも`syncAll()`で1回呼び出す（キーで切り替えてもボタンの表示が追従する）。
      * @returns {void}
      */

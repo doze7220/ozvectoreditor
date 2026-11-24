@@ -201,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * （`viewTransform.getState()`による倍率・オフセットのスナップショット）をCanvasManagerへ渡し、
      * 再描画を要求するローカル関数。表示の状態（`displayState.getState()`のアウトライン表示・背景の白/黒・グリッドの表示）も
      * あわせて渡す。model.onChange・viewTransform.onChange・displayState.onChangeのコールバックと
-     * resizeハンドラの4経路から同一の引数構成で呼び出すことで、再描画トリガーの重複定義を避ける。
+     * resizeAndRenderViews（windowのresizeと、図形の一覧のパネルの出し入れでのdisplayState.onChange）を含む4経路から同一の引数構成で呼び出すことで、再描画トリガーの重複定義を避ける。
      * 図形ごとのハンドルは描かない。選んでいる図形全体の外枠とそのハンドルは、
      * `collectScaleFrame`が現在の操作モード・線を含まない外枠（`shapeExtentReader.getSelectedGeometryBounds()`）・表示倍率から
      * 求めた位置を`scaleFrame`として渡す（選択モードで選択があるときだけ値が入る。描くのはCanvasManager）。
@@ -247,7 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * 現在のビュー変換とカーソル位置（スクリーン座標）で、定規（目盛り・数字・カーソル位置の印）を再描画するローカル関数。
-     * viewTransform.onChange・cursorTracker.onChange・resizeハンドラから呼ぶ（キャンバスは再描画しない）。
+     * viewTransform.onChange・cursorTracker.onChange・resizeAndRenderViewsから呼ぶ（キャンバスは再描画しない）。
      */
     function renderRulers() {
         rulerRenderer.render({
@@ -263,12 +263,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // （resize()は描画変換を適用しない。dpr × ビュー変換の描画変換はrender()が毎フレーム設定する）、
     // 続いて定規の内部バッファの大きさを同期し（rulerRenderer.resize()。描画はしない）、
     // その直後に最新のModel状態・ビュー変換状態でキャンバスと定規を再描画する（この呼び出し順序を厳守すること）
-    window.addEventListener('resize', () => {
+    /**
+     * キャンバスと定規の内部バッファの大きさを今の領域の大きさへ同期し、最新の状態で両方を再描画するローカル関数。
+     * windowのresizeと、displayState.onChange（DisplayWiringの後に登録）から呼ぶ。
+     * 後者は、図形の一覧のパネルの出し入れ（Tab・🧰）でキャンバスの領域の右端が変わるため。
+     * ビュー変換の値には触れないため、絵の位置と倍率は動かない。
+     */
+    function resizeAndRenderViews() {
         canvasManager.resize();
         rulerRenderer.resize();
         renderCurrentState();
         renderRulers();
-    });
+    }
+    window.addEventListener('resize', resizeAndRenderViews);
 
     // 5. フロートウィンドウ統治（ドラッグ・最前面化・イベント遮断の一元管理）
     new WindowManager();
@@ -297,7 +304,7 @@ document.addEventListener('DOMContentLoaded', () => {
     viewTransform.onChange(syncZoomDisplay);
 
     /**
-     * ビュー変換を初期表示（倍率1.0・ワールド原点がキャンバスの領域（キャンバス要素。ツールバー・定規・ステータスバーを除いた領域）の中心）へ戻す。
+     * ビュー変換を初期表示（倍率1.0・ワールド原点がキャンバスの領域（キャンバス要素。ツールバー・定規・ステータスバーと、出ているときの図形の一覧のパネルを除いた領域）の中心）へ戻す。
      * キャンバス要素の大きさ（CSSピクセル）を使う計算はこの関数（とzoomAtCanvasCenter）に集める。
      * フロートウィンドウに隠れる部分は考慮しない。ウィンドウの大きさ変更には追従しない（呼ばれた時点の大きさのみ使う）。
      * リセットボタン・リセットのショートカット・CanvasLibraryへ注入するresetViewの共通経路。
@@ -397,6 +404,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 6.5. 表示配線（実体は`wiring/DisplayWiring`。ステータスバーの表示・表示の切り替え・スナップ・パレットを隠す・全体を画面に収めるの購読と`click`の登録を行う）
     // 同じ通知元（model・viewTransform・displayState）への登録順が通知の呼ばれる順に効くため、この位置（6.の後・7.の前）を動かさないこと
     const displayWiring = new DisplayWiring({ model, viewTransform, displayState, unitSnapSettings, cursorTracker, canvas });
+    // DisplayWiringがbodyのクラス（float-windows-hidden）を付け外しした後に領域の大きさを読むため、DisplayWiringの生成の直後に登録する
+    // （onChangeは登録順に呼ばれる）。一覧のパネルの出し入れでキャンバスの領域の右端が変わるのに追従する
+    displayState.onChange(resizeAndRenderViews);
 
     // 7. ツールパレット配線
     // ツールの識別子一覧はToolRulesのTOOL_IDS（選択・頂点の選択・キャンバス移動・スポイト・SHAPE_TYPES）。パレットのボタンはid`tool-${toolId}`で照合される

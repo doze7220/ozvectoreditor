@@ -192,7 +192,7 @@
 *   「4. 詳細作業内容」の該当欄を記入し、タスクを`[x]`にする。
 *   開発資料の記載に影響が出る場合は資料本体を直さず、「開発資料の更新予定」へ追記する（タスク10・11を除く）。
 
-*   [ ] タスク1: 一覧のパネルの場所と、キャンバスの領域の大きさの同期（要件1）
+*   [x] タスク1: 一覧のパネルの場所と、キャンバスの領域の大きさの同期（要件1）
     *   **対象ファイル** :
         *   `./index.html` :（更新）
         *   `./js/main.js` :（更新）
@@ -308,7 +308,10 @@
 
 ### タスク1: 一覧のパネルの場所と、キャンバスの領域の大きさの同期
 *   **作業内容** :
-    *   （未実施）
+    *   `index.html`：`:root`へ`--item-list-width: 240px`を足し、`:root`の`--canvas-area-width`を消して`body`へ`--canvas-area-right`・`--canvas-area-width`を置いた。`body.float-windows-hidden`で`--canvas-area-right: 0px`。`.item-list-panel`・`.item-list`・`body.float-windows-hidden .item-list-panel { visibility: hidden }`のCSSを足し、`</header>`の後・`<footer>`の前へ`<aside id="item-list-panel">`を置いた。`#window-canvas-palette`の`right`を`calc(var(--item-list-width) + var(--float-window-margin))`にし、x 790〜1032のコメントと冒頭のコメントを直した。
+    *   `main.js`：`resize`の無名関数をJSDoc付きの`resizeAndRenderViews()`へ取り出して登録（4つの呼び出しの順はそのまま）。`new DisplayWiring(...)`の直後に`displayState.onChange(resizeAndRenderViews)`を登録（理由のコメント付き）。`renderCurrentState`・`renderRulers`・`resetViewToCenter`のJSDocを合わせた。
+    *   `DisplayWiring.js`：`#syncFloatWindowVisibility`のJSDocだけ変更（一覧のパネルも隠し、領域の右端を変えること）。
+    *   `node --test`：tests 2650 / pass 2650 / fail 0。行末：`main.js`はCRLFのまま、`index.html`はLFのまま（バイト列で確認）。
 
 ### タスク2: 行の並びと、行の操作の判定の規則
 *   **作業内容** :
@@ -363,6 +366,8 @@
 **実際の描画結果・操作で確かめてほしい箇所**
 *   スクロールする箱（`.item-list`）をクリックした後のキーの働き（ブラウザによりフォーカスを受けることがあるため`blur()`で戻す）。選択が無い・並びが変わらない等でショートカットが受理されなかった矢印・`PageUp`・`PageDown`・`Home`・`End`は、ブラウザの既定で一覧がスクロールすることがある。
 *   macOSの`Ctrl`＋クリックはブラウザの右クリックの扱いになる（追加・解除は`⌘`＋クリック）。
+*   （タスク1）パネルを出す・隠す（Tab・🧰）と、キャンバスの領域の右端が変わるため、絵の位置は変えずに描き直しが走る。隠したとき・出したときに絵が跳ばないか、キャンバスパレット（x 790〜1032）と一覧が重ならないかを目視で確かめたい。`#ruler-horizontal`の幅が追従するかも確かめたい。
+*   （タスク1・修正時の注意）`--canvas-area-width`は`body`の規則にある。`:root`へ戻すと`body.float-windows-hidden`の上書きが効かなくなる。`displayState.onChange(resizeAndRenderViews)`は`new DisplayWiring`の直後に置く順序が必要。
 *   500個の絵での重さ（下の10.）。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
