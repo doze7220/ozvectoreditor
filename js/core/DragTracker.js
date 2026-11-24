@@ -48,11 +48,12 @@ const BUTTON_TO_BUTTONS_BIT = Object.freeze({ 0: 1, 1: 4, 2: 2 });
  * ブラウザ外でボタンを離した場合も追従・終了を検知できる。それでもmouseupを取りこぼした場合は、次のmousemoveの
  * buttonsに開始ボタンが含まれないことで解放とみなして終了する。座標はすべてスクリーン座標で扱い、ドラッグの意味
  * （パン・ハンドルドラッグ等）の解釈は呼び出し側がコールバックで行う。セッションは同時に1つのみ。
- * InputTracker・VectorModel・ViewTransform・canvas要素には依存しない（スクリーン座標取得関数のみ注入される）。
+ * InputTracker・VectorModel・ViewTransform・canvas要素には依存しない（スクリーン座標取得関数のみ注入される。使う側はInputTrackerとItemListRowDragの2つ）。
  */
 export class DragTracker {
     /**
-     * マウスイベントからスクリーン座標（キャンバス左上基準のCSSピクセル）を返す関数（InputTracker.getScreenCoordinateを注入）。
+     * マウスイベントからスクリーン座標（CSSピクセル）を返す関数。使う側が座標の基準を決めて注入する
+     * （InputTrackerはキャンバス左上基準のInputTracker.getScreenCoordinate、ItemListRowDragはクライアント座標）。
      * @type {(event: MouseEvent) => {x: number, y: number}}
      */
     #getScreenPoint;
@@ -72,7 +73,7 @@ export class DragTracker {
     #suppressNextClick = false;
 
     /**
-     * @param {(event: MouseEvent) => {x: number, y: number}} getScreenPoint マウスイベントからスクリーン座標を返す関数
+     * @param {(event: MouseEvent) => {x: number, y: number}} getScreenPoint マウスイベントからスクリーン座標を返す関数（座標の基準は使う側が決める）
      */
     constructor(getScreenPoint) {
         this.#getScreenPoint = getScreenPoint;

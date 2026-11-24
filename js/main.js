@@ -939,7 +939,9 @@ document.addEventListener('DOMContentLoaded', () => {
         isPicking: () => styleEyedropper.isPicking(),
         selectSelectTool: () => selectTool(OperationMode.SELECT),
         readCtrlModifier: hasCtrlModifier,
-        itemRenameEditor
+        itemRenameEditor,
+        // 行のドラッグで決まった並び全体（描画順）の適用。記録つきの編集操作（1件）はShapeOrderEditorが持つ
+        applyRowOrder: (orderedIds) => shapeOrderEditor.applyOrder(orderedIds)
     });
 
     // 8. キーボードショートカット配線
@@ -968,10 +970,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // UI同期は既存経路（applyMode/applyShapeType、viewTransform.onChange、model.onChange）のみを通り、
     // ショートカット専用のUI同期・再描画呼び出しは書かない。
     new KeyboardShortcuts({
-        // ドラッグ中（パン・左ドラッグ。閾値以前を含む）か。受理判定専用
-        isDragging: () => inputTracker.isDragging(),
-        // Escで中断できるドラッグ（拡大縮小・回転のドラッグ中）か。受理判定専用（真の間はcancelだけがShift・Alt・Ctrlを問わず通る）
-        isCancelableDrag: () => inputTracker.isScalingSelection(),
+        // ドラッグ中（キャンバスのパン・左ドラッグ、一覧の行のドラッグ。閾値以前を含む）か。受理判定専用
+        isDragging: () => inputTracker.isDragging() || itemListWiring.isRowDragging(),
+        // Escで中断できるドラッグ（拡大縮小・回転のドラッグ中、一覧の行のドラッグ中）か。受理判定専用（真の間はcancelだけがShift・Alt・Ctrlを問わず通る）
+        isCancelableDrag: () => inputTracker.isScalingSelection() || itemListWiring.isRowDragging(),
         // 操作モード切替（ツールパレットの選択・頂点の選択・キャンバス移動のボタンと同一経路のselectModeTool。
         // 線を引いている途中なら描いた分を残して終えてから切り替える）
         setMode: (mode) => {
@@ -993,10 +995,11 @@ document.addEventListener('DOMContentLoaded', () => {
             resetViewToCenter();
             return true;
         },
+        // 一覧の行のドラッグ中（押下中を含む）ならその取りやめ（並びは変えない。true）。そうでなければ
         // スポイトの待ち受け中は待ち受けだけをやめる（選択は残す。true）。待ち受けでなければ
         // 拡大縮小・回転のドラッグ中ならその中断（引き始めの形へ戻す。cancelDraftOrClearSelectionの(1)）、そうでなければ
         // 作成途中の図形の破棄／選択解除（何もしなかった場合はfalse）。判定はstyleEyedropper.cancelPickingが持つ
-        cancel: () => styleEyedropper.cancelPicking(() => inputTracker.cancelDraftOrClearSelection()),
+        cancel: () => itemListWiring.cancelRowDrag() || styleEyedropper.cancelPicking(() => inputTracker.cancelDraftOrClearSelection()),
         // 全選択。選択モード以外では先に選択モードへ切り替える（ensureSelectMode。共通に使う操作は同関数のJSDoc参照）。
         // 図形0個・非受理でもページ全選択を起こさないよう常にtrueを返す
         selectAll: () => {

@@ -24,7 +24,7 @@ function installGlobal(name, value) {
 
 /**
  * 呼び出しを記録する注入コールバック群を作る。反転の2つは戻り値を指定できる。
- * @param {{flip?: boolean, dragging?: boolean}} [options] flip：反転のコールバックの戻り値、dragging：isDraggingの戻り値
+ * @param {{flip?: boolean, dragging?: boolean, cancelable?: boolean}} [options] flip：反転のコールバックの戻り値、dragging：isDraggingの戻り値、cancelable：isCancelableDragの戻り値
  * @returns {{actions: Object, calls: string[]}} コールバック群と呼び出した名前の記録
  */
 function createRecordingActions(options = {}) {
@@ -45,7 +45,7 @@ function createRecordingActions(options = {}) {
                         return options.dragging ?? false;
                     }
                     if (name === 'isCancelableDrag') {
-                        return false;
+                        return options.cancelable ?? false;
                     }
                     calls.push(name);
                     return name === 'flipHorizontal' || name === 'flipVertical' ? flipResult : true;
@@ -171,5 +171,30 @@ describe('KeyboardShortcuts keydown 反転のキー（Shift+H・Shift+V）', () 
     it('IME変換中は反転を実行しない', () => {
         const result = press({}, { code: 'KeyH', shiftKey: true, isComposing: true });
         assert.deepEqual(result.calls, []);
+    });
+
+    it('行のドラッグ中（isDraggingとisCancelableDragがともに真）は、Delete・Ctrl+Z・V・Home・矢印を実行しない', () => {
+        for (const init of [
+            { code: 'Delete' },
+            { code: 'KeyZ', ctrlKey: true },
+            { code: 'KeyV' },
+            { code: 'Home' },
+            { code: 'ArrowLeft' },
+        ]) {
+            assert.deepEqual(press({ dragging: true, cancelable: true }, init).calls, []);
+        }
+    });
+
+    it('行のドラッグ中のEscは、修飾キーなし・Shift・Alt・Ctrlのどれでもcancelを1回呼び、preventDefaultする', () => {
+        for (const init of [
+            { code: 'Escape' },
+            { code: 'Escape', shiftKey: true },
+            { code: 'Escape', altKey: true },
+            { code: 'Escape', ctrlKey: true },
+        ]) {
+            const result = press({ dragging: true, cancelable: true }, init);
+            assert.deepEqual(result.calls, ['cancel']);
+            assert.equal(result.prevented, true);
+        }
     });
 });

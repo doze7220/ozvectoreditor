@@ -8,11 +8,13 @@ import {
     buildItemRows,
     canSetInsertTargetByRow,
     canStartNameEdit,
+    canStartRowDrag,
     isListLocked,
     isOwnHover,
     resolveNameEditKey,
     resolveRowHover,
-    resolveRowPressAction
+    resolveRowPressAction,
+    shouldSelectPressedRow
 } from '../core/ItemListRules.js';
 import { resolveInsertMarkId } from '../core/InsertTargetRules.js';
 import { resolveListClickSelection } from '../core/ListSelectionRules.js';
@@ -20,12 +22,13 @@ import { hasHighlightChanged, resolveSelectionScrollTop, resolveVisibleRowRange 
 import { THUMBNAIL_SIZE_PX, buildThumbnailKey, needsThumbnailRedraw } from '../core/ThumbnailRules.js';
 import { drawThumbnail } from '../core/ThumbnailRenderer.js';
 import { ItemListPanel } from '../palette/ItemListPanel.js';
+import { ItemListRowDrag } from './ItemListRowDrag.js';
 
 /** サムネイルを描く範囲の、見えている行の前後に足す余裕の行数。 */
 const THUMBNAIL_OVERSCAN_ROWS = 4;
 
 /**
- * 図形の一覧の配線。生成時にパネルの生成・購読の登録を行い、公開するのはコンストラクタと`sync()`のみ。
+ * 図形の一覧の配線。生成時にパネル・行のドラッグの進行の生成と購読の登録を行い、公開するのはコンストラクタと`sync()`・`isRowDragging()`・`cancelRowDrag()`のみ。
  * 一時的な値として、`Shift`＋クリックの起点・自分が出したホバーのid・最後に見た`openCanvasId`だけを持つ（保存しない）。
  */
 export class ItemListWiring {
@@ -53,6 +56,8 @@ export class ItemListWiring {
     #readCtrlModifier;
     /** @type {import('../edit/ItemRenameEditor.js').ItemRenameEditor} 名前を変える編集操作 */
     #itemRenameEditor;
+    /** @type {ItemListRowDrag} 行のドラッグ（並べ替え）の進行 */
+    #rowDrag;
     /** @type {string|null} `Shift`＋クリックの範囲の起点の図形id */
     #anchorId = null;
     /** @type {string|null} 自分が出したホバーとして記録している図形id */
@@ -73,8 +78,9 @@ export class ItemListWiring {
      * @param {() => void} deps.selectSelectTool - 選択ツールへ切り替える
      * @param {(event: MouseEvent) => boolean} deps.readCtrlModifier - `Ctrl`（`Meta`）が押されているかの読み取り
      * @param {import('../edit/ItemRenameEditor.js').ItemRenameEditor} deps.itemRenameEditor - 名前を変える編集操作
+     * @param {(orderedIds: string[]) => boolean} deps.applyRowOrder - 行のドラッグで決まった並び全体（描画順）を適用する（記録つきの編集操作）
      */
-    constructor({ model, shapeExtentReader, displayState, canvasLibrary, getMode, isDragging, isPicking, selectSelectTool, readCtrlModifier, itemRenameEditor }) {
+    constructor({ model, shapeExtentReader, displayState, canvasLibrary, getMode, isDragging, isPicking, selectSelectTool, readCtrlModifier, itemRenameEditor, applyRowOrder }) {
         this.#model = model;
         this.#shapeExtentReader = shapeExtentReader;
         this.#canvasLibrary = canvasLibrary;
@@ -87,13 +93,29 @@ export class ItemListWiring {
         this.#lastOpenCanvasId = canvasLibrary.getState().openCanvasId;
         this.#panel = new ItemListPanel(document.getElementById('item-list-panel'), {
             thumbnailSize: THUMBNAIL_SIZE_PX,
-            onScroll: () => this.#requestSync(),
-            onRowPress: () => {},
+            onScroll: () => {
+                this.#requestSync();
+                this.#rowDrag.refresh();
+            },
+            onRowPress: (id, event, isEditingRow) => this.#handleRowPress(id, event, isEditingRow),
             onRowClick: (id, event) => this.#handleRowClick(id, event),
             onRowHover: (id) => this.#handleRowHover(id),
             onNameEditRequest: (id, event) => this.#handleNameEditRequest(id, event),
             onNameCommit: (id, text) => this.#itemRenameEditor.rename(id, text),
             resolveNameEditKey
+        });
+        this.#rowDrag = new ItemListRowDrag({
+            panel: this.#panel,
+            getRowIds: () => buildItemRows(model.getItems()).map((row) => row.id),
+            isSelected: (id) => model.isSelected(id),
+            shouldSelectPressedRow: (id) => shouldSelectPressedRow({ mode: getMode(), isPicking: isPicking(), isSelected: model.isSelected(id) }),
+            selectRow: (id) => {
+                model.setSelectionByUser([id]);
+                this.#anchorId = id;
+                this.sync({ allowScroll: false });
+            },
+            applyOrder: applyRowOrder,
+            onDragStart: () => this.#clearOwnHover()
         });
         model.onChange(() => this.#requestSync());
         window.addEventListener('resize', () => this.#requestSync());
@@ -105,11 +127,18 @@ export class ItemListWiring {
                 this.#anchorId = null;
                 // キャンバスを切り替えてもidが同じ図形があり得るため、編集中の名前は捨てる
                 this.#panel.cancelNameEdit();
+                this.#rowDrag.cancel();
             }
-            if (isListLocked(state)) this.#clearOwnHover();
+            if (isListLocked(state)) {
+                this.#clearOwnHover();
+                this.#rowDrag.cancel();
+            }
         });
         displayState.onChange(() => {
-            if (!displayState.isFloatWindowsVisible()) this.#clearOwnHover();
+            if (!displayState.isFloatWindowsVisible()) {
+                this.#clearOwnHover();
+                this.#rowDrag.cancel();
+            }
         });
     }
 
@@ -121,6 +150,7 @@ export class ItemListWiring {
      * @returns {void}
      */
     sync({ allowScroll = true } = {}) {
+        this.#rowDrag.cancelIfRowsChanged();
         const model = this.#model;
         const rows = buildItemRows(model.getItems());
         const selectedIds = rows.filter((row) => model.isSelected(row.id)).map((row) => row.id);
@@ -149,6 +179,40 @@ export class ItemListWiring {
     }
 
     /**
+     * 行の押下を処理する。ドラッグを始めてよいかは`canStartRowDrag`に任せ、結果とともに行のドラッグの進行へ渡すだけ。
+     * @param {string} id - 押した行の図形id
+     * @param {MouseEvent} event - `mousedown`のイベント
+     * @param {boolean} isEditingRow - 押した行が名前の編集中か
+     * @returns {void}
+     */
+    #handleRowPress(id, event, isEditingRow) {
+        const canStart = canStartRowDrag({
+            button: event.button,
+            hasModifier: this.#readCtrlModifier(event) || event.shiftKey === true,
+            isEditingRow,
+            isDragging: this.#isDragging(),
+            isLocked: isListLocked(this.#canvasLibrary.getState())
+        });
+        this.#rowDrag.press(id, event, canStart);
+    }
+
+    /**
+     * 行のドラッグ（押下から。閾値以前を含む）の最中かを返す。`Esc`で中断できるドラッグの照会に使う。
+     * @returns {boolean}
+     */
+    isRowDragging() {
+        return this.#rowDrag.isActive();
+    }
+
+    /**
+     * 行のドラッグを取りやめる（元の並びのまま。離したときのclickも無視する）。
+     * @returns {boolean} 取りやめる対象があったら真
+     */
+    cancelRowDrag() {
+        return this.#rowDrag.cancel();
+    }
+
+    /**
      * 行のクリックを処理する。押したときの判定は`resolveRowPressAction`（描くツールでは`canSetInsertTargetByRow`）、次の選択は`resolveListClickSelection`に任せ、
      * 結果を`model`へ渡すだけ（選択は`setSelectionByUser`、描くツールでは`setInsertTarget`）。選択の変化は記録しない。
      * @param {string} id - 押した行の図形id
@@ -156,6 +220,8 @@ export class ItemListWiring {
      * @returns {void}
      */
     #handleRowClick(id, event) {
+        // 行のドラッグ（または取りやめ）の直後のclickは、クリックとして扱わない
+        if (this.#rowDrag.consumeSuppressedClick()) return;
         const action = resolveRowPressAction({
             mode: this.#getMode(),
             isPicking: this.#isPicking(),
@@ -229,7 +295,7 @@ export class ItemListWiring {
             id,
             hoveredRowId: this.#hoveredRowId,
             hoveredId: model.getHoveredId(),
-            isDragging: this.#isDragging(),
+            isDragging: this.#isDragging() || this.#rowDrag.isMoving(),
             queryLocked: () => isListLocked(this.#canvasLibrary.getState()),
             queryExists: (shapeId) => model.getShapes().some((shape) => shape.id === shapeId)
         });

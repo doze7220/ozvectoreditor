@@ -236,7 +236,8 @@ export function hasCtrlModifier(event) {
  * （図形のcreateTransformed）、同じくreplaceShapesKeepingIdsで差し替えるだけ（Shiftは追従のたびのイベントで読んで規則の関数へ渡す。Alt・Ctrlは読まない）。
  * 離す・中断では、控え（#rotateDrag）を消してから図形の差し替えを通知する（離したときは今の図形のインスタンスのまま、中断は控えのインスタンスへ戻す。
  * 回している間の外枠はgetRotationDragView()の控えから描かれるため、縦横の外枠へ戻すための再描画を今のmodel.onChangeの経路で起こす）。離して取り消し1件、中断は記録しない。
- * 「Escで中断できるドラッグか」の判定は公開のisScalingSelection()の1か所（対象の状態の一覧はInputModesのCANCELABLE_DRAG_STATES）。
+ * キャンバスのドラッグについての「Escで中断できるドラッグか」の判定は公開のisScalingSelection()の1か所（対象の状態の一覧はInputModesのCANCELABLE_DRAG_STATES）。
+ * main.jsがKeyboardShortcutsのisCancelableDragへ注入する照会には、これに一覧の行のドラッグの照会（ItemListWiring）が並ぶ（本クラスは行のドラッグを知らない）。
  * Altを押して始めた本体ドラッグで移動量が閾値を超えた時点（beginEdit()の後）に、
  * 注入された複製を呼ぶだけで、複製の仕方・idの採番は知らない。
  * 「クリックした図形を外へ渡す待ち受け」（isPickingShape）の間は、選択モード・IDLEの左ボタンの押下で何も始めず、
@@ -605,7 +606,7 @@ export class InputTracker {
     /**
      * 外枠のハンドルでの拡大縮小・外枠の角の外側での回転のドラッグ（SCALING_SELECTION・ROTATING_SELECTION。押下から離す・中断まで。閾値以前を含む。
      * Escで中断して引き始めの形に戻すドラッグ）の最中かを返す。
-     * **「Escで中断できるドラッグか」の判定の唯一の箇所**（main.jsがKeyboardShortcutsのisCancelableDragへ注入し、
+     * **キャンバスのドラッグについての「Escで中断できるドラッグか」の判定の唯一の箇所**（main.jsがKeyboardShortcutsのisCancelableDragへ、一覧の行のドラッグの照会と並べて注入し、
      * cancelDraftOrClearSelectionの(1)もこのメソッドを呼ぶ。ほかの箇所でstateをこの判定のために直接比べない）。
      * 対象の入力状態の一覧はInputModesのCANCELABLE_DRAG_STATES（名前は拡大縮小の時代のまま。意味を回転へ広げた）。
      * @returns {boolean} 拡大縮小・回転のドラッグ中ならtrue

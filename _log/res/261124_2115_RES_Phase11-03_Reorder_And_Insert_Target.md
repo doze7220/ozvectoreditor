@@ -272,7 +272,7 @@
         *   要件1の4.のとおり。`onRowPress`はほかのコールバックと同じく関数でなければ`Error`（typedef`ItemListPanelOptions`とコンストラクタの`@throws`にも足す）。`render`で行が除かれたとき、動かす行・線の控えに残ったidで失敗しないこと。
         *   CSS：`.item-row { position: relative; }`、`.item-row.dragging`（半透明）、`.item-row.drop-before::before`（上端の2pxの青い線）・`.item-row.drop-after::after`（下端の2pxの青い線）。どちらも`position: absolute; left: 0; right: 0; pointer-events: none`で、行の高さ36pxを変えない。
 
-*   [ ] タスク9: 行のドラッグの進行と配線
+*   [x] タスク9: 行のドラッグの進行と配線
     *   **対象ファイル** :
         *   `./js/wiring/ItemListRowDrag.js` :（新規）
         *   `./js/wiring/ItemListWiring.js` :（更新）
@@ -377,7 +377,12 @@
 
 ### タスク9: 行のドラッグの進行と配線
 *   **作業内容** :
-    *   (未実施)
+    *   `js/wiring/ItemListRowDrag.js`（新規・CRLF）：`DragTracker`を1つ持ち（閾値3px・`suppressClick: 'whenMoved'`）、`press`・`cancel`・`cancelIfRowsChanged`・`isActive`・`isMoving`・`consumeSuppressedClick`・`refresh`を公開。始まり（行の並びの控え→`onDragStart`→必要なら`selectRow`→`resolveDraggedIds`→`setDraggedRows`→自動スクロールの`requestAnimationFrame`）、移動（`resolveDropIndex`→`resolveDropMark`→`showDropMark`）、離す（後始末を先に行い、並びが控えと同じでドロップ位置があれば`applyOrder(toDrawOrder(reorderRowsForDrop(…)))`）。`window`のcaptureの`mousedown`は押下中だけ`preventDefault`＋`stopPropagation`で止める。
+    *   `js/wiring/ItemListWiring.js`（LFのまま）：依存`applyRowOrder`を足し、`onRowPress`を`#handleRowPress`（`canStartRowDrag`の結果とともに`rowDrag.press`）へ差し替え、`onScroll`で`rowDrag.refresh()`、`#handleRowClick`の先頭で`consumeSuppressedClick`、ホバーの`isDragging`へ`rowDrag.isMoving()`を足した。取りやめは`sync()`の先頭（`cancelIfRowsChanged`）・`openCanvasId`が変わったとき・ロック中・一覧を隠したとき。公開は`sync`・`isRowDragging`・`cancelRowDrag`。
+    *   `js/main.js`（CRLFのまま）：`applyRowOrder`の注入、`// 8.`の`isDragging`・`isCancelableDrag`・`cancel`の3つとコメント。
+    *   `KeyboardShortcuts.js`・`DragTracker.js`・`InputTracker.js`（いずれもCRLFのまま）：JSDoc・コメントだけ直した（コードは変えていない）。
+    *   テスト：`test/core/KeyboardShortcuts.keydown.test.js`（LFのまま）の注入の記録に`cancelable`を足し、末尾へ2件追加（行のドラッグ中は`Delete`等を実行しない／`Esc`は修飾キーを問わず`cancel`1回＋`preventDefault`）。
+    *   `node --test`：tests 2903 / pass 2903 / fail 0。
 
 ### タスク10: 描き込む先の通しのテスト
 *   **作業内容** :
@@ -420,6 +425,7 @@
 *   `DragTracker`の取りこぼしの保険では、ボタンが離れたことを次の`mousemove`で知り、その位置で離したものとして扱う。
 *   （タスク3）`EndpointSnapper`の終え方のテストは、2点の線を終えるには点を1つ打って（`clickDrawnLine`）から`finishDrawnLine`を呼ぶ必要がある（始点だけだと何も残らない）。
 *   `ItemListRowDrag`の`window`のcaptureの`mousedown`は、行のドラッグ中だけ止める（それ以外では何もしない）。
+*   （タスク9）`ItemListRowDrag`・`ItemListWiring`はDOM・`requestAnimationFrame`を使うためテスト対象外（目視確認を推奨：ドラッグでの並べ替え・`Esc`での取りやめ・端での自動スクロール・複数選択のまとめ移動・描くツールでの行の押下）。`ItemListWiring.#handleRowClick`は`cancel`後に抑止されたclickがあれば何もせず終わる。
 *   （タスク5）`ItemListWiring.sync`のスクロール対象は、選択が1つ以上なら選ばれている行、無ければ印の行。`#handleRowClick`の描くツールの枝では`#handleRowHover`を呼ばない（ツールが変わらずホバーが消えないため）。
 
 *   （タスク7）`applyOrder`の「今と同じ並び」判定は`ShapeOrderEditor`内で`getShapes()`のidと比べる（`ListDragRules.isSameOrder`は`edit/`から使わない。`edit/`が`core/`の規則をimportしないため）。`resolveAutoScrollTop`は、帯の境目ちょうど（`y === top + band`）は帯の外（`null`）。`canStartRowDrag`の`hasModifier`は呼び出し側が`Ctrl`（`⌘`）・`Shift`から求める。
