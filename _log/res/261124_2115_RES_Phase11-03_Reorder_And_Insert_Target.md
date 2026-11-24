@@ -292,7 +292,7 @@
         *   実物（`VectorModel`・`SnapshotAdapter`・`HistoryManager`・`ShapeInserter`・`ClipboardController`・`PathJoiner`・`PathCornerEditor`・`ShapeOrderEditor`・`CanvasLibrary`。`CanvasLibrary`の組み立て方は`test/edit/CanvasLibrary.items.test.js`に合わせる）で通して確かめる：描く → 取り消す → 描き直すと同じ場所／やり直しでは描き込む先が動かない／選択が戻る取り消しでは一番上の行（`shouldRestoreSelection`の真偽の両方）／削除・切り取り → 貼り付け／結合で除かれたとき結果の図形になる／角の切り替えで変わらない／並べ替えの記録1件と取り消し1回・行と一緒に動く／ツールの切り替え（`clearSelection`）で残り`setSelectionByUser([])`で外れる／キャンバスの切り替え・新規作成で無しになる（同じidの図形があっても）／描き込む先を変えても`capture()`・作業データ・スプライトのテキスト・履歴の件数が変わらず、記録もされない。
         *   js/は変えない。テストが通らない誤りを見つけたときは、直さず作業を中断して質問する。
 
-*   [ ] タスク11: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
+*   [x] タスク11: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新）
     *   **作業内容** :
@@ -391,7 +391,14 @@
 
 ### タスク11: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
 *   **作業内容** :
-    *   (未実施)
+    *   `PROJECT_ARCHITECTURE.md`（CRLFのまま。改行は全行CRLF）を実コードの名前（`InsertTargetRules`・`ListDragRules`・`ItemListRowDrag`・各公開メソッド）と照らして更新した。
+    *   1章：構成図（`InsertTargetRules`・`ListDragRules`・`ItemListRowDrag`・新しいテスト6ファイルを追加、`OptionBarOrderGroup`を削除、`index.html`の1行目の説明、`ItemTreeRules`・`SelectionRules`・`ItemListRules`・`ListScrollRules`・`KeyboardShortcuts`・`DragTracker`・`ItemListPanel`・`ItemListWiring`の説明）、「存在しないもの」（並べ替えの2か所を今の形に、Phase 11-03で入った・なくした・やらないと決めたことを追記）、フォルダ分割の方針（`core/`・`edit/`・`palette/`・`wiring/`）、依存方向（Phase 11-03の例外を追記。`wiring/`内のimportと`wiring/`が`DragTracker`を生成して持つ初めての例）。
+    *   2章：アイテムの追加位置、保存対象・保存しないものに描き込む先、選択状態の下に「描き込む先」の項を追加。
+    *   3章：前文・3.・5.・6.・7.・8.・9.・11.・12.・13.・14.・16.・18.・20〜23.の言及・25.・26.・28.を更新（28.に「行のドラッグでの並べ替え」「ドラッグの始まりと取りやめ」「描き込む先の見せ方と変え方」「Phase 11-03のふるまいの注意」「確認の状況（Phase 11-03）」を追加。テストプレイ未実施と書いた）。4章の表に54〜56の行を追加。
+    *   コード・`_doc/arch/`・テストは変えていない。
+    *   （監査指摘の修正）22.に「描き込む先」の項を追加：確定した線は`EndpointSnapper.#commitDrawnShape`の`commitDraft({ atInsertTarget: true })`で描き込む先のすぐ上（無ければ最前面）へ入る・描き終え／描き足し／結合／閉じるの後の描き込む先（終えた線または結果の図形。`replaceShape`は元の位置のまま）・点を打つ／消す／`Esc`は描き込む先に触れない・線を引いている途中の行の押下（`setInsertTarget`）とドラッグ（`applyOrder`）で作成途中の線が残ること。22.に古い「末尾」「最前面」の記述は無かった（`末尾＝付いてくる線の先`は頂点の話で別）。
+    *   （監査指摘の修正）1.：図形の一覧の行の操作の受け付けない条件に、行のドラッグ・描き込む先の指定も同じ判定と追記。27.：幅・高さ・角度の欄は変わらないが、行のドラッグ中は`KeyboardShortcuts`の`isDragging`が真になり反転のキーも受理されない旨を追記。
+    *   （監査指摘の確認）差分と照合し、3章の前文・3.・6.・7.・8.・9.・11.・12.・13.・14.・16.・18.・25.・28.・2章・4章の表は反映済みであることを確かめた。27.のほかの記述（基準点・大きさ・角度・取り消し1件・位置の欄との関係）は、Phase 11-03で`replaceShapesKeepingIds`が描き込む先の候補を今のままにするだけで変わらないため、上記の1行以外は反映不要。
 
 ### タスク12: 開発資料の反映（`_doc/arch/`）
 *   **作業内容** :
@@ -446,3 +453,4 @@
 11. **切り替え**：📁でキャンバスを切り替える・新しく作る・開くと、印は消える（戻ってきても消えたまま）。ページを開き直しても、並べ替えた順番は残る（印は残らない）。
 12. **ほかが今までどおり**：一覧での選択（クリック・`Ctrl`＋クリック・`Shift`＋クリック）・名前の変更（ダブルクリック）・サムネイル・カーソルを置いたときの見た目、描く・動かす・変形・頂点・角・色・整列・保存・書き出し・開くが今までどおり動く。何も選ばず印も無いときに描く・貼り付けると、今までどおり一番上に入る。
 *   （タスク10）通しのテストの「選択が戻る取り消し」は、選択が変わる操作（`a`・`c`を選んで削除）で確かめた。描き込む先が選択の一番上と違う状態は、削除で下の行へ付け替わるときに作れる。結合は`PathJoiner`（選択が残る経路）で確かめ、選択が空で`select: false`の経路（`EndpointSnapper`）は`EndpointSnapper.insertTarget.test.js`が受け持つ。
+*   （タスク11）`PROJECT_ARCHITECTURE.md`は1文が長い行が多いため、追記は該当する行の中の文を直す形にした（特に3章28.は「行のドラッグでの並べ替え」「ドラッグの始まりと取りやめ」「描き込む先の見せ方と変え方」「Phase 11-03のふるまいの注意」を新しい項として足した）。`ItemListRules`・`ListScrollRules`・`ItemListPanel`・`ItemListWiring`の関数名・メソッド名はRESとコードのexportの照合で書いたが、`ItemListPanel`・`ItemListWiring`の細部（`getInsertMarkId`・`onRowPress`・`isRowDragging`等）は実ブラウザでの確認と合わせて読み返すとよい。「確認の状況（Phase 11-03）」は**テストプレイ未実施**と書いてあり、発注者のテストプレイの後に書き直すこと。
