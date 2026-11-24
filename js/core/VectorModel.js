@@ -7,6 +7,9 @@ import { ShapeFactory, SHAPE_TYPES } from './ShapeFactory.js';
 import { ITEM_KIND, toItems, listItems, listShapeItems, listShapes, placeShapeItems, filterShapes, insertItemsAbove } from './ItemTreeRules.js';
 import { resolveItems, applyItemRename } from './ItemAttributeRules.js';
 import { resolveInsertTarget } from './InsertTargetRules.js';
+import { itemIdOf } from './GroupTreeRules.js';
+import { resolveGroupCandidates, resolveSelectedGroupIds, resolveRevealIds } from './GroupSelectionRules.js';
+import { setCollapsed, expandGroupsContaining } from './GroupCollapseRules.js';
 
 /**
  * 新しく描く図形のスタイル（直前に使った値）。有無と色を分けて持つ
@@ -88,8 +91,10 @@ const ID_PATTERN = new RegExp(`^(?:${ID_PREFIX}|${GROUP_ID_PREFIX})(\\d+)$`);
  * 名前・表示・ロックの規則（名前の変更`renameItem`を含む）は`ItemAttributeRules`、入れ子の計算は`ItemTreeRules`へ委譲する。
  * 図形の生成はShapeFactoryへ委譲する（復元は`DocumentSerializer`→`ShapeFactory.fromJSON`が行い、本クラスは復元済みの図形一式を受け取るのみ）。図形固有の頂点構造には依存しない（ポリモーフィック呼び出しのみ）。
  * 新しく描く図形のスタイル（直前に使った値）も保持する（作業データ・履歴のスナップショットには含まれない）。
+ * 選んでいるフォルダ（`#selectedGroupIds`。明示して選んだフォルダのidだけ。保存・履歴の比較・書き出しに入らず、不変条件は`GroupSelectionRules`）と、
+ * フォルダの折りたたみ（フォルダのアイテムの`collapsed`。`setGroupCollapsed`・選択が変わったときの自動で開く。`onCollapsedChange`で通知）も扱う。
  * 描き込む先（`#insertTargetId`。図形のidまたはnull。新しい図形はそのすぐ上へ入る。保存せず、履歴の対象外）の唯一の持ち主でもある。
- * `#items`・選択集合・描き込む先への代入は、コンストラクタと非公開メソッド`#applyState`だけが行い、描き込む先の決まり方は`InsertTargetRules`へ委譲する。
+ * `#items`・選択集合・選んでいるフォルダ・描き込む先への代入は、コンストラクタと非公開メソッド`#applyState`だけが行い、描き込む先の決まり方は`InsertTargetRules`へ委譲する。
  * 図形の差し替えの入口として、既定では新しいidを採番する`replaceShape`・並びを変えない`replaceShapesKeepingIds`（複数・同じidのまま・通知1回）を持つ。
  * 図形のスタイルについては、共通プロパティの`strokeColor`・`strokeWidth`・`fillColor`の3つだけを書く（図形固有のプロパティ名は知らない）。
  */
@@ -111,6 +116,25 @@ export class VectorModel {
      * @private
      */
     #selectedIds;
+
+    /**
+     * @type {Set<string>} 選んでいるフォルダのidの集合（明示して選んだものだけ。中のフォルダは自動では入れない）。
+     * 常に`GroupSelectionRules.resolveSelectedGroupIds`の不変条件を満たす。保存・履歴の比較・書き出しに入れない。書き込みは`#applyState`だけが行う。
+     * @private
+     */
+    #selectedGroupIds;
+
+    /**
+     * @type {Array<Function>} 折りたたみが変わったことを通知するコールバック関数の配列
+     * @private
+     */
+    #collapsedListeners;
+
+    /**
+     * @type {boolean} `#applyState`・`setGroupCollapsed`で折りたたみが変わり、まだ`onCollapsedChange`へ通知していないか
+     * @private
+     */
+    #collapsedChanged;
 
     /**
      * @type {string|null} 描き込む先：次に入る図形のすぐ下になる図形のid（無ければnull＝いちばん外側の末尾）。
@@ -183,6 +207,9 @@ export class VectorModel {
         this.#items = [];
         this.#listeners = [];
         this.#selectedIds = new Set();
+        this.#selectedGroupIds = new Set();
+        this.#collapsedListeners = [];
+        this.#collapsedChanged = false;
         this.#insertTargetId = null;
         this.#hoveredId = null;
         this.#draftShape = null;
@@ -235,40 +262,92 @@ export class VectorModel {
      * 現存しない図形のidは除外する（選択集合は常に現存図形のidのみを含む）。
      * 頂点の選択から、選択中でなくなった図形の組を落とす（通知は増やさない）。
      * 単一選択は setSelection([id]) で表現する。
+     * 選んでいるフォルダは`groupIds`で指定したものになる（省けば空。不変条件を通り、中の図形がすべて選ばれているものだけ残る）。
+     * `keepsCollapsed`が偽なら、選択が変わったとき新しく選ばれた図形を含む閉じたフォルダを開く（`GroupSelectionRules.resolveRevealIds`。変わる前にあったフォルダだけ）。
      * 描き込む先は、結果の選択集合が1つ以上ならその一番上の図形になり、空になっても残る（利用者が外す操作は`setSelectionByUser`）。
      * @param {Iterable<string>} ids 新しい選択集合とする図形idの集合
+     * @param {Object} [options] オプション
+     * @param {Iterable<string>} [options.groupIds] 選ぶフォルダのid（省けば空）
+     * @param {boolean} [options.keepsCollapsed=false] 真なら閉じたフォルダを開かない（一覧の選択・取り消し/やり直し）
      */
-    setSelection(ids) {
-        this.#applyState({ selectedIds: this.#filterExistingIds(ids) });
+    setSelection(ids, { groupIds, keepsCollapsed = false } = {}) {
+        const selectedIds = this.#filterExistingIds(ids);
+        const candidateIds = resolveGroupCandidates({ currentIds: this.#selectedGroupIds, requestedIds: groupIds, additive: false });
+        this.#applyState({
+            selectedIds,
+            selectedGroupIds: candidateIds,
+            revealIds: keepsCollapsed ? [] : this.#resolveReveal({ items: this.#items, nextIds: selectedIds, candidateIds, additive: false }),
+        });
         this.#pruneSelectedVertices();
         this.#notifyChange();
     }
 
     /**
      * 利用者が選ぶ・外す操作の入口。`setSelection`と同じく現存しないidを除き、頂点の選択から選択中でなくなった図形の組を落とす。
-     * 結果の選択集合が空なら、描き込む先も無しにする（空にならなければ描き込む先は規則どおり選ばれている一番上の図形）。
-     * 何も選んでおらず、描き込む先も無く、結果も空のときだけ、何もせず（通知もせず）falseを返す。それ以外は変更を通知して（1回）trueを返す。
+     * 選んでいるフォルダは、`groupIds`が渡されていればそれ、無ければ`additive`が真なら今の値、偽なら空になる（`GroupSelectionRules.resolveGroupCandidates`。不変条件を通る）。
+     * 結果の図形の選択もフォルダの選択も空なら、描き込む先も無しにする（空にならなければ描き込む先は規則どおり選ばれている一番上の図形）。
+     * 図形の選択・フォルダの選択が今も結果も空で、描き込む先も無いときだけ、何もせず（通知もせず）falseを返す。それ以外は変更を通知して（1回）trueを返す。
+     * `keepsCollapsed`が偽なら、選択が変わったとき新しく選ばれた図形を含む閉じたフォルダを開く（`additive`が真なら新しく選ばれた図形だけ）。
      * @param {Iterable<string>} ids 新しい選択集合とする図形idの集合
+     * @param {Object} [options] オプション
+     * @param {Iterable<string>} [options.groupIds] 選ぶフォルダのid
+     * @param {boolean} [options.additive=false] 足しただけ（`Ctrl`）か。`groupIds`が無いとき今のフォルダの選択を引き継ぐかを決める
+     * @param {boolean} [options.keepsCollapsed=false] 真なら閉じたフォルダを開かない（一覧の選択）
      * @returns {boolean} 通知したか（状態を書き換えたか）
      */
-    setSelectionByUser(ids) {
+    setSelectionByUser(ids, { groupIds, additive = false, keepsCollapsed = false } = {}) {
         const selectedIds = this.#filterExistingIds(ids);
-        if (selectedIds.size === 0 && this.#selectedIds.size === 0 && this.#insertTargetId === null) {
+        const candidateIds = resolveGroupCandidates({ currentIds: this.#selectedGroupIds, requestedIds: groupIds, additive });
+        const nextGroupIds = resolveSelectedGroupIds({ previousItems: this.#items, items: this.#items, selectedIds, candidateIds });
+        const isEmptyResult = selectedIds.size === 0 && nextGroupIds.size === 0;
+        if (isEmptyResult && this.#selectedIds.size === 0 && this.#selectedGroupIds.size === 0 && this.#insertTargetId === null) {
             return false;
         }
-        this.#applyState(selectedIds.size === 0 ? { selectedIds, insertTargetId: null } : { selectedIds });
+        const revealIds = keepsCollapsed ? [] : this.#resolveReveal({ items: this.#items, nextIds: selectedIds, candidateIds, additive });
+        this.#applyState(isEmptyResult
+            ? { selectedIds, selectedGroupIds: candidateIds, insertTargetId: null, revealIds }
+            : { selectedIds, selectedGroupIds: candidateIds, revealIds });
         this.#pruneSelectedVertices();
         this.#notifyChange();
         return true;
     }
 
     /**
-     * 選択集合を空にし、変更を通知する（1回）。頂点の選択も（選択中の図形が無くなるため）空になる。描き込む先は残る。
+     * 選択集合を空にし、変更を通知する（1回）。頂点の選択も（選択中の図形が無くなるため）空になる。選んでいるフォルダも空になる。描き込む先は残る。
      */
     clearSelection() {
-        this.#applyState({ selectedIds: new Set() });
+        this.#applyState({ selectedIds: new Set(), selectedGroupIds: new Set() });
         this.#pruneSelectedVertices();
         this.#notifyChange();
+    }
+
+    /**
+     * 選んでいるフォルダのidを取得する（明示して選んだフォルダだけ）。
+     * @returns {Array<string>} 選んでいるフォルダのidの新しい配列（前順。未選択時は空配列）
+     */
+    getSelectedGroupIds() {
+        return listItems(this.#items)
+            .filter((item) => item.kind === ITEM_KIND.GROUP && this.#selectedGroupIds.has(item.id))
+            .map((item) => item.id);
+    }
+
+    /**
+     * フォルダを閉じる・開く。変わらない（今と同じ折りたたみ・フォルダでないid・無いid）なら何も変えず（通知もせず）falseを返す。
+     * 変われば変更を通知して（1回）`onCollapsedChange`のコールバックを1回呼び、trueを返す。
+     * 選択・描き込む先・作成途中の図形には触れない。履歴の記録はしない（折りたたみは取り消しの対象外）。
+     * @param {string} id フォルダのid
+     * @param {boolean} collapsed 閉じるならtrue、開くならfalse
+     * @returns {boolean} 折りたたみが変わったか
+     */
+    setGroupCollapsed(id, collapsed) {
+        const nextItems = setCollapsed(this.#items, id, collapsed);
+        if (nextItems === this.#items) {
+            return false;
+        }
+        this.#applyState({ items: nextItems });
+        this.#collapsedChanged = true;
+        this.#notifyChange();
+        return true;
     }
 
     /**
@@ -749,7 +828,7 @@ export class VectorModel {
      * (3)保持idのうち採番形式（`shape-<連番>`・`group-<連番>`。連番がNumber.isSafeIntegerのもの）の最大連番をnとし、
      *    #nextIdを max(現在値, n + 1) へ繰り上げる（減らさない）。
      * (4)振り直し対象に#issueId()で新しいidを採番する（図形は`shape-`、フォルダは`group-`。(3)により保持idとは衝突しない）。
-     * (5)選択集合・頂点の選択・ホバー状態・作成中の図形・選択矩形・吸い付きの表示の点をクリアする。
+     * (5)選択集合・選んでいるフォルダ・頂点の選択・ホバー状態・作成中の図形・選択矩形・吸い付きの表示の点をクリアする。
      * (6)変更を通知する（1回のみ）。
      * 描き込む先は、`keepInsertTarget`が偽（既定）なら無しにし、真なら今の値を規則（`InsertTargetRules`）に通して残す（取り消し/やり直しの復元用）。
      * 新しく描く図形のスタイル（直前に使った値）には触れない。
@@ -795,6 +874,7 @@ export class VectorModel {
         this.#applyState({
             items: nextItems,
             selectedIds: new Set(),
+            selectedGroupIds: new Set(),
             insertTargetId: keepInsertTarget ? this.#insertTargetId : null,
         });
         this.#pruneSelectedVertices();
@@ -816,7 +896,7 @@ export class VectorModel {
      *    同じidを持つ2要素を作らないためconsole.warnのうえ追加しない（判定はインスタンス参照で行う）。フォルダは空になっても残す。
      * (3)図形が1つも残らなければ（フォルダだけの場合を含む）何も変えず（通知もせず）空配列を返す。
      * (4)名前・表示・ロックは`resolveItems`が決める（名前のあるアイテムはそのまま。名前の無い図形・フォルダには今のキャンバスの名前と重ならない自動の名前が付く）。
-     * (5)選択集合を、追加した図形のidの集合で置き換える（追加した図形だけが選択される。描き込む先は規則により、追加した図形の一番上になる）。
+     * (5)選択集合を、追加した図形のidの集合で置き換える（追加した図形だけが選択される。選んでいるフォルダは空になる。追加した図形を含む、変わる前にあった閉じたフォルダは開く。描き込む先は規則により、追加した図形の一番上になる）。
      *    頂点の選択から、選択中でなくなった図形の組を落とす。ホバー状態・作成中の図形・選択矩形には触れない。
      * (6)変更を通知する（1回。図形数分は発行しない）。
      * 受け取った図形インスタンスをそのまま保持して`id`を書き換えるため、呼び出し側は追加後にそのインスタンスを他の用途に流用しない。
@@ -856,6 +936,8 @@ export class VectorModel {
         this.#applyState({
             items: this.#placeAdded(addedItems, atInsertTarget),
             selectedIds: new Set(addedIds),
+            selectedGroupIds: new Set(),
+            revealIds: addedIds,
         });
         this.#pruneSelectedVertices();
         this.#notifyChange();
@@ -870,7 +952,8 @@ export class VectorModel {
      * (4)`targetId`の位置の図形のアイテムの`shape`だけを`shape`に置き換え（名前・表示・ロック・所属は位置のまま引き継ぐ）、
      *    `removeIds`に含まれるidの図形を除く（別のフォルダの中の図形でも除く。フォルダは空になっても残す。
      *    `targetId`自身が含まれていても置き換えた位置は除かない。存在しないidは無視。他の図形の前後関係は変えない）。
-     * (5)`select`が真なら選択集合を`shape.id`だけにする。偽なら選択集合を新しく作らず、現存しなくなったid
+     * (5)`select`が真なら選択集合を`shape.id`だけにする（選んでいるフォルダは、`keepId`が偽なら空、真なら今の値から不変条件で残るもの。
+     *    選択が変わったときは、`shape`を含む変わる前にあった閉じたフォルダを開く）。偽なら選択集合を新しく作らず、現存しなくなったid
      *    （置き換えで消えた元のid・除いた図形のid）だけを選択集合から外す（作成モードでは空のまま）。
      *    頂点の選択から、選択中でなくなった図形の組を落とす。
      *    ホバー中のidが現存しなくなればホバーを解除する。作成中の図形・選択矩形には触れない。
@@ -915,9 +998,17 @@ export class VectorModel {
             const survivingIds = new Set(listShapes(nextItems).map((s) => s.id));
             nextSelectedIds = new Set([...this.#selectedIds].filter((id) => survivingIds.has(id)));
         }
+        const candidateIds = resolveGroupCandidates({
+            currentIds: this.#selectedGroupIds,
+            requestedIds: undefined,
+            additive: !select || keepId,
+        });
+        const revealIds = select
+            ? this.#resolveReveal({ items: nextItems, nextIds: nextSelectedIds, candidateIds, additive: false })
+            : [];
         this.#applyState(nextSelectedIds.size === 0 && !select
-            ? { items: nextItems, selectedIds: nextSelectedIds, insertTargetId: shape.id }
-            : { items: nextItems, selectedIds: nextSelectedIds });
+            ? { items: nextItems, selectedIds: nextSelectedIds, selectedGroupIds: candidateIds, insertTargetId: shape.id, revealIds }
+            : { items: nextItems, selectedIds: nextSelectedIds, selectedGroupIds: candidateIds, revealIds });
         if (this.#hoveredId !== null && !this.#shapes.some((s) => s.id === this.#hoveredId)) {
             this.#hoveredId = null;
         }
@@ -1052,6 +1143,18 @@ export class VectorModel {
     }
 
     /**
+     * 折りたたみが変わったときに呼び出されるコールバック関数を登録する。
+     * `setGroupCollapsed`・選択が変わったときの自動で開くのどちらかで折りたたみが変わったとき、`onChange`の通知の後に1回呼ぶ
+     * （`replaceAllShapes`・`rearrangeItems`では呼ばない）。
+     * @param {Function} callback 登録するコールバック関数
+     */
+    onCollapsedChange(callback) {
+        if (typeof callback === 'function') {
+            this.#collapsedListeners.push(callback);
+        }
+    }
+
+    /**
      * 新しいidを1つ発行する（`<接頭辞><連番>`。発行のたびに#nextIdを1増やす。図形とフォルダで同じカウンタを使う）。
      * 図形idの採番（`shape-<連番>`）・フォルダidの採番（`group-<連番>`）はすべてこのメソッドを経由する（commitDraft・replaceAllShapes・addShapesWithNewIds・replaceShape）。
      * @param {string} [prefix=ID_PREFIX] idの接頭辞（図形は`shape-`、フォルダは`group-`）
@@ -1063,20 +1166,63 @@ export class VectorModel {
     }
 
     /**
-     * `#items`・選択集合・描き込む先への唯一の書き込み口（コンストラクタを除く）。省いた引数は今の値のまま。
+     * `#items`・選択集合・選んでいるフォルダ・描き込む先への唯一の書き込み口（コンストラクタを除く）。省いた引数は今の値のまま。
+     * `revealIds`の図形を含む閉じたフォルダ（変わる前の`#items`にあったものだけ）を開く。開いたら折りたたみが変わったことを覚える。
+     * 選んでいるフォルダは候補を`GroupSelectionRules.resolveSelectedGroupIds`の不変条件に通した結果になる。
      * 変わる前後の図形idの並び（描画順）から`InsertTargetRules.resolveInsertTarget`で描き込む先を決めて代入する。通知はしない。
      * @param {Object} [state] 書き込む値
      * @param {Array<Object>} [state.items] 新しいアイテムの入れ子
      * @param {Set<string>} [state.selectedIds] 新しい選択集合
+     * @param {Set<string>} [state.selectedGroupIds] 選んでいるフォルダの候補（不変条件で絞る）
      * @param {string|null} [state.insertTargetId] 描き込む先の候補（規則で最終的に決まる）
+     * @param {Iterable<string>} [state.revealIds] 見えるようにする（上の閉じたフォルダを開く）図形のid
      * @private
      */
-    #applyState({ items = this.#items, selectedIds = this.#selectedIds, insertTargetId = this.#insertTargetId } = {}) {
-        const previousIds = listShapes(this.#items).map((s) => s.id);
-        const ids = listShapes(items).map((s) => s.id);
+    #applyState({
+        items = this.#items,
+        selectedIds = this.#selectedIds,
+        selectedGroupIds = this.#selectedGroupIds,
+        insertTargetId = this.#insertTargetId,
+        revealIds = [],
+    } = {}) {
+        const previousItems = this.#items;
+        let nextItems = items;
+        const reveal = [...revealIds];
+        if (reveal.length > 0) {
+            const previousGroupIds = new Set(listItems(previousItems).filter((item) => item.kind === ITEM_KIND.GROUP).map(itemIdOf));
+            const expanded = expandGroupsContaining(items, reveal, (id) => previousGroupIds.has(id));
+            if (expanded !== items) {
+                nextItems = expanded;
+                this.#collapsedChanged = true;
+            }
+        }
+        const previousIds = listShapes(previousItems).map((s) => s.id);
+        const ids = listShapes(nextItems).map((s) => s.id);
         this.#insertTargetId = resolveInsertTarget({ previousIds, ids, selectedIds, targetId: insertTargetId });
-        this.#items = items;
+        this.#items = nextItems;
         this.#selectedIds = selectedIds;
+        this.#selectedGroupIds = resolveSelectedGroupIds({ previousItems, items: nextItems, selectedIds, candidateIds: selectedGroupIds });
+    }
+
+    /**
+     * 選択が変わったときに開く対象の図形のidを求める（`GroupSelectionRules.resolveRevealIds`。前後のフォルダの選択は不変条件を通した値で比べる）。
+     * @param {Object} params 引数
+     * @param {Array<Object>} params.items 変わった後のアイテムの入れ子
+     * @param {Set<string>} params.nextIds 次の図形の選択
+     * @param {Set<string>} params.candidateIds 次のフォルダの選択の候補
+     * @param {boolean} params.additive 足しただけ（`Ctrl`）か
+     * @returns {Array<string>} 開く対象の図形のid
+     * @private
+     */
+    #resolveReveal({ items, nextIds, candidateIds, additive }) {
+        const nextGroupIds = resolveSelectedGroupIds({ previousItems: this.#items, items, selectedIds: nextIds, candidateIds });
+        return resolveRevealIds({
+            previousIds: this.#selectedIds,
+            nextIds,
+            previousGroupIds: this.#selectedGroupIds,
+            nextGroupIds,
+            additive,
+        });
     }
 
     /**
@@ -1153,12 +1299,18 @@ export class VectorModel {
     }
 
     /**
-     * 登録されたすべてのリスナーに変更を通知する。
+     * 登録されたすべてのリスナーに変更を通知する。折りたたみが変わっていれば、その後に`onCollapsedChange`のリスナーを1回だけ呼ぶ。
      * @private
      */
     #notifyChange() {
         for (const listener of this.#listeners) {
             listener();
+        }
+        if (this.#collapsedChanged) {
+            this.#collapsedChanged = false;
+            for (const listener of this.#collapsedListeners) {
+                listener();
+            }
         }
     }
 }

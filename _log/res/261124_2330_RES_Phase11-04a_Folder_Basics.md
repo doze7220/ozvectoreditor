@@ -174,7 +174,7 @@
         *   `resolveItems`でフォルダの`collapsed`を整える（責務のJSDocに折りたたみを足す）。`DocumentSerializer`の書き・読み（typedef`DocumentData`のJSDocも）。版の定数・`MIGRATIONS`は変えない。
         *   テスト：規則の各関数（入れ子の上のフォルダがすべて開く・`canExpand`が偽なら開かない・今あるフォルダは今の状態/消えていたフォルダは記録の状態・引数を書き換えない）、作業データ（閉じているときだけキーがある・開いている絵のJSONは今と同じ・キー順・往復・キーが無い/文字列/`1`/`null`/`false`は開いている・図形の要素の`collapsed`は無視・版1〜3・`version`が4のまま・文字列層・スプライトの`elements`・`bounds`が折りたたみで変わらない）。
 
-*   [ ] タスク4: VectorModelがフォルダを選んでいる状態と折りたたみを持つ
+*   [x] タスク4: VectorModelがフォルダを選んでいる状態と折りたたみを持つ
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js` :（更新）
         *   `./test/core/VectorModel.groupSelection.test.js` :（新規）
@@ -329,7 +329,9 @@
 
 ### タスク4: VectorModelがフォルダを選んでいる状態と折りたたみを持つ
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/VectorModel.js`（LF）：`#selectedGroupIds`・`getSelectedGroupIds()`・`setGroupCollapsed`・`onCollapsedChange`を追加。`setSelection(ids, { groupIds, keepsCollapsed })`・`setSelectionByUser(ids, { groupIds, additive, keepsCollapsed })`の引数、`clearSelection`・`replaceAllShapes`・`addShapesWithNewIds`・`replaceShape`の候補（要件3のとおり）、`#applyState`の引数`selectedGroupIds`（候補。省けば今の値）・`revealIds`を実装。責務のJSDocに2つの状態を追記。`rearrangeItems`は未実装（タスク5）。
+    *   `test/core/VectorModel.groupSelection.test.js`（新規・CRLF）25件、`test/core/VectorModel.collapse.test.js`（新規・CRLF）18件。`node --test`は tests 3050 / pass 3050 / fail 0。
+    *   `#applyState`は、`revealIds`があれば変わる前の`#items`にあったフォルダだけを`expandGroupsContaining`で開き（開いたら折りたたみの変化を覚える）、その後フォルダの選択を`resolveSelectedGroupIds`で絞る。`#notifyChange`は`onChange`のリスナーの後に、覚えていれば`onCollapsedChange`のリスナーを1回呼んで覚えを消す。開く対象は非公開の`#resolveReveal`が`resolveRevealIds`で求める（前後のフォルダの選択は不変条件を通した値）。`addShapesWithNewIds`は足した図形のidを`revealIds`に渡す。
 
 ### タスク5: 入れ子を動かす公開操作
 *   **作業内容** :
@@ -402,6 +404,7 @@
 *   （タスク1）`git add -N`で新しいファイル2件を意図的追加の状態にした（`git ls-files --eol`の実測のため。内容のステージはしていない）。
 *   （タスク2）`resolveSelectedGroupIds`の(3)は`previousItems`のフォルダ内の図形が`selectedIds`に全部あることを見るため、フォルダの中身が増えた（新しい図形が入った）だけでも、増えた図形が選ばれていなければ落ちる（(2)）。`resolveRevealIds`の`additive`では前の選択に無い図形だけを返す（フォルダの選択の変化は見ない）。
 *   （タスク3）`restoreCollapsed`は入れ子の中のフォルダも含め、`items`のフォルダすべてを今の状態/記録で決め直す（`items`側の`collapsed`は使わない）。`expandGroupsContaining`は、`canExpand`が偽のフォルダの上のフォルダも、対象の図形を含んでいれば開く。`DocumentSerializer`は`element.collapsed`を無加工で持ち`resolveItems`が`true`以外を消すため、読み込み結果のフォルダに`collapsed: undefined`のキーは残らない。開発資料への影響：新しいファイル`GroupCollapseRules`が増える点は既存の更新予定（57〜61）に含まれており、追記は無い。
+*   （タスク4）`setSelectionByUser`の「何もしない」判定は、結果のフォルダの選択（不変条件を通した値）が空かで見ている。`setGroupCollapsed`は`#applyState({ items })`を通すため、折りたたみの変更でもフォルダの選択の不変条件が再評価されるが値は変わらない。`#resolveReveal`と`#applyState`で不変条件を2回計算するが、候補が空なら入れ子を見ずに返る。
 *   DOM（`ItemListPanel`・`ItemListWiring`・`main.js`・CSS）と`InputTracker`は自動テストの対象外で、下のテストプレイで確かめる。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
