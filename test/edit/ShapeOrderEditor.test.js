@@ -1,11 +1,11 @@
 /**
- * 責務: ShapeOrderEditor（重なり順の変更の手順・押せる/押せないの照会・履歴の単位・保存と書き出しへの追従）の振る舞いを検証する。
+ * 責務: ShapeOrderEditor（重なり順の変更の手順・履歴の単位・保存と書き出しへの追従）の振る舞いを検証する。
  * 偽の依存での呼び出し順の確認と、実物のVectorModel・SnapshotAdapter・HistoryManager・DocumentSerializer・SpriteSerializerとの組み合わせを扱う。
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ShapeOrderEditor } from '../../js/edit/ShapeOrderEditor.js';
-import { ShapeOrderOperation, canReorderSelected } from '../../js/edit/ShapeOrderRules.js';
+import { ShapeOrderOperation } from '../../js/edit/ShapeOrderRules.js';
 import { VectorModel } from '../../js/core/VectorModel.js';
 import { HistoryManager } from '../../js/core/HistoryManager.js';
 import { SnapshotAdapter } from '../../js/edit/SnapshotAdapter.js';
@@ -128,20 +128,6 @@ test('偽の依存: 未知の操作はErrorで、beginEditを呼ばない', () =
     const { editor, calls } = setupFake(['A', 'B'], ['A']);
     assert.throws(() => editor.apply('unknown'), /未知の重なり順の操作/);
     assert.deepEqual(calls, []);
-});
-
-test('getAvailability: 4つの値が各操作のcanReorderSelectedと一致し、何も呼ばない', () => {
-    const ids = ['A', 'B', 'C', 'D', 'E'];
-    const selectedCases = [[], ['B'], ['E'], ['A'], ['B', 'D'], ids];
-    for (const selected of selectedCases) {
-        const { editor, calls } = setupFake(ids, selected);
-        const availability = editor.getAvailability();
-        assert.deepEqual(Object.keys(availability).sort(), [...OPS].sort());
-        for (const op of OPS) {
-            assert.equal(availability[op], canReorderSelected(ids, (id) => selected.includes(id), op), `${selected}/${op}`);
-        }
-        assert.deepEqual(calls, []);
-    }
 });
 
 test('実物: 4操作それぞれで履歴が1件、undoで元の並び・redoで変えた並び', () => {

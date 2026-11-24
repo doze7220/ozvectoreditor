@@ -231,7 +231,7 @@
         *   CSS：`.item-row.insert-target`。
         *   テスト：追加した2つの規則の全分岐。
 
-*   [ ] タスク6: オプションバーの重なり順のまとまりを消す
+*   [x] タスク6: オプションバーの重なり順のまとまりを消す
     *   **対象ファイル** :
         *   `./index.html` :（更新。`#option-order-group`と1行目の幅の見積もりのコメント）
         *   `./js/palette/OptionBarOrderGroup.js` :（削除）
@@ -351,7 +351,13 @@
 
 ### タスク6: オプションバーの重なり順のまとまりを消す
 *   **作業内容** :
-    *   (未実施)
+    *   `index.html`（LFのまま）：`#option-order-group`を消し、1行目の幅の見積もりを約489pxへ直した。
+    *   `js/palette/OptionBarOrderGroup.js`：削除（`git rm`）。
+    *   `js/main.js`（CRLFのまま）：import・生成・`syncOptionBarOrderGroup`と登録・起動時の呼び出しを消した。`// 7.8.`は「重なり順（キー）配線」にし、`performShapeOrder`のJSDoc（ボタンの言及・`isDragging()`の理由）と`// 8.`の注入のコメントを直した。`performShapeOrder`の判定・キーの4つの注入は残した。
+    *   `js/edit/ShapeOrderEditor.js`：`getAvailability`・typedef`ShapeOrderAvailability`を消し、`ShapeOrderOperation`のimportを除いて`@param`を`import('./ShapeOrderRules.js').ShapeOrderOperation`にした。責務・クラスJSDocから照会・ボタンを除いた。
+    *   `js/edit/ShapeOrderRules.js`・`OptionBarAlignGroup.js`・`OptionBarCornerGroup.js`：JSDoc・コメントだけ直した。
+    *   `test/edit/ShapeOrderEditor.test.js`：`getAvailability`のテスト1件と`canReorderSelected`のimportを消し、先頭の責務コメントを直した。
+    *   `node --test`：tests 2857 / pass 2857 / fail 0。
 
 ### タスク7: 行のドラッグの規則と、並び全体を指定する編集操作
 *   **作業内容** :

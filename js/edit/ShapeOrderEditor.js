@@ -1,22 +1,12 @@
 /**
  * 責務: 選択中の図形の重なり順の変更を、並べ替えの規則（`./ShapeOrderRules.js`）で求めた並びに従って
- * モデルへ反映する1件の編集操作と、各操作で並びが変わるかの照会を担う。DOMに触れない。
+ * モデルへ反映する1件の編集操作を担う。DOMに触れない。
  */
-import { ShapeOrderOperation, canReorderSelected, reorderSelected } from './ShapeOrderRules.js';
-
-/**
- * 4つの操作それぞれについて、並びが変わるか（押せるか）。キーは`ShapeOrderOperation`の値。
- * `palette/OptionBarOrderGroup.js`のtypedef`ShapeOrderAvailability`と同じ内容の二重定義。形を変えるときは両方を揃えること。
- * @typedef {Object} ShapeOrderAvailability
- * @property {boolean} bringToFront 最前面へ
- * @property {boolean} bringForward 前へ
- * @property {boolean} sendBackward 後ろへ
- * @property {boolean} sendToBack 最背面へ
- */
+import { canReorderSelected, reorderSelected } from './ShapeOrderRules.js';
 
 /**
  * 選択中の図形の重なり順を変える1件の編集操作を行うクラス。
- * ボタン・キー（`main.js`の`performShapeOrder`）の共通の手順であり、押せる/押せないの同期（`getAvailability`）にも使う。
+ * キー（`main.js`の`performShapeOrder`）の手順である。
  *
  * 依存の制約:
  *   - importは`./ShapeOrderRules.js`のみ（`edit/`内の例外）。VectorModel・HistoryManagerはimportせず、インスタンスを注入で受け取る。
@@ -65,7 +55,7 @@ export class ShapeOrderEditor {
      *   4. `editRecorder.beginEdit()` → `model.reorderShapes(新しい並び)` → `editRecorder.commitEdit()`。
      *   5. `reorderShapes`の戻り値を返す。
      *
-     * @param {ShapeOrderOperation} operation 操作
+     * @param {import('./ShapeOrderRules.js').ShapeOrderOperation} operation 操作
      * @returns {boolean} 並びを変えたか
      * @throws {Error} 未知の操作のとき
      */
@@ -82,19 +72,5 @@ export class ShapeOrderEditor {
         this.#editRecorder.commitEdit();
 
         return changed;
-    }
-
-    /**
-     * 4つの操作それぞれで並びが変わるか（ボタンを押せるか）を返す。モデル・履歴を変えない。
-     * @returns {ShapeOrderAvailability} 操作ごとの可否（キーは`ShapeOrderOperation`の値）
-     */
-    getAvailability() {
-        const ids = this.#model.getShapes().map((shape) => shape.id);
-        const isSelected = (id) => this.#model.isSelected(id);
-        const availability = {};
-        for (const operation of Object.values(ShapeOrderOperation)) {
-            availability[operation] = canReorderSelected(ids, isSelected, operation);
-        }
-        return availability;
     }
 }

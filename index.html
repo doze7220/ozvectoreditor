@@ -556,7 +556,7 @@
             opacity: 0.4;
         }
         /* ツールバーの各行の幅の見積もり（1280px幅）：
-           1行目：左右の余白16px＋最初のまとまり68px（ボタン32×2＋間隔4。🧰と📁）＋取り消し/やり直し68px＋削除/結合68px＋スタイル約218px＋重なり順140px＋区切り17px×4＝約646px。
+           1行目：左右の余白16px＋最初のまとまり68px（ボタン32×2＋間隔4。🧰と📁）＋取り消し/やり直し68px＋削除/結合68px＋スタイル約218px＋区切り17px×3＝約489px。
            2行目：左右の余白16px＋位置約154px（X:約15px＋欄56px＋Y:約15px＋欄56px＋gap4px×3）＋区切り17px＋大きさ約210px（W:約15px＋欄56px＋鍵32px＋H:約15px＋欄56px＋px約16px＋gap4px×5）＋区切り17px＋変形約188px（∠約10px＋欄56px＋°約6px＋基準点の3×3の32px＋反転32px×2＋gap4px×5）＋区切り17px＋整列・分布284px（ボタン32×8＋間隔4×7）＋区切り17px＋角約106px（ボタン32×2＋間隔4×2＋チェックの欄約13px＋既定の余白約7px＋間隔2px＋文字「角」約12px）＝約1026px。
            どちらの行も1280pxに収まる。幅が足りないときは行ごとに右のまとまりから切れる（.toolbar-rowのoverflow: hidden） */
         /* 開発者向け確認用ウィンドウ（?dev時のみ表示。ツールパレットの右隣に置く。
@@ -619,12 +619,6 @@
                 <span id="option-fill-color-frame" class="option-color-frame"><input type="color" id="option-fill-color" title="塗りの色"></span>
                 <input type="number" id="option-stroke-width" min="1" max="100" step="1" title="線の太さ（1〜100の整数）">
                 <span class="option-unit">px</span>
-            </div>
-            <div id="option-order-group" class="toolbar-group">
-                <button type="button" id="option-bring-to-front" class="tool-btn icon-btn" title="最前面へ (Home)" disabled>⏫</button>
-                <button type="button" id="option-bring-forward" class="tool-btn icon-btn" title="前へ (PageUp)" disabled>🔼</button>
-                <button type="button" id="option-send-backward" class="tool-btn icon-btn" title="後ろへ (PageDown)" disabled>🔽</button>
-                <button type="button" id="option-send-to-back" class="tool-btn icon-btn" title="最背面へ (End)" disabled>⏬</button>
             </div>
         </div>
         <div class="toolbar-row">

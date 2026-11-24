@@ -38,7 +38,7 @@
  *
  * ■ 区間の切り替えのボタン
  *   - `click`でコールバックを呼ぶだけ（押せない判定は持たない。`disabled`のボタンは`click`が来ない）。押せる・押せないは`renderSegmentSwitch`で当てる。
- *   - `blur`しない・`aria-pressed`を付けない（`core/FocusKeyYieldRules`が`Space`をパンに、`Ctrl`なしのショートカットを今どおりにするため。重なり順・整列のボタンと同じ）。
+ *   - `blur`しない・`aria-pressed`を付けない（`core/FocusKeyYieldRules`が`Space`をパンに、`Ctrl`なしのショートカットを今どおりにするため。整列のボタンと同じ）。
  *
  * ■ `change`のあとの処理
  *   - ブラウザは`change`の前に`checked`を反転し`indeterminate`を外す。受理されれば`model.onChange`の経路で`render`が先に呼ばれて正しい内容になるが、

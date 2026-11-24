@@ -48,7 +48,7 @@ const ALIGN_BUTTONS = Object.freeze([
  *
  * ■ まとまりの構成
  *   - オプションバーはまとまりごとにUI部品を1つ持つ。本クラスのルート要素は自分の`<div id="option-align-group" class="toolbar-group">`。
- *   - 要素はルート要素内の`querySelector('#id')`で解決する。既存のまとまり（スタイル・重なり順・位置）・そのUI部品は変えない。隣に別のまとまりを足せる。
+ *   - 要素はルート要素内の`querySelector('#id')`で解決する。既存のまとまり（スタイル・位置）・そのUI部品は変えない。隣に別のまとまりを足せる。
  *   - `disabled`のボタンは`click`が来ないため、押せない判定は`click`側では行わない。
  */
 export class OptionBarAlignGroup {

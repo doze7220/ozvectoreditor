@@ -42,7 +42,6 @@ import { NudgeEditor } from './edit/NudgeEditor.js';
 import { PositionInputEditor } from './edit/PositionInputEditor.js';
 import { ShapeExtentReader } from './edit/ShapeExtentReader.js';
 import { ShapeOrderOperation } from './edit/ShapeOrderRules.js';
-import { OptionBarOrderGroup } from './palette/OptionBarOrderGroup.js';
 import { OptionBarPositionGroup } from './palette/OptionBarPositionGroup.js';
 import { ShapeAlignEditor } from './edit/ShapeAlignEditor.js';
 import { OptionBarAlignGroup } from './palette/OptionBarAlignGroup.js';
@@ -702,18 +701,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     model.onChange(syncOptionBarStyleGroup);
 
-    // 7.8. オプションバー（重なり順のまとまり）配線
-    // 表示（4ボタンの押せる/押せないと押下の通知）はOptionBarOrderGroup（palette/）が、変更の手順（並びを変える1件の
-    // 編集操作と各操作で並びが変わるかの照会）はShapeOrderEditor（edit/）が、並べ替えの規則はShapeOrderRules（edit/）が持ち、
-    // ここは生成・注入・同期のみを行う。表示の同期はmodel.onChangeのみで行う（機能専用の同期経路は足さない）。
-    // まとまりを足すときの形は7.7.と同じ（まとまりごとにUI部品1つとこのブロックと同じ形のブロック1つ。既存のまとまりの配線は変えない）。
+    // 7.8. 重なり順（キー）配線
+    // 変更の手順（並びを変える1件の編集操作）はShapeOrderEditor（edit/）が、並べ替えの規則はShapeOrderRules（edit/）が持ち、
+    // ここは生成・注入のみを行う。重なり順の変更はキー（Home/PageUp/PageDown/End）から呼ばれる。
     const shapeOrderEditor = new ShapeOrderEditor({ model, editRecorder: historyManager });
 
     /**
-     * 選択中の図形の重なり順を変える。オプションバーの重なり順のボタンとキー（Home/PageUp/PageDown/End）の共通経路
-     * （どちらもこの関数のみを呼び、shapeOrderEditor.applyを直接呼ばない）。
-     * (1) ドラッグ中（InputTracker.isDragging()が真）なら何もせずfalse（不受理）。ボタンはショートカット以外の
-     *     呼び出し元のため、中ボタンのパン中に左クリックで押される場合に備えてここで判定する。
+     * 選択中の図形の重なり順を変える。キー（Home/PageUp/PageDown/End）の経路
+     * （キーはこの関数のみを呼び、shapeOrderEditor.applyを直接呼ばない）。
+     * (1) ドラッグ中（InputTracker.isDragging()が真）なら何もせずfalse（不受理）。キーの受理判定とは別に、
+     *     この関数の呼び出し元が増えても、ドラッグ中に並びが変わらないようここで判定する。
      * (2) それ以外はshapeOrderEditor.apply(operation)の結果を返す。
      * @param {string} operation - ShapeOrderOperationの値
      * @returns {boolean} 並びを変えた場合のみtrue（不受理・並びが変わらない操作ではfalse）
@@ -724,24 +721,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return shapeOrderEditor.apply(operation);
     }
-
-    const optionBarOrderGroup = new OptionBarOrderGroup(document.getElementById('option-order-group'), {
-        onBringToFront: () => performShapeOrder(ShapeOrderOperation.BRING_TO_FRONT),
-        onBringForward: () => performShapeOrder(ShapeOrderOperation.BRING_FORWARD),
-        onSendBackward: () => performShapeOrder(ShapeOrderOperation.SEND_BACKWARD),
-        onSendToBack: () => performShapeOrder(ShapeOrderOperation.SEND_TO_BACK)
-    });
-
-    /**
-     * オプションバーの重なり順のまとまりの4ボタンの押せる/押せない状態を、現在の選択と並びで各操作により
-     * 並びが変わるか（shapeOrderEditor.getAvailability()）に同期する（optionBarOrderGroup.render）。
-     * model.onChangeのコールバックとして登録し、起動時にも明示的に1回呼び出す。DOMの更新はOptionBarOrderGroupが担い、ここは橋渡しのみ。
-     */
-    function syncOptionBarOrderGroup() {
-        optionBarOrderGroup.render(shapeOrderEditor.getAvailability());
-    }
-
-    model.onChange(syncOptionBarOrderGroup);
 
     // 7.9. 微調整（矢印キー）配線
     // 動かす対象の決定とまとめの鍵はNudgeTargetRules（core/）が、動かす1件の編集操作はNudgeEditor（edit/）が持ち、
@@ -1036,7 +1015,7 @@ document.addEventListener('DOMContentLoaded', () => {
         deleteSelection: () => inputTracker.deleteLastLinePointOrSelection(),
         // 選択中の線の結合（結合ボタンと同一経路。結合した場合のみtrue）
         join: performJoin,
-        // 重なり順の変更（ボタンと同一経路。並びを変えた場合のみtrue）
+        // 重なり順の変更（performShapeOrder。並びを変えた場合のみtrue）
         bringToFront: () => performShapeOrder(ShapeOrderOperation.BRING_TO_FRONT),
         bringForward: () => performShapeOrder(ShapeOrderOperation.BRING_FORWARD),
         sendBackward: () => performShapeOrder(ShapeOrderOperation.SEND_BACKWARD),
@@ -1177,10 +1156,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // オプションバーのスタイルのまとまりの表示も同様に、index.htmlの初期状態やonChange通知に依存させず、
     // Modelの選択・直前に使った値の実値で明示的に1回同期する
     syncOptionBarStyleGroup();
-
-    // オプションバーの重なり順のまとまりの4ボタンの押せる/押せない状態も同様に、index.htmlの初期disabled属性や
-    // onChange通知に依存させず、選択集合と図形の並びの実値で明示的に1回同期する
-    syncOptionBarOrderGroup();
 
     // オプションバーの位置のまとまりのX・Yの欄も同様に、index.htmlの初期状態やonChange通知に依存させず、
     // 選択・操作モード・図形の実値で明示的に1回同期する

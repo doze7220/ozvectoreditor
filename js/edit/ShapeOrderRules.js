@@ -5,9 +5,6 @@
 
 /**
  * 重なり順の操作の種類。操作の値の唯一の定義。
- * 値（文字列）は、`ShapeOrderEditor.getAvailability`が返す`ShapeOrderAvailability`のキーと、
- * `OptionBarOrderGroup`の対応表のキーにも同じ文字列として使われる。
- * 値を変えると表示側が黙って押せない表示になるため、変えるときは両方を揃えること。
  * @readonly
  * @enum {string}
  */
@@ -95,7 +92,7 @@ export function reorderSelected(items, isSelected, operation) {
 
 /**
  * 操作で並びが変わるかを返す。`reorderSelected`の結果が`items`と1か所でも違う（`!==`）とき真。
- * 押せる/押せないの判定と、手順の「何もしない」の判定はこの関数だけで行う（規則を二重に書かない）。
+ * 手順の「何もしない」の判定はこの関数だけで行う（規則を二重に書かない）。
  * @template T
  * @param {ReadonlyArray<T>} items 並び（先頭＝最も奥）
  * @param {(item: T) => boolean} isSelected 選択中か
