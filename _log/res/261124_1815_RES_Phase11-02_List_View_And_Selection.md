@@ -251,7 +251,7 @@
     *   **作業内容** :
         *   要件7の`applyItemRename`・`renameItem`・`ItemRenameEditor`。`applyItemRename`は`toItems`で写してから`listItems`で探し、写しの`name`だけを書き換えて返す。`VectorModel`のimportへ`applyItemRename`を足し、`renameItem`は`reorderShapes`の後・`onChange`の前に置く。`ItemAttributeRules`・`VectorModel`の責務の行・クラスJSDocを合わせる（責務の行は3行以内を保つ）。`ItemRenameEditor`は`ShapeOrderEditor`と同じ形（`{ model, editRecorder }`を注入。`model`は`getItems`・`renameItem`だけを使う）。
         *   テスト：規則（前後の空白・101文字・サロゲートペア・空/空白だけ・同じ名前・整えると同じ・無いid・フォルダ・フォルダの中の図形・重複した名前・引数を書き換えない・表示/ロック/図形は変わらない）。`renameItem`（通知1回・変わらないときは通知なし・選択/頂点の選択/ホバー/作成途中の図形/並び/インスタンスを変えない）。手順（実物の`VectorModel`・`SnapshotAdapter`・`HistoryManager`で、記録1件・取り消し/やり直しで名前が戻る・変わらないときは`beginEdit`も呼ばない・選択が保たれる・`DocumentSerializer.serialize(model.getItems())`に新しい名前が出て`deserialize`で読める）。
-*   [ ] タスク6: 一覧のUI部品（表示・スクロール）（要件2・5）
+*   [x] タスク6: 一覧のUI部品（表示・スクロール）（要件2・5）
     *   **対象ファイル** :
         *   `./js/palette/ItemListPanel.js` :（新規）
         *   `./index.html` :（更新。行のCSS）
@@ -348,7 +348,10 @@
 
 ### タスク6: 一覧のUI部品（表示・スクロール）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/palette/ItemListPanel.js`（新規・LF・importなし）：`render`（差分反映・並びが違うときだけ`insertBefore`）・`getSelectedRowIds`・`getViewport`・`setScrollTop`・`getThumbnailCanvas`を実装。`scroll`→`onScroll`、`focus`→`blur()`。行は`.item-row[data-item-id]`＋`canvas.item-row-thumbnail`＋`span.item-row-name`。`onScroll`が関数でなければ`Error`、`#item-list`が無ければ`console.warn`して配線しない。
+    *   `index.html`（LFのまま）：`.item-row`・`.item-row.selected`・`.item-row-thumbnail`・`.item-row-name`（`[hidden]`で消す）のCSSを足した。
+    *   `node --test`：tests 2764 / pass 2764 / fail 0。
+    *   判断：行の控えの`name`は初期値`null`（最初の`render`で必ず名前を書くため）。名前が空文字の行でも`textContent`・`title`は書かれる。`getSelectedRowIds`はDOMの並び（上から）の`selected`クラスから読む。`render`は編集中の行の扱いを持たない（タスク9で追加）。
 
 ### タスク7: 一覧の配線（表示・サムネイル・スクロール）
 *   **作業内容** :

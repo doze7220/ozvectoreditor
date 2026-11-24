@@ -57,6 +57,34 @@
             overflow-x: hidden;
             overflow-y: auto;
         }
+        .item-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            height: 36px;
+            box-sizing: border-box;
+            padding: 0 8px;
+            border-bottom: 1px solid #e0e0e0;
+            cursor: default;
+        }
+        .item-row.selected {
+            background-color: #dbe9ff;
+        }
+        .item-row-thumbnail {
+            flex: none;
+            background-color: #b0b0b0;
+        }
+        .item-row-name {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            font-size: 13px;
+        }
+        .item-row-name[hidden] {
+            display: none;
+        }
         /* display: noneにしない（スクロール位置が失われるブラウザがあるため）。visibility: hiddenはマウスの操作も受けない */
         body.float-windows-hidden .item-list-panel {
             visibility: hidden;
