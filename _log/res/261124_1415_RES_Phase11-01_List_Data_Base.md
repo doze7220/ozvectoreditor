@@ -208,7 +208,7 @@
         *   新規テスト：版1・2・3→4（名前・表示・ロックの補い、番号が描画順、版3の図形が持つ`name`等は使わない、版3の`type: 'group'`は1件の読み飛ばし）、版4の往復（空のフォルダ・多段・表示なし・ロックあり。オブジェクト層・文字列層。書き出し→読み込み→書き出しのJSONが一致）、キー順、知らないキー（最上位・図形・フォルダ）の無視、`name`・`visible`・`locked`の不備、`children`の不備（無い・`null`・オブジェクト）、入れ子の中の読み飛ばし（`index`・`path`・`type`・警告の回数、フォルダと他の図形が残る）、フォルダだけ・空のフォルダだけのデータ、名前のある要素と番号が重ならない、同じデータを2回読んで同じ名前、深い入れ子（例：200段の往復・極端に深いデータと循環参照で例外を投げず全体失敗）、引数を書き換えない、素の図形の`serialize`。
         *   `FileContentReader.test.js`へ追記：版4の`source`を持つJSの入れ子・名前が`items`で戻る、失敗時に`items`が`[]`。この時点の`SpriteSerializer.serialize`はまだアイテムを受けない（タスク5で対応）ため、テストデータは、素の図形の配列を`SpriteSerializer.serialize`へ渡して作ったスプライトデータの`source`を、`DocumentSerializer.serialize(アイテムの入れ子)`の戻り値に差し替えて組む（`{ ...spriteData, source }`）。
         *   共通の締め。
-*   [ ] タスク5: スプライトの書き出し（`SpriteSerializer`）
+*   [x] タスク5: スプライトの書き出し（`SpriteSerializer`）
     *   **対象ファイル** :
         *   `./js/io/SpriteSerializer.js` : 更新
         *   `./test/io/SpriteSerializer.items.test.js` : 新規
@@ -294,7 +294,8 @@
 
 ### タスク5: スプライトの書き出し
 *   **作業内容** :
-    *   （未実施）
+    *   `js/io/SpriteSerializer.js`（CRLF保持）：`serialize(values)`が`elements`を`listShapes(toItems(values))`から作り、`source`を`DocumentSerializer.serialize(values)`にした（`ItemTreeRules`をimport追加）。キー順・`bounds`・`SPRITE_FORMAT_VERSION`・`computeShapesBounds`・`computeShapesGeometryBounds`は変更なし。JSDocを直した。
+    *   新規`test/io/SpriteSerializer.items.test.js`（LF）9件。`elements`・`bounds`の期待値は、変更前のコードで実測した値を文字どおり固定した。`node --test`は2587件全件合格（2578 + 9）。
 
 ### タスク6: 取り消し/やり直し・コピー/貼り付け/複製・追加
 *   **作業内容** :
@@ -326,6 +327,8 @@
 * **キャンバスの記録**：版3の記録は、開いただけでは書き換わらない（自動保存は編集操作だけ）。編集して保存されると版4になり、本作業の前のエディタでは開けなくなる（許容。REQ要件2）。念のため、確認の前に作業データファイルを残しておくこと（下の0.）。
 
 * **タスク3の実装メモ**：`#shapes`は毎回`listShapes`で平らにするため、`getSelectedIds`・`setSelection`等の読み取りは呼ぶたびに全図形を走査する（図形数が多いと計算量は増えるが状態の食い違いは起きない）。`replaceShape`の`removeIds`は図形のアイテムだけを除き、フォルダは空でも残す。`addShapesWithNewIds`はフォルダのidも`group-<連番>`で新しく発行する。
+
+* **タスク5の実装メモ**：`computeShapesBounds`・`computeShapesGeometryBounds`は図形の配列のまま（アイテムは受けない。変更指示なし）。`SpriteSerializer`の責務文は変更していない。
 
 * **タスク4の実装メモ**：フォルダの読み飛ばしの`reason`は`フォルダのchildrenが配列ではありません`。版3以前のフォルダ要素は`children: null`を入れるため、同じ文面になる。`RangeError`は`ShapeFactory.fromJSON`が投げた場合も全体失敗になる（図形の不備は通常`Error`）。再帰の限界はブラウザで`RangeError`とは限らない（Firefoxは`InternalError`）ため、外側の`catch`は種類で分けず全体失敗にする。`SpriteSerializer.serialize`は未対応のため、アイテムを渡すスプライトの書き出しはタスク5まで未対応（`FileContentReader`のテストは`source`を差し替えて組んだ）。
 
