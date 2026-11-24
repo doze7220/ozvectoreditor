@@ -254,7 +254,7 @@
         *   書き換える前に行末を実測し（計画時 CR 820／LF 820）、行末（CRLF）を保つ。必要のない箇所は変えない。時点を書いた過去の記述（「その時点の作業データの版は2のまま」等）は変えない。
         *   反映の前に`grep`で「現行版は3」「今は3」「版は3」「`io/`のimport」「`replaceAllShapes(`」「`addShapesWithNewIds(`」「`getShapes()`」「図形の一覧」を洗い、漏れが無いか確かめる。実コードと照合して書く。
         *   作業レポートを書き、タスクを`[x]`にする。
-*   [ ] タスク10（固定）: 開発資料の反映その2（`_doc/arch/`）
+*   [x] タスク10（固定）: 開発資料の反映その2（`_doc/arch/`）
     *   **対象ファイル** :
         *   `./_doc/arch/02_main.md`・`03_VectorModel.md`・`10_ShapeFactory.md`・`14_edit.md`・`15_io.md`・`16_test.md` : 更新
         *   `./_doc/arch/46_ItemTreeRules.md`・`./_doc/arch/47_ItemAttributeRules.md` : 新規（LF。書き方は`41_NudgeTargetRules.md`等の規則の資料に合わせる）
@@ -325,14 +325,19 @@
 ### タスク9: 開発資料の反映その1
 *   **作業内容** :
     *   `PROJECT_ARCHITECTURE.md`のみ更新（行末CRLF保持：CR 820／LF 820 → CR 849／LF 849）。反映前に「現行版は3」「今は3」「版は3」「`io/`のimport」「`replaceAllShapes(`」「`addShapesWithNewIds(`」「`getShapes()`」「図形の一覧」を洗い、実コード（`DocumentSerializer`・`ItemTreeRules`・`ItemAttributeRules`・`ShapeFactory`・各importとテストファイル名）と照合した。
-    *   1章：構成図（`core/`に`ItemTreeRules.js`・`ItemAttributeRules.js`、`test/`に新しいテスト25ファイル）、「存在しないもの」（名前・表示・ロック・フォルダはデータだけで画面・効果なし、折りたたみ等が無いこと）、フォルダ分割の方針（`core/`の2規則の説明、`edit/`から使う規則に`ItemTreeRules`）、依存方向（`io/`のimport、例外(3)に`ClipboardController → core/ItemTreeRules`・「この7ファイル」、規則どうしのimportの例外）。
+    *   1章：構成図（`core/`に`ItemTreeRules.js`・`ItemAttributeRules.js`、`test/`に新しいテスト15ファイル）、「存在しないもの」（名前・表示・ロック・フォルダはデータだけで画面・効果なし、折りたたみ等が無いこと）、フォルダ分割の方針（`core/`の2規則の説明、`edit/`から使う規則に`ItemTreeRules`）、依存方向（`io/`のimport、例外(3)に`ClipboardController → core/ItemTreeRules`・「この7ファイル」、規則どうしのimportの例外）。
     *   2章：アイテム（形・`#items`・`getItems`・素の図形も受ける入口・名前の規則・表示/ロック・フォルダ・`id`）、`Ellipse`項の版、「今は3」3か所を「今は4」（「その時点は2のまま」は変更せず）、`fromJSON`直後の`id`にフォルダ、作業データ形式（版4の要素の形・保存対象・現行版4・版3→4の移行・版4の読み方・読み飛ばしの`index`/`path`・入れ子の失敗・古いエディタで断られること）、スプライトの`source`（版4）・描画順・版の履歴。
     *   3章：5.（変換・`?dev`の復元＝`result.items`）、6.（スナップショット・`addShapesWithNewIds(result.items)`・`replaceAllShapes(result.items)`）、7.（選んだ図形のアイテムを平らに写す・名前は元のまま）、8.（保存・切り替えの`replaceAllShapes`）、9.（`getItems()`・`result.items`・「アイテムを渡すこと」・フォルダだけのファイル）、11.（結合は基準の線Aの位置の名前等を引き継ぐ）、14.（正本は入れ子・`reorderShapes`・「図形データの形・版も変えない」は「この時点」と明記）、26.（現行版の記述を「この時点は3・今は4」へ）、4章の表に46・47の2行。`_doc/arch/46_…`・`47_…`のファイル自体はタスク10で作る。
     *   変更しなかったもの：714行目ほか「時点」を書いた記述（「その時点の版は2のまま」・「作業データ形式（版3）」＝Phase 10-03の時点の記述）、3章27.・1章の他の「Phase 10-xx」の記述。
 
 ### タスク10: 開発資料の反映その2
 *   **作業内容** :
-    *   （未実施）
+    *   `_doc/arch/`のみ更新（コードは変更していない）。行末は実測して保った（CR数／行数：`02_main.md` 84/84・`03_VectorModel.md` 16→17/17・`14_edit.md` 118→120/120・`15_io.md` 37→38/38・`16_test.md` 237→247/247はCRLF、`10_ShapeFactory.md` 0/10はLF）。新規`46_ItemTreeRules.md`・`47_ItemAttributeRules.md`はLF。書き換えは実コードと照合し、`41_NudgeTargetRules.md`の書き方（公開・読むもの・知らないこと・使う側・置き場所の理由・テスト）に合わせた。
+    *   `03_VectorModel.md`：冒頭・公開メソッドに`getItems`、新しい項「アイテムの入れ子」（`#items`だけが状態・`#shapes`は毎回求めるgetter・素の図形も受ける入口・各操作の入れ子での扱い・表示/ロックは持つだけ）、`id`の項にフォルダの`group-<連番>`・共通カウンタ、「知らないこと」にフォルダの要素。`10_ShapeFactory.md`：`label`・`getTypeLabel`（未知は`'図形'`）・`ItemAttributeRules`のimport・追加手順に`label`。`14_edit.md`：`ClipboardController → core/ItemTreeRules`（「この5つだけ」）、`ShapeInserter`・`ClipboardController`・`SnapshotAdapter`の項、`CanvasLibrary`・`CanvasFileOperations`の依存（`getItems`・`result.items`・フォルダだけのファイルは空）。`15_io.md`：`DocumentSerializer`（import・現行版4・`MIGRATIONS`は`{ 1, 2, 3 }`・`migrateVersion3To4`・版4の形・結果の`items`・読み飛ばしの`index`/`path`・入れ子の失敗・版を上げた理由・`serialize`に渡すもの）、`FileContentReader`の結果の`items`、`SpriteSerializer.serialize(values)`・import。`16_test.md`：新しいテスト15ファイル175件＋追加5件、書き換えた既存のテスト、件数、`MIGRATIONS`の現在の版。`02_main.md`：`?dev`の`onExport`・`onImport`。
+    *   `08_HistoryManager.md`は変更なし（影響なしの見込みどおり。スナップショットの中身を解釈しないため）。
+    *   `node --test`は2650件全件合格（tests 2650 / suites 426 / fail 0。作業前2470 → +180）。
+    *   監査の修正：`14_edit.md`の「`edit/`から`core/`をimportするもの」を5つ→7つ（`TransformInputEditor`・`TransformInputRules`とその`core/`の import 先を追記）、`46_ItemTreeRules.md`の`placeShapeItems`（`reorderShapes`・`replaceShape`・`replaceShapesKeepingIds`。名前等が動くのは`reorderShapes`だけ）・`filterShapes`（`deleteShapes`・`addShapesWithNewIds`・`replaceShape`）の使う側を実コードに合わせた。`16_test.md`の新しいテストの件数は`node --test`の実測と一致（変更なし）。
+    *   RES 4章タスク9の「`test/`に新しいテスト25ファイル」を「15ファイル」へ直した（監査の指摘。件数の誤記）。
 
 ## 5. 懸念事項・要確認ポイント
 * **曲線のツールで点を2つだけ打って終えた線は「直線 n」になる**：REQは「曲線のツールで描いた図形は、データ上`path`のため『パス n』」としているが、今のコードは、続けて引く線を点2つで終えると区間の種類によらず直線（`type: 'line'`）を作る（`PathJoinRules.buildLineOrPath`）。名前は図形データの`type`で決まるため「直線 n」になる。同じ理由で、直線のツールで点を3つ以上打った線は「パス n」。ふるまいは変えず、この計画のまま進める。
@@ -366,3 +371,4 @@
 * **タスク7の実装メモ**：`CanvasFileOperations`の`downloadText`の引数順は`(text, name)`、`downloadSpriteModule`は`(text, name)`（新規テストの偽物はこれに合わせた）。`CanvasLibrary.items.test.js`は`flushPendingSave`で保留を確定してから終えるため、タイマーは残らない。
 
 * **タスク9の実装メモ**：版3→4の移行の「版を上げた理由」は、RESの要件2に理由の記述が無かったため、実コードの動き（古いエディタは`type: 'group'`を未知の図形種別として読み飛ばし、フォルダの中の図形ごと失う）から書いた。表現が発注者の意図と合うか、目視で確認してほしい。1章構成図のテストの一覧は既存の並びに合わせて新規テストを近い名前の隣へ足した（一覧は元から網羅ではない）。`_doc/arch/46_ItemTreeRules.md`・`47_ItemAttributeRules.md`は4章の表に先に行を足しただけで、実体はタスク10で作る（それまで表のパスは存在しない）。将来この資料を直すときは、2章の「アイテム」の項と3章9.の「アイテムを渡すこと」を正とし、`getShapes()`を`serialize`系へ渡す記述を足さないこと。
+* **タスク10の実装メモ**：`_doc/arch/`の「版を上げた理由」・「`VectorModel`の各操作の入れ子での扱い」はコードのJSDocと実コードから書いた。`16_test.md`の既存の項（`DocumentSerializer.roundtrip.test.js`の「`version`は2」、`CanvasFileOperations`の項等）は過去のPhaseの記述が元から古いため直さず、Phase 11-01の項で書き換えを一覧した。「注入される依存」の例外の数え方（12ファイル）は数字を変えず、新しい項へ回した。将来これらの資料を直すときは、`getShapes()`を保存・復元の経路へ渡す記述を足さないこと。目視では`03_VectorModel.md`の「アイテムの入れ子」の項（長い1行）と、`46_`・`47_`が実コードと合っているかを確かめてほしい。
