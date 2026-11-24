@@ -202,7 +202,7 @@
         *   `main.js`：`window`の`resize`の無名関数を、JSDoc付きの関数`resizeAndRenderViews()`へ取り出して登録する（4つの呼び出しの順は変えない）。`const displayWiring = new DisplayWiring(...)`の直後に`displayState.onChange(resizeAndRenderViews)`を登録する（理由のコメント付き）。`renderCurrentState`・`renderRulers`のJSDocの、呼び出し元の説明を合わせる。`resetViewToCenter`のJSDocの「ツールバー・定規・ステータスバーを除いた領域」へ、図形の一覧のパネル（出ているとき）も除くことを足す。
         *   `DisplayWiring`のJSDoc：クラスが図形の一覧のパネル（`.item-list-panel`）も隠し、キャンバスの領域の右端を変えることを書く。
         *   この時点でパネルは空のまま。
-*   [ ] タスク2: 行の並びと、行の操作の判定の規則（要件2・4・6・7）
+*   [x] タスク2: 行の並びと、行の操作の判定の規則（要件2・4・6・7）
     *   **対象ファイル** :
         *   `./js/core/ItemListRules.js` :（新規）
         *   `./test/core/ItemListRules.test.js` :（新規）
@@ -315,7 +315,10 @@
 
 ### タスク2: 行の並びと、行の操作の判定の規則
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/ItemListRules.js`（新規・LF）：`buildItemRows`・`ROW_PRESS_ACTION`・`resolveRowPressAction`・`isListLocked`・`ROW_HOVER_ACTION`・`resolveRowHover`・`isOwnHover`・`canStartNameEdit`・`resolveNameEditKey`を実装。importは`ItemTreeRules`・`InputModes`だけ。
+    *   `test/core/ItemListRules.test.js`（新規・LF）：計画のテスト項目（並び・押したときの判定・ロック4通り・ホバー表1.〜6.と照会の回数・`isOwnHover`・`canStartNameEdit`全8通り・キー判定）を追加。
+    *   `node --test`：tests 2681 / pass 2681 / fail 0。
+    *   判断：`buildItemRows`の`name`は、アイテムに名前が無ければ空文字（`item.name ?? ''`）にした（typedefの`name: string`に合わせるため）。
 
 ### タスク3: 一覧のクリックの次の選択と、スクロールの規則
 *   **作業内容** :
