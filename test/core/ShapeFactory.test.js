@@ -102,3 +102,22 @@ describe('ShapeFactory.fromJSON', () => {
         );
     });
 });
+
+describe('ShapeFactory.getTypeLabel', () => {
+    it('6種それぞれの呼び名を返す', () => {
+        assert.equal(ShapeFactory.getTypeLabel('line'), '直線');
+        assert.equal(ShapeFactory.getTypeLabel('curve'), '曲線');
+        assert.equal(ShapeFactory.getTypeLabel('arc'), '弧');
+        assert.equal(ShapeFactory.getTypeLabel('rect'), '矩形');
+        assert.equal(ShapeFactory.getTypeLabel('circle'), '円');
+        assert.equal(ShapeFactory.getTypeLabel('path'), 'パス');
+    });
+
+    it('未知の種別・不正な値は例外にせず「図形」を返す', () => {
+        assert.equal(ShapeFactory.getTypeLabel('unknown'), '図形');
+        assert.equal(ShapeFactory.getTypeLabel('toString'), '図形');
+        assert.equal(ShapeFactory.getTypeLabel('__proto__'), '図形');
+        assert.equal(ShapeFactory.getTypeLabel(undefined), '図形');
+        assert.equal(ShapeFactory.getTypeLabel(null), '図形');
+    });
+});

@@ -162,7 +162,7 @@
             *   `filterShapes(items, keep)`：`keep(shape)`が偽の図形のアイテムだけを除いた新しい入れ子（フォルダは空になっても残す。`keep`は図形1つにつき1回、前順で呼ぶ）。
         *   テスト：素の図形・アイテム・空のフォルダ・3段以上の入れ子での各関数、前順、`toItems`の写し（書き換えても元が変わらない・図形は共有）、`placeShapeItems`でフォルダの`id`・属性・入れ子が保たれ図形の名前が図形について動くこと、`filterShapes`で空になったフォルダが残ること・`keep`の呼び出し回数、空配列、引数を書き換えないこと。
         *   共通の締め。
-*   [ ] タスク2: 種類の呼び名と、名前・表示・ロックの規則（`ShapeFactory`・`core/ItemAttributeRules`）
+*   [x] タスク2: 種類の呼び名と、名前・表示・ロックの規則（`ShapeFactory`・`core/ItemAttributeRules`）
     *   **対象ファイル** :
         *   `./js/core/ShapeFactory.js` : 更新
         *   `./js/core/ItemAttributeRules.js` : 新規
@@ -275,7 +275,9 @@
 
 ### タスク2: 種類の呼び名と、名前・表示・ロックの規則
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/ShapeFactory.js`（LF）：`SHAPE_REGISTRY`の各エントリに`label`（直線・曲線・弧・矩形・円・パス）、typedef・JSDoc、静的メソッド`getTypeLabel(type)`（未知は`'図形'`）を足した。`test/core/ShapeFactory.test.js`へ`getTypeLabel`のテスト2件を追記。
+    *   `js/core/ItemAttributeRules.js`（新規・LF）：`resolveItems(values, existingItems = [])`・`normalizeItemName(value)`を実装。自動の名前の形の正規表現は`/^(.*[^\s]) ([1-9][0-9]*)$/`（改行を含む名前・呼び名の末尾が空白の名前には一致しない）。番号は`Number.isSafeInteger(番号 + 1)`で安全なものだけ数える。`test/core/ItemAttributeRules.test.js`（新規）を追加。
+    *   `node --test`は2527件全件合格（2496 + 31）。
 
 ### タスク3: `VectorModel`が入れ子の並びを持つ
 *   **作業内容** :

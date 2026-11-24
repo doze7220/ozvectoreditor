@@ -12,6 +12,7 @@ import { Path, SEGMENT_KIND_SMOOTH } from '../shapes/Path.js';
  * 図形種別の対応表の1エントリ。
  * @typedef {Object} ShapeRegistryEntry
  * @property {string} type 図形種別（各図形クラスのtypeプロパティ・図形データのtypeと一致）
+ * @property {string} label 種類の呼び名（自動の名前に使う。例: 直線）
  * @property {((x1: number, y1: number, x2: number, y2: number) => Object) | null} create
  *     ツールで描き始めたときの作成途中の図形を、始点・終点（ワールド座標）から新規生成する。
  *     curveのツールは頂点2つ・区間1つの曲線のパス（typeは'path'）を作り、今の曲線（Curve）はfromJSONでのみ作られる。
@@ -25,16 +26,16 @@ import { Path, SEGMENT_KIND_SMOOTH } from '../shapes/Path.js';
  * 並び順＝ツールパレットの図形のボタン順＝数字キー（1〜）の割り当て順（KeyboardShortcutsがこの並びを前提とする）。
  * curveのcreateは曲線のパス（Path）を作るため、createの戻り値のtypeはcurveでは種別と一致しない。
  * この並びの意味はcreateがnullでないエントリについてのもの。createがnullの読み込み専用のエントリ（path）は末尾に置き、ツールパレットのボタンは不要。
- * 作成できる図形種別を追加する際は、ここへ1エントリを追加し、index.htmlのツールパレットに`#tool-${type}`のボタンを用意する（`ToolRules`の`TOOL_IDS`は`SHAPE_TYPES`から導出されるため変更不要）。
+ * 作成できる図形種別を追加する際は、ここへ1エントリ（`label`＝種類の呼び名も決めること）を追加し、index.htmlのツールパレットに`#tool-${type}`のボタンを用意する（`ToolRules`の`TOOL_IDS`は`SHAPE_TYPES`から導出されるため変更不要）。
  * @type {ReadonlyArray<Readonly<ShapeRegistryEntry>>}
  */
 const SHAPE_REGISTRY = Object.freeze([
-    Object.freeze({ type: 'line',   create: (x1, y1, x2, y2) => new Line(x1, y1, x2, y2),              fromJSON: (data) => Line.fromJSON(data) }),
-    Object.freeze({ type: 'curve',  create: (x1, y1, x2, y2) => new Path([{ x: x1, y: y1 }, { x: x2, y: y2 }], false, undefined, undefined, undefined, SEGMENT_KIND_SMOOTH), fromJSON: (data) => Curve.fromJSON(data) }),
-    Object.freeze({ type: 'arc',    create: (x1, y1, x2, y2) => new Ellipse(x1, y1, x2, y2, 'arc'),    fromJSON: (data) => Ellipse.fromJSON(data) }),
-    Object.freeze({ type: 'rect',   create: (x1, y1, x2, y2) => new Rect(x1, y1, x2, y2),              fromJSON: (data) => Rect.fromJSON(data) }),
-    Object.freeze({ type: 'circle', create: (x1, y1, x2, y2) => new Ellipse(x1, y1, x2, y2, 'circle'), fromJSON: (data) => Ellipse.fromJSON(data) }),
-    Object.freeze({ type: 'path',   create: null,                                                      fromJSON: (data) => Path.fromJSON(data) }),
+    Object.freeze({ type: 'line', label: '直線',   create: (x1, y1, x2, y2) => new Line(x1, y1, x2, y2),              fromJSON: (data) => Line.fromJSON(data) }),
+    Object.freeze({ type: 'curve', label: '曲線',  create: (x1, y1, x2, y2) => new Path([{ x: x1, y: y1 }, { x: x2, y: y2 }], false, undefined, undefined, undefined, SEGMENT_KIND_SMOOTH), fromJSON: (data) => Curve.fromJSON(data) }),
+    Object.freeze({ type: 'arc', label: '弧',    create: (x1, y1, x2, y2) => new Ellipse(x1, y1, x2, y2, 'arc'),    fromJSON: (data) => Ellipse.fromJSON(data) }),
+    Object.freeze({ type: 'rect', label: '矩形',   create: (x1, y1, x2, y2) => new Rect(x1, y1, x2, y2),              fromJSON: (data) => Rect.fromJSON(data) }),
+    Object.freeze({ type: 'circle', label: '円', create: (x1, y1, x2, y2) => new Ellipse(x1, y1, x2, y2, 'circle'), fromJSON: (data) => Ellipse.fromJSON(data) }),
+    Object.freeze({ type: 'path', label: 'パス',   create: null,                                                      fromJSON: (data) => Path.fromJSON(data) }),
 ]);
 
 /**
@@ -94,5 +95,15 @@ export class ShapeFactory {
             throw new Error(`ShapeFactory.fromJSON: 未知の図形種別です: ${String(data.type)}`);
         }
         return entry.fromJSON(data);
+    }
+
+    /**
+     * 図形種別の呼び名（自動の名前に使う）を返す。未知の種別は例外にせず'図形'を返す（防御）。
+     * @param {string} type - 図形種別
+     * @returns {string} 種類の呼び名（未知なら'図形'）
+     */
+    static getTypeLabel(type) {
+        const entry = REGISTRY_BY_TYPE.get(type);
+        return entry ? entry.label : '図形';
     }
 }
