@@ -285,7 +285,7 @@
         *   要件1の5.〜8.のとおり。`ItemListRowDrag`は規則の結果に従うだけで、判定・計算を書かない。`ItemListWiring`に書くのは橋渡しだけ（ドラッグの控え・座標を持たない）。公開は`sync`・`isRowDragging`・`cancelRowDrag`。
         *   テスト：`isDragging`・`isCancelableDrag`がともに真のとき、`Delete`・`Ctrl`+`Z`・`V`・`Home`・矢印は実行されず、`Esc`（修飾キーなし・`Shift`・`Alt`・`Ctrl`）は`cancel`が1回呼ばれ`preventDefault()`される（既にある検証は重ねて書かない）。
 
-*   [ ] タスク10: 描き込む先の通しのテスト
+*   [x] タスク10: 描き込む先の通しのテスト
     *   **対象ファイル** :
         *   `./test/edit/InsertTarget.flow.test.js` :（新規）
     *   **作業内容** :
@@ -386,7 +386,8 @@
 
 ### タスク10: 描き込む先の通しのテスト
 *   **作業内容** :
-    *   (未実施)
+    *   `test/edit/InsertTarget.flow.test.js`（新規・CRLF・9件）：実物の`VectorModel`・`SnapshotAdapter`・`HistoryManager`・`ShapeInserter`（`insertsAtTarget: true`）・`ClipboardController`・`PathJoiner`・`PathCornerEditor`・`ShapeOrderEditor`・`CanvasLibrary`（偽の保存先。`CanvasLibrary.items.test.js`と同じ組み立て）で、描く→取り消す→描き直す／やり直し／選択が戻る取り消し（`shouldRestoreSelection`の真偽）／削除・切り取り→貼り付け／結合／角の切り替え／並べ替え（記録1件・取り消し1回）／`clearSelection`と`setSelectionByUser([])`／キャンバスの切り替え・新規作成（同じidの図形があっても無し）／保存しないこと（`capture()`・作業データ・スプライトのテキスト・履歴の通知と件数）を確かめた。js/は変えていない。
+    *   `node --test`：tests 2912 / pass 2912 / fail 0。
 
 ### タスク11: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
 *   **作業内容** :
@@ -444,3 +445,4 @@
 10. **結合**：直線・曲線のツールで、既存の線の端点から描き足す・別の線の端点へつなげて終えると、元の線の位置のままで、その行に印が出る。`V`で線を選んで`J`で結合すると、結果の図形が選ばれ、描くツールに持ち替えるとその行に印が出る。
 11. **切り替え**：📁でキャンバスを切り替える・新しく作る・開くと、印は消える（戻ってきても消えたまま）。ページを開き直しても、並べ替えた順番は残る（印は残らない）。
 12. **ほかが今までどおり**：一覧での選択（クリック・`Ctrl`＋クリック・`Shift`＋クリック）・名前の変更（ダブルクリック）・サムネイル・カーソルを置いたときの見た目、描く・動かす・変形・頂点・角・色・整列・保存・書き出し・開くが今までどおり動く。何も選ばず印も無いときに描く・貼り付けると、今までどおり一番上に入る。
+*   （タスク10）通しのテストの「選択が戻る取り消し」は、選択が変わる操作（`a`・`c`を選んで削除）で確かめた。描き込む先が選択の一番上と違う状態は、削除で下の行へ付け替わるときに作れる。結合は`PathJoiner`（選択が残る経路）で確かめ、選択が空で`select: false`の経路（`EndpointSnapper`）は`EndpointSnapper.insertTarget.test.js`が受け持つ。
