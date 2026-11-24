@@ -246,7 +246,7 @@
         *   `InputTracker`を通す拡大縮小・回転・移動のドラッグは、`VectorModel.replaceShapesKeepingIds`・`moveShapes`のテスト（タスク3）で担保し、画面の確認はテストプレイに任せる（`InputTracker`の自動テストは今も無い）。
         *   失敗が見つかった場合は`js/`を直さず、最終報告の「質問」で指示を求める。
         *   共通の締め。
-*   [ ] タスク9（固定）: 開発資料の反映その1（`PROJECT_ARCHITECTURE.md`）
+*   [x] タスク9（固定）: 開発資料の反映その1（`PROJECT_ARCHITECTURE.md`）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` : 更新
     *   **作業内容** :
@@ -324,7 +324,11 @@
 
 ### タスク9: 開発資料の反映その1
 *   **作業内容** :
-    *   （未実施）
+    *   `PROJECT_ARCHITECTURE.md`のみ更新（行末CRLF保持：CR 820／LF 820 → CR 849／LF 849）。反映前に「現行版は3」「今は3」「版は3」「`io/`のimport」「`replaceAllShapes(`」「`addShapesWithNewIds(`」「`getShapes()`」「図形の一覧」を洗い、実コード（`DocumentSerializer`・`ItemTreeRules`・`ItemAttributeRules`・`ShapeFactory`・各importとテストファイル名）と照合した。
+    *   1章：構成図（`core/`に`ItemTreeRules.js`・`ItemAttributeRules.js`、`test/`に新しいテスト25ファイル）、「存在しないもの」（名前・表示・ロック・フォルダはデータだけで画面・効果なし、折りたたみ等が無いこと）、フォルダ分割の方針（`core/`の2規則の説明、`edit/`から使う規則に`ItemTreeRules`）、依存方向（`io/`のimport、例外(3)に`ClipboardController → core/ItemTreeRules`・「この7ファイル」、規則どうしのimportの例外）。
+    *   2章：アイテム（形・`#items`・`getItems`・素の図形も受ける入口・名前の規則・表示/ロック・フォルダ・`id`）、`Ellipse`項の版、「今は3」3か所を「今は4」（「その時点は2のまま」は変更せず）、`fromJSON`直後の`id`にフォルダ、作業データ形式（版4の要素の形・保存対象・現行版4・版3→4の移行・版4の読み方・読み飛ばしの`index`/`path`・入れ子の失敗・古いエディタで断られること）、スプライトの`source`（版4）・描画順・版の履歴。
+    *   3章：5.（変換・`?dev`の復元＝`result.items`）、6.（スナップショット・`addShapesWithNewIds(result.items)`・`replaceAllShapes(result.items)`）、7.（選んだ図形のアイテムを平らに写す・名前は元のまま）、8.（保存・切り替えの`replaceAllShapes`）、9.（`getItems()`・`result.items`・「アイテムを渡すこと」・フォルダだけのファイル）、11.（結合は基準の線Aの位置の名前等を引き継ぐ）、14.（正本は入れ子・`reorderShapes`・「図形データの形・版も変えない」は「この時点」と明記）、26.（現行版の記述を「この時点は3・今は4」へ）、4章の表に46・47の2行。`_doc/arch/46_…`・`47_…`のファイル自体はタスク10で作る。
+    *   変更しなかったもの：714行目ほか「時点」を書いた記述（「その時点の版は2のまま」・「作業データ形式（版3）」＝Phase 10-03の時点の記述）、3章27.・1章の他の「Phase 10-xx」の記述。
 
 ### タスク10: 開発資料の反映その2
 *   **作業内容** :
@@ -360,3 +364,5 @@
 * **タスク8の実装メモ**：端点のドラッグでの結合は、奥の線（先頭の図形）の名前・表示・ロックを引き継ぎ新しいidになる（`planEndpointDragJoin`の対象が奥側）ことを実測して固定した。区間の切り替えを別々の図形の点にまたがって行うには、各図形で2点以上選ぶ必要がある（1点だけだと切り替え対象にならない場合がある）。テストの補助関数（`setupReal`・`outline`等）は、`test/`に共有の補助ファイルを置かない決まりのため、各ファイルに重複して持つ。
 
 * **タスク7の実装メモ**：`CanvasFileOperations`の`downloadText`の引数順は`(text, name)`、`downloadSpriteModule`は`(text, name)`（新規テストの偽物はこれに合わせた）。`CanvasLibrary.items.test.js`は`flushPendingSave`で保留を確定してから終えるため、タイマーは残らない。
+
+* **タスク9の実装メモ**：版3→4の移行の「版を上げた理由」は、RESの要件2に理由の記述が無かったため、実コードの動き（古いエディタは`type: 'group'`を未知の図形種別として読み飛ばし、フォルダの中の図形ごと失う）から書いた。表現が発注者の意図と合うか、目視で確認してほしい。1章構成図のテストの一覧は既存の並びに合わせて新規テストを近い名前の隣へ足した（一覧は元から網羅ではない）。`_doc/arch/46_ItemTreeRules.md`・`47_ItemAttributeRules.md`は4章の表に先に行を足しただけで、実体はタスク10で作る（それまで表のパスは存在しない）。将来この資料を直すときは、2章の「アイテム」の項と3章9.の「アイテムを渡すこと」を正とし、`getShapes()`を`serialize`系へ渡す記述を足さないこと。
