@@ -3,7 +3,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveItems, normalizeItemName } from '../../js/core/ItemAttributeRules.js';
+import { resolveItems, normalizeItemName, applyItemRename } from '../../js/core/ItemAttributeRules.js';
 import { ITEM_KIND, listItems } from '../../js/core/ItemTreeRules.js';
 
 /**
@@ -247,5 +247,92 @@ describe('resolveItems: 不変性・冪等性', () => {
             shapeItem('line'),
         ]);
         assert.deepEqual(names(result), ['フォルダ 1', '直線 1', 'フォルダ 2', '直線 2', '直線 3']);
+    });
+});
+
+describe('applyItemRename', () => {
+    /**
+     * 名前つきの図形のアイテムを作る。
+     * @param {string} id - 図形のid
+     * @param {string} name - 名前
+     * @param {Object} [attrs] - 追加の値
+     * @returns {Object} 図形のアイテム
+     */
+    function named(id, name, attrs = {}) {
+        return shapeItem('rect', { name, ...attrs, shape: fakeShape('rect', id) });
+    }
+
+    it('前後の空白を除いた名前になる', () => {
+        const result = applyItemRename([named('a', '旧')], 'a', '  新しい  ');
+        assert.equal(result[0].name, '新しい');
+    });
+
+    it('101文字は100文字に切る', () => {
+        const result = applyItemRename([named('a', '旧')], 'a', 'x'.repeat(101));
+        assert.equal(result[0].name, 'x'.repeat(100));
+    });
+
+    it('サロゲートペアは1文字と数える', () => {
+        const result = applyItemRename([named('a', '旧')], 'a', '😀'.repeat(101));
+        assert.equal(Array.from(result[0].name).length, 100);
+    });
+
+    it('空・空白だけ・文字列でない値はnull', () => {
+        const items = [named('a', '旧')];
+        assert.equal(applyItemRename(items, 'a', ''), null);
+        assert.equal(applyItemRename(items, 'a', '   	'), null);
+        assert.equal(applyItemRename(items, 'a', undefined), null);
+        assert.equal(applyItemRename(items, 'a', 5), null);
+    });
+
+    it('今の名前と同じ・整えると同じならnull', () => {
+        const items = [named('a', '旧')];
+        assert.equal(applyItemRename(items, 'a', '旧'), null);
+        assert.equal(applyItemRename(items, 'a', '  旧 '), null);
+    });
+
+    it('無いidはnull', () => {
+        assert.equal(applyItemRename([named('a', '旧')], 'zzz', '新'), null);
+        assert.equal(applyItemRename([], 'a', '新'), null);
+    });
+
+    it('フォルダはitem.idで探して名前を変える', () => {
+        const items = [groupItem([named('a', '旧')], { id: 'g1', name: 'フォルダ 1' })];
+        const result = applyItemRename(items, 'g1', '箱');
+        assert.equal(result[0].name, '箱');
+        assert.equal(result[0].children[0].name, '旧');
+    });
+
+    it('フォルダの中の図形も変えられる', () => {
+        const items = [groupItem([named('a', '旧'), named('b', 'B')], { id: 'g1', name: 'G' })];
+        const result = applyItemRename(items, 'b', '新');
+        assert.equal(result[0].children[1].name, '新');
+        assert.equal(result[0].children[0].name, '旧');
+        assert.equal(result[0].name, 'G');
+    });
+
+    it('重複した名前も許す', () => {
+        const items = [named('a', '旧'), named('b', '同じ')];
+        const result = applyItemRename(items, 'a', '同じ');
+        assert.deepEqual(names(result), ['同じ', '同じ']);
+    });
+
+    it('引数を書き換えない・新しいアイテムを返す', () => {
+        const items = [groupItem([named('a', '旧')], { id: 'g1', name: 'G' }), named('b', 'B')];
+        const before = JSON.stringify(items);
+        const result = applyItemRename(items, 'a', '新');
+        assert.equal(JSON.stringify(items), before);
+        assert.notEqual(result[0], items[0]);
+        assert.notEqual(result[0].children[0], items[0].children[0]);
+        assert.equal(items[0].children[0].name, '旧');
+    });
+
+    it('表示・ロック・図形は変わらない', () => {
+        const shape = fakeShape('rect', 'a');
+        const items = [{ kind: ITEM_KIND.SHAPE, shape, name: '旧', visible: false, locked: true }];
+        const result = applyItemRename(items, 'a', '新');
+        assert.equal(result[0].visible, false);
+        assert.equal(result[0].locked, true);
+        assert.equal(result[0].shape, shape);
     });
 });

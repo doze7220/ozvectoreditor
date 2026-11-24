@@ -1,11 +1,11 @@
 /**
  * 責務：図形とフォルダのアイテムの入れ子の並び・選択集合・ホバー・作成中図形・選択矩形・吸い付きの表示の点・新しく描く図形のスタイル（直前に使った値）の
  * 状態管理（SSOT：Single Source of Truth）と更新通知を担う。
- * 頂点の選択（選択集合の図形のid＋ハンドル名の組。保存・履歴・書き出しの対象外の一時的な状態）も保持する。
+ * 頂点の選択（選択集合の図形のid＋ハンドル名の組。保存・履歴・書き出しの対象外の一時的な状態）も保持し、アイテムの名前の変更も受け付ける。
  */
 import { ShapeFactory, SHAPE_TYPES } from './ShapeFactory.js';
 import { ITEM_KIND, toItems, listItems, listShapeItems, listShapes, placeShapeItems, filterShapes } from './ItemTreeRules.js';
-import { resolveItems } from './ItemAttributeRules.js';
+import { resolveItems, applyItemRename } from './ItemAttributeRules.js';
 
 /**
  * 新しく描く図形のスタイル（直前に使った値）。有無と色を分けて持つ
@@ -84,7 +84,7 @@ const ID_PATTERN = new RegExp(`^(?:${ID_PREFIX}|${GROUP_ID_PREFIX})(\\d+)$`);
  * 図形とフォルダのアイテムの入れ子の並び（`#items`だけが状態。平らな図形の配列は毎回求める）と、
  * 選択集合・ホバー・作成中の図形・選択矩形・吸い付きの表示の点を保持する単一の真実（SSOT）。
  * 状態を変更するAPIは変更後にonChangeの登録リスナーへ通知する。図形idの採番（`shape-<連番>`）・フォルダidの採番（`group-<連番>`。同じカウンタ）も本クラスが担う。
- * 名前・表示・ロックの規則は`ItemAttributeRules`、入れ子の計算は`ItemTreeRules`へ委譲する。
+ * 名前・表示・ロックの規則（名前の変更`renameItem`を含む）は`ItemAttributeRules`、入れ子の計算は`ItemTreeRules`へ委譲する。
  * 図形の生成はShapeFactoryへ委譲する（復元は`DocumentSerializer`→`ShapeFactory.fromJSON`が行い、本クラスは復元済みの図形一式を受け取るのみ）。図形固有の頂点構造には依存しない（ポリモーフィック呼び出しのみ）。
  * 新しく描く図形のスタイル（直前に使った値）も保持する（作業データ・履歴のスナップショットには含まれない）。
  * 図形の差し替えの入口として、既定では新しいidを採番する`replaceShape`・並びを変えない`replaceShapesKeepingIds`（複数・同じidのまま・通知1回）を持つ。
@@ -939,6 +939,26 @@ export class VectorModel {
         }
         const itemByShape = new Map(listShapeItems(this.#items).map((item) => [item.shape, item]));
         this.#items = placeShapeItems(this.#items, nextShapes.map((shape) => itemByShape.get(shape)));
+        this.#notifyChange();
+        return true;
+    }
+
+    /**
+     * アイテム（図形・フォルダ）の名前を変える。
+     * `applyItemRename`が`null`（idのアイテムが無い・整えた名前が空・今の名前と同じ）なら、何も変えず（通知もせず）falseを返す。
+     * そうでなければ入れ子を入れ替え、変更を通知して（1回）trueを返す。
+     * 触れないもの：選択集合・頂点の選択・ホバー・作成中の図形・図形インスタンス・並び。
+     * 履歴の記録（beginEdit/commitEdit）は呼び出し側の責務。
+     * @param {string} id 名前を変えるアイテムのid（図形のid、またはフォルダのid）
+     * @param {string} name 新しい名前の候補（整えて使う）
+     * @returns {boolean} 名前を変えたか
+     */
+    renameItem(id, name) {
+        const nextItems = applyItemRename(this.#items, id, name);
+        if (nextItems === null) {
+            return false;
+        }
+        this.#items = nextItems;
         this.#notifyChange();
         return true;
     }

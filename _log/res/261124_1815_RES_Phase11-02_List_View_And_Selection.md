@@ -240,7 +240,7 @@
         *   `ThumbnailRenderer`：importは`./ThumbnailRules.js`だけ。`drawThumbnail(canvas, shape, bounds, pixelRatio)`：内部バッファを`Math.max(1, Math.round(THUMBNAIL_SIZE_PX * pixelRatio))`の正方形にする（代入で消える）→ `computeThumbnailFit(bounds)`が`null`なら終わり → `copy = shape.createTransformed(恒等変換の凍結した定数)`、`copy.strokeWidth = resolveThumbnailStrokeWidth(shape.strokeWidth, fit.scale)` → `setTransform(r·scale, 0, 0, r·scale, r·offsetX, r·offsetY)`（`r = canvas.width / THUMBNAIL_SIZE_PX`）→ `copy.draw(ctx)`。状態を持たない。
         *   `ShapeExtentReader`：`getShapeBounds(shape)` → `SpriteSerializer.computeShapesBounds([shape])`。選択によらない。責務の行とクラスJSDocに「渡された図形1つの外枠」を足す。
         *   テスト：収め方（縦長・横長・正方形・小さい図形の拡大・幅0・高さ0・点・`null`）。線の太さ（縮めて1px以上・ちょうど1px・1px未満で下限・拡大では太くなる・`scale`が有限でない/0以下）。鍵（同じ内容で同じ・座標/色/太さ/`pixelRatio`の違いで変わる）と描き直しの判定。描画（偽の`canvas`で、内部バッファの大きさ・`setTransform`の値・`lineWidth`・元の図形の`strokeWidth`と`toJSON()`が変わらない・線も塗りもない図形で何も描かない・外枠`null`で何も描かない。全図形種別）。`getShapeBounds`（線ありで太さの半分広がる・線なし・選択によらない）。
-*   [ ] タスク5: 名前を変える規則と編集操作（要件7）
+*   [x] タスク5: 名前を変える規則と編集操作（要件7）
     *   **対象ファイル** :
         *   `./js/core/ItemAttributeRules.js` :（更新）
         *   `./js/core/VectorModel.js` :（更新）
@@ -339,7 +339,12 @@
 
 ### タスク5: 名前を変える規則と編集操作
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/ItemAttributeRules.js`：`applyItemRename(items, id, value)`を足した（`toItems`で写し→`listItems`で探し→写しの`name`だけ書き換え。図形は`item.shape.id`、フォルダは`item.id`）。責務の行へ「名前の変更」を足した（3行以内）。
+    *   `js/core/VectorModel.js`：importへ`applyItemRename`を足し、`renameItem(id, name)`を`reorderShapes`の後・`onChange`の前に置いた。責務の行・クラスJSDocを合わせた。
+    *   `js/edit/ItemRenameEditor.js`（新規・LF）：`rename(id, text)`（`ShapeOrderEditor`と同じ形。変わらないときは`beginEdit`も呼ばない）。
+    *   `test/core/ItemAttributeRules.test.js`（import1行の追加と末尾へ追加）、`test/core/VectorModel.renameItem.test.js`・`test/edit/ItemRenameEditor.test.js`（新規・LF）に計画のテスト項目を追加。
+    *   `node --test`：tests 2764 / pass 2764 / fail 0。行末はすべてLF（バイト列で確認）。
+    *   判断：`ItemRenameEditor`のテストの`deserialize`の結果は`.items`から読む。
 
 ### タスク6: 一覧のUI部品（表示・スクロール）
 *   **作業内容** :

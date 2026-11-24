@@ -1,5 +1,5 @@
 /**
- * 責務：アイテムの名前・表示・ロックの規則（名前の整え方・自動の名前の番号・不備の補い）。
+ * 責務：アイテムの名前・表示・ロックの規則（名前の整え方・自動の名前の番号・不備の補い・名前の変更）。
  * 状態を持たず、DOMにも触れない。
  */
 import { ITEM_KIND, toItems, listItems } from './ItemTreeRules.js';
@@ -106,4 +106,29 @@ export function resolveItems(values, existingItems = []) {
         item.name = `${label} ${next}`;
     }
     return resolved;
+}
+
+/**
+ * アイテムの名前を変えた新しい入れ子を作る。図形のアイテムは`item.shape.id`、フォルダは`item.id`で探す。
+ * 変えない場合（idのアイテムが無い・整えた名前が空・今の名前と同じ）は`null`を返す。
+ * 毎回新しいアイテムへ写してから書き換え、引数は書き換えない（図形インスタンスは共有）。
+ * @param {Object[]} items - アイテムの入れ子
+ * @param {string} id - 名前を変えるアイテムのid（図形のid、またはフォルダのid）
+ * @param {*} value - 新しい名前の候補（`normalizeItemName`で整える）
+ * @returns {Object[]|null} 名前を変えた新しい入れ子。変わらないときは`null`
+ */
+export function applyItemRename(items, id, value) {
+    const name = normalizeItemName(value);
+    if (name === '') {
+        return null;
+    }
+    const copied = toItems(items);
+    const target = listItems(copied).find((item) => (
+        item.kind === ITEM_KIND.GROUP ? item.id === id : item.shape.id === id
+    ));
+    if (target === undefined || target.name === name) {
+        return null;
+    }
+    target.name = name;
+    return copied;
 }
