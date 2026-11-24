@@ -34,6 +34,8 @@
  * @typedef {Object} ItemListPanelOptions
  * @property {number} thumbnailSize サムネイルのCSS上の大きさ（正方形の一辺、px）
  * @property {() => void} onScroll 一覧がスクロールされたときに呼ばれる
+ * @property {(id: string, event: MouseEvent) => void} onRowClick 行がクリックされたときに行のidと`MouseEvent`で呼ばれる（行の無い所のクリックでは呼ばれない）
+ * @property {(id: string|null) => void} onRowHover カーソルが行の上を動いたときにその行のid、行の無い所・一覧の外へ出たときに`null`で呼ばれる
  */
 
 /**
@@ -53,6 +55,10 @@ export class ItemListPanel {
     #thumbnailSize;
     /** @type {() => void} */
     #onScroll;
+    /** @type {(id: string, event: MouseEvent) => void} */
+    #onRowClick;
+    /** @type {(id: string|null) => void} */
+    #onRowHover;
     /** @type {Map<string, ItemListRowEntry>} id→行の控え */
     #rows = new Map();
 
@@ -60,13 +66,21 @@ export class ItemListPanel {
      * 要素を解決してイベントを配線する。要素が欠ければ`console.warn`して配線しない（以後の公開メソッドは何もしない）。
      * @param {HTMLElement} rootElement パネルのルート要素（`#item-list-panel`）
      * @param {ItemListPanelOptions} options 設定
-     * @throws {Error} `onScroll`が関数でないとき
+     * @throws {Error} `onScroll`・`onRowClick`・`onRowHover`のいずれかが関数でないとき
      */
     constructor(rootElement, options) {
         if (!options || typeof options.onScroll !== 'function') {
             throw new Error('ItemListPanel: options.onScrollは関数である必要があります。');
         }
+        if (typeof options.onRowClick !== 'function') {
+            throw new Error('ItemListPanel: options.onRowClickは関数である必要があります。');
+        }
+        if (typeof options.onRowHover !== 'function') {
+            throw new Error('ItemListPanel: options.onRowHoverは関数である必要があります。');
+        }
         this.#onScroll = options.onScroll;
+        this.#onRowClick = options.onRowClick;
+        this.#onRowHover = options.onRowHover;
         this.#thumbnailSize = options.thumbnailSize;
 
         const list = rootElement ? rootElement.querySelector('#item-list') : null;
@@ -78,6 +92,13 @@ export class ItemListPanel {
         list.addEventListener('scroll', () => this.#onScroll());
         // スクロールする箱はクリックでフォーカスを受けることがある。キー操作をキャンバス側に残すため自分で手放す
         list.addEventListener('focus', () => list.blur());
+        // クリック・ホバーは.item-listへのイベント委譲。mousedownはpreventDefaultしない（今のキャンバスと同じ、他の欄の確定を妨げない）
+        list.addEventListener('click', (event) => {
+            const id = this.#findRowId(event);
+            if (id !== null) this.#onRowClick(id, event);
+        });
+        list.addEventListener('mousemove', (event) => this.#onRowHover(this.#findRowId(event)));
+        list.addEventListener('mouseleave', () => this.#onRowHover(null));
         this.#wired = true;
     }
 
@@ -171,6 +192,19 @@ export class ItemListPanel {
     getThumbnailCanvas(id) {
         const entry = this.#rows.get(id);
         return entry ? entry.canvas : null;
+    }
+
+    /**
+     * イベントの対象が含まれる行のidを返す。
+     * @param {MouseEvent} event マウスイベント
+     * @returns {string|null} 行のid（行の無い所なら`null`）
+     */
+    #findRowId(event) {
+        const target = event.target;
+        if (!target || typeof target.closest !== 'function') return null;
+        const row = target.closest('.item-row');
+        if (!row || !this.#list.contains(row)) return null;
+        return row.dataset.itemId ?? null;
     }
 
     /**

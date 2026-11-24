@@ -271,7 +271,7 @@
         *   `new ItemListWiring({ model, shapeExtentReader })`。生成時に`ItemListPanel`（`document.getElementById('item-list-panel')`・`THUMBNAIL_SIZE_PX`）を作り、`model.onChange`・`window`の`resize`・パネルの`onScroll`で`#requestSync()`（`requestAnimationFrame`の予約は1つだけ。予約中かを1つのフィールドで持つ）。
         *   公開`sync({ allowScroll = true } = {})`：要件2の順。`#drawVisibleThumbnails(rows)`：`resolveVisibleRowRange`（余裕4行は定数）の行だけ、鍵を比べて`drawThumbnail(canvas, row.shape, shapeExtentReader.getShapeBounds(row.shape), window.devicePixelRatio || 1)`。鍵は`WeakMap`。
         *   `main.js`：`// 7.14.`の後・`// 8.`の前に`// 7.15. 図形の一覧配線`を足す。起動時の同期は、オプションバーの同期の後（`syncOptionBarTransformGroup()`の次）に`itemListWiring.sync()`を明示的に1回（既存の同期と同じコメントの形）。
-*   [ ] タスク8: 一覧で選ぶ・行にカーソルを置く（要件4・6、要件1の読み込み中）
+*   [x] タスク8: 一覧で選ぶ・行にカーソルを置く（要件4・6、要件1の読み込み中）
     *   **対象ファイル** :
         *   `./js/palette/ItemListPanel.js` :（更新）
         *   `./js/wiring/ItemListWiring.js` :（更新）
@@ -362,7 +362,11 @@
 
 ### タスク8: 一覧で選ぶ・行にカーソルを置く
 *   **作業内容** :
-    *   （未実施）
+    *   `js/palette/ItemListPanel.js`：コールバック`onRowClick(id, event)`・`onRowHover(id | null)`を必須で足した（関数でなければ`Error`）。`.item-list`の`click`・`mousemove`・`mouseleave`のイベント委譲（`#findRowId`が`closest('.item-row')`で行を求める。`mousedown`は`preventDefault`しない）。
+    *   `js/wiring/ItemListWiring.js`：注入（`displayState`・`canvasLibrary`・`getMode`・`isDragging`・`isPicking`・`selectSelectTool`・`readCtrlModifier`）と、一時的な値`#anchorId`・`#hoveredRowId`・`#lastOpenCanvasId`を足した。`#handleRowClick`（`resolveRowPressAction`→`switchAndSelect`なら`selectSelectTool()`の後ふつうのクリック→`resolveListClickSelection`→`model.setSelection`→`sync({ allowScroll: false })`→行のホバーの当て直し）、`#handleRowHover`（`resolveRowHover`の結果に従うだけ）、`#clearOwnHover`（`clear`・`canvasLibrary.onChange`・`displayState.onChange`の3か所から使う）。`canvasLibrary.onChange`で`openCanvasId`が変われば起点を忘れ、ロック中なら自分のホバーを消す。`displayState.onChange`で隠れたら自分のホバーを消す。
+    *   `js/main.js`（CRLFのまま）：`// 7.15.`の生成へ注入を足した（判定は書かない）。
+    *   `node --test`：tests 2764 / pass 2764 / fail 0。行末：`main.js`はCRLF、`ItemListPanel.js`・`ItemListWiring.js`はLFのまま（バイト列で確認）。
+    *   判断：`event.shiftKey`が真のときだけ`range`とした（`=== true`）。ホバーの当て直しは`#handleRowHover(id)`を呼ぶ形にし、切り替えで消えたホバーは`set`で戻る。`#lastOpenCanvasId`は生成時に`getState().openCanvasId`で初期化した。
 
 ### タスク9: 名前を変える画面
 *   **作業内容** :
