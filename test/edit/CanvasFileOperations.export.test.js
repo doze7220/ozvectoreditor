@@ -9,6 +9,7 @@ import { SpriteSerializer } from '../../js/io/SpriteSerializer.js';
 import { CodeExporter } from '../../js/io/CodeExporter.js';
 import { DocumentSerializer } from '../../js/io/DocumentSerializer.js';
 import { ShapeFactory } from '../../js/core/ShapeFactory.js';
+import { toItems } from '../../js/core/ItemTreeRules.js';
 
 /**
  * console.warn を、そのテストの終了時に自動で元へ戻るモックへ置き換えて抑止する。
@@ -121,9 +122,9 @@ function createHarness({ shapes = [], libraryState = {}, failOn = null } = {}) {
     };
     const model = {
         /**
-         * @returns {object[]} 図形一式
+         * @returns {object[]} 図形一式のアイテム
          */
-        getShapes: () => shapes,
+        getItems: () => toItems(shapes),
     };
     /**
      * @returns {void}

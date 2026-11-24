@@ -65,7 +65,7 @@ const CANVAS_NAME_MAX_LENGTH = 100;
  *
  * ■ キャンバス記録と保存しないもの
  *   - 保存単位は記録`{ id, name, updatedAt, document }`（typedefは`io/CanvasStorage.js`の`CanvasRecord`）。
- *     `document`は`DocumentSerializer.serialize(model.getShapes())`の戻り値で、本クラスは中身を解釈しない
+ *     `document`は`DocumentSerializer.serialize(model.getItems())`の戻り値で、本クラスは中身を解釈しない
  *     （読み込みは`DocumentSerializer.deserialize`を通し、旧版のマイグレーションはその仕組みに任せる）。
  *   - 保存しないもの：Undo/Redoの履歴、選択集合・ホバー・作成中の図形・選択矩形、ビュー変換（倍率・表示位置）、
  *     クリップボード、操作モード。
@@ -131,7 +131,7 @@ const CANVAS_NAME_MAX_LENGTH = 100;
  *      中止時、新規作成・開く（ファイル）で書き込み済みの新しい記録は削除し（失敗は`console.warn`のみ）、一覧からも除く。
  *   4. 同期区間の開始（ここから手順6まで`await`を挟まない）：もう一度`prepareSwitch()`を呼ぶ（例外は`console.warn`して続ける）。
  *      この手順では保存を行わない（開く・新規作成・開く（ファイル）は確定手順が済んでいる。起動時の復元・削除後の切り替えには確定すべき保留が無い）。続けて`#isSwitching = true`とし、
- *      図形一式を`model.replaceAllShapes(shapes)`で入れ替える（図形のidは記録されたものを保持する。欠落・重複は`replaceAllShapes`が振り直す）。
+ *      図形一式を`model.replaceAllShapes(items)`で入れ替える（図形のidは記録されたものを保持する。欠落・重複は`replaceAllShapes`が振り直す）。
  *   5. 履歴のリセット`historyManager.clear()`（切り替えは編集操作として記録しない。`beginEdit`/`commitEdit`を呼ばない）
  *      → ビュー変換を初期表示（倍率100%・原点を表示領域の中央）へ`resetView()` → `#isSwitching = false`。
  *   6. 開いているキャンバスを更新し、保留・未保存の状態を消し（記録を書けずに開いたときは保留・未保存として保持する）、
@@ -164,7 +164,7 @@ const CANVAS_NAME_MAX_LENGTH = 100;
  * ■ 新規キャンバスの命名規則
  *   - 「無題 1」「無題 2」…のうち、キャンバス一覧の名前と一致しない最小の番号。`'unavailable'`時のメモリ上のキャンバスも同じ規則。
  *
- * ■ 開く（ファイル）（`createCanvasFromShapes(rawName, shapes)`。`createCanvas()`は`createCanvasFromShapes(null, [])`への委譲）
+ * ■ 開く（ファイル）（`createCanvasFromShapes(rawName, items)`。`createCanvas()`は`createCanvasFromShapes(null, [])`への委譲）
  *   - 呼び出し側（ファイル操作）が作業データファイルから読み取った図形を、新しいキャンバスとして一覧へ登録して開く。
  *   - 受理条件：読み込み中・処理中・`'unavailable'`でない。受理しなければ何もせず`false`。
  *   - 通る手順：切り替え処理の手順1〜6と確定手順のすべて。手順2（切り替え前の保存）に失敗したら中止して`false`
@@ -173,7 +173,7 @@ const CANVAS_NAME_MAX_LENGTH = 100;
  *     「いいえ」なら要約を一覧から除いて中止して`false`。確定手順の失敗で中止した場合も要約を除き、書き込み済みの新しい記録を削除する。
  *     切り替えは編集操作として記録しない。
  *   - 名前：`rawName`を名前の変更と同じ規則（前後の空白を除く・100文字へ切り詰め）で正規化し、空なら「無題 n」。重複は許す。
- *   - 記録の作業データ：`shapes`を現行版で`serialize`したもの（読めなかった図形は含まれない）。
+ *   - 記録の作業データ：`items`（アイテムの入れ子）を現行版で`serialize`したもの（読めなかった図形は含まれない）。
  *   - `'partialLoad'`は立てない：それはブラウザ内の記録を開いた際に一部の図形が読めなかった旨の予告であり、
  *     ファイル側の記録には読めた図形しか入らないため。読めない図形の通知は呼び出し側（ファイル操作の通知）が行う。
  *     手順6の既存の働きにより、残っていた`'loadFailed'`/`'partialLoad'`は解除される。
@@ -225,7 +225,7 @@ export class CanvasLibrary {
     #storage;
 
     /**
-     * 開いているキャンバスの図形一式を保持するVectorModel（getShapes・replaceAllShapesのみ使用）。
+     * 開いているキャンバスの図形一式を保持するVectorModel（getItems・replaceAllShapesのみ使用）。
      * @type {import('../core/VectorModel.js').VectorModel}
      */
     #model;
@@ -464,7 +464,7 @@ export class CanvasLibrary {
             if (result.skipped.length > 0) {
                 console.warn('CanvasLibrary: 一部の図形を読み込めませんでした。', id, result.skipped);
             }
-            return await this.#settleAndEnter(summary, result.shapes, result.skipped.length > 0 ? 'partialLoad' : null);
+            return await this.#settleAndEnter(summary, result.items, result.skipped.length > 0 ? 'partialLoad' : null);
         } catch (error) {
             console.warn('CanvasLibrary: キャンバスを開く処理で予期しないエラーが発生しました。', error);
             return false;
@@ -490,13 +490,13 @@ export class CanvasLibrary {
      * 新しい記録の書き込みに失敗した場合は`confirmOpenUnsaved`で確認し、「いいえ」なら要約を一覧から除いて`false`（開いているキャンバスのまま）、
      * 「はい」なら`'writeFailed'`・未保存として開く（保存できるまで別のキャンバスへは移れない）。
      * 切り替え前の保存の確定（`#settleAndEnter`）に失敗した場合も中止して`false`。
-     * 名前は`rawName`を正規化し、空なら「無題 n」（重複は許す）。記録の作業データは`shapes`を現行版で`serialize`したもの。
+     * 名前は`rawName`を正規化し、空なら「無題 n」（重複は許す）。記録の作業データは`items`（アイテムの入れ子）を現行版で`serialize`したもの。
      * `'partialLoad'`は立てない（`loadIssue`は`null`）。rejectしない。
      * @param {*} rawName キャンバス名の候補（`null`・空なら「無題 n」）
-     * @param {Array<*>} shapes 開く図形の配列（不透明に扱う）
+     * @param {Array<*>} items 開くアイテムの配列（`deserialize`の`items`。不透明に扱う）
      * @returns {Promise<boolean>} 作成して開いたか
      */
-    async createCanvasFromShapes(rawName, shapes) {
+    async createCanvasFromShapes(rawName, items) {
         if (!this.#canAcceptOperation()) {
             return false;
         }
@@ -506,7 +506,7 @@ export class CanvasLibrary {
             if (!(await this.#prepareLeave())) {
                 return false;
             }
-            return await this.#createAndEnter(null, rawName, shapes, true);
+            return await this.#createAndEnter(null, rawName, items, true);
         } catch (error) {
             console.warn('CanvasLibrary: キャンバスの新規作成で予期しないエラーが発生しました。', error);
             return false;
@@ -723,7 +723,7 @@ export class CanvasLibrary {
      * 保留（`#pendingSaveCanvasId`）はこの開始時に解除する。完了時は`#isCurrentWrite`が真の場合のみ状態へ反映する：
      * 書き込み成功で未保存を偽にし`'writeFailed'`を解除して通知、失敗で`console.warn`＋保留を設定し直す（タイマーは張らない。
      * 再試行の契機は次の編集・切り替え・ページ非表示時）＋未保存を真＋`'writeFailed'`＋通知（`console.warn`は常に出す）。rejectしない。
-     * 記録の組み立て（`getShapes`・`serialize`）で例外が起きた場合も`putRecord`の失敗と同じ扱いにする（同期で例外を投げない）。
+     * 記録の組み立て（`getItems`・`serialize`）で例外が起きた場合も`putRecord`の失敗と同じ扱いにする（同期で例外を投げない）。
      * 書き込みを開始したときに、その完了を表す`Promise`を`#inFlightSave`へ設定し、完了時（成功・失敗とも）に`#inFlightSave`が
      * それ自身である場合のみ`null`へ戻す（`flushPendingSave()`が書き込み中の保存の完了を待てるようにするため）。
      * 書くべきものが無く破棄した場合は`#inFlightSave`に触れない。
@@ -751,7 +751,7 @@ export class CanvasLibrary {
                 id: canvasId,
                 name: summary.name,
                 updatedAt,
-                document: DocumentSerializer.serialize(this.#model.getShapes())
+                document: DocumentSerializer.serialize(this.#model.getItems())
             };
             writing = this.#storage.putRecord(record);
         } catch (error) {
@@ -895,12 +895,12 @@ export class CanvasLibrary {
      * `#enterCanvas`を呼ぶ（確定手順と手順4の間に`await`を挟むと、その間の編集が切り替え前のキャンバスへ書かれなくなるため、分けてはならない）。
      * `#enterCanvas`の例外は捕捉せず呼び出し側へ渡す。
      * @param {CanvasSummary} summary 開くキャンバスの要約（キャンバス一覧に登録済みであること）
-     * @param {Array<Object>} shapes 開く図形インスタンス
+     * @param {Array<Object>} items 開くアイテムの入れ子（`deserialize`の`items`）
      * @param {CanvasIssue} loadIssue 開いた後に残す読み込みの問題
      * @param {boolean} [isRecordWritten=true] 開くキャンバスの記録が保存先に書き込み済みか
      * @returns {Promise<boolean>} 開いたか（中止なら`false`）
      */
-    async #settleAndEnter(summary, shapes, loadIssue, isRecordWritten = true) {
+    async #settleAndEnter(summary, items, loadIssue, isRecordWritten = true) {
         try {
             for (;;) {
                 this.#prepareSwitch();
@@ -915,7 +915,7 @@ export class CanvasLibrary {
             console.warn('CanvasLibrary: 切り替え前の保存の確定で予期しないエラーが発生しました。', error);
             return false;
         }
-        this.#enterCanvas(summary, shapes, loadIssue, isRecordWritten);
+        this.#enterCanvas(summary, items, loadIssue, isRecordWritten);
         return true;
     }
 
@@ -931,12 +931,12 @@ export class CanvasLibrary {
      * `'loadFailed'`/`'partialLoad'`を解除したうえで`loadIssue`があれば設定し、記録を書けずに開いた場合は最後に`'writeFailed'`を設定し直し
      * （確定手順での保存成功による解除を打ち消す）、変更通知する。
      * @param {CanvasSummary} summary 開くキャンバスの要約（キャンバス一覧に登録済みであること）
-     * @param {Array<Object>} shapes 開くキャンバスの図形インスタンス（`deserialize`の結果。新規作成なら空配列、開く（ファイル）ならファイルから読めた図形）
+     * @param {Array<Object>} items 開くキャンバスのアイテムの入れ子（`deserialize`の`items`。新規作成なら空配列、開く（ファイル）ならファイルから読めたアイテム）
      * @param {CanvasIssue} [loadIssue=null] 開いた後に残す読み込みの問題（`'loadFailed'`/`'partialLoad'`。無ければ`null`）
      * @param {boolean} [isRecordWritten=true] 開くキャンバスの記録が保存先に書き込み済みか（偽なら保留・未保存として開く）
      * @returns {void}
      */
-    #enterCanvas(summary, shapes, loadIssue = null, isRecordWritten = true) {
+    #enterCanvas(summary, items, loadIssue = null, isRecordWritten = true) {
         // 手順4
         try {
             this.#prepareSwitch();
@@ -945,7 +945,7 @@ export class CanvasLibrary {
         }
         this.#isSwitching = true;
         try {
-            this.#model.replaceAllShapes(shapes);
+            this.#model.replaceAllShapes(items);
             // 手順5
             this.#historyManager.clear();
             this.#resetView();
@@ -1027,14 +1027,14 @@ export class CanvasLibrary {
                 console.warn('CanvasLibrary: 一部の図形を読み込めませんでした。', summary.id, result.skipped);
                 loadIssue = 'partialLoad';
             }
-            this.#enterCanvas(current, result.shapes, loadIssue);
+            this.#enterCanvas(current, result.items, loadIssue);
             return;
         }
         await this.#createAndEnter(hadFailure ? 'loadFailed' : null);
     }
 
     /**
-     * 指定の名前・図形で新しいキャンバスを作成して開く（切り替え処理の手順3〜6）。記録を一覧へ加えて書き込み、`shapes`の図形一式で切り替える
+     * 指定の名前・図形で新しいキャンバスを作成して開く（切り替え処理の手順3〜6）。記録を一覧へ加えて書き込み、`items`のアイテム一式で切り替える
      * （既定は空の図形一式＝新しい空のキャンバス）。
      * 書き込みに失敗した場合（`'writeFailed'`。このとき`loadIssue`より後に起きた問題として`'writeFailed'`を残す）：
      *   - 利用者の操作（`isUserOperation`）：`confirmOpenUnsaved`で確認し、「いいえ」（例外を含む）なら要約を一覧から除いて`false`
@@ -1043,11 +1043,11 @@ export class CanvasLibrary {
      * 利用者の操作では切り替え前の保存の確定（`#settleAndEnter`）に失敗すると中止し、要約を除き、書き込み済みの記録を削除して`false`。
      * @param {CanvasIssue} loadIssue 開いた後に残す読み込みの問題（無ければ`null`）
      * @param {*} [rawName=null] キャンバス名の候補（`#normalizeName`で正規化し、空なら「無題 n」。重複は許す）
-     * @param {Array<*>} [shapes=[]] 開く図形の配列（不透明。`serialize`で記録の作業データにし、`replaceAllShapes`へ渡す）
+     * @param {Array<*>} [items=[]] 開くアイテムの配列（不透明。`serialize`で記録の作業データにし、`replaceAllShapes`へ渡す）
      * @param {boolean} [isUserOperation=false] 利用者の操作（新規作成・開く（ファイル））か（起動時・削除後は偽）
      * @returns {Promise<boolean>} 開いたか
      */
-    async #createAndEnter(loadIssue, rawName = null, shapes = [], isUserOperation = false) {
+    async #createAndEnter(loadIssue, rawName = null, items = [], isUserOperation = false) {
         const summary = {
             id: this.#issueCanvasId(),
             name: CanvasLibrary.#normalizeName(rawName) || this.#nextUntitledName(),
@@ -1061,7 +1061,7 @@ export class CanvasLibrary {
                 id: summary.id,
                 name: summary.name,
                 updatedAt: summary.updatedAt,
-                document: DocumentSerializer.serialize(shapes)
+                document: DocumentSerializer.serialize(items)
             });
         } catch (error) {
             console.warn('CanvasLibrary: 新しいキャンバスの記録に失敗しました。', summary.id, error);
@@ -1071,14 +1071,14 @@ export class CanvasLibrary {
         }
         if (!isUserOperation) {
             // 起動時・削除後：開く先が他に無いため確認せずに開き、未保存として保持する
-            this.#enterCanvas(summary, shapes, issueAfterEnter, isRecordWritten);
+            this.#enterCanvas(summary, items, issueAfterEnter, isRecordWritten);
             return true;
         }
         if (!isRecordWritten && !this.#askOpenUnsaved()) {
             this.#summaries.delete(summary.id);
             return false;
         }
-        if (await this.#settleAndEnter(summary, shapes, issueAfterEnter, isRecordWritten)) {
+        if (await this.#settleAndEnter(summary, items, issueAfterEnter, isRecordWritten)) {
             return true;
         }
         // 確定手順で中止：登録した要約を除き、書き込み済みの新しい記録を削除する

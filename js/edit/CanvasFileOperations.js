@@ -46,12 +46,12 @@ import { FileContentReader } from '../io/FileContentReader.js';
  *   - 受理条件は操作の開始時点の判定であり、自身の`#isProcessing`を真にした後の判定には使わない。
  *
  * ■ 出力（作業ファイル）（`exportCanvas`）
- *   - `DocumentSerializer.serializeToString(model.getShapes())`と開いているキャンバスの名前を`fileIO.downloadText`へ渡す。
+ *   - `DocumentSerializer.serializeToString(model.getItems())`と開いているキャンバスの名前を`fileIO.downloadText`へ渡す。
  *   - 図形一式・選択集合・履歴・ビュー変換・操作モード・作成途中の図形に触れない（`applyMode`・`beginEdit`/`commitEdit`も呼ばない）。
  *   - 準備中の例外は捕捉して`console.warn`＋通知`exportFailed`（アプリを止めない）。
  *
  * ■ 出力（エンジン用）（`exportSprite`）
- *   1. `SpriteSerializer.serialize(model.getShapes())`でスプライトデータを作り、`CodeExporter.toModuleText`でJSのテキストを組み立てる
+ *   1. `SpriteSerializer.serialize(model.getItems())`でスプライトデータを作り、`CodeExporter.toModuleText`でJSのテキストを組み立てる
  *      （ここで例外ならダウンロードしない）。
  *   2. `fileIO.downloadSpriteModule(JSのテキスト, 名前)`を1回だけ呼ぶ。例外なら通知。
  *   - 名前は開いているキャンバスの名前（`openCanvasName ?? ''`）。拡張子・MIMEタイプ・ファイル名の規則は`fileIO`が持つ。
@@ -86,7 +86,7 @@ import { FileContentReader } from '../io/FileContentReader.js';
  *   | 場面 | 判定 | 分類 | 開く | インポート | 通知 |
  *   | ファイルを読み取れない・JSONとして解析できない・本アプリのスプライトでない・書き出し形式の版が範囲外・`source`が無い・JSから取り出せない・スプライトのJSON（作業データ形式の違いとして`DocumentSerializer`が落とす）・`ok: false`（形式違い・非対応の版を含む） | `result === null`または`!result.ok` | 読み込み不可 | 何も変えない | 何も変えない | readFailed |
  *   | 図形がすべて読めない | `shapes`が0個かつ`skipped`が1件以上 | 読み込み不可 | 何も変えない（新しいキャンバスを作らない） | 何も変えない | readFailed |
- *   | 図形が0個の正しいファイル | `shapes`・`skipped`とも0件 | 空 | 空のキャンバスとして開く | 何も変えない | 開く：なし／インポート：noShapes |
+ *   | 図形が0個の正しいファイル（フォルダだけのファイルも空と同じ） | `shapes`・`skipped`とも0件 | 空 | 空のキャンバスとして開く | 何も変えない | 開く：なし／インポート：noShapes |
  *   | 一部の図形が読めない | `shapes`が1個以上かつ`skipped`が1件以上 | 一部 | 読めた図形で開く | 読めた図形を追加する | partialRead |
  *   | すべて読めた | `shapes`が1個以上かつ`skipped`が0件 | 全部 | 開く | 追加する | なし |
  *   - `DocumentSerializer`の`error`の文字列は利用者向けの文言に出さない。JSONの解析は`FileContentReader`に任せる（スプライトの判別・`source`の取り出しも。本クラスはスプライト形式を知らない）。
@@ -132,8 +132,8 @@ export class CanvasFileOperations {
     #inserter;
 
     /**
-     * 図形一式の読み取り元（`getShapes`のみ使用）。
-     * @type {{getShapes: Function}}
+     * 図形一式の読み取り元（`getItems`のみ使用。アイテムの入れ子を作業データ・スプライトへ渡す）。
+     * @type {{getItems: Function}}
      */
     #model;
 
@@ -172,7 +172,7 @@ export class CanvasFileOperations {
      * @param {Object} deps.fileIO 作業データファイル・スプライトのファイルの読み書き（`DocumentFileIO`）
      * @param {Object} deps.canvasLibrary キャンバス一覧の管理（`CanvasLibrary`）
      * @param {Object} deps.inserter 作業データの図形追加（`ShapeInserter`）
-     * @param {Object} deps.model 図形一式の読み取り元（`VectorModel`。`getShapes`のみ使用）
+     * @param {Object} deps.model 図形一式の読み取り元（`VectorModel`。`getItems`のみ使用）
      * @param {Function} deps.prepareInsert インポートの前提を整える関数（実体は選択モードへの切り替え。本クラスは操作モードを知らない）
      * @throws {Error} `prepareInsert`が関数でない場合
      */
@@ -204,7 +204,7 @@ export class CanvasFileOperations {
             this.#notifyChange();
         }
         try {
-            const text = DocumentSerializer.serializeToString(this.#model.getShapes());
+            const text = DocumentSerializer.serializeToString(this.#model.getItems());
             this.#fileIO.downloadText(text, state.openCanvasName ?? '');
             return true;
         } catch (error) {
@@ -232,7 +232,7 @@ export class CanvasFileOperations {
             this.#notifyChange();
         }
         try {
-            const spriteData = SpriteSerializer.serialize(this.#model.getShapes());
+            const spriteData = SpriteSerializer.serialize(this.#model.getItems());
             const moduleText = CodeExporter.toModuleText(spriteData);
             const canvasName = state.openCanvasName ?? '';
             this.#fileIO.downloadSpriteModule(moduleText, canvasName);
@@ -262,7 +262,7 @@ export class CanvasFileOperations {
                 }
                 const opened = await this.#canvasLibrary.createCanvasFromShapes(
                     this.#fileIO.toCanvasName(fileName),
-                    result.shapes
+                    result.items
                 );
                 if (!opened) {
                     if (this.#canvasLibrary.getState().issue !== 'writeFailed') {
@@ -306,7 +306,7 @@ export class CanvasFileOperations {
                     return false;
                 }
                 this.#prepareInsert();
-                const inserted = this.#inserter.insertDocument(DocumentSerializer.serialize(result.shapes), 0, 0);
+                const inserted = this.#inserter.insertDocument(DocumentSerializer.serialize(result.items), 0, 0);
                 if (!inserted || !inserted.ok || !Array.isArray(inserted.insertedIds) || inserted.insertedIds.length === 0) {
                     console.warn('CanvasFileOperations: 図形を追加できませんでした', inserted);
                     this.#notice = { kind: 'readFailed', fileName, skippedCount: 0 };

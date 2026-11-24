@@ -10,6 +10,7 @@ import { ShapeFactory } from '../../js/core/ShapeFactory.js';
 import { Curve } from '../../js/shapes/Curve.js';
 import { SpriteSerializer } from '../../js/io/SpriteSerializer.js';
 import { CodeExporter } from '../../js/io/CodeExporter.js';
+import { listShapes } from '../../js/core/ItemTreeRules.js';
 
 /**
  * console.warn を、そのテストの終了時に自動で元へ戻るモックへ置き換えて抑止する。
@@ -75,12 +76,12 @@ function createHarness() {
         onChange: () => {},
         /**
          * @param {string} name - キャンバス名
-         * @param {object[]} shapes - 図形インスタンス
+         * @param {object[]} items - アイテム（図形のアイテム。記録は図形に直して確かめる）
          * @returns {Promise<boolean>} 常に true
          */
-        createCanvasFromShapes: (name, shapes) => {
+        createCanvasFromShapes: (name, items) => {
             calls.push('createCanvasFromShapes');
-            createCalls.push({ name, shapes });
+            createCalls.push({ name, shapes: listShapes(items) });
             return Promise.resolve(true);
         },
     };
@@ -101,7 +102,7 @@ function createHarness() {
         /**
          * @returns {object[]} 空配列
          */
-        getShapes: () => [],
+        getItems: () => [],
     };
     /**
      * @returns {void}

@@ -226,7 +226,7 @@
         *   `ClipboardController`：`#serializeSelection`は`listShapeItems(this.#model.getItems())`のうち`isSelected(item.shape.id)`のものを平らに`serialize`する（選ばれていなければ`null`）。JSDocの「`getShapes`・`isSelected`のみ使用」を`getItems`に直し、依存の制約に「選んだ図形のアイテムを平らに写す（フォルダは写さない。名前・表示・ロックは元のまま）」を書く。
         *   テスト：取り消し/やり直しで入れ子・フォルダの`id`・名前・表示・ロックがJSONの一致で戻る（削除・重なり順・結合・追加）、閾値以内等で変化が無いときに記録されない（前後のJSONが一致）、まとめの鍵のふるまいが変わらない（`NudgeEditor`を使わず`commitEdit(鍵)`で確認）、`restore`は入れ子の中の1件の読み飛ばしでも適用しない、コピー→貼り付け・複製・`Alt`+ドラッグの複製・同じ位置に貼り付けの名前・表示・ロックが元と同じでフォルダの中の図形が外側の末尾に平らに入る、切り取り→貼り付け、インポート相当の`insertDocument`で入れ子ごと入り`id`が新しくなり名前の重複が許される、フォルダだけの作業データでは何も起きず記録されない、`insertDocument`の`dx`・`dy`が入れ子の中の図形にも効く。
         *   共通の締め。既存の`ClipboardController.test.js`は書き換えずに合格すること。
-*   [ ] タスク7: キャンバス管理・ファイル操作・`?dev`（`CanvasLibrary`・`CanvasFileOperations`・`main.js`）
+*   [x] タスク7: キャンバス管理・ファイル操作・`?dev`（`CanvasLibrary`・`CanvasFileOperations`・`main.js`）
     *   **対象ファイル** :
         *   `./js/edit/CanvasLibrary.js`・`./js/edit/CanvasFileOperations.js`・`./js/main.js` : 更新
         *   `./test/edit/CanvasFileOperations.test.js`・`./test/edit/CanvasFileOperations.export.test.js` : 更新（2章「既存テストの書き換え」のタスク7の行だけ）
@@ -306,7 +306,11 @@
 
 ### タスク7: キャンバス管理・ファイル操作・`?dev`
 *   **作業内容** :
-    *   （未実施）
+    *   `js/edit/CanvasLibrary.js`（CRLF保持）：保存は`serialize(getItems())`、`openCanvas`・`#openFirstLoadable`は`result.items`を渡す。`createCanvasFromShapes`・`#settleAndEnter`・`#enterCanvas`・`#createAndEnter`の引数名を`items`にした（メソッド名は変えず）。JSDocを直した。
+    *   `js/edit/CanvasFileOperations.js`（CRLF保持）：出力2種は`getItems()`、`openFile`は`result.items`、`importFile`は`serialize(result.items)`。`#classifyRead`は変えず。JSDoc（`model`の型・`getItems`のみ使用・判定の表に「フォルダだけのファイルも空と同じ」）を直した。
+    *   `js/main.js`（CRLF保持）：`?dev`の`onExport`は`serializeToString(model.getItems())`、`onImport`は`replaceAllShapes(result.items)`（`restoredCount: result.shapes.length`はそのまま）。214行・954行の`getShapes()`は変えず。
+    *   既存テストの書き換えは2章の表のタスク7の行だけ（`CanvasFileOperations.test.js`の偽物＝`createCanvasFromShapes`の記録を`listShapes(items)`・`getItems: () => []`、`CanvasFileOperations.export.test.js`の偽物＝`getItems: () => toItems(shapes)`。いずれもCRLF保持）。新規`test/edit/CanvasFileOperations.items.test.js`（8件）・`test/edit/CanvasLibrary.items.test.js`（3件）（LF）。`node --test`は2622件全件合格（2611 + 11）。
+    *   `grep`の確認（JSDoc・コメントを除く`js/`の呼び出し元）：`DocumentSerializer.serializeToString/serialize`・`SpriteSerializer.serialize`・`replaceAllShapes`・`addShapesWithNewIds`の呼び出し元は、`CanvasFileOperations`（`getItems()`・`result.items`）、`CanvasLibrary`（`getItems()`・`items`＝`result.items`または呼び出し元からのアイテム）、`ClipboardController`（選択図形のアイテム）、`SnapshotAdapter`（`getItems()`・`result.items`）、`ShapeInserter`（`result.items`）、`main.js`（`getItems()`・`result.items`）のすべてがアイテムを渡している。`getShapes()`を渡す箇所は無い。
 
 ### タスク8: 図形を作り直す操作での引き継ぎのテスト
 *   **作業内容** :
@@ -346,3 +350,5 @@
 5. **ファイル**：「出力（作業ファイル）」→「開く」、「インポート」、「出力（エンジン用）」で書き出したJSを「開く」、ができる。書き出したJSを確認用ページ（`sprite-check.html`）で開くと、今までどおり描かれる。
 6. **名前のデータ（任意）**：新しく描いた図形を含む絵を「出力（作業ファイル）」で出し、テキストエディタで開くと、`"version": 4`と、各図形の`"name"`（「パス 1」など）・`"visible": true`・`"locked": false`が入っている。複製した図形は元と同じ名前になっている。
     * 注意：名前の種類はデータ上の種類で決まる。直線のツールで点を3つ以上打った線は「パス n」、曲線のツールで点を2つだけ打って終えた線は「直線 n」になる（懸念事項の1つ目）。準備した古いファイルを開いて出力すると、奥の図形から順に種類ごとの番号が付く。
+
+* **タスク7の実装メモ**：`CanvasFileOperations`の`downloadText`の引数順は`(text, name)`、`downloadSpriteModule`は`(text, name)`（新規テストの偽物はこれに合わせた）。`CanvasLibrary.items.test.js`は`flushPendingSave`で保留を確定してから終えるため、タイマーは残らない。

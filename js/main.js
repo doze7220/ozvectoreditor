@@ -1080,7 +1080,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isDevMode) {
         const devPanel = new DevPanel(document.getElementById('window-dev-panel'), {
             // 現在の全図形を作業データ形式のJSON文字列へ変換する
-            onExport: () => DocumentSerializer.serializeToString(model.getShapes()),
+            onExport: () => DocumentSerializer.serializeToString(model.getItems()),
             // JSON文字列から図形一式を復元する。全体の読み込みに失敗した場合はキャンバスを変更しない。
             // 成功時のみ、進行中の入力操作を中断してから図形一式を入れ替える（この順序を厳守すること）。
             // 再描画・削除ボタンの同期はmodel.onChange経路のみで行い、ここでは呼ばない。
@@ -1102,7 +1102,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 inputTracker.abortOngoingOperation();
                 styleEyedropper.stop();
                 historyManager.beginEdit();
-                const reassignedCount = model.replaceAllShapes(result.shapes);
+                const reassignedCount = model.replaceAllShapes(result.items);
                 historyManager.commitEdit();
                 return { ok: true, restoredCount: result.shapes.length, reassignedCount, skipped: result.skipped, error: null };
             },
