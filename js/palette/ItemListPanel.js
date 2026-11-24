@@ -9,6 +9,7 @@
  * @property {string} id 図形のid
  * @property {string} name 表示する名前
  * @property {boolean} selected 選ばれているか
+ * @property {boolean} insertTarget 描き込む先の印を出すか
  */
 
 /**
@@ -27,6 +28,7 @@
  * @property {HTMLSpanElement} nameElement 名前の`<span>`
  * @property {string} name 表示中の名前
  * @property {boolean} selected 表示中の選択
+ * @property {boolean} insertTarget 表示中の描き込む先の印
  */
 
 /**
@@ -149,7 +151,7 @@ export class ItemListPanel {
     }
 
     /**
-     * 行を差分で反映する。無くなった行を除き、足りない行を作り、変わった名前・選択だけ書き、並びが違うときだけ並べ替える。
+     * 行を差分で反映する。無くなった行を除き、足りない行を作り、変わった名前・選択・印だけ書き、並びが違うときだけ並べ替える。
      * @param {ItemListRowView[]} rows 表示する行（先頭＝いちばん上）
      * @returns {void}
      */
@@ -181,6 +183,10 @@ export class ItemListPanel {
             if (entry.selected !== row.selected) {
                 entry.element.classList.toggle('selected', row.selected);
                 entry.selected = row.selected;
+            }
+            if (entry.insertTarget !== row.insertTarget) {
+                entry.element.classList.toggle('insert-target', row.insertTarget);
+                entry.insertTarget = row.insertTarget;
             }
         }
 
@@ -216,6 +222,18 @@ export class ItemListPanel {
             if (element.classList.contains('selected')) ids.push(element.dataset.itemId);
         }
         return ids;
+    }
+
+    /**
+     * 今の表示で描き込む先の印を出している行のidを返す。
+     * @returns {string|null} 印の行のid（無ければ`null`）
+     */
+    getInsertMarkId() {
+        if (!this.#wired) return null;
+        for (const [id, entry] of this.#rows) {
+            if (entry.insertTarget) return id;
+        }
+        return null;
     }
 
     /**
@@ -353,6 +371,6 @@ export class ItemListPanel {
         nameElement.className = 'item-row-name';
 
         element.append(canvas, nameElement);
-        return { element, canvas, nameElement, name: null, selected: false };
+        return { element, canvas, nameElement, name: null, selected: false, insertTarget: false };
     }
 }

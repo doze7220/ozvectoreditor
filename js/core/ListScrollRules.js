@@ -1,5 +1,5 @@
 /**
- * 責務：図形の一覧の、見えている行の範囲・選択が変わったかの判定・選択の行へのスクロール位置を決める規則。
+ * 責務：図形の一覧の、見えている行の範囲・選択・描き込む先の印が変わったかの判定・強調の行へのスクロール位置を決める規則。
  * 状態を持たず、DOMにも`VectorModel`にも触れない。importなし。
  */
 
@@ -44,6 +44,19 @@ export function hasSelectionChanged(previousIds, nextIds) {
         }
     }
     return false;
+}
+
+/**
+ * 強調（選ばれている行・描き込む先の印）が変わったかを返す。
+ * @param {Object} params
+ * @param {string[]} params.previousSelectedIds - 前の選択（書き換えない）
+ * @param {string[]} params.selectedIds - 今の選択（書き換えない）
+ * @param {string|null} params.previousMarkId - 前の印の行のid
+ * @param {string|null} params.markId - 今の印の行のid
+ * @returns {boolean} 選択が集合として違う、または印のidが違えば真
+ */
+export function hasHighlightChanged({ previousSelectedIds, selectedIds, previousMarkId, markId }) {
+    return hasSelectionChanged(previousSelectedIds, selectedIds) || previousMarkId !== markId;
 }
 
 /**

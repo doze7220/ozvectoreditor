@@ -12,6 +12,7 @@ import {
     resolveRowHover,
     isOwnHover,
     canStartNameEdit,
+    canSetInsertTargetByRow,
     resolveNameEditKey
 } from '../../js/core/ItemListRules.js';
 import { OperationMode } from '../../js/core/InputModes.js';
@@ -251,5 +252,22 @@ describe('resolveNameEditKey', () => {
     it('変換中は Enter・Escape でも null', () => {
         assert.equal(resolveNameEditKey('Enter', true), null);
         assert.equal(resolveNameEditKey('Escape', true), null);
+    });
+});
+
+describe('canSetInsertTargetByRow', () => {
+    const base = { mode: OperationMode.CREATE, isPicking: false, isDragging: false, isLocked: false };
+    it('作成モードで何も妨げが無ければ真', () => {
+        assert.equal(canSetInsertTargetByRow(base), true);
+    });
+    it('作成モード以外は偽', () => {
+        for (const mode of [OperationMode.SELECT, OperationMode.VERTEX, OperationMode.PAN]) {
+            assert.equal(canSetInsertTargetByRow({ ...base, mode }), false);
+        }
+    });
+    it('スポイト待ち受け中・ドラッグ中・ロック中は偽', () => {
+        assert.equal(canSetInsertTargetByRow({ ...base, isPicking: true }), false);
+        assert.equal(canSetInsertTargetByRow({ ...base, isDragging: true }), false);
+        assert.equal(canSetInsertTargetByRow({ ...base, isLocked: true }), false);
     });
 });

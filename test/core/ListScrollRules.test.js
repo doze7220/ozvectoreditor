@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import {
     resolveVisibleRowRange,
     hasSelectionChanged,
+    hasHighlightChanged,
     resolveSelectionScrollTop
 } from '../../js/core/ListScrollRules.js';
 
@@ -96,5 +97,26 @@ describe('resolveSelectionScrollTop', () => {
     });
     it('表示が行より低いときは、下にあっても行の上端へ', () => {
         assert.equal(resolveSelectionScrollTop({ ...base, height: 20, selectedIndexes: [5] }), 180);
+    });
+});
+
+describe('hasHighlightChanged', () => {
+    const same = { previousSelectedIds: ['a'], selectedIds: ['a'], previousMarkId: null, markId: null };
+    it('選択も印も同じなら偽', () => {
+        assert.equal(hasHighlightChanged(same), false);
+    });
+    it('選択が集合として違えば真', () => {
+        assert.equal(hasHighlightChanged({ ...same, selectedIds: ['a', 'b'] }), true);
+    });
+    it('選択の並びだけの違いは偽', () => {
+        assert.equal(hasHighlightChanged({ ...same, previousSelectedIds: ['a', 'b'], selectedIds: ['b', 'a'] }), false);
+    });
+    it('印のidが違えば真（無し→行・行→無し・行→別の行）', () => {
+        assert.equal(hasHighlightChanged({ ...same, markId: 'x' }), true);
+        assert.equal(hasHighlightChanged({ ...same, previousMarkId: 'x' }), true);
+        assert.equal(hasHighlightChanged({ ...same, previousMarkId: 'x', markId: 'y' }), true);
+    });
+    it('印が同じidなら偽', () => {
+        assert.equal(hasHighlightChanged({ ...same, previousMarkId: 'x', markId: 'x' }), false);
     });
 });

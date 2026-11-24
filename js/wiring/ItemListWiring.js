@@ -6,6 +6,7 @@ import {
     ROW_HOVER_ACTION,
     ROW_PRESS_ACTION,
     buildItemRows,
+    canSetInsertTargetByRow,
     canStartNameEdit,
     isListLocked,
     isOwnHover,
@@ -13,8 +14,9 @@ import {
     resolveRowHover,
     resolveRowPressAction
 } from '../core/ItemListRules.js';
+import { resolveInsertMarkId } from '../core/InsertTargetRules.js';
 import { resolveListClickSelection } from '../core/ListSelectionRules.js';
-import { hasSelectionChanged, resolveSelectionScrollTop, resolveVisibleRowRange } from '../core/ListScrollRules.js';
+import { hasHighlightChanged, resolveSelectionScrollTop, resolveVisibleRowRange } from '../core/ListScrollRules.js';
 import { THUMBNAIL_SIZE_PX, buildThumbnailKey, needsThumbnailRedraw } from '../core/ThumbnailRules.js';
 import { drawThumbnail } from '../core/ThumbnailRenderer.js';
 import { ItemListPanel } from '../palette/ItemListPanel.js';
@@ -112,9 +114,9 @@ export class ItemListWiring {
 
     /**
      * 一覧の表示を今の`model`に合わせる。行の組み立て（平らにするのは1回）・パネルへの反映・
-     * 選択が変わったときのスクロール・見えている行のサムネイルの描画を順に行う。
+     * 選択または描き込む先の印が変わったときのスクロール・見えている行のサムネイルの描画を順に行う。
      * @param {Object} [options]
-     * @param {boolean} [options.allowScroll=true] - 偽なら、選択が変わってもスクロールしない
+     * @param {boolean} [options.allowScroll=true] - 偽なら、選択・印が変わってもスクロールしない
      * @returns {void}
      */
     sync({ allowScroll = true } = {}) {
@@ -122,15 +124,23 @@ export class ItemListWiring {
         const rows = buildItemRows(model.getItems());
         const selectedIds = rows.filter((row) => model.isSelected(row.id)).map((row) => row.id);
         const previousIds = this.#panel.getSelectedRowIds();
-        this.#panel.render(rows.map(({ id, name }) => ({ id, name, selected: model.isSelected(id) })));
+        const previousMarkId = this.#panel.getInsertMarkId();
+        const markId = resolveInsertMarkId({ selectedCount: selectedIds.length, insertTargetId: model.getInsertTargetId() });
+        this.#panel.render(rows.map(({ id, name }) => ({
+            id,
+            name,
+            selected: model.isSelected(id),
+            insertTarget: id === markId
+        })));
 
-        if (allowScroll && hasSelectionChanged(previousIds, selectedIds)) {
-            const selectedIndexes = [];
+        if (allowScroll && hasHighlightChanged({ previousSelectedIds: previousIds, selectedIds, previousMarkId, markId })) {
+            // 選ばれている行があればその行、無ければ印の行を見せる
+            const highlightedIndexes = [];
             rows.forEach((row, index) => {
-                if (model.isSelected(row.id)) selectedIndexes.push(index);
+                if (selectedIds.length > 0 ? model.isSelected(row.id) : row.id === markId) highlightedIndexes.push(index);
             });
             const { scrollTop, height, rowHeight } = this.#panel.getViewport();
-            const top = resolveSelectionScrollTop({ selectedIndexes, scrollTop, height, rowHeight });
+            const top = resolveSelectionScrollTop({ selectedIndexes: highlightedIndexes, scrollTop, height, rowHeight });
             if (top !== null) this.#panel.setScrollTop(top);
         }
 
@@ -138,8 +148,8 @@ export class ItemListWiring {
     }
 
     /**
-     * 行のクリックを処理する。押したときの判定は`resolveRowPressAction`、次の選択は`resolveListClickSelection`に任せ、
-     * 結果を`model`へ渡すだけ。選択の変化は記録しない。
+     * 行のクリックを処理する。押したときの判定は`resolveRowPressAction`（描くツールでは`canSetInsertTargetByRow`）、次の選択は`resolveListClickSelection`に任せ、
+     * 結果を`model`へ渡すだけ（選択は`setSelectionByUser`、描くツールでは`setInsertTarget`）。選択の変化は記録しない。
      * @param {string} id - 押した行の図形id
      * @param {MouseEvent} event - クリックのイベント
      * @returns {void}
@@ -151,7 +161,20 @@ export class ItemListWiring {
             isDragging: this.#isDragging(),
             isLocked: isListLocked(this.#canvasLibrary.getState())
         });
-        if (action === ROW_PRESS_ACTION.NONE) return;
+        if (action === ROW_PRESS_ACTION.NONE) {
+            // 描くツールでは、行のクリックは描き込む先の指定（行が今あるかは`setInsertTarget`が見る）
+            const canSetTarget = canSetInsertTargetByRow({
+                mode: this.#getMode(),
+                isPicking: this.#isPicking(),
+                isDragging: this.#isDragging(),
+                isLocked: isListLocked(this.#canvasLibrary.getState())
+            });
+            if (canSetTarget) {
+                this.#model.setInsertTarget(id);
+                this.sync({ allowScroll: false });
+            }
+            return;
+        }
 
         const model = this.#model;
         const rowIds = buildItemRows(model.getItems()).map((row) => row.id);
@@ -167,7 +190,7 @@ export class ItemListWiring {
         }
         const selectedIds = rowIds.filter((rowId) => model.isSelected(rowId));
         const result = resolveListClickSelection({ rowIds, selectedIds, hitId: id, additive, range, anchorId: this.#anchorId });
-        model.setSelection(result.ids);
+        model.setSelectionByUser(result.ids);
         this.#anchorId = result.anchorId;
         // 表示を先に今の選択へそろえ、予約済みの同期で「選択が変わった」とならないようにする（一覧での選択ではスクロールしない）
         this.sync({ allowScroll: false });

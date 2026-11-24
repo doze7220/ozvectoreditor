@@ -62,6 +62,20 @@ export function resolveRowPressAction({ mode, isPicking, isDragging, isLocked })
 }
 
 /**
+ * 描くツール等（行を押しても選択・ツールが変わらない操作モード）で、行のクリックを「描き込む先」の指定にするかを判定する。
+ * 作成モードで、スポイトの待ち受け中・ドラッグ中・ロック中のどれでもないときだけ真。
+ * @param {Object} params - 判定の材料
+ * @param {string} params.mode - 操作モード（OperationMode の値）
+ * @param {boolean} params.isPicking - スポイトの待ち受け中か
+ * @param {boolean} params.isDragging - ドラッグ・パンの最中か
+ * @param {boolean} params.isLocked - 一覧がロック中か
+ * @returns {boolean} 描き込む先にするなら true
+ */
+export function canSetInsertTargetByRow({ mode, isPicking, isDragging, isLocked }) {
+    return mode === OperationMode.CREATE && !isPicking && !isDragging && !isLocked;
+}
+
+/**
  * 一覧の操作をロックする状態かを判定する（読み込み中・キャンバスの切り替え中など）。
  * @param {Object} state - キャンバスの一覧の状態
  * @param {boolean} [state.loading] - 起動時の読み込み中か

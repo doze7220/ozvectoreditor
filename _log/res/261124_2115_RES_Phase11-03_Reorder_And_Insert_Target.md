@@ -215,7 +215,7 @@
         *   `InputTracker`：`handleClick`の`resolveClickSelection`の3か所を差し替える。`#applySelectionChange`は`this.model.setSelectionByUser(change.type === 'clear' ? [] : change.ids)`にする。`Esc`の(4)を要件3の7.のとおりにする。JSDocは、`handleClick`（`resolveClickSelection`・`setSelection`・`clearSelection`への言及と「空白なら選択集合が空でなければ全解除」。選択モードと頂点の選択の両方）・`#applySelectionChange`の`@param`・`cancelDraftOrClearSelection`の(4)を直す。`setMode`・`selectAll`・`deleteSelection`は変えない。状態・規則を足さない。
         *   テスト：`Ctrl`なしの空白（選択あり・なし）＝`clear`、`Ctrl`ありの空白＝`null`、当たりありは`resolveClickSelection`と同じ、引数を変えない。規則＋`VectorModel`の組み合わせ（空いている所のクリック・空の範囲選択・`Ctrl`＋クリックで最後の1つ・何も選んでいないときのクリックで無しになる）。
 
-*   [ ] タスク5: 一覧の印と、描くツールで行を押したとき
+*   [x] タスク5: 一覧の印と、描くツールで行を押したとき
     *   **対象ファイル** :
         *   `./js/core/ItemListRules.js` :（更新）
         *   `./js/core/ListScrollRules.js` :（更新）
@@ -341,7 +341,13 @@
 
 ### タスク5: 一覧の印と、描くツールで行を押したとき
 *   **作業内容** :
-    *   (未実施)
+    *   `js/core/ItemListRules.js`（LFのまま）：`canSetInsertTargetByRow`を足した（作成モードで、スポイト待ち受け中・ドラッグ中・ロック中でないときだけ真）。`resolveRowPressAction`は変えていない。
+    *   `js/core/ListScrollRules.js`（LFのまま）：`hasHighlightChanged`を足し、ファイル先頭の責務を直した。
+    *   `js/palette/ItemListPanel.js`（LFのまま）：`render`の行の表示内容に`insertTarget`を足し、変わった行だけ`insert-target`のクラスを書く。`getInsertMarkId()`を足した。
+    *   `js/wiring/ItemListWiring.js`（LFのまま）：`sync`で`resolveInsertMarkId`・`hasHighlightChanged`を使い、選ばれている行（無ければ印の行）の添字でスクロール。`#handleRowClick`の`none`の枝で`canSetInsertTargetByRow` → `model.setInsertTarget(id)` → `sync({ allowScroll: false })`。選択の反映を`setSelectionByUser`へ替えた。
+    *   `index.html`（LFのまま）：`.item-row.insert-target`のCSSだけ足した（`.item-row.selected`の後ろ）。
+    *   テスト：`ItemListRules.test.js`に`canSetInsertTargetByRow`の3件、`ListScrollRules.test.js`に`hasHighlightChanged`の5件を末尾へ追加。
+    *   `node --test`：tests 2858 / pass 2858 / fail 0。
 
 ### タスク6: オプションバーの重なり順のまとまりを消す
 *   **作業内容** :
@@ -400,6 +406,7 @@
 *   `DragTracker`の取りこぼしの保険では、ボタンが離れたことを次の`mousemove`で知り、その位置で離したものとして扱う。
 *   （タスク3）`EndpointSnapper`の終え方のテストは、2点の線を終えるには点を1つ打って（`clickDrawnLine`）から`finishDrawnLine`を呼ぶ必要がある（始点だけだと何も残らない）。
 *   `ItemListRowDrag`の`window`のcaptureの`mousedown`は、行のドラッグ中だけ止める（それ以外では何もしない）。
+*   （タスク5）`ItemListWiring.sync`のスクロール対象は、選択が1つ以上なら選ばれている行、無ければ印の行。`#handleRowClick`の描くツールの枝では`#handleRowHover`を呼ばない（ツールが変わらずホバーが消えないため）。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0. **準備**：画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。**絵A**：矩形（`4`）・円（`5`）などを5つ以上、少しずつ重ねて描く。`V`で1つずつ選び、オプションバーの塗りのボタン（🪣）を入れて塗りの色を変え、色の違う塗った図形にする。**絵B（行の多い絵）**：📁で別の新しいキャンバスを作り、8個ほど描いて`Ctrl`+`A` → `Ctrl`+`D`を4回繰り返すと128個になる（`Ctrl`+`D`のたびに複製だけが選ばれるので、毎回`Ctrl`+`A`から行う）。行が一覧に収まらなければよい。
