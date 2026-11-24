@@ -204,7 +204,7 @@
         *   `ClipboardController`の`paste`・`pasteInPlace`・`duplicateInPlaceWithinEdit`のJSDocの「最前面へ」（3か所）と、`CanvasFileOperations`のクラスJSDocの`importFile`の手順5の「最前面への追加」（1か所）を直す。入る位置は`ShapeInserter`が決める（描き込む先のすぐ上、無ければ最前面）という書き方にし、コードは変えない。
         *   テスト（実物の組み合わせ。`insertsAtTarget: true`）：貼り付け・同じ位置に貼り付け（`ClipboardController`経由）・複製・`Alt`＋ドラッグの複製・インポート相当（入れ子の作業データ）の位置・順番・選択・記録1件・取り消し、描き込む先なし＝末尾、フォルダの中、離れた複数を選んだ複製、切り取って貼り付けると元の位置（いちばん下の行を切り取ったときは最前面＝仕様）、選択を`clearSelection`で空にした後の貼り付け（ツールの切り替え）でも描き込む先のすぐ上。`insertsAtTarget`を省くと末尾。`EndpointSnapper`（実物の`VectorModel`）：続けて引いて終えた線の位置、続けて描く、閉じる、描き足し・つなげる（`keepId`の真偽）で結果の図形が描き込む先になり位置は元のまま、何も残らない終わり方では変わらない。
 
-*   [ ] タスク4: 選択を外す操作の区別
+*   [x] タスク4: 選択を外す操作の区別
     *   **対象ファイル** :
         *   `./js/core/SelectionRules.js` :（更新）
         *   `./js/core/InputTracker.js` :（更新。import・`handleClick`の3か所・`#applySelectionChange`・`cancelDraftOrClearSelection`の(4)と、それぞれのJSDocだけ）
@@ -334,7 +334,10 @@
 
 ### タスク4: 選択を外す操作の区別
 *   **作業内容** :
-    *   (未実施)
+    *   `js/core/SelectionRules.js`（LFのまま）：`resolveUserClickSelection`を足し、typedef`SelectionChange`の受け渡し先を`setSelectionByUser`へ直した。`resolveClickSelection`は変えていない。
+    *   `js/core/InputTracker.js`（CRLFのまま）：importを`resolveUserClickSelection`へ差し替え（`resolveClickSelection`はもう使わない）、`handleClick`の3か所を差し替え、`#applySelectionChange`は`model.setSelectionByUser(change.type === 'clear' ? [] : change.ids)`、`Esc`の(4)は`return this.model.setSelectionByUser([])`にした。それぞれのJSDocも直した。
+    *   `test/core/SelectionRules.test.js`（LFのまま）：末尾へ`resolveUserClickSelection`の4件と、規則＋`VectorModel`の5件を追加（importに`VectorModel`・`Line`を追記）。
+    *   `node --test`：tests 2850 / pass 2850 / fail 0。
 
 ### タスク5: 一覧の印と、描くツールで行を押したとき
 *   **作業内容** :

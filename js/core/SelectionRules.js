@@ -5,8 +5,8 @@
 
 /**
  * 選択の変更の指示。`VectorModel`への受け渡しの形を区別するために使う。
- * - `{ type: 'set', ids }`：`setSelection(ids)`へ渡す（置き換え）。
- * - `{ type: 'clear' }`：`clearSelection()`を呼ぶ（全解除）。
+ * - `{ type: 'set', ids }`：`setSelectionByUser(ids)`へ渡す（置き換え。利用者の選ぶ操作）。
+ * - `{ type: 'clear' }`：`setSelectionByUser([])`を呼ぶ（全解除。利用者の外す操作で、描き込む先も無しになる）。
  * - `null`：何もしない。
  * @typedef {({type: 'set', ids: string[]} | {type: 'clear'} | null)} SelectionChange
  */
@@ -34,6 +34,22 @@ export function resolveClickSelection(selectedIds, hitId, additive) {
         return { type: 'set', ids: selectedIds.filter((id) => id !== hitId) };
     }
     return { type: 'set', ids: [...selectedIds, hitId] };
+}
+
+/**
+ * 利用者のクリックで当たった図形から、次の選択の変更を決める（`resolveClickSelection`との違いは空いている所のクリックだけ）。
+ * `additive`が偽で`hitId`が無ければ、選択の有無によらず`{ type: 'clear' }`（何も選んでいなくても、描き込む先を外すため）。
+ * それ以外は`resolveClickSelection`の結果と同じ。
+ * @param {string[]} selectedIds 現在の選択中の図形id（書き換えない）
+ * @param {string|null} hitId クリックした位置の図形本体のid（空白ならnull）
+ * @param {boolean} additive 追加・解除モードか（`Ctrl`押下）
+ * @returns {SelectionChange} 選択の変更（新しい配列を含む）
+ */
+export function resolveUserClickSelection(selectedIds, hitId, additive) {
+    if (!additive && !hitId) {
+        return { type: 'clear' };
+    }
+    return resolveClickSelection(selectedIds, hitId, additive);
 }
 
 /**

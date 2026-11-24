@@ -12,7 +12,7 @@ import { classifyPointHit } from './PointHitRules.js';
 import { collectVertexHandlesInRect } from './VertexHandleRules.js';
 import { resolvePressAction, resolveVertexPressAction } from './PressActionRules.js';
 import { resolveCursorShape } from './CursorShapeRules.js';
-import { resolveClickSelection, resolveMarqueeSelection, resolveVertexMarqueeSelection, resolveVertexClickSelection } from './SelectionRules.js';
+import { resolveUserClickSelection, resolveMarqueeSelection, resolveVertexMarqueeSelection, resolveVertexClickSelection } from './SelectionRules.js';
 import { constrainMoveDirection } from './MoveDirectionRules.js';
 import { resolveUnitSnapStep, roundPointToUnit, roundDeltaToUnit, roundConstrainedDeltaToUnit, roundPointFromOriginToUnit, roundConstrainedPointFromOriginToUnit } from './UnitSnapRules.js';
 import { collectScaleFrame, hitTestScaleHandle, computeBoundsScale, toScaleTransform } from './ScaleHandleRules.js';
@@ -664,9 +664,10 @@ export class InputTracker {
      * （打った点が始点だけなら何も残さない）、それ以外はcancelDraft()で作成途中の図形を破棄する。どちらもIDLE状態へ戻し、
      * #resetSnapState()で吸い付きの状態と表示を消す（変更通知は補助・cancelDraftに従う）。
      * (3)頂点の選択が1つ以上あれば、clearSelectedVertices()で頂点の選択だけを空にする（図形の選択・頂点の表示はそのまま）。
-     * (4)選択モードまたは頂点の選択のモード かつ IDLE状態 かつ 選択集合が空でなければ、clearSelection()で全解除する（変更通知1回）。
+     * (4)選択モードまたは頂点の選択のモード かつ IDLE状態 なら、setSelectionByUser([])で全解除する（描き込む先も無しになる。
+     * 選択も描き込む先も無ければ何もせず偽が返る。変更通知1回）。
      * (5)それ以外は何もしない。
-     * @returns {boolean} (1)の拡大縮小・回転の中断・(2)(3)(4)を実行したらtrue。falseの場合、呼び出し側はpreventDefault()しない
+     * @returns {boolean} (1)の拡大縮小・回転の中断・(2)(3)(4)を実行（(4)は選択か描き込む先が変わった）したらtrue。falseの場合、呼び出し側はpreventDefault()しない
      */
     cancelDraftOrClearSelection() {
         if (this.#drag.isActive()) {
@@ -695,11 +696,9 @@ export class InputTracker {
 
         if (
             (this.currentMode === OperationMode.SELECT || this.currentMode === OperationMode.VERTEX) &&
-            this.state === InputState.IDLE &&
-            this.model.getSelectedIds().length > 0
+            this.state === InputState.IDLE
         ) {
-            this.model.clearSelection();
-            return true;
+            return this.model.setSelectionByUser([]);
         }
 
         return false;
@@ -1088,8 +1087,8 @@ export class InputTracker {
      * 空白では何もしない）。待ち受けでなければ、
      * 外枠のハンドル（#findScaleHandle）の上なら何もしない（押して閾値以内で離しただけ・Ctrl+クリックで選択を変えない）。
      * それ以外は、選択集合・当たった本体のid・
-     * Ctrlの有無（hasCtrlModifier。見るのはclickイベント＝確定の時点）をSelectionRulesのresolveClickSelectionへ渡し、結果を#applySelectionChangeで反映する。
-     * Ctrlなし：図形の本体上ならその図形のみの単一選択（setSelection([bodyId])）、空白なら選択集合が空でなければ全解除（clearSelection()）。
+     * Ctrlの有無（hasCtrlModifier。見るのはclickイベント＝確定の時点）をSelectionRulesのresolveUserClickSelectionへ渡し、結果を#applySelectionChangeで反映する。
+     * Ctrlなし：図形の本体上ならその図形のみの単一選択（setSelectionByUser([bodyId])）、空白なら選択の有無によらず全解除（setSelectionByUser([])。描き込む先も無しになる）。
      * Ctrlあり：本体上なら選択集合へ1つ追加、選択中の図形なら外す（ほかの選択は残る）。空白では何もしない（解除しない）。
      * 押下時の分岐（handleMouseDown）はCtrlで変えないため、選択中の図形をCtrlで押して閾値以内で離すと、このclickで「選択中なら外す」になる
      * （閾値を超えて動かした場合は移動し、直後のclickは抑止される）。
@@ -1097,10 +1096,10 @@ export class InputTracker {
      * Ctrlの有無（hasCtrlModifier。見るのはこのclickイベント＝確定の時点）を読む。判定の順は次のとおり。
      * 頂点のハンドル上なら、現在の頂点の選択・当たった頂点・CtrlをSelectionRulesのresolveVertexClickSelectionへ渡し、結果を#applyVertexSelectionChangeで反映する
      * （図形の選択は変えない。Ctrlなし：その頂点のみの単一選択。Ctrlあり：未選択なら頂点の選択へ追加、選択中なら外す）。
-     * ハンドル上でなくCtrlありなら、resolveClickSelection(選択集合, bodyId, true)の結果を#applySelectionChangeで反映して終わる
+     * ハンドル上でなくCtrlありなら、resolveUserClickSelection(選択集合, bodyId, true)の結果を#applySelectionChangeで反映して終わる
      * （本体上なら図形の選択へ追加・解除、空白なら規則がnullを返し何もしない。頂点の選択は空にしない）。
-     * ハンドル上でなくCtrlなしなら、clearSelectedVertices()の後にresolveClickSelection(選択集合, bodyId, false)の結果を#applySelectionChangeで反映する
-     * （本体上ならその図形のみの単一選択、空白なら選択集合が空でなければ全解除）。
+     * ハンドル上でなくCtrlなしなら、clearSelectedVertices()の後にresolveUserClickSelection(選択集合, bodyId, false)の結果を#applySelectionChangeで反映する
+     * （本体上ならその図形のみの単一選択、空白なら選択の有無によらず全解除）。
      * 図形の選択から外れた図形の頂点は、VectorModelが頂点の選択から落とす。通知は頂点の選択の変更と図形の選択の変更で別々に起こり得る（最大2回）。
      * 押下の判定表（PressActionRules）はCtrlで変えないため、選ばれている頂点をCtrlで押して閾値以内で離すと、このclickで選択から外れる。
      * REQどおりの正しいふるまいであり、ガード処理を足さない（閾値を超えて動かした場合は移動し、直後のclickはconsumeSuppressedClick()で抑止されるため選択は変わらない）。
@@ -1159,7 +1158,7 @@ export class InputTracker {
                 return;
             }
             this.#applySelectionChange(
-                resolveClickSelection(this.model.getSelectedIds(), hit.bodyId, hasCtrlModifier(event)),
+                resolveUserClickSelection(this.model.getSelectedIds(), hit.bodyId, hasCtrlModifier(event)),
             );
             return;
         }
@@ -1178,11 +1177,11 @@ export class InputTracker {
                 return;
             }
             if (additive) {
-                this.#applySelectionChange(resolveClickSelection(this.model.getSelectedIds(), hit.bodyId, true));
+                this.#applySelectionChange(resolveUserClickSelection(this.model.getSelectedIds(), hit.bodyId, true));
                 return;
             }
             this.model.clearSelectedVertices();
-            this.#applySelectionChange(resolveClickSelection(this.model.getSelectedIds(), hit.bodyId, false));
+            this.#applySelectionChange(resolveUserClickSelection(this.model.getSelectedIds(), hit.bodyId, false));
             return;
         }
 
@@ -1793,17 +1792,14 @@ export class InputTracker {
 
     /**
      * 選択の規則（SelectionRules）が返した結果をModelへ反映する（受け渡しのみ。判定は持たない）。
-     * @param {import('./SelectionRules.js').SelectionChange|null} change nullなら何もしない、'clear'ならclearSelection()、'set'ならsetSelection(change.ids)
+     * 利用者が選ぶ・外す操作の入口（model.setSelectionByUser）へ渡す。
+     * @param {import('./SelectionRules.js').SelectionChange|null} change nullなら何もしない、'clear'ならsetSelectionByUser([])、'set'ならsetSelectionByUser(change.ids)
      */
     #applySelectionChange(change) {
         if (change === null) {
             return;
         }
-        if (change.type === 'clear') {
-            this.model.clearSelection();
-            return;
-        }
-        this.model.setSelection(change.ids);
+        this.model.setSelectionByUser(change.type === 'clear' ? [] : change.ids);
     }
 
     /**

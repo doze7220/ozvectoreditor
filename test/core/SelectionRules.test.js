@@ -3,8 +3,11 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { VectorModel } from '../../js/core/VectorModel.js';
+import { Line } from '../../js/shapes/Line.js';
 import {
     resolveClickSelection,
+    resolveUserClickSelection,
     resolveMarqueeSelection,
     invertSelection,
     resolveVertexClickSelection,
@@ -251,5 +254,104 @@ describe('頂点用の規則の引数の非破壊', () => {
         assert.notEqual(clickReplace.vertices, selected);
         assert.notEqual(marquee.vertices, selected);
         assert.notEqual(marqueeReplace.vertices, hits);
+    });
+});
+
+describe('resolveUserClickSelection', () => {
+    it('Ctrlなしの空白は、選択ありでもなしでも clear', () => {
+        assert.deepEqual(resolveUserClickSelection(['a'], null, false), { type: 'clear' });
+        assert.deepEqual(resolveUserClickSelection([], null, false), { type: 'clear' });
+    });
+
+    it('Ctrlありの空白は null', () => {
+        assert.equal(resolveUserClickSelection(['a'], null, true), null);
+        assert.equal(resolveUserClickSelection([], null, true), null);
+    });
+
+    it('当たりありは resolveClickSelection と同じ', () => {
+        for (const selected of [[], ['a'], ['a', 'b']]) {
+            for (const additive of [false, true]) {
+                assert.deepEqual(
+                    resolveUserClickSelection(selected, 'b', additive),
+                    resolveClickSelection(selected, 'b', additive),
+                );
+            }
+        }
+    });
+
+    it('引数を変えない', () => {
+        const selected = ['a', 'b'];
+        resolveUserClickSelection(selected, 'a', true);
+        resolveUserClickSelection(selected, null, false);
+        assert.deepEqual(selected, ['a', 'b']);
+    });
+});
+
+describe('利用者の選ぶ・外す操作と描き込む先（規則＋VectorModel）', () => {
+    /**
+     * 規則の結果を setSelectionByUser へ渡す（InputTracker#applySelectionChange と同じ受け渡し）。
+     * @param {VectorModel} model モデル
+     * @param {Object|null} change 選択の変更
+     */
+    function apply(model, change) {
+        if (change === null) {
+            return;
+        }
+        model.setSelectionByUser(change.type === 'clear' ? [] : change.ids);
+    }
+
+    /**
+     * 直線3本（a, b, c）を持つモデルを作る。
+     * @returns {VectorModel} モデル
+     */
+    function makeModel() {
+        const model = new VectorModel();
+        for (const id of ['a', 'b', 'c']) {
+            const line = new Line(0, 0, 10, 0, '#000000', 1);
+            line.id = id;
+            model.addShape(line);
+        }
+        return model;
+    }
+
+    it('空いている所のクリックで、選択も描き込む先も無しになる', () => {
+        const model = makeModel();
+        model.setSelectionByUser(['b']);
+        assert.equal(model.getInsertTargetId(), 'b');
+        apply(model, resolveUserClickSelection(model.getSelectedIds(), null, false));
+        assert.deepEqual(model.getSelectedIds(), []);
+        assert.equal(model.getInsertTargetId(), null);
+    });
+
+    it('何も選んでいないときの空いている所のクリックで、描き込む先が無しになる', () => {
+        const model = makeModel();
+        model.setInsertTarget('b');
+        assert.equal(model.getInsertTargetId(), 'b');
+        apply(model, resolveUserClickSelection(model.getSelectedIds(), null, false));
+        assert.equal(model.getInsertTargetId(), null);
+    });
+
+    it('空の範囲選択で、選択も描き込む先も無しになる', () => {
+        const model = makeModel();
+        model.setSelectionByUser(['c']);
+        apply(model, resolveMarqueeSelection(model.getSelectedIds(), [], false));
+        assert.deepEqual(model.getSelectedIds(), []);
+        assert.equal(model.getInsertTargetId(), null);
+    });
+
+    it('Ctrl+クリックで最後の1つを外すと、描き込む先も無しになる', () => {
+        const model = makeModel();
+        model.setSelectionByUser(['a']);
+        apply(model, resolveUserClickSelection(model.getSelectedIds(), 'a', true));
+        assert.deepEqual(model.getSelectedIds(), []);
+        assert.equal(model.getInsertTargetId(), null);
+    });
+
+    it('Ctrl+クリックで一部を外すと、描き込む先は残った一番上の行になる', () => {
+        const model = makeModel();
+        model.setSelectionByUser(['a', 'c']);
+        apply(model, resolveUserClickSelection(model.getSelectedIds(), 'c', true));
+        assert.deepEqual(model.getSelectedIds(), ['a']);
+        assert.equal(model.getInsertTargetId(), 'a');
     });
 });
