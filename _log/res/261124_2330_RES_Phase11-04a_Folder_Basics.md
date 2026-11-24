@@ -191,7 +191,7 @@
         *   「要件4」の`rearrangeItems`をJSDoc付きで足す。`deleteShapes`のJSDocに、フォルダごとの削除は`rearrangeItems`で行う旨を足す（コードは変えない）。
         *   テスト：まとめる・解除・除く・並べ替え・空のフォルダの結果と選択・フォルダの選択・描き込む先・頂点の選択・ホバー、新しいフォルダのidと名前（番号の規則）、同じ構造なら通知なし`false`、不正（知らない図形・重複・知らないフォルダのid）は警告して不変、作成途中の図形に触れない、通知1回、引数を書き換えない、折りたたみが保たれ`onCollapsedChange`を呼ばない。
 
-*   [ ] タスク6: 取り消し/やり直し
+*   [x] タスク6: 取り消し/やり直し
     *   **対象ファイル** :
         *   `./js/edit/SnapshotAdapter.js` :（更新）
         *   `./js/core/HistoryManager.js` :（更新。typedef`Snapshot`のJSDocに`selectedGroupIds`・`collapsedGroupIds`を足すだけ。コードは変えない）
@@ -341,7 +341,9 @@
 
 ### タスク6: 取り消し/やり直し
 *   **作業内容** :
-    *   （未実施）
+    *   `js/edit/SnapshotAdapter.js`（CRLF）：`capture`は`serialize(withoutCollapsed(getItems()))`・`selectedIds`・`selectedGroupIds`・`collapsedGroupIds`（`listCollapsedIds`）を返す。`restore`は`restoreCollapsed(result.items, model.getItems(), collapsedGroupIds ?? [])`を通して`replaceAllShapes`へ渡し、`shouldRestoreSelection()`が真のとき`setSelection(selectedIds, { groupIds: selectedGroupIds ?? [], keepsCollapsed: true })`。typedef・依存の制約・責務のJSDocを更新（importに`GroupCollapseRules`を追加）。
+    *   `js/core/HistoryManager.js`（LF）：typedef`Snapshot`に`[selectedGroupIds]`・`[collapsedGroupIds]`を足しただけ。
+    *   `test/edit/SnapshotAdapter.groups.test.js`（新規・CRLF）11件。`node --test`は tests 3082 / pass 3082 / fail 0。
 
 ### タスク7: 折りたたみの自動保存
 *   **作業内容** :
@@ -408,6 +410,7 @@
 *   （タスク3）`restoreCollapsed`は入れ子の中のフォルダも含め、`items`のフォルダすべてを今の状態/記録で決め直す（`items`側の`collapsed`は使わない）。`expandGroupsContaining`は、`canExpand`が偽のフォルダの上のフォルダも、対象の図形を含んでいれば開く。`DocumentSerializer`は`element.collapsed`を無加工で持ち`resolveItems`が`true`以外を消すため、読み込み結果のフォルダに`collapsed: undefined`のキーは残らない。開発資料への影響：新しいファイル`GroupCollapseRules`が増える点は既存の更新予定（57〜61）に含まれており、追記は無い。
 *   （タスク4）`setSelectionByUser`の「何もしない」判定は、結果のフォルダの選択（不変条件を通した値）が空かで見ている。`setGroupCollapsed`は`#applyState({ items })`を通すため、折りたたみの変更でもフォルダの選択の不変条件が再評価されるが値は変わらない。`#resolveReveal`と`#applyState`で不変条件を2回計算するが、候補が空なら入れ子を見ずに返る。
 *   （タスク5）`rearrangeItems`の検証は、図形のアイテムの`shape`が今の図形インスタンスであること・フォルダの`id`が`null`／`undefined`か今あるフォルダであること・どの要素も`kind`が`shape`／`group`であることまで見る（図形が減るのは許す＝除く操作のため）。`selectedIds`・`selectedGroupIds`は`Iterable`で受け、`undefined`だけを「省く」と扱う（空の配列は指定）。新しいフォルダの採番は前順。呼び出し側（`GroupEditor`・`ShapeOrderEditor`）は、新しいフォルダのアイテムを`id`なしで渡すこと。
+*   （タスク6）履歴は`document`が同じだと記録しないため、選択だけの変化は記録されない（テストの編集は`renameItem`を伴わせている）。`SnapshotAdapter`の2項目はtypedefでは省略可（任意）とし、無いスナップショットは空として扱う。開発資料への影響：既存の更新予定（スナップショット・3章6.）に含まれており、追記は無い。
 *   DOM（`ItemListPanel`・`ItemListWiring`・`main.js`・CSS）と`InputTracker`は自動テストの対象外で、下のテストプレイで確かめる。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）

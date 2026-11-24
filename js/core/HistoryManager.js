@@ -16,6 +16,8 @@ export const HISTORY_LIMIT = 100;
  *     本クラスは中身を解釈しない（記録時の比較のための文字列化のみ行う）。
  * @property {string[]} selectedIds その時点の選択集合（図形idの配列）。
  *     前の状態＝編集操作の開始時（`beginEdit()`呼び出し時）、後の状態＝編集操作の完了時（`commitEdit()`呼び出し時）の選択集合。
+ * @property {string[]} [selectedGroupIds] その時点で選んでいるフォルダのid（無ければ空として扱う。本クラスは中身を解釈しない）。
+ * @property {string[]} [collapsedGroupIds] その時点で閉じているフォルダのid（無ければ空として扱う。本クラスは中身を解釈しない）。
  */
 
 /**
