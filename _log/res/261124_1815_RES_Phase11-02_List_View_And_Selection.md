@@ -215,7 +215,7 @@
             *   `canStartNameEdit({ isDragging, isLocked, hasModifier })`。
             *   `resolveNameEditKey(key, isComposing)`（`'commit'`／`'cancel'`／`null`）。
         *   テスト：行の並び（前面が上・フォルダの中と外・入れ子・空のフォルダ・0個・隠れている/ロックの図形も含む・引数を書き換えない・図形のインスタンスが同じ）。押したときの判定（4つのモード×待ち受け×ドラッグ×ロックの主な組と、未知のモード）。ロック中の4通り。ホバーの判定（要件6の表の1.〜6.のすべて。順の優先：ドラッグ中・ロック中でも2.が先、ドラッグ中・ロック中は`id`が`hoveredId`と同じでも`clear`、`id`が`hoveredRowId`とだけ同じ（ホバーが外で消えた）なら`set`。照会の回数：1.・2.ではどちらの照会も呼ばれない、3.で終わるとき・4.では`queryExists`が呼ばれない、ドラッグ中は`queryLocked`が呼ばれない）。自分が出したホバーかの判定（`null`どうし・同じid・違うid・片方だけ`null`）。編集の開始の判定の全組。キーの判定（`Enter`・`Escape`・ほかのキー・それぞれ変換中）。
-*   [ ] タスク3: 一覧のクリックの次の選択と、スクロールの規則（要件2・3・4・5）
+*   [x] タスク3: 一覧のクリックの次の選択と、スクロールの規則（要件2・3・4・5）
     *   **対象ファイル** :
         *   `./js/core/ListSelectionRules.js` :（新規）
         *   `./js/core/ListScrollRules.js` :（新規）
@@ -322,7 +322,11 @@
 
 ### タスク3: 一覧のクリックの次の選択と、スクロールの規則
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/ListSelectionRules.js`（新規・LF）：`resolveListClickSelection`を実装。importは`SelectionRules`だけ。
+    *   `js/core/ListScrollRules.js`（新規・LF）：`resolveVisibleRowRange`・`hasSelectionChanged`・`resolveSelectionScrollTop`を実装。importなし。
+    *   `test/core/ListSelectionRules.test.js`・`test/core/ListScrollRules.test.js`（新規・LF）：計画のテスト項目を追加。
+    *   `node --test`：tests 2719 / pass 2719 / fail 0。
+    *   判断：`Shift`の結果の`ids`は`rowIds`の並び（上から）で返す（逆向きでも）。`resolveVisibleRowRange`の`overscan`は省略時0。中心の可視判定は`scrollTop <= 中心 < scrollTop + height`（下端ちょうどは見えない扱い）。`resolveSelectionScrollTop`は、中心が見えている範囲より上でも下でも、`rowHeight > height`なら上端を返す。
 
 ### タスク4: サムネイルの規則と描画
 *   **作業内容** :
