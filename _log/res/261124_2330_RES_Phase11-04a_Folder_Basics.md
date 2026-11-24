@@ -152,7 +152,7 @@
         *   「要件4」の`GroupTreeRules`の計算と`itemIdOf`・`hasGroupItem`をJSDoc付きで作る。責務は「図形とフォルダのアイテムの入れ子を、まとめる・解除する・除く・並びごとに置き換える計算と、アイテムのidの照会」。図形は`id`だけを読む。`unitIds`・`groupIds`・`ids`は`Set`で受ける。`mapSiblingLists`の`fn`はいちばん外側 → 各フォルダの順に、空の並びでも1回呼ぶ。
         *   テスト：まとめる（隣り合う・離れた・別々のフォルダ・入れ子のフォルダごと・図形1つだけ・フォルダ1つだけ・空のフォルダ・一番上のまとまりがフォルダの中＝そのフォルダの中にできる・元のフォルダが空になっても残る・中の順番）、解除（1段・入れ子は中のフォルダを残す・空・複数・別々のフォルダの中）、除く（図形・フォルダごと・空・混ざり・図形だけ除いたフォルダは残る）、並びの列挙と置き換え（入れ子・空のフォルダ）、`isSameTree`（順・入れ子・id違い）、引数を書き換えない。
 
-*   [ ] タスク2: フォルダを選んでいる状態の規則
+*   [x] タスク2: フォルダを選んでいる状態の規則
     *   **対象ファイル** :
         *   `./js/core/GroupSelectionRules.js` :（新規）
         *   `./test/core/GroupSelectionRules.test.js` :（新規）
@@ -316,7 +316,9 @@
 
 ### タスク2: フォルダを選んでいる状態の規則
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/GroupSelectionRules.js`（新規・CRLF）：`resolveGroupCandidates`・`resolveSelectedGroupIds`・`resolveSelectedUnitIds`・`resolveRevealIds`をJSDoc付きで作成。importは`ItemTreeRules`（`ITEM_KIND`）・`GroupTreeRules`（`itemIdOf`）のみ。
+    *   `test/core/GroupSelectionRules.test.js`（新規・CRLF）：指定の観点で26件。`node --test`は tests 2976 / pass 2976 / fail 0。
+    *   戻り値：`resolveGroupCandidates`・`resolveSelectedGroupIds`は`Set<string>`、`resolveSelectedUnitIds`・`resolveRevealIds`は`string[]`。`requestedIds`は`undefined`／`null`のとき「渡されていない」とし、空配列は指定として扱う。入力のid群は`Iterable`で受ける（`resolveSelectedGroupIds`の`selectedIds`・`candidateIds`は`Set`）。`resolveRevealIds`の非additiveは「図形の選択かフォルダの選択が集合として変わったとき」の判定を集合の比較で行う。
 
 ### タスク3: 折りたたみの属性と作業データ
 *   **作業内容** :
@@ -395,6 +397,7 @@
 *   **`?dev`の復元で、違いが折りたたみだけのとき**は履歴に記録されず自動保存の契機にもならない（開発用の画面だけ。次の編集で保存される）。
 *   （タスク1）`mapSiblingLists`の`fn`は、並びを書き換えず新しい配列を返すこと（`wrapUnits`の無いときの写しもこれで作る）。`unwrapGroups`は`groupIds`が入れ子の中のフォルダを含んでも解除する（`GroupEditor`が渡すのは選んでいるまとまりのフォルダ）。
 *   （タスク1）`git add -N`で新しいファイル2件を意図的追加の状態にした（`git ls-files --eol`の実測のため。内容のステージはしていない）。
+*   （タスク2）`resolveSelectedGroupIds`の(3)は`previousItems`のフォルダ内の図形が`selectedIds`に全部あることを見るため、フォルダの中身が増えた（新しい図形が入った）だけでも、増えた図形が選ばれていなければ落ちる（(2)）。`resolveRevealIds`の`additive`では前の選択に無い図形だけを返す（フォルダの選択の変化は見ない）。
 *   DOM（`ItemListPanel`・`ItemListWiring`・`main.js`・CSS）と`InputTracker`は自動テストの対象外で、下のテストプレイで確かめる。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
