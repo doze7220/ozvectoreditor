@@ -216,7 +216,7 @@
         *   `serialize(values)`：`elements`を`listShapes(toItems(values))`から作り、`source`は`DocumentSerializer.serialize(values)`。キー順・`bounds`の計算・`SPRITE_FORMAT_VERSION`は変えない。`computeShapesBounds`・`computeShapesGeometryBounds`は変えない。JSDocを直す。
         *   テスト：入れ子・表示なし・ロックあり・長い名前を含むアイテムの`elements`・`bounds`が、同じ図形を素の配列で渡したものと一致し、各図形の`toDrawElement()`の並び（平らにした重なり順）と一致する／`elements`に名前・表示・ロックのキーが出ない／`elements`・`bounds`の値を文字どおり書いた期待値（5種＋パス）と一致する（本作業の前の値の固定）／`formatVersion`が4／`source`が`DocumentSerializer.serialize(items)`と同じで、`deserialize`で入れ子が戻る／改行・`;`・引用符・`const spriteData = `を含む名前でも`CodeExporter.toModuleText` → `extractSpriteDataText` → `JSON.parse`で元に戻る。
         *   共通の締め。
-*   [ ] タスク6: 取り消し/やり直し・コピー/貼り付け/複製・追加（`SnapshotAdapter`・`ShapeInserter`・`ClipboardController`）
+*   [x] タスク6: 取り消し/やり直し・コピー/貼り付け/複製・追加（`SnapshotAdapter`・`ShapeInserter`・`ClipboardController`）
     *   **対象ファイル** :
         *   `./js/edit/SnapshotAdapter.js`・`./js/edit/ShapeInserter.js`・`./js/edit/ClipboardController.js` : 更新
         *   `./test/edit/SnapshotAdapter.items.test.js`・`./test/edit/ShapeInserter.items.test.js`・`./test/edit/ClipboardController.items.test.js` : 新規
@@ -299,7 +299,10 @@
 
 ### タスク6: 取り消し/やり直し・コピー/貼り付け/複製・追加
 *   **作業内容** :
-    *   （未実施）
+    *   `js/edit/SnapshotAdapter.js`（CRLF保持）：`capture`は`serialize(getItems())`、`restore`は`replaceAllShapes(result.items)`。JSDocを直した。
+    *   `js/edit/ShapeInserter.js`（CRLF保持）：`addShapesWithNewIds(result.items)`。図形0個の判定・`translate`は`result.shapes`のまま。JSDocを直した。
+    *   `js/edit/ClipboardController.js`（CRLF保持）：`ItemTreeRules.listShapeItems`をimportし、`#serializeSelection`は選択された図形のアイテムを平らに`serialize`。JSDoc（`getItems`・`isSelected`のみ使用、依存の制約）を直した。
+    *   新規テスト（LF）：`test/edit/SnapshotAdapter.items.test.js`・`ShapeInserter.items.test.js`・`ClipboardController.items.test.js`（計24件）。既存テストは書き換えていない。`node --test`は2611件全件合格（2587 + 24）。
 
 ### タスク7: キャンバス管理・ファイル操作・`?dev`
 *   **作業内容** :

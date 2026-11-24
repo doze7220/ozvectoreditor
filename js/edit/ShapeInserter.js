@@ -73,7 +73,9 @@ export class ShapeInserter {
      *      （履歴にも記録せず）、insertedIds=[]で返す。
      *   2. 復元できた図形が0件なら何も変更せず返す（全図形がスキップされた場合を含む）。
      *   3. 各図形にtranslate(dx, dy)を呼ぶ（dx・dyがともに0なら呼ばない。追加前のインスタンスに対して行うため変更通知は発生しない）。
-     *   4. editRecorder.beginEdit() → model.addShapesWithNewIds(shapes) → editRecorder.commitEdit()。
+     *   4. editRecorder.beginEdit() → model.addShapesWithNewIds(result.items) → editRecorder.commitEdit()。
+     *      入れ子（フォルダ）・名前・表示・ロックを保ったまま、いちばん外側の末尾へ追加する。0件の判定とtranslateは
+     *      平らな図形（result.shapes。result.itemsの図形と同じインスタンス）に対して行う。
      *   5. { ok: true, insertedIds, skipped, error: null }を返す。
      *
      * 独立性: 呼び出しのたびにdeserializeで新しい図形インスタンスを生成するため、追加した図形は元の図形・documentData・
@@ -138,7 +140,7 @@ export class ShapeInserter {
         if (record) {
             this.#editRecorder.beginEdit();
         }
-        const insertedIds = this.#model.addShapesWithNewIds(shapes);
+        const insertedIds = this.#model.addShapesWithNewIds(result.items);
         if (record) {
             this.#editRecorder.commitEdit();
         }

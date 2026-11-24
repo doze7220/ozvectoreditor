@@ -3,6 +3,7 @@
  * コピー・切り取り・貼り付け・同じ位置に貼り付け・複製（Alt+ドラッグの記録しない複製を含む）の手順を担う。DOMに触れない。
  */
 import { DocumentSerializer } from '../io/DocumentSerializer.js';
+import { listShapeItems } from '../core/ItemTreeRules.js';
 
 /**
  * 貼り付け・複製した図形を元の位置から右下（x・yとも正の方向）へずらす量の1段分（ワールド座標。倍率100%で画面上20px）。
@@ -38,10 +39,12 @@ const PASTE_OFFSET_STEP = 20;
  * 依存の制約:
  *   - DOMに触れない。図形種別の分岐・図形固有のプロパティ名・id形式の知識を持たない
  *     （変換はDocumentSerializer、追加・id採番・選択はShapeInserter経由でVectorModelへ委ねる）。
+ *   - coreからimportするのは状態を持たない規則ItemTreeRulesの関数だけ。選んだ図形のアイテムを平らに写す
+ *     （フォルダは写さない。名前・表示・ロックは元のまま）。
  */
 export class ClipboardController {
     /**
-     * 選択集合と図形一式の読み取り元（getShapes・isSelectedのみ使用）。
+     * 選択集合と図形一式の読み取り元（getItems・isSelectedのみ使用）。
      * @type {import('../core/VectorModel.js').VectorModel}
      */
     #model;
@@ -213,14 +216,14 @@ export class ClipboardController {
     }
 
     /**
-     * 選択集合の図形を描画順（VectorModelの図形配列の並び）で作業データ形式のオブジェクトへ変換する。
+     * 選択集合の図形のアイテムを描画順で平らに（フォルダは写さない。名前・表示・ロックは元のまま）作業データ形式のオブジェクトへ変換する。
      * @returns {import('../io/DocumentSerializer.js').DocumentData|null} 新しい作業データ（選択集合が空ならnull）
      */
     #serializeSelection() {
-        const selectedShapes = this.#model.getShapes().filter((shape) => this.#model.isSelected(shape.id));
-        if (selectedShapes.length === 0) {
+        const selectedItems = listShapeItems(this.#model.getItems()).filter((item) => this.#model.isSelected(item.shape.id));
+        if (selectedItems.length === 0) {
             return null;
         }
-        return DocumentSerializer.serialize(selectedShapes);
+        return DocumentSerializer.serialize(selectedItems);
     }
 }
