@@ -147,7 +147,7 @@
 * `node --test`を実行し全件合格を確かめる。
 * 本RESのタスクを`[x]`にし、「4. 詳細作業内容」に作業レポートを書く。開発資料に影響が判明したら本体は直さず「開発資料の更新予定」へ追記する。
 
-*   [ ] タスク1: 入れ子の計算の規則（`core/ItemTreeRules`）
+*   [x] タスク1: 入れ子の計算の規則（`core/ItemTreeRules`）
     *   **対象ファイル** :
         *   `./js/core/ItemTreeRules.js` : 新規
         *   `./test/core/ItemTreeRules.test.js` : 新規
@@ -269,7 +269,9 @@
 
 ### タスク1: 入れ子の計算の規則
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/ItemTreeRules.js`（新規・LF）に`ITEM_KIND`・`toItems`・`listItems`・`listShapeItems`・`listShapes`・`placeShapeItems`・`filterShapes`と typedef `ShapeItem`・`GroupItem`・`Item`を実装した。`test/core/ItemTreeRules.test.js`（新規）を追加した。`node --test`は2496件全件合格（2470 + 新規26）。
+    *   `toItems`はアイテムを`{ ...item }`（フォルダは`children`を再帰）で写し、図形インスタンスは共有する。素の図形は`{ kind: 'shape', shape }`（name/visible/lockedのキー自体が無い）。
+    *   `placeShapeItems`は置いた図形のアイテム自体（引数の`shapeItems`の要素）をそのまま入れ、フォルダだけ新しいオブジェクトにする。`filterShapes`は残す図形のアイテムを新しく写さず同じ参照で返す（フォルダは新しい）。
 
 ### タスク2: 種類の呼び名と、名前・表示・ロックの規則
 *   **作業内容** :
