@@ -1,5 +1,5 @@
 /**
- * 責務：アイテムの名前・表示・ロックの規則（名前の整え方・自動の名前の番号・不備の補い・名前の変更）。
+ * 責務：アイテムの名前・表示・ロック・フォルダの折りたたみの規則（名前の整え方・自動の名前の番号・不備の補い・名前の変更）。
  * 状態を持たず、DOMにも触れない。
  */
 import { ITEM_KIND, toItems, listItems } from './ItemTreeRules.js';
@@ -69,6 +69,7 @@ function labelOf(item) {
 
 /**
  * アイテムの並び（アイテムまたは素の図形インスタンス）から、名前・表示・ロックが決まった新しい入れ子を作る。
+ * フォルダの collapsed は true のときだけ残し、true 以外ならキーを消す（図形のアイテムには付けない）。
  * 手順：(1) 全アイテムの名前を整える (2) 整えた名前と existingItems の名前から呼び名ごとの最大番号を数える
  * (3) visible が真偽値でなければ true、locked が真偽値でなければ false (4) 名前なしに描画順で「呼び名 最大番号+1」を付ける。
  * 毎回新しいアイテムを返し、引数は書き換えない。2回通しても値は変わらない。
@@ -94,6 +95,11 @@ export function resolveItems(values, existingItems = []) {
         }
         if (typeof item.locked !== 'boolean') {
             item.locked = false;
+        }
+    }
+    for (const item of flat) {
+        if (item.kind === ITEM_KIND.GROUP && item.collapsed !== true) {
+            delete item.collapsed;
         }
     }
     for (const item of flat) {

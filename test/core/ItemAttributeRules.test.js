@@ -336,3 +336,37 @@ describe('applyItemRename', () => {
         assert.equal(result[0].shape, shape);
     });
 });
+
+describe('resolveItems: フォルダの折りたたみ', () => {
+    it('collapsedがtrueのフォルダは残る', () => {
+        const result = resolveItems([groupItem([shapeItem('rect')], { collapsed: true })]);
+        assert.equal(result[0].collapsed, true);
+    });
+
+    it('true以外（false・文字列・1・null・undefined）はキーが消える', () => {
+        for (const value of [false, 'true', 1, null, undefined]) {
+            const result = resolveItems([groupItem([], { collapsed: value })]);
+            assert.equal(Object.hasOwn(result[0], 'collapsed'), false, String(value));
+        }
+    });
+
+    it('入れ子の中のフォルダにも効く', () => {
+        const inner = { kind: ITEM_KIND.GROUP, id: 'group-2', children: [], collapsed: 'x' };
+        const result = resolveItems([groupItem([inner], { collapsed: true })]);
+        assert.equal(result[0].collapsed, true);
+        assert.equal(Object.hasOwn(result[0].children[0], 'collapsed'), false);
+    });
+
+    it('図形のアイテムには付かない', () => {
+        const result = resolveItems([shapeItem('rect')]);
+        assert.equal(Object.hasOwn(result[0], 'collapsed'), false);
+    });
+
+    it('引数を書き換えず、2回通しても同じ', () => {
+        const items = [groupItem([], { collapsed: 0 })];
+        const before = JSON.stringify(items);
+        const once = resolveItems(items);
+        assert.equal(JSON.stringify(items), before);
+        assert.equal(JSON.stringify(resolveItems(once)), JSON.stringify(once));
+    });
+});

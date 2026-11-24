@@ -160,7 +160,7 @@
         *   `resolveGroupCandidates`・`resolveSelectedGroupIds`・`resolveSelectedUnitIds({ items, isSelected, selectedGroupIds })`（前順のid。選んでいるフォルダに当たったら中へは進まない）・`resolveRevealIds`をJSDoc付きで作る。`resolveSelectedGroupIds`は候補が空なら入れ子を見ずに空の`Set`を返す。
         *   テスト：候補（指定あり・足すだけ・選び直し）、不変条件（全部選ばれている・1つ外れた・空のフォルダ・無いフォルダ・入れ子の中の図形・前に中にあった図形が消えた・空になった）、まとまり（図形だけ・フォルダ・入れ子のフォルダも選んでいる・フォルダと外の図形・フォルダの中の一部だけ・空のフォルダだけ・何も無い）、開く図形（足す・置き換え・変わらない・フォルダの選択だけが変わった）。
 
-*   [ ] タスク3: 折りたたみの属性と作業データ
+*   [x] タスク3: 折りたたみの属性と作業データ
     *   **対象ファイル** :
         *   `./js/core/GroupCollapseRules.js` :（新規）
         *   `./js/core/ItemTreeRules.js` :（更新。typedef`GroupItem`に`[collapsed]`を足すだけ。コードは変えない）
@@ -322,7 +322,10 @@
 
 ### タスク3: 折りたたみの属性と作業データ
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/GroupCollapseRules.js`（新規・CRLF）：`setCollapsed`・`expandGroupsContaining`・`withoutCollapsed`・`listCollapsedIds`・`restoreCollapsed`をJSDoc付きで作成。importは`ItemTreeRules`（`ITEM_KIND`）・`GroupTreeRules`（`itemIdOf`）のみ。
+    *   `js/core/ItemTreeRules.js`（LF）：typedef`GroupItem`に`[collapsed]`を足しただけ。`js/core/ItemAttributeRules.js`（LF）：`resolveItems`でフォルダの`collapsed`が`true`以外ならキーを消す（責務・JSDocも更新）。`js/io/DocumentSerializer.js`（LF）：`#itemToElement`が閉じているときだけ`collapsed`をtype,id,name,visible,locked,collapsed,childrenの順に書き、`#readElements`が要素の値のまま持つ（JSDoc更新。版・`MIGRATIONS`は不変）。
+    *   テスト：`test/core/GroupCollapseRules.test.js`（新規・CRLF）、`test/io/DocumentSerializer.collapsed.test.js`（新規・CRLF）、`test/core/ItemAttributeRules.test.js`（末尾に追加のみ）。計31件。`node --test`は tests 3007 / pass 3007 / fail 0。
+    *   戻り値：`setCollapsed`・`expandGroupsContaining`は変わらないとき引数と同じ参照、変わるときは変わったフォルダの祖先だけ新しいオブジェクト（図形のアイテム・変わらない枝は共有）。`withoutCollapsed`・`restoreCollapsed`は常に新しい入れ子（図形のアイテムも写す）。`listCollapsedIds`は前順の`string[]`。`shapeIds`・`recordedIds`は`Iterable`で受ける。
 
 ### タスク4: VectorModelがフォルダを選んでいる状態と折りたたみを持つ
 *   **作業内容** :
@@ -398,6 +401,7 @@
 *   （タスク1）`mapSiblingLists`の`fn`は、並びを書き換えず新しい配列を返すこと（`wrapUnits`の無いときの写しもこれで作る）。`unwrapGroups`は`groupIds`が入れ子の中のフォルダを含んでも解除する（`GroupEditor`が渡すのは選んでいるまとまりのフォルダ）。
 *   （タスク1）`git add -N`で新しいファイル2件を意図的追加の状態にした（`git ls-files --eol`の実測のため。内容のステージはしていない）。
 *   （タスク2）`resolveSelectedGroupIds`の(3)は`previousItems`のフォルダ内の図形が`selectedIds`に全部あることを見るため、フォルダの中身が増えた（新しい図形が入った）だけでも、増えた図形が選ばれていなければ落ちる（(2)）。`resolveRevealIds`の`additive`では前の選択に無い図形だけを返す（フォルダの選択の変化は見ない）。
+*   （タスク3）`restoreCollapsed`は入れ子の中のフォルダも含め、`items`のフォルダすべてを今の状態/記録で決め直す（`items`側の`collapsed`は使わない）。`expandGroupsContaining`は、`canExpand`が偽のフォルダの上のフォルダも、対象の図形を含んでいれば開く。`DocumentSerializer`は`element.collapsed`を無加工で持ち`resolveItems`が`true`以外を消すため、読み込み結果のフォルダに`collapsed: undefined`のキーは残らない。開発資料への影響：新しいファイル`GroupCollapseRules`が増える点は既存の更新予定（57〜61）に含まれており、追記は無い。
 *   DOM（`ItemListPanel`・`ItemListWiring`・`main.js`・CSS）と`InputTracker`は自動テストの対象外で、下のテストプレイで確かめる。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）

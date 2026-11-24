@@ -21,6 +21,7 @@
  * @property {string} [name] - 名前（未定なら無い）
  * @property {boolean} [visible] - 表示（未定なら無い）
  * @property {boolean} [locked] - ロック（未定なら無い）
+ * @property {true} [collapsed] - 閉じているときだけ true（開いているときはキー自体が無い）
  * @property {Item[]} children - 中身（入れ子）
  */
 

@@ -1,5 +1,5 @@
 /**
- * 責務: 作業データ形式（キャンバス全体の版番号付きJSON表現。図形の名前・表示・ロックとフォルダの入れ子を含む）の
+ * 責務: 作業データ形式（キャンバス全体の版番号付きJSON表現。図形の名前・表示・ロックとフォルダの入れ子・折りたたみを含む）の
  * シリアライズ・デシリアライズと旧版からのマイグレーションを担う。図形単位の変換はShapeFactory・図形クラスへ委譲する。
  */
 import { ShapeFactory } from '../core/ShapeFactory.js';
@@ -162,7 +162,7 @@ const MIGRATIONS = Object.freeze({ 1: migrateVersion1To2, 2: migrateVersion2To3,
 /**
  * 作業データ形式（現行版4）の最上位の形。知らないキーは最上位・図形の要素・フォルダの要素とも読まない。
  * 図形の要素は`{ type, id, points, strokeColor, strokeWidth, fillColor, name, visible, locked }`（pathは`closed`・`segments`が加わり、角の点があるときだけ`corners`も加わる）。
- * フォルダの要素は`{ type: 'group', id, name, visible, locked, children }`（`children`は図形・フォルダの要素の配列。空でもよい）。
+ * フォルダの要素は`{ type: 'group', id, name, visible, locked, (collapsed), children }`（`collapsed: true`は閉じているときだけ書く。無ければ開いている。`children`は図形・フォルダの要素の配列。空でもよい）。
  * strokeColorは色の文字列またはnull（線なし）、fillColorは色の文字列またはnull（塗りなし。キーが無ければnullとして読む）。
  * @typedef {Object} DocumentData
  * @property {string} format 作業データ形式の識別子（'oz-vector-editor'）
@@ -324,24 +324,28 @@ export class DocumentSerializer {
     /**
      * アイテムを作業データの要素へ変換する（フォルダは再帰）。
      * @param {Object} item - resolveItemsを通したアイテム
-     * @returns {Object} 図形の要素（図形データ＋name・visible・locked）またはフォルダの要素
+     * @returns {Object} 図形の要素（図形データ＋name・visible・locked）またはフォルダの要素（閉じているときだけcollapsedを持つ）
      */
     static #itemToElement(item) {
         if (item.kind === ITEM_KIND.GROUP) {
-            return {
+            const element = {
                 type: GROUP_TYPE,
                 id: item.id,
                 name: item.name,
                 visible: item.visible,
                 locked: item.locked,
-                children: item.children.map((child) => DocumentSerializer.#itemToElement(child)),
             };
+            if (item.collapsed === true) {
+                element.collapsed = true;
+            }
+            element.children = item.children.map((child) => DocumentSerializer.#itemToElement(child));
+            return element;
         }
         return { ...item.shape.toJSON(), name: item.name, visible: item.visible, locked: item.locked };
     }
 
     /**
-     * 作業データの要素の配列を再帰で読み、アイテムの配列（名前・表示・ロックは要素の値のまま。補いは呼び出し側）を返す。
+     * 作業データの要素の配列を再帰で読み、アイテムの配列（名前・表示・ロック・フォルダのcollapsedは要素の値のまま。補い・整えは呼び出し側）を返す。
      * 読めない要素は読み飛ばして`skipped`へ記録する。図形単位ではRangeErrorを再送出し、呼び出し側（deserialize）が全体の失敗にする。
      * @param {Array<*>} elements - 要素の配列
      * @param {Array<number>} parentPath - この配列の最上位からの位置の並び（最上位なら空）
@@ -363,6 +367,7 @@ export class DocumentSerializer {
                     name: element.name,
                     visible: element.visible,
                     locked: element.locked,
+                    collapsed: element.collapsed,
                     children: DocumentSerializer.#readElements(element.children, path, skipped),
                 });
                 return;
