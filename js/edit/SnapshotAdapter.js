@@ -70,6 +70,7 @@ export class SnapshotAdapter {
      * 作業データをデシリアライズし、全体の読み込み失敗またはスキップが1件以上あれば`console.warn`して
      * キャンバスを変更せず`false`を返す（一部の図形だけが戻る中途半端な状態を避けるため）。
      * 成功時は入れ子の並び（`result.items`）を入れ替え（図形・フォルダのidは保持される。選択集合・ホバー・作成中の図形・選択矩形はクリアされる）、
+     * 描き込む先は今の値を規則に通して残す（`keepInsertTarget: true`。続く`setSelection`で1つ以上選ばれれば選ばれている一番上の図形になる。保存はしない）。
      * `shouldRestoreSelection()`が真のときのみ記録時点の選択集合を復元する（存在しないidは`setSelection`が無視する。
      * 偽のときは選択集合は空のまま）。
      * 進行中の入力操作の中断は本メソッドでは行わない（呼び出し側の責務）。
@@ -82,7 +83,7 @@ export class SnapshotAdapter {
             console.warn('履歴の適用に失敗したため、キャンバスを変更しません。', result.error, result.skipped);
             return false;
         }
-        this.#model.replaceAllShapes(result.items);
+        this.#model.replaceAllShapes(result.items, { keepInsertTarget: true });
         if (this.#shouldRestoreSelection()) {
             this.#model.setSelection(snapshot.selectedIds);
         }

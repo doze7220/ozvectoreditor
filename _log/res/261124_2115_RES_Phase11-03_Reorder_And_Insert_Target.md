@@ -178,7 +178,7 @@
         *   `ItemTreeRules`に`insertItemsAbove(items, isTarget, addedItems)`（要件5）を足す。JSDocを書く。
         *   テスト：規則1〜5のすべて（選択があれば一番上・候補が残る・消えたら下の近い行・下が全部消えた・候補なし・前の並びに無い候補・引数を変えない）、印のid。`insertItemsAbove`（外側・フォルダの中・深い入れ子・見つからない＝末尾・複数・フォルダを含む追加・元を変えない・通り道でないフォルダは同じ参照）。
 
-*   [ ] タスク2: VectorModelが描き込む先を持つ
+*   [x] タスク2: VectorModelが描き込む先を持つ
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js` :（更新）
         *   `./js/edit/SnapshotAdapter.js` :（更新）
@@ -317,7 +317,11 @@
 
 ### タスク2: VectorModelが描き込む先を持つ
 *   **作業内容** :
-    *   (未実施)
+    *   `js/core/VectorModel.js`（LFのまま）：`#insertTargetId`・非公開`#applyState`（`#items`・`#selectedIds`・`#insertTargetId`への唯一の書き込み。コンストラクタを除く）・`#placeAdded`（`insertItemsAbove`か末尾）・`#filterExistingIds`を足した。`addShape`・`setSelection`・`clearSelection`・`commitDraft`・`deleteShapes`・`replaceAllShapes`・`addShapesWithNewIds`・`replaceShape`・`replaceShapesKeepingIds`・`reorderShapes`・`renameItem`を`#applyState`経由へ直した（その場の`clear`・`delete`も新しい`Set`へ）。通知の回数・順・戻り値・警告は変えていない。
+    *   公開の追加：`getInsertTargetId`・`setInsertTarget`・`setSelectionByUser`、`commitDraft({ atInsertTarget })`・`addShapesWithNewIds(values, { atInsertTarget })`・`replaceAllShapes(values, { keepInsertTarget })`。ファイル先頭の責務（3行以内）とクラス・各メソッドのJSDocを直した。
+    *   `js/edit/SnapshotAdapter.js`（CRLFのまま）：`restore`が`replaceAllShapes(result.items, { keepInsertTarget: true })`を呼ぶ。JSDocも直した。
+    *   `test/core/VectorModel.insertTarget.test.js`（新規・CRLF）：38件。
+    *   `node --test`：tests 2823 / pass 2823 / fail 0。
 
 ### タスク3: 入る位置（描く・貼り付け・複製・インポート）
 *   **作業内容** :
@@ -381,6 +385,9 @@
 
 **実装時・確認時の注意**
 *   `#applyState`で書き込みを1か所にするとき、通知の回数・順（テストが確かめている）を変えないこと。
+*   （タスク2）`#applyState`は`previousIds`を呼び出し時の`#items`から求めるため、`replaceAllShapes`のように受け取った図形インスタンスの`id`を先に書き換える経路で、前の並びと同じインスタンスが渡されると前のidが現在のidになる。実際の呼び出し（`SnapshotAdapter`は`deserialize`で新しいインスタンスを作る）では起きない。
+*   （タスク2）`reorderShapes`は選択が1つ以上あれば、規則1により描き込む先が新しい並びでの選ばれている一番上へ動く（要件3の「選択があれば必ず選ばれている一番上」の帰結。RESの経路表の「変わらない」は選択が無い場合）。
+*   （タスク2）`setSelectionByUser`は図形の選択を直接書くため、頂点の選択の`pruneSelectedVertices`を呼ぶ（`setSelection`と同じ）。
 *   `.item-list`の子に行以外の要素を足さないこと（`render`・`getSelectedRowIds`・`getViewport`が子＝行を前提にしている）。
 *   `DragTracker`の取りこぼしの保険では、ボタンが離れたことを次の`mousemove`で知り、その位置で離したものとして扱う。
 *   `ItemListRowDrag`の`window`のcaptureの`mousedown`は、行のドラッグ中だけ止める（それ以外では何もしない）。
