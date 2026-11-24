@@ -1,5 +1,5 @@
-*   **ItemListRules.js**：図形の一覧の行の並びと、行の操作（押す・カーソルを置く・名前の編集）の判定を、状態を持たない関数として提供する（Phase 11-02で新設。流れは`PROJECT_ARCHITECTURE.md`3章28.）。
-    *   **公開**：`buildItemRows(items)`・`ROW_PRESS_ACTION`・`resolveRowPressAction`・`isListLocked`・`ROW_HOVER_ACTION`・`resolveRowHover`・`isOwnHover`・`canStartNameEdit`・`resolveNameEditKey`と、typedef`ItemRow`（`{ id, name, shape }`）。
+*   **ItemListRules.js**：図形の一覧の行の並びと、行の操作（押す・カーソルを置く・名前の編集・行のドラッグ）の判定を、状態を持たない関数として提供する（Phase 11-02で新設。Phase 11-03で`canSetInsertTargetByRow`・`canStartRowDrag`・`shouldSelectPressedRow`を追加。流れは`PROJECT_ARCHITECTURE.md`3章28.）。
+    *   **公開**：`buildItemRows(items)`・`ROW_PRESS_ACTION`・`resolveRowPressAction`・`isListLocked`・`ROW_HOVER_ACTION`・`resolveRowHover`・`isOwnHover`・`canStartNameEdit`・`resolveNameEditKey`・`canSetInsertTargetByRow`・`canStartRowDrag`・`shouldSelectPressedRow`（後ろ3つはPhase 11-03）と、typedef`ItemRow`（`{ id, name, shape }`）。
     *   **`buildItemRows(items)`**：アイテムの入れ子から行の配列を作る。`listShapeItems(items)`の逆順（先頭＝前面＝一覧のいちばん上）。フォルダは行にしない。隠れている・ロックの値の図形も含める（表示・ロックの値は効かせない）。名前が未定なら空文字。`shape`は図形インスタンスそのもの（共有。書き換えない）。作成途中の図形は`getItems()`に入らないため含まれない。引数を書き換えない。
     *   **`resolveRowPressAction({ mode, isPicking, isDragging, isLocked })`**：行を押したときの動作`ROW_PRESS_ACTION`（`none`・`select`・`switchAndSelect`。凍結）。上から、ロック中または`isDragging`なら`none`／`isPicking`（スポイトの待ち受け中）なら`switchAndSelect`／選択・頂点の選択なら`select`／キャンバス移動なら`switchAndSelect`／それ以外（図形作成・未知の値）は`none`。`switchAndSelect`は呼び出し側が選択ツールへ切り替えてから、修飾キーによらずふつうのクリックとして選ぶ。`none`は何もしない（ツール・選択・引いている途中の線に触れない）。
     *   **`isListLocked({ loading, busy })`**：`canvasLibrary.getState()`の`loading`または`busy`が真ならロック中。`loading`は起動時だけ真で、キャンバスの切り替え中は`busy`が真になる（キャンバスの名前の変更・削除の間も`busy`のため、その短い間も一覧の操作を受け付けない。切り替えと区別する照会が無く、区別を足していない）。
@@ -7,8 +7,11 @@
     *   **`isOwnHover(hoveredRowId, hoveredId)`**：`hoveredRowId`が`null`でなく`hoveredId`と同じなら真（一覧が出したホバーか。キャンバス側が出したホバーを消さないための判定）。
     *   **`canStartNameEdit({ isDragging, isLocked, hasModifier })`**：`!isDragging && !isLocked && !hasModifier`。`Ctrl`・`Shift`を押したままのダブルクリックでは始めない（2回のクリックが追加・解除／範囲選択の操作であるため。計画での判断）。操作モードは見ない（どのツールでもできる）。
     *   **`resolveNameEditKey(key, isComposing)`**：名前の欄のキー。変換中は`null`、`Enter`は`'commit'`、`Escape`は`'cancel'`、それ以外は`null`。`ItemListPanel`へコールバックとして注入される（パネルは`Enter`・`Escape`の意味を知らない）。
+    *   **`canSetInsertTargetByRow({ mode, isPicking, isDragging, isLocked })`**（Phase 11-03）：描くツール（作成モード）で行を押したとき、描き込む先を変えてよいか。作成モードで、スポイトの待ち受け中・ドラッグ中・ロック中でないときだけ真（`mode === OperationMode.CREATE && !isPicking && !isDragging && !isLocked`）。`resolveRowPressAction`は既存のテストが作成モード＝`none`を確かめているため変えず、`ItemListWiring.#handleRowClick`が`none`のときだけこちらを見て、真なら`model.setInsertTarget(id)`を呼ぶ（決まるのは行のクリック＝離したとき。`Ctrl`・`Shift`は読まない）。
+    *   **`canStartRowDrag({ button, hasModifier, isEditingRow, isDragging, isLocked })`**（Phase 11-03）：行のドラッグを始めてよいか。左ボタン（`button === 0`）で、`Ctrl`（`⌘`）・`Shift`なし（`hasModifier`は呼び出し側が求める）・編集中の行でない（名前の欄は編集中の行にしか無いため、欄の中の押下も含む）・キャンバスの左ドラッグ／パン中でない（`isDragging`）・ロック中でないときだけ真。**操作モードは見ない**（描くツール・`H`・スポイト待ち受け中でも始められる）。
+    *   **`shouldSelectPressedRow({ mode, isPicking, isSelected })`**（Phase 11-03）：行のドラッグが始まったとき、押した行を選ぶか。選択・頂点の選択モードで、スポイトの待ち受け中でなく、押した行が選ばれていないときだけ真。それ以外（描くツール・キャンバス移動・待ち受け中・既に選ばれている行）では選択を変えない。
     *   **読むもの**：渡されたアイテムの`kind`・`name`・`shape.id`だけ（`buildItemRows`）。importは`core/ItemTreeRules`（`listShapeItems`）と`core/InputModes`（`OperationMode`）のみ（`core/`の規則どうしのimport。循環しない）。
     *   **知らないこと**：DOM・`VectorModel`・`InputTracker`・`CanvasLibrary`・図形のプロパティ・図形種別。状態を持たない。
-    *   **使う側**：`wiring/ItemListWiring`だけ（`ItemListPanel`には`resolveNameEditKey`が注入される）。
+    *   **使う側**：`wiring/ItemListWiring`だけ（`ItemListPanel`には`resolveNameEditKey`が注入される。`canStartRowDrag`は`#handleRowPress`、`shouldSelectPressedRow`は`ItemListRowDrag`への注入の中、`canSetInsertTargetByRow`は`#handleRowClick`が呼ぶ）。
     *   **置き場所の理由**：行の操作の判定を`wiring/`（判定を持たない）にも`palette/`（何もimportしない）にも置けず、`node --test`で確かめるため、状態を持たない関数として`core/`に置いた。
-    *   **テスト**：`test/core/ItemListRules.test.js`（31件。`_doc/arch/16_test.md`）。
+    *   **テスト**：`test/core/ItemListRules.test.js`（40件。31件＋Phase 11-03の9件＝`canSetInsertTargetByRow`3件・`canStartRowDrag`・`shouldSelectPressedRow`の全分岐6件。`_doc/arch/16_test.md`）。

@@ -298,7 +298,7 @@
     *   **作業内容** :
         *   「開発資料の更新予定」の`PROJECT_ARCHITECTURE.md`の分と、各タスクの追記を反映する（REQの例外により資料を書き換えてよい）。書き換える前に行末を実測して保つ。「確認の状況」はテストプレイ未実施と書く。
 
-*   [ ] タスク12: 開発資料の反映（`_doc/arch/`）
+*   [x] タスク12: 開発資料の反映（`_doc/arch/`）
     *   **対象ファイル** :
         *   `./_doc/arch/`の「開発資料の更新予定」に挙げたファイル :（更新）
         *   `./_doc/arch/54_InsertTargetRules.md`・`./_doc/arch/55_ListDragRules.md`・`./_doc/arch/56_ItemListRowDrag.md` :（新規）
@@ -402,7 +402,11 @@
 
 ### タスク12: 開発資料の反映（`_doc/arch/`）
 *   **作業内容** :
-    *   (未実施)
+    *   行末は編集前に`git ls-files --eol`で実測し、CRLFの`01`・`02`・`03`・`06`・`09`・`13`・`14`・`16`は編集中だけLFへ変えて編集し、終わってからCRLFへ戻した（全行CRLF・差分は変えた行だけ）。LFの`07`・`27`・`46`・`48`・`50`・`53`はそのまま。新規の`54`・`55`・`56`はCRLF。
+    *   新規：`54_InsertTargetRules.md`（`resolveInsertTarget`の規則1〜5・`resolveInsertMarkId`・使う側が`VectorModel`と`ItemListWiring`）、`55_ListDragRules.md`（7つの関数・定数・`ListArea`等のtypedef・使う側は`ItemListRowDrag`だけ）、`56_ItemListRowDrag.md`（公開・注入・進行・取りやめ・`window`のcaptureの`mousedown`・テストできない理由）。書き方は`48`・`53`に合わせた。実コード（`InsertTargetRules.js`・`ListDragRules.js`・`ItemListRowDrag.js`・`ItemListWiring.js`・`ItemListPanel.js`・`VectorModel.js`・`ShapeOrderEditor.js`・`ItemListRules.js`・`ListScrollRules.js`・`ItemTreeRules.js`・`SelectionRules.js`・`main.js`）を読んで名前・引数・順序を確かめて書いた。
+    *   更新：`01_index_html`（重なり順のまとまり・4ボタンのid・`title`・`disabled`の記述を消し、1行目の説明・幅の見積もり約489px、一覧のCSS＝印・動かす行・線を足した）、`02_main`（行数1194行・`// 7.5.`・`// 7.8.`・`// 7.15.`・注入の一覧の`ShapeInserter`・`ItemListWiring`・`KeyboardShortcuts`、`OptionBarOrderGroup`の行を削除、同一経路・押せる/押せない状態・起動時の同期）、`03_VectorModel`（描き込む先の項・`#applyState`・経路ごとの候補・公開の3つ・`atInsertTarget`・`keepInsertTarget`・`replaceShape`・`reorderShapes`）、`06_InputTracker`（行数2017行・`resolveUserClickSelection`・`#applySelectionChange`・`Esc`の(4)・`commitDraft`の引数・`isScalingSelection`と`isCancelableDrag`の関係）、`07_KeyboardShortcuts`（`isDragging`・`isCancelableDrag`の注入の式・行のドラッグ中の`Esc`・テスト11件）、`09_DragTracker`（使う側が2つ・座標の注入）、`13_palette`（`OptionBarOrderGroup`の項を消す・`ItemListPanel`の公開・注入・イベント・構成）、`14_edit`（`ShapeOrderEditor`・`ShapeInserter`・`EndpointSnapper`・`SnapshotAdapter`・`ClipboardController`・`CanvasFileOperations`・`ShapeOrderRules`）、`16_test`（新しいテスト6ファイルと追加分・消した1件・テストできない箇所・件数）、`27_SelectionRules`・`46_ItemTreeRules`・`48_ItemListRules`・`50_ListScrollRules`・`53_ItemListWiring`。
+    *   件数：`node --test`で tests 2912 / suites 470 / pass 2912 / fail 0（作業前 2764 / 449）。`main.js`は`wc -l`で1194行、`InputTracker.js`は2017行。コード・テスト・`PROJECT_ARCHITECTURE.md`は変えていない。
+    *   `16_test.md`の「確認の状況」に当たる実ブラウザの確認は未実施と書いた（`PROJECT_ARCHITECTURE.md`と同じ）。
 
 ## 5. 懸念事項・要確認ポイント
 **計画での判断（REQに書かれていない細部）**
@@ -454,3 +458,4 @@
 12. **ほかが今までどおり**：一覧での選択（クリック・`Ctrl`＋クリック・`Shift`＋クリック）・名前の変更（ダブルクリック）・サムネイル・カーソルを置いたときの見た目、描く・動かす・変形・頂点・角・色・整列・保存・書き出し・開くが今までどおり動く。何も選ばず印も無いときに描く・貼り付けると、今までどおり一番上に入る。
 *   （タスク10）通しのテストの「選択が戻る取り消し」は、選択が変わる操作（`a`・`c`を選んで削除）で確かめた。描き込む先が選択の一番上と違う状態は、削除で下の行へ付け替わるときに作れる。結合は`PathJoiner`（選択が残る経路）で確かめ、選択が空で`select: false`の経路（`EndpointSnapper`）は`EndpointSnapper.insertTarget.test.js`が受け持つ。
 *   （タスク11）`PROJECT_ARCHITECTURE.md`は1文が長い行が多いため、追記は該当する行の中の文を直す形にした（特に3章28.は「行のドラッグでの並べ替え」「ドラッグの始まりと取りやめ」「描き込む先の見せ方と変え方」「Phase 11-03のふるまいの注意」を新しい項として足した）。`ItemListRules`・`ListScrollRules`・`ItemListPanel`・`ItemListWiring`の関数名・メソッド名はRESとコードのexportの照合で書いたが、`ItemListPanel`・`ItemListWiring`の細部（`getInsertMarkId`・`onRowPress`・`isRowDragging`等）は実ブラウザでの確認と合わせて読み返すとよい。「確認の状況（Phase 11-03）」は**テストプレイ未実施**と書いてあり、発注者のテストプレイの後に書き直すこと。
+*   （タスク12）`_doc/arch/`の記述は、`OptionBarOrderGroup`の項・`getAvailability`の言及を消した一方、`02_main.md`3行目・`16_test.md`の06-04・07-02の「テストできない箇所」に、過去の時点の記述として`OptionBarOrderGroup`・`syncOptionBarOrderGroup`の言及が残る（`16_test.md`には今はなくなった旨を足した）。`git add -N`で新規3ファイルを意図的追加の状態にしてしまった（`git diff`の確認のため）。コミット時はそのまま含めてよい。`56_ItemListRowDrag.md`・`53_ItemListWiring.md`の細部は実ブラウザでの確認と合わせて読み返すとよい。テストプレイの後は`PROJECT_ARCHITECTURE.md`と`16_test.md`の「確認」の記述を書き直すこと。
