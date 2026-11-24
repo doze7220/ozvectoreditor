@@ -174,7 +174,7 @@
         *   `edit/CanvasLibrary`のキャンバス名の正規化（`#normalizeName`）とは別の規則であり、共通化しない（REQの範囲外。JSDocに一言書く）。
         *   テスト：種類ごとの呼び名（6種）・未知の種別、空の並びで1から・最大番号の次・欠番を埋めない、種別と食い違う名前（`path`の図形「直線 2」）が直線の番号に数えられること、`existingItems`の名前を避けること、名前のある要素（後ろにあるものも）と重ならないこと、前後に空白のある名前と名前なしが混ざる場合（`[{ name: ' パス 1 ' }, 名前なしのpath]`が`パス 1`・`パス 2`になる。順が逆の場合・フォルダの名前・入れ子の中・`existingItems`側の名前でも重ならない）、100文字で切って初めて自動の名前の形になる名前（例：`パス 1`の後に空白96個以上と文字が続くもの）と名前なしが混ざる場合、フォルダの自動の名前、自動の名前の形でないもの（「パス」「パス  3」「パス 03」「パス ３」「パス 0」）を数えないこと、非常に大きい番号で壊れないこと、名前が無い・数値・`null`・空・空白だけ・前後の空白・101文字以上・100文字目の前後の空白・サロゲートペア、`visible`・`locked`の不備（無い・文字列・数値）、2回通しても同じ、引数を書き換えない、入れ子。`ShapeFactory.test.js`に`getTypeLabel`を追記。
         *   共通の締め。
-*   [ ] タスク3: `VectorModel`が入れ子の並びを持つ
+*   [x] タスク3: `VectorModel`が入れ子の並びを持つ
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js` : 更新
         *   `./test/core/VectorModel.items.test.js` : 新規
@@ -281,7 +281,9 @@
 
 ### タスク3: `VectorModel`が入れ子の並びを持つ
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/VectorModel.js`（LFのまま）：フィールド`#shapes`を`#items`に替え、非公開getter`get #shapes()`（`listShapes(this.#items)`）を置いた。書く側はすべて`#items`の入れ替え（`grep "#shapes.push\|this.#shapes = "`は0件）。`updateShapeStyles`・`updateVertices`・`moveShapesBy`はループ前に平らな配列を1回取り出す。公開の照会`getItems()`を追加。`addShape`・`commitDraft`は`resolveItems([..], this.#items)`の結果を末尾に足す。`deleteShapes`・`replaceAllShapes`（図形とフォルダのidを合わせて正規化・戻り値は合計件数）・`addShapesWithNewIds`（図形が残らなければ何も変えず空配列）・`replaceShape`・`replaceShapesKeepingIds`・`reorderShapes`を2章・3章どおりにした。`#issueId(prefix = ID_PREFIX)`と`GROUP_ID_PREFIX = 'group-'`を足し、`ID_PATTERN`を`shape-`・`group-`の両方に一致させた。責務・JSDocを実態に合わせた。
+    *   `test/core/VectorModel.items.test.js`（新規・LF）22件を追加。既存の`VectorModel.*.test.js`は書き換えずに合格。`node --test`は2549件全件合格（2527 + 22）。
+    *   `reorderShapes`は平らな配列を最初に1回だけ取り出し、長さの検査・Mapの作成・比較に使う（1件ごとに平らにし直す2乗の計算を避けた。ふるまい・警告文・戻り値は変えていない）。
 
 ### タスク4: 作業データの版4
 *   **作業内容** :
@@ -319,6 +321,8 @@
 * **`?dev`の確認用ウィンドウの表示**：`palette/`を変えないため、読み飛ばしの表示`#n`は最上位の位置だけで、入れ子の中の位置（`path`）は出ない。「振り直したid」の件数にはフォルダも入る。
 * **極端に深い入れ子**：読み込みは例外を投げず全体失敗になるが、読み込みの限界のすぐ手前の深さ（数千段）では、履歴の`JSON.stringify`・凍結（再帰。変更しない）が限界に達し得る。画面からフォルダは作れず、現実のデータでは起きない。
 * **キャンバスの記録**：版3の記録は、開いただけでは書き換わらない（自動保存は編集操作だけ）。編集して保存されると版4になり、本作業の前のエディタでは開けなくなる（許容。REQ要件2）。念のため、確認の前に作業データファイルを残しておくこと（下の0.）。
+
+* **タスク3の実装メモ**：`#shapes`は毎回`listShapes`で平らにするため、`getSelectedIds`・`setSelection`等の読み取りは呼ぶたびに全図形を走査する（図形数が多いと計算量は増えるが状態の食い違いは起きない）。`replaceShape`の`removeIds`は図形のアイテムだけを除き、フォルダは空でも残す。`addShapesWithNewIds`はフォルダのidも`group-<連番>`で新しく発行する。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0. **準備**：本作業の前に保存した、いつもの絵の作業データファイル（`.ozve.json`）と書き出したJSを1つずつ用意する。画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。

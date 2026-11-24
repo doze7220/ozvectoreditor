@@ -1,9 +1,11 @@
 /**
- * 責務：図形データ・選択集合・ホバー・作成中図形・選択矩形・吸い付きの表示の点・新しく描く図形のスタイル（直前に使った値）の
+ * 責務：図形とフォルダのアイテムの入れ子の並び・選択集合・ホバー・作成中図形・選択矩形・吸い付きの表示の点・新しく描く図形のスタイル（直前に使った値）の
  * 状態管理（SSOT：Single Source of Truth）と更新通知を担う。
  * 頂点の選択（選択集合の図形のid＋ハンドル名の組。保存・履歴・書き出しの対象外の一時的な状態）も保持する。
  */
 import { ShapeFactory, SHAPE_TYPES } from './ShapeFactory.js';
+import { ITEM_KIND, toItems, listItems, listShapeItems, listShapes, placeShapeItems, filterShapes } from './ItemTreeRules.js';
+import { resolveItems } from './ItemAttributeRules.js';
 
 /**
  * 新しく描く図形のスタイル（直前に使った値）。有無と色を分けて持つ
@@ -65,15 +67,24 @@ const SHAPE_STYLE_KEYS = Object.freeze(['strokeColor', 'strokeWidth', 'fillColor
 const ID_PREFIX = 'shape-';
 
 /**
- * 採番形式（`shape-<連番>`）のidに一致し、連番部分（10進数字列）を第1グループに取り出す正規表現。
+ * フォルダidの接頭辞。VectorModelが採番するフォルダのidは `group-<連番>`（例：'group-2'）の形式とする。
+ * 連番は図形idと同じカウンタ（#nextId）から取る。
+ * @type {string}
+ */
+const GROUP_ID_PREFIX = 'group-';
+
+/**
+ * 採番形式（`shape-<連番>`・`group-<連番>`）のidに一致し、連番部分（10進数字列）を第1グループに取り出す正規表現。
  * replaceAllShapesでの#nextIdの繰り上げ（保持idの最大連番の算出）にのみ用いる。
  * @type {RegExp}
  */
-const ID_PATTERN = new RegExp(`^${ID_PREFIX}(\\d+)$`);
+const ID_PATTERN = new RegExp(`^(?:${ID_PREFIX}|${GROUP_ID_PREFIX})(\\d+)$`);
 
 /**
- * 図形の配列（描画順）と、選択集合・ホバー・作成中の図形・選択矩形・吸い付きの表示の点を保持する単一の真実（SSOT）。
- * 状態を変更するAPIは変更後にonChangeの登録リスナーへ通知する。図形idの採番（`shape-<連番>`）も本クラスが担う。
+ * 図形とフォルダのアイテムの入れ子の並び（`#items`だけが状態。平らな図形の配列は毎回求める）と、
+ * 選択集合・ホバー・作成中の図形・選択矩形・吸い付きの表示の点を保持する単一の真実（SSOT）。
+ * 状態を変更するAPIは変更後にonChangeの登録リスナーへ通知する。図形idの採番（`shape-<連番>`）・フォルダidの採番（`group-<連番>`。同じカウンタ）も本クラスが担う。
+ * 名前・表示・ロックの規則は`ItemAttributeRules`、入れ子の計算は`ItemTreeRules`へ委譲する。
  * 図形の生成はShapeFactoryへ委譲する（復元は`DocumentSerializer`→`ShapeFactory.fromJSON`が行い、本クラスは復元済みの図形一式を受け取るのみ）。図形固有の頂点構造には依存しない（ポリモーフィック呼び出しのみ）。
  * 新しく描く図形のスタイル（直前に使った値）も保持する（作業データ・履歴のスナップショットには含まれない）。
  * 図形の差し替えの入口として、既定では新しいidを採番する`replaceShape`・並びを変えない`replaceShapesKeepingIds`（複数・同じidのまま・通知1回）を持つ。
@@ -81,10 +92,10 @@ const ID_PATTERN = new RegExp(`^${ID_PREFIX}(\\d+)$`);
  */
 export class VectorModel {
     /**
-     * @type {Array<Object>} 保持している図形オブジェクトの配列
+     * @type {Array<Object>} 保持しているアイテム（図形のアイテム・フォルダのアイテム）の入れ子の配列。唯一の状態
      * @private
      */
-    #shapes;
+    #items;
 
     /**
      * @type {Array<Function>} 変更を通知するコールバック関数の配列
@@ -138,8 +149,8 @@ export class VectorModel {
 
     /**
      * @type {number} 図形id採番用の連番カウンタ（次に#issueId()が発行する連番）。
-     * #issueId()による採番（commitDraft・replaceAllShapes・addShapesWithNewIds・replaceShape）で1ずつ増える。
-     * 単調増加し、減らさない。replaceAllShapesでは、保持したidのうち採番形式（`shape-<連番>`。
+     * #issueId()による採番（図形・フォルダ共通。commitDraft・replaceAllShapes・addShapesWithNewIds・replaceShape）で1ずつ増える。
+     * 単調増加し、減らさない。replaceAllShapesでは、保持したidのうち採番形式（`shape-<連番>`・`group-<連番>`。
      * 連番がNumber.isSafeIntegerのもの）の最大連番をnとして max(現在値, n + 1) へ繰り上げる
      * （以後に発行するidが保持idと衝突しないため）。
      * @private
@@ -158,7 +169,7 @@ export class VectorModel {
      * 新しく描く図形のスタイルは既定値（DEFAULT_NEW_SHAPE_STYLE）の状態で初期化する。
      */
     constructor() {
-        this.#shapes = [];
+        this.#items = [];
         this.#listeners = [];
         this.#selectedIds = new Set();
         this.#hoveredId = null;
@@ -171,13 +182,32 @@ export class VectorModel {
     }
 
     /**
+     * 保持しているアイテムの入れ子を平らにした図形の配列（重なり順）。毎回求める（キャッシュしない）。
+     * @returns {Array<Object>} 図形オブジェクトの新しい配列
+     * @private
+     */
+    get #shapes() {
+        return listShapes(this.#items);
+    }
+
+    /**
      * 新しい図形を追加し、変更を通知する。
-     * 使わないこと（id採番を通らず`#shapes`へ追加するだけで、呼び出し元はない。図形の追加は`commitDraft`・`addShapesWithNewIds`を使う）。
+     * 使わないこと（id採番を通らず`#items`の末尾へ追加するだけで、呼び出し元はない。図形の追加は`commitDraft`・`addShapesWithNewIds`を使う）。
+     * 名前は`ItemAttributeRules.resolveItems`が付ける。
      * @param {Object} shape 追加する図形オブジェクト（drawメソッドを持つこと）
      */
     addShape(shape) {
-        this.#shapes.push(shape);
+        this.#items = [...this.#items, ...resolveItems([shape], this.#items)];
         this.#notifyChange();
+    }
+
+    /**
+     * 現在保持しているアイテム（図形・フォルダ）の入れ子の写しを取得する。
+     * 作業データへ入れ子ごと書き出すには`DocumentSerializer.serialize(model.getItems())`へ渡す。
+     * @returns {Array<Object>} 新しいアイテムの入れ子（入れ子まで新しいオブジェクト。図形インスタンスは共有する）
+     */
+    getItems() {
+        return toItems(this.#items);
     }
 
     /**
@@ -441,8 +471,9 @@ export class VectorModel {
      */
     updateShapeStyles(changes) {
         let count = 0;
+        const shapes = this.#shapes;
         for (const change of changes) {
-            const shape = this.#shapes.find((s) => s.id === change.id);
+            const shape = shapes.find((s) => s.id === change.id);
             if (!shape) {
                 continue;
             }
@@ -470,7 +501,8 @@ export class VectorModel {
     }
 
     /**
-     * 作成中の図形に一意なidを採番（#issueId()。`shape-<連番>`）して#shapesへ確定登録し、作成中データを破棄する。
+     * 作成中の図形に一意なidを採番（#issueId()。`shape-<連番>`）して#itemsの末尾（いちばん外側）へ確定登録し、作成中データを破棄する。
+     * 名前・表示・ロックは`ItemAttributeRules.resolveItems`が決める（名前は確定した図形の種別の呼び名＋番号）。
      * 作成中の図形が存在しない場合は何もしない。
      */
     commitDraft() {
@@ -478,7 +510,7 @@ export class VectorModel {
             return;
         }
         this.#draftShape.id = this.#issueId();
-        this.#shapes.push(this.#draftShape);
+        this.#items = [...this.#items, ...resolveItems([this.#draftShape], this.#items)];
         this.#draftShape = null;
         this.#notifyChange();
     }
@@ -553,8 +585,9 @@ export class VectorModel {
      */
     updateVertices(updates) {
         let updated = false;
+        const shapes = this.#shapes;
         for (const { id, vertexIndex, x, y } of updates) {
-            const shape = this.#shapes.find((s) => s.id === id);
+            const shape = shapes.find((s) => s.id === id);
             if (!shape) {
                 continue;
             }
@@ -602,8 +635,9 @@ export class VectorModel {
      */
     moveShapesBy(moves) {
         let moved = false;
+        const shapes = this.#shapes;
         for (const { id, dx, dy } of moves) {
-            const shape = this.#shapes.find((s) => s.id === id);
+            const shape = shapes.find((s) => s.id === id);
             if (!shape) {
                 continue;
             }
@@ -617,22 +651,20 @@ export class VectorModel {
     }
 
     /**
-     * 指定したidの集合に含まれる全図形を#shapesから除去する。
+     * 指定したidの集合に含まれる全図形を#itemsから除去する（フォルダは中身が空になっても残す。フォルダのidが渡されても無視する）。
      * 除去した図形のidは選択集合・ホバー状態・頂点の選択（その図形の組）からも除去する（存在しない図形のidが残留することを防ぐため）。
      * 存在しないidは無視する。1件以上削除した場合のみ変更を通知する（1回。図形数分は発行しない）。
      * @param {Iterable<string>} ids 削除する図形idの集合
      */
     deleteShapes(ids) {
         const targetIds = new Set(ids);
-        const remaining = this.#shapes.filter((s) => !targetIds.has(s.id));
-        if (remaining.length === this.#shapes.length) {
-            return;
-        }
-
         const removedIds = this.#shapes
             .filter((s) => targetIds.has(s.id))
             .map((s) => s.id);
-        this.#shapes = remaining;
+        if (removedIds.length === 0) {
+            return;
+        }
+        this.#items = filterShapes(this.#items, (s) => !targetIds.has(s.id));
 
         for (const id of removedIds) {
             this.#selectedIds.delete(id);
@@ -646,31 +678,33 @@ export class VectorModel {
     }
 
     /**
-     * 保持している全図形を、指定した図形の配列で一括して入れ替える（用途：`?dev`の復元・取り消し/やり直し・キャンバスの切り替え）。以下の順に処理する。
-     * (1)引数の配列をコピーして新しい内部配列とする（引数の配列自体は流用しない。図形インスタンスは受け取ったものを保持する）。
-     * (2)idの正規化：先頭から順に、idが空でない文字列で、それまでに出現していなければそのまま保持する（保持id）。
+     * 保持している全アイテムを、指定したアイテム（または素の図形）の配列で一括して入れ替える（用途：`?dev`の復元・取り消し/やり直し・キャンバスの切り替え）。以下の順に処理する。
+     * (1)`resolveItems(values)`で新しいアイテムの入れ子を作る（引数の配列・アイテムは流用せず書き換えない。図形インスタンスは受け取ったものを保持する。
+     *    素の図形は名前の無い図形のアイテムとして扱われ自動の名前が付く。名前・フォルダを保つには`getItems()`や`deserialize`の`items`を渡す）。
+     * (2)idの正規化：前順（フォルダ → その中身）に、図形（`item.shape.id`）とフォルダ（`item.id`）のidを合わせて、
+     *    空でない文字列で、それまでに出現していなければそのまま保持する（保持id）。
      *    それ以外（欠落・文字列でない・空文字・重複の後出し）は振り直し対象とする（重複時は後に出現した方を振り直す）。
-     * (3)保持idのうち採番形式（`shape-<連番>`。連番がNumber.isSafeIntegerのもの）の最大連番をnとし、
+     * (3)保持idのうち採番形式（`shape-<連番>`・`group-<連番>`。連番がNumber.isSafeIntegerのもの）の最大連番をnとし、
      *    #nextIdを max(現在値, n + 1) へ繰り上げる（減らさない）。
-     * (4)振り直し対象に#issueId()で新しいidを採番する（(3)により保持idとは衝突しない）。
+     * (4)振り直し対象に#issueId()で新しいidを採番する（図形は`shape-`、フォルダは`group-`。(3)により保持idとは衝突しない）。
      * (5)選択集合・頂点の選択・ホバー状態・作成中の図形・選択矩形・吸い付きの表示の点をクリアする。
      * (6)変更を通知する（1回のみ）。
      * 新しく描く図形のスタイル（直前に使った値）には触れない。
      * 進行中の入力操作（ドラッグ・作成途中の図形）の中断は呼び出し側の責務（`InputTracker.abortOngoingOperation()`、または`CanvasLibrary`では`prepareSwitch()`経由の`setMode`）。
-     * 受け取ったインスタンスの`id`を直接書き換える。idの重複判定は値で行うため、同一インスタンスを配列に重複して渡さない（既存インスタンスを渡す場合は呼び出し側で複製する）。
-     * @param {Array<Object>} shapes 新しい図形の配列（描画順。共通インターフェースを持つ図形インスタンス）
-     * @returns {number} idを振り直した図形の件数
+     * 受け取った図形インスタンスの`id`を直接書き換える。idの重複判定は値で行うため、同一インスタンスを配列に重複して渡さない（既存インスタンスを渡す場合は呼び出し側で複製する）。
+     * @param {Array<Object>} values 新しいアイテムの入れ子（描画順）。アイテムまたは素の図形インスタンス（共通インターフェースを持つ）の配列
+     * @returns {number} idを振り直した図形とフォルダの合計件数
      */
-    replaceAllShapes(shapes) {
-        const nextShapes = [...shapes];
+    replaceAllShapes(values) {
+        const nextItems = resolveItems(values);
 
         const keptIds = new Set();
         const reassignTargets = [];
         let maxSerial = 0;
-        for (const shape of nextShapes) {
-            const id = shape.id;
+        for (const item of listItems(nextItems)) {
+            const id = item.kind === ITEM_KIND.GROUP ? item.id : item.shape.id;
             if (typeof id !== 'string' || id === '' || keptIds.has(id)) {
-                reassignTargets.push(shape);
+                reassignTargets.push(item);
                 continue;
             }
             keptIds.add(id);
@@ -685,11 +719,15 @@ export class VectorModel {
         }
 
         this.#nextId = Math.max(this.#nextId, maxSerial + 1);
-        for (const shape of reassignTargets) {
-            shape.id = this.#issueId();
+        for (const item of reassignTargets) {
+            if (item.kind === ITEM_KIND.GROUP) {
+                item.id = this.#issueId(GROUP_ID_PREFIX);
+            } else {
+                item.shape.id = this.#issueId();
+            }
         }
 
-        this.#shapes = nextShapes;
+        this.#items = nextItems;
         this.#selectedIds.clear();
         this.#pruneSelectedVertices();
         this.#hoveredId = null;
@@ -702,39 +740,50 @@ export class VectorModel {
     }
 
     /**
-     * 指定した図形を、新しいidを採番したうえで#shapesの末尾（最前面）へ引数の順に追加し、
+     * 指定したアイテム（または素の図形）を、新しいidを採番したうえで#itemsの末尾（いちばん外側）へ引数の順に追加し、
      * 追加した図形だけを選択する（貼り付け・複製・インポート等で図形を追加する場合の公開操作）。
-     * (1)idの上書き：追加する各図形の`id`を常に#issueId()で発行した新しいidで上書きする（引数の図形のidは引き継がない）。
-     *    #nextIdは単調増加で減らさないため、キャンバス上の既存図形のidとも、過去に発行したidとも衝突しない。
-     * (2)重複インスタンスの除外：引数内で2回目以降に現れるインスタンス、および既に#shapesに含まれるインスタンスは、
-     *    同じidを持つ2要素を作らないためconsole.warnのうえ追加しない（判定はインスタンス参照で行う）。
-     * (3)選択集合を、追加した図形のidの集合で置き換える（追加した図形だけが選択される）。
+     * (1)idの上書き：追加する各図形の`id`・各フォルダの`id`を常に#issueId()で発行した新しいid（図形は`shape-`、フォルダは`group-`）で上書きする
+     *    （引数のidは引き継がない）。#nextIdは単調増加で減らさないため、キャンバス上の既存のidとも、過去に発行したidとも衝突しない。
+     * (2)重複インスタンスの除外：引数内で2回目以降に現れる図形インスタンス、および既に保持している図形インスタンスは、
+     *    同じidを持つ2要素を作らないためconsole.warnのうえ追加しない（判定はインスタンス参照で行う）。フォルダは空になっても残す。
+     * (3)図形が1つも残らなければ（フォルダだけの場合を含む）何も変えず（通知もせず）空配列を返す。
+     * (4)名前・表示・ロックは`resolveItems`が決める（名前のあるアイテムはそのまま。名前の無い図形・フォルダには今のキャンバスの名前と重ならない自動の名前が付く）。
+     * (5)選択集合を、追加した図形のidの集合で置き換える（追加した図形だけが選択される）。
      *    頂点の選択から、選択中でなくなった図形の組を落とす。ホバー状態・作成中の図形・選択矩形には触れない。
-     * (4)1件以上追加した場合のみ変更を通知する（1回。図形数分は発行しない）。0件なら何も変更しない。
-     * 受け取ったインスタンスをそのまま保持して`id`を書き換えるため、呼び出し側は追加後にそのインスタンスを他の用途に流用しない。
+     * (6)変更を通知する（1回。図形数分は発行しない）。
+     * 受け取った図形インスタンスをそのまま保持して`id`を書き換えるため、呼び出し側は追加後にそのインスタンスを他の用途に流用しない。
      * 図形インスタンスには`id`の代入以外で触れない（頂点・図形固有のプロパティ・図形種別を関知しない）。
      * 前提：呼び出し側が選択モードであることを保証すること（選択集合は選択モード以外では常に空という不変条件を守るため）。
-     * @param {Array<Object>} shapes 追加する図形の配列（描画順。共通インターフェースを持つ図形インスタンス）
-     * @returns {Array<string>} 追加した図形の新しいidの配列（描画順。追加0件なら空配列）
+     * @param {Array<Object>} values 追加するアイテムの入れ子（描画順）。アイテムまたは素の図形インスタンス（共通インターフェースを持つ）の配列
+     * @returns {Array<string>} 追加した図形の新しいidの配列（描画順。フォルダのidは含まない。追加0件なら空配列）
      */
-    addShapesWithNewIds(shapes) {
+    addShapesWithNewIds(values) {
         const existingShapes = new Set(this.#shapes);
         const processedShapes = new Set();
-        const addedIds = [];
-        for (const shape of shapes) {
+        const accepted = filterShapes(toItems(values), (shape) => {
             if (existingShapes.has(shape) || processedShapes.has(shape)) {
                 console.warn('VectorModel.addShapesWithNewIds: 既に追加済みの図形インスタンスのため追加しません。', shape);
-                continue;
+                return false;
             }
             processedShapes.add(shape);
-            shape.id = this.#issueId();
-            this.#shapes.push(shape);
-            addedIds.push(shape.id);
+            return true;
+        });
+
+        if (listShapeItems(accepted).length === 0) {
+            return [];
         }
 
-        if (addedIds.length === 0) {
-            return addedIds;
+        const addedItems = resolveItems(accepted, this.#items);
+        const addedIds = [];
+        for (const item of listItems(addedItems)) {
+            if (item.kind === ITEM_KIND.GROUP) {
+                item.id = this.#issueId(GROUP_ID_PREFIX);
+            } else {
+                item.shape.id = this.#issueId();
+                addedIds.push(item.shape.id);
+            }
         }
+        this.#items = [...this.#items, ...addedItems];
 
         this.#selectedIds = new Set(addedIds);
         this.#pruneSelectedVertices();
@@ -744,11 +793,12 @@ export class VectorModel {
 
     /**
      * 指定idの図形の位置へ新しい図形を入れ、指定idの図形を除き、結果の図形だけを選択する（`select`が偽なら選択を作らない。結合等の公開操作）。
-     * (1)`targetId`の図形の位置を#shapesから探す。無ければ何もせず（通知もせず）nullを返す。
+     * (1)`targetId`の図形の位置を平らにした図形の並びから探す。無ければ何もせず（通知もせず）nullを返す。
      * (2)`shape`のインスタンスが既に#shapesに含まれていれば、同じidの2要素を作らないためconsole.warnのうえ何もせずnullを返す。
      * (3)`shape.id`を、`keepId`が真なら`targetId`、偽なら#issueId()で発行した新しいidにする。
-     * (4)`targetId`の位置の図形を`shape`に置き換え、`removeIds`に含まれるidの図形を除く
-     *    （`targetId`自身が含まれていても置き換えた位置は除かない。存在しないidは無視。他の図形の前後関係は変えない）。
+     * (4)`targetId`の位置の図形のアイテムの`shape`だけを`shape`に置き換え（名前・表示・ロック・所属は位置のまま引き継ぐ）、
+     *    `removeIds`に含まれるidの図形を除く（別のフォルダの中の図形でも除く。フォルダは空になっても残す。
+     *    `targetId`自身が含まれていても置き換えた位置は除かない。存在しないidは無視。他の図形の前後関係は変えない）。
      * (5)`select`が真なら選択集合を`shape.id`だけにする。偽なら選択集合を新しく作らず、現存しなくなったid
      *    （置き換えで消えた元のid・除いた図形のid）だけを選択集合から外す（作成モードでは空のまま）。
      *    頂点の選択から、選択中でなくなった図形の組を落とす。
@@ -778,10 +828,13 @@ export class VectorModel {
 
         shape.id = keepId ? targetId : this.#issueId();
         const removeSet = new Set(removeIds);
-        const targetShape = this.#shapes[targetIndex];
-        this.#shapes = this.#shapes
-            .map((s) => (s === targetShape ? shape : s))
-            .filter((s) => s === shape || !removeSet.has(s.id));
+        const shapeItems = listShapeItems(this.#items);
+        const targetItem = shapeItems[targetIndex];
+        const replacedItems = placeShapeItems(
+            this.#items,
+            shapeItems.map((item) => (item === targetItem ? { ...item, shape } : item))
+        );
+        this.#items = filterShapes(replacedItems, (s) => s === shape || !removeSet.has(s.id));
 
         if (select) {
             this.#selectedIds = new Set([shape.id]);
@@ -805,6 +858,7 @@ export class VectorModel {
      *    同じidの2要素を作らないためconsole.warnのうえ飛ばす（同じ位置の同じインスタンスは差し替えた扱いで件数に数える）。
      * (3)1件以上差し替えたら、頂点の選択から選択中でなくなった図形の組を落とし（idが同じため通常は何も落ちない）、
      *    変更を通知する（1回。組の数分は発行しない）。0件なら通知しない。
+     * 差し替えるのはアイテムの`shape`だけで、名前・表示・ロック・所属は位置のまま引き継ぐ。
      * 触れないもの：選択集合・ホバー（idが同じため）・作成中の図形・選択矩形・吸い付きの表示の点・新しく描く図形のスタイル
      * （直前に使った値）・idの採番（#nextId）・図形の並び。履歴の記録（beginEdit/commitEdit）は呼び出し側の責務。
      * 図形インスタンスには`id`の代入以外で触れない（図形種別・頂点・図形固有のプロパティを関知しない）。
@@ -837,7 +891,10 @@ export class VectorModel {
         if (count === 0) {
             return 0;
         }
-        this.#shapes = nextShapes;
+        this.#items = placeShapeItems(
+            this.#items,
+            listShapeItems(this.#items).map((item, i) => (nextShapes[i] === item.shape ? item : { ...item, shape: nextShapes[i] }))
+        );
         this.#pruneSelectedVertices();
         this.#notifyChange();
         return count;
@@ -849,7 +906,8 @@ export class VectorModel {
      *    console.warnのうえ何も変えず（通知もせず）falseを返す（並びを壊さない）。
      * (2)idから今の図形インスタンスを引いて新しい配列を作る。今の並びとすべての位置で同じインスタンスなら、
      *    何も変えず（通知もせず・警告もせず）falseを返す（図形0個で`[]`を渡す場合を含む）。
-     * (3)#shapesを新しい配列に置き換え、変更を通知して（1回）trueを返す。
+     * (3)フォルダの位置と入れ子を保ったまま、図形のアイテム（名前・表示・ロックごと）を新しい順に図形の位置へ置き直し
+     *    （名前は図形について動き、所属は位置のものになる）、変更を通知して（1回）trueを返す。
      * 操作の種類（最前面へ等）は受け取らず、新しい並び全体だけを受け取る（並べ替えの規則を`core/`へ持ち込まず、
      * 任意の並びの設定からも同じ公開操作を使えるようにするため。規則は`edit/ShapeOrderRules.js`が持つ）。
      * 触れないもの：選択集合（同じidの図形が選ばれたまま。`getSelectedIds()`が返す順は新しい並びに従う）・ホバー・
@@ -860,11 +918,12 @@ export class VectorModel {
      * @returns {boolean} 並びを変えたか
      */
     reorderShapes(orderedIds) {
-        if (!Array.isArray(orderedIds) || orderedIds.length !== this.#shapes.length) {
+        const currentShapes = this.#shapes;
+        if (!Array.isArray(orderedIds) || orderedIds.length !== currentShapes.length) {
             console.warn('VectorModel.reorderShapes: 現在の全図形のidをちょうど1回ずつ並べた配列ではないため、並びを変えません。', orderedIds);
             return false;
         }
-        const shapeById = new Map(this.#shapes.map((s) => [s.id, s]));
+        const shapeById = new Map(currentShapes.map((s) => [s.id, s]));
         const nextShapes = [];
         const usedIds = new Set();
         for (const id of orderedIds) {
@@ -875,10 +934,11 @@ export class VectorModel {
             usedIds.add(id);
             nextShapes.push(shapeById.get(id));
         }
-        if (nextShapes.every((s, i) => s === this.#shapes[i])) {
+        if (nextShapes.every((s, i) => s === currentShapes[i])) {
             return false;
         }
-        this.#shapes = nextShapes;
+        const itemByShape = new Map(listShapeItems(this.#items).map((item) => [item.shape, item]));
+        this.#items = placeShapeItems(this.#items, nextShapes.map((shape) => itemByShape.get(shape)));
         this.#notifyChange();
         return true;
     }
@@ -894,13 +954,14 @@ export class VectorModel {
     }
 
     /**
-     * 新しい図形idを1つ発行する（`shape-<連番>`。発行のたびに#nextIdを1増やす）。
-     * 図形idの採番はすべてこのメソッドを経由する（commitDraft・replaceAllShapes・addShapesWithNewIds・replaceShape）。
-     * @returns {string} 発行した図形id
+     * 新しいidを1つ発行する（`<接頭辞><連番>`。発行のたびに#nextIdを1増やす。図形とフォルダで同じカウンタを使う）。
+     * 図形idの採番（`shape-<連番>`）・フォルダidの採番（`group-<連番>`）はすべてこのメソッドを経由する（commitDraft・replaceAllShapes・addShapesWithNewIds・replaceShape）。
+     * @param {string} [prefix=ID_PREFIX] idの接頭辞（図形は`shape-`、フォルダは`group-`）
+     * @returns {string} 発行したid
      * @private
      */
-    #issueId() {
-        return `${ID_PREFIX}${this.#nextId++}`;
+    #issueId(prefix = ID_PREFIX) {
+        return `${prefix}${this.#nextId++}`;
     }
 
     /**
