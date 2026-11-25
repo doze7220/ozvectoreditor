@@ -76,7 +76,7 @@ export class SnapshotAdapter {
      * 作業データをデシリアライズし、全体の読み込み失敗またはスキップが1件以上あれば`console.warn`して
      * キャンバスを変更せず`false`を返す（一部の図形だけが戻る中途半端な状態を避けるため）。
      * 成功時は入れ子の並び（`result.items`。折りたたみは`restoreCollapsed`で決め直す：今あるフォルダは今の折りたたみを保ち、無いフォルダは記録時の閉じていたかに従う）を入れ替え（図形・フォルダのidは保持される。選択集合・ホバー・作成中の図形・選択矩形はクリアされる）、
-     * 描き込む先は今の値を規則に通して残す（`keepInsertTarget: true`。続く`setSelection`で1つ以上選ばれれば選ばれている一番上の図形になる。保存はしない）。
+     * 描き込む先は今の値を規則に通して残す（`keepInsertTarget: true`。続く`setSelection`で1つ以上選ばれれば選んでいるまとまりの一番上のもので決まる。保存はしない）。
      * `shouldRestoreSelection()`が真のときのみ記録時点の選択集合とフォルダの選択を復元する（存在しないidは`setSelection`が無視・不変条件で落とす。
      * 偽のときは選択集合は空のまま）。復元は`keepsCollapsed: true`で行い、折りたたみを開かない。`selectedGroupIds`・`collapsedGroupIds`が無いスナップショットは空として扱う。
      * 進行中の入力操作の中断は本メソッドでは行わない（呼び出し側の責務）。

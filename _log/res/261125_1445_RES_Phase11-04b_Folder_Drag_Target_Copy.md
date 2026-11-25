@@ -317,7 +317,7 @@
         *   実物（`VectorModel`・`SnapshotAdapter`・`HistoryManager`・`GroupEditor`・`ShapeOrderEditor`・`ShapeInserter`（`insertsAtTarget: true`）・`ClipboardController`・`DocumentSerializer`と、`ListDragRules`・`ItemRowRules`）を組み合わせ、公開APIだけで確かめる：座標 → 場所 → `moveTo`の通し（入れる・出す・フォルダごと・一番下）、描く → 取り消す → 描き直す（フォルダの中の途中・一番下・いちばん外側の一番下・空のフォルダ・絵が空になる）とやり直しで描き込む先が動かないこと、切り取り → 取り消し → 貼り付け、ツールの切り替え相当（`clearSelection`）で`inside`が残り描くと中の一番上へ入り続けて重なる、作るボタン → 描く、インポート（引数なしの`insertDocument`）がフォルダの中・一番下へ入る、キャンバスの入れ替え（`replaceAllShapes`）で無しに戻る、描き込む先を変えても`capture()`・作業データ・スプライトのテキストが変わらない、フォルダの操作とドラッグとコピーを続けて行った後の取り消し/やり直しの往復でJSONと選んでいるフォルダが各段階で一致しidの重複が無いこと、フォルダの無い絵での複製・コピー・切り取り・ドラッグの結果が今までと同じこと（一番下の切り取りと貼り付けだけ元の場所）。
         *   不具合を見つけた場合は製品コードを直さず、5章へ書いて報告する。
 
-*   [ ] タスク15: 周りのJSDocの言葉合わせ
+*   [x] タスク15: 周りのJSDocの言葉合わせ
     *   **対象ファイル** :
         *   `./js/edit/CanvasFileOperations.js`・`./js/edit/EndpointSnapper.js`・`./js/edit/SnapshotAdapter.js` :（更新。コメントだけ）
     *   **作業内容** :
@@ -423,7 +423,7 @@
 
 ### タスク15: 周りのJSDocの言葉合わせ
 *   **作業内容** :
-    *   （未記入）
+    *   コメントだけ変更（コードは不変）。`CanvasFileOperations.js`（CRLF）：`insertDocument`の「描き込む先のすぐ上、無ければ最前面」を「描き込む先（行の上・フォルダの中・一番下。無ければ最前面）」へ。`EndpointSnapper.js`（LF）：`commitDraft`の説明を「描き込む先（行の上・フォルダの中・一番下）へ入る。無ければ最前面」へ。`SnapshotAdapter.js`（CRLF）：「選ばれている一番上の図形になる」を「選んでいるまとまりの一番上のもので決まる」へ。行末は保った。
 
 ### タスク16: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
 *   **作業内容** :

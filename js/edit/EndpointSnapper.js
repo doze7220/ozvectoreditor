@@ -324,7 +324,7 @@ export class EndpointSnapper {
 
     /**
      * 吸い付きなしで終えた線を、直前に使った値のスタイル・新しいidで確定する（記録は1件）。
-     * `model.replaceDraft(shape)` → `editRecorder.beginEdit()` → `model.commitDraft({ atInsertTarget: true })`（描き込む先のすぐ上へ入る。描き込む先が無ければ末尾）→ `editRecorder.commitEdit()`。
+     * `model.replaceDraft(shape)` → `editRecorder.beginEdit()` → `model.commitDraft({ atInsertTarget: true })`（描き込む先（行の上・フォルダの中・一番下）へ入る。描き込む先が無ければ最前面）→ `editRecorder.commitEdit()`。
      * @param {Object} shape 終えた線（`buildFinishedDrawnLine`の結果）
      */
     #commitDrawnShape(shape) {
