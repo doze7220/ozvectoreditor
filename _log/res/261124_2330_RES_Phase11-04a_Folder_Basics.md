@@ -228,7 +228,7 @@
         *   「要件7」のとおり`apply`を変える。`applyOrder`のふるまいは変えない。JSDocを今の動きに直す。
         *   新しいテスト：入れ子の中だけで動く・フォルダごと動く・隣のフォルダの中へ入らない・またがった選択・端・空のフォルダ・全部選択・記録1件・何も変わらなければ記録しない・フォルダの無い絵で今と同じ。
 
-*   [ ] タスク10: 削除の受理と、選び直し/足すの区別
+*   [x] タスク10: 削除の受理と、選び直し/足すの区別
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` :（更新）
         *   `./js/main.js` :（更新）
@@ -365,7 +365,9 @@
 
 ### タスク10: 削除の受理と、選び直し/足すの区別
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/InputTracker.js`（CRLF）：`InputAssist.deleteSelectedItems`（typedef・`NO_INPUT_ASSIST`の既定は何もしない・コンストラクタの写し・JSDoc）を追加。`deleteSelection`の受理条件を「図形の選択かフォルダの選択が1つ以上」（`getSelectedGroupIds()`を参照）にし、受理後は`deleteSelectedItems()`を呼んで`true`を返すだけに（`beginEdit`／`commitEdit`・`deleteShapes`は呼ばない。JSDocに記録は補助の実体が行う旨を記載）。`#applySelectionChange(change, additive)`は`setSelectionByUser(ids, { additive })`へ流し、4つの呼び出し（選択のクリック・頂点の選択のクリック`true`／`false`・範囲選択）が規則へ渡している`Ctrl`の値を渡す。`Esc`の経路は変えていない。
+    *   `js/main.js`（CRLF）：`GroupEditor`のimportと生成（`shapeOrderEditor`の直後。`getMode: () => inputTracker.getMode()`）、`inputTracker`への注入`deleteSelectedItems: () => { groupEditor.removeSelection(); }`（前方参照）、`syncDeleteButtonState`の条件（図形・フォルダの選択がどちらも空のときだけ押せない）、`canvasLibrary`の生成の後に`model.onCollapsedChange(() => canvasLibrary.requestSave())`。
+    *   テストは追加・変更なし（`node --test`は tests 3130 / pass 3130 / fail 0）。
 
 ### タスク11: `Ctrl`+`G`・`Ctrl`+`Shift`+`G`
 *   **作業内容** :

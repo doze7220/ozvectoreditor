@@ -37,6 +37,7 @@ import { ShapeStyleEditor } from './edit/ShapeStyleEditor.js';
 import { StyleEyedropper } from './edit/StyleEyedropper.js';
 import { OptionBarStyleGroup } from './palette/OptionBarStyleGroup.js';
 import { ShapeOrderEditor } from './edit/ShapeOrderEditor.js';
+import { GroupEditor } from './edit/GroupEditor.js';
 import { ItemRenameEditor } from './edit/ItemRenameEditor.js';
 import { NudgeEditor } from './edit/NudgeEditor.js';
 import { PositionInputEditor } from './edit/PositionInputEditor.js';
@@ -195,6 +196,9 @@ document.addEventListener('DOMContentLoaded', () => {
         getSelectionFrameBounds: () => shapeExtentReader.getSelectedGeometryBounds(),
         // 回転のドラッグの中心にする基準点の名前の照会（実体はtransformInputSettings.getReferencePoint()。InputTrackerは設定を知らない）
         getReferencePoint: () => transformInputSettings.getReferencePoint(),
+        // 選んでいる図形・フォルダの削除の実体（groupEditorは後の「// 7.8.」でconst宣言されるが、呼ばれるのは削除の操作中（起動完了後）だけ。
+        // 記録の手順はGroupEditorが挟み、InputTrackerは受理の判定だけを持つ）
+        deleteSelectedItems: () => { groupEditor.removeSelection(); },
     });
 
     /**
@@ -321,14 +325,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * ツールバーの削除ボタン（`#selection-delete`）の押せる/押せない状態を、Modelの選択集合に
-     * 同期する。選択集合が空なら押せない状態（HTMLの`disabled`属性）にする。model.onChangeの
+     * 同期する。図形の選択もフォルダの選択も空なら押せない状態（HTMLの`disabled`属性）にする。model.onChangeの
      * コールバックとして登録し、起動時にも明示的に1回呼び出す（通知の有無に依存しない）。
      * ボタンのDOM更新はmain.jsが担い、VectorModel・InputTrackerはDOMに触れない。
      * 選択集合は操作モード切替でクリアされるため、図形作成・キャンバス移動モード中は常に押せない
      * 状態になる（モード別の分岐は不要）。
      */
     function syncDeleteButtonState() {
-        deleteSelectionBtn.disabled = model.getSelectedIds().length === 0;
+        deleteSelectionBtn.disabled = model.getSelectedIds().length === 0 && model.getSelectedGroupIds().length === 0;
     }
 
     // 選択集合の変化（選択・選択解除・削除）に応じて削除ボタンの状態を更新する
@@ -588,6 +592,9 @@ document.addEventListener('DOMContentLoaded', () => {
         confirmOpenUnsaved: () => canvasPalette.confirmOpenUnsaved()
     });
 
+    // 折りたたみの変化（履歴に入らない）の自動保存の予約。保存の可否・保留は今までどおりCanvasLibraryが判断する
+    model.onCollapsedChange(() => canvasLibrary.requestSave());
+
     // ファイル操作（出力（作業ファイル・エンジン用）・開く（ファイル）・インポート）の組み立てはCanvasFileOperationsが持つ。
     // ファイルの読み書きはDocumentFileIOを注入し、インポートの前提（選択モード）はprepareInsertで満たす
     const canvasFileOperations = new CanvasFileOperations({
@@ -705,6 +712,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 変更の手順（並びを変える1件の編集操作）はShapeOrderEditor（edit/）が、並べ替えの規則はShapeOrderRules（edit/）が持ち、
     // ここは生成・注入のみを行う。重なり順の変更はキー（Home/PageUp/PageDown/End）から呼ばれる。
     const shapeOrderEditor = new ShapeOrderEditor({ model, editRecorder: historyManager });
+
+    // まとめる・解除・空のフォルダ・削除の手順（1件の編集操作）はGroupEditor（edit/）が持つ。ここは生成・注入のみ
+    const groupEditor = new GroupEditor({ model, editRecorder: historyManager, getMode: () => inputTracker.getMode() });
 
     /**
      * 選択中の図形の重なり順を変える。キー（Home/PageUp/PageDown/End）の経路

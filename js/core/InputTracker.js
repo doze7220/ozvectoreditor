@@ -143,10 +143,12 @@ const NO_SNAP_ASSIST = Object.freeze({
  *     戻り値は検証せずScaleHandleRulesの関数へ渡す。既定は常に`null`（外枠のハンドルなし）
  * @property {() => (string|null)} getReferencePoint 基準点の名前の照会。回転のドラッグの押下（#beginRotateSelection）で1回だけ呼び、
  *     戻り値は検証せずRotationRulesのcomputeRotationCenterへ渡す。既定は常に`null`（外枠の中心）
+ * @property {() => void} deleteSelectedItems 選んでいる図形・フォルダの削除の実体（deleteSelectionが受理した後に1回だけ呼ぶ）。
+ *     履歴の記録（beginEdit／commitEdit）は実体の側が挟み、本クラスは挟まない。既定は何もしない
  */
 
 /**
- * 第7引数の補助が注入されなかった場合の既定値（複製しない・待ち受けなし・図形を渡さない・丸めない・外枠のハンドルなし・回転の中心は外枠の中心）。
+ * 第7引数の補助が注入されなかった場合の既定値（複製しない・待ち受けなし・図形を渡さない・丸めない・外枠のハンドルなし・回転の中心は外枠の中心・削除しない）。
  * @type {InputAssist}
  */
 const NO_INPUT_ASSIST = Object.freeze({
@@ -164,6 +166,7 @@ const NO_INPUT_ASSIST = Object.freeze({
     getReferencePoint() {
         return null;
     },
+    deleteSelectedItems() {},
 });
 
 /**
@@ -226,7 +229,7 @@ export function hasCtrlModifier(event) {
  * 頂点の選択のモード（OperationMode.VERTEX）では、頂点のハンドルのクリックでCtrlの有無により頂点の選択へ足す・外す・その頂点だけに選び直し、
  * 範囲選択（MARQUEE_SELECTING）で範囲に入る頂点をまとめて選び、選んだ頂点のハンドルのドラッグで選んだ頂点をまとめて動かす
  * （選択の次の状態の決定はSelectionRules、押下時の分岐はPressActionRulesへ渡す）。
- * 入力の解釈の外へ委ねる補助（InputAssist。コンストラクタ第7引数。項目はduplicateSelection・isPickingShape・pickShape・getUnitSnapStep・getSelectionFrameBounds・getReferencePoint）も注入される。
+ * 入力の解釈の外へ委ねる補助（InputAssist。コンストラクタ第7引数。項目はduplicateSelection・isPickingShape・pickShape・getUnitSnapStep・getSelectionFrameBounds・getReferencePoint・deleteSelectedItems）も注入される。
  * 選択モードで選んだ図形全体の外枠のハンドル（外枠の出し方・位置・当たり・倍率と動かない点の計算・スナップの当て方・変換の組み立てはScaleHandleRulesの関数。
  * 本クラスは持たない）を押して引くと拡大縮小（SCALING_SELECTION）になる。押下の時点の選択中の図形のインスタンスを#scaleDragに控え、追従のたびに
  * 規則の関数が返した変換を控えの図形へ当てて（図形のcreateTransformed）、VectorModel.replaceShapesKeepingIdsで同じidの位置へ差し替えるだけ。
@@ -439,6 +442,9 @@ export class InputTracker {
             getReferencePoint: typeof inputAssist?.getReferencePoint === 'function'
                 ? () => inputAssist.getReferencePoint()
                 : NO_INPUT_ASSIST.getReferencePoint,
+            deleteSelectedItems: typeof inputAssist?.deleteSelectedItems === 'function'
+                ? () => inputAssist.deleteSelectedItems()
+                : NO_INPUT_ASSIST.deleteSelectedItems,
         };
 
         /**
@@ -631,10 +637,9 @@ export class InputTracker {
 
     /**
      * 選択集合の全図形を一括削除する。
-     * 受理条件「選択モード かつ IDLE状態 かつ ドラッグ中でない かつ 選択集合が空でない」はこのメソッド内でのみ判定する。
-     * 受理時はModelのdeleteShapes(selectedIds)を呼ぶ（変更通知1回）。非受理時は何もしない。
-     * 受理時のみ、deleteShapesの直前に記録先のbeginEdit()、直後にcommitEdit()を呼び、1件の編集操作として伝える
-     * （前の状態の選択集合＝削除した図形、後の状態の選択集合＝空）。非受理時は記録経路を通らない。
+     * 受理条件「選択モード かつ IDLE状態 かつ ドラッグ中でない かつ 図形の選択かフォルダの選択が1つ以上」はこのメソッド内でのみ判定する。
+     * 受理時は補助のdeleteSelectedItems()を呼ぶだけ（実体はmain.jsが注入するGroupEditor.removeSelection()）。非受理時は何もしない。
+     * 履歴の記録（beginEdit／commitEdit）・削除の実行は補助の実体が行い、本メソッドは記録先を呼ばない・deleteShapesも呼ばない。
      * 削除ボタン（main.js）・Delete/Backspaceショートカット（KeyboardShortcuts→main.jsの注入コールバック）・
      * 切り取り（`ClipboardController.cut()`へ`main.js`が注入）の唯一の削除経路であり、呼び出し側で条件を重複判定しないこと。
      * ドラッグ中（パン中を含む）は受け付けない（ドラッグ対象の図形が消えたまま追従が続くことを防ぐため）。
@@ -645,14 +650,11 @@ export class InputTracker {
             return false;
         }
 
-        const selectedIds = this.model.getSelectedIds();
-        if (selectedIds.length === 0) {
+        if (this.model.getSelectedIds().length === 0 && this.model.getSelectedGroupIds().length === 0) {
             return false;
         }
 
-        this.#editRecorder.beginEdit();
-        this.model.deleteShapes(selectedIds);
-        this.#editRecorder.commitEdit();
+        this.#inputAssist.deleteSelectedItems();
         return true;
     }
 
@@ -1160,6 +1162,7 @@ export class InputTracker {
             }
             this.#applySelectionChange(
                 resolveUserClickSelection(this.model.getSelectedIds(), hit.bodyId, hasCtrlModifier(event)),
+                hasCtrlModifier(event),
             );
             return;
         }
@@ -1178,11 +1181,11 @@ export class InputTracker {
                 return;
             }
             if (additive) {
-                this.#applySelectionChange(resolveUserClickSelection(this.model.getSelectedIds(), hit.bodyId, true));
+                this.#applySelectionChange(resolveUserClickSelection(this.model.getSelectedIds(), hit.bodyId, true), true);
                 return;
             }
             this.model.clearSelectedVertices();
-            this.#applySelectionChange(resolveUserClickSelection(this.model.getSelectedIds(), hit.bodyId, false));
+            this.#applySelectionChange(resolveUserClickSelection(this.model.getSelectedIds(), hit.bodyId, false), false);
             return;
         }
 
@@ -1788,19 +1791,22 @@ export class InputTracker {
         this.model.clearSelectionRect();
         this.#applySelectionChange(
             resolveMarqueeSelection(this.model.getSelectedIds(), ids, hasCtrlModifier(event)),
+            hasCtrlModifier(event),
         );
     }
 
     /**
      * 選択の規則（SelectionRules）が返した結果をModelへ反映する（受け渡しのみ。判定は持たない）。
      * 利用者が選ぶ・外す操作の入口（model.setSelectionByUser）へ渡す。
-     * @param {import('./SelectionRules.js').SelectionChange|null} change nullなら何もしない、'clear'ならsetSelectionByUser([])、'set'ならsetSelectionByUser(change.ids)
+     * 第2引数は、呼び出し側が選択の規則へ渡したCtrlの値で、フォルダを選んでいる状態を「選び直す／足す」の区別としてそのまま渡す。
+     * @param {import('./SelectionRules.js').SelectionChange|null} change nullなら何もしない、'clear'ならsetSelectionByUser([], { additive })、'set'ならsetSelectionByUser(change.ids, { additive })
+     * @param {boolean} additive 呼び出し側が選択の規則へ渡したCtrlの値（足す操作か）
      */
-    #applySelectionChange(change) {
+    #applySelectionChange(change, additive) {
         if (change === null) {
             return;
         }
-        this.model.setSelectionByUser(change.type === 'clear' ? [] : change.ids);
+        this.model.setSelectionByUser(change.type === 'clear' ? [] : change.ids, { additive });
     }
 
     /**
