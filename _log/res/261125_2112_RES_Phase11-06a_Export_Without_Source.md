@@ -273,7 +273,7 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
     *   **作業内容** :
         *   5つの図形クラスの`toDrawElement()`の`id: this.id`（計6か所）と、そのJSDoc（形・`@returns`・「`id`は検証・補完せず」）を直す。ほかの行は変えない。
         *   「要件4」の表で「T8」の行を直す。
-*   [ ] タスク9: 書き出し→組み立て→描画→書き出し直しの往復のテスト
+*   [x] タスク9: 書き出し→組み立て→描画→書き出し直しの往復のテスト
     *   **対象ファイル** :
         *   `./test/io/SpriteRoundTrip.test.js` :（新規）
     *   **作業内容** :
@@ -359,10 +359,15 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
     *   `js/shapes/`の`Line`・`Curve`・`Rect`（LF）・`Ellipse`・`Path`（CRLF）：`toDrawElement()`が`id`のキーを作らない（計6か所）。そのJSDocの形・`@returns`・「`id`は検証・補完せず」も合わせた。`toJSON`・`fromJSON`・`createTransformed`は変えていない。
     *   `js/io/SpriteSerializer.js`（CRLF。JSDocのみ）：typedef`DrawElement`の共通のキー・キー列・`@property id`を外し、`SPRITE_FORMAT_VERSION`のJSDocを「版4のまま、`source`と描画要素の`id`を外した…」にした。
     *   テスト（替え方C）：`test/io/SpriteSerializer.test.js`（65・75・87・96・285・499・908・916・924・933・942・951の各行。81・94の`el.id`の行は除き、908の題を「idのキーは無い」へ）、`SpriteSerializer.items.test.js`（`EXPECTED_ELEMENTS`から`id`を除いた。「名前・表示・ロックのキーが出ない」はキーの一覧に`'id'`を足し題を合わせた）、`test/shapes/Line・Curve・Rect・Ellipse・Path.test.js`（`toDrawElement`のキー順・値から`id`を除いた。Ellipseの題「13キー」→「12キー」、Pathの`el.id`の行は「`id`のキーが無い」へ。`toJSON`側・`out.id`の`id`は変えていない）。
-    *   行末は`git ls-files --eol`で変わっていないことを確かめた（`test/shapes/Line・Curve・Rect.test.js`はCRLF、`Curve・Line・Rect.js`はLF。計画時のメモと逆の組もあったが、実際の行末のまま編集した）。`node --test`は tests 3661 / suites 599 / pass 3661 / fail 0。
+    *   行末は`git ls-files --eol`で変わっていないことを確かめた（`test/shapes/Line・Curve・Rect.test.js`はCRLF、`Curve・Line・Rect.js`はLF。実際の行末のまま編集した）。`node --test`は tests 3661 / suites 599 / pass 3661 / fail 0。
 
 ### タスク9: 書き出し→組み立て→描画→書き出し直しの往復のテスト
 *   **作業内容** :
+    *   `test/io/SpriteRoundTrip.test.js`（新規・LF）：24件。製品コードは変えていない。
+        *   図形15種（直線・今の曲線・矩形・円・弧・パス9通り＝開／閉×直線だけ／曲線／曲がり方を持つ区間／混ざり／角の点）を、拡大縮小（等倍・縦横別）×反転（なし・左右・上下・両方）×回転（0・30・90・180・37度）の40通りの`createTransformed`にかけ、書き出したJSのテキストを`data:`のURLで実際に読み込んだ`draw`と`FileContentReader`で組み立てた図形で、(a)元の図形・書き出したJS・組み立てた図形の`draw`の描画命令（全メソッドと代入を記録する`Proxy`の偽ctx）、(b)書き出し直した`elements`（キーの並びを含む）・`bounds`を、大きさに対する比1e-9で比べる。
+        *   `ellipse`の緩め（輪郭の形／輪郭の点の並び）は、組み立てた図形との比較（(a)の組み立てた図形の`draw`、(b)の書き出し直した`elements`）だけに適用。元の図形と書き出したJSの`draw`は引数どうしをそのまま比べる。
+        *   ほか：全種類を1つにしたときの種類・線・塗り・重なり順、変換した図形のまとめ、矩形が4点・4区間の閉じたパスになること、回していない円・約束の位置の弧（拡大縮小だけを含む）は緩めなしでも一致、曲線の区間が曲がり方を持つ区間になること、組み立てた図形を動かす・`createTransformed`した見た目が元に同じ操作をしたものと一致、作業データの往復（`DocumentSerializer`）、書き出しのテキストに`"source"`・`"id"`・`"name"`が無いこと（idつきの図形・名前つきのアイテムの両方）、引数（図形・スプライトデータ・`elements`）を書き換えないこと。
+    *   不具合は見つからなかった。`node --test`は tests 3685 / suites 603 / pass 3685 / fail 0。
 
 ### タスク10: 開く・インポートの手順のテストと`CanvasFileOperations`のJSDoc
 *   **作業内容** :
@@ -386,7 +391,8 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
 *   **タスク5**：`GroupEditor.flow.test.js`の441・`CanvasFileOperations.items.test.js`は、書き出しの戻り値に`source`を足す形（替え方A）をテスト内に置いた（前者はその場、後者は`withSource`）。`SpriteCheckInspector.test.js`は83のテストだけ`makeSpriteDataWithSource()`にし、`makeSpriteData()`（ほかのテストが使う）は変えていない（`source`のキー自体が無い入力の行はT6で足す）。
 *   **タスク6**：実測では`test/io/SpriteSerializer.test.js`・`SpriteSerializer.items.test.js`はLF、`test/io/SpriteSerializer.visibility.test.js`・`test/edit/TransformInputEditor.test.js`・`test/check/SpriteCheckInspector.test.js`はCRLF（計画時のメモのとおり。途中で`.visibility`がLFになっていたのを戻した）。実際の行末のまま編集した。隠した図形の文字列の確認は、現時点の`id`（`a`〜`d`）が出力に残るため、色・座標（`#111111`等・`200`・`210`）で行った（`id`を外すT8の後も変えずに通る）。
 *   **タスク7**：`SpriteSerializer.visibility.test.js`の`idsOf`は、線の色が名前と1対1（`makeItems`の4図形）であることに頼る。色を変えるときはこの表（`NAME_BY_STROKE`）も合わせること。`ShapeOrderEditor.test.js`の書き出しの並びは、`translate`した量（`points[0].x`）で見るため、`setupReal`の矩形の元の`x`が0であることに頼る。
-*   **タスク8**：`test/io/SpriteSerializer.test.js`の`ellipseWith`（1020行付近）が`toDrawElement`を差し替える入力の`id: 'R'`は、表に無い入力のため残した（読まれないキーなので無害）。実測の行末は`test/shapes/`の`Line`・`Curve`・`Rect`の各テストがCRLF、`js/shapes/`の`Line`・`Curve`・`Rect`はLF（本RESの冒頭のメモと一部異なる）。
+*   **タスク8**：`test/io/SpriteSerializer.test.js`の`ellipseWith`（1020行付近）が`toDrawElement`を差し替える入力の`id: 'R'`は、表に無い入力のため残した（読まれないキーなので無害）。実測の行末は`test/shapes/`の`Line`・`Curve`・`Rect`の各テストがCRLF、`js/shapes/`の`Line`・`Curve`・`Rect`はLF。
+*   **タスク9**：`test/io/SpriteRoundTrip.test.js`の許容差は`bounds`（`minX`・`minY`・`maxX`・`maxY`。原点を含む）の幅・高さから求める。組み立てた図形との比較で、円・弧の`ellipse`は輪郭の特徴（円＝中心と`A`・`B`・`C`、弧＝媒介変数を16等分した点の並び）へ直して比べる（弧の点の並びは順方向の一致で足り、逆向きの許容は要らなかった）。回していない円・約束の位置の弧は、拡大縮小しても引数そのもので一致した（回す・裏返す場合の値までは見ていない）。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0.  **準備**：画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。**今までのJS**（本作業の前に「出力（エンジン用）」したもの。矩形・フォルダ・隠した図形を含む絵がよい）を1つ手元に用意しておく（無ければ`asset/sprite/select-arrow.js`で代える。この場合はパス1つの絵で、矩形・フォルダは確かめられない）。
