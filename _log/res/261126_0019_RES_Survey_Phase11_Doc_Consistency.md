@@ -191,7 +191,7 @@ E
     * 履歴の1件の単位・記録しない操作・復元の手順・自動保存の契機を照合する。3章の行は`[既存]`の文も既知の傷2の手順で見る。
     * 実コードから読み取れる事実のみを抽出し、推測を含める場合はどこまでが事実でどこからが推測かを明示して、4章の『事実』『推測・所見』欄に書く。相違は5章にタスク番号を添えて書く（作業は中断しない。資料に無い事項がコードにあることは相違としない）。判定は資料の原文とコードの該当行を両方開いて行い、一致には `ファイル:行`、または検索した語と件数を添える。
     * タスクの終わりに `git status` で、ソースコードおよび資料ファイルを一切変更していないこと（変更があるのは本RESだけ）を確かめる。
-* [ ] タスク7: InputTracker・KeyboardShortcutsとPROJECT_ARCHITECTURE 3章3.・16.〜18.
+* [x] タスク7: InputTracker・KeyboardShortcutsとPROJECT_ARCHITECTURE 3章3.・16.〜18.
   * **対象ファイル**:
     * 資料: `./PROJECT_ARCHITECTURE.md` 472〜484行（3章3.「入力監視」）・696〜759行（3章16.「選択と移動の操作」・17.「スナップ」・18.「頂点の選択」）
     * 資料: `./_doc/arch/06_InputTracker.md`・`./_doc/arch/07_KeyboardShortcuts.md`・`./_doc/arch/09_DragTracker.md`・`./_doc/arch/18_PointHitRules.md`・`./_doc/arch/27_SelectionRules.md`・`./_doc/arch/32_InputModes.md`・`./_doc/arch/33_FocusKeyYieldRules.md`・`./_doc/arch/38_VertexHandleRules.md`（いずれも全行）
@@ -594,11 +594,80 @@ E
 
 ### タスク7: InputTracker・KeyboardShortcutsとPROJECT_ARCHITECTURE 3章3.・16.〜18.
 * **調査内容**: 
-  * （未実施）
+  * 資料：`PROJECT_ARCHITECTURE.md` 472〜484行（3章3.）・696〜759行（3章16.〜18.）と、`_doc/arch/06_InputTracker.md`・`07_KeyboardShortcuts.md`・`09_DragTracker.md`・`18_PointHitRules.md`・`27_SelectionRules.md`・`32_InputModes.md`・`33_FocusKeyYieldRules.md`・`38_VertexHandleRules.md`。`git diff -U0 ff8718e 2b162c9` を使う抽出コマンドで `[新]` の文を取り出し、1つずつコードの該当行を開いて照合した（`[新]` で「。」の無い行は `-` 行と見比べた）。
+  * 照合先：`js/core/InputTracker.js`・`KeyboardShortcuts.js`・`DragTracker.js`・`PointHitRules.js`・`SelectionRules.js`・`InputModes.js`・`FocusKeyYieldRules.js`・`VertexHandleRules.js`・`RemovalRules.js`・`ItemListRules.js`・`ListSelectionRules.js`・`InsertTargetRules.js`・`VectorModel.js`・`CanvasManager.js`・`edit/ClipboardController.js`・`ShapeInserter.js`・`ShapeOrderEditor.js`・`ShapeStyleEditor.js`・`TransformInputEditor.js`・`PathCornerEditor.js`・`wiring/ItemListWiring.js`・`ItemListRowDrag.js`・`palette/ItemListPanel.js`・`main.js`。importの有無・呼び出し元は `grep` で確かめた。
+  * 行数は `wc -l`、テスト件数は `it(` の数（`grep -c`）で確かめた。過去の行数は `git show <コミット>:js/core/InputTracker.js | wc -l` で確かめた。
+  * 既知の傷2（3章3.・16.〜18.と `06_InputTracker.md` の対象の行）は `[既存]` の文も `sed -n '<行>p'` で全文を読み、要件2の古い形が残っていないかを見た。
+  * 差分のない行（3章3.・16.〜18.・各 `_doc/arch/` の差分のない行）は、要件2の語（末尾・最前面・OptionBarOrder・全図形・getShapes・図形の配列・版・version・source・deleteShapes・resolveClickSelection 等）の検索で拾った箇所だけを見た。
 * **事実（実コードの記述）**:
-  * （未実施）
+  * **`06_InputTracker.md`**
+    * 10行（全選択が `getEditableShapes()` のid）：一致（`InputTracker.js:722`）。
+    * 13行（`#classifyPoint` が `getEditableShapes()`・`isSelected`・許容誤差・`!isFillHitExcluded()` を渡す）：一致（`InputTracker.js:1941-1950`）。ホバー・押下・クリック・カーソルの4箇所の共用：`#classifyPoint(` の呼び出し5か所（953・1024・1053・1153・1171行）。
+    * 19行（`handleClick` の頂点の選択モードの②③・空白は `clear`）：一致（`InputTracker.js:1170-1189`。`SelectionRules.js:48-53` の `resolveUserClickSelection` は `additive` 偽で `hitId` 無しなら選択の有無によらず `clear`）。
+    * 20行（`Esc` の(4) `setSelectionByUser([])`、選択も描き込む先も無ければ `false`）：一致（`InputTracker.js:699-705`、`VectorModel.js:364-373`。結果が空・選択空・選んでいるフォルダ空・描き込む先 `null` のときだけ `false`）。`main.js` の `cancel` が `itemListWiring.cancelRowDrag() ||` で先に受ける：一致（`main.js:1039`）。
+    * 30行・38行（`#scaleDrag`・`#rotateDrag` の `originals` が `model.getEditableSelectedShapes()`）：一致（`InputTracker.js:1446`・`1469`）。
+    * 34行（`isScalingSelection()` が `CANCELABLE_DRAG_STATES.includes(this.state)`、`main.js` の `isCancelableDrag` に `itemListWiring.isRowDragging()` が並ぶ）：一致（`InputTracker.js:620-622`、`main.js:1013`）。
+    * 44行：`resolveClickSelection` を `InputTracker` が呼ばない：一致（`InputTracker.js` に呼び出し0件、import は `resolveUserClickSelection` 等 `:15`）。`#applySelectionChange(change, additive)` の4つの呼び出し（選択モードのクリック・範囲選択＝`hasCtrlModifier(event)`、頂点のクリック＝`true`／`false`）：一致（`InputTracker.js:1163-1166`・`1184`・`1188`・`1792-1795`）。`model.setSelectionByUser(…, { additive })` へ渡すだけ：一致（`:1809`）。`Esc` の(4)は引数なし：一致（`:704`）。`commitDraft({ atInsertTarget: true })`：一致（`:1138`）。描き込む先が `above`・`inside`・`bottom` の3つの形：一致（`InsertTargetRules.js:14`）。「`InputTracker.js` のJSDocに古い言葉が残る」：実際に残る（下の既知の傷3）。`SelectionRules`・`MoveDirectionRules` を import（`InputTracker.js:15-16`）：一致（[既存]）。
+    * 45行（`InputAssist` の項目は7つ。`deleteSelectedItems` の既定は何もしない。実体は `() => { groupEditor.removeSelection(); }`）：一致（typedef `InputTracker.js:131-147`、`NO_INPUT_ASSIST` `:150-170`、`main.js:202`）。`InputTracker` は `beginEdit`／`commitEdit`・`model.deleteShapes` を呼ばない：一致（`deleteShapes` の検索0件。`deleteSelection` 内 `:640-660` に記録先の呼び出しなし）。
+    * 46行（`deleteSelection()` の受理条件、`hasRemovableSelection()`、`deleteSelectedItems()` を呼んで `true`）：一致（`InputTracker.js:648-658`、`VectorModel.js:299-306`）。切り取り・`Alt`+ドラッグが `RemovalRules.resolveRemoval` の結果を使う：一致（`ClipboardController.js:157-170`・`248-259`・`279-292`）。変えられる空のフォルダが写して消える：一致（`RemovalRules.js:25-43` で、自分が変えられ残る中身が無いフォルダは `copy` に入る）。
+    * 47行（`#onLeftDragStart` で `beginEdit()` の後に `MOVING_SELECTION` かつ `#duplicateOnMove` なら `duplicateSelection()`、追従は `getEditableSelectedIds()`、`duplicateInPlaceWithinEdit`、写しが選ばれた状態、`moveShapes` は選択に触れない）：一致（`InputTracker.js:1485-1496`・`1553`、`main.js:192`、`ClipboardController.js:248-259`、`VectorModel.js:829-841` ／ `addShapesWithNewIds` が `selectedIds`・`selectedGroupIds` を写しに置き換える）。
+    * 58行（行数 2023）：一致（`wc -l js/core/InputTracker.js` = 2023）。履歴の値も一致：`git show` で 11-03 完了時 2017（f9074eb）→ 11-04a 2023（f653f06）→ 11-05 2023（8452dc0）、Interrupt `261123_1213` 時点 2020（2ed5682）。「判定・状態・import・新しいメソッドは足していない」は行数が変わっていないこと以上は照合していない。
+    * 既知の傷2（`06_InputTracker.md` の全行のうち差分に触れる 10・13・19・20・30・34・38・44・45・46・47・58行の `[既存]` の文）：要件2の古い形（版・フォルダ・描き込む先・全図形・`OptionBarOrderGroup` 等）が「今もそうである」と読める形では残っていない。58行の `[既存]` 文は経緯の記録（「2020行はInterrupt時点の値」等）で過去の値として書かれており正しい。
+  * **`07_KeyboardShortcuts.md`**
+    * 4行（コールバックは並びを変えた場合のみ `true`、`Home`・`PageUp`・`PageDown`・`End` の表）：一致（`KeyboardShortcuts.js:59-64`・`176-179`、`ShapeOrderEditor.js:69-86`、`main.js:735-740`）。
+    * 13行（`group`・`ungroup` の2エントリの値、`invertSelection` の直後・表示の切り替えの前、`KeyG` は他に無い、`Shift` 規則で排他、`ShortcutActions` に追加、コンストラクタが欠けると `Error`、`performGroupCommand(run)`、ドラッグ中は実行せず常に `true`、JSDocの列挙に `G`）：一致（`KeyboardShortcuts.js:191-196`・typedef `:102-105`・コメント `:15`・`:135`・`:146`、コンストラクタの `throw` `:272`、`main.js:998-1003`・`1120-1122`）。`test/core/KeyboardShortcuts.group.test.js` は `it(` 8件で一致。
+    * 15行（`KeyboardShortcuts.keydown.test.js` は計11件、Phase 10-03の9件と11-03の2件）：`it(` 11件で一致（反転9件＋行のドラッグ中2件）。
+    * 16・17行（`isCancelableDrag` の実体が `inputTracker.isScalingSelection() || itemListWiring.isRowDragging()`、`isDragging` の実体が `inputTracker.isDragging() || itemListWiring.isRowDragging()`、コードは変えずJSDocだけ）：一致（`main.js:1011-1013`、`KeyboardShortcuts.js:43`・`:239`）。
+    * 位置の記述：資料13行の「`invertSelection` の直後」は一致。資料5・6・12・14行の「対応表の末尾に足した」は各Phaseの時点の記述で、14行の「矢印キーの8エントリの後」（反転）は今も末尾で一致（`KeyboardShortcuts.js:221-222`）。
+    * 既知の傷2は対象外（`07` は対象の行に含まれない）。差分のない3行目に古い形が1か所あり、5章に挙げた（`ShiftRule.REQUIRED` の列挙）。
+  * **`09_DragTracker.md`**：3行（呼び出し元に `ItemListRowDrag.cancel`、`#handleWindowBlur` は引数なし）：一致（`ItemListRowDrag.js:106-109`、`DragTracker.js:250-252`）。4行（依存方向 `InputTracker`→`DragTracker` と `ItemListRowDrag`→`DragTracker`、使う側が2つ、座標関数、`ItemListRowDrag` は閾値3px・`suppressClick: 'whenMoved'`）：一致（`DragTracker.js` にimportなし、`InputTracker.js:7`・`:505`、`ItemListRowDrag.js:5`・`:16`・`:39`・`:98`）。5行（座標は注入された取得関数の返す座標）：一致（`DragTracker.js:76-79`）。
+  * **`18_PointHitRules.md`**：3行（`shapes` は `model.getEditableShapes()` の戻り値、importは `isVertexHandle` のみ、`isSelected` は選択の照会のまま）：一致（`PointHitRules.js:6`・`:86`、`InputTracker.js:1943-1944`）。4行（使う側は `#classifyPoint` のみ、4箇所共用）：一致（`classifyPointHit` の呼び出しは `InputTracker.js:1942` の1か所のみ、`CursorShapeRules.js`・`PressActionRules.js` は型の参照だけ）。
+  * **`27_SelectionRules.md`**：2行（公開関数の一覧・typedef `SelectionChange` の受け渡し先 `setSelectionByUser`）：一致（`SelectionRules.js:23`・`48`・`64`・`86`・`118`・`144`）。4行（`resolveUserClickSelection` の規則、`handleClick` の3か所）：一致（`SelectionRules.js:48-53`、`InputTracker.js:1163`・`1184`・`1188`）。7行（使う側。`ListSelectionRules` が `resolveClickSelection(selectedIds, hitId, true)` の `ids` だけを使う、`49_ListSelectionRules.md`、`main.js` の `performInvertSelection` が `model.setSelection`）：一致（`ListSelectionRules.js:5`・`51-54`、`_doc/arch/49_ListSelectionRules.md` 存在、`main.js:988`）。10行（`SelectionRules.test.js` 45件＝図形用20＋頂点用16＋11-03の9件。`resolveUserClickSelection` 4件）：`it(` を `describe` ごとに数えて一致（4＋4＋2＋4＋5＋5＋1＋5＋1＋5＋6＋3＝45。`resolveUserClickSelection` 4件・規則＋`VectorModel` 5件）。importなし：一致（`SelectionRules.js` に import 文なし）。
+  * **`32_InputModes.md`**：4行（`ItemListRules` が `OperationMode` のみ import、テストの import の列挙、`CANCELABLE_DRAG_STATES` の import 元、`InputState` を `InputTracker.js`・`CursorShapeRules.js` の外で使うのはテストだけ、`KeyboardShortcuts.js` は `OperationMode` だけ）：一致（`grep "from.*InputModes"` で `js/` 11件・`test/` 31件を確認。`ItemListRules.js:5`、`InputModes.test.js`・`KeyboardShortcuts.test.js` が `CANCELABLE_DRAG_STATES`、資料の列挙のテストはすべて該当のimportがある）。
+  * **`33_FocusKeyYieldRules.md`**：7行（`input type="text" class="item-row-name-input"` は `isTextInputElement` が真、`Enter`・`Esc` は `ItemListPanel` が `stopPropagation()`、本ファイルは変えていない）：一致（`ItemListPanel.js:546-548`・`:556-558`、`FocusKeyYieldRules.js:15-17`・`28-37`。`TEXT_INPUT_TYPES` に `'text'`）。
+  * **`38_VertexHandleRules.md`**：8行（`main.js` の `collectVertexHandles` と `InputTracker` の頂点の範囲選択が `getEditableShapes()`、`selectedIds` は `getSelectedIds()`、`computeVertexHandlesBounds` は `PositionInputEditor` が `getShapes()` で渡す）：一致（`main.js:225`、`InputTracker.js:1771-1778`、`PositionInputEditor.js:91`）。
+  * **`PROJECT_ARCHITECTURE.md` 3章3.（472〜484行）**
+    * 474行（`#classifyPoint` は `getEditableShapes()` を渡す）：一致。476行（範囲選択は `getEditableShapes()` それぞれの `intersectsRect`、頂点の範囲選択は `intersectsRect`・`resolveMarqueeSelection` を呼ばず `collectVertexHandlesInRect` で変えられるものの頂点だけ）：一致（`InputTracker.js:1770-1795`）。477行（`resolveUserClickSelection`、`resolveClickSelection` 自体は変えず `ListSelectionRules` が使う、`resolveClickSelection` の中身の説明、頂点の選択モードの `resolveUserClickSelection(…, true)`）：一致（`SelectionRules.js:23-53`、`ListSelectionRules.js:52`、`InputTracker.js:1184`）。
+    * 478行（4つの呼び出し・`Esc` は引数なし・`deleteSelection()` の受理・`deleteSelectedItems()`・`syncDeleteButtonState` が `hasRemovableSelection()`・切り取りで変えられる空のフォルダも写して消える）：一致（`main.js:335-337`、`InputTracker.js:640-658`）。
+    * 481行（`Alt`+ドラッグの複製、`resolveRemoval`、`resolveDuplicatePlace`、写したまとまりの一番上のもののすぐ上、複製だけを選択）：一致（`ClipboardController.js:52`・`248-259`・`279-292`）。
+    * 483行（`Esc` の例外の注入式、`SHORTCUT_BINDINGS`・`#findBinding` は変えない、行のドラッグ中は `isDragging` も真、`Esc` の実体 `itemListWiring.cancelRowDrag() || styleEyedropper.cancelPicking(…)` と `fallback`、`performGroupCommand` の形、`performSegmentKindSwitch` と同じ形、`groupEditor.groupSelection()`・`ungroupSelection()`、フリップは「変えられる図形を選んでいるときだけ」）：一致（`main.js:848-853`・`998-1003`・`1011-1013`・`1039`・`1121-1122`、`StyleEyedropper.js:101`、`TransformInputEditor.js:120-138`）。ただし「`Ctrl`+`G`・`Ctrl`+`Shift`+`G` を対応表の末尾に足した」は相違（5章）。
+    * 484行（表示・ロックと入力の(1)〜(5)）：一致。(1) `#classifyPoint`・範囲選択・頂点の範囲選択・`selectAll` が `getEditableShapes()`（`InputTracker.js:722`・`1772`・`1787`・`1943`）、(2) 本体ドラッグ・拡大縮小・回転が `getEditableSelectedIds()`・`getEditableSelectedShapes()`（`:1446`・`1469`・`1553`）、(3) 押下の判定・クリック・範囲選択が `getSelectedIds()` のまま（`:1164`・`1793`）、`getShapes()` が頂点のドラッグの始まり・追従・回転の終わりに残る（`:1388`・`1558`・`1709`）、(4) `hasRemovableSelection()`・`syncDeleteButtonState`（`main.js:335-337`）、(5) `performInvertSelection` が `getEditableShapes()` のidを渡す（`main.js:988`）。
+    * 既知の傷2（3章3.の472〜484行の全行）：要件2の古い形は残っていない。482行の「`handleMouseMove` は変えない」・479行の `moveShapes`（`InputTracker.js:1553`）・480行の `model.updateVertices` も現在のコードと矛盾しない。
+  * **`PROJECT_ARCHITECTURE.md` 3章16.（696〜709行）**
+    * 699行（`Alt`+ドラッグは選択中の図形・フォルダだけ、複製はフォルダの形のまま）：一致（`InputTracker.js:1485-1496`、`ClipboardController.js:248-259`）。
+    * 701行（`D`：変えられる図形があれば全図形の線を黒・塗れる形の塗りを白にして1件記録、直前に使った値は塗れる形が無い選択でも更新、変えられる図形の選択が無ければ直前に使った値だけ）：一致（`ShapeStyleEditor.js:157-193` の `applyStyle`、`:199-201` の `resetColors`、`#selectedShapes` は `getEditableSelectedShapes()`＝`:305`）。
+    * 702行（`performInvertSelection` は `ensureSelectMode()` の後 `invertSelection(getEditableShapes() のid, 選択中のid)` を `model.setSelection` へ、選択モード以外では先に選択モードへ切り替わり結果は全選択、作成途中の図形は破棄）：一致（`main.js:459-463`・`983-989`。`applyMode` が選択集合を全解除 `InputTracker.js:553`、`setMode` が `#abortOngoingOperation` `:549`）。
+    * 707行（`resolveRowPressAction` の `select`／`switchAndSelect`／`none`、`canSetInsertTargetByRow`、`ListSelectionRules`、`resolveRowClickSelection` の `Ctrl` の足す・外す、`setSelectionByUser(ids, { groupIds, keepsCollapsed: true })`、フォルダの行は図形を描くツールではそのフォルダの中が描き込む先 `setInsertTarget`＝`inside`、選択の変化は記録しない）：一致（`ItemListRules.js:27-55`、`ItemListWiring.js:303-348`、`ListSelectionRules.js:51-65`・`97-135`、`VectorModel.js:443-455`、`InsertTargetRules.js:106` 付近）。
+    * 709行（`Ctrl`+`A`・`Ctrl`+`I` は変えられる図形、スポイトは変えられる図形だけ、`Alt`+ドラッグの複製、`Ctrl`+クリック）：一致（`InputTracker.js:722`、`main.js:988`、`ClipboardController.js:279-292`）。スポイトが変えられる図形だけが手本になる点は `StyleEyedropper`／13.を開いて確かめていない（「照合できなかった主張」参照）。
+    * 既知の傷2（16.の696〜709行）：696行の「作業データ形式・書き出し形式は変えない（版は2のまま）」が、現行の版4（`PROJECT_ARCHITECTURE.md:351`）と並ぶ。同じ行に（Phase 07-04）があり、その作業で変えなかったことを述べる経緯の文として読める（当時は版2）。4章の「読み方が分かれる記述」に書いた。ほかの `[既存]` の文（697・698・700・703・704・705・706・708行）に古い形は無い（`resolveClickSelection`・`getShapes()`・「全図形」の検索で該当なし。697行の「importなし」は `SelectionRules.js`・`MoveDirectionRules.js` ともに import 文なしで一致）。
+  * **`PROJECT_ARCHITECTURE.md` 3章17.（711〜736行）**：差分の `+` 行なし。既知の傷2の対象の行（17.）：711行の「版はどちらも2のまま」（同じ行に（Phase 07-05）があり経緯として読める。4章の「読み方が分かれる記述」に書いた）。ほかに要件2の古い形は無い（715・721・726・733行の経緯の記述は「当時の」「Phase 09-01a以降」等が付き過去の状態として正しい）。
+  * **`PROJECT_ARCHITECTURE.md` 3章18.（737〜758行）**
+    * 740行（頂点のハンドルは選択集合の図形のうち変えられるものだけ描き当てる）：一致（`main.js:225`、`InputTracker.js:1771-1778`）。
+    * 741行（頂点でなく `Ctrl`あり／なしの `resolveUserClickSelection`、空白＝選択の有無によらず全解除、結果が空なら描き込む先も無し）：一致（`InputTracker.js:1183-1189`）。
+    * 744行（頂点の範囲選択は変えられるものの頂点だけ・円・弧・選択集合に無い図形・変えられない図形は対象外）：一致（`InputTracker.js:1771-1778`、`VertexHandleRules.js:62-87`）。
+    * 745行（`Esc`：頂点の選択があればそれだけ解除、なければ `setSelectionByUser([])`、選択も描き込む先も選んでいるフォルダも無ければ `false`、2回目で図形の選択と描き込む先が外れる）：一致（`InputTracker.js:699-705`、`VectorModel.js:364-377`）。
+    * 749行（`CanvasManager.render` の描画順：見えている図形の描画の後・作成中の図形の前）：一致（`CanvasManager.js:241-253`・`:261`、`main.js:220` が `getVisibleShapes()` を渡す）。
+    * 755行（頂点の選択（`A`）でも行を押すとそのモードのまま選ばれる、`clearSelectedVertices()` は呼ばない、外れた図形の頂点だけ `VectorModel` が落とす）：一致（`ItemListWiring.js` に `clearSelectedVertices` の検索0件、`VectorModel.js:1439-1444` の `#pruneSelectedVertices`）。
+    * 758行（`setSelectedVertices` は選択集合に含まれ変えられる図形の組だけ受理、`setItemStates` が頂点の選択を落とす、ハンドルは出るが頂点は選ばれていない、`getShapes()` のid引きは全部のまま、`PathCornerEditor` は `resolveNudgeTarget` の結果）：一致（`VectorModel.js:483-502`・`312-322`、`InputTracker.js:1388`・`1558`、`PathCornerEditor.js:165`）。ただし戻した後の「ハンドルは出るが頂点は選ばれていない」を動かして確かめてはいない（コードの読みから整合）。
+    * 既知の傷2（18.の737〜758行の `[既存]` の文）：756行の(a)（通知2回）・746行（`Delete` は何もしない。`deleteSelection` の受理条件が選択モードのまま `InputTracker.js:648`）・753行(8)（削除ボタンは押せる見た目のまま。`main.js:336` は操作モードを見ない）は現在のコードと合う。古い形は残っていない（750行の「共通メソッド契約は19→18」は経緯）。751行の「版も当時の2」は「当時の」が付き過去の値として正しい。
+  * 上記の資料は、資料に書かれていない事項としてコードにあるもの（相違としない）：`InputModes` のimport元として `GroupCommandRules.js` が `OperationMode` を import している（`32_InputModes.md` の列挙に無い。「だけ」とは書かれていない）。
 * **推測・所見**:
-  * （未実施）
+  * 読み方が分かれる記述：
+    * `09_DragTracker.md` 3行の「呼び出し元は `InputTracker.cancelDraftOrClearSelection` の(1)と `wiring/ItemListRowDrag.cancel`（…`suppressClick: true`）」は、`suppressClick: true` で呼ぶ側の列挙と読めば成り立つ。`cancel()` の呼び出し元全体の列挙と読むと、`InputTracker.js:817`（`#abortOngoingOperation` 内。引数なし）と `ItemListRowDrag.js:161`（`#handleStart` 内。引数なし）が漏れる。直前の文が `suppressClick` の説明であり、「`#handleWindowBlur` は引数なしの `cancel()` のまま」と対で書かれているため前者と読む（推測）。5章には挙げていない。
+    * `PROJECT_ARCHITECTURE.md` 696行・711行の「版は2のまま」・「版はどちらも2のまま」は、同じ行に（Phase 07-04）（Phase 07-05）があり、その作業で版を変えなかったことを述べる文なので経緯として読める。ただし文面だけでは「今も2」とも読める。現行の版は作業データ4（`js/io/DocumentSerializer.js:21` の `CURRENT_DOCUMENT_VERSION = 4`）、書き出し形式4（`js/io/SpriteSerializer.js:21` の `SPRITE_FORMAT_VERSION = 4`）。共通の基準により5章には挙げていない。
+    * `27_SelectionRules.md` 10行の「規則＋`VectorModel` の組み合わせ5件（…）」は括弧内に4項目しか並べていない（件数は5で一致。括弧内が全列挙でない）。
+  * コードのコメント：
+    * 既知の傷3：`js/core/InputTracker.js:1081` のJSDocに「描き込む先のすぐ上へ入り、描き込む先が無ければ末尾」が今も残る（`06_InputTracker.md` 44行がこれを「古い言葉のまま」と明記）。描き込む先は `above`・`inside`・`bottom` の3つの形（`InsertTargetRules.js:14`）。
+    * `js/core/InputTracker.js:412` のコンストラクタ第7引数のJSDocは「項目（duplicateSelection・isPickingShape・pickShape・getUnitSnapStep・getSelectionFrameBounds・getReferencePoint）」と6項目しか挙げず `deleteSelectedItems` を欠く（`:232`・typedef `:131-147` は7項目）。
+    * `js/core/KeyboardShortcuts.js:54`（`selectAll` 「全図形を選択する」）・`:55`（`deleteSelection` 「選択集合の全図形を削除する」）・`:82`（`invertSelection` 「全図形のうち選択されていないもの」）・`:86`（`resetColors` 「選択中の図形があればその全図形」）は、11-05以後の実装（変えられる図形だけが対象）と文言が合わない（`selectAll` は `InputTracker.js:722`、反転は `main.js:988`、`resetColors` は `ShapeStyleEditor.js:305`、削除は `hasRemovableSelection`）。
+    * `js/core/InputModes.js:11`（`MOVING_SELECTION`「選択集合の全図形を平行移動する」）も、移動の対象が `getEditableSelectedIds()` になった後は文言が合わない（`InputTracker.js:1553`）。
+  * 照合できなかった主張：
+    * `PROJECT_ARCHITECTURE.md` 709行の「スポイトは変えられる図形だけが手本になる（13.）」は、13.の実体 `StyleEyedropper.pickFrom` を開かず、今回の担当外のため照合していない。
+    * `PROJECT_ARCHITECTURE.md` 735行・757行・753行の発注者のテストプレイ・合成イベントによる実測値（幅の px、確認の結果）は、ブラウザでの見え方・実測値のため照合できない。
+    * `PROJECT_ARCHITECTURE.md` 758行「選んだ頂点のある図形を隠す・ロックすると頂点の選択も外れ、戻しても頂点の選択は戻らない」の「戻しても」の部分は、動作を実行せず `VectorModel.js:312-322` の読みだけで確かめた（整合）。
+  * 既知の傷：
+    * 既知の傷3は上記のとおり残っている。
+    * 既知の傷2：3章3.・16.・17.・18.の対象の行と `06_InputTracker.md` の対象の行を `[既存]` の文まで読み、資料側の古い形で5章に挙げたのは、483行（3章3.）の `Ctrl`+`G` の位置の記述（`[新]` の文）と `07_KeyboardShortcuts.md` 3行の2件。16.（696行）・17.（711行）の「版は2のまま」は同じ行にPhase番号があり経緯として読めるため、上の「読み方が分かれる記述」に書いた。
 
 ### タスク8: 14_edit（前半）とPROJECT_ARCHITECTURE 3章10.〜12.・19.〜27.
 * **調査内容**: 
@@ -807,6 +876,8 @@ E
 * （タスク8）**（`./PROJECT_ARCHITECTURE.md` 3章24.「保存・書き出し・結合」・859行）**： 「図形データのキーは増えない（作業データの版は2、書き出しの版は3のまま）」（同じ行にPhaseの番号も「この時点」等の断りも無く、今の値と読める。`[既存]`の文） → 作業データの現行版は4（`js/io/DocumentSerializer.js:21`の`CURRENT_DOCUMENT_VERSION = 4`）、書き出し形式の現行版も4（`js/io/SpriteSerializer.js:21`の`SPRITE_FORMAT_VERSION = 4`）。
 * （タスク6）**（`_doc/arch/02_main.md` 87行「図形の一覧の配線（Phase 11-02）」）**： 「`// 7.15.`は`ItemRenameEditor`と`ItemListWiring`の生成と注入のみ（判定・計算を書かない。…）」 → `// 7.15.`は`ItemRenameEditor`・`ItemStateEditor`・`ItemListWiring`の3つを生成して注入する（`js/main.js:948`の`itemRenameEditor`、`:950`の`itemStateEditor`、`:951`の`itemListWiring`）。`ItemStateEditor`はPhase 11-05で足されており、同じファイルの表（`02_main.md:29`・`:62`）には載っているが、この「のみ」の列挙に抜けている。
 * （タスク6）**（`_doc/arch/08_HistoryManager.md` 12行「呼び出し元」）**： 「`beginEdit`/`commitEdit`は`InputTracker`（作成・切り取り・ドラッグ。削除の記録は、Phase 11-04aから`GroupEditor`が挟む）」 → `InputTracker`が`beginEdit`/`commitEdit`を呼ぶのは作成（`js/core/InputTracker.js:1137-1139`）とドラッグ（`:1490,1839`）だけ。切り取りの記録はPhase 11-04aから`ClipboardController.cut` → `inputTracker.deleteSelection()`（`:648-658`） → `GroupEditor.removeSelection()`（`js/edit/GroupEditor.js:156-166`・`:186-188`）の`beginEdit`/`commitEdit`で行われ、`InputTracker`自身は記録先を呼ばない（`InputTracker.js:642`のJSDocにも「本メソッドは記録先を呼ばない」とある）。「切り取り」が`InputTracker`の記録として残っている（古い記述の取り残し）。
+* （タスク7）**（`PROJECT_ARCHITECTURE.md` 3章3. 483行、キーボード操作の項）**： 「Phase 11-04aで`Ctrl`+`G`（`group`。フォルダにまとめる）・`Ctrl`+`Shift`+`G`（`ungroup`。フォルダの解除）を対応表の末尾に足した」 → 対応表の `group`・`ungroup` は `invertSelection` の直後・表示の切り替え（`toggleOutline`）の前にあり、末尾ではない（`js/core/KeyboardShortcuts.js:191-196`。末尾は反転の2エントリ `:221-222`）。`_doc/arch/07_KeyboardShortcuts.md` 13行は「`invertSelection`の直後（表示の切り替えの前）」で、資料どうしも食い違う。
+* （タスク7）**（`_doc/arch/07_KeyboardShortcuts.md` 3行）**： 「`ShiftRule.REQUIRED`のエントリは、`Ctrl`+`Shift`+`Z`（やり直し）・`Ctrl`+`Shift`+`V`（同じ位置に貼り付け。Phase 07-04）と、`Shift`+矢印キー（…）と、`Shift`+`H`・`Shift`+`V`（反転の2つ。…）だけで」（差分のない行。「だけ」とあり、Phase 11-04aの `ungroup` が加わる前の列挙） → `ShiftRule.REQUIRED` のエントリには `Ctrl`+`Shift`+`G`（`ungroup`）も含まれる（`js/core/KeyboardShortcuts.js:194`。同ファイルの `ShiftRule` のJSDoc `:15` も `Ctrl+Shift+G` を列挙）。
 
 ## 6. 懸念事項・今後の修正における注意点
 * （タスク19で、「読み方が分かれる記述」「コードのコメント」「照合できなかった主張」の一覧を記載する）
@@ -820,3 +891,7 @@ E
 * （タスク6）5章の`08_HistoryManager.md`「切り取り」は、同じ文の括弧で「削除の記録は`GroupEditor`が挟む」と書き分けているため、切り取りも同じ扱いにすべきと判断し、相違として挙げた（監査で正しいと確認済み）。
 * （タスク6）`02_main.md:30`の`performGroupCommand`の「`performSegmentKindSwitch`と同じ形」は、4章の「読み方が分かれる記述」に回した（戻り値の扱いは異なるが、「ドラッグ中は実行しない構造」の意味と読める）。
 * （タスク6）`02_main.md:3`（行数の経緯の長い文）は、1文が約4000字あり、古い時点の値（Phase 10以前）は`git show`で確かめられる範囲（`ff8718e`以降）の外にあるため、今回の差分の `+` 行の範囲だけを照合した。
+* （タスク7）5章の2件目（`07_KeyboardShortcuts.md` 3行）は差分のない行で、Phase 11-04aの`ungroup`で古くなった記述。自分の範囲で偶然見つけたものとして5章に入れた。
+* （タスク7）`PROJECT_ARCHITECTURE.md` 696行・711行の「版は2のまま」は、同じ行にPhase番号があるため5章でなく4章の「読み方が分かれる記述」に入れた。
+* （タスク7）`09_DragTracker.md` 3行の「呼び出し元は…」の読み方（`suppressClick: true` の呼び出し元か、全呼び出し元か）は目視で確認する価値がある（4章の「読み方が分かれる記述」に記載。5章には入れていない）。
+* （タスク7）コードのコメント（`InputTracker.js:412`・`:1081`、`KeyboardShortcuts.js:54`・`55`・`82`・`86`、`InputModes.js:11`）の古い文言は4章に記載した。ソースは変更していない。
