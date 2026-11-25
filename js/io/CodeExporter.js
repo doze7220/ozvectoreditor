@@ -26,7 +26,7 @@ const SPRITE_DATA_DECLARATION_END = ';';
 const HEADER_COMMENT = [
     '/**',
     ' * OZ Vector Editor が出力したスプライト（ESモジュール）。他のファイルに依存しない。',
-    ' * 既定のexportは、スプライトデータ（format・formatVersion・bounds・elements・source）と、',
+    ' * 既定のexportは、スプライトデータ（format・formatVersion・bounds・elements）と、',
     ' * それを描く draw(ctx) を持つ1つのオブジェクト。座標の単位はpx、基準点は原点(0, 0)、y軸は下向き。',
     ' */',
 ].join('\n');

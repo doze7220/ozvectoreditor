@@ -133,7 +133,7 @@ describe('CodeExporter.toModuleText: テキストとexport', () => {
         const { draw, ...rest } = sprite;
         assert.equal(typeof draw, 'function');
         assert.deepStrictEqual(JSON.parse(JSON.stringify(rest)), JSON.parse(SpriteSerializer.stringify(data)));
-        assert.deepEqual(Object.keys(rest), ['format', 'formatVersion', 'bounds', 'elements', 'source']);
+        assert.deepEqual(Object.keys(rest), ['format', 'formatVersion', 'bounds', 'elements']);
     });
 
     it('drawはthisを使わず、取り出して呼んでも動く', async () => {

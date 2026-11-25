@@ -120,6 +120,9 @@ describe('SpriteCheckInspector.summarize', () => {
         assert.deepStrictEqual(empty.bounds, { state: 'none' });
         assert.equal(empty.elementCount, 0);
         const data = makeSpriteData();
+        const { source: omitted, ...withoutSourceKey } = data;
+        assert.equal(Object.hasOwn(withoutSourceKey, 'source'), false);
+        assert.equal(SpriteCheckInspector.summarize(withoutSourceKey).sourceVersion, null);
         assert.equal(SpriteCheckInspector.summarize(mutated(data, { source: undefined })).sourceVersion, null);
         assert.equal(SpriteCheckInspector.summarize(mutated(data, { source: [] })).sourceVersion, null);
         assert.equal(SpriteCheckInspector.summarize(mutated(data, { source: { shapes: [] } })).sourceVersion, null);

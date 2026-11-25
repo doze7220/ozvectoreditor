@@ -1,5 +1,5 @@
 /**
- * 責務: SpriteSerializerが組み立てるスプライトデータ（描画要素・外枠・source・JSON文字列化）の中身を、公開APIのみを通して検証する。
+ * 責務: SpriteSerializerが組み立てるスプライトデータ（描画要素・外枠・JSON文字列化）の中身を、公開APIのみを通して検証する。
  * 拡大縮小（createTransformed）した全図形の種類の書き出し（描画要素・外枠）も含む。
  */
 import { describe, it } from 'node:test';
@@ -54,12 +54,14 @@ function makeCurve(points) {
 describe('SpriteSerializer.serialize: 描画要素', () => {
     it('キーの順と識別子・版を持ち、最上位にversionを持たない', () => {
         const data = SpriteSerializer.serialize([withId(new Line(0, 0, 10, 10), 'a')]);
-        assert.deepEqual(Object.keys(data), ['format', 'formatVersion', 'bounds', 'elements', 'source']);
+        assert.deepEqual(Object.keys(data), ['format', 'formatVersion', 'bounds', 'elements']);
         assert.equal(data.format, 'oz-vector-editor-sprite');
         assert.equal(data.formatVersion, 4);
         assert.equal('version' in data, false);
-        assert.equal(data.source.version, 4);
-        assert.equal(data.source.format, 'oz-vector-editor');
+        assert.equal(Object.hasOwn(data, 'source'), false);
+        const work = DocumentSerializer.serialize([withId(new Line(0, 0, 10, 10), 'a')]);
+        assert.equal(work.version, 4);
+        assert.equal(work.format, 'oz-vector-editor');
     });
 
     it('lineはpolyline（closed: false・2点）', () => {
@@ -131,11 +133,12 @@ describe('SpriteSerializer.serialize: 描画要素', () => {
 });
 
 describe('SpriteSerializer.serialize: 外枠', () => {
-    it('図形0個は elements: []・bounds: null・sourceは図形0個の作業データ', () => {
+    it('図形0個は elements: []・bounds: null', () => {
         const data = SpriteSerializer.serialize([]);
         assert.deepEqual(data.elements, []);
         assert.equal(data.bounds, null);
-        assert.deepEqual(data.source, { format: 'oz-vector-editor', version: 4, shapes: [] });
+        assert.deepEqual(DocumentSerializer.serialize([]), { format: 'oz-vector-editor', version: 4, shapes: [] });
+        assert.equal(Object.hasOwn(data, 'source'), false);
     });
 
     it('線は線の太さの半分だけ広がる', () => {
@@ -181,7 +184,7 @@ describe('SpriteSerializer.serialize: 外枠', () => {
     });
 });
 
-describe('SpriteSerializer: source・JSON・独立性', () => {
+describe('SpriteSerializer: 作業データ・JSON・独立性', () => {
     it('作業データはDocumentSerializer.deserializeで元の図形に戻る', () => {
         const shapes = [
             withId(new Line(0, 0, 10, 10, '#111111', 3), 's1'),
@@ -216,7 +219,6 @@ describe('SpriteSerializer: source・JSON・独立性', () => {
             }
             el.strokeColor = '#ffffff';
         }
-        data.source.shapes[0].points[0].x = 999;
         assert.deepEqual(shapes.map((s) => JSON.stringify(s.toJSON())), before);
         assert.equal(shapes.length, 3);
         assert.deepEqual(shapes, [rect, line, curve]);

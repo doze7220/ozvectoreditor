@@ -1,8 +1,7 @@
 /**
- * 責務: スプライトデータ形式（書き出し形式）の定義と判別（識別子・版）、および図形一式からのスプライトデータ（描画要素・外枠・作業データsource）の組み立て・JSON文字列化、外枠（線を含む・線を含まない）の照会を担う。
+ * 責務: スプライトデータ形式（書き出し形式）の定義と判別（識別子・版）、および図形一式からのスプライトデータ（描画要素・外枠）の組み立て・JSON文字列化、外枠（線を含む・線を含まない）の照会を担う。
  * DOMに依存しない。
  */
-import { DocumentSerializer } from './DocumentSerializer.js';
 import { toItems } from '../core/ItemTreeRules.js';
 import { listVisibleShapes } from '../core/ItemStateRules.js';
 
@@ -13,9 +12,10 @@ import { listVisibleShapes } from '../core/ItemStateRules.js';
 const SPRITE_FORMAT = 'oz-vector-editor-sprite';
 
 /**
- * スプライトデータ形式（書き出し形式）の現行版番号（唯一の定義箇所）。作業データの版（`source.version`）とは別。
+ * スプライトデータ形式（書き出し形式）の現行版番号（唯一の定義箇所）。作業データの版とは別。
  * 版3: 曲線のパスの描画要素`bezierPath`を足した。古い読み手は未知の`kind`として描かず正しく描けないため版を上げた。
  * 版4: 描画要素`ellipse`に回転の角度`rotation`（ラジアン）を足した。版3の読み手は未知のキーとして無視すると回した楕円を正しく描けないため版を上げた（`checkFormat`は版1〜4を受理する）。
+ * 版4のまま、`source`を外した（読む側が使っていない項目を外すだけで、古い読み手も正しく描けるため版を上げない）。
  * @type {number}
  */
 const SPRITE_FORMAT_VERSION = 4;
@@ -55,7 +55,6 @@ export const DEFAULT_STROKE_WIDTH = 2;
  * @property {number} formatVersion 書き出し形式の版（現行は4。1以上の整数）
  * @property {SpriteBounds|null} bounds 外枠（図形0個ならnull）
  * @property {Array<DrawElement>} elements 描画データ（描画順）
- * @property {Object} source 作業データ（`DocumentSerializer.serialize`の戻り値）
  */
 
 /**
@@ -272,7 +271,7 @@ export function resolveStrokeWidth(strokeWidth) {
 export class SpriteSerializer {
     /**
      * 値が本アプリのスプライトデータ（書き出し形式）かを、識別子`format`と版`formatVersion`だけで判別する。
-     * `bounds`・`elements`・`source`の形は見ない（必要な側が見る）。例外を投げず、警告も出さない。
+     * `bounds`・`elements`の形は見ない（必要な側が見る。今までのJSが持つ`source`も見ない）。例外を投げず、警告も出さない。
      * 呼び出し元: `FileContentReader`・確認用ページの`SpriteCheckInspector`。
      * @param {*} value - 判別する値（JSON.parseの結果など。任意）
      * @returns {SpriteFormatCheck} `'notSprite'`（プレーンなオブジェクトでない／`format`不一致）、`'unsupportedVersion'`（`format`一致だが`formatVersion`が整数でない・1未満・現行版より大きい・キーが無い）、`'supported'`（上記以外）
@@ -293,7 +292,7 @@ export class SpriteSerializer {
 
     /**
      * アイテムまたは素の図形インスタンスの配列をスプライトデータ（現行版）へ変換する。入力を検証しない（`toDrawElement`を持たない図形が混ざると例外）。
-     * `elements`・`bounds`は入れ子を描画順（深さ優先・前順）に平らにした図形のうち、見えている図形（自分の表示が切でなく、上のフォルダのどれも表示が切でないもの。ロックは効かない）だけから求める（名前・ロックは効かない）。すべて隠れていれば`elements`は空・`bounds`は`null`。`source`は隠れた図形も含む全部で、`DocumentSerializer.serialize(values)`の戻り値そのもの。
+     * `elements`・`bounds`は入れ子を描画順（深さ優先・前順）に平らにした図形のうち、見えている図形（自分の表示が切でなく、上のフォルダのどれも表示が切でないもの。ロックは効かない）だけから求める（名前・ロックは効かない）。すべて隠れていれば`elements`は空・`bounds`は`null`。戻り値は`format`・`formatVersion`・`bounds`・`elements`だけで、名前・フォルダ・ロック・隠した図形の情報（作業データ`source`）は持たない。
      * 名前・表示・ロック・フォルダを保つには`model.getItems()`または`DocumentSerializer.deserialize`の`items`を渡す（素の図形を渡すと名前が振り直され、フォルダは無い）。
      * @param {Array<Object>} values - アイテムまたは素の図形インスタンスの配列（描画順）
      * @returns {SpriteData} 新しいスプライトデータ（図形インスタンスと配列・頂点を共有しない。引数は書き換えない）
@@ -306,7 +305,6 @@ export class SpriteSerializer {
             formatVersion: SPRITE_FORMAT_VERSION,
             bounds: SpriteSerializer.#computeBounds(elements),
             elements,
-            source: DocumentSerializer.serialize(values),
         };
     }
 

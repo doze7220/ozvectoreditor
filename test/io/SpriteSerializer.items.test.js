@@ -1,5 +1,5 @@
 /**
- * 責務: SpriteSerializer.serializeがアイテム（名前・表示・ロック・フォルダの入れ子）を受けたときの書き出し（elements・bounds・source）を、公開APIのみを通して検証する。
+ * 責務: SpriteSerializer.serializeがアイテム（名前・表示・ロック・フォルダの入れ子）を受けたときの書き出し（elements・bounds）を、公開APIのみを通して検証する。
  * 名前・ロックが描画要素・外枠に効かないこと、作業データの往復、JS書き出しを通した往復も確かめる。
  */
 import { describe, it } from 'node:test';
@@ -129,15 +129,17 @@ describe('SpriteSerializer.serialize: アイテムの入れ子', () => {
         const data = SpriteSerializer.serialize(makeItems(makeShapes(), false));
         assert.deepEqual(data.elements, EXPECTED_ELEMENTS);
         assert.deepEqual(data.bounds, { minX: -21, minY: -21, maxX: 41, maxY: 61 });
-        assert.deepEqual(Object.keys(data), ['format', 'formatVersion', 'bounds', 'elements', 'source']);
+        assert.deepEqual(Object.keys(data), ['format', 'formatVersion', 'bounds', 'elements']);
     });
 
-    it('formatVersionが4で、sourceがDocumentSerializer.serialize(items)と同じ', () => {
+    it('formatVersionが4で、sourceのキーが無く、作業データは版4で全部の図形を持つ', () => {
         const items = makeItems(makeShapes());
         const data = SpriteSerializer.serialize(items);
         assert.equal(data.formatVersion, 4);
-        assert.deepEqual(data.source, DocumentSerializer.serialize(items));
-        assert.equal(data.source.version, 4);
+        assert.equal(Object.hasOwn(data, 'source'), false);
+        const work = DocumentSerializer.serialize(items);
+        assert.equal(work.version, 4);
+        assert.equal(DocumentSerializer.deserialize(work).shapes.length, 6);
     });
 
     it('作業データをdeserializeすると入れ子・名前・表示・ロックが戻る', () => {

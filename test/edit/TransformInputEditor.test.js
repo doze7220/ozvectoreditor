@@ -375,10 +375,11 @@ test('保存・書き出し：変形した図形が作業データで往復し�
     assert.deepEqual(restored.shapes.map((s) => s.toJSON()), shapes.map((s) => s.toJSON()));
 
     const sprite = SpriteSerializer.serialize(shapes);
-    assert.deepEqual(Object.keys(sprite).sort(), ['bounds', 'elements', 'format', 'formatVersion', 'source']);
+    assert.deepEqual(Object.keys(sprite).sort(), ['bounds', 'elements', 'format', 'formatVersion']);
     assert.equal(sprite.formatVersion, 4);
-    assert.equal(sprite.source.version, 4);
-    assert.deepEqual(Object.keys(sprite.source).sort(), ['format', 'shapes', 'version']);
+    const work = DocumentSerializer.serialize(shapes);
+    assert.equal(work.version, 4);
+    assert.deepEqual(Object.keys(work).sort(), ['format', 'shapes', 'version']);
     const text = JSON.stringify(sprite);
     assert.equal(/referencePoint|aspectLock/i.test(text), false);
 });

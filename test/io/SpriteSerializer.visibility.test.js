@@ -1,5 +1,5 @@
 /**
- * 責務: SpriteSerializer.serializeが、隠れた図形（自分・上のフォルダの表示が切）をelements・boundsから外し、sourceには全部を残すことを、公開APIのみを通して検証する。
+ * 責務: SpriteSerializer.serializeが、隠れた図形（自分・上のフォルダの表示が切）をelements・boundsから外し、書き出しに名前・フォルダ・ロック・隠した図形の情報（source）を持たないことを、公開APIのみを通して検証する。
  * ロックは書き出しに効かないこと、すべて隠れたときの空の出力、版・キーの並び、JS書き出しを通した往復も確かめる。
  */
 import { describe, it } from 'node:test';
@@ -109,11 +109,12 @@ describe('SpriteSerializer.serialize: 表示・ロックの書き出し', () => 
         assert.notDeepEqual(DocumentSerializer.serialize(items), DocumentSerializer.serialize([]));
     });
 
-    it('版は4で、キーの並びは変わらない', () => {
-        const data = SpriteSerializer.serialize(makeItems({ folderVisible: false }));
+    it('版は4で、キーはformat・formatVersion・bounds・elementsだけ（sourceのキーが無い）', () => {
+        const items = makeItems({ folderVisible: false });
+        const data = SpriteSerializer.serialize(items);
         assert.equal(data.formatVersion, 4);
-        assert.equal(data.source.version, 4);
-        assert.deepEqual(Object.keys(data), ['format', 'formatVersion', 'bounds', 'elements', 'source']);
+        assert.equal(DocumentSerializer.serialize(items).version, 4);
+        assert.deepEqual(Object.keys(data), ['format', 'formatVersion', 'bounds', 'elements']);
     });
 
     it('素の図形の配列は今までどおり全部が出る', () => {
@@ -140,7 +141,7 @@ describe('SpriteSerializer.serialize: 表示・ロックの書き出し', () => 
         assert.equal(JSON.stringify(items), before);
     });
 
-    it('JS書き出しを通した往復で、隠した図形と表示・ロックの値が作業データから戻る', () => {
+    it('今までのJS（source入り）のJS書き出しを通した往復で、隠した図形と表示・ロックの値が作業データから戻る', () => {
         const items = makeItems({ folderVisible: false, folderLocked: true, dVisible: false });
         const data = { ...SpriteSerializer.serialize(items), source: DocumentSerializer.serialize(items) };
         const moduleText = CodeExporter.toModuleText(data);
@@ -154,6 +155,31 @@ describe('SpriteSerializer.serialize: 表示・ロックの書き出し', () => 
         assert.equal(result.items[0].visible, false);
         assert.equal(result.items[0].locked, true);
         assert.equal(result.items[2].visible, false);
+    });
+
+    it('書き出したデータ・JSのテキストに、source・名前・フォルダ・ロック・隠した図形の情報が無い', () => {
+        const items = makeItems({ folderVisible: false, folderLocked: true, dVisible: false });
+        items[1].name = '名前ほげ';
+        items[1].locked = true;
+        const data = SpriteSerializer.serialize(items);
+        const moduleText = CodeExporter.toModuleText(data);
+        const jsonText = CodeExporter.extractSpriteDataText(moduleText);
+        assert.notEqual(jsonText, null);
+        assert.equal(Object.hasOwn(data, 'source'), false);
+        assert.equal(Object.hasOwn(JSON.parse(jsonText), 'source'), false);
+        for (const word of ['"source"', '名前ほげ', '"name"', '"visible"', '"locked"', '"children"', '"group"', '"shapes"']) {
+            assert.equal(moduleText.includes(word), false, word);
+        }
+        // 隠した図形（a・b・d）だけが持つ色・座標は、テキストに無い
+        for (const word of ['#111111', '#222222', '#444444', '200', '210']) {
+            assert.equal(moduleText.includes(word), false, word);
+        }
+        assert.equal(moduleText.includes('#333333'), true);
+    });
+
+    it('すべて隠れたときのJSのテキストは、図形0個の書き出しと同じ', () => {
+        const items = makeItems({ folderVisible: false, cVisible: false, dVisible: false });
+        assert.equal(CodeExporter.toModuleText(SpriteSerializer.serialize(items)), CodeExporter.toModuleText(SpriteSerializer.serialize([])));
     });
 
     it('作業データの出力（DocumentSerializer.serialize）は隠した図形も全部持つ', () => {
