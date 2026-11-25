@@ -142,13 +142,17 @@ describe('DocumentSerializer: 折りたたみの読み込み', () => {
 });
 
 describe('SpriteSerializer: 折りたたみと書き出し', () => {
-    it('elements・boundsは折りたたみで変わらず、sourceにはcollapsedが入る', () => {
-        const open = SpriteSerializer.serialize([groupItem('G1', [shapeItem('a')], false)]);
-        const closed = SpriteSerializer.serialize([groupItem('G1', [shapeItem('a')], true)]);
+    it('elements・boundsは折りたたみで変わらず、作業データにはcollapsedが入る', () => {
+        const openItems = [groupItem('G1', [shapeItem('a')], false)];
+        const closedItems = [groupItem('G1', [shapeItem('a')], true)];
+        const open = SpriteSerializer.serialize(openItems);
+        const closed = SpriteSerializer.serialize(closedItems);
         assert.deepEqual(closed.elements, open.elements);
         assert.deepEqual(closed.bounds, open.bounds);
-        assert.equal(closed.source.shapes[0].collapsed, true);
-        assert.equal(Object.hasOwn(open.source.shapes[0], 'collapsed'), false);
-        assert.equal(closed.source.version, 4);
+        const closedSource = DocumentSerializer.serialize(closedItems);
+        const openSource = DocumentSerializer.serialize(openItems);
+        assert.equal(closedSource.shapes[0].collapsed, true);
+        assert.equal(Object.hasOwn(openSource.shapes[0], 'collapsed'), false);
+        assert.equal(closedSource.version, 4);
     });
 });

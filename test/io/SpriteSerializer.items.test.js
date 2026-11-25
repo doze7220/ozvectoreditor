@@ -1,6 +1,6 @@
 /**
  * 責務: SpriteSerializer.serializeがアイテム（名前・表示・ロック・フォルダの入れ子）を受けたときの書き出し（elements・bounds・source）を、公開APIのみを通して検証する。
- * 名前・ロックが描画要素・外枠に効かないこと、sourceの往復、JS書き出しを通した往復も確かめる。
+ * 名前・ロックが描画要素・外枠に効かないこと、作業データの往復、JS書き出しを通した往復も確かめる。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -22,6 +22,15 @@ import { Path } from '../../js/shapes/Path.js';
 function withId(shape, id) {
     shape.id = id;
     return shape;
+}
+
+/**
+ * 今までのJSの形（書き出しのキーに、作業データの`source`を足したもの）のスプライトデータを作る。
+ * @param {Array<object>} values - 図形またはアイテム
+ * @returns {object} `source`を持つスプライトデータ
+ */
+function withSource(values) {
+    return { ...SpriteSerializer.serialize(values), source: DocumentSerializer.serialize(values) };
 }
 
 /**
@@ -131,9 +140,9 @@ describe('SpriteSerializer.serialize: アイテムの入れ子', () => {
         assert.equal(data.source.version, 4);
     });
 
-    it('sourceをdeserializeすると入れ子・名前・表示・ロックが戻る', () => {
-        const data = SpriteSerializer.serialize(makeItems(makeShapes()));
-        const result = DocumentSerializer.deserialize(JSON.parse(JSON.stringify(data.source)));
+    it('作業データをdeserializeすると入れ子・名前・表示・ロックが戻る', () => {
+        const source = DocumentSerializer.serialize(makeItems(makeShapes()));
+        const result = DocumentSerializer.deserialize(JSON.parse(JSON.stringify(source)));
         assert.equal(result.ok, true);
         assert.equal(result.items.length, 4);
         assert.equal(result.items[1].kind, 'group');
@@ -149,7 +158,7 @@ describe('SpriteSerializer.serialize: アイテムの入れ子', () => {
     it('素の配列を渡した場合も従来どおり書き出せ、名前が自動で付く', () => {
         const data = SpriteSerializer.serialize(makeShapes());
         assert.deepEqual(data.elements, EXPECTED_ELEMENTS);
-        assert.deepEqual(data.source.shapes.map((e) => e.name), ['直線 1', '曲線 1', '矩形 1', '円 1', '弧 1', 'パス 1']);
+        assert.deepEqual(DocumentSerializer.serialize(makeShapes()).shapes.map((e) => e.name), ['直線 1', '曲線 1', '矩形 1', '円 1', '弧 1', 'パス 1']);
     });
 
     it('引数のアイテムを書き換えない', () => {
@@ -166,7 +175,7 @@ describe('SpriteSerializer.serialize: アイテムの入れ子', () => {
             groupItem('group-1', [shapeItem(shapes[0], { name: nasty })], { name: nasty }),
             shapeItem(shapes[1], { name: ';\nconst spriteData = ' }),
         ];
-        const data = SpriteSerializer.serialize(items);
+        const data = withSource(items);
         const moduleText = CodeExporter.toModuleText(data);
         const jsonText = CodeExporter.extractSpriteDataText(moduleText);
         assert.notEqual(jsonText, null);

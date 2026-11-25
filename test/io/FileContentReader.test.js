@@ -70,13 +70,22 @@ function assertUnreadable(t, text) {
 }
 
 /**
+ * 今までのJSの形（書き出しのキーに、作業データの`source`を足したもの）のスプライトデータを作る。
+ * @param {Array<object>} values - 図形またはアイテム
+ * @returns {object} `source`を持つスプライトデータ
+ */
+function withSource(values) {
+    return { ...SpriteSerializer.serialize(values), source: DocumentSerializer.serialize(values) };
+}
+
+/**
  * スプライトデータの`source`を差し替えたコピーを作る。
  * @param {Array<object>} shapes - 元の図形
  * @param {function(object): void} mutate - スプライトデータ（コピー）を書き換える関数
  * @returns {object} 書き換えたスプライトデータ
  */
 function mutatedSprite(shapes, mutate) {
-    const data = JSON.parse(SpriteSerializer.stringify(SpriteSerializer.serialize(shapes)));
+    const data = JSON.parse(SpriteSerializer.stringify(withSource(shapes)));
     mutate(data);
     return data;
 }
@@ -100,17 +109,17 @@ function asModule(data) {
 }
 
 describe('FileContentReader.deserializeFromText: 書き出したスプライトの読み込み', () => {
-    it('スプライトのJS・CRLFのJSから元の図形が戻る（5種の図形）', (t) => {
+    it('今までのJS（source入り）のスプライト: スプライトのJS・CRLFのJSから元の図形が戻る（5種の図形）', (t) => {
         t.mock.method(console, 'warn', () => {});
         const shapes = sampleShapesOfAllKinds();
-        const data = SpriteSerializer.serialize(shapes);
+        const data = withSource(shapes);
         assertRestored(FileContentReader.deserializeFromText(CodeExporter.toModuleText(data)), shapes);
         assertRestored(FileContentReader.deserializeFromText(CodeExporter.toModuleText(data).replace(/\n/g, '\r\n')), shapes);
     });
 
-    it('図形0個のスプライト（JS・CRLFのJS）はok: trueで図形0個', (t) => {
+    it('今までのJS（source入り）で図形0個のスプライト（JS・CRLFのJS）はok: trueで図形0個', (t) => {
         t.mock.method(console, 'warn', () => {});
-        const data = SpriteSerializer.serialize([]);
+        const data = withSource([]);
         assertRestored(FileContentReader.deserializeFromText(CodeExporter.toModuleText(data)), []);
         assertRestored(FileContentReader.deserializeFromText(CodeExporter.toModuleText(data).replace(/\n/g, '\r\n')), []);
     });
@@ -158,10 +167,10 @@ function assertPathsRestored(restored, original) {
 }
 
 describe('FileContentReader.deserializeFromText: パスを含むスプライト', () => {
-    it('開いたパス・閉じたパスと既存の5種を含むJS・CRLFのJSから全図形が元どおりに戻る', (t) => {
+    it('今までのJS（source入り）の、開いたパス・閉じたパスと既存の5種を含むJS・CRLFのJSから全図形が元どおりに戻る', (t) => {
         t.mock.method(console, 'warn', () => {});
         const shapes = sampleShapesWithPaths();
-        const text = CodeExporter.toModuleText(SpriteSerializer.serialize(shapes));
+        const text = CodeExporter.toModuleText(withSource(shapes));
         for (const source of [text, text.replace(/\n/g, '\r\n')]) {
             const result = FileContentReader.deserializeFromText(source);
             assertRestored(result, shapes);
@@ -169,11 +178,11 @@ describe('FileContentReader.deserializeFromText: パスを含むスプライト'
         }
     });
 
-    it('パスだけのスプライトのJSからも戻り、閉じたパスは閉じたまま・開いたパスは開いたまま', (t) => {
+    it('今までのJS（source入り）の、パスだけのスプライトのJSからも戻り、閉じたパスは閉じたまま・開いたパスは開いたまま', (t) => {
         t.mock.method(console, 'warn', () => {});
         const shapes = sampleShapesWithPaths().filter((shape) => shape.type === 'path');
         assert.deepStrictEqual(shapes.map((shape) => shape.closed), [false, true]);
-        const result = FileContentReader.deserializeFromText(CodeExporter.toModuleText(SpriteSerializer.serialize(shapes)));
+        const result = FileContentReader.deserializeFromText(CodeExporter.toModuleText(withSource(shapes)));
         assertRestored(result, shapes);
         assertPathsRestored(result.shapes, shapes);
     });
@@ -261,12 +270,12 @@ describe('FileContentReader.deserializeFromText: 読み込み不可（警告1回
     });
 
     it('スプライトのJSON（sourceあり。5種の図形・図形0個・CRLFのJSON）は作業データとして判定され読み込み不可', (t) => {
-        const withShapes = SpriteSerializer.serialize(sampleShapesOfAllKinds());
+        const withShapes = withSource(sampleShapesOfAllKinds());
         assertUnreadable(t, asJson(withShapes));
         t.mock.restoreAll();
         assertUnreadable(t, asJson(withShapes).replace(/\n/g, '\r\n'));
         t.mock.restoreAll();
-        assertUnreadable(t, asJson(SpriteSerializer.serialize([])));
+        assertUnreadable(t, asJson(withSource([])));
     });
 
     it('JSの宣言の中身がJSONでないもの（実行されない）', (t) => {
@@ -345,10 +354,10 @@ describe('FileContentReader.deserializeFromText: 塗り・線なしを含むス�
         });
     }
 
-    it('版2のJS・CRLFのJSから、fillColor・strokeColorを含め元の図形が戻る', (t) => {
+    it('今までのJS（source入り）の版2のJS・CRLFのJSから、fillColor・strokeColorを含め元の図形が戻る', (t) => {
         t.mock.method(console, 'warn', () => {});
         const shapes = sampleFilledShapes();
-        const text = CodeExporter.toModuleText(SpriteSerializer.serialize(shapes));
+        const text = CodeExporter.toModuleText(withSource(shapes));
         for (const source of [text, text.replace(/\n/g, '\r\n')]) {
             const result = FileContentReader.deserializeFromText(source);
             assertRestored(result, shapes);
@@ -357,10 +366,10 @@ describe('FileContentReader.deserializeFromText: 塗り・線なしを含むス�
         }
     });
 
-    it('塗れない形（直線・曲線・弧・開いたパス）のfillColorも保持して戻る', (t) => {
+    it('今までのJS（source入り）の、塗れない形（直線・曲線・弧・開いたパス）のfillColorも保持して戻る', (t) => {
         t.mock.method(console, 'warn', () => {});
         const shapes = sampleFilledShapes();
-        const result = FileContentReader.deserializeFromText(CodeExporter.toModuleText(SpriteSerializer.serialize(shapes)));
+        const result = FileContentReader.deserializeFromText(CodeExporter.toModuleText(withSource(shapes)));
         assert.equal(result.ok, true);
         for (const index of [4, 5, 6, 7]) {
             assert.equal(result.shapes[index].isFillable(), false);
@@ -420,10 +429,10 @@ describe('FileContentReader.deserializeFromText: 曲線のパスを含むスプ�
         return shapes;
     }
 
-    it('版4のJS・CRLFのJSから曲線のパスを含む全図形が元どおり（区間の種類も）戻る', (t) => {
+    it('今までのJS（source入り）の版4のJS・CRLFのJSから曲線のパスを含む全図形が元どおり（区間の種類も）戻る', (t) => {
         t.mock.method(console, 'warn', () => {});
         const shapes = sampleShapesWithSmoothPaths();
-        const data = SpriteSerializer.serialize(shapes);
+        const data = withSource(shapes);
         assert.equal(data.formatVersion, 4);
         const text = CodeExporter.toModuleText(data);
         for (const source of [text, text.replace(/\n/g, '\r\n')]) {
@@ -433,10 +442,10 @@ describe('FileContentReader.deserializeFromText: 曲線のパスを含むスプ�
         }
     });
 
-    it('formatVersionを2に書き換えた同じJSも読める', (t) => {
+    it('今までのJS（source入り）でformatVersionを2に書き換えた同じJSも読める', (t) => {
         t.mock.method(console, 'warn', () => {});
         const shapes = sampleShapesWithSmoothPaths();
-        const data = SpriteSerializer.serialize(shapes);
+        const data = withSource(shapes);
         data.formatVersion = 2;
         const result = FileContentReader.deserializeFromText(CodeExporter.toModuleText(data));
         assertRestored(result, shapes);

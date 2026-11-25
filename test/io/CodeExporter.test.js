@@ -5,6 +5,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { CodeExporter } from '../../js/io/CodeExporter.js';
 import { SpriteSerializer } from '../../js/io/SpriteSerializer.js';
+import { DocumentSerializer } from '../../js/io/DocumentSerializer.js';
 import { Line } from '../../js/shapes/Line.js';
 import { Curve } from '../../js/shapes/Curve.js';
 import { Rect } from '../../js/shapes/Rect.js';
@@ -506,7 +507,8 @@ describe('CodeExporter.toModuleText: 利用者の入力の埋め込み', () => {
         const line = new Line(0, 0, 10, 10, nasty, 2);
         const sprite = await importSprite(SpriteSerializer.serialize([line]));
         assert.equal(sprite.elements[0].strokeColor, nasty);
-        assert.equal(sprite.source.shapes[0].strokeColor, nasty);
+        const legacy = await importSprite({ ...SpriteSerializer.serialize([line]), source: DocumentSerializer.serialize([line]) });
+        assert.equal(legacy.source.shapes[0].strokeColor, nasty);
         assert.equal(globalThis.__pwned, undefined);
         const strokeStyles = recordExportedDraw(sprite).filter((e) => e[0] === 'set:strokeStyle');
         assert.deepEqual(strokeStyles, [['set:strokeStyle', nasty]]);

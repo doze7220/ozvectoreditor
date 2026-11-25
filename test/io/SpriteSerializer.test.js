@@ -182,17 +182,16 @@ describe('SpriteSerializer.serialize: 外枠', () => {
 });
 
 describe('SpriteSerializer: source・JSON・独立性', () => {
-    it('sourceはDocumentSerializer.deserializeで元の図形に戻る', () => {
+    it('作業データはDocumentSerializer.deserializeで元の図形に戻る', () => {
         const shapes = [
             withId(new Line(0, 0, 10, 10, '#111111', 3), 's1'),
             withId(new Rect(1, 2, 30, 40), 's2'),
             withId(new Ellipse(5, 5, 20, 30, 'arc'), 's3'),
         ];
-        const data = SpriteSerializer.serialize(shapes);
-        const result = DocumentSerializer.deserialize(data.source);
+        const source = DocumentSerializer.serialize(shapes);
+        const result = DocumentSerializer.deserialize(source);
         assert.equal(result.ok, true);
         assert.deepEqual(result.shapes.map((s) => s.toJSON()), shapes.map((s) => s.toJSON()));
-        assert.deepEqual(data.source, DocumentSerializer.serialize(shapes));
     });
 
     it('stringifyの結果をJSON.parseするとserializeの結果と同じ（字下げ2）', () => {
@@ -321,10 +320,9 @@ describe('SpriteSerializer.serialize: パス', () => {
         assertBoundsClose(data.bounds, { minX: -31, minY: -2, maxX: 203, maxY: 123 });
     });
 
-    it('sourceはDocumentSerializer.deserializeでclosed・segmentsを含めて元のパスに戻る', () => {
+    it('作業データはDocumentSerializer.deserializeでclosed・segmentsを含めて元のパスに戻る', () => {
         const shapes = [makeSquarePath(false, 's1'), makeSquarePath(true, 's2', '#abcdef', 7), withId(new Line(0, 0, 5, 5), 's3')];
-        const data = SpriteSerializer.serialize(shapes);
-        const result = DocumentSerializer.deserialize(data.source);
+        const result = DocumentSerializer.deserialize(DocumentSerializer.serialize(shapes));
         assert.equal(result.ok, true);
         assert.deepEqual(result.shapes.map((s) => s.toJSON()), shapes.map((s) => s.toJSON()));
         assert.ok(result.shapes[0] instanceof Path);
@@ -366,9 +364,9 @@ describe('SpriteSerializer.serialize: 版2のfillColor', () => {
         }
     });
 
-    it('sourceの図形データには塗れない形のfillColorも残る', () => {
-        const data = SpriteSerializer.serialize(makeFilledShapes());
-        const fills = Object.fromEntries(data.source.shapes.map((s) => [s.id, s.fillColor]));
+    it('作業データの図形データには塗れない形のfillColorも残る', () => {
+        const source = DocumentSerializer.serialize(makeFilledShapes());
+        const fills = Object.fromEntries(source.shapes.map((s) => [s.id, s.fillColor]));
         assert.deepEqual(fills, {
             rect: '#ff0000', circle: '#00ff00', closedPath: '#0000ff',
             line: '#111111', curve: '#222222', arc: '#333333', openPath: '#444444',
@@ -998,12 +996,12 @@ describe('SpriteSerializer: createTransformed した図形の書き出し', () =
         );
     });
 
-    it('source（作業データ）にも変換後の図形が入り、版は変わらない', () => {
-        const data = SpriteSerializer.serialize(makeScaledShapes());
-        assert.equal(data.source.version, 4);
-        assert.deepEqual(data.source.shapes.map((s) => s.type), ['line', 'curve', 'rect', 'circle', 'arc', 'path']);
-        assert.deepEqual(data.source.shapes[0].points, [{ x: 80, y: 40 }, { x: 40, y: 30 }]);
-        assert.deepEqual(data.source.shapes[4].points[0], { x: 0, y: 25 });
+    it('作業データにも変換後の図形が入り、版は変わらない', () => {
+        const source = DocumentSerializer.serialize(makeScaledShapes());
+        assert.equal(source.version, 4);
+        assert.deepEqual(source.shapes.map((s) => s.type), ['line', 'curve', 'rect', 'circle', 'arc', 'path']);
+        assert.deepEqual(source.shapes[0].points, [{ x: 80, y: 40 }, { x: 40, y: 30 }]);
+        assert.deepEqual(source.shapes[4].points[0], { x: 0, y: 25 });
     });
 });
 

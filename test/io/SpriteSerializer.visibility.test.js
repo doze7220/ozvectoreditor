@@ -66,22 +66,22 @@ describe('SpriteSerializer.serialize: 表示・ロックの書き出し', () => 
         assert.deepEqual(data.bounds, { minX: -1, minY: -1, maxX: 211, maxY: 131 });
     });
 
-    it('自分の表示が切の図形はelements・boundsに無く、sourceにはある', () => {
+    it('自分の表示が切の図形はelements・boundsに無く、作業データにはある', () => {
         const items = makeItems({ cVisible: false });
         const data = SpriteSerializer.serialize(items);
         assert.deepEqual(idsOf(data), ['a', 'b', 'd']);
         assert.deepEqual(data.bounds, { minX: -1, minY: -1, maxX: 211, maxY: 31 });
-        assert.deepEqual(data.source, DocumentSerializer.serialize(items));
-        const result = DocumentSerializer.deserialize(JSON.parse(JSON.stringify(data.source)));
+        const result = DocumentSerializer.deserialize(JSON.parse(JSON.stringify(DocumentSerializer.serialize(items))));
         assert.deepEqual(result.shapes.map((s) => s.id), ['a', 'b', 'c', 'd']);
         assert.equal(result.items[1].visible, false);
     });
 
     it('上のフォルダの表示が切なら、中の図形（自分は表示）も出ない', () => {
-        const data = SpriteSerializer.serialize(makeItems({ folderVisible: false }));
+        const items = makeItems({ folderVisible: false });
+        const data = SpriteSerializer.serialize(items);
         assert.deepEqual(idsOf(data), ['c', 'd']);
         assert.deepEqual(data.bounds, { minX: 99, minY: -1, maxX: 211, maxY: 131 });
-        const result = DocumentSerializer.deserialize(JSON.parse(JSON.stringify(data.source)));
+        const result = DocumentSerializer.deserialize(JSON.parse(JSON.stringify(DocumentSerializer.serialize(items))));
         assert.equal(result.items[0].children.length, 2);
         assert.equal(result.items[0].visible, false);
     });
@@ -98,7 +98,7 @@ describe('SpriteSerializer.serialize: 表示・ロックの書き出し', () => 
         assert.deepEqual(idsOf(data), ['c', 'd']);
     });
 
-    it('すべて隠れていると elements は空・bounds は null（図形0個と同じ）。sourceは別', () => {
+    it('すべて隠れていると elements は空・bounds は null（図形0個と同じ）。作業データは別', () => {
         const items = makeItems({ folderVisible: false, cVisible: false, dVisible: false });
         const data = SpriteSerializer.serialize(items);
         const empty = SpriteSerializer.serialize([]);
@@ -106,8 +106,7 @@ describe('SpriteSerializer.serialize: 表示・ロックの書き出し', () => 
         assert.equal(data.bounds, null);
         assert.deepEqual(data.elements, empty.elements);
         assert.equal(data.bounds, empty.bounds);
-        assert.deepEqual(data.source, DocumentSerializer.serialize(items));
-        assert.notDeepEqual(data.source, empty.source);
+        assert.notDeepEqual(DocumentSerializer.serialize(items), DocumentSerializer.serialize([]));
     });
 
     it('版は4で、キーの並びは変わらない', () => {
@@ -141,8 +140,9 @@ describe('SpriteSerializer.serialize: 表示・ロックの書き出し', () => 
         assert.equal(JSON.stringify(items), before);
     });
 
-    it('JS書き出しを通した往復で、隠した図形と表示・ロックの値がsourceから戻る', () => {
-        const data = SpriteSerializer.serialize(makeItems({ folderVisible: false, folderLocked: true, dVisible: false }));
+    it('JS書き出しを通した往復で、隠した図形と表示・ロックの値が作業データから戻る', () => {
+        const items = makeItems({ folderVisible: false, folderLocked: true, dVisible: false });
+        const data = { ...SpriteSerializer.serialize(items), source: DocumentSerializer.serialize(items) };
         const moduleText = CodeExporter.toModuleText(data);
         const jsonText = CodeExporter.extractSpriteDataText(moduleText);
         assert.notEqual(jsonText, null);

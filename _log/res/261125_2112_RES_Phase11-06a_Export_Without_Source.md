@@ -217,7 +217,7 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
         *   `FileContentReader.test.js`は235行のテストだけを直す（要件4の表）。
         *   **新しいテストは、書き出しの戻り値の`source`・`id`の有無に依らない形で作る**：`source`・`id`を外すタスク6・8の後も、このファイルを変えずに、同じ観点を確かめたまま全件合格すること。`source`の無い入力は、書き出しの値から`source`のキーを（あっても無くても同じ結果になる形で）除いて作る。`source`のあるケースは、替え方A（または文字どおりの固定データ）で作り、書き出しの戻り値の`source`を読まない・書き換えない。`id`のあるケースは要素へ`id`を明示的に足し（または固定データにし）、`id`の無いケースは`id`のキーを（あっても無くても同じ結果になる形で）除く。
         *   新しいテストの内容：種類ごとの組み立て（`id`の無い要素）、要素に`id`を足しても読める（`id`の無いときと同じ図形になり、足した`id`は図形へ移らない）、名前・表示・ロック・フォルダ、`CRLF`、版1〜3の形（`source`を取り除き、`formatVersion`と`fillColor`／`rotation`のキーを外したもの）、線なし・塗りなし・太さの不正、読み飛ばし（未知の`kind`・項目の不足・表に当てはまらない円弧・点の数の不足・要素がオブジェクトでない。件数と警告の回数）、すべて読めない、`elements`が配列でない（無い・`null`・オブジェクト）＝読み込み不可・警告1回、`elements`が空、`source`があれば`elements`を空・別の形にしても`source`から戻る、`source`が`null`・文字列・版違い・`shapes`なしなら読み込み不可（`elements`から組み立てない）。文字どおりの値で固定した今までのJS（版2。`id`と`source`を持つ）を1つ入れる。
-*   [ ] タスク4: 既存のテストの入力を「今までのJSの形」「作業データ」へ替える・`test/io/`（製品コードは変えない）
+*   [x] タスク4: 既存のテストの入力を「今までのJSの形」「作業データ」へ替える・`test/io/`（製品コードは変えない）
     *   **対象ファイル** :
         *   `./test/io/FileContentReader.test.js` :（更新）
         *   `./test/io/SpriteSerializer.test.js` :（更新）
@@ -316,10 +316,18 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
 *   **作業内容** :
     *   `js/io/FileContentReader.js`（CRLFのまま）：`DrawElementReader`をimport。`checkFormat`が`'supported'`の後、`Object.hasOwn(data, 'source')`なら今までどおり`DocumentSerializer.deserialize(data.source)`、無ければ`elements`が配列でないとき`#failure('スプライトのelementsが配列ではありません')`、配列なら`DocumentSerializer.deserializeShapeElements(data.elements, (element) => DrawElementReader.toShapeData(element))`。責務定義（2行）・クラスのJSDocの判別の表と規則を実際に合わせた。
     *   `test/io/FileContentReader.test.js`（LFのまま）：「sourceが無いスプライト」のテストだけを、JSONは読み込み不可のまま・JSは`elements`から組み立てて`ok: true`・`skipped`0件・件数が同じ、に替え、題を合わせた。
+    *   題の見直し：替え方Bの題・コメントの`source`を「作業データ」へ（collapsed・items・SpriteSerializer.test の4件・visibility の69・101・143）、替え方Aのテストの題に「今までのJS（source入り）」を足した（FileContentReader 8件）。入力・期待値・行末は変えず、describeの題と`.visibility`・`.items`の先頭の責務定義はT6で直す。
     *   `test/io/FileContentReader.elements.test.js`（新規・LF）：12件（種類ごとの組み立てと書き出し直し・`id`を足しても同じ・名前／表示／ロック／フォルダ・CRLF・版1〜3の形・線なし／塗りなし／太さの不正・読み飛ばし・すべて読めない・`elements`が配列でない3通り・`elements`が空・`source`があれば`elements`を見ない・`source`が不正なら読み込み不可・固定データの版2の今までのJS）。`source`は書き出しの値から`delete`して除き、`id`は`delete`／明示的に足して作り、書き出しの`source`・`id`の有無に依らない。`node --test`は tests 3659 / suites 599 / pass 3659 / fail 0。
 
 ### タスク4: 既存のテストの入力を「今までのJSの形」「作業データ」へ替える・`test/io/`
 *   **作業内容** :
+    *   `test/io/FileContentReader.test.js`（LF）：替え方Aの関数`withSource`を足し、書き出したJS／JSONを読むテスト（5種・図形0個・パス・版2・版4・`formatVersion`書き換え・`sourceあり`のJSON）の入力と`mutatedSprite`の元を`withSource`へ替えた。`makeSpriteData`・「sourceが無い」「`elements`から組み立てる」テストは変えない。
+    *   `test/io/SpriteSerializer.test.js`（LF）：`source`の往復・パスの往復・塗れない形の`fillColor`・変換後の図形の4テストを、替え方B（`DocumentSerializer.serialize(同じ入力)`）へ替えた。
+    *   `test/io/SpriteSerializer.items.test.js`（LF）：`withSource`を足し、134・149（名前の行）は替え方B、162（JSのテキストを通す往復）は替え方A。
+    *   `test/io/SpriteSerializer.visibility.test.js`（CRLF）：隠した図形が戻る3テストは替え方B、JS書き出しを通す往復は替え方A（その場で`source`を足す）。
+    *   `test/io/DocumentSerializer.collapsed.test.js`（CRLF）：折りたたみのテストを替え方B（`elements`・`bounds`が変わらないことは残した）。
+    *   `test/io/CodeExporter.test.js`（混在。触った行の行末に合わせた）：`DocumentSerializer`をimportし、特殊な文字列のテストの`source`の1行を、替え方Aの入力で書き出したJSの`source.shapes[0].strokeColor`で見る形に替えた。
+    *   `node --test`は tests 3659 / pass 3659 / fail 0。
 
 ### タスク5: 既存のテストの入力を「今までのJSの形」「作業データ」へ替える・`test/edit/`と`test/check/`
 *   **作業内容** :
@@ -353,6 +361,8 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
 *   **タスク4・5・7**：製品コードを変える前にテストの入力・見分け方だけを替えるタスクを分け、各タスクの終わりで全件合格するようにした。
 *   **ツールのアイコンのJS（`select-arrow.js`）**を今までのJSの代わりに使うと、図形はパス1つだけなので「矩形は矩形のまま」は確かめられない。
 *   **古いエディタ**（本作業の前のもの）で新しいJSを開くと、`source`が無いため読み込み不可になる（書き出し形式の版を上げない決定のとおり）。
+*   **タスク3**：新しいテストのうち「書き出し直すと同じ描画要素」は、円・弧（`ellipse`）の描画要素の値の比較を避け、型・外枠・直線／曲線／パス系の要素の一致のみ確かめた（要件の「等価な別の値」のため）。`FileContentReader.js`の責務定義は3行以内のまま（2行）。
+*   **タスク4**：`FileContentReader.test.js`・`SpriteSerializer.items.test.js`に替え方Aの関数`withSource(values)`を置いた（`SpriteSerializer.test.js`・`SpriteSerializer.visibility.test.js`・`DocumentSerializer.collapsed.test.js`は替え方Bで、その場で`DocumentSerializer.serialize`を呼ぶ）。`data.source`が`DocumentSerializer.serialize(items)`と同じことを見ていた行（`SpriteSerializer.test.js` 185・`.visibility` 74・109）は、替え方Bにすると同じ式の比較（自明）になるため除いた（往復・値の確認は残した）。describeの題の`source`・`.visibility`の先頭の責務定義の`source`はT6で直す。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0.  **準備**：画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。**今までのJS**（本作業の前に「出力（エンジン用）」したもの。矩形・フォルダ・隠した図形を含む絵がよい）を1つ手元に用意しておく（無ければ`asset/sprite/select-arrow.js`で代える。この場合はパス1つの絵で、矩形・フォルダは確かめられない）。
@@ -366,4 +376,3 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
 8.  **作業ファイル**：1.の作業ファイル（`.ozve.json`）を「開く」で開くと、フォルダ・名前・隠した図形・ロック・矩形・曲線の通る点が全部戻る。
 9.  **空**：図形を全部隠して「出力（エンジン用）」したJSを「開く」で開くと、空のキャンバスとして開く（通知は出ない）。「インポート」では「（ファイル名） に追加できる図形がありませんでした。」と出る。
 10. **ほかが今までどおり**：ツールパレットの「選択」「頂点の選択」の矢印のアイコンが今までどおり出る。保存（少し待ってからページを開き直す）・コピー・複製・取り消しが今までどおり動く。
-*   **タスク3**：新しいテストのうち「書き出し直すと同じ描画要素」は、円・弧（`ellipse`）の描画要素の値の比較を避け、型・外枠・直線／曲線／パス系の要素の一致のみ確かめた（要件の「等価な別の値」のため）。`FileContentReader.js`の責務定義は3行以内のまま（2行）。
