@@ -191,7 +191,7 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
 ## 3. タスクリスト
 ※ 各タスクの共通の作業：コード修正の後、JSDocの記載漏れが無いことを確認する／完了後に本RESの「4. 詳細作業内容」を記入し、タスクを[x]にする／開発資料の記載に影響が出る場合は、資料本体は直さず「開発資料の更新予定」に追記する／`node --test`が全件合格することを確かめる。**対象ファイルに挙げたもの以外は変えない（本RESを除く）。**
 
-*   [ ] タスク1: 描画要素→図形データの変換（`DrawElementReader`）
+*   [x] タスク1: 描画要素→図形データの変換（`DrawElementReader`）
     *   **対象ファイル** :
         *   `./js/io/DrawElementReader.js` :（新規）
         *   `./js/io/SpriteSerializer.js` :（更新）
@@ -303,6 +303,9 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
 
 ### タスク1: 描画要素→図形データの変換（`DrawElementReader`）
 *   **作業内容** :
+    *   `js/io/SpriteSerializer.js`：`resolveStrokeWidth`に`export`を付け、JSDocに使う側（外枠の計算と`DrawElementReader`）を書いた（CRLFのまま）。
+    *   `js/io/DrawElementReader.js`（新規・LF）：`DrawElementReader.toShapeData(element)`を要件2-1のとおり実装。`kind`→変換関数の対応表（`hasOwnProperty`で引く）、`polyline`／`bezierPath`／`quadratic`／`ellipse`。円・弧の共役な半径は`ANGLE_TOLERANCE`内の4分の1回転の整数倍でちょうどの cos・sin を使う。Errorの文は`DrawElementReader: `で始まる。点・区間の制御点は新しいオブジェクトへ写す。
+    *   `test/io/DrawElementReader.test.js`（新規・LF）：30件。各`kind`・スタイル・円弧（約束の位置・描いた5点・裏返し／回転／傾きの輪郭）・断る入力・`id`等を読まない・引数不変・警告なし。`node --test`は tests 3637 / pass 3637 / fail 0。
 
 ### タスク2: 変換関数を受ける読み込みの入口（`DocumentSerializer.deserializeShapeElements`）
 *   **作業内容** :

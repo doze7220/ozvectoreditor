@@ -250,11 +250,11 @@ const SHAPE_RANGE_BY_KIND = Object.freeze({
 });
 
 /**
- * 線の太さを解決する（正の有限の数値でなければ既定値）。
+ * 線の太さを解決する（正の有限の数値でなければ既定値）。使う側は外枠の計算と`DrawElementReader`（描画要素の`strokeWidth`の読み方を`draw`と合わせる）。
  * @param {*} strokeWidth - 描画要素の`strokeWidth`
  * @returns {number} 外枠の計算に使う線の太さ
  */
-function resolveStrokeWidth(strokeWidth) {
+export function resolveStrokeWidth(strokeWidth) {
     return typeof strokeWidth === 'number' && Number.isFinite(strokeWidth) && strokeWidth > 0
         ? strokeWidth
         : DEFAULT_STROKE_WIDTH;
