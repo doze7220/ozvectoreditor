@@ -113,7 +113,11 @@ describe('SpriteSerializer.serialize: アイテムの入れ子', () => {
         const shapes = makeShapes();
         const data = SpriteSerializer.serialize(makeItems(shapes, false));
         assert.deepEqual(data.elements, shapes.map((shape) => shape.toDrawElement()));
-        assert.deepEqual(data.elements.map((e) => e.id), ['s1', 's2', 's3', 's4', 's5', 's6']);
+        assert.deepEqual(data.elements.map((e) => e.kind), ['polyline', 'quadratic', 'polyline', 'ellipse', 'ellipse', 'polyline']);
+        assert.deepEqual(
+            data.elements.map((e) => e.strokeColor),
+            ['#111111', '#000000', '#222222', '#000000', '#000000', '#333333'],
+        );
     });
 
     it('elementsに名前・表示・ロックのキーが出ない', () => {

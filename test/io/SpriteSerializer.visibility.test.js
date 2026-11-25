@@ -50,13 +50,16 @@ function makeItems(states = {}) {
     ];
 }
 
+/** 線の色から図形の名前（a〜d）を引く表。 */
+const NAME_BY_STROKE = { '#111111': 'a', '#222222': 'b', '#333333': 'c', '#444444': 'd' };
+
 /**
- * elementsのidの並びを返す。
+ * elementsに含まれる図形の名前（a〜d）の並びを、線の色から引いて返す。
  * @param {object} data - スプライトデータ
- * @returns {Array<string>} id
+ * @returns {Array<string>} 図形の名前
  */
 function idsOf(data) {
-    return data.elements.map((e) => e.id);
+    return data.elements.map((e) => NAME_BY_STROKE[e.strokeColor]);
 }
 
 describe('SpriteSerializer.serialize: 表示・ロックの書き出し', () => {

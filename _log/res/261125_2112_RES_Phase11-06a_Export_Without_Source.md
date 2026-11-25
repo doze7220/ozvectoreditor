@@ -251,7 +251,7 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
     *   **作業内容** :
         *   「要件1」のうち`source`の分（`DocumentSerializer`のimportを除く・責務定義・typedef`SpriteData`・`SPRITE_FORMAT_VERSION`・`serialize`のJSDoc）と`HEADER_COMMENT`の1行。
         *   「要件4」の表で「T6」の行を直す。書き出したデータ・JSのテキストに`source`・名前・フォルダ・ロック・隠した図形の情報が無いこと（隠した図形だけが持つ色・座標の文字列がテキストに無いことを含む）と、すべて隠れたときが図形0個の書き出しと同じJSのテキストになることを`SpriteSerializer.visibility.test.js`に足す。
-*   [ ] タスク7: `id`で見分けている既存のテストを別の見分け方へ替える（製品コードは変えない）
+*   [x] タスク7: `id`で見分けている既存のテストを別の見分け方へ替える（製品コードは変えない）
     *   **対象ファイル** :
         *   `./test/io/SpriteSerializer.test.js` :（更新）
         *   `./test/io/SpriteSerializer.items.test.js` :（更新）
@@ -347,6 +347,12 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
 
 ### タスク7: `id`で見分けている既存のテストを別の見分け方へ替える
 *   **作業内容** :
+    *   替え方Dで、`elements`の`id`での見分けを替えた（期待値の並び・観点は変えない。製品コードは変えていない）。
+    *   `test/io/SpriteSerializer.test.js`（LF）：頂点を動かした図形の描画順＝`closed`の並び`[false, true]`と矩形の`points[0]`、パスと他の図形の混在＝`strokeWidth`の並び`[2, 4, 6]`、版2のfillColor＝入力の順の`fillColor`の並び、`createTransformed`の6種の並び＝`strokeColor`の並び。
+    *   `test/io/SpriteSerializer.items.test.js`（LF）：`kind`と`strokeColor`の並び。
+    *   `test/io/SpriteSerializer.visibility.test.js`（CRLFのまま）：`idsOf`を、線の色（`#111111`〜`#444444`）から名前（a〜d）へ引く関数に替えた（関数名・使用箇所・期待値は変えていない）。
+    *   `test/edit/ShapeOrderEditor.test.js`（LF）：並べ替えの前に各図形を`translate`（10・20・30・40）し、書き出しの`points[0].x`の並び`[20, 30, 40, 10]`で見る。
+    *   行末は`git ls-files --eol`で変わっていないことを確かめた。`node --test`は tests 3661 / suites 599 / pass 3661 / fail 0。
 
 ### タスク8: 描画要素から`id`を外す
 *   **作業内容** :
@@ -374,7 +380,8 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
 *   **タスク3**：新しいテストのうち「書き出し直すと同じ描画要素」は、円・弧（`ellipse`）の描画要素の値の比較を避け、型・外枠・直線／曲線／パス系の要素の一致のみ確かめた（要件の「等価な別の値」のため）。`FileContentReader.js`の責務定義は3行以内のまま（2行）。
 *   **タスク4**：`FileContentReader.test.js`・`SpriteSerializer.items.test.js`に替え方Aの関数`withSource(values)`を置いた（`SpriteSerializer.test.js`・`SpriteSerializer.visibility.test.js`・`DocumentSerializer.collapsed.test.js`は替え方Bで、その場で`DocumentSerializer.serialize`を呼ぶ）。`data.source`が`DocumentSerializer.serialize(items)`と同じことを見ていた行（`SpriteSerializer.test.js` 185・`.visibility` 74・109）は、替え方Bにすると同じ式の比較（自明）になるため除いた（往復・値の確認は残した）。describeの題の`source`・`.visibility`の先頭の責務定義の`source`はT6で直す。
 *   **タスク5**：`GroupEditor.flow.test.js`の441・`CanvasFileOperations.items.test.js`は、書き出しの戻り値に`source`を足す形（替え方A）をテスト内に置いた（前者はその場、後者は`withSource`）。`SpriteCheckInspector.test.js`は83のテストだけ`makeSpriteDataWithSource()`にし、`makeSpriteData()`（ほかのテストが使う）は変えていない（`source`のキー自体が無い入力の行はT6で足す）。
-*   **タスク6**：実測では`test/io/SpriteSerializer.visibility.test.js`・`SpriteSerializer.test.js`・`SpriteSerializer.items.test.js`はLF、`test/edit/TransformInputEditor.test.js`・`test/check/SpriteCheckInspector.test.js`はCRLF（計画時のメモの`.visibility`のCRLFは誤り）。実際の行末のまま編集した。隠した図形の文字列の確認は、現時点の`id`（`a`〜`d`）が出力に残るため、色・座標（`#111111`等・`200`・`210`）で行った（`id`を外すT8の後も変えずに通る）。
+*   **タスク6**：実測では`test/io/SpriteSerializer.test.js`・`SpriteSerializer.items.test.js`はLF、`test/io/SpriteSerializer.visibility.test.js`・`test/edit/TransformInputEditor.test.js`・`test/check/SpriteCheckInspector.test.js`はCRLF（計画時のメモのとおり。途中で`.visibility`がLFになっていたのを戻した）。実際の行末のまま編集した。隠した図形の文字列の確認は、現時点の`id`（`a`〜`d`）が出力に残るため、色・座標（`#111111`等・`200`・`210`）で行った（`id`を外すT8の後も変えずに通る）。
+*   **タスク7**：`SpriteSerializer.visibility.test.js`の`idsOf`は、線の色が名前と1対1（`makeItems`の4図形）であることに頼る。色を変えるときはこの表（`NAME_BY_STROKE`）も合わせること。`ShapeOrderEditor.test.js`の書き出しの並びは、`translate`した量（`points[0].x`）で見るため、`setupReal`の矩形の元の`x`が0であることに頼る。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0.  **準備**：画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。**今までのJS**（本作業の前に「出力（エンジン用）」したもの。矩形・フォルダ・隠した図形を含む絵がよい）を1つ手元に用意しておく（無ければ`asset/sprite/select-arrow.js`で代える。この場合はパス1つの絵で、矩形・フォルダは確かめられない）。

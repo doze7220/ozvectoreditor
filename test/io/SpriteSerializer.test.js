@@ -127,7 +127,8 @@ describe('SpriteSerializer.serialize: 描画要素', () => {
         const rect = withId(new Rect(0, 0, 5, 5), 'second');
         line.translate(3, 4);
         const data = SpriteSerializer.serialize([line, rect]);
-        assert.deepEqual(data.elements.map((e) => e.id), ['first', 'second']);
+        assert.deepEqual(data.elements.map((e) => e.closed), [false, true]);
+        assert.deepEqual(data.elements[1].points[0], { x: 0, y: 0 });
         assert.deepEqual(data.elements[0].points, [{ x: 3, y: 4 }, { x: 13, y: 14 }]);
     });
 });
@@ -317,7 +318,7 @@ describe('SpriteSerializer.serialize: パス', () => {
             withId(new Rect(50, 50, 200, 120, '#000000', 6), 'R'),
         ];
         const data = SpriteSerializer.serialize(shapes);
-        assert.deepEqual(data.elements.map((el) => el.id), ['L', 'P', 'R']);
+        assert.deepEqual(data.elements.map((el) => el.strokeWidth), [2, 4, 6]);
         assert.deepEqual(data.elements.map((el) => el.kind), ['polyline', 'polyline', 'polyline']);
         assertBoundsClose(data.bounds, { minX: -31, minY: -2, maxX: 203, maxY: 123 });
     });
@@ -355,11 +356,10 @@ function makeFilledShapes() {
 describe('SpriteSerializer.serialize: 版2のfillColor', () => {
     it('描画要素のfillColorは塗れる形が図形の値、塗れない形はnull（最後のキー）', () => {
         const data = SpriteSerializer.serialize(makeFilledShapes());
-        const fills = Object.fromEntries(data.elements.map((el) => [el.id, el.fillColor]));
-        assert.deepEqual(fills, {
-            rect: '#ff0000', circle: '#00ff00', closedPath: '#0000ff',
-            line: null, curve: null, arc: null, openPath: null,
-        });
+        assert.deepEqual(
+            data.elements.map((el) => el.fillColor),
+            ['#ff0000', '#00ff00', '#0000ff', null, null, null, null],
+        );
         for (const el of data.elements) {
             const keys = Object.keys(el);
             assert.equal(keys[keys.length - 1], 'fillColor');
@@ -986,7 +986,10 @@ describe('SpriteSerializer: createTransformed した図形の書き出し', () =
 
     it('6種を並べた書き出しの描画順・種類・外枠（和）が固定の値になる', () => {
         const data = SpriteSerializer.serialize(makeScaledShapes());
-        assert.deepEqual(data.elements.map((e) => e.id), ['L1', 'C1', 'R1', 'E1', 'E2', 'P1']);
+        assert.deepEqual(
+            data.elements.map((e) => e.strokeColor),
+            ['#ff0000', '#00ff00', '#112233', '#0000ff', '#778899', '#102030'],
+        );
         assert.deepEqual(
             data.elements.map((e) => e.kind),
             ['polyline', 'quadratic', 'polyline', 'ellipse', 'ellipse', 'bezierPath'],

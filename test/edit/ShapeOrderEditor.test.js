@@ -189,6 +189,8 @@ test('実物: 何もしない場合は並び・選択集合・履歴（canUndo�
 
 test('実物: 並べ替えた後のモデルの並びが、保存（作業データ）と書き出し（スプライト）の並びに追従する', () => {
     const { model, editor } = setupReal(['A', 'B', 'C', 'D'], ['A']);
+    // 4つとも同じ矩形のため、別々の量だけ動かして見分ける（A=10・B=20・C=30・D=40）
+    model.getShapes().forEach((shape, i) => shape.translate((i + 1) * 10, 0));
     editor.apply(ShapeOrderOperation.BRING_TO_FRONT);
     const expected = ['B', 'C', 'D', 'A'];
     assert.deepEqual(order(model), expected);
@@ -197,5 +199,5 @@ test('実物: 並べ替えた後のモデルの並びが、保存（作業デー
     assert.equal(restored.ok, true);
     assert.deepEqual(restored.shapes.map((s) => s.id), expected);
 
-    assert.deepEqual(SpriteSerializer.serialize(model.getShapes()).elements.map((e) => e.id), expected);
+    assert.deepEqual(SpriteSerializer.serialize(model.getShapes()).elements.map((e) => e.points[0].x), [20, 30, 40, 10]);
 });
