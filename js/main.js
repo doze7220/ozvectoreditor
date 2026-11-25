@@ -207,21 +207,21 @@ document.addEventListener('DOMContentLoaded', () => {
      * 再描画を要求するローカル関数。表示の状態（`displayState.getState()`のアウトライン表示・背景の白/黒・グリッドの表示）も
      * あわせて渡す。model.onChange・viewTransform.onChange・displayState.onChangeのコールバックと
      * resizeAndRenderViews（windowのresizeと、図形の一覧のパネルの出し入れでのdisplayState.onChange）を含む4経路から同一の引数構成で呼び出すことで、再描画トリガーの重複定義を避ける。
-     * 図形ごとのハンドルは描かない。選んでいる図形全体の外枠とそのハンドルは、
+     * 描く図形は見えている図形（`model.getVisibleShapes()`。隠れた図形は描かない）。図形ごとのハンドルは描かない。選んでいる図形全体の外枠とそのハンドルは、
      * `collectScaleFrame`が現在の操作モード・線を含まない外枠（`shapeExtentReader.getSelectedGeometryBounds()`）・表示倍率から
      * 求めた位置を`scaleFrame`として渡す（選択モードで選択があるときだけ値が入る。描くのはCanvasManager）。
      * 回転のドラッグ中は`inputTracker.getRotationDragView()`の控えを`resolveDisplayedScaleFrame`に渡し、傾いた外枠（`corners`付き）を`scaleFrame`にする
      * （回転のドラッグ中でなければ`collectScaleFrame`の結果がそのまま渡る。分岐は規則の関数の中）。頂点のハンドルは`collectVertexHandles`が現在の操作モード・
-     * 選択中の図形・選択中の頂点から求めた位置の一覧を`vertexHandles`として渡す（頂点の選択のモードのときだけ中身が入る）。
+     * 変えられる図形（`model.getEditableShapes()`）のうち選択中の図形・選択中の頂点から求めた位置の一覧を`vertexHandles`として渡す（頂点の選択のモードのときだけ中身が入る）。
      */
     function renderCurrentState() {
         const display = displayState.getState();
-        const shapes = model.getShapes();
+        const shapes = model.getVisibleShapes();
         canvasManager.render(shapes, {
             outline: display.outline,
             darkBackground: display.darkBackground,
             showGrid: display.gridVisible,
-            vertexHandles: collectVertexHandles(inputTracker.getMode(), shapes, model.getSelectedIds(), model.getSelectedVertices()),
+            vertexHandles: collectVertexHandles(inputTracker.getMode(), model.getEditableShapes(), model.getSelectedIds(), model.getSelectedVertices()),
             scaleFrame: resolveDisplayedScaleFrame(
                 collectScaleFrame(inputTracker.getMode(), shapeExtentReader.getSelectedGeometryBounds(), viewTransform.getScale()),
                 inputTracker.getRotationDragView(),
@@ -325,14 +325,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * ツールバーの削除ボタン（`#selection-delete`）の押せる/押せない状態を、Modelの選択集合に
-     * 同期する。図形の選択もフォルダの選択も空なら押せない状態（HTMLの`disabled`属性）にする。model.onChangeの
+     * 同期する。消えるものが無い（選択が空、または選んでいるのが隠れた・ロックされたものだけ。`model.hasRemovableSelection()`が偽）なら押せない状態（HTMLの`disabled`属性）にする。model.onChangeの
      * コールバックとして登録し、起動時にも明示的に1回呼び出す（通知の有無に依存しない）。
      * ボタンのDOM更新はmain.jsが担い、VectorModel・InputTrackerはDOMに触れない。
      * 選択集合は操作モード切替でクリアされるため、図形作成・キャンバス移動モード中は常に押せない
      * 状態になる（モード別の分岐は不要）。
      */
     function syncDeleteButtonState() {
-        deleteSelectionBtn.disabled = model.getSelectedIds().length === 0 && model.getSelectedGroupIds().length === 0;
+        deleteSelectionBtn.disabled = !model.hasRemovableSelection();
     }
 
     // 選択集合の変化（選択・選択解除・削除）に応じて削除ボタンの状態を更新する
@@ -974,13 +974,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * 選択の反転（`Ctrl`+`I`）。`ensureSelectMode()`で選択モードへ切り替えた後、全図形のidと現在の選択から
+     * 選択の反転（`Ctrl`+`I`）。`ensureSelectMode()`で選択モードへ切り替えた後、変えられる図形のid（`model.getEditableShapes()`。一覧から選んだ変えられない図形は外れる）と現在の選択から
      * `invertSelection`（SelectionRules）で求めた選択を`model.setSelection`へ渡す。規則の結果をモデルへ渡すだけで
      * 判定を持たない。編集操作として記録しない（選択の変更は履歴の対象外）。InputTrackerへは入れない。
      */
     function performInvertSelection() {
         ensureSelectMode();
-        model.setSelection(invertSelection(model.getShapes().map((shape) => shape.id), model.getSelectedIds()));
+        model.setSelection(invertSelection(model.getEditableShapes().map((shape) => shape.id), model.getSelectedIds()));
     }
 
     /**

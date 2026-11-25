@@ -81,9 +81,9 @@ function findBodyHit(shapes, isSelected, x, y, tolerance, includeFill) {
  * 規則：頂点のハンドル（選択集合・手前優先。頂点でないハンドルは当たりにしない）→ 本体（選択集合の図形の輪郭・手前優先 → 手前から輪郭、または`includeFill`が真のときの塗った内側）。
  * `includeFill`が偽のとき塗った内側は空白になる（ハンドルと選択集合の図形の輪郭の優先は変わらない）。
  * `includeHandles`が偽のときは`findHandleHit`を呼ばず`handle`を常にnullにする（`bodyId`・`includeFill`の意味は変わらない）。
- * 使う図形のメンバーは`id`・`hitTestHandle`・`getVertexHandleNames`・`hitTest`・`hitTestFill`のみ。
+ * 渡された図形だけを見る（変えられる図形かどうかの判定は持たない）。使う図形のメンバーは`id`・`hitTestHandle`・`getVertexHandleNames`・`hitTest`・`hitTestFill`のみ。
  * `shapes`は読むだけで書き換えず、`isSelected`は呼ぶだけ。例外を投げない（図形が契約を満たす前提）。
- * @param {Array<Object>} shapes - 図形の配列（描画順。後ろが手前。`model.getShapes()`の戻り値）
+ * @param {Array<Object>} shapes - 図形の配列（描画順。後ろが手前。`model.getEditableShapes()`の戻り値＝隠れてもロックされてもいない図形だけ。隠れた・ロックされた図形は渡されないので素通りになる）
  * @param {function(string): boolean} isSelected - 選択集合に含まれるかの照会
  * @param {number} x - 判定する点のX座標（ワールド座標）
  * @param {number} y - 判定する点のY座標（ワールド座標）

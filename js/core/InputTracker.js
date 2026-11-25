@@ -231,11 +231,11 @@ export function hasCtrlModifier(event) {
  * （選択の次の状態の決定はSelectionRules、押下時の分岐はPressActionRulesへ渡す）。
  * 入力の解釈の外へ委ねる補助（InputAssist。コンストラクタ第7引数。項目はduplicateSelection・isPickingShape・pickShape・getUnitSnapStep・getSelectionFrameBounds・getReferencePoint・deleteSelectedItems）も注入される。
  * 選択モードで選んだ図形全体の外枠のハンドル（外枠の出し方・位置・当たり・倍率と動かない点の計算・スナップの当て方・変換の組み立てはScaleHandleRulesの関数。
- * 本クラスは持たない）を押して引くと拡大縮小（SCALING_SELECTION）になる。押下の時点の選択中の図形のインスタンスを#scaleDragに控え、追従のたびに
+ * 本クラスは持たない）を押して引くと拡大縮小（SCALING_SELECTION）になる。押下の時点の選択中の変えられる図形のインスタンスを#scaleDragに控え、追従のたびに
  * 規則の関数が返した変換を控えの図形へ当てて（図形のcreateTransformed）、VectorModel.replaceShapesKeepingIdsで同じidの位置へ差し替えるだけ。
  * 離すと確定して取り消し1件、中断（Escのcancel・blur・setMode・abortOngoingOperation）では控えのインスタンスへ戻して記録しない（ほかの左ドラッグは中断しても反映済みの変化が残り1件として確定する）。
  * 選択モードで外枠の角の外側の回転の範囲（当たり・角度・変換・カーソルの向きはRotationRulesの関数。本クラスは持たない）を押して引くと回転（ROTATING_SELECTION）になる。
- * 押下の時点の外枠・回転の中心・押した位置・選択中の図形のインスタンス・直前の角度を#rotateDragに控え、追従のたびに規則の関数が返した角度の変換を控えの図形へ当てて
+ * 押下の時点の外枠・回転の中心・押した位置・選択中の変えられる図形のインスタンス・直前の角度を#rotateDragに控え、追従のたびに規則の関数が返した角度の変換を控えの図形へ当てて
  * （図形のcreateTransformed）、同じくreplaceShapesKeepingIdsで差し替えるだけ（Shiftは追従のたびのイベントで読んで規則の関数へ渡す。Alt・Ctrlは読まない）。
  * 離す・中断では、控え（#rotateDrag）を消してから図形の差し替えを通知する（離したときは今の図形のインスタンスのまま、中断は控えのインスタンスへ戻す。
  * 回している間の外枠はgetRotationDragView()の控えから描かれるため、縦横の外枠へ戻すための再描画を今のmodel.onChangeの経路で起こす）。離して取り消し1件、中断は記録しない。
@@ -636,8 +636,8 @@ export class InputTracker {
     }
 
     /**
-     * 選択集合の全図形を一括削除する。
-     * 受理条件「選択モード かつ IDLE状態 かつ ドラッグ中でない かつ 図形の選択かフォルダの選択が1つ以上」はこのメソッド内でのみ判定する。
+     * 選択集合のうち消えるもの（変えられる図形・フォルダ。変えられないものは残る）を一括削除する。
+     * 受理条件「選択モード かつ IDLE状態 かつ ドラッグ中でない かつ 消えるものが1つ以上（model.hasRemovableSelection()。隠れた・ロックされたものだけの選択は受理しない）」はこのメソッド内でのみ判定する。
      * 受理時は補助のdeleteSelectedItems()を呼ぶだけ（実体はmain.jsが注入するGroupEditor.removeSelection()）。非受理時は何もしない。
      * 履歴の記録（beginEdit／commitEdit）・削除の実行は補助の実体が行い、本メソッドは記録先を呼ばない・deleteShapesも呼ばない。
      * 削除ボタン（main.js）・Delete/Backspaceショートカット（KeyboardShortcuts→main.jsの注入コールバック）・
@@ -650,7 +650,7 @@ export class InputTracker {
             return false;
         }
 
-        if (this.model.getSelectedIds().length === 0 && this.model.getSelectedGroupIds().length === 0) {
+        if (!this.model.hasRemovableSelection()) {
             return false;
         }
 
@@ -708,8 +708,8 @@ export class InputTracker {
     }
 
     /**
-     * 全図形を選択する。受理条件「選択モード かつ IDLE状態 かつ ドラッグ中でない」。
-     * 受理時は全図形のidで選択集合を置き換える（setSelection。変更通知1回。図形0個なら空集合で置き換え）。
+     * 変えられる図形（隠れてもロックされてもいない図形）を全て選択する。受理条件「選択モード かつ IDLE状態 かつ ドラッグ中でない」。
+     * 受理時は変えられる図形のidで選択集合を置き換える（setSelection。変更通知1回。図形0個なら空集合で置き換え）。
      * 選択モード以外からの全選択は、呼び出し側（main.js）が先にapplyModeで選択モードへ切り替える
      * （本クラスはmain.jsの関数を呼ばない）。
      * @returns {boolean} 受理したらtrue
@@ -719,7 +719,7 @@ export class InputTracker {
             return false;
         }
 
-        this.model.setSelection(this.model.getShapes().map((shape) => shape.id));
+        this.model.setSelection(this.model.getEditableShapes().map((shape) => shape.id));
         return true;
     }
 
@@ -1351,7 +1351,7 @@ export class InputTracker {
      *     nullのまま、#vertexDragOriginsは空のまま。#scaleDrag・#rotateDragは呼び出し側の#beginScaleSelection・#beginRotateSelectionが先に設定する）
      * @param {{x: number, y: number}} point 押下点（ワールド座標）
      * @param {{shapeId: string, handle: string} | null} [target=null] DRAGGING_HANDLEの操作対象（頂点ハンドルが属する図形のid（単一）と
-     *     ハンドル名）。MOVING_SELECTION（選択集合の全図形が対象）・MARQUEE_SELECTING・SCALING_SELECTION・ROTATING_SELECTIONでは不要
+     *     ハンドル名）。MOVING_SELECTION（選択集合のうち変えられる図形が対象）・MARQUEE_SELECTING・SCALING_SELECTION・ROTATING_SELECTIONでは不要
      * @returns {boolean} 開始できたか（DragTrackerがセッション中で開始できなかった場合はfalseで、何も記憶・遷移しない）
      */
     #beginLeftDrag(event, nextState, point, target = null) {
@@ -1432,7 +1432,7 @@ export class InputTracker {
 
     /**
      * 外枠のハンドルでの拡大縮小のドラッグ（SCALING_SELECTION。回転は#beginRotateSelection）を開始する。handleMouseDownから呼ばれる。
-     * #scaleDragに引くハンドル名・押下時の外枠・押下時に選択中の図形のインスタンス（描画順）・直前の倍率（{ scaleX: 1, scaleY: 1 }）を控えてから
+     * #scaleDragに引くハンドル名・押下時の外枠・押下時に選択中の変えられる図形のインスタンス（描画順）・直前の倍率（{ scaleX: 1, scaleY: 1 }）を控えてから
      * #beginLeftDragを呼ぶ（#beginLeftDrag内の#updateCursorがハンドルの向きのカーソルにするため先に控える）。開始できなければ#scaleDragをnullへ戻す。
      * Altの複製の記憶（#duplicateOnMove）は立てない（Altは追従のたびに外枠の中心を動かさない指定として読む）。
      * @param {MouseEvent} event ドラッグを開始したmousedownイベント
@@ -1443,7 +1443,7 @@ export class InputTracker {
         this.#scaleDrag = {
             handle: scaleHit.handle,
             bounds: scaleHit.bounds,
-            originals: this.model.getShapes().filter((shape) => this.model.isSelected(shape.id)),
+            originals: this.model.getEditableSelectedShapes(),
             lastScale: { scaleX: 1, scaleY: 1 },
         };
         if (!this.#beginLeftDrag(event, InputState.SCALING_SELECTION, point)) {
@@ -1453,7 +1453,7 @@ export class InputTracker {
 
     /**
      * 外枠の角の外側での回転のドラッグ（ROTATING_SELECTION）を開始する。handleMouseDownから呼ばれる。
-     * #rotateDragに押した角・押下時の外枠・回転の中心（引き始めの外枠の上の基準点。RotationRulesのcomputeRotationCenterへ入力の補助のgetReferencePointの戻り値を渡して求める）・押した位置・押下時に選択中の図形のインスタンス（描画順）・
+     * #rotateDragに押した角・押下時の外枠・回転の中心（引き始めの外枠の上の基準点。RotationRulesのcomputeRotationCenterへ入力の補助のgetReferencePointの戻り値を渡して求める）・押した位置・押下時に選択中の変えられる図形のインスタンス（描画順）・
      * 直前の角度（丸めない角度・当てた角度とも0）を控えてから#beginLeftDragを呼ぶ（#beginLeftDrag内の#updateCursorが回転のカーソルにするため先に控える）。
      * 開始できなければ#rotateDragをnullへ戻す。Alt・Ctrlは見ない（#duplicateOnMoveを立てない）。
      * @param {MouseEvent} event ドラッグを開始したmousedownイベント
@@ -1466,7 +1466,7 @@ export class InputTracker {
             frame: rotationHit.frame,
             center: computeRotationCenter(rotationHit.frame, this.#inputAssist.getReferencePoint()),
             origin: point,
-            originals: this.model.getShapes().filter((shape) => this.model.isSelected(shape.id)),
+            originals: this.model.getEditableSelectedShapes(),
             rawAngle: 0,
             angle: 0,
         };
@@ -1501,7 +1501,7 @@ export class InputTracker {
      * 左ドラッグの追従処理（DragTrackerのonMove、およびドラッグ中のhandleWheelから呼ばれる）。
      * InputStateで処理を振り分けるディスパッチャ（図形種別の分岐ではない）：
      * MOVING_SELECTIONなら押した位置（#moveOrigin）からの移動量（ワールド座標）を求め、#resolveMoveDeltaで加工した目標の移動量と
-     * 反映済みの移動量（#appliedMoveDelta）との差分を選択集合の全図形へ一括で渡し（moveShapes。更新1回につき1回で、差分0でも呼ぶ。
+     * 反映済みの移動量（#appliedMoveDelta）との差分を選択集合のうち変えられる図形へ一括で渡し（moveShapes。更新1回につき1回で、差分0でも呼ぶ。
      * 変更通知は1回）、反映済みの移動量を目標の移動量へ更新する。閾値分の移動量は閾値超過時の最初の更新でまとめて反映される。
      * Shiftを見るのは追従のたびの本イベント（mousemove・ドラッグ中のwheelのshiftKey。キーの購読はしない）。
      * Ctrlも同じイベントで見る（#resolveMoveDeltaが丸めを省く）。
@@ -1550,7 +1550,7 @@ export class InputTracker {
         if (this.state === InputState.MOVING_SELECTION) {
             const target = this.#resolveMoveDelta({ dx: x - this.#moveOrigin.x, dy: y - this.#moveOrigin.y }, event);
             const applied = this.#appliedMoveDelta;
-            this.model.moveShapes(this.model.getSelectedIds(), target.dx - applied.dx, target.dy - applied.dy);
+            this.model.moveShapes(this.model.getEditableSelectedIds(), target.dx - applied.dx, target.dy - applied.dy);
             this.#appliedMoveDelta = target;
             return;
         }
@@ -1746,13 +1746,13 @@ export class InputTracker {
      * 範囲選択を確定する。#onLeftDragEndから、閾値を超えて動かした範囲選択の終了時にのみ呼ばれる。
      * 押下点（#marqueeAnchor）と終了位置（イベントのワールド座標。キャンバス外で離してもキャンバス左上基準で求まる）から
      * 選択矩形を正規化し（**矩形の正規化を行う唯一の箇所**。Modelの選択矩形・描画側では正規化しない）、
-     * 全図形のshape.intersectsRect(minX, minY, maxX, maxY)（ワールド座標・正規化済み）をポリモーフィックに呼んで、
+     * 変えられる図形（隠れてもロックされてもいない図形）のshape.intersectsRect(minX, minY, maxX, maxY)（ワールド座標・正規化済み）をポリモーフィックに呼んで、
      * 輪郭線が矩形に掛かる図形のidを求め、選択集合・求めたid・Ctrlの有無（hasCtrlModifier。見るのは終了のイベント＝確定の時点）を
      * SelectionRulesのresolveMarqueeSelectionへ渡し、結果を#applySelectionChangeで反映する。図形種別の分岐は持たない。
      * Ctrlなし：選択集合を置き換える（0件なら空集合）。Ctrlあり：選択集合へ追加する（重複しない。0件なら選択を変えない）。
      * Modelへの変更通知は選択矩形の破棄と選択集合の置き換えの2回（図形数に比例しない。Ctrlありで0件のときは選択の通知なし）。
      * 頂点の選択のモード（currentModeがOperationMode.VERTEX）では、上記の正規化（本メソッド1箇所のみ）の後、
-     * VertexHandleRulesのcollectVertexHandlesInRect（選択中の図形の頂点だけ）で範囲に入る頂点の組を集め、選択矩形を破棄してから、
+     * VertexHandleRulesのcollectVertexHandlesInRect（変えられる図形のうち選択中の図形の頂点だけ）で範囲に入る頂点の組を集め、選択矩形を破棄してから、
      * 頂点の選択・集めた組・Ctrlの有無をSelectionRulesのresolveVertexMarqueeSelectionへ渡し、結果を#applyVertexSelectionChangeで反映して終わる。
      * この枝ではintersectsRect・resolveMarqueeSelectionを呼ばず、図形の選択を変えない。
      * 通知は選択矩形の破棄と頂点の選択の変更（変更がある場合のみ）で、選択モードの枝と同じ最大2回。
@@ -1769,7 +1769,7 @@ export class InputTracker {
 
         if (this.currentMode === OperationMode.VERTEX) {
             const handles = collectVertexHandlesInRect(
-                this.model.getShapes(),
+                this.model.getEditableShapes(),
                 this.model.getSelectedIds(),
                 minX,
                 minY,
@@ -1784,7 +1784,7 @@ export class InputTracker {
         }
 
         const ids = this.model
-            .getShapes()
+            .getEditableShapes()
             .filter((shape) => shape.intersectsRect(minX, minY, maxX, maxY))
             .map((shape) => shape.id);
 
@@ -1928,7 +1928,7 @@ export class InputTracker {
     /**
      * 指定位置の当たり分類を行う。ホバー（handleMouseMove）・押下（handleMouseDown）・クリック（handleClick）・
      * カーソル形状（#updateCursor）で共通に用いる（クリック時に古いホバー状態へ依存しないため）。
-     * 規則の正本はPointHitRules.classifyPointHit。本メソッドはモデルの図形配列・選択中かの照会・座標・許容誤差を渡して結果を返すだけで、
+     * 規則の正本はPointHitRules.classifyPointHit。本メソッドはモデルの変えられる図形の配列（getEditableShapes。隠れた・ロックされた図形は当たらず素通りになる）・選択中かの照会・座標・許容誤差を渡して結果を返すだけで、
      * 図形のメソッド（hitTest・hitTestHandle・hitTestFill）を直接呼ばない。規則の要約：
      * ・ハンドル：選択集合の図形を対象に、図形配列の後ろ（前面）から最初に当たった頂点のハンドル（頂点でないハンドルは当たりにせず、奥の図形へ進む）。
      * ・本体：選択集合の図形の輪郭を手前優先で優先し、なければ手前から輪郭または塗った内側（選択集合の内側を優先しない）。
@@ -1940,7 +1940,7 @@ export class InputTracker {
      */
     #classifyPoint(point) {
         return classifyPointHit(
-            this.model.getShapes(),
+            this.model.getEditableShapes(),
             (id) => this.model.isSelected(id),
             point.x,
             point.y,

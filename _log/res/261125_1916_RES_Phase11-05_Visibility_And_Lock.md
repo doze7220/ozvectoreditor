@@ -291,7 +291,7 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
         *   「端点への吸い付き（要件6）」のとおりに直す。
         *   テスト：隠れた線・ロックした線・フォルダから受け継いだ線の端点に、描き始め・引いている途中・ドラッグのどれでも吸い付かない、奥の変えられる線の端点には吸い付く、`resolveDragEndpoint`が`null`、引き始めた線が途中で変えられなくなったとき`clickDrawnLine`・`finishDrawnLine`・`commitDrawnLine`で線が消えず新しい線として残る（`commitDrawnLine`は両方使えなければ`false`）、終わりの端点が変えられなくなったとき、始点への吸い付きは今のまま。
 
-*   [ ] タスク10: 入力・描画・削除ボタン・全選択・選択の反転
+*   [x] タスク10: 入力・描画・削除ボタン・全選択・選択の反転
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` :（更新。洗い出しの表の置き換えと、その箇所のJSDocだけ）
         *   `./js/core/PointHitRules.js` :（更新。`shapes`の引数のJSDocだけ）
@@ -414,6 +414,11 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
 
 ### タスク10: 入力・描画・削除ボタン・全選択・選択の反転
 *   **作業内容** :
+    *   `js/core/InputTracker.js`（CRLF）：洗い出しの表のとおり置き換えた。`deleteSelection`の受理＝`hasRemovableSelection()`、`selectAll`＝`getEditableShapes()`、拡大縮小・回転の控え＝`getEditableSelectedShapes()`（2か所）、本体ドラッグの移動＝`getEditableSelectedIds()`、頂点の範囲選択の図形・範囲選択の当たり・`#classifyPoint`の図形＝`getEditableShapes()`。ほかの箇所（`isSelected`・クリックの次の選択・id引き）は変えていない。規則・状態・importは足していない。該当のJSDoc（`deleteSelection`・`selectAll`・`#classifyPoint`・`#commitMarquee`・拡大縮小・回転の控え・本体ドラッグ）を直した。
+    *   `js/core/PointHitRules.js`（LF）：`classifyPointHit`のJSDocだけ（`shapes`は`model.getEditableShapes()`の戻り値で、隠れた・ロックされた図形は渡されず素通りになる）。
+    *   `js/main.js`（CRLF）：`renderCurrentState`の描く図形＝`getVisibleShapes()`、`collectVertexHandles`の図形＝`getEditableShapes()`（選択は`getSelectedIds()`のまま）、`syncDeleteButtonState`＝`!model.hasRemovableSelection()`、`performInvertSelection`の第1引数＝`getEditableShapes()`のid。3関数のJSDocを直した。
+    *   `test/core/EditableHit.test.js`（新規・CRLF）：15件（当たり分類5・頂点のハンドルと範囲選択3・全選択／反転／Ctrl＋クリック4・描く図形と外枠3）。
+    *   `node --test`は tests 3552 / pass 3552 / fail 0。
 
 ### タスク11: 書き出し
 *   **作業内容** :
