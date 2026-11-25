@@ -323,7 +323,7 @@
     *   **作業内容** :
         *   「描き込む先のすぐ上（無ければ最前面／末尾）」を「描き込む先（行の上・フォルダの中・一番下。無ければ最前面）」の意味へ、`SnapshotAdapter`の「選ばれている一番上の図形になる」を「選んでいるまとまりの一番上のもので決まる」へ直す。コードは1文字も変えない。
 
-*   [ ] タスク16: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
+*   [x] タスク16: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新）
     *   **作業内容** :
@@ -427,7 +427,12 @@
 
 ### タスク16: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
 *   **作業内容** :
-    *   （未記入）
+    *   `PROJECT_ARCHITECTURE.md`（CRLF。書き換え前後とも`git ls-files --eol`の`w/crlf`。Pythonで1箇所ずつ「ちょうど1件に当たること」を確かめて置き換え、LFの混入が無いことを確かめた）。書く内容は`InsertTargetRules`・`ItemPlaceRules`・`ListDragRules`・`ItemRowRules`・`VectorModel`・`ClipboardController`・`ShapeOrderEditor`・`GroupEditor`・`ItemListWiring`・`ItemListRowDrag`・`main.js`の実コードで確かめた。
+    *   1章：構成図（`ItemPlaceRules.js`の行を新規、`ItemTreeRules`・`ItemListRules`・`ItemRowRules`・`GroupTreeRules`・`InsertTargetRules`・`ListDragRules`・`ItemListPanel`・`ItemListWiring`・`ItemListRowDrag`・`ShapeOrderEditor`・`ShapeInserter`・`ClipboardController`・`index.html`の一言、テストの一覧は`VectorModel.reorderShapes.test.js`を消し、`ItemPlaceRules`・`VectorModel.addPlace`・`ClipboardController.groups`・`FolderDragTargetCopy.flow`・`ShapeOrderEditor.move`を足した）、「存在しないもの」（11-01の「フォルダの形を保ったコピー＆ペースト」・11-03の「行のドラッグでフォルダを…」「複製専用の入る位置」・11-04aの「やらないこと」のうち今回入ったものを直し、11-04bの「入ったもの・なくしたもの・やらないこと（REQの今回やらないこと）」を足した）、フォルダ分割の方針（`ItemPlaceRules`の置き場所の理由・`applyOrder`・`ClipboardController`の記述）、依存方向（`edit/ → core/`の例外の`ClipboardController`・`GroupEditor`・`ShapeOrderEditor`、`VectorModel`・`ItemListWiring`の例外、規則どうしの11-04bの例外の新しい段落。「11ファイル」の数は変わらない）。
+    *   2章：「フォルダ」（`rearrangeItems`の引数`targetsNewGroup`・行のドラッグでの出し入れ・追加の入る位置`insertItemsAt`）、「選んでいるフォルダ」（`reorderShapes`を消し、`addShapesWithNewIds`の`asUnits`が真のときの候補）、「描き込む先」の項を丸ごと書き直し（3つの形・`#insertTarget`・`getInsertTarget`・`getInsertTargetId`の位置づけ・`resolveNextInsertTarget`の4つの規則・元の場所のたどり・経路ごとの候補・`resolveInsertMark`・`resolvePastePlace`・`resolveDuplicatePlace`）、「名前」の`reorderShapes`への言及。コピーの写り方は3章7.に書いた。
+    *   3章：3.（`Alt`+ドラッグの複製）・6.（行のドラッグの記録＝`moveTo`・追加の記録の引数・復元の描き込む先）・7.（コピー・切り取り・貼り付け・複製・同じ位置に貼り付け・`Alt`+ドラッグの複製を、形を保った写し・入る場所・自分のコピー・`inserted`で書き直し）・9.（インポートの入る位置と`asUnits`を使わないこと）・12.・22.（線を終えたときの入る位置）・14.（`reorderShapes`・`applyOrder`を消したこと・`moveTo`・`ItemPlaceRules`・`pickItems`・`listGroupIds`・`addEmptyGroup`）・16.（`Alt`+ドラッグ）・28.（行のドラッグ・描き込む先の見せ方・フォルダの行の`insertMark`・作るボタン・行のドラッグとの関係・11-03のふるまいの注意の(a)(c)(i)・11-04aの注意の(f)・11-04bのふるまいの注意と確認の状況を足した）。
+    *   4章の一覧：`ItemPlaceRules.js` → `_doc/arch/62_ItemPlaceRules.md`の行を足した（資料本体の作成はタスク17）。`main.js`・`InputTracker.js`の行数は`PROJECT_ARCHITECTURE.md`に書かれていない（タスク17の`02_main.md`で直す）。
+    *   `node --test`は tests 3380 / pass 3380 / fail 0（コードは変えていない）。
 
 ### タスク17: 開発資料の反映（`_doc/arch/`）
 *   **作業内容** :
@@ -474,3 +479,7 @@
 *   （タスク11）`ShapeOrderEditor`のクラスJSDocの「`model`は…だけを使う」の行は`applyOrder`が残るため`reorderShapes`を含めたまま（タスク13で直す）。`moveTo`が使うmodelは`getItems`・`rearrangeItems`のみ。
 *   （タスク3）`ShapeInserter.insertTarget.test.js`の切り取り→貼り付けの件は、表のとおり名前も「…描き込む先がいちばん外側の一番下になり、そこへ戻る（仕様）」へ直した。`VectorModel.js`の`listShapes`・`ITEM_KIND`等のimportはほかで使うため残した。
 *   （タスク7）`ClipboardController.groups.test.js`の閉じたフォルダの件：閉じたフォルダ（図形を含む入れ子のもの・いちばん外側のもの）は、貼り付け・複製・その場の複製・切り取って貼り付けで閉じたまま入り、元も閉じたまま（`VectorModel.#applyState`の`revealIds`で開くのは変わる前にあったフォルダだけで、貼り付けで入った新しいフォルダは開かない）。テストの`select`は一覧の行で選ぶ操作と同じ`keepsCollapsed: true`で選ぶ。`GroupEditor.flow.test.js`の`setup`の`ShapeInserter`は`insertsAtTarget`なしのため、そこでの複製・貼り付けはいちばん外側の末尾へ入る（`place`は使われない）。入る場所の確認は新しいテスト（`insertsAtTarget: true`）で行った。
+*   （タスク16）`PROJECT_ARCHITECTURE.md`の「Phase 11-04bのふるまいの注意」は、本章の上の項目（自分のコピーの判定・貼り付けで入ったフォルダ・インポートの後の選択・元の場所のたどり・折りたたんだフォルダへの貼り付け・行のドラッグ中の破線・三角からのドラッグ・自動スクロールの端・頂点の選択・`getInsertTargetId`）を写した。「確認の状況（Phase 11-04b）」は、実ブラウザでの確認を「発注者のテストプレイの前」と書いてあるため、テストプレイの後に（合格なら）直す必要がある。
+*   （タスク16）11-03の「ふるまいの注意」(a)（いちばん下の行を切り取って貼り付けると最前面に入る）は、実コード（`resolveVanishedTarget`が下に残る行が無ければいちばん外側の`bottom`を返す）と`ShapeInserter.insertTarget.test.js`の「いちばん下の行を切り取ったときは…一番下になり、そこへ戻る」に合わせ、「元のいちばん下へ入る」へ直した。目視の確認を推奨する（いちばん下の図形を切り取って貼り付け）。
+*   （タスク16）11-04aの「ふるまいの注意」(f)（空のフォルダだけを選んだ切り取り・コピーは何もしない）と、3章28.の「フォルダの行を押しても何も起きない」（3章22.の近くの記述を含む2か所）は、今のコードに合わせて直した。`ListDragRules`・`ShapeOrderEditor`・`VectorModel`の旧関数の名前は、「なくしたもの」と歴史の記述（11-03の「確認の状況」の`applyOrder`・`insertItemsAbove`）にだけ残る。
+*   （タスク16）4章の一覧へ`ItemPlaceRules.js`→`_doc/arch/62_ItemPlaceRules.md`の行を足したため、タスク17で62番のファイルを必ず作ること（作らないと資料の参照が切れる）。
