@@ -77,17 +77,31 @@ export function canSetInsertTargetByRow({ mode, isPicking, isDragging, isLocked 
 
 /**
  * 行のドラッグ（並べ替え）を始めてよいかを判定する。操作モードは見ない。
- * 左ボタンで、修飾キーなし・編集中の行でない（名前の欄の中の押下を含む）・キャンバスのドラッグ/パン中でない・ロック中でないときだけ真。
+ * 左ボタンで、修飾キーなし・編集中の行でない（名前の欄の中の押下を含む）・キャンバスのドラッグ/パン中でない・ロック中でない・
+ * フォルダが無い絵のときだけ真（フォルダがある絵では並べ替えを始めない）。
  * @param {Object} params - 判定の材料
  * @param {number} params.button - `MouseEvent.button`
  * @param {boolean} params.hasModifier - `Ctrl`（`⌘`）・`Shift`を押しているか
  * @param {boolean} params.isEditingRow - 押した行が名前の編集中か
  * @param {boolean} params.isDragging - キャンバスの左ドラッグ・パンの最中か
  * @param {boolean} params.isLocked - 一覧がロック中か
+ * @param {boolean} [params.hasGroups=false] - 絵にフォルダが1つでもあるか（省けばフォルダ無し）
  * @returns {boolean} 始めてよいなら true
  */
-export function canStartRowDrag({ button, hasModifier, isEditingRow, isDragging, isLocked }) {
-    return button === 0 && !hasModifier && !isEditingRow && !isDragging && !isLocked;
+export function canStartRowDrag({ button, hasModifier, isEditingRow, isDragging, isLocked, hasGroups = false }) {
+    return button === 0 && !hasModifier && !isEditingRow && !isDragging && !isLocked && !hasGroups;
+}
+
+/**
+ * フォルダの行の三角（折りたたみ・開く）を押してよいかを判定する。選択・操作モードは見ない。
+ * キャンバスのドラッグ/パン中でなく、ロック中でないときだけ真。
+ * @param {Object} params - 判定の材料
+ * @param {boolean} params.isDragging - キャンバスの左ドラッグ・パンの最中か
+ * @param {boolean} params.isLocked - 一覧がロック中か
+ * @returns {boolean} 押してよいなら true
+ */
+export function canToggleGroup({ isDragging, isLocked }) {
+    return !isDragging && !isLocked;
 }
 
 /**

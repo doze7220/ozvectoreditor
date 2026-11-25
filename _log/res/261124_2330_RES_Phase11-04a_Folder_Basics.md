@@ -245,7 +245,7 @@
         *   対応表の2件・typedef`ShortcutActions`（`group`・`ungroup`。常に`true`）・対応表のJSDoc（`ShiftRule`・`KeyG`の項・`preventDefault()`の例外の列挙）を足す。`main.js`に`performGroupCommand`と2つの注入を足す。
         *   テスト：`Ctrl`+`G`／`⌘`+`G`／`Ctrl`+`Shift`+`G`がそれぞれ1つだけ呼ばれ`preventDefault`される、`G`単体・`Shift`+`G`・`Alt`付きは一致しない、キーリピート・ドラッグ中は呼ばれず`preventDefault`される、文字の入力欄にフォーカスがあるときは何もしない。
 
-*   [ ] タスク12: 行の並びの規則と、一覧の判定
+*   [x] タスク12: 行の並びの規則と、一覧の判定
     *   **対象ファイル** :
         *   `./js/core/ItemRowRules.js` :（新規）
         *   `./js/core/ItemListRules.js` :（更新。`canToggleGroup({ isDragging, isLocked })`と`canStartRowDrag`の`hasGroups`を足すだけ。`buildItemRows`はタスク14で移すため、ここでは残す）
@@ -377,7 +377,10 @@
 
 ### タスク12: 行の並びの規則と、一覧の判定
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/ItemRowRules.js`（新規・CRLF）：`buildItemRows`（1回の再帰。`shapeIds`・`groupIds`は行の並びの順）・`resolveRowIndent`・`resolveRowViews`・`resolveRowHighlight`・typedef`ItemRow`・`RowView`をJSDoc付きで作成。importは`ItemTreeRules`（`ITEM_KIND`）・`GroupTreeRules`（`itemIdOf`）のみ。
+    *   `js/core/ItemListRules.js`（LF）：`canToggleGroup`を追加、`canStartRowDrag`に`hasGroups`（既定`false`）を追加。`buildItemRows`・typedef`ItemRow`はタスク14まで残す。
+    *   `js/core/ListSelectionRules.js`（LF）：`resolveRowClickSelection`・typedef`RowClickSelection`を追加し、責務のJSDocを直した。既存の関数は不変。
+    *   テスト：`test/core/ItemRowRules.test.js`（新規・CRLF）、`ItemListRules.test.js`・`ListSelectionRules.test.js`（LF）は追加のみ。`node --test`は tests 3175 / pass 3175 / fail 0。
 
 ### タスク13: 一覧のパネルのフォルダの行
 *   **作業内容** :
@@ -423,6 +426,7 @@
 *   （タスク6）履歴は`document`が同じだと記録しないため、選択だけの変化は記録されない（テストの編集は`renameItem`を伴わせている）。`SnapshotAdapter`の2項目はtypedefでは省略可（任意）とし、無いスナップショットは空として扱う。開発資料への影響：既存の更新予定（スナップショット・3章6.）に含まれており、追記は無い。
 *   （タスク8）`ungroupSelection`は、選択中のフォルダが複数ある場合、解除しないフォルダの選択は引き継がない（`selectedGroupIds`は解除したフォルダの直下のフォルダだけ。解除するのはまとまりのフォルダすべてなので、実際に外れるフォルダは無い）。`GroupEditor`は新しいフォルダの名前・idを付けず`rearrangeItems`に任せる。開発資料への影響：既存の更新予定（`GroupEditor`・`GroupCommandRules`＝60）に含まれており、追記は無い。
 *   （タスク9）`apply`は`model.getSelectedGroupIds()`を`Set`にして`resolveSelectedUnitIds`へ渡す。選択のとき折りたたんだフォルダは自動で開くため、折りたたみのテストは選択の後に`setGroupCollapsed`で閉じている。`rearrangeItems`へはフォルダのアイテムを`{...item, children}`で写して渡す（idは今のまま、`collapsed`も保たれる）。開発資料への影響：既存の更新予定（`ShapeOrderEditor`の一言・1章の依存の例外）に含まれており、追記は無い。
+*   （タスク12）`resolveRowViews`の`selectedGroupIds`は`Iterable`で受ける。`insertTarget`は`insertMarkId`と行のidが一致するだけ（`hiddenMark`と独立）。`resolveRowClickSelection`の`Ctrl`の足す/外すの別は、`resolveListClickSelection`の結果に`hitId`が含まれるかで決める。`Shift`の範囲では、範囲内のフォルダの行が全中身を選ぶため、範囲の外の中身も選ばれる（不変条件と整合）。開発資料への影響：既存の更新予定（`ItemRowRules`＝61・`ListSelectionRules`・`ItemListRules`）に含まれており、追記は無い。
 *   DOM（`ItemListPanel`・`ItemListWiring`・`main.js`・CSS）と`InputTracker`は自動テストの対象外で、下のテストプレイで確かめる。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）

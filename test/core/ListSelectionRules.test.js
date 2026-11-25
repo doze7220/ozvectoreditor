@@ -3,7 +3,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveListClickSelection } from '../../js/core/ListSelectionRules.js';
+import { resolveListClickSelection, resolveRowClickSelection } from '../../js/core/ListSelectionRules.js';
 
 const ROWS = ['a', 'b', 'c', 'd', 'e'];
 
@@ -93,5 +93,136 @@ describe('resolveListClickSelection: 防御・不変', () => {
         run({ rowIds, selectedIds, hitId: 'a' });
         assert.deepEqual(rowIds, ROWS);
         assert.deepEqual(selectedIds, ['b', 'd']);
+    });
+});
+
+describe('resolveRowClickSelection', () => {
+    /**
+     * 行を作る。
+     * @param {string} id - 行のid
+     * @param {Object} [extra] - 上書きする値
+     * @returns {Object} 行
+     */
+    function row(id, extra = {}) {
+        return { id, kind: 'shape', ancestorIds: [], shapeIds: [id], groupIds: [], ...extra };
+    }
+
+    // 並び：c, g1(開) { b, a }, g2(空)
+    const rows = [
+        row('c'),
+        row('g1', { kind: 'group', shapeIds: ['b', 'a'], groupIds: [] }),
+        row('b', { ancestorIds: ['g1'] }),
+        row('a', { ancestorIds: ['g1'] }),
+        row('g2', { kind: 'group', shapeIds: [], groupIds: [] })
+    ];
+    const base = { rows, selectedIds: [], selectedGroupIds: [], additive: false, range: false, anchorId: null };
+
+    it('ふつう：図形の行は自分だけ、フォルダの行は中の図形とフォルダ', () => {
+        assert.deepEqual(resolveRowClickSelection({ ...base, hitId: 'c' }), { ids: ['c'], groupIds: [], anchorId: 'c' });
+        assert.deepEqual(resolveRowClickSelection({ ...base, hitId: 'g1' }), { ids: ['b', 'a'], groupIds: ['g1'], anchorId: 'g1' });
+        assert.deepEqual(resolveRowClickSelection({ ...base, hitId: 'g2' }), { ids: [], groupIds: ['g2'], anchorId: 'g2' });
+    });
+
+    it('Ctrlで足す：今の選択に押した行の図形とフォルダが加わる', () => {
+        const result = resolveRowClickSelection({ ...base, selectedIds: ['c'], additive: true, hitId: 'g1' });
+        assert.deepEqual(result.ids, ['c', 'b', 'a']);
+        assert.deepEqual(result.groupIds, ['g1']);
+        assert.equal(result.anchorId, 'g1');
+    });
+
+    it('Ctrlで足す：空のフォルダはフォルダの選択だけ増える', () => {
+        const result = resolveRowClickSelection({ ...base, selectedIds: ['c'], additive: true, hitId: 'g2' });
+        assert.deepEqual(result.ids, ['c']);
+        assert.deepEqual(result.groupIds, ['g2']);
+    });
+
+    it('Ctrlで外す：選んでいるフォルダの中の図形を外すと、その図形だけ外れフォルダの選択も外れる', () => {
+        const result = resolveRowClickSelection({
+            ...base, selectedIds: ['b', 'a', 'c'], selectedGroupIds: ['g1'], additive: true, hitId: 'b'
+        });
+        assert.deepEqual(result.ids, ['a', 'c']);
+        assert.deepEqual(result.groupIds, []);
+        assert.equal(result.anchorId, 'b');
+    });
+
+    it('Ctrlで外す：選んでいるフォルダ自身を外すと中の図形も外れ、ほかの図形は残る', () => {
+        const result = resolveRowClickSelection({
+            ...base, selectedIds: ['b', 'a', 'c'], selectedGroupIds: ['g1'], additive: true, hitId: 'g1'
+        });
+        assert.deepEqual(result.ids, ['c']);
+        assert.deepEqual(result.groupIds, []);
+    });
+
+    it('Ctrlで外す：選んでいる空のフォルダを外す', () => {
+        const result = resolveRowClickSelection({
+            ...base, selectedGroupIds: ['g2', 'g1'], selectedIds: ['b', 'a'], additive: true, hitId: 'g2'
+        });
+        assert.deepEqual(result.ids, ['b', 'a']);
+        assert.deepEqual(result.groupIds, ['g1']);
+    });
+
+    it('Ctrlで外す：中のフォルダを外すと、上のフォルダも外れる', () => {
+        const nested = [
+            row('g1', { kind: 'group', shapeIds: ['a'], groupIds: ['g2'] }),
+            row('g2', { kind: 'group', ancestorIds: ['g1'], shapeIds: ['a'], groupIds: [] }),
+            row('a', { ancestorIds: ['g1', 'g2'] })
+        ];
+        const result = resolveRowClickSelection({
+            ...base, rows: nested, selectedIds: ['a'], selectedGroupIds: ['g1'], additive: true, hitId: 'g2'
+        });
+        assert.deepEqual(result.ids, []);
+        assert.deepEqual(result.groupIds, []);
+    });
+
+    it('Shiftの範囲：起点から押した行までの行の図形とフォルダ', () => {
+        const result = resolveRowClickSelection({ ...base, selectedIds: ['c'], range: true, anchorId: 'c', hitId: 'b' });
+        assert.deepEqual([...result.ids].sort(), ['a', 'b', 'c']);
+        assert.deepEqual(result.groupIds, ['g1']);
+        assert.equal(result.anchorId, 'c');
+    });
+
+    it('Shiftの範囲：起点がフォルダの行でもよい', () => {
+        const result = resolveRowClickSelection({
+            ...base, selectedIds: ['b', 'a'], selectedGroupIds: ['g1'], range: true, anchorId: 'g1', hitId: 'g2'
+        });
+        assert.deepEqual([...result.ids].sort(), ['a', 'b']);
+        assert.deepEqual(result.groupIds, ['g1', 'g2']);
+    });
+
+    it('Shiftの範囲：閉じたフォルダの行は中の図形をすべて含む', () => {
+        const closedRows = [
+            row('c'),
+            row('g1', { kind: 'group', shapeIds: ['b', 'a'], collapsed: true }),
+            row('d')
+        ];
+        const result = resolveRowClickSelection({
+            ...base, rows: closedRows, selectedIds: ['c'], range: true, anchorId: 'c', hitId: 'd'
+        });
+        assert.deepEqual(result.ids, ['c', 'b', 'a', 'd']);
+        assert.deepEqual(result.groupIds, ['g1']);
+    });
+
+    it('折りたたまれて行の無い選択は、Ctrlで足す・外すで残る', () => {
+        const added = resolveRowClickSelection({ ...base, selectedIds: ['hidden'], additive: true, hitId: 'c' });
+        assert.deepEqual(added.ids, ['hidden', 'c']);
+        const removed = resolveRowClickSelection({ ...base, selectedIds: ['hidden', 'c'], additive: true, hitId: 'c' });
+        assert.deepEqual(removed.ids, ['hidden']);
+    });
+
+    it('行が無いidは、今の選択と起点をそのまま返す', () => {
+        const result = resolveRowClickSelection({
+            ...base, selectedIds: ['c'], selectedGroupIds: ['g2'], anchorId: 'c', hitId: 'zzz'
+        });
+        assert.deepEqual(result, { ids: ['c'], groupIds: ['g2'], anchorId: 'c' });
+    });
+
+    it('引数を書き換えない', () => {
+        const selectedIds = ['b', 'a'];
+        const selectedGroupIds = ['g1'];
+        const snapshot = JSON.stringify(rows);
+        resolveRowClickSelection({ ...base, selectedIds, selectedGroupIds, additive: true, hitId: 'b' });
+        assert.deepEqual(selectedIds, ['b', 'a']);
+        assert.deepEqual(selectedGroupIds, ['g1']);
+        assert.equal(JSON.stringify(rows), snapshot);
     });
 });

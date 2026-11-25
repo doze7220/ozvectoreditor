@@ -14,6 +14,7 @@ import {
     canStartNameEdit,
     canSetInsertTargetByRow,
     canStartRowDrag,
+    canToggleGroup,
     shouldSelectPressedRow,
     resolveNameEditKey
 } from '../../js/core/ItemListRules.js';
@@ -310,5 +311,23 @@ describe('shouldSelectPressedRow', () => {
     it('スポイトの待ち受け中・押した行が選ばれている場合は偽', () => {
         assert.equal(shouldSelectPressedRow({ ...base, isPicking: true }), false);
         assert.equal(shouldSelectPressedRow({ ...base, isSelected: true }), false);
+    });
+});
+
+describe('canStartRowDrag（フォルダ）', () => {
+    const base = { button: 0, hasModifier: false, isEditingRow: false, isDragging: false, isLocked: false };
+
+    it('hasGroupsを省けば今までどおり、真ならフォルダのある絵では偽', () => {
+        assert.equal(canStartRowDrag(base), true);
+        assert.equal(canStartRowDrag({ ...base, hasGroups: false }), true);
+        assert.equal(canStartRowDrag({ ...base, hasGroups: true }), false);
+    });
+});
+
+describe('canToggleGroup', () => {
+    it('ドラッグ中・ロック中でないときだけ真', () => {
+        assert.equal(canToggleGroup({ isDragging: false, isLocked: false }), true);
+        assert.equal(canToggleGroup({ isDragging: true, isLocked: false }), false);
+        assert.equal(canToggleGroup({ isDragging: false, isLocked: true }), false);
     });
 });
