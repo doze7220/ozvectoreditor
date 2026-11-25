@@ -207,7 +207,7 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
     *   **作業内容** :
         *   「要件2-2」のとおり入口を足し、後段を非公開メソッドへ切り出して`deserialize`と共有する。`deserialize`・`serialize`の結果・文言・警告は変えない。責務定義（3行以内）・クラスのJSDoc・typedef`SkippedShape`／`DeserializeResult`のJSDocを合わせる。
         *   テスト（変換関数は偽物でよい。要素は文字どおりのデータで作り、書き出しや`toDrawElement()`の戻り値に依らない）：図形データを返せば図形になる・名前は自動（種類ごとの番号）・表示・ロックなし、変換が投げた／`ShapeFactory`が断った要素だけを飛ばす（`skipped`の`index`・`path`・`type`・`reason`・警告の回数）、すべて飛ばすと`ok: true`・0個、空配列、配列でない・`RangeError`は全体失敗で例外が出ない・警告1回、引数を書き換えない。
-*   [ ] タスク3: `source`の無いJSの読み込み（`FileContentReader`）
+*   [x] タスク3: `source`の無いJSの読み込み（`FileContentReader`）
     *   **対象ファイル** :
         *   `./js/io/FileContentReader.js` :（更新）
         *   `./test/io/FileContentReader.test.js` :（更新）
@@ -314,6 +314,9 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
 
 ### タスク3: `source`の無いJSの読み込み（`FileContentReader`）
 *   **作業内容** :
+    *   `js/io/FileContentReader.js`（CRLFのまま）：`DrawElementReader`をimport。`checkFormat`が`'supported'`の後、`Object.hasOwn(data, 'source')`なら今までどおり`DocumentSerializer.deserialize(data.source)`、無ければ`elements`が配列でないとき`#failure('スプライトのelementsが配列ではありません')`、配列なら`DocumentSerializer.deserializeShapeElements(data.elements, (element) => DrawElementReader.toShapeData(element))`。責務定義（2行）・クラスのJSDocの判別の表と規則を実際に合わせた。
+    *   `test/io/FileContentReader.test.js`（LFのまま）：「sourceが無いスプライト」のテストだけを、JSONは読み込み不可のまま・JSは`elements`から組み立てて`ok: true`・`skipped`0件・件数が同じ、に替え、題を合わせた。
+    *   `test/io/FileContentReader.elements.test.js`（新規・LF）：12件（種類ごとの組み立てと書き出し直し・`id`を足しても同じ・名前／表示／ロック／フォルダ・CRLF・版1〜3の形・線なし／塗りなし／太さの不正・読み飛ばし・すべて読めない・`elements`が配列でない3通り・`elements`が空・`source`があれば`elements`を見ない・`source`が不正なら読み込み不可・固定データの版2の今までのJS）。`source`は書き出しの値から`delete`して除き、`id`は`delete`／明示的に足して作り、書き出しの`source`・`id`の有無に依らない。`node --test`は tests 3659 / suites 599 / pass 3659 / fail 0。
 
 ### タスク4: 既存のテストの入力を「今までのJSの形」「作業データ」へ替える・`test/io/`
 *   **作業内容** :
@@ -363,3 +366,4 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
 8.  **作業ファイル**：1.の作業ファイル（`.ozve.json`）を「開く」で開くと、フォルダ・名前・隠した図形・ロック・矩形・曲線の通る点が全部戻る。
 9.  **空**：図形を全部隠して「出力（エンジン用）」したJSを「開く」で開くと、空のキャンバスとして開く（通知は出ない）。「インポート」では「（ファイル名） に追加できる図形がありませんでした。」と出る。
 10. **ほかが今までどおり**：ツールパレットの「選択」「頂点の選択」の矢印のアイコンが今までどおり出る。保存（少し待ってからページを開き直す）・コピー・複製・取り消しが今までどおり動く。
+*   **タスク3**：新しいテストのうち「書き出し直すと同じ描画要素」は、円・弧（`ellipse`）の描画要素の値の比較を避け、型・外枠・直線／曲線／パス系の要素の一致のみ確かめた（要件の「等価な別の値」のため）。`FileContentReader.js`の責務定義は3行以内のまま（2行）。

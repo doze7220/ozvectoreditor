@@ -1,10 +1,11 @@
 /**
  * 責務: 開く・インポートで選ばれたファイルのテキストを中身で判別し（作業データのJSON・スプライトのJS）、
- * 作業データ（スプライトはsource）をDocumentSerializer.deserializeへ渡す読み込みの入口を担う。JSは実行しない。DOMに依存しない。
+ * 作業データ（スプライトはsource、無ければelementsから組み立てた図形データ）をDocumentSerializerへ渡す読み込みの入口を担う。JSは実行しない。DOMに依存しない。
  */
 import { DocumentSerializer } from './DocumentSerializer.js';
 import { SpriteSerializer } from './SpriteSerializer.js';
 import { CodeExporter } from './CodeExporter.js';
+import { DrawElementReader } from './DrawElementReader.js';
 
 /**
  * 開く・インポートで選ばれたファイルのテキストから図形を復元する入口（静的メソッドのみ。状態を持たない）。
@@ -23,16 +24,20 @@ import { CodeExporter } from './CodeExporter.js';
  *   | ---------------------- | --------------------------------------------------------------------------- |
  *   | 'notSprite'            | 読み込み不可                                                                |
  *   | 'unsupportedVersion'   | 読み込み不可                                                                |
- *   | 'supported'            | `source`が無ければ読み込み不可。あれば`DocumentSerializer.deserialize(data.source)` |
+ *   | 'supported'            | `source`のキーがあれば`DocumentSerializer.deserialize(data.source)`（今までのJS）。無ければ`elements`から組み立てる（新しいJS） |
  *
  * ■ 規則
- *   - スプライトの`elements`・`bounds`は読まない（`source`だけを使う）。
+ *   - `source`のキーがあれば`source`だけを使い、`elements`・`bounds`は読まない（`null`・不正な値も今までどおり読み込み不可。`elements`から組み立てない）。
+ *   - `source`のキーが無ければ、`elements`が配列でない場合は読み込み不可、配列なら
+ *     `DocumentSerializer.deserializeShapeElements(elements, DrawElementReader.toShapeData)`で図形を組み立てる
+ *     （`bounds`は読まない。読めない要素は読み飛ばして`skipped`に記録。名前は自動、表示・ロックは既定）。
  *   - 全体失敗の警告（`console.warn`）はどの経路でも1回（本クラス自身が判定した読み込み不可は本クラスが、
  *     `DocumentSerializer`の判定による失敗は`DocumentSerializer`が出す。スプライトのJSONは後者）。
  *   - JSONの結果は`DocumentSerializer.deserializeFromString`と同じ分類になる
  *     （JSONとして解析できない場合の`error`の文字列と警告の出し手のみ異なる）。
  *   - 例外を投げない。引数・取り出した値を書き換えない。
- *   - 識別子・版の値は`SpriteSerializer`、JSの形は`CodeExporter`、作業データ・旧版の変換は`DocumentSerializer`だけが知る。
+ *   - 識別子・版の値は`SpriteSerializer`、JSの形は`CodeExporter`、描画要素→図形データの変換は`DrawElementReader`、
+ *     作業データ・旧版の変換と読み飛ばしの記録は`DocumentSerializer`だけが知る。
  */
 export class FileContentReader {
     /**
@@ -74,10 +79,13 @@ export class FileContentReader {
         if (check === 'unsupportedVersion') {
             return FileContentReader.#failure('対応していないスプライトの書き出し形式の版です');
         }
-        if (data.source === undefined) {
-            return FileContentReader.#failure('スプライトにsourceがありません');
+        if (Object.hasOwn(data, 'source')) {
+            return DocumentSerializer.deserialize(data.source);
         }
-        return DocumentSerializer.deserialize(data.source);
+        if (!Array.isArray(data.elements)) {
+            return FileContentReader.#failure('スプライトのelementsが配列ではありません');
+        }
+        return DocumentSerializer.deserializeShapeElements(data.elements, (element) => DrawElementReader.toShapeData(element));
     }
 
     /**

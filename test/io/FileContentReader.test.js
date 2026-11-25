@@ -232,13 +232,19 @@ describe('FileContentReader.deserializeFromText: 読み込み不可（警告1回
         assertUnreadable(t, '{"format": "oz-vector-editor-sprite", ');
     });
 
-    it('sourceが無いスプライト（JSON・JS。JSONは作業データの形式違い）', (t) => {
-        const data = mutatedSprite(sampleShapesOfAllKinds(), (d) => {
+    it('sourceが無いスプライト（JSONは作業データの形式違いで読み込み不可。JSはelementsから組み立てて読める）', (t) => {
+        const shapes = sampleShapesOfAllKinds();
+        const data = mutatedSprite(shapes, (d) => {
             delete d.source;
         });
         assertUnreadable(t, asJson(data));
         t.mock.restoreAll();
-        assertUnreadable(t, asModule(data));
+        t.mock.method(console, 'warn', () => {});
+        const result = FileContentReader.deserializeFromText(asModule(data));
+        assert.equal(result.ok, true);
+        assert.equal(result.error, null);
+        assert.deepStrictEqual(result.skipped, []);
+        assert.equal(result.shapes.length, shapes.length);
     });
 
     it('書き出し形式の版が0・現行版+1・1.5のスプライト（JSON・JS。JSONは作業データの形式違い）', (t) => {
