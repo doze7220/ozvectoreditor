@@ -292,7 +292,7 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
         *   `./PROJECT_ARCHITECTURE.md` :（更新）
     *   **作業内容** :
         *   「開発資料の更新予定」の`PROJECT_ARCHITECTURE.md`の分を反映する（この固定タスクに限り資料の書き換えを認める）。実コードで確かめてから書く。書き換える前に行末を実測し、保つ。エンジンへ「連絡済み」とは書かない。
-*   [ ] タスク12: 開発資料の反映（`_doc/arch/`）
+*   [x] タスク12: 開発資料の反映（`_doc/arch/`）
     *   **対象ファイル** :
         *   `./_doc/arch/12_shapes.md`・`./_doc/arch/14_edit.md`・`./_doc/arch/15_io.md`・`./_doc/arch/16_test.md`・`./_doc/arch/17_sprite_check.md`・`./_doc/arch/40_asset_sprite.md` :（更新）
     *   **作業内容** :
@@ -385,6 +385,14 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
 
 ### タスク12: 開発資料の反映（`_doc/arch/`）
 *   **作業内容** :
+    *   `_doc/arch/`の6ファイルを実コードで確かめて更新した（行末は実測のとおり、`12`・`14`・`15`・`16`・`17`はCRLF、`40`はLFのまま。`git ls-files --eol`で変わっていないことを確認。製品コード・テストは変えていない）。
+    *   `12_shapes.md`：`toDrawElement()`の項に「描画要素に`id`のキーは無い」、描画要素から図形を戻す知識は`io/DrawElementReader`だけ、新しい図形クラスを足すときの`DrawElementReader`の変換。
+    *   `14_edit.md`：`CanvasFileOperations`の依存の項に`source`の有無での読み方・判定の表は変えないこと・出力（エンジン用）に`source`・名前・フォルダ・隠した図形が無いことを足した。`TransformInputEditor`のテストの記述（`SpriteSerializer.serialize`のキー・作業データの版）を直した。
+    *   `15_io.md`：`DocumentSerializer`（公開メソッド・呼び出し元・`deserializeShapeElements`の新しい項・`collapsed`の記述・角の点の戻り方）、`DrawElementReader.js`の新しい項（公開・知らないこと・変換の規則・円弧の共役な半径・テスト）、`SpriteSerializer`（`source`・`id`を出さない・戻り値のキー・importから`DocumentSerializer`を除く・`resolveStrokeWidth`の公開・版4のまま外した旨・`kind`を足す手順に`DrawElementReader`）、`FileContentReader`（`source`のキーの有無での経路・`elements`が配列でないとき・importと知らないこと・テスト）。
+    *   `16_test.md`：既存のテストの検証範囲の記述（`SpriteSerializer`・`FileContentReader`・`TransformInputEditor`・`SpriteSerializer.items`・`.visibility`・折りたたみ・`GroupEditor.flow`・`SpriteSerializer`の変換の項）を現行に合わせ、Phase 11-06aの新設5ファイル・追加・書き換え・件数（tests 3699 / suites 609 / pass 3699 / fail 0。作業前は tests 3607 / suites 589。テストファイルは133 → 138）の項を、Phase 11-05の件数の項の後ろ（「やらないと決めたこと」の前）へ足した。件数は`node --test`の実測。
+    *   `17_sprite_check.md`：`SpriteSerializer`のimportを通じて読み込まれるものを実コードの`core/ItemTreeRules`・`core/ItemStateRules`（・`GroupTreeRules`）へ直し（`DocumentSerializer`・`ShapeFactory`・`shapes/`は読み込まれない）、「作業データの版」は新しいJSで「なし」・今までのJSは数字が出ることを足した。
+    *   `40_asset_sprite.md`：現行の書き出しは`source`・`id`を持たないが、2本は版2・`source`入りのままで`ToolIconWiring`が読む`bounds`・`draw`には関係しないことを足した。
+    *   確認：`_doc/arch/`全体を`source`・`toDrawElement`・`SpriteSerializer`・`DrawElement`・描画要素の`id`・テストの総件数（3607・3699）で検索した。対象の6ファイルに、実コードと食い違う現行の記述は残っていない（以前のPhaseの項の`source`・`id`は当時の記述で、16の新しい項に「当時の値」と注記）。対象外のファイル（`03_VectorModel`・`37_SpriteFitRules`・`45_TransformInputSettings`・`46_ItemTreeRules`・`63_ItemStateRules`）は`SpriteSerializer`の名前に触れるだけで、`source`・`id`・件数の食い違いは見つからなかった。
 
 ## 5. 懸念事項・要確認ポイント
 *   **回した・裏返した円・弧の書き出し直しの値**：`Ellipse.#readGeometry`（変えない）の分解の取り方により、`rotation`・`startAngle`・半径の並びが、同じ形を表す別の値になることがある（例：180°回した円の`rotation`がπ→組み立てて書き出し直すと0）。見た目と外枠は丸めの範囲で同じ。REQ要件4の「もう一度書き出した`elements`が丸めの範囲で一致」は、`ellipse`に限り輪郭の比較で確かめる。
@@ -403,6 +411,7 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
 *   **タスク9**：`test/io/SpriteRoundTrip.test.js`の許容差は`bounds`（`minX`・`minY`・`maxX`・`maxY`。原点を含む）の幅・高さから求める。組み立てた図形との比較で、円・弧の`ellipse`は輪郭の特徴（円＝中心と`A`・`B`・`C`、弧＝媒介変数を16等分した点の並び）へ直して比べる（弧の点の並びは順方向の一致で足り、逆向きの許容は要らなかった）。回していない円・約束の位置の弧は、拡大縮小しても引数そのもので一致した（回す・裏返す場合の値までは見ていない）。
 *   **タスク10**：区間の切り替え（`PathCornerEditor`）は区間の両端の点が選ばれていないと効かないため、テストでは3点すべてを選んだ。`CanvasFileOperations.js`のgit上の行末は`i/lf w/crlf`で、作業前から変わっていない（CRLFのまま編集した）。角のチェックボックス（`toggle`）はテストしていない（組み立てた曲線の区間は角の対象外のため）。
 *   **タスク11**：`PROJECT_ARCHITECTURE.md`の「存在しないもの」の行は1行が非常に長いため、置換は一致件数を確かめる方式（Node.jsのスクリプト）で行った。Phase 11-05までの「やらないと決めたこと」の記述（歴史的な記述）は、`source`を外した旨を括弧で足すだけにとどめ、当時の文は消していない。確認用ページ（3章10.）は`SpriteSerializer`経由の記述のみで`source`・`DocumentSerializer`に触れていないため変えていない（`_doc/arch/17_sprite_check.md`はタスク12）。
+*   **タスク12**：`16_test.md`の以前のPhaseの項（Phase 07-03〜11-05）には、当時の`source`・描画要素の`id`の記述が履歴として多く残る（`SpriteSerializer`の`source`の往復・`id`の確認など）。現行の検証範囲の記述（既存のテストファイルの項・Phase 11-01・11-04aの項の一部）だけ現行に直し、履歴の項は書き換えず、新しい項に「当時の値」と注記した。履歴の項まで直す場合は別の作業で。`15_io.md`の`DrawElementReader`の項は、4章の`io/`が`15_io.md`1つにまとまっているため新設せずここへ足した（`DrawElementReader.test.js`の件数30件は`node --test`の実測）。`16_test.md`の「件数」はテストの総件数のみ実測で書き、新設ファイルの件数のうち`FileContentReader.elements.test.js`は13件（作業時点の実測。タスク3の記述の12件と食い違う）。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0.  **準備**：画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。**今までのJS**（本作業の前に「出力（エンジン用）」したもの。矩形・フォルダ・隠した図形を含む絵がよい）を1つ手元に用意しておく（無ければ`asset/sprite/select-arrow.js`で代える。この場合はパス1つの絵で、矩形・フォルダは確かめられない）。
