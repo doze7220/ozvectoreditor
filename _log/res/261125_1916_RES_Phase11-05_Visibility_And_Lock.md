@@ -245,7 +245,7 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
         *   「`VectorModel`」のとおり、照会5つ・`setItemStates`・頂点の選択の絞り込みを足す。先頭の責務（3行以内）に表示・ロックの値の変更を含める。
         *   テスト：照会（入れ子・受け継ぎ・混ざったとき・それしか無いとき・すべて表示でロックなしのとき`getShapes`・選択と同じ）、`hasRemovableSelection`（混ざり・変えられないものだけ・空のフォルダ・選択なし）、`setItemStates`（通知1回・変わらなければ通知なし`false`・選択/選んでいるフォルダ/描き込む先/折りたたみ/作成途中の図形が変わらない・ホバーが変わらない）、頂点の選択（受理しない・隠す/ロックで外れる・フォルダで外れる・ロックしたフォルダの中へ`rearrangeItems`で外れる・ほかの図形の組は残る・解除しても戻らない）、`getShapes`・`getSelectedIds`・`isSelected`・`getItems`が全部を返す、`moveShapes`等が対象を減らさない、保存と復元（`replaceAllShapes(getItems())`）で値が保たれる。
 
-*   [ ] タスク5: 表示・ロックを切り替える編集操作
+*   [x] タスク5: 表示・ロックを切り替える編集操作
     *   **対象ファイル** :
         *   `./js/edit/ItemStateEditor.js` :（新規）
         *   `./test/edit/ItemStateEditor.test.js` :（新規）
@@ -376,6 +376,8 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
 
 ### タスク5: 表示・ロックを切り替える編集操作
 *   **作業内容** :
+    *   `js/edit/ItemStateEditor.js`（新規・CRLF）に`toggleVisible`・`toggleLocked`・`toggleSolo`・`forgetSolo`をJSDoc付きで作成。importは`ItemStateRules`（`resolveVisibleToggle`・`resolveLockToggle`）・`SoloVisibilityRules`（`resolveSoloToggle`）のみ。`model`は`getItems`・`setItemStates`だけ。非公開`#commit(changes)`＝`beginEdit` → `setItemStates` → `commitEdit`（鍵なし。戻り値は`setItemStates`の結果）。`toggleSolo`は`changes`が空なら何もせず`false`（記憶も変えない）、それ以外は`#soloMemory`を置き換えてから1件。
+    *   `test/edit/ItemStateEditor.test.js`（新規・CRLF）：18件（偽の依存での呼び順6・実物での切り替え6・その行だけの表示6）。`node --test`は tests 3485 / pass 3485 / fail 0。
 
 ### タスク6: 移動・変形・外枠の対象
 *   **作業内容** :
