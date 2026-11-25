@@ -196,7 +196,7 @@
         *   「共通の計算」のとおり、`PLACE_KIND`・typedef`ItemPlace`・`findItemLocation`・`insertItemsAt`・`canMoveItems`・`moveItems`をJSDoc付きで作る。`hasGroupItem`・`ItemTreeRules.insertItemsAbove`はこのタスクでは消さない。
         *   テスト：`findItemLocation`（外側・入れ子・無い・フォルダ）、`insertItemsAt`（4つの形×外側/フォルダの中/深い入れ子・`null`・無いid・図形のidへの`inside`・空のフォルダの`inside`/`bottom`・`{ bottom, null }`・複数とフォルダを含む追加の順・通り道でないフォルダは同じ参照・引数を書き換えない。`above`の値は`ItemTreeRules.test.js`の`insertItemsAbove`の9件と同じ値も確かめる）、`canMoveItems`（自分の中・自分の中のフォルダの中・中の図形の上下・自分自身の上下は真・ほかのフォルダの中は真・無いid・`null`・`{ bottom, null }`）、`moveItems`（図形1つ・離れた複数がひとかたまり・フォルダごと・フォルダと図形の混ざり・フォルダの中から外／外から中／別のフォルダへ・まとまり自身の上下（位置がずれない）・同じ場所なら同じ構造・空になったフォルダが残る・空のフォルダ・折りたたみの属性が保たれる・入れられない場所と無いidは`null`・引数を書き換えない）、`pickItems`（前順・当たったフォルダの中へ進まない）・`listGroupIds`。
 
-*   [ ] タスク2: 描き込む先の決まり方と、貼り付け・複製の場所の規則
+*   [x] タスク2: 描き込む先の決まり方と、貼り付け・複製の場所の規則
     *   **対象ファイル** :
         *   `./js/core/InsertTargetRules.js` :（更新。今の`resolveInsertTarget`・`resolveInsertMarkId`はこのタスクでは残す）
         *   `./test/core/InsertTargetRules.test.js` :（追加のみ）
@@ -348,7 +348,8 @@
 
 ### タスク2: 描き込む先の決まり方と、貼り付け・複製の場所の規則
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/InsertTargetRules.js`（CRLF）：先頭の責務とimportの記述を直し、typedef`InsertTarget`・`resolveNextInsertTarget`・`resolveRowInsertTarget`・`isSameInsertTarget`・`resolvePastePlace`・`resolveDuplicatePlace`を追加。内部関数`isValidInsertTarget`・`resolveVanishedTarget`（元の場所のたどり）を非公開で持つ。今の`resolveInsertTarget`・`resolveInsertMarkId`は残した。
+    *   `test/core/InsertTargetRules.test.js`（CRLF）：新しい5関数のテストを追加（importの行は新しい関数の分だけ足した）。`node --test`は tests 3278 / pass 3278 / fail 0。
 
 ### タスク3: VectorModelが描き込む先を1つの値で持つ
 *   **作業内容** :
@@ -423,6 +424,8 @@
 *   **頂点の選択（`A`）でも、行のドラッグ・フォルダの選択はできる**（今の一覧の規則）。まとめる（`Ctrl`+`G`）・削除・切り取りは選択（`V`）だけ（今の規則）。
 *   タスク3〜7の途中では、描き込む先の線の印が出ない（タスク8・9で出る）。タスク12までは、フォルダのある絵で行のドラッグは始まらない。
 *   （タスク1）`insertItemsAt`の`above`は、基準がフォルダでも「そのフォルダ行のすぐ上」（同じ並びのすぐ後ろ）へ入る（`insertItemsAbove`は図形だけが基準だった）。`moveItems`の目印は`Symbol`のidを持つ一時のフォルダで、結果には残らない。開発資料への影響はタスク16・17で反映する予定の範囲内。
+
+*   （タスク2）「すぐ下の行が別のフォルダへ移った」場合は、その行を数えず、さらに下（配列で前）の同じ並びの行へたどる（テストは、たどった先がフォルダ行なら`above`・無ければ`bottom`）。`resolveNextInsertTarget`の規則1は、まとまりの種類を`resolveRowInsertTarget`で決める（規則の二重化なし）。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0.  **準備**：画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。塗りのボタン（🪣）をONにし、色の違う塗った図形を8つほど、少しずつ重ねて描く。描き終えたら`V`（選択）にし、いくつか選んで`Ctrl`+`G`でフォルダを2つ作る（1つは、フォルダの行を押し、`Ctrl`を押しながら図形の行を押して`Ctrl`+`G`＝入れ子）。
