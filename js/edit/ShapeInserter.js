@@ -1,5 +1,5 @@
 /**
- * 責務: 作業データ形式のオブジェクトの図形を、平行移動したうえで新しいidで現在のキャンバスへ（描き込む先のすぐ上、無ければ最前面）追加し、追加した図形だけを選択する
+ * 責務: 作業データ形式のオブジェクトの図形を、平行移動したうえで新しいidで現在のキャンバスへ（描き込む先、または指定された入る場所。無ければ最前面）追加し、追加した図形だけを選択する
  * 1件の編集操作を担う（貼り付け・複製・インポートの共通処理）。ほかに、開いている編集操作の中で記録せずに追加する入口を持つ（Alt+ドラッグの複製が使う）。DOMに触れない。
  */
 import { DocumentSerializer } from '../io/DocumentSerializer.js';
@@ -18,6 +18,7 @@ import { DocumentSerializer } from '../io/DocumentSerializer.js';
  * ok・skipped・errorはDocumentSerializer.deserializeの結果（DeserializeResult）の値をそのまま返す。
  * @typedef {Object} InsertResult
  * @property {boolean} ok 作業データ全体の読み込みに成功したか（falseなら何も追加していない）
+ * @property {boolean} inserted 図形かフォルダを1つ以上入れたか（どの経路でも必ず持つ。ok=falseや追加0件ならfalse）
  * @property {Array<string>} insertedIds 追加した図形の新しいid（描画順。追加0件・ok=falseなら空配列）
  * @property {Array<import('../io/DocumentSerializer.js').SkippedShape>} skipped 読み込めずにスキップした図形の記録（ok=falseなら空配列）
  * @property {string|null} error 全体の読み込み失敗の理由（ok=trueならnull）
@@ -55,7 +56,8 @@ export class ShapeInserter {
     #editRecorder;
 
     /**
-     * 真なら描き込む先のすぐ上へ追加する（描き込む先が無ければ末尾）。偽なら常にいちばん外側の末尾（最前面）へ追加する。
+     * 真なら描き込む先（行の上・フォルダの中・一番下。無ければ末尾）、または呼び出し側が指定した入る場所へ追加する。
+     * 偽なら常にいちばん外側の末尾（最前面）へ追加する（指定された入る場所も使わない）。
      * @type {boolean}
      */
     #insertsAtTarget;
@@ -64,7 +66,7 @@ export class ShapeInserter {
      * @param {Object} deps - 依存オブジェクト
      * @param {import('../core/VectorModel.js').VectorModel} deps.model - 図形の追加先のVectorModel
      * @param {EditRecorder} deps.editRecorder - 編集操作の記録先（実体はHistoryManager）
-     * @param {boolean} [deps.insertsAtTarget=false] - 真なら描き込む先のすぐ上へ追加する。省くと偽（末尾＝最前面）
+     * @param {boolean} [deps.insertsAtTarget=false] - 真なら描き込む先（行の上・フォルダの中・一番下）へ追加する。省くと偽（末尾＝最前面）
      */
     constructor({ model, editRecorder, insertsAtTarget = false }) {
         this.#model = model;
@@ -74,18 +76,20 @@ export class ShapeInserter {
 
     /**
      * 作業データ形式のオブジェクトの図形を、(dx, dy)だけ平行移動したうえで新しいidで現在のキャンバスへ追加し、
-     * 追加した図形だけを選択する。追加する位置は、insertsAtTargetが真なら描き込む先のすぐ上（描き込む先が無ければ最前面）、偽なら最前面。
+     * 追加した図形だけを選択する。追加する位置は、insertsAtTargetが真ならplace（指定があれば）、
+     * 無ければ描き込む先（行の上・フォルダの中・一番下。描き込む先が無ければ最前面）、insertsAtTargetが偽なら最前面（placeも使わない）。
      *
      * 処理順:
      *   1. DocumentSerializer.deserialize(documentData)で図形インスタンスを生成する。ok=falseなら何も変更せず
-     *      （履歴にも記録せず）、insertedIds=[]で返す。
-     *   2. 復元できた図形が0件なら何も変更せず返す（全図形がスキップされた場合を含む）。
+     *      （履歴にも記録せず）、insertedIds=[]・inserted=falseで返す。
+     *   2. 0件の判定: asUnitsが偽なら復元できた図形（result.shapes）が0件、asUnitsが真ならアイテム（result.items）が0件のとき、
+     *      何も変更せず返す（全図形がスキップされた場合を含む）。inserted=false。
      *   3. 各図形にtranslate(dx, dy)を呼ぶ（dx・dyがともに0なら呼ばない。追加前のインスタンスに対して行うため変更通知は発生しない）。
-     *   4. editRecorder.beginEdit() → model.addShapesWithNewIds(result.items, { atInsertTarget: insertsAtTarget }) → editRecorder.commitEdit()。
-     *      入れ子（フォルダ）・名前・表示・ロックを保ったまま、insertsAtTargetが真なら描き込む先のすぐ上（同じ並びの直後）、
-     *      偽または描き込む先なしならいちばん外側の末尾へ追加する。0件の判定とtranslateは
+     *   4. editRecorder.beginEdit() → model.addShapesWithNewIds(result.items, { atInsertTarget: insertsAtTarget,
+     *      place: insertsAtTarget ? place : null, asUnits }) → editRecorder.commitEdit()。
+     *      入れ子（フォルダ）・名前・表示・ロックを保ったまま追加する。translateは
      *      平らな図形（result.shapes。result.itemsの図形と同じインスタンス）に対して行う。
-     *   5. { ok: true, insertedIds, skipped, error: null }を返す。
+     *   5. { ok: true, inserted: true, insertedIds, skipped, error: null }を返す。
      *
      * 独立性: 呼び出しのたびにdeserializeで新しい図形インスタンスを生成するため、追加した図形は元の図形・documentData・
      * 他の呼び出しで追加した図形と状態を共有しない。同じdocumentDataから何回追加しても毎回別のid（VectorModelが採番）になる。
@@ -101,10 +105,13 @@ export class ShapeInserter {
      * @param {*} documentData - 作業データ形式のオブジェクト（DocumentSerializer.serializeの戻り値。インポートも読めた図形をserializeし直して渡す）
      * @param {number} [dx=0] - 追加する全図形に適用するx方向の平行移動量（ワールド座標。インポートで元の座標のまま追加する場合は0）
      * @param {number} [dy=0] - 追加する全図形に適用するy方向の平行移動量（ワールド座標。インポートで元の座標のまま追加する場合は0）
+     * @param {Object} [options] - 入る場所の指定
+     * @param {import('../core/ItemPlaceRules.js').ItemPlace|null} [options.place=null] - 入る場所（insertsAtTargetが真のときだけ使う。nullなら描き込む先）
+     * @param {boolean} [options.asUnits=false] - 真ならフォルダだけ（空のフォルダを含む）の作業データも入れる（貼り付け・複製が使う）。偽（インポート）なら図形が無ければ何もしない
      * @returns {InsertResult} 結果オブジェクト
      */
-    insertDocument(documentData, dx = 0, dy = 0) {
-        return this.#insert(documentData, dx, dy, true);
+    insertDocument(documentData, dx = 0, dy = 0, { place = null, asUnits = false } = {}) {
+        return this.#insert(documentData, dx, dy, true, place, asUnits);
     }
 
     /**
@@ -117,10 +124,13 @@ export class ShapeInserter {
      * @param {*} documentData - 作業データ形式のオブジェクト（insertDocumentと同じ）
      * @param {number} [dx=0] - 追加する全図形に適用するx方向の平行移動量（ワールド座標）
      * @param {number} [dy=0] - 追加する全図形に適用するy方向の平行移動量（ワールド座標）
+     * @param {Object} [options] - 入る場所の指定（insertDocumentと同じ）
+     * @param {import('../core/ItemPlaceRules.js').ItemPlace|null} [options.place=null] - 入る場所
+     * @param {boolean} [options.asUnits=false] - 真ならフォルダだけの作業データも入れる
      * @returns {InsertResult} 結果オブジェクト（insertDocumentと同じ）
      */
-    insertDocumentWithinEdit(documentData, dx = 0, dy = 0) {
-        return this.#insert(documentData, dx, dy, false);
+    insertDocumentWithinEdit(documentData, dx = 0, dy = 0, { place = null, asUnits = false } = {}) {
+        return this.#insert(documentData, dx, dy, false, place, asUnits);
     }
 
     /**
@@ -129,17 +139,20 @@ export class ShapeInserter {
      * @param {number} dx - x方向の平行移動量
      * @param {number} dy - y方向の平行移動量
      * @param {boolean} record - trueならbeginEdit/commitEditで1回だけ挟んで記録する。falseなら呼ばない
+     * @param {import('../core/ItemPlaceRules.js').ItemPlace|null} place - 入る場所（insertsAtTargetが偽なら使わない）
+     * @param {boolean} asUnits - 真ならフォルダだけの作業データも入れる
      * @returns {InsertResult} 結果オブジェクト
      */
-    #insert(documentData, dx, dy, record) {
+    #insert(documentData, dx, dy, record, place, asUnits) {
         const result = DocumentSerializer.deserialize(documentData);
         if (!result.ok) {
-            return { ok: false, insertedIds: [], skipped: result.skipped, error: result.error };
+            return { ok: false, inserted: false, insertedIds: [], skipped: result.skipped, error: result.error };
         }
 
         const shapes = result.shapes;
-        if (shapes.length === 0) {
-            return { ok: true, insertedIds: [], skipped: result.skipped, error: null };
+        const isEmpty = asUnits ? result.items.length === 0 : shapes.length === 0;
+        if (isEmpty) {
+            return { ok: true, inserted: false, insertedIds: [], skipped: result.skipped, error: null };
         }
 
         if (dx !== 0 || dy !== 0) {
@@ -149,11 +162,15 @@ export class ShapeInserter {
         if (record) {
             this.#editRecorder.beginEdit();
         }
-        const insertedIds = this.#model.addShapesWithNewIds(result.items, { atInsertTarget: this.#insertsAtTarget });
+        const insertedIds = this.#model.addShapesWithNewIds(result.items, {
+            atInsertTarget: this.#insertsAtTarget,
+            place: this.#insertsAtTarget ? place : null,
+            asUnits
+        });
         if (record) {
             this.#editRecorder.commitEdit();
         }
 
-        return { ok: true, insertedIds, skipped: result.skipped, error: null };
+        return { ok: true, inserted: true, insertedIds, skipped: result.skipped, error: null };
     }
 }

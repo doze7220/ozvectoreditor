@@ -238,7 +238,7 @@
         *   「要件4」の`place`・`asUnits`を足す。既定（省いたとき）の結果・通知は変えない。
         *   テスト：`place`が`atInsertTarget`より優先、`atInsertTarget`で`inside`・`bottom`・フォルダの`above`、`asUnits`（フォルダと図形・入れ子・空のフォルダだけ・混ざり）で入った後の選択といちばん外側のフォルダの選択・描き込む先、`asUnits`が偽ならフォルダだけでは何もしない・フォルダの選択は空、idの採番（図形・フォルダとも新しい）・名前が保たれる・折りたたみが保たれる・既にあった閉じたフォルダの中へ入れると開く（図形を含むとき）、通知1回、重複インスタンス。
 
-*   [ ] タスク6: ShapeInserterの受け渡し
+*   [x] タスク6: ShapeInserterの受け渡し
     *   **対象ファイル** :
         *   `./js/edit/ShapeInserter.js` :（更新）
         *   `./test/edit/ShapeInserter.insertTarget.test.js` :（追加のみ）
@@ -371,7 +371,8 @@
 
 ### タスク6: ShapeInserterの受け渡し
 *   **作業内容** :
-    *   （未記入）
+    *   `js/edit/ShapeInserter.js`（CRLF）：`insertDocument`・`insertDocumentWithinEdit`に第4引数`{ place = null, asUnits = false }`を追加し、共通の`#insert`へ渡す。`addShapesWithNewIds(result.items, { atInsertTarget, place: insertsAtTarget ? place : null, asUnits })`。0件の判定は`asUnits ? result.items.length === 0 : shapes.length === 0`。`InsertResult.inserted`を足し、全体の失敗・0件・追加の全経路で持つ。先頭の責務・typedef・クラスの`#insertsAtTarget`・コンストラクタ・処理順のJSDocを直した。
+    *   テスト：`test/edit/ShapeInserter.insertTarget.test.js`（CRLF）へ7件を追加のみ（`place`の優先・`insertsAtTarget`偽で`place`無視・`asUnits`でフォルダだけが入り記録1件と取り消し・`asUnits`偽は何も起きない・`inserted`の真偽・記録しない入口・引数なしが`inside`/`bottom`の描き込む先へ入る）。`node --test`は tests 3304 / pass 3304 / fail 0。
 
 ### タスク7: フォルダの形を保ったコピー・切り取り・貼り付け・複製
 *   **作業内容** :

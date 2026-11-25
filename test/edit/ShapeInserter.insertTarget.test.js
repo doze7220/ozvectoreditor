@@ -209,3 +209,113 @@ test('insertsAtTargetを省くと、選んだ図形があっても末尾（最�
     assert.equal(clipboard.duplicate(), true);
     assert.deepEqual(names(model), ['a', 'b', 'c', 'a']);
 });
+
+/**
+ * アイテムの入れ子を作業データ形式へ直す。
+ * @param {Array<Object>} items アイテムの入れ子
+ * @returns {*} 作業データ
+ */
+function toDocument(items) {
+    const source = new VectorModel();
+    source.replaceAllShapes(items);
+    return DocumentSerializer.serialize(source.getItems());
+}
+
+/**
+ * フォルダのアイテムを作る。
+ * @param {string} id フォルダのid
+ * @param {Array<Object>} children 中のアイテム
+ * @returns {Object} フォルダのアイテム
+ */
+function groupItem(id, children) {
+    return { kind: 'group', id, name: id, visible: true, locked: false, children };
+}
+
+test('ShapeInserter place: insertsAtTargetが真なら指定した場所へ入る（描き込む先より優先）', () => {
+    const { model, inserter } = setup();
+    model.setSelection(['d']);
+    model.clearSelection();
+    const result = inserter.insertDocument(toDocument([shapeItem('x')]), 0, 0, { place: { kind: 'above', id: 'b' } });
+    assert.equal(result.inserted, true);
+    assert.deepEqual(names(model), ['a', 'b', 'x', 'c', 'd']);
+});
+
+test('ShapeInserter place: insertsAtTargetが偽ならplaceを使わず末尾へ入る', () => {
+    const model = new VectorModel();
+    model.replaceAllShapes(['a', 'b', 'c'].map(shapeItem));
+    const recorder = { beginEdit() {}, commitEdit() { return true; } };
+    const inserter = new ShapeInserter({ model, editRecorder: recorder });
+    const result = inserter.insertDocument(toDocument([shapeItem('x')]), 0, 0, { place: { kind: 'above', id: 'a' } });
+    assert.equal(result.inserted, true);
+    assert.deepEqual(names(model), ['a', 'b', 'c', 'x']);
+});
+
+test('ShapeInserter asUnits: フォルダだけ（空のフォルダ）の作業データが入り、1件の記録になり、取り消しで消える', () => {
+    const { model, history, inserter } = setup();
+    const documentData = toDocument([groupItem('g', [])]);
+    const result = inserter.insertDocument(documentData, 0, 0, { asUnits: true });
+    assert.equal(result.ok, true);
+    assert.equal(result.inserted, true);
+    assert.deepEqual(result.insertedIds, []);
+    const items = model.getItems();
+    assert.equal(items.length, 5);
+    assert.equal(items[4].kind, 'group');
+    assert.equal(items[4].children.length, 0);
+    assert.equal(history.undo(), true);
+    assert.equal(model.getItems().length, 4);
+    assert.equal(history.canUndo(), false);
+});
+
+test('ShapeInserter asUnits: 偽ならフォルダだけの作業データでは何も起きない（inserted偽・記録なし）', () => {
+    const { model, history, inserter } = setup();
+    const documentData = toDocument([groupItem('g', [])]);
+    const result = inserter.insertDocument(documentData);
+    assert.equal(result.ok, true);
+    assert.equal(result.inserted, false);
+    assert.deepEqual(result.insertedIds, []);
+    assert.equal(model.getItems().length, 4);
+    assert.equal(history.canUndo(), false);
+});
+
+test('ShapeInserter inserted: 図形あり・全体の失敗・0件の真偽', () => {
+    const { inserter } = setup();
+    assert.equal(inserter.insertDocument(toDocument([shapeItem('x')])).inserted, true);
+    const failed = inserter.insertDocument(null);
+    assert.equal(failed.ok, false);
+    assert.equal(failed.inserted, false);
+    const empty = inserter.insertDocument(toDocument([]));
+    assert.equal(empty.ok, true);
+    assert.equal(empty.inserted, false);
+    assert.equal(inserter.insertDocument(toDocument([]), 0, 0, { asUnits: true }).inserted, false);
+});
+
+test('ShapeInserter 記録しない入口: placeとasUnitsを受け、beginEdit/commitEditを呼ばない', () => {
+    const { model, history, inserter } = setup();
+    const calls = [];
+    const recorder = { beginEdit() { calls.push('begin'); }, commitEdit() { calls.push('commit'); return true; } };
+    const plain = new ShapeInserter({ model, editRecorder: recorder, insertsAtTarget: true });
+    const result = plain.insertDocumentWithinEdit(toDocument([groupItem('g', [])]), 0, 0, {
+        place: { kind: 'above', id: 'a' },
+        asUnits: true
+    });
+    assert.equal(result.inserted, true);
+    assert.deepEqual(calls, []);
+    assert.equal(model.getItems()[1].kind, 'group');
+    assert.equal(history.canUndo(), false);
+    assert.ok(inserter);
+});
+
+test('ShapeInserter インポート相当（引数なし）: 描き込む先がフォルダの中・一番下ならそこへ入る', () => {
+    const { model, inserter } = setup([shapeItem('a'), groupItem('g', [shapeItem('b'), shapeItem('c')]), shapeItem('d')]);
+    model.setInsertTarget('g');
+    assert.deepEqual(model.getInsertTarget(), { kind: 'inside', id: 'g' });
+    assert.equal(inserter.insertDocument(toDocument([shapeItem('x')])).inserted, true);
+    assert.deepEqual(model.getItems()[1].children.map((item) => item.name), ['b', 'c', 'x']);
+
+    model.replaceAllShapes([shapeItem('a'), groupItem('g', [shapeItem('b'), shapeItem('c')]), shapeItem('d')]);
+    model.setSelection(['a']);
+    model.deleteShapes(['a']);
+    assert.deepEqual(model.getInsertTarget(), { kind: 'bottom', id: null });
+    assert.equal(inserter.insertDocument(toDocument([shapeItem('y')])).inserted, true);
+    assert.deepEqual(names(model), ['y', 'b', 'c', 'd']);
+});
