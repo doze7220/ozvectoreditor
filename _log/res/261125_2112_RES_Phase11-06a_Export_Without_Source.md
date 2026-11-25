@@ -287,7 +287,7 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
     *   **作業内容** :
         *   JSDocの判定の表の1行目（`source`が無い→`source`が読めない・`source`が無く`elements`が配列でない）と、その下の「`source`の取り出しも」を実際に合わせる。**コードは1行も変えない**（コメントを除いた差分が無いことを確かめる）。
         *   テスト（実物の`CanvasFileOperations`・`VectorModel`・`HistoryManager`・`SnapshotAdapter`・`ShapeInserter`。組み立ては`CanvasFileOperations.items.test.js`に倣う）：新しいJSの開く（図形・自動の名前・フォルダなし・表示・ロックなし・通知なし）、インポート（追加した図形だけが選ばれる・1件の記録・取り消し1回で元どおり・やり直し）、一部が読めない（`partialRead`と件数）、すべて読めない・`elements`が配列でない（`readFailed`・何も変えない）、空（開く＝空のキャンバス・インポート＝`noShapes`）、出力（エンジン用）したJSのテキストに`source`・名前・フォルダ・隠した図形が無い、組み立てた図形を開いた後の作業ファイルの出力→開くで同じ図形、もう一度のエンジン用の出力が同じ見た目、今までのJSを開いて書き出し直すと`source`が無い。組み立てた図形の結合・色の変更・直線／曲線の切り替え（`PathJoiner`・`ShapeStyleEditor`・`PathCornerEditor`の実物）が、その種類の図形としてできること。
-*   [ ] タスク11: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
+*   [x] タスク11: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新）
     *   **作業内容** :
@@ -376,6 +376,12 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
 
 ### タスク11: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
 *   **作業内容** :
+    *   `PROJECT_ARCHITECTURE.md`（CRLFのまま。Node.jsのスクリプトで、各置換の一致件数を確かめながら編集。`git ls-files --eol`は`i/lf w/crlf`のまま、`\n`と`\r\n`の数が同じ＝LFだけの行なし）。製品コード・`_doc/arch/`は変えていない。
+    *   1章：構成図の`io/`に`DrawElementReader.js`、`test/io/`に`SpriteRoundTrip.test.js`・`DrawElementReader.test.js`、`test/edit/`に`CanvasFileOperations.elements.test.js`を足した。「存在しないもの」から「スプライトの`elements`からの図形の作り直し」を除き、本アプリの形から外れたJSを読まないことは残し、矩形に戻すこと・通る点や角・フォルダ・名前を推し量ること・半周でない弧や1周でない円を表すことを足した。過去のPhaseの「やらないこと」の記述に`source`が出る3か所へ、Phase 11-06aで外した旨を足し、Phase 11-06aでやらないと決めたことの1文を末尾に足した。フォルダ分割の方針の`io/`へ`DrawElementReader`・`deserializeShapeElements`・`FileContentReader`の役割を足した。
+    *   2章：作業データの`collapsed`の記述、エンジンとの約束(b)(d)（`source`は今までのJSだけ・`ship.js`は`source`入りの版2で今までどおり開ける・書き出し直すと`source`が無くなる・エンジンへの連絡は11-06b）、スプライトデータの形（4つのキー）、`source`の項（今までのJSだけ）と`elements`・`bounds`の項への分割、描画要素の`id`・キー列（4か所）、`source`の元の値の注記、「2つの版」（版を上げる条件・版の履歴に「版4のまま`source`と描画要素の`id`を外した」・作業データの版は今までのJSの`source.version`）、「エディタで開くときの規則」（`source`のキーの有無での分岐・読み込み不可の条件・組み立ての規則の項＝対応表・スタイル・読み飛ばし・名前・等価な別の値）。「連絡済み」とは書いていない。
+    *   3章：9.の折りたたみの扱い・旧版のファイル・書き出しと表示・ロック、ツールのアイコンの`source`入りの注記。624行（現在は638行付近）の`StylePanelView`の`source`は無関係のため変えていない。
+    *   監査の指摘で、1章の構成図の`test/io/`に`DocumentSerializer.shapeElements.test.js`（タスク2）・`FileContentReader.elements.test.js`（タスク3）の2行を足した（行末はCRLFのまま）。
+    *   確認：`source`・`id`で検索し、実コード（`FileContentReader`・`DrawElementReader`）と食い違う記述が残っていないことを確かめた。10.（確認用ページ）・`toDrawElement`の呼び出しの記述・`SpriteSerializer.computeShapesBounds`の記述は変えていない（実コードと合っている）。
 
 ### タスク12: 開発資料の反映（`_doc/arch/`）
 *   **作業内容** :
@@ -396,6 +402,7 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
 *   **タスク8**：`test/io/SpriteSerializer.test.js`の`ellipseWith`（1020行付近）が`toDrawElement`を差し替える入力の`id: 'R'`は、表に無い入力のため残した（読まれないキーなので無害）。実測の行末は`test/shapes/`の`Line`・`Curve`・`Rect`の各テストがCRLF、`js/shapes/`の`Line`・`Curve`・`Rect`はLF。
 *   **タスク9**：`test/io/SpriteRoundTrip.test.js`の許容差は`bounds`（`minX`・`minY`・`maxX`・`maxY`。原点を含む）の幅・高さから求める。組み立てた図形との比較で、円・弧の`ellipse`は輪郭の特徴（円＝中心と`A`・`B`・`C`、弧＝媒介変数を16等分した点の並び）へ直して比べる（弧の点の並びは順方向の一致で足り、逆向きの許容は要らなかった）。回していない円・約束の位置の弧は、拡大縮小しても引数そのもので一致した（回す・裏返す場合の値までは見ていない）。
 *   **タスク10**：区間の切り替え（`PathCornerEditor`）は区間の両端の点が選ばれていないと効かないため、テストでは3点すべてを選んだ。`CanvasFileOperations.js`のgit上の行末は`i/lf w/crlf`で、作業前から変わっていない（CRLFのまま編集した）。角のチェックボックス（`toggle`）はテストしていない（組み立てた曲線の区間は角の対象外のため）。
+*   **タスク11**：`PROJECT_ARCHITECTURE.md`の「存在しないもの」の行は1行が非常に長いため、置換は一致件数を確かめる方式（Node.jsのスクリプト）で行った。Phase 11-05までの「やらないと決めたこと」の記述（歴史的な記述）は、`source`を外した旨を括弧で足すだけにとどめ、当時の文は消していない。確認用ページ（3章10.）は`SpriteSerializer`経由の記述のみで`source`・`DocumentSerializer`に触れていないため変えていない（`_doc/arch/17_sprite_check.md`はタスク12）。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0.  **準備**：画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。**今までのJS**（本作業の前に「出力（エンジン用）」したもの。矩形・フォルダ・隠した図形を含む絵がよい）を1つ手元に用意しておく（無ければ`asset/sprite/select-arrow.js`で代える。この場合はパス1つの絵で、矩形・フォルダは確かめられない）。
