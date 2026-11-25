@@ -84,12 +84,12 @@ import { FileContentReader } from '../io/FileContentReader.js';
  * ■ 読み込みの判定の表（`#classifyRead`。`FileContentReader.deserializeFromText`の結果`result`で判定し、作業データ自体の`shapes`は参照しない）
  *   - 「ファイルの`shapes`が1個以上か」は`result.shapes.length + result.skipped.length`で分かる。
  *   | 場面 | 判定 | 分類 | 開く | インポート | 通知 |
- *   | ファイルを読み取れない・JSONとして解析できない・本アプリのスプライトでない・書き出し形式の版が範囲外・`source`が無い・JSから取り出せない・スプライトのJSON（作業データ形式の違いとして`DocumentSerializer`が落とす）・`ok: false`（形式違い・非対応の版を含む） | `result === null`または`!result.ok` | 読み込み不可 | 何も変えない | 何も変えない | readFailed |
+ *   | ファイルを読み取れない・JSONとして解析できない・本アプリのスプライトでない・書き出し形式の版が範囲外・`source`が読めない・`source`が無く`elements`が配列でない・JSから取り出せない・スプライトのJSON（作業データ形式の違いとして`DocumentSerializer`が落とす）・`ok: false`（形式違い・非対応の版を含む） | `result === null`または`!result.ok` | 読み込み不可 | 何も変えない | 何も変えない | readFailed |
  *   | 図形がすべて読めない | `shapes`が0個かつ`skipped`が1件以上 | 読み込み不可 | 何も変えない（新しいキャンバスを作らない） | 何も変えない | readFailed |
  *   | 図形が0個の正しいファイル（フォルダだけのファイルも空と同じ） | `shapes`・`skipped`とも0件 | 空 | 空のキャンバスとして開く | 何も変えない | 開く：なし／インポート：noShapes |
  *   | 一部の図形が読めない | `shapes`が1個以上かつ`skipped`が1件以上 | 一部 | 読めた図形で開く | 読めた図形を追加する | partialRead |
  *   | すべて読めた | `shapes`が1個以上かつ`skipped`が0件 | 全部 | 開く | 追加する | なし |
- *   - `DocumentSerializer`の`error`の文字列は利用者向けの文言に出さない。JSONの解析は`FileContentReader`に任せる（スプライトの判別・`source`の取り出しも。本クラスはスプライト形式を知らない）。
+ *   - `DocumentSerializer`の`error`の文字列は利用者向けの文言に出さない。JSONの解析は`FileContentReader`に任せる（スプライトの判別・`source`の取り出し・`source`が無いときの`elements`からの組み立ても。本クラスはスプライト形式を知らない）。
  *
  * ■ 通知の持ち方と解除条件
  *   - `CanvasLibrary`の`issue`とは別に、本クラスが`#notice`として保持する（`issue`は`'unavailable'`・`'writeFailed'`・`'partialLoad'`で

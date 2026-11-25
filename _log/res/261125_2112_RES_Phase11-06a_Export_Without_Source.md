@@ -280,7 +280,7 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
         *   図形の種類ごと（直線・今の曲線・矩形・円・弧・パス（開いた／閉じた × 直線だけ／曲線／曲がり方を持つ区間／混ざり／角の点））と、それぞれを`createTransformed`で拡大縮小（縦横別）・回転（30°・90°・180°・斜めの角度）・反転（左右・上下・両方）したもの、弧は左右・上下の裏返しと回転の組み合わせ。
         *   確かめること：書き出したJS→`FileContentReader`で読み（`skipped`0件）→ (a) 元の図形の`draw`・書き出したJSの`draw`・組み立てた図形の`draw`の描画命令（記録する偽の`ctx`）が丸めの範囲で一致、(b) もう一度書き出した`elements`（キー・並び・値）・`bounds`が丸めの範囲で一致。許容差は大きさに対する比1e-9。`ellipse`の緩め（「要件2-1」の「等価な別の値」。コメントに理由を書く）を適用するのは、**組み立てた図形との比較だけ**（(a)の組み立てた図形の`draw`と、(b)の書き出し直した`elements`）。(a)の「元の図形の`draw`」と「書き出したJSの`draw`」は組み立てを挟まず引数がそのまま一致するはずなので、`ellipse`も緩めずに描画命令の引数どうしを比べる。回していない円・約束の位置の弧は値そのものでも一致すること、矩形は`path`になること、図形の種類・塗り・重なり順も見る。
         *   組み立てた図形を、動かす・`createTransformed`・作業データの往復（`DocumentSerializer`）しても見た目が追従すること。書き出しのテキストに`"source"`・`"id"`・`"name"`が無いこと。引数（スプライトデータ）を書き換えないこと。不具合が見つかったら製品コードを直さずに報告する。
-*   [ ] タスク10: 開く・インポートの手順のテストと`CanvasFileOperations`のJSDoc
+*   [x] タスク10: 開く・インポートの手順のテストと`CanvasFileOperations`のJSDoc
     *   **対象ファイル** :
         *   `./js/edit/CanvasFileOperations.js` :（更新。JSDocのみ）
         *   `./test/edit/CanvasFileOperations.elements.test.js` :（新規）
@@ -371,6 +371,8 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
 
 ### タスク10: 開く・インポートの手順のテストと`CanvasFileOperations`のJSDoc
 *   **作業内容** :
+    *   `js/edit/CanvasFileOperations.js`（CRLFのまま。JSDocのみ2行）：判定の表の1行目を「`source`が読めない・`source`が無く`elements`が配列でない」に、表の下の注記を「スプライトの判別・`source`の取り出し・`source`が無いときの`elements`からの組み立ても」に合わせた。コードは変えていない（差分はコメント行の2行のみ）。
+    *   `test/edit/CanvasFileOperations.elements.test.js`（新規・LF）：14件。出力のテキスト（`source`・`id`・名前・フォルダ・隠した図形が無く、ロックした図形は出る）、開く（図形6つ・自動の名前・フォルダなし・表示あり・ロックなし・通知なし・矩形は4点4区間の閉じたパス）、インポート（追加分だけ選択・1件の記録・取り消し1回・やり直し）、一部が読めない（`partialRead`・件数2）、すべて読めない／`elements`が配列でない（`readFailed`・何も変えない）、空（開く＝空のキャンバス・インポート＝`noShapes`）、作業ファイルの出力→開くで同じ、もう一度のエンジン用の出力が同じテキスト、今までのJSを開いて書き出し直すと`source`が無い、`PathJoiner`の結合・`ShapeStyleEditor`の色の変更・`PathCornerEditor`の直線／曲線の切り替え。製品コードは変えていない。`node --test`は tests 3699 / suites 609 / pass 3699 / fail 0。
 
 ### タスク11: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
 *   **作業内容** :
@@ -393,6 +395,7 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
 *   **タスク7**：`SpriteSerializer.visibility.test.js`の`idsOf`は、線の色が名前と1対1（`makeItems`の4図形）であることに頼る。色を変えるときはこの表（`NAME_BY_STROKE`）も合わせること。`ShapeOrderEditor.test.js`の書き出しの並びは、`translate`した量（`points[0].x`）で見るため、`setupReal`の矩形の元の`x`が0であることに頼る。
 *   **タスク8**：`test/io/SpriteSerializer.test.js`の`ellipseWith`（1020行付近）が`toDrawElement`を差し替える入力の`id: 'R'`は、表に無い入力のため残した（読まれないキーなので無害）。実測の行末は`test/shapes/`の`Line`・`Curve`・`Rect`の各テストがCRLF、`js/shapes/`の`Line`・`Curve`・`Rect`はLF。
 *   **タスク9**：`test/io/SpriteRoundTrip.test.js`の許容差は`bounds`（`minX`・`minY`・`maxX`・`maxY`。原点を含む）の幅・高さから求める。組み立てた図形との比較で、円・弧の`ellipse`は輪郭の特徴（円＝中心と`A`・`B`・`C`、弧＝媒介変数を16等分した点の並び）へ直して比べる（弧の点の並びは順方向の一致で足り、逆向きの許容は要らなかった）。回していない円・約束の位置の弧は、拡大縮小しても引数そのもので一致した（回す・裏返す場合の値までは見ていない）。
+*   **タスク10**：区間の切り替え（`PathCornerEditor`）は区間の両端の点が選ばれていないと効かないため、テストでは3点すべてを選んだ。`CanvasFileOperations.js`のgit上の行末は`i/lf w/crlf`で、作業前から変わっていない（CRLFのまま編集した）。角のチェックボックス（`toggle`）はテストしていない（組み立てた曲線の区間は角の対象外のため）。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0.  **準備**：画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。**今までのJS**（本作業の前に「出力（エンジン用）」したもの。矩形・フォルダ・隠した図形を含む絵がよい）を1つ手元に用意しておく（無ければ`asset/sprite/select-arrow.js`で代える。この場合はパス1つの絵で、矩形・フォルダは確かめられない）。
