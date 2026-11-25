@@ -286,7 +286,7 @@
         *   配線：三角は`canToggleGroup`が真なら`model.setGroupCollapsed(id, !今の値)` → `sync({ allowScroll: false })`（選択に触れない）。ボタンは`resolveFolderButtonAction`の結果で`groupEditor.groupSelection()`／`addEmptyGroup({ selects: true })`／`addEmptyGroup({ selects: false })`／何もしない。`setMode`等を呼ばない（ツール・引いている途中の線はそのまま）。
         *   `index.html`：パネルを縦の並び（一覧が伸び、下端にボタン）にする。`.item-list`の子に行以外を足さない。`title`は「フォルダを作る (Ctrl+G)」。記号は「＋」とCSSのフォルダの絵（📁は使わない）。
 
-*   [ ] タスク16: 通しのテスト
+*   [x] タスク16: 通しのテスト
     *   **対象ファイル** :
         *   `./test/edit/GroupEditor.flow.test.js` :（新規）
     *   **作業内容** :
@@ -407,7 +407,8 @@
 
 ### タスク16: 通しのテスト
 *   **作業内容** :
-    *   （未実施）
+    *   `test/edit/GroupEditor.flow.test.js`（新規・CRLF）：実物（`VectorModel`・`SnapshotAdapter`・`HistoryManager`・`GroupEditor`・`ShapeOrderEditor`・`PathJoiner`・`ShapeInserter`・`ClipboardController`・`ItemRenameEditor`・`DocumentSerializer`・`SpriteSerializer`）を公開APIだけで通す18件。補助関数にJSDoc付き。実装の不具合は見つからなかった。`node --test`は tests 3192 / pass 3192 / fail 0。
+    *   観点：まとめる前後で`elements`・`bounds`が同じ（1件）／別々のフォルダの線の結合（奥の線の場所・名前、両方のフォルダが残る、取り消し。1件）／フォルダを選んだ複製・コピー→貼り付け・切り取り→貼り付け・切り取りの取り消し・空のフォルダだけの切り取り/コピー・記録しない複製（編集操作の中/外）（7件）／フォルダの名前の変更・取り消し・やり直し・変わらない場合（2件）／まとめる→入れ子→キー（背面へ）→解除→削除の取り消し/やり直しの往復でJSONとフォルダの選択が各段階で一致（1件）／描き込む先（フォルダを選ぶ＝中の一番上、空のフォルダだけ＝今の値、空のフォルダの入る位置。3件）／作業データ・スプライトの`source`の往復とインポートで入れ子・名前・折りたたみが戻る（3件）。
 
 ### タスク17: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
 *   **作業内容** :
@@ -457,3 +458,5 @@
 12. **ほかが今までどおり**：フォルダの無い絵での一覧・行のドラッグでの並べ替え・描き込む先・複製・コピー、描く・動かす・変形・色・整列・保存・書き出し・開くが今までどおり動く。フォルダが1つでもある絵では、行のドラッグは始まらない。複製・コピー・貼り付けは図形だけを写す（写した後はフォルダを選んでいる状態ではない）。
 *   **タスク11（`Ctrl`+`G`）**：`performGroupCommand`はキャンバスのドラッグ中（`inputTracker.isDragging()`）のみ見る（RESの指定どおり。一覧の行のドラッグ中は`KeyboardShortcuts`の`isDragging`が先に弾く）。ブラウザのページ内検索（`Ctrl`+`G`）を抑えるため常に`true`。目視確認推奨：実機で`Ctrl`+`G`・`Ctrl`+`Shift`+`G`が検索を開かないこと（`GroupEditor`が`false`のときも）。開発資料の更新予定：3章のキーの割り当て・キーボードの項に`Ctrl`+`G`・`Ctrl`+`Shift`+`G`と`ShortcutActions`の`group`・`ungroup`（既に列挙済みの更新予定に含まれる）。
 *   （タスク13）三角のクリック（`onGroupToggle`）・作るボタンはタスク15。フォルダの行の`canToggle`の既定は、行の控えの初期値が`null`（未描画）で最初の`render`が必ず書き、省略時は偽として`visibility: hidden`になる。`has-hidden-mark`は`outline`で描いたため、`insert-target`の`box-shadow`・`selected`の背景と重なっても見分けられる。見た目（字下げ・三角・フォルダの絵・破線）はブラウザでの目視確認を推奨。開発資料への影響：既存の更新予定（`ItemListPanel`の一言・`index.html`）に含まれており、追記は無い。
+
+*   （タスク16）通しのテストは製品コードを変えず、実物の組み合わせで確かめた。切り取りの削除は本番と同じ`GroupEditor.removeSelection`を注入している。「記録しない複製」を編集操作の外で呼ぶと履歴に載らない（図形は増える）ことも確かめた。結合は同じ高さ・端点が接する直線2本（許容距離は換算が等倍）で行った。開発資料への影響：テストだけで、追記は無い。
