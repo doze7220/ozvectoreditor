@@ -329,7 +329,7 @@
     *   **作業内容** :
         *   『開発資料の更新予定』を確認し、1章・2章・3章・4章の一覧へ反映する。書く内容は実コードで確かめる。古い記述（`reorderShapes`・`applyOrder`・平らな写し・図形のidだけの描き込む先・フォルダのある絵で行のドラッグを始めないこと）を残さない。行末を保つ。
 
-*   [ ] タスク17: 開発資料の反映（`_doc/arch/`）
+*   [x] タスク17: 開発資料の反映（`_doc/arch/`）
     *   **対象ファイル** :
         *   `./_doc/arch/01_index_html.md`・`02_main.md`・`03_VectorModel.md`・`06_InputTracker.md`・`13_palette.md`・`14_edit.md`・`16_test.md`・`46_ItemTreeRules.md`・`48_ItemListRules.md`・`53_ItemListWiring.md`・`54_InsertTargetRules.md`・`55_ListDragRules.md`・`56_ItemListRowDrag.md`・`57_GroupTreeRules.md`・`58_GroupSelectionRules.md`・`61_ItemRowRules.md` :（更新）
         *   `./_doc/arch/62_ItemPlaceRules.md` :（新規）
@@ -436,7 +436,11 @@
 
 ### タスク17: 開発資料の反映（`_doc/arch/`）
 *   **作業内容** :
-    *   （未記入）
+    *   書き換える前に`git ls-files --eol`と、ファイル内の`\r\n`の数で行末を実測し、Pythonで「ちょうど1件に当たること」を確かめながら置き換え、書いた後も混在が無いことを確かめた。行末は保った（CRLF＝`01`・`02`・`03`・`06`・`13`・`14`・`16`・`54`・`55`・`56`・`57`・`58`・`61`、LF＝`46`・`48`・`53`）。新規の`62_ItemPlaceRules.md`はCRLF。書く内容は`ItemPlaceRules`・`InsertTargetRules`・`ListDragRules`・`ItemRowRules`・`GroupTreeRules`・`VectorModel`・`ShapeInserter`・`ShapeOrderEditor`・`ClipboardController`・`GroupEditor`・`ItemListRowDrag`・`ItemListWiring`・`ItemListPanel`・`index.html`・`main.js`の実コードで確かめた。
+    *   新規：`62_ItemPlaceRules.md`（`PLACE_KIND`・`findItemLocation`・`insertItemsAt`・`canMoveItems`・`moveItems`・使う側・置き場所の理由・テスト40件）。
+    *   全面の書き直し：`54_InsertTargetRules.md`（3つの形・`resolveNextInsertTarget`の4つの規則と元の場所のたどり・`resolveRowInsertTarget`・`isSameInsertTarget`・`resolvePastePlace`・`resolveDuplicatePlace`・`resolveInsertMark`。テスト46件）、`55_ListDragRules.md`（旧6関数を消し、`resolveDraggedUnitIds`・`resolveDraggedRowIds`・`resolveDropPlace`（送り切りの余裕1pxの理由を含む）・`resolvePlaceMark`・`isSameRows`。49件）、`56_ItemListRowDrag.md`（`getRows`・`getUnitIds`・`canDrop`・`applyDrop`、フォルダのある絵でも始まる）。
+    *   更新：`46`（`insertItemsAbove`を消した・`placeShapeItems`の使う側から`reorderShapes`を外した・26件）、`48`（`canStartRowDrag`の`hasGroups`を消した・`shouldSelectPressedRow`の`isSelected`の意味・34件）、`53`（`applyRowDrop`・`canDrop`・`getUnitIds`・`insertMark`・`hasGroupItem`を外した）、`57`（`pickItems`・`listGroupIds`・`hasGroupItem`を消した・40件）、`58`（使う側）、`61`（`insertMark`・`insertLine`・`resolveInsertMarkEffects`・39件）、`01`（`--drop-indent`・描き込む先の青の破線・`.drop-inside`・ドラッグ中は破線を隠す）、`02`（行数を実測の1229行に。`getCanvasId`・`applyRowDrop`）、`03`（`#insertTarget`・`getInsertTarget`・`#applyState`・経路ごとの候補・`addShapesWithNewIds`の`place`・`asUnits`・`rearrangeItems`の`targetsNewGroup`・`reorderShapes`を消した）、`06`（描き込む先の3つの形・`Alt`＋ドラッグの複製。`InputTracker.js`のJSDocの古い言葉は変えていないことを明記）、`13`（`insertLine`・`showDropMark`の`inside`・`indent`）、`14`（`ShapeInserter`の`place`・`asUnits`・`inserted`、`ShapeOrderEditor`の`moveTo`、`ClipboardController`の写し方・自分のコピー、`GroupEditor`の`addEmptyGroup`、`edit/ → core/`の例外のimport、`SnapshotAdapter`・`CanvasFileOperations`・`EndpointSnapper`の言葉）、`16`（`VectorModel.reorderShapes.test.js`の項を消し、`ShapeOrderEditor.test.js`の項を直し、Phase 11-04bの新設・追加分・消したファイル・書き換えた既存のテスト・テストできない箇所・件数を足した。tests 3380 / suites 543 / 121ファイル）。
+    *   `node --test`は tests 3380 / pass 3380 / fail 0（資料だけの変更。コードは変えていない）。
 
 ## 5. 懸念事項・要確認ポイント
 *   **自分のコピーの判定は「描き込む先がそのフォルダの中」で行い、貼り付けの時点でフォルダが選ばれているかは見ない**（計画の判断）。フォルダをコピーして描くツールへ持ち替えて貼り付けると、選択は外れているが描き込む先はそのフォルダの中のままで、このときも中ではなくすぐ上に入る。
@@ -483,3 +487,8 @@
 *   （タスク16）11-03の「ふるまいの注意」(a)（いちばん下の行を切り取って貼り付けると最前面に入る）は、実コード（`resolveVanishedTarget`が下に残る行が無ければいちばん外側の`bottom`を返す）と`ShapeInserter.insertTarget.test.js`の「いちばん下の行を切り取ったときは…一番下になり、そこへ戻る」に合わせ、「元のいちばん下へ入る」へ直した。目視の確認を推奨する（いちばん下の図形を切り取って貼り付け）。
 *   （タスク16）11-04aの「ふるまいの注意」(f)（空のフォルダだけを選んだ切り取り・コピーは何もしない）と、3章28.の「フォルダの行を押しても何も起きない」（3章22.の近くの記述を含む2か所）は、今のコードに合わせて直した。`ListDragRules`・`ShapeOrderEditor`・`VectorModel`の旧関数の名前は、「なくしたもの」と歴史の記述（11-03の「確認の状況」の`applyOrder`・`insertItemsAbove`）にだけ残る。
 *   （タスク16）4章の一覧へ`ItemPlaceRules.js`→`_doc/arch/62_ItemPlaceRules.md`の行を足したため、タスク17で62番のファイルを必ず作ること（作らないと資料の参照が切れる）。
+*   （タスク17）`62_ItemPlaceRules.md`を作成した（参照は切れていない）。`16_test.md`の「Phase 11-04bの完了時の実ブラウザでの確認」は、`PROJECT_ARCHITECTURE.md`と同じく「発注者のテストプレイの前」と書いてあるため、合格後に両方を直す必要がある。
+*   （タスク17）`16_test.md`の過去のPhase（11-01〜11-04a）の項は、その時点の記録として残した（`reorderShapes`・`applyOrder`・`insertItemsAbove`・`hasGroupItem`の名前が出る）。現在の姿は「既存のテストファイルと検証範囲」と、新しい「Phase 11-04bの新設・追加分」「消したテストファイル」が正。`02_main.md`の行数の推移の記述も同様に履歴として残した（先頭の1229行が現在の値）。
+*   （タスク17）`06_InputTracker.md`には、`InputTracker.js`のJSDoc（`handleClick`の確定登録の説明）に「描き込む先のすぐ上へ入り、無ければ末尾」が古い言葉のまま残ることを明記した（そのファイルはコードを変えない対象のため、JSDocも直していない）。正しい記述は06の本文。目視：`InputTracker.js`のJSDocを後で直す機会があれば合わせる。
+*   （タスク17）`14_edit.md`の`ClipboardController`の項は、`#pickSelection`・`#copiedGroupIdsByCanvas`・`#resetCopiedGroupIds`・`#resolvePastePlace`・`#addPastedGroupIds`の実コード（`ClipboardController.js`）で確かめて書いた。将来この項を直すときは、「自分のコピー」の判定が「描き込む先が`inside`でそのフォルダが自分のコピーにあるか」であり、貼り付けの時点の選択を見ないこと（上の懸念）を保つこと。
+*   （タスク17）`03_VectorModel.md`の「公開メソッド」の行・3章の記述にある`deleteShapes`の注記（製品コードからの呼び出し元が無い）は、11-04aの記述のまま残してある。`getInsertTargetId()`も同様に製品コードからの呼び出し元が無く、既存のテスト約90か所のために残している旨を`03`・`54`に書いた。
