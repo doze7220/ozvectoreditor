@@ -92,12 +92,12 @@ function makeItems(shapes, withHidden = true) {
 
 /** 本作業の前の値を文字どおり固定した期待値（makeShapes の elements）。 */
 const EXPECTED_ELEMENTS = [
-    { kind: 'polyline', id: 's1', points: [{ x: 0, y: 0 }, { x: 10, y: 10 }], closed: false, strokeColor: '#111111', strokeWidth: 2, fillColor: null },
-    { kind: 'quadratic', id: 's2', points: [{ x: 0, y: 0 }, { x: 10, y: 10 }, { x: 20, y: 20 }], strokeColor: '#000000', strokeWidth: 2, fillColor: null },
-    { kind: 'polyline', id: 's3', points: [{ x: 5, y: 5 }, { x: 25, y: 5 }, { x: 25, y: 15 }, { x: 5, y: 15 }], closed: true, strokeColor: '#222222', strokeWidth: 4, fillColor: null },
-    { kind: 'ellipse', id: 's4', x: 10, y: 20, radiusX: 30, radiusY: 40, rotation: 0, startAngle: 0, endAngle: 6.283185307179586, closed: true, strokeColor: '#000000', strokeWidth: 2, fillColor: null },
-    { kind: 'ellipse', id: 's5', x: 10, y: 20, radiusX: 30, radiusY: 40, rotation: 0, startAngle: 3.141592653589793, endAngle: 6.283185307179586, closed: false, strokeColor: '#000000', strokeWidth: 2, fillColor: null },
-    { kind: 'polyline', id: 's6', points: [{ x: 0, y: 0 }, { x: 30, y: 0 }, { x: 30, y: 30 }], closed: true, strokeColor: '#333333', strokeWidth: 2, fillColor: '#444444' },
+    { kind: 'polyline', points: [{ x: 0, y: 0 }, { x: 10, y: 10 }], closed: false, strokeColor: '#111111', strokeWidth: 2, fillColor: null },
+    { kind: 'quadratic', points: [{ x: 0, y: 0 }, { x: 10, y: 10 }, { x: 20, y: 20 }], strokeColor: '#000000', strokeWidth: 2, fillColor: null },
+    { kind: 'polyline', points: [{ x: 5, y: 5 }, { x: 25, y: 5 }, { x: 25, y: 15 }, { x: 5, y: 15 }], closed: true, strokeColor: '#222222', strokeWidth: 4, fillColor: null },
+    { kind: 'ellipse', x: 10, y: 20, radiusX: 30, radiusY: 40, rotation: 0, startAngle: 0, endAngle: 6.283185307179586, closed: true, strokeColor: '#000000', strokeWidth: 2, fillColor: null },
+    { kind: 'ellipse', x: 10, y: 20, radiusX: 30, radiusY: 40, rotation: 0, startAngle: 3.141592653589793, endAngle: 6.283185307179586, closed: false, strokeColor: '#000000', strokeWidth: 2, fillColor: null },
+    { kind: 'polyline', points: [{ x: 0, y: 0 }, { x: 30, y: 0 }, { x: 30, y: 30 }], closed: true, strokeColor: '#333333', strokeWidth: 2, fillColor: '#444444' },
 ];
 
 describe('SpriteSerializer.serialize: アイテムの入れ子', () => {
@@ -120,10 +120,10 @@ describe('SpriteSerializer.serialize: アイテムの入れ子', () => {
         );
     });
 
-    it('elementsに名前・表示・ロックのキーが出ない', () => {
+    it('elementsに名前・表示・ロック・idのキーが出ない', () => {
         const data = SpriteSerializer.serialize(makeItems(makeShapes()));
         for (const element of data.elements) {
-            for (const key of ['name', 'visible', 'locked', 'children']) {
+            for (const key of ['name', 'visible', 'locked', 'children', 'id']) {
                 assert.equal(Object.hasOwn(element, key), false, key);
             }
         }

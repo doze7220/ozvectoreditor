@@ -447,7 +447,7 @@ describe('Curve.toJSON / toDrawElement の fillColor', () => {
 
     it('toDrawElementのキー順', () => {
         assert.deepEqual(Object.keys(new Curve(0, 0, 1, 1).toDrawElement()),
-            ['kind', 'id', 'points', 'strokeColor', 'strokeWidth', 'fillColor']);
+            ['kind', 'points', 'strokeColor', 'strokeWidth', 'fillColor']);
     });
 
     it('toDrawElementのfillColorはfillColorを持っていてもnull、strokeColor: nullはそのまま', () => {
@@ -551,7 +551,7 @@ describe('Curve.createTransformed', () => {
         const shape = new Curve(10, 20, 30, 50, '#112233', 5, '#445566');
         shape.id = 's1';
         const out = shape.createTransformed({ a: 2, b: 0, c: 0, d: 3, e: -10, f: -40 });
-        assert.deepEqual(out.toDrawElement(), { kind: 'quadratic', id: 's1', points: [{ x: 10, y: 20 }, { x: 30, y: 65 }, { x: 50, y: 110 }], strokeColor: '#112233', strokeWidth: 5, fillColor: null });
+        assert.deepEqual(out.toDrawElement(), { kind: 'quadratic', points: [{ x: 10, y: 20 }, { x: 30, y: 65 }, { x: 50, y: 110 }], strokeColor: '#112233', strokeWidth: 5, fillColor: null });
     });
     it('裏返し（横・縦・両方）で頂点が写る', () => {
         const shape = new Curve(10, 20, 30, 50, '#112233', 5, '#445566');

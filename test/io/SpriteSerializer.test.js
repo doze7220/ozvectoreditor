@@ -67,9 +67,9 @@ describe('SpriteSerializer.serialize: 描画要素', () => {
     it('lineはpolyline（closed: false・2点）', () => {
         const line = withId(new Line(1, 2, 3, 4, '#ff0000', 5), 'L1');
         const [el] = SpriteSerializer.serialize([line]).elements;
-        assert.deepEqual(Object.keys(el), ['kind', 'id', 'points', 'closed', 'strokeColor', 'strokeWidth', 'fillColor']);
+        assert.deepEqual(Object.keys(el), ['kind', 'points', 'closed', 'strokeColor', 'strokeWidth', 'fillColor']);
         assert.deepEqual(el, {
-            kind: 'polyline', id: 'L1', points: [{ x: 1, y: 2 }, { x: 3, y: 4 }],
+            kind: 'polyline', points: [{ x: 1, y: 2 }, { x: 3, y: 4 }],
             closed: false, strokeColor: '#ff0000', strokeWidth: 5, fillColor: null,
         });
     });
@@ -78,7 +78,6 @@ describe('SpriteSerializer.serialize: 描画要素', () => {
         const rect = withId(new Rect(10, 20, 50, 80, '#00ff00', 3), 'R1');
         const [el] = SpriteSerializer.serialize([rect]).elements;
         assert.equal(el.kind, 'polyline');
-        assert.equal(el.id, 'R1');
         assert.equal(el.closed, true);
         assert.deepEqual(el.points, rect.points);
         assert.equal(el.points.length, 4);
@@ -89,9 +88,8 @@ describe('SpriteSerializer.serialize: 描画要素', () => {
     it('curveはquadratic（3点）', () => {
         const curve = withId(makeCurve([{ x: 0, y: 0 }, { x: 50, y: 100 }, { x: 100, y: 0 }]), 'C1');
         const [el] = SpriteSerializer.serialize([curve]).elements;
-        assert.deepEqual(Object.keys(el), ['kind', 'id', 'points', 'strokeColor', 'strokeWidth', 'fillColor']);
+        assert.deepEqual(Object.keys(el), ['kind', 'points', 'strokeColor', 'strokeWidth', 'fillColor']);
         assert.equal(el.kind, 'quadratic');
-        assert.equal(el.id, 'C1');
         assert.deepEqual(el.points, [{ x: 0, y: 0 }, { x: 50, y: 100 }, { x: 100, y: 0 }]);
     });
 
@@ -99,7 +97,7 @@ describe('SpriteSerializer.serialize: 描画要素', () => {
         const circle = withId(new Ellipse(10, 20, 40, 60, 'circle', '#123456', 4), 'E1');
         const [el] = SpriteSerializer.serialize([circle]).elements;
         assert.deepEqual(Object.keys(el), [
-            'kind', 'id', 'x', 'y', 'radiusX', 'radiusY', 'rotation', 'startAngle', 'endAngle', 'closed', 'strokeColor', 'strokeWidth', 'fillColor',
+            'kind', 'x', 'y', 'radiusX', 'radiusY', 'rotation', 'startAngle', 'endAngle', 'closed', 'strokeColor', 'strokeWidth', 'fillColor',
         ]);
         assert.equal(el.kind, 'ellipse');
         assert.equal(el.x, 10);
@@ -286,9 +284,9 @@ function makeSquarePath(closed, id, strokeColor = '#123456', strokeWidth = 4) {
 describe('SpriteSerializer.serialize: パス', () => {
     it('開いたパスはpolyline（closed: false・segmentsなし・キー順）', () => {
         const [el] = SpriteSerializer.serialize([makeSquarePath(false, 'P1')]).elements;
-        assert.deepEqual(Object.keys(el), ['kind', 'id', 'points', 'closed', 'strokeColor', 'strokeWidth', 'fillColor']);
+        assert.deepEqual(Object.keys(el), ['kind', 'points', 'closed', 'strokeColor', 'strokeWidth', 'fillColor']);
         assert.deepEqual(el, {
-            kind: 'polyline', id: 'P1',
+            kind: 'polyline',
             points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }],
             closed: false, strokeColor: '#123456', strokeWidth: 4, fillColor: null,
         });
@@ -499,7 +497,7 @@ describe('SpriteSerializer: 版3・bezierPath', () => {
     it('曲線のパスは bezierPath の形・キー順で、区間がすべて直線のパスは polyline', () => {
         const open = SpriteSerializer.serialize([makeSmoothPathShape(openPoints, false)]).elements[0];
         assert.equal(open.kind, 'bezierPath');
-        assert.deepEqual(Object.keys(open), ['kind', 'id', 'points', 'closed', 'segments', 'strokeColor', 'strokeWidth', 'fillColor']);
+        assert.deepEqual(Object.keys(open), ['kind', 'points', 'closed', 'segments', 'strokeColor', 'strokeWidth', 'fillColor']);
         assert.equal(open.segments.length, 3);
         assert.deepEqual(Object.keys(open.segments[0]), ['kind', 'control1', 'control2']);
         assert.equal(open.segments[0].kind, 'cubic');
@@ -905,10 +903,10 @@ function makeScaledShapes() {
 }
 
 describe('SpriteSerializer: createTransformed した図形の書き出し', () => {
-    it('直線の描画要素（(10,20)→(80,40)・(30,40)→(40,30)。太さ・色・idは変わらない）', () => {
+    it('直線の描画要素（(10,20)→(80,40)・(30,40)→(40,30)。太さ・色は変わらず、idのキーは無い）', () => {
         const [el] = SpriteSerializer.serialize([makeScaledShapes()[0]]).elements;
         assert.deepEqual(el, {
-            kind: 'polyline', id: 'L1', points: [{ x: 80, y: 40 }, { x: 40, y: 30 }],
+            kind: 'polyline', points: [{ x: 80, y: 40 }, { x: 40, y: 30 }],
             closed: false, strokeColor: '#ff0000', strokeWidth: 4, fillColor: null,
         });
     });
@@ -916,7 +914,7 @@ describe('SpriteSerializer: createTransformed した図形の書き出し', () =
     it('今の曲線の描画要素（(0,0)→(100,50)・(30,-80)→(40,90)・(100,40)→(-100,30)）', () => {
         const [el] = SpriteSerializer.serialize([makeScaledShapes()[1]]).elements;
         assert.deepEqual(el, {
-            kind: 'quadratic', id: 'C1', points: [{ x: 100, y: 50 }, { x: 40, y: 90 }, { x: -100, y: 30 }],
+            kind: 'quadratic', points: [{ x: 100, y: 50 }, { x: 40, y: 90 }, { x: -100, y: 30 }],
             strokeColor: '#00ff00', strokeWidth: 2, fillColor: null,
         });
     });
@@ -924,7 +922,7 @@ describe('SpriteSerializer: createTransformed した図形の書き出し', () =
     it('矩形の描画要素（頂点の並びのまま (80,45)・(-80,45)・(-80,20)・(80,20)）', () => {
         const [el] = SpriteSerializer.serialize([makeScaledShapes()[2]]).elements;
         assert.deepEqual(el, {
-            kind: 'polyline', id: 'R1',
+            kind: 'polyline',
             points: [{ x: 80, y: 45 }, { x: -80, y: 45 }, { x: -80, y: 20 }, { x: 80, y: 20 }],
             closed: true, strokeColor: '#112233', strokeWidth: 6, fillColor: '#ff0000',
         });
@@ -933,7 +931,7 @@ describe('SpriteSerializer: createTransformed した図形の書き出し', () =
     it('円の描画要素（中心(50,50)→(0,25)・半径30→横60・縦15）', () => {
         const [el] = SpriteSerializer.serialize([makeScaledShapes()[3]]).elements;
         assert.deepEqual(el, {
-            kind: 'ellipse', id: 'E1', x: 0, y: 25, radiusX: 60, radiusY: 15, rotation: 0,
+            kind: 'ellipse', x: 0, y: 25, radiusX: 60, radiusY: 15, rotation: 0,
             startAngle: 0, endAngle: 2 * Math.PI, closed: true,
             strokeColor: '#0000ff', strokeWidth: 2, fillColor: '#00ff00',
         });
@@ -942,7 +940,7 @@ describe('SpriteSerializer: createTransformed した図形の書き出し', () =
     it('弧の描画要素（5つの点を写した位置で中心は(0,25)・横60・縦15・上下・左右に裏返った下半分）', () => {
         const [el] = SpriteSerializer.serialize([makeScaledShapes()[4]]).elements;
         assert.deepEqual(el, {
-            kind: 'ellipse', id: 'E2', x: 0, y: 25, radiusX: 60, radiusY: 15, rotation: 0,
+            kind: 'ellipse', x: 0, y: 25, radiusX: 60, radiusY: 15, rotation: 0,
             startAngle: 0, endAngle: Math.PI, closed: false,
             strokeColor: '#778899', strokeWidth: 2, fillColor: null,
         });
@@ -951,7 +949,7 @@ describe('SpriteSerializer: createTransformed した図形の書き出し', () =
     it('曲がり方を持つ区間を含むパスの描画要素（頂点と引っ張る点が写り、cubicの制御点は(-140,35)・(-140,15)）', () => {
         const [el] = SpriteSerializer.serialize([makeScaledShapes()[5]]).elements;
         assert.deepEqual(el, {
-            kind: 'bezierPath', id: 'P1',
+            kind: 'bezierPath',
             points: [{ x: 100, y: 50 }, { x: -100, y: 50 }, { x: -100, y: 0 }, { x: 100, y: 0 }],
             closed: true,
             segments: [

@@ -284,16 +284,15 @@ export class Rect {
 
     /**
      * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第12メソッド。呼び出し元は`SpriteSerializer`のみ）。
-     * 形（キー順もこの順）: `{ kind: 'polyline', id, points: [topLeft, topRight, bottomRight, bottomLeft]（各{x, y}）, closed: true, strokeColor, strokeWidth, fillColor }`。
-     * `draw`と同じ式（`points[0]`→`[1]`→`[2]`→`[3]`を結んで閉じる）で求め、`id`・`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる（`strokeColor`の`null`も）。
+     * 形（キー順もこの順）: `{ kind: 'polyline', points: [topLeft, topRight, bottomRight, bottomLeft]（各{x, y}）, closed: true, strokeColor, strokeWidth, fillColor }`。
+     * `draw`と同じ式（`points[0]`→`[1]`→`[2]`→`[3]`を結んで閉じる）で求め、`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる（`strokeColor`の`null`も）。
      * `fillColor`は塗れる形のときだけ図形の値（矩形は常に図形の値）、塗れない形は`null`。
      * `points`は並びのまま各頂点を新規オブジェクトとして複製するため、戻り値と自身は配列・頂点を共有しない。
-     * @returns {{kind: string, id: *, points: {x: number, y: number}[], closed: boolean, strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい描画要素
+     * @returns {{kind: string, points: {x: number, y: number}[], closed: boolean, strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい描画要素
      */
     toDrawElement() {
         return {
             kind: 'polyline',
-            id: this.id,
             points: this.points.slice(0, 4).map((point) => ({ x: point.x, y: point.y })),
             closed: true,
             strokeColor: this.strokeColor,

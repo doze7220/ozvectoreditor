@@ -307,16 +307,15 @@ export class Curve {
 
     /**
      * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第12メソッド。呼び出し元は`SpriteSerializer`のみ）。
-     * 形（キー順もこの順）: `{ kind: 'quadratic', id, points: [始点{x, y}, 制御点{x, y}, 終点{x, y}], strokeColor, strokeWidth, fillColor }`。
-     * `draw`と同じ式（`points[0]`から`points[1]`を制御点に`points[2]`への2次ベジェ）で求め、`id`・`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる（`strokeColor`の`null`も）。
+     * 形（キー順もこの順）: `{ kind: 'quadratic', points: [始点{x, y}, 制御点{x, y}, 終点{x, y}], strokeColor, strokeWidth, fillColor }`。
+     * `draw`と同じ式（`points[0]`から`points[1]`を制御点に`points[2]`への2次ベジェ）で求め、`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる（`strokeColor`の`null`も）。
      * `fillColor`は塗れる形のときだけ図形の値、塗れない形（曲線）は常に`null`。
      * `points`は各頂点を新規オブジェクトとして複製するため、戻り値と自身は配列・頂点を共有しない。
-     * @returns {{kind: string, id: *, points: {x: number, y: number}[], strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい描画要素
+     * @returns {{kind: string, points: {x: number, y: number}[], strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい描画要素
      */
     toDrawElement() {
         return {
             kind: 'quadratic',
-            id: this.id,
             points: this.points.slice(0, 3).map((point) => ({ x: point.x, y: point.y })),
             strokeColor: this.strokeColor,
             strokeWidth: this.strokeWidth,

@@ -526,7 +526,7 @@ describe('Rect.toJSON / toDrawElement の fillColor', () => {
 
     it('toDrawElementのキー順（polyline）', () => {
         assert.deepEqual(Object.keys(new Rect(0, 0, 1, 1).toDrawElement()),
-            ['kind', 'id', 'points', 'closed', 'strokeColor', 'strokeWidth', 'fillColor']);
+            ['kind', 'points', 'closed', 'strokeColor', 'strokeWidth', 'fillColor']);
     });
 
     it('toDrawElementのfillColorは図形の値（nullも）、strokeColor: nullはそのまま', () => {
@@ -633,7 +633,7 @@ describe('Rect.createTransformed', () => {
         const shape = new Rect(10, 20, 30, 50, '#112233', 5, '#445566');
         shape.id = 's1';
         const out = shape.createTransformed({ a: 2, b: 0, c: 0, d: 3, e: -10, f: -40 });
-        assert.deepEqual(out.toDrawElement(), { kind: 'polyline', id: 's1', points: [{ x: 10, y: 20 }, { x: 50, y: 20 }, { x: 50, y: 110 }, { x: 10, y: 110 }], closed: true, strokeColor: '#112233', strokeWidth: 5, fillColor: '#445566' });
+        assert.deepEqual(out.toDrawElement(), { kind: 'polyline', points: [{ x: 10, y: 20 }, { x: 50, y: 20 }, { x: 50, y: 110 }, { x: 10, y: 110 }], closed: true, strokeColor: '#112233', strokeWidth: 5, fillColor: '#445566' });
     });
     it('裏返し（横・縦・両方）で頂点が写る', () => {
         const shape = new Rect(10, 20, 30, 50, '#112233', 5, '#445566');

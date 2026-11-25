@@ -519,13 +519,13 @@ export class Path {
     /**
      * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第12メソッド。呼び出し元は`SpriteSerializer`のみ）。
      * 区間がすべて直線なら`polyline`、曲線の区間（曲がり方を持つ区間を含む）を1つ以上持つなら`bezierPath`（曲がり方を持つ区間の`cubic`の制御点は引っ張る点）。
-     * `polyline`の形（キー順もこの順）: `{ kind: 'polyline', id, points: 各頂点{x, y}, closed, strokeColor, strokeWidth, fillColor }`。
-     * `bezierPath`の形（キー順もこの順）: `{ kind: 'bezierPath', id, points: 各頂点{x, y}, closed, segments, strokeColor, strokeWidth, fillColor }`。
+     * `polyline`の形（キー順もこの順）: `{ kind: 'polyline', points: 各頂点{x, y}, closed, strokeColor, strokeWidth, fillColor }`。
+     * `bezierPath`の形（キー順もこの順）: `{ kind: 'bezierPath', points: 各頂点{x, y}, closed, segments, strokeColor, strokeWidth, fillColor }`。
      * `segments[i]`は`points[i]`→`points[(i+1) % n]`の区間で、直線は`{ kind: 'line' }`、曲線の区間は`{ kind: 'cubic', control1: {x, y}, control2: {x, y} }`
      * （3次ベジェの制御点。描画要素の区間の語は作業データの`'smooth'`とは別の`'cubic'`）。
      * 閉じたパスでも頂点は`n`個で始点を重複させない。
-     * `id`・`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる。`fillColor`は塗れる形（閉じたパス）なら図形の値、塗れない形（開いたパス）なら`null`。戻り値と自身は配列・頂点を共有しない。
-     * @returns {{kind: string, id: *, points: {x: number, y: number}[], closed: boolean, segments?: Object[], strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい描画要素
+     * `strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる。`fillColor`は塗れる形（閉じたパス）なら図形の値、塗れない形（開いたパス）なら`null`。戻り値と自身は配列・頂点を共有しない。
+     * @returns {{kind: string, points: {x: number, y: number}[], closed: boolean, segments?: Object[], strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい描画要素
      */
     toDrawElement() {
         const points = this.points.map((point) => ({ x: point.x, y: point.y }));
@@ -534,7 +534,6 @@ export class Path {
         if (controls.every((control) => control === null)) {
             return {
                 kind: 'polyline',
-                id: this.id,
                 points,
                 closed: this.closed,
                 strokeColor: this.strokeColor,
@@ -544,7 +543,6 @@ export class Path {
         }
         return {
             kind: 'bezierPath',
-            id: this.id,
             points,
             closed: this.closed,
             segments: controls.map((control) => (control === null

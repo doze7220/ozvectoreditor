@@ -697,9 +697,9 @@ describe('Ellipse.toJSON と toDrawElement', () => {
         }
     });
 
-    it('toDrawElementのキー順（ellipseの13キー）', () => {
+    it('toDrawElementのキー順（ellipseの12キー）', () => {
         assert.deepEqual(Object.keys(makeCircle().toDrawElement()), [
-            'kind', 'id', 'x', 'y', 'radiusX', 'radiusY', 'rotation', 'startAngle', 'endAngle',
+            'kind', 'x', 'y', 'radiusX', 'radiusY', 'rotation', 'startAngle', 'endAngle',
             'closed', 'strokeColor', 'strokeWidth', 'fillColor',
         ]);
     });
@@ -809,7 +809,7 @@ describe('Ellipse.createTransformed', () => {
         shape.id = 's1';
         const out = shape.createTransformed({ a: 2, b: 0, c: 0, d: 0.5, e: 0, f: 0 });
         assert.deepEqual(out.toDrawElement(), {
-            kind: 'ellipse', id: 's1', x: 200, y: 50, radiusX: 60, radiusY: 20, rotation: 0, startAngle: 0, endAngle: TWO_PI,
+            kind: 'ellipse', x: 200, y: 50, radiusX: 60, radiusY: 20, rotation: 0, startAngle: 0, endAngle: TWO_PI,
             closed: true, strokeColor: '#112233', strokeWidth: 5, fillColor: '#445566',
         });
     });
@@ -824,7 +824,7 @@ describe('Ellipse.createTransformed', () => {
         const out = shape.createTransformed({ a: 1, b: 0, c: 0, d: -2, e: 0, f: 0 });
         assert.deepEqual(out.toJSON().points, [{ x: 100, y: -200 }, { x: 130, y: -200 }, { x: 100, y: -120 }, { x: 70, y: -200 }, { x: 130, y: -200 }]);
         assert.deepEqual(out.toDrawElement(), {
-            kind: 'ellipse', id: 'a1', x: 100, y: -200, radiusX: 30, radiusY: 80, rotation: 0, startAngle: 0, endAngle: Math.PI,
+            kind: 'ellipse', x: 100, y: -200, radiusX: 30, radiusY: 80, rotation: 0, startAngle: 0, endAngle: Math.PI,
             closed: false, strokeColor: '#112233', strokeWidth: 5, fillColor: null,
         });
         assert.equal(out.fillColor, '#445566');
@@ -845,7 +845,7 @@ describe('Ellipse.createTransformed', () => {
         const out = shape.createTransformed({ a: 2, b: 0, c: 0, d: 0.5, e: -70, f: 65 });
         assert.deepEqual(out.toJSON().points, [{ x: 130, y: 115 }, { x: 190, y: 115 }, { x: 130, y: 100 }, { x: 190, y: 115 }, { x: 190, y: 115 }]);
         assert.deepEqual(out.toDrawElement(), {
-            kind: 'ellipse', id: 'c1', x: 130, y: 115, radiusX: 60, radiusY: 15, rotation: 0, startAngle: 0, endAngle: TWO_PI,
+            kind: 'ellipse', x: 130, y: 115, radiusX: 60, radiusY: 15, rotation: 0, startAngle: 0, endAngle: TWO_PI,
             closed: true, strokeColor: '#112233', strokeWidth: 5, fillColor: '#445566',
         });
     });
@@ -855,7 +855,7 @@ describe('Ellipse.createTransformed', () => {
         const out = shape.createTransformed({ a: 1, b: 0, c: 0, d: -1, e: 0, f: 200 });
         assert.deepEqual(out.toJSON().points, [{ x: 100, y: 100 }, { x: 130, y: 100 }, { x: 100, y: 140 }, { x: 70, y: 100 }, { x: 130, y: 100 }]);
         assert.deepEqual(out.toDrawElement(), {
-            kind: 'ellipse', id: 'a1', x: 100, y: 100, radiusX: 30, radiusY: 40, rotation: 0, startAngle: 0, endAngle: Math.PI,
+            kind: 'ellipse', x: 100, y: 100, radiusX: 30, radiusY: 40, rotation: 0, startAngle: 0, endAngle: Math.PI,
             closed: false, strokeColor: '#112233', strokeWidth: 5, fillColor: null,
         });
     });
@@ -865,7 +865,7 @@ describe('Ellipse.createTransformed', () => {
         const out = shape.createTransformed({ a: 2, b: 0, c: 0, d: -0.5, e: -100, f: 150 });
         assert.deepEqual(out.toJSON().points, [{ x: 100, y: 100 }, { x: 160, y: 100 }, { x: 100, y: 120 }, { x: 40, y: 100 }, { x: 160, y: 100 }]);
         assert.deepEqual(out.toDrawElement(), {
-            kind: 'ellipse', id: 'a1', x: 100, y: 100, radiusX: 60, radiusY: 20, rotation: 0, startAngle: 0, endAngle: Math.PI,
+            kind: 'ellipse', x: 100, y: 100, radiusX: 60, radiusY: 20, rotation: 0, startAngle: 0, endAngle: Math.PI,
             closed: false, strokeColor: '#112233', strokeWidth: 5, fillColor: null,
         });
     });
@@ -875,7 +875,7 @@ describe('Ellipse.createTransformed', () => {
         const out = shape.createTransformed({ a: -1, b: 0, c: 0, d: -1, e: 300, f: 200 });
         assert.deepEqual(out.toJSON().points, [{ x: 200, y: 100 }, { x: 170, y: 100 }, { x: 200, y: 140 }, { x: 230, y: 100 }, { x: 170, y: 100 }]);
         assert.deepEqual(out.toDrawElement(), {
-            kind: 'ellipse', id: 'a1', x: 200, y: 100, radiusX: 30, radiusY: 40, rotation: 0, startAngle: 0, endAngle: Math.PI,
+            kind: 'ellipse', x: 200, y: 100, radiusX: 30, radiusY: 40, rotation: 0, startAngle: 0, endAngle: Math.PI,
             closed: false, strokeColor: '#112233', strokeWidth: 5, fillColor: null,
         });
     });
@@ -885,7 +885,7 @@ describe('Ellipse.createTransformed', () => {
         const out = shape.createTransformed({ a: 0.5, b: 0, c: 0, d: 2, e: 35, f: -100 });
         assert.deepEqual(out.toJSON().points, [{ x: 85, y: 100 }, { x: 100, y: 100 }, { x: 85, y: 20 }, { x: 70, y: 100 }, { x: 100, y: 100 }]);
         assert.deepEqual(out.toDrawElement(), {
-            kind: 'ellipse', id: 'a1', x: 85, y: 100, radiusX: 15, radiusY: 80, rotation: 0, startAngle: Math.PI, endAngle: TWO_PI,
+            kind: 'ellipse', x: 85, y: 100, radiusX: 15, radiusY: 80, rotation: 0, startAngle: Math.PI, endAngle: TWO_PI,
             closed: false, strokeColor: '#112233', strokeWidth: 5, fillColor: null,
         });
     });
@@ -978,7 +978,7 @@ describe('Ellipse の形の読み方（回転・裏返し）と描画・描画�
 
     it('回していない円・弧の toDrawElement は rotation: 0 以外今と同じ', () => {
         assert.deepEqual(new Ellipse(10, 20, 40, 60, 'arc', '#111111', 3, '#222222').toDrawElement(), {
-            kind: 'ellipse', id: null, x: 10, y: 20, radiusX: 30, radiusY: 40, rotation: 0,
+            kind: 'ellipse', x: 10, y: 20, radiusX: 30, radiusY: 40, rotation: 0,
             startAngle: Math.PI, endAngle: Math.PI * 2, closed: false, strokeColor: '#111111', strokeWidth: 3, fillColor: null,
         });
     });
@@ -1170,7 +1170,7 @@ describe('Ellipse.createTransformed（回転・傾き・Phase 10-02）', () => {
         const out = shape.createTransformed(ROTATE_90);
         assert.deepEqual(out.toJSON().points, [{ x: -100, y: 100 }, { x: -100, y: 130 }, { x: -60, y: 100 }, { x: -100, y: 130 }, { x: -100, y: 130 }]);
         assert.deepEqual(out.toDrawElement(), {
-            kind: 'ellipse', id: 's1', x: -100, y: 100, radiusX: 40, radiusY: 30, rotation: 0, startAngle: 0, endAngle: Math.PI * 2,
+            kind: 'ellipse', x: -100, y: 100, radiusX: 40, radiusY: 30, rotation: 0, startAngle: 0, endAngle: Math.PI * 2,
             closed: true, strokeColor: '#112233', strokeWidth: 5, fillColor: '#445566',
         });
         assert.equal(out.type, 'circle');

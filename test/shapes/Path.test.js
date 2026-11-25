@@ -762,10 +762,9 @@ describe('Path の toJSON・fromJSON・toDrawElement', () => {
         const p = new Path(makePoints(), false, '#abcdef', 5);
         p.id = 'd1';
         const element = p.toDrawElement();
-        assert.deepEqual(Object.keys(element), ['kind', 'id', 'points', 'closed', 'strokeColor', 'strokeWidth', 'fillColor']);
+        assert.deepEqual(Object.keys(element), ['kind', 'points', 'closed', 'strokeColor', 'strokeWidth', 'fillColor']);
         assert.deepEqual(element, {
             kind: 'polyline',
-            id: 'd1',
             points: makePoints(),
             closed: false,
             strokeColor: '#abcdef',
@@ -1205,16 +1204,16 @@ describe('Path の曲線の区間の当たり判定・範囲選択', () => {
 describe('Path の曲線の区間の toDrawElement', () => {
     it('区間がすべて直線のパスは今と同じ polyline', () => {
         const p = makePath(true);
-        assert.deepEqual(Object.keys(p.toDrawElement()), ['kind', 'id', 'points', 'closed', 'strokeColor', 'strokeWidth', 'fillColor']);
+        assert.deepEqual(Object.keys(p.toDrawElement()), ['kind', 'points', 'closed', 'strokeColor', 'strokeWidth', 'fillColor']);
         assert.equal(p.toDrawElement().kind, 'polyline');
     });
 
     it('曲線のパスは bezierPath（キー順・区間の line/cubic・制御点・fillColor）', () => {
         const open = makeMixedPath(false, ['line', 'smooth', 'smooth'], '#ff0000');
         const el = open.toDrawElement();
-        assert.deepEqual(Object.keys(el), ['kind', 'id', 'points', 'closed', 'segments', 'strokeColor', 'strokeWidth', 'fillColor']);
+        assert.deepEqual(Object.keys(el), ['kind', 'points', 'closed', 'segments', 'strokeColor', 'strokeWidth', 'fillColor']);
         assert.equal(el.kind, 'bezierPath');
-        assert.equal(el.id, 'p1');
+        assert.equal(Object.hasOwn(el, 'id'), false);
         assert.equal(el.fillColor, null);
         const controls = expectedControls(open);
         assert.deepEqual(el.segments[0], { kind: 'line' });
@@ -1693,7 +1692,7 @@ describe('Path.createTransformed', () => {
             strokeColor: '#112233', strokeWidth: 5, fillColor: '#445566',
         });
         assert.deepEqual(out.toDrawElement(), {
-            kind: 'polyline', id: 'p1',
+            kind: 'polyline',
             points: [{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 300 }, { x: 0, y: 300 }],
             closed: true, strokeColor: '#112233', strokeWidth: 5, fillColor: '#445566',
         });
@@ -1708,7 +1707,7 @@ describe('Path.createTransformed', () => {
             strokeColor: '#112233', strokeWidth: 5, fillColor: null,
         });
         assert.deepEqual(out.toDrawElement(), {
-            kind: 'bezierPath', id: 'p1',
+            kind: 'bezierPath',
             points: [{ x: 10, y: 0 }, { x: -90, y: 0 }, { x: -90, y: 200 }],
             closed: false,
             segments: [{ kind: 'cubic', control1: { x: 0, y: 40 }, control2: { x: -80, y: 40 } }, { kind: 'line' }],

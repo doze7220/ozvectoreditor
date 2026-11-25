@@ -248,16 +248,15 @@ export class Line {
 
     /**
      * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第12メソッド。呼び出し元は`SpriteSerializer`のみ）。
-     * 形（キー順もこの順）: `{ kind: 'polyline', id, points: [始点{x, y}, 終点{x, y}], closed: false, strokeColor, strokeWidth, fillColor }`。
-     * `draw`と同じ式（始点→終点の線分）で求め、`id`・`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる（`strokeColor`の`null`も）。
+     * 形（キー順もこの順）: `{ kind: 'polyline', points: [始点{x, y}, 終点{x, y}], closed: false, strokeColor, strokeWidth, fillColor }`。
+     * `draw`と同じ式（始点→終点の線分）で求め、`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる（`strokeColor`の`null`も）。
      * `fillColor`は塗れる形のときだけ図形の値、塗れない形（直線）は常に`null`。
      * `points`は新規に組み立てるため、戻り値と自身は配列・頂点を共有しない。
-     * @returns {{kind: string, id: *, points: {x: number, y: number}[], closed: boolean, strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい描画要素
+     * @returns {{kind: string, points: {x: number, y: number}[], closed: boolean, strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい描画要素
      */
     toDrawElement() {
         return {
             kind: 'polyline',
-            id: this.id,
             points: [
                 { x: this.x1, y: this.y1 },
                 { x: this.x2, y: this.y2 },

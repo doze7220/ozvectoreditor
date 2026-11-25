@@ -611,19 +611,18 @@ export class Ellipse {
     /**
      * 自身をスプライトの描画要素へ変換する（共通メソッド契約の第12メソッド。呼び出し元は`SpriteSerializer`のみ）。
      * 形（キー順もこの順。`rotation`は`ctx.ellipse`の引数の順で`radiusY`の後）:
-     * `{ kind: 'ellipse', id, x, y, radiusX, radiusY, rotation, startAngle, endAngle, closed, strokeColor, strokeWidth, fillColor }`。
+     * `{ kind: 'ellipse', x, y, radiusX, radiusY, rotation, startAngle, endAngle, closed, strokeColor, strokeWidth, fillColor }`。
      * `x`・`y`・`radiusX`・`radiusY`・`rotation`・`startAngle`・`endAngle`は`draw`と同じ`#readGeometry`の形（今の約束の位置では`rotation`は0で、
      * ほかの値は従来と同じ）、`closed`は`type === 'circle'`。回した・裏返した円・弧では分解の取り方により等価な別の値になることがある。
-     * `id`・`strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる（`strokeColor`の`null`も）。
+     * `strokeColor`・`strokeWidth`は検証・補完せずそのまま入れる（`strokeColor`の`null`も）。
      * `fillColor`は塗れる形（円）のときだけ図形の値、塗れない形（弧）は`null`。値はすべてプリミティブのため、戻り値と自身は状態を共有しない。
-     * @returns {{kind: string, id: *, x: number, y: number, radiusX: number, radiusY: number, rotation: number, startAngle: number, endAngle: number, closed: boolean, strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい描画要素
+     * @returns {{kind: string, x: number, y: number, radiusX: number, radiusY: number, rotation: number, startAngle: number, endAngle: number, closed: boolean, strokeColor: string|null, strokeWidth: number, fillColor: string|null}} 新しい描画要素
      */
     toDrawElement() {
         const g = this.#readGeometry();
 
         return {
             kind: 'ellipse',
-            id: this.id,
             x: g.x,
             y: g.y,
             radiusX: g.radiusX,

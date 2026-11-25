@@ -15,7 +15,7 @@ const SPRITE_FORMAT = 'oz-vector-editor-sprite';
  * スプライトデータ形式（書き出し形式）の現行版番号（唯一の定義箇所）。作業データの版とは別。
  * 版3: 曲線のパスの描画要素`bezierPath`を足した。古い読み手は未知の`kind`として描かず正しく描けないため版を上げた。
  * 版4: 描画要素`ellipse`に回転の角度`rotation`（ラジアン）を足した。版3の読み手は未知のキーとして無視すると回した楕円を正しく描けないため版を上げた（`checkFormat`は版1〜4を受理する）。
- * 版4のまま、`source`を外した（読む側が使っていない項目を外すだけで、古い読み手も正しく描けるため版を上げない）。
+ * 版4のまま、`source`と描画要素の`id`を外した（読む側が使っていない項目を外すだけで、古い読み手も正しく描けるため版を上げない）。
  * @type {number}
  */
 const SPRITE_FORMAT_VERSION = 4;
@@ -36,13 +36,12 @@ export const DEFAULT_STROKE_WIDTH = 2;
  */
 
 /**
- * 描画要素（図形1つ分）。共通のキーは`kind`・`id`・`strokeColor`・`strokeWidth`・`fillColor`（`fillColor`は各`kind`のキー列の最後）。
+ * 描画要素（図形1つ分）。共通のキーは`kind`・`strokeColor`・`strokeWidth`・`fillColor`（`fillColor`は各`kind`のキー列の最後）。
  * `kind`ごとの追加のキー: `polyline`＝`points`・`closed`／`bezierPath`＝`points`・`closed`・`segments`／`quadratic`＝`points`／`ellipse`＝`x`・`y`・`radiusX`・`radiusY`・`rotation`・`startAngle`・`endAngle`・`closed`（`rotation`は`ctx.ellipse`の回転の角度。有限の数値でなければ0として扱う）。
  * `bezierPath`の`segments[i]`は`points[i]`→`points[(i + 1) % points.length]`の区間で、直線は`{kind: 'line'}`、3次ベジェは`{kind: 'cubic', control1: {x, y}, control2: {x, y}}`。
- * キー列: `polyline`＝`kind, id, points, closed, strokeColor, strokeWidth, fillColor`／`bezierPath`＝`kind, id, points, closed, segments, strokeColor, strokeWidth, fillColor`／`quadratic`＝`kind, id, points, strokeColor, strokeWidth, fillColor`（`fillColor`は常に`null`）／`ellipse`＝`kind, id, x, y, radiusX, radiusY, rotation, startAngle, endAngle, closed, strokeColor, strokeWidth, fillColor`。
+ * キー列: `polyline`＝`kind, points, closed, strokeColor, strokeWidth, fillColor`／`bezierPath`＝`kind, points, closed, segments, strokeColor, strokeWidth, fillColor`／`quadratic`＝`kind, points, strokeColor, strokeWidth, fillColor`（`fillColor`は常に`null`）／`ellipse`＝`kind, x, y, radiusX, radiusY, rotation, startAngle, endAngle, closed, strokeColor, strokeWidth, fillColor`。
  * @typedef {Object} DrawElement
  * @property {string} kind 描き方の種類（'polyline'|'bezierPath'|'quadratic'|'ellipse'）
- * @property {*} id 図形のID
  * @property {string|null} strokeColor 線の色（nullは線なし）
  * @property {number} strokeWidth 線の太さ
  * @property {string|null} fillColor 塗りの色（nullは塗りなし。塗れない形の図形からはnullが入る）

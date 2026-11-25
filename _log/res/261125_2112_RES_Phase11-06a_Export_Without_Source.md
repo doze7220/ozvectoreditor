@@ -259,7 +259,7 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
         *   `./test/edit/ShapeOrderEditor.test.js` :（更新）
     *   **作業内容** :
         *   「要件4」の表で「T7」の行だけを直す（替え方D）。`id`を外す前でも全件合格すること。
-*   [ ] タスク8: 描画要素から`id`を外す
+*   [x] タスク8: 描画要素から`id`を外す
     *   **対象ファイル** :
         *   `./js/shapes/Line.js` :（更新）
         *   `./js/shapes/Curve.js` :（更新）
@@ -356,6 +356,10 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
 
 ### タスク8: 描画要素から`id`を外す
 *   **作業内容** :
+    *   `js/shapes/`の`Line`・`Curve`・`Rect`（LF）・`Ellipse`・`Path`（CRLF）：`toDrawElement()`が`id`のキーを作らない（計6か所）。そのJSDocの形・`@returns`・「`id`は検証・補完せず」も合わせた。`toJSON`・`fromJSON`・`createTransformed`は変えていない。
+    *   `js/io/SpriteSerializer.js`（CRLF。JSDocのみ）：typedef`DrawElement`の共通のキー・キー列・`@property id`を外し、`SPRITE_FORMAT_VERSION`のJSDocを「版4のまま、`source`と描画要素の`id`を外した…」にした。
+    *   テスト（替え方C）：`test/io/SpriteSerializer.test.js`（65・75・87・96・285・499・908・916・924・933・942・951の各行。81・94の`el.id`の行は除き、908の題を「idのキーは無い」へ）、`SpriteSerializer.items.test.js`（`EXPECTED_ELEMENTS`から`id`を除いた。「名前・表示・ロックのキーが出ない」はキーの一覧に`'id'`を足し題を合わせた）、`test/shapes/Line・Curve・Rect・Ellipse・Path.test.js`（`toDrawElement`のキー順・値から`id`を除いた。Ellipseの題「13キー」→「12キー」、Pathの`el.id`の行は「`id`のキーが無い」へ。`toJSON`側・`out.id`の`id`は変えていない）。
+    *   行末は`git ls-files --eol`で変わっていないことを確かめた（`test/shapes/Line・Curve・Rect.test.js`はCRLF、`Curve・Line・Rect.js`はLF。計画時のメモと逆の組もあったが、実際の行末のまま編集した）。`node --test`は tests 3661 / suites 599 / pass 3661 / fail 0。
 
 ### タスク9: 書き出し→組み立て→描画→書き出し直しの往復のテスト
 *   **作業内容** :
@@ -382,6 +386,7 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
 *   **タスク5**：`GroupEditor.flow.test.js`の441・`CanvasFileOperations.items.test.js`は、書き出しの戻り値に`source`を足す形（替え方A）をテスト内に置いた（前者はその場、後者は`withSource`）。`SpriteCheckInspector.test.js`は83のテストだけ`makeSpriteDataWithSource()`にし、`makeSpriteData()`（ほかのテストが使う）は変えていない（`source`のキー自体が無い入力の行はT6で足す）。
 *   **タスク6**：実測では`test/io/SpriteSerializer.test.js`・`SpriteSerializer.items.test.js`はLF、`test/io/SpriteSerializer.visibility.test.js`・`test/edit/TransformInputEditor.test.js`・`test/check/SpriteCheckInspector.test.js`はCRLF（計画時のメモのとおり。途中で`.visibility`がLFになっていたのを戻した）。実際の行末のまま編集した。隠した図形の文字列の確認は、現時点の`id`（`a`〜`d`）が出力に残るため、色・座標（`#111111`等・`200`・`210`）で行った（`id`を外すT8の後も変えずに通る）。
 *   **タスク7**：`SpriteSerializer.visibility.test.js`の`idsOf`は、線の色が名前と1対1（`makeItems`の4図形）であることに頼る。色を変えるときはこの表（`NAME_BY_STROKE`）も合わせること。`ShapeOrderEditor.test.js`の書き出しの並びは、`translate`した量（`points[0].x`）で見るため、`setupReal`の矩形の元の`x`が0であることに頼る。
+*   **タスク8**：`test/io/SpriteSerializer.test.js`の`ellipseWith`（1020行付近）が`toDrawElement`を差し替える入力の`id: 'R'`は、表に無い入力のため残した（読まれないキーなので無害）。実測の行末は`test/shapes/`の`Line`・`Curve`・`Rect`の各テストがCRLF、`js/shapes/`の`Line`・`Curve`・`Rect`はLF（本RESの冒頭のメモと一部異なる）。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0.  **準備**：画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。**今までのJS**（本作業の前に「出力（エンジン用）」したもの。矩形・フォルダ・隠した図形を含む絵がよい）を1つ手元に用意しておく（無ければ`asset/sprite/select-arrow.js`で代える。この場合はパス1つの絵で、矩形・フォルダは確かめられない）。
