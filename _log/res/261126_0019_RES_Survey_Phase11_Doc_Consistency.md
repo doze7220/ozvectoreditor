@@ -331,7 +331,7 @@ E
     * 対象の行は`[既存]`の文も既知の傷2の手順で見る。
     * 実コードから読み取れる事実のみを抽出し、推測を含める場合はどこまでが事実でどこからが推測かを明示して、4章の『事実』『推測・所見』欄に書く。相違は5章にタスク番号を添えて書く（作業は中断しない。資料に無い事項がコードにあることは相違としない）。判定は資料の原文とコードの該当行を両方開いて行い、一致には `ファイル:行`、または検索した語と件数を添える。
     * タスクの終わりに `git status` で、ソースコードおよび資料ファイルを一切変更していないこと（変更があるのは本RESだけ）を確かめる。
-* [ ] タスク17: 要件2の検索（前半：並びの持ち方・版・重なり順・新しく入る場所・フォルダ）
+* [x] タスク17: 要件2の検索（前半：並びの持ち方・版・重なり順・新しく入る場所・フォルダ）
   * **対象ファイル**:
     * 資料: `./PROJECT_ARCHITECTURE.md`・`./_doc/arch/` 配下の全ファイル（01〜65。差分のない行・差分のないファイルを含む）の検索
     * 照合に使うコード: `./js/core/VectorModel.js`・`./js/io/DocumentSerializer.js`・`./js/io/FileContentReader.js`・`./js/edit/`・`./js/core/` の該当箇所 :（監査）
@@ -1166,11 +1166,79 @@ E
 
 ### タスク17: 要件2の検索（前半：並びの持ち方・版・重なり順・新しく入る場所・フォルダ）
 * **調査内容**: 
-  * （未実施）
+  * `./PROJECT_ARCHITECTURE.md`（1021行）と `./_doc/arch/` 配下の全65ファイル（01〜65。合計2521行）を、Python（`re`）で語ごとに検索し、見つかった箇所の前後を読んだ（差分のある行・ない行の両方。差分のない行は検索で見つかった箇所だけ扱った）。件数は「出現数（`re.findall`）」。
+  * 要件2の5項目の語と件数（件数0も記載）：
+    * 並びの持ち方：`#shapes` 8、`getShapes` 40（`getShapes()` 27）、`serialize(model` 5（すべて `model.getItems()` を渡す形）、`serialize(ToString)?(` 20、`並びそのもの` 0、`一覧は無い` 0・`一覧[^。]{0,8}(は無|が無|は未)` 1（`13_palette.md:5` のツールボタンの一覧で無関係）、`名前は無` 1（`PROJECT_ARCHITECTURE.md:367` 描画要素）、`図形の配列` 9、`平らな` 14、`履歴…図形の並び` 0、`スナップショット…getShapes` 0。
+    * 版：`版3` 50、`版1`・`版2` 77、`version` 18、`formatVersion` 16、`版1〜3`・`〜3`・`版3まで`等と `現行版` 12、`版N のまま`（「のまま」付き）4。
+    * 重なり順：`OptionBarOrderGroup` 17、`syncOptionBarOrderGroup` 8、`⏫`・`🔼`・`🔽`・`⏬` 各0、`重なり順` 69、`option-order` は資料内で `#option-order-group`（消した旨）のみ。
+    * 新しく入る場所：`末尾` 108、`最前面` 21、`すぐ上` 35、`末尾(へ|に)(追加|足)` 9（選択の追加・キー表の追加で無関係）、`最前面(へ|に)(追加|足|入)` 1、`描き込む先…図形だけ` 0、`getInsertTargetId` 5。
+    * フォルダ：`hasGroupItem` 8、`フォルダを含` 10、`フォルダは作れ` 0、`作れない` 5（食い違う状態を作れない等で無関係）、`始まらない` 3、`フォルダを含む絵|フォルダのある絵|フォルダの有無` 13、`画面から` 1、`フォルダは無`・`フォルダが無`・`フォルダの無` 約15（すべて「この図形・並びにフォルダが無い」の意味）、`インポート` 60、`含まない` 61（フォルダ関連は2件）、`insertItemsAbove` 14・`reorderShapes` 26・`applyOrder` 15（消えた旨か、Phase 11-04b・11-03より前の項の記述。呼び出し元の照合はタスク18の範囲のため、ここでは並び・フォルダの項の言い方だけ確認）。
+  * 変わった名前の洗い出し：`git diff -U0 ff8718e 2b162c9 -- PROJECT_ARCHITECTURE.md _doc/arch` の `-` 行から、`#shapes`・`getShapes()` の言い方・`OptionBarOrderGroup`・版3・`insertItemsAbove`・`hasGroupItem`・`reorderShapes` を拾った。コードは `js/core/VectorModel.js`・`js/io/DocumentSerializer.js`・`js/edit/`・`js/core/InputTracker.js`・`js/main.js`・`index.html`・`test/` を開いて確かめた。
+  * 資料・コードは変更していない（`git status` は空）。
 * **事実（実コードの記述）**:
-  * （未実施）
+  * 並びの持ち方
+    * `PROJECT_ARCHITECTURE.md:328`・`03_VectorModel.md:3` の「`#shapes` はフィールドをやめ、`#items` を前順に平らにして毎回求める非公開のgetter」→ 一致（`js/core/VectorModel.js:231-233` `get #shapes() { return listShapes(this.#items); }`）。
+    * `PROJECT_ARCHITECTURE.md:328`・`329`・`550`・`575`・`576`・`578`・`583`、`14_edit.md:108`・`115`・`116`・`123`、`02_main.md:89` の「保存・出力は `serialize(model.getItems())`」→ 一致（`js/edit/CanvasFileOperations.js:207`・`235`、`js/edit/CanvasLibrary.js:763`、`js/edit/SnapshotAdapter.js:67`＝`serialize(withoutCollapsed(model.getItems()))`）。`model.getShapes()` を `serialize` へ渡す製品コードは0件（検索 `getShapes\(\)` in `js/` で `serialize` 行に無し）。
+    * `PROJECT_ARCHITECTURE.md:583`「`getShapes()` を渡しても例外にはならず名前が振り直される」→ 一致（`js/core/VectorModel.js:902`・`js/io/DocumentSerializer.js:205` のJSDoc）。
+    * `PROJECT_ARCHITECTURE.md:367`「描画要素に `id`・名前は無い」→ 一致（現行のスプライトデータは `bounds`・`elements`だけ。`js/io/SpriteSerializer.js`）。
+    * `PROJECT_ARCHITECTURE.md:660`「`model.getShapes()` の並び＝重なり順…図形データの形・版も変えない」→ 同じ行に「この時点。Phase 11-01で作業データは版4になり、並びは入れ子を含む」の断りがあり一致。同行の「書き出しの `elements` … と同じ」は断りの後ろにあり、`elements` は隠れた図形を除く（`PROJECT_ARCHITECTURE.md:367`）。
+    * `getShapes()` の用例（`PROJECT_ARCHITECTURE.md:484`・`636`・`653`・`758`・`772`・`917`、`06_InputTracker.md:41`・`56`、`14_edit.md:55`・`57`・`66`・`94`・`105`、`38_VertexHandleRules.md:8`、`53_ItemListWiring.md:12`）→ 一致（`js/core/InputTracker.js:1388`・`1558`・`1709` が `getShapes()` を使う。`getEditableShapes` との使い分けは各行に断りあり）。
+  * 版
+    * 現在の値：作業データの版＝`js/io/DocumentSerializer.js:21` `CURRENT_DOCUMENT_VERSION = 4`、`MIGRATIONS` の最後は `migrateVersion3To4`（同 `:131-142`）。書き出し形式の版＝4（`js/io/SpriteSerializer.js` の `SPRITE_FORMAT_VERSION`。資料 `PROJECT_ARCHITECTURE.md:362`・`15_io.md:27` が4）。
+    * 「現行版は4」（`PROJECT_ARCHITECTURE.md:351`、`15_io.md:6`、`16_test.md:33`・`227`）→ 一致。`PROJECT_ARCHITECTURE.md:325`（版は4）・`383`（版の履歴・「版（4）と版（4）は別々」）・`387`・`15_io.md:27`・`44` → 一致。`PROJECT_ARCHITECTURE.md:890`「作業データの版は3（この時点。…今の現行版は4）」→ 断りあり、一致。
+    * `PROJECT_ARCHITECTURE.md:383` と `40_asset_sprite.md:2` の「`asset/sprite/` のツールのアイコンは版2のまま」→ 一致（`asset/sprite/select-arrow.js:8`・`vertex-arrow.js:8` の `"formatVersion": 2`、`:57` の `"version": 2`）。
+    * `PROJECT_ARCHITECTURE.md:347`・`353`・`15_io.md:7`・`16_test.md:240`・`279` の「版1〜3のフォルダは読み飛ばされる」→ 一致（`js/io/DocumentSerializer.js:136-142` の `migrateVersion3To4` は `type: 'group'` に `children: null`）。
+    * `PROJECT_ARCHITECTURE.md:355`・`357`・`358` の「版2/3/4の作業データを古いエディタで開くと断られる」→ 一致（`js/io/DocumentSerializer.js:257-259` `version > CURRENT_DOCUMENT_VERSION` で全体失敗）。
+    * `15_io.md:19`「現状は版1のみ」（IndexedDBの版）→ 一致（`js/io/CanvasStorage.js:23` `databaseVersion: 1`）。
+    * `PROJECT_ARCHITECTURE.md:361`「エンジンの機体 `assets/sprites/ship.js` は…（版2。`source`入り）」→ 本リポジトリの外のため照合できない（下の「照合できなかった主張」）。
+    * `16_test.md:205`・`244`・`131`・`203` の「版2→3」「版3→版4」の期待値の書き換え・題名の変更 → 当時の書き換えを述べる文で、`test/io/DocumentSerializer.migration.test.js:2` の責務も版1→2・2→3・3→4（一致）。
+  * 版の再検索（`PROJECT_ARCHITECTURE.md` と `_doc/arch/` 全ファイルを `版は?[0-9１-９]`・`版[0-9]`・`どちらも[0-9]のまま`・`version.{0,3}は[0-9]`・`[0-9]のまま` などで検索し、現在の値4・4と異なる値の全箇所を仕分けた。同じ行に Phase の番号があるかは行を開いて確かめた）：
+    * 5章（同じ行に Phase の番号も断りも無い）：`PROJECT_ARCHITECTURE.md:673`・`:859`、`_doc/arch/16_test.md:30`・`:162`・`:172`・`:180`・`:191`（`16_test.md:162`・`172`・`180`・`191` は、Phase の番号が親の箇条書き（`:158`＝Phase 09-02b、`:166`＝Phase 09-03a、`:176`＝Phase 09-03b、`:184`＝Phase 10-01）にだけあり、その行自体には無い）。
+    * 4章（同じ行に Phase の番号がある。経緯として読める）：`PROJECT_ARCHITECTURE.md:696`・`:711`・`:760`・`:773`・`:790`（いずれも「版はどちらも／は2のまま」）・`:896`（「版3・版4」）、`_doc/arch/12_shapes.md:89`・`_doc/arch/15_io.md:9`・`:10`。
+    * 断りあり＝一致：`PROJECT_ARCHITECTURE.md:339`・`:341`・`:343`（「今は4」）、`:751`（「当時の2…今の版は2章」）、`:890`（「この時点…今の現行版は4」）、`:424`（`asset/sprite/` の2本について「版2のまま・Phase 11-06aの後も差し替えていない。現行の書き出しは `source` を持たない」と断る）、`:383`・`_doc/arch/40_asset_sprite.md:2`（アイコンの版2は `asset/sprite/select-arrow.js:8` の実体と一致）。
+    * 現在の値と一致、または過去の版の移行・互換を述べる文（値の主張でない）：`:325`・`:347`・`:351`〜`:358`・`:361`〜`:362`・`:378`・`:387`・`:892`、`15_io.md:6`・`:7`・`:19`・`:26`・`:27`、`16_test.md:32`・`:130`・`:131`・`:203`・`:240`・`:279`・`:309`。
+  * 重なり順
+    * `OptionBarOrderGroup`・`syncOptionBarOrderGroup`・`#option-order-group`・⏫🔼🔽⏬ → `js/`・`index.html`・`test/` に0件（検索 `OptionBarOrderGroup|syncOptionBarOrderGroup|option-order|⏫|🔼|🔽|⏬`）。`js/palette/` に `OptionBarOrderGroup.js` は無い。資料側の記述は、`PROJECT_ARCHITECTURE.md:656`・`658`・`670`、`02_main.md:3`・`22`・`83`、`13_palette.md:1`・`54`、`14_edit.md:72`、`01_index_html.md:10`・`16`、`07_KeyboardShortcuts.md:4`、`16_test.md:267` がすべて「Phase 11-03でなくした」と書いてあり一致。
+    * `16_test.md:225`・`233`（テストできない箇所（06-04の追加）・（07-02の追加）に `OptionBarOrderGroup`・`syncOptionBarOrderGroup` を挙げる）→ 見出しの項が過去のPhaseの追加分で、`16_test.md:267` が「Phase 11-03でなくなったため、上の06-04・07-02の…同名」と断っているため経緯として正しい。
+    * `PROJECT_ARCHITECTURE.md:651`・`01_index_html.md:16` の「1行目の見積もり約489px（約646px→約489px）」→ 一致（`index.html:735` の「…約489px」）。
+    * 重なり順のキー `Home`/`PageUp`/`PageDown`/`End` → `js/main.js:718-741`（`// 7.8. 重なり順（キー）配線`）・`:727` `performShapeOrder`・`:1058`、`js/edit/ShapeOrderEditor.js:1-14`（選んでいるまとまりを単位に、`rearrangeItems`・`moveTo`）→ `PROJECT_ARCHITECTURE.md:513`・`655`・`666`・`14_edit.md:72` と一致。
+  * 新しく入る場所
+    * `ShapeInserter`：`js/edit/ShapeInserter.js:71` `insertsAtTarget = false` が既定、`js/main.js:542` だけが `true`。`14_edit.md:47`（「`insertsAtTarget` が偽なら `place` も使わず常に末尾。`main.js` だけが `true`」）・`02_main.md:48`・`16_test.md:262`（`insertsAtTarget` を省くと末尾）→ 一致。
+    * 描き込む先なし＝いちばん外側の末尾（最前面）：`PROJECT_ARCHITECTURE.md:332`・`451`・`578`・`665`・`667`・`823`・`931`、`03_VectorModel.md:3`・`10`、`14_edit.md:45`・`56`・`123`・`129`、`54_InsertTargetRules.md:3`、`62_ItemPlaceRules.md:3`・`5` → 一致（`js/core/VectorModel.js:419-421` の `getInsertTarget` のJSDoc「無ければnull（いちばん外側の末尾へ入る）」、`commitDraft` は `js/core/InputTracker.js:1138` で `{ atInsertTarget: true }`）。`PROJECT_ARCHITECTURE.md:823`「以前の「末尾（最前面）へ追加」ではない」は経緯として正しい。`PROJECT_ARCHITECTURE.md:932`「（Phase 11-04bから。それまでは最前面に入った）」→ 経緯として正しい。
+    * 「描き込む先は図形だけ」「すぐ上へ入り、無ければ末尾」→ 資料では、`06_InputTracker.md:44` に「`InputTracker.js` のJSDocの「描き込む先のすぐ上へ入り、無ければ末尾」は…古い言葉のまま」と自ら断る形でだけ出る。`js/core/InputTracker.js:1081`・`js/edit/ShapeInserter.js:59` のコメントは下の「コードのコメント」。
+    * `getInsertTargetId`：`PROJECT_ARCHITECTURE.md:451`・`945`(j)、`03_VectorModel.md:10` の「`above` のときの行のidだけ。製品コードからの呼び出し元が無い」→ 一致（`js/core/VectorModel.js:431`）。`js/` 内は定義の1件のみ、使うのは `test/core/SelectionRules.test.js:320`・`323`。
+  * フォルダ
+    * `hasGroupItem`：`js/` に0件（検索）。資料の8件は `PROJECT_ARCHITECTURE.md:61`・`306`・`316`・`664`、`57_GroupTreeRules.md:1`・`15`、`16_test.md:270`・`295` で、すべて「Phase 11-04bで消した」または11-04aの新設時の件数（`16_test.md:270`「新設・38件」は11-04aの項、`295` で「38→40。`hasGroupItem` の1件を消した」と続く）→ 経緯として正しい。
+    * 「フォルダのある絵でも行のドラッグが始まる」：`PROJECT_ARCHITECTURE.md:59`・`306`・`932`(i)・`939`、`48_ItemListRules.md:1`、`53_ItemListWiring.md:1`・`5`・`12`、`56_ItemListRowDrag.md:1`・`12` → 一致（`js/core/ItemListRules.js` の `canStartRowDrag` に `hasGroups` 引数が無い。`js/` に `hasGroups` を引数に渡す箇所なし）。
+    * 「画面からフォルダは作れない」→ 現在形の記述は0件。`PROJECT_ARCHITECTURE.md:306` が「画面から作れなかった（11-01）… Phase 11-04aで画面から作れるようになった」と経緯付きで1件。
+    * 「コピーはフォルダを含まない」「インポートは最前面へ足す」→ 現在形の記述は0件（検索 `フォルダ[^。]{0,15}(コピー|貼り付け)[^。]{0,15}(しない|できない|含まない|対象外)` 0件）。インポートは `PROJECT_ARCHITECTURE.md:578`・`14_edit.md:123` が「描き込む先の場所、無ければ最前面」で一致。
+    * `PROJECT_ARCHITECTURE.md:399`「名前・表示・ロック・フォルダ：…ロックは無し、フォルダは無し」（`source` の無いJSの `elements` から組み立てるときの記述）→ `elements` から組み立てる経路にフォルダを復元しないという規則（`PROJECT_ARCHITECTURE.md:306`「フォルダ・名前を推し量って戻すこと」は作らない）と整合。現在の規則として一致。
+    * `PROJECT_ARCHITECTURE.md:306` の「Phase 11-01でやらないと決めたこと…画面は無く」「表示・ロックは…効かなかった（Phase 11-05で効くようになった）」「Phase 11-02…フォルダの行・並べ替えは（…Phase 11-03で入った）」→ すべて同じ文の中に入った時期が書いてあり、経緯として正しい。「Phase 11-04bでやらないと決めたこと」の「ドラッグで重ねている間に折りたたんだフォルダが自動で開くこと」→ 該当の機能は `js/` に無い（`自動で開く` は `js/core/GroupSelectionRules.js:2`・`js/core/VectorModel.js:98`・`:1246` の「選択が変わったときの自動で開く」で別機能）。一致。
+  * 検索の過程で別に確かめて一致したもの：`SnapshotAdapter` が `withoutCollapsed` を通す（`js/edit/SnapshotAdapter.js:67`、`js/core/GroupCollapseRules.js:111`）。`js/main.js` の `// 7.7.`＝689〜717行（約28行）。
 * **推測・所見**:
-  * （未実施）
+  * 読み方が分かれる記述：
+    * `PROJECT_ARCHITECTURE.md:306`「重なっている図形だけを数える前へ・後ろへ、離れた選択図形をまとめる重なり順の変更（キー `Home`/`PageUp`/`PageDown`/`End` は選択中の図形1つずつに働くまま。…）」：「図形1つずつ」は、図形については今も成り立つ（離れた図形は連続にまとめず別々に動く。`PROJECT_ARCHITECTURE.md:659`）が、キーは Phase 11-04a 以降、選んでいるフォルダも1つのまとまりとして兄弟の並びごとに動かす（`js/edit/ShapeOrderEditor.js:2`・`14_edit.md:72`）。「選択中の図形1つずつ」を「選択中のまとまり1つずつ」と読むか「図形だけ」と読むかで、今の挙動との合い方が分かれる。「〜しない」ことの説明のための括弧書きなので5章には挙げなかった。
+    * `PROJECT_ARCHITECTURE.md:659`「選択中の各図形は並びの上で隣の1つ分だけ動く」・`:655`「選択中の図形の重なり順（描画順）を…変える」：Phase 11-04a 以降、キーは選んでいるフォルダも1つのまとまりとして兄弟の並びごとに動かす（`js/edit/ShapeOrderEditor.js:1-14`）が、この2行にはフォルダへの断りが無い。306の括弧書きと同じく、「図形」を「まとまり」と読むか図形だけと読むかで今の挙動との合い方が分かれるため、ここに書く。
+    * 版の「のまま」で同じ行に Phase の番号がある行（経緯として読める。今は4・4）：`PROJECT_ARCHITECTURE.md:696`（「版は2のまま」）・`_doc/arch/12_shapes.md:89`（「作業データの版は2のまま」）・`_doc/arch/15_io.md:10`（「作業データの版は2のまま」「書き出しの版は3のまま」）。ほか下の事実欄の一覧を参照。
+    * `PROJECT_ARCHITECTURE.md:896`（Phase 10-03の項。同じ行に「Phase 10-03」あり）の「作業データ形式（版3）・書き出し形式（版4）・履歴のエントリの形は変えない」：Phase 10-03で変えなかったことを述べる文で、今の値ではない（今は4・4）。経緯として読める。
+    * `15_io.md:9`（Phase 09-02aの項。同じ行に「Phase 09-02a」「Phase 11-06a」あり）の「作業データの版は2、書き出し形式の版は3のまま」：Phase 09-02aで変えなかったことを述べる文で、経緯として読める（今は4・4）。現在の値と読むと食い違う（`js/io/DocumentSerializer.js:21`・`js/io/SpriteSerializer.js` の `SPRITE_FORMAT_VERSION`）。
+    * `16_test.md:130`（Phase 09-01aの項。「`checkFormat` が版1〜3を受理」。同じ文の後ろに「`formatVersion` の期待値2→3」の書き換えの記述）・`16_test.md:131`・`17_sprite_check.md:19`（「書き出し形式が版3になっても（Phase 09-01a）」）・`16_test.md:195`（Phase 10-02の項の件数の内訳「書き出し形式の版4 2367、作業データの版3 2381」）・`16_test.md:203`・`16_test.md:309`（「版1〜3の形」）：当時の変更として書かれており、経緯として読める。
+    * `16_test.md:56`「`pasteInPlace`（同じ位置・新しいid・最前面…）」「`duplicateInPlaceWithinEdit`（…最前面…）」：差分のない行で、貼り付け・複製が「最前面」に入ると読める。ただしこの項は `ClipboardController.test.js` の項で、そのテストは `insertsAtTarget` を省いた `ShapeInserter`（`test/edit/ClipboardController.test.js:38`）を使い、本番の `main.js:542`（`insertsAtTarget: true`）とは違う。テストの前提としては正しく（`14_edit.md:47` が「`insertsAtTarget` が偽なら常に末尾」と書く）、「本番の貼り付け・複製は最前面」と読むと今の挙動と食い違う。
+    * `16_test.md:226`（06-04の項。同じ行に「06-04」あり）の「並べ替えは `model.getShapes()` の順を変えるだけで…」：当時の説明。今は `rearrangeItems` が入れ子を並べ替え、`getShapes()` はそれを平らにした結果（`PROJECT_ARCHITECTURE.md:661`）。経緯として読める。
+    * `16_test.md:239`（Phase 11-01の項）の「`VectorModel.items.test.js`（22件）…`reorderShapes`」：当時の件数と内容。`16_test.md:295` が「22 → 21。`reorderShapes` の1件を消した」と続け、実数は `it(` 21件（`test/core/VectorModel.items.test.js`）。経緯として正しい。
+  * コードのコメント：
+    * `js/core/InputTracker.js:1081` のJSDoc「確定登録（`commitDraft({ atInsertTarget: true })`。描き込む先のすぐ上へ入り、描き込む先が無ければ末尾）」：描き込む先は3つの形（行の上・フォルダの中・一番下）になったため古い（既知の傷3。今も残っている。`06_InputTracker.md:44` も古いと断っている）。
+    * `js/edit/ShapeInserter.js:59` のJSDoc「真なら描き込む先（行の上・フォルダの中・一番下。無ければ末尾）」→ 現行と一致（古くない）。
+    * `test/io/DocumentSerializer.roundtrip.test.js:432` の `describe('塗り・線なしの往復（作業データの版2）')`：題の「版2」は、そのテストを足した当時の版。現行は版4（同ファイル `:542` は `version` が4）。
+  * 照合できなかった主張：
+    * `PROJECT_ARCHITECTURE.md:361` の (c)(d)「エンジンの機体 `assets/sprites/ship.js` は本アプリの書き出し（版2。`source`入り）」「エンジン本体…への連絡は連絡済み」：本リポジトリの外（OZ Engine）の事実のため。
+    * `PROJECT_ARCHITECTURE.md:894`・`914`・`941`〜`948` の「2026-11-2x に発注者のテストプレイで合格」：コードで確かめられないため。
+    * `PROJECT_ARCHITECTURE.md:651`（1280px幅での見積もり約489px・約1026px）の実測値：`index.html:735` のコメントの値までは照合できたが、実際のブラウザでの幅は照合できない。
+  * 既知の傷：
+    * 既知の傷1（`16_test.md` の以前のPhaseの項に残る古い記述）：`16_test.md:30` の「`version` は2」が今も残る（5章に挙げた）。`16_test.md:172`・`180` の「`version` は2のまま」、`16_test.md:162`・`191` の「版2」も同じ形（5章に挙げた）。
+    * 既知の傷2（`PROJECT_ARCHITECTURE.md` 3章・`06_InputTracker.md`・`14_edit.md`・`16_test.md` の対象の行の古い形）：本タスクの検索で見つかった範囲＝`PROJECT_ARCHITECTURE.md` 3章（`:325`〜`:945`）、`06_InputTracker.md:41`・`44`・`56`、`14_edit.md:44`・`45`・`47`・`55`・`56`・`57`・`66`・`72`・`94`・`100`・`105`・`108`・`115`・`116`・`123`・`128`・`129`、`16_test.md` の版・`OptionBarOrderGroup`・`最前面`・`reorderShapes`・`hasGroupItem` を含む行は、上の事実欄・5章・読み方が分かれる記述に分けた。ほかの古い形の発見はこの範囲では無し。
+    * 既知の傷3（`InputTracker.js` のJSDocの描き込む先の古い説明）：残っている（`js/core/InputTracker.js:1081`）。
+    * 既知の傷4（`ItemListRules.resolveRowHover` の `@param id`）・5（`EndpointSnapRules`・`PathJoinRules` のJSDoc）・6（`ItemPlaceRules.test.js` の `describe` 名）は本タスクの検索の範囲外のため確かめていない。
 
 ### タスク18: 要件2の検索（後半：表示とロック・書き出し・消えた関数・行数・数え方）
 * **調査内容**: 
@@ -1225,6 +1293,14 @@ E
 * （タスク16）**（`_doc/arch/16_test.md` 287行、11-04aの「テストできない箇所」）**： 「`main.js`の`// 7.8.`の`groupEditor`・`performGroupCommand`・`onCollapsedChange`の登録・`// 8.`の`group`・`ungroup`の注入」 → `// 7.8.` の節は `js/main.js:718-741` で、その中にあるのは `groupEditor`（724行）。`performGroupCommand` は `// 8.`（970行〜）の節の中（998行）、`onCollapsedChange` の登録は `// 7.6.`（569行〜）の節の中（603行 `model.onCollapsedChange(() => canvasLibrary.requestSave())`）。
 * （タスク16）**（`_doc/arch/16_test.md` 312行、11-06aの書き換えた既存のテスト(a)）**： 「入力を`source`入りの今までのJSの形（各ファイル内の`withSource`）へ＝`FileContentReader.test.js`・`CanvasFileOperations.test.js`・`CanvasFileOperations.items.test.js`・`GroupEditor.flow.test.js`・`SpriteCheckInspector.test.js`・`SpriteSerializer.items.test.js`・`SpriteSerializer.visibility.test.js`・`CodeExporter.test.js`の一部」 → 「`withSource`」という名前の関数があるのは `test/io/FileContentReader.test.js:77`・`test/edit/CanvasFileOperations.test.js`・`test/edit/CanvasFileOperations.items.test.js`・`test/io/SpriteSerializer.items.test.js:32` の4ファイルだけ。`GroupEditor.flow.test.js:444`・`SpriteSerializer.visibility.test.js`（`data = { ...SpriteSerializer.serialize(items), source: DocumentSerializer.serialize(items) }`）・`SpriteCheckInspector.test.js:28-34`（`makeSpriteDataWithSource`）・`CodeExporter.test.js:510` は `withSource` を持たず、その場で `source` を足す別の書き方。
 * （タスク16）**（`_doc/arch/16_test.md` 312行、11-06aの書き換えた既存のテストの頭書き「期待値の観点は変えず、入力の意味・見分け方だけを替えた」）**： 「(a)〜(d)は入力・見分け方だけ。期待値の観点は変えない」 → `test/io/FileContentReader.test.js:244` の「sourceが無いスプライト（JSONは作業データの形式違いで読み込み不可。JSはelementsから組み立てて読める）」は、JSのほうの期待が `assertUnreadable`（読み込み不可）から `result.ok === true`・`skipped` が空・`shapes.length` が元の数（読める）へ変わっている（`git diff 3cd4114 f60a7ff`）。(a)〜(d)のどれにも当たらない期待の観点の変更。
+* （タスク17）**（`_doc/arch/16_test.md:30`、`DocumentSerializer.roundtrip.test.js` の項）**： 「5種の図形…とパス（…塗り・線なしを含む。`version` は2）が、オブジェクト層・文字列層の両方の往復で元と同じ図形に戻ること」（今の項の説明として書かれ、断りが無い。既知の傷1） → 現行の作業データは版4で、このテストは版4を確かめている（`js/io/DocumentSerializer.js:21` `CURRENT_DOCUMENT_VERSION = 4`、`test/io/DocumentSerializer.roundtrip.test.js:542-545`・`:651`・`:721`・`:790` が `version` を4と照合。`version: 2` で作る入力は同ファイルに無い）。
+* （タスク17）**（`PROJECT_ARCHITECTURE.md:673`、3章「15. 表示（アウトライン・背景・グリッド・定規・座標の表示・パレットを隠す・全体を画面に収める）」の見出しの行）**： 「…ブラウザの保存先のいずれにも入れない（作業データの版・書き出し形式の版は2のまま）」（同じ行に Phase の番号も「この時点」「今は4」等の断りも無い） → 現行の作業データの版は4（`js/io/DocumentSerializer.js:21` `CURRENT_DOCUMENT_VERSION = 4`）、書き出し形式の版は4（`js/io/SpriteSerializer.js` の `SPRITE_FORMAT_VERSION`）。
+* （タスク17）**（`PROJECT_ARCHITECTURE.md:859`、3章「24. 区間の直線⇔曲線の切り替え」の「保存・書き出し・結合」）**： 「図形データのキーは増えない（作業データの版は2、書き出しの版は3のまま）」（同じ行に Phase の番号も断りも無い） → 現行は作業データ4・書き出し4（`js/io/DocumentSerializer.js:21`、`js/io/SpriteSerializer.js` の `SPRITE_FORMAT_VERSION`）。
+* （タスク17）**（`_doc/arch/16_test.md:162`、Phase 09-02bの項の `DocumentSerializer.roundtrip.test.js`・`SpriteSerializer.test.js`）**： 「切り替えた図形（…）の作業データの往復（オブジェクト層・文字列層。`corners`のキーの有無、版2・キー順）と、書き出しの…書き出し形式の版3」（この行に Phase の番号・「この時点」等の断りが無い。Phase の番号は親の箇条書きの `:158` にだけある） → 現行のテストは作業データの版を4（`test/io/DocumentSerializer.roundtrip.test.js:648` の題「作業データの版は4のまま…」・`:651` `assert.equal(doc.version, 4)`）、書き出し形式の版を4（`test/io/SpriteSerializer.test.js:683` `formatVersion` が4）と照合している（`js/io/DocumentSerializer.js:21` `CURRENT_DOCUMENT_VERSION = 4`、`js/io/SpriteSerializer.js:21` `SPRITE_FORMAT_VERSION = 4`）。
+* （タスク17）**（`_doc/arch/16_test.md:172`、Phase 09-03aの項の `DocumentSerializer.roundtrip.test.js` ほか）**： 「曲がり方を持つ区間を含むパスの作業データの往復（…。`version` は2のまま）」（この行に Phase の番号・「この時点」等の断りが無い。項の見出しは別の行） → 現行の作業データの版は4で、同テストは版4を確かめている（`js/io/DocumentSerializer.js:21`、`test/io/DocumentSerializer.roundtrip.test.js:542-545`・`:721-722`）。
+* （タスク17）**（`_doc/arch/16_test.md:180`、Phase 09-03bの項の `DocumentSerializer.roundtrip.test.js`）**： 「弧と直線・半月形の閉じた塗りあり・弧2本の結合の結果の往復（…。`version` は2のまま・`console.warn` なし）」（この行に Phase の番号・断りが無い） → 現行の作業データの版は4（`js/io/DocumentSerializer.js:21`、`test/io/DocumentSerializer.roundtrip.test.js:542-545`・`:790`）。
+* （タスク17）**（`_doc/arch/16_test.md:191`、Phase 10-01の項の `SpriteSerializer.test.js`・`DocumentSerializer.roundtrip.test.js`）**： 「作業データの往復（…パスの曲がり方を持つ区間・版2・復元後に動かしても元が不変）」（この行に Phase の番号・「この時点」等の断りが無い。Phase の番号は親の箇条書きの `:184` にだけある） → 現行のテストは版4を照合している（`test/io/DocumentSerializer.roundtrip.test.js:904` の題「変換後の図形の作業データは版4で…」・`:907` `assert.equal(doc.version, 4)`、`js/io/DocumentSerializer.js:21` `CURRENT_DOCUMENT_VERSION = 4`）。
+* （タスク17）**（`_doc/arch/02_main.md:3`、配線ブロックの切り出しの説明）**： 「`// 7.7.`（オプションバーのスタイルのまとまり。約30行）・`// 7.8.`（重なり順のまとまり。約40行）は…独立したブロックのため、切り出さなかった」（同じ文に Phase 11-03 の断りが無く、7.8を「重なり順のまとまり」の約40行と読める） → Phase 11-03でオプションバーの重なり順のまとまりをなくしたため、`// 7.8.` は「重なり順（キー）配線」で `ShapeOrderEditor`・`GroupEditor` の生成と `performShapeOrder` だけの約24行（`js/main.js:718`〜`:741`。`// 7.8.` の次の `// 7.9.` は `:742`）。`// 7.7.` は `:689`〜`:717` の約28行（約30行は概ね一致）。
 
 ## 6. 懸念事項・今後の修正における注意点
 * （タスク19で、「読み方が分かれる記述」「コードのコメント」「照合できなかった主張」の一覧を記載する）
@@ -1257,3 +1333,7 @@ E
 * （タスク16）既知の傷6の2つ（`ItemPlaceRules.test.js:136`、`ShapeInserter.insertTarget.test.js:305`）は今も残っている（コード側の古さなので5章には入れず、4章に記載）。
 * （タスク16）`SpriteRoundTrip.test.js`・`CanvasFileOperations.elements.test.js`・`ListDragRules.test.js` などは `it` をループで生成するため、`it(` を `grep` で数えると資料の件数と合わない（例：`SpriteRoundTrip` 10、`ListDragRules` 46）。`node --test` の実行結果では資料と一致する。件数の確認は実行結果を使うこと。
 * （タスク16）312行の書き換え(a)の `SpriteCheckInspector.test.js` は、入力の替えのほかに `summarize` の件へ「`source` のキー自体が無い入力」の確認（`test/check/SpriteCheckInspector.test.js:123-125` の3行）が増えている。311行に別記されており（件数は変わらない）、5章には入れていない。
+* （タスク17）`_doc/arch/16_test.md:172`・`180` の「`version` は2のまま」と `02_main.md:3` の「`// 7.8.`（重なり順のまとまり。約40行）」は、同じ行（文）に Phase の番号も断りも無いため、COMMON.md の基準どおり5章に挙げた（監査でも5章が正しいと確認済み）。
+* （タスク17）`_doc/arch/16_test.md:56` の `ClipboardController.test.js` の項（「`pasteInPlace`（…最前面…）」）は、テストの前提（`insertsAtTarget` 無し）としては正しいが、本番（`main.js:542`）では描き込む先の場所へ入る。「貼り付け・複製は最前面」の古い形として5章に挙げるか迷い、テストの前提の記述なので4章の「読み方が分かれる記述」に留めた。
+* （タスク17）`PROJECT_ARCHITECTURE.md:306`・`:655`・`:659` の「選択中の図形」は、Phase 11-04a以降フォルダも1つのまとまりとして動くため読み方が分かれる（4章に記載。5章には挙げていない）。
+* （タスク17）`_doc/arch/16_test.md:162`・`191` の「版2」（162行は「書き出し形式の版3」も）は、当時のテストの内容を項目名だけで挙げた書き方だが、その行自体に Phase の番号も断りも無いため、172・180行と同じ形として5章に挙げた。
