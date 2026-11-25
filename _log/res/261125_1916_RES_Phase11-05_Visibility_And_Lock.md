@@ -301,7 +301,7 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
         *   洗い出しの表のとおり置き換える。`InputTracker`へ規則・状態・importを足さない。
         *   テスト（`InputTracker`と同じ受け渡しを、実物の`VectorModel`と規則の関数で行う。既存の`SelectionRules.test.js`の書き方）：`classifyPointHit`（隠れた・ロックした・受け継いだ図形を素通りして後ろに当たる・選ばれていても素通り・頂点のハンドルが当たらない）、`collectVertexHandles`・`collectVertexHandlesInRect`、範囲選択（`intersectsRect`）、全選択・選択の反転（一覧から選んだ変えられない図形が外れる）、`Ctrl`＋クリックで変えられない図形の選択が残る、描く図形（`getVisibleShapes`）、`collectScaleFrame`（変えられるものが無ければ出ない）、すべて表示・ロックなしの絵で今までと同じ。
 
-*   [ ] タスク11: 書き出し
+*   [x] タスク11: 書き出し
     *   **対象ファイル** :
         *   `./js/io/SpriteSerializer.js` :（更新。import・`serialize`とそのJSDoc）
         *   `./test/io/SpriteSerializer.visibility.test.js` :（新規）
@@ -422,6 +422,10 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
 
 ### タスク11: 書き出し
 *   **作業内容** :
+    *   `js/io/SpriteSerializer.js`（CRLF）：`serialize`の`elements`を`listVisibleShapes(toItems(values))`から求め、`bounds`はその`elements`から（`source`は`DocumentSerializer.serialize(values)`のまま）。importは`listShapes`をやめ`ItemStateRules`の`listVisibleShapes`へ。`serialize`のJSDocを直した（見えている図形だけ・すべて隠れていれば空と`null`・`source`は全部）。先頭の責務は変えていない。
+    *   `test/io/SpriteSerializer.visibility.test.js`（新規・CRLF）：12件（自分・フォルダから隠れた図形が`elements`・`bounds`に無く`source`にある、ロックは含む、すべて隠れると`elements: []`・`bounds: null`、版4・キーの並び、素の配列・すべて表示の入力で同じ、引数を書き換えない、`CodeExporter`を通した往復、作業データの出力が全部を持つ）。
+    *   `test/io/SpriteSerializer.items.test.js`（LF）：要件10のとおり、`makeItems(shapes, withHidden = true)`を足し、`elements`・`bounds`の3件だけ`false`（表示ありの入力）にした。先頭の責務の「表示…が効かない」を「名前・ロックが効かない」へ直した。
+    *   `node --test`は tests 3564 / pass 3564 / fail 0。
 
 ### タスク12: 行の見た目とアイコンの判定
 *   **作業内容** :

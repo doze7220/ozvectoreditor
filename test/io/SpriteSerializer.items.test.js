@@ -1,6 +1,6 @@
 /**
  * 責務: SpriteSerializer.serializeがアイテム（名前・表示・ロック・フォルダの入れ子）を受けたときの書き出し（elements・bounds・source）を、公開APIのみを通して検証する。
- * 名前・表示・ロックが描画要素・外枠に効かないこと、sourceの往復、JS書き出しを通した往復も確かめる。
+ * 名前・ロックが描画要素・外枠に効かないこと、sourceの往復、JS書き出しを通した往復も確かめる。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -63,15 +63,17 @@ function groupItem(id, children, attrs = {}) {
 /**
  * 入れ子・表示なし・ロックあり・長い名前を含むアイテムの並び（平らにすると s1〜s6 の順）を作る。
  * @param {Array<object>} shapes - makeShapes の戻り値
+ * @param {boolean} [withHidden=true] - 表示なし（自分・フォルダ）を含めるか（偽なら表示ありにする。ロック・名前は同じ）
  * @returns {Array<object>} アイテムの配列
  */
-function makeItems(shapes) {
+function makeItems(shapes, withHidden = true) {
     const [s1, s2, s3, s4, s5, s6] = shapes;
+    const visible = !withHidden;
     return [
-        shapeItem(s1, { name: 'あ'.repeat(150), visible: false }),
+        shapeItem(s1, { name: 'あ'.repeat(150), visible }),
         groupItem('group-1', [
             shapeItem(s2, { locked: true }),
-            groupItem('group-2', [shapeItem(s3, { name: '矩形', visible: false, locked: true }), shapeItem(s4)], { name: 'F', visible: false }),
+            groupItem('group-2', [shapeItem(s3, { name: '矩形', visible, locked: true }), shapeItem(s4)], { name: 'F', visible }),
             groupItem('group-3', []),
         ], { locked: true }),
         shapeItem(s5),
@@ -92,7 +94,7 @@ const EXPECTED_ELEMENTS = [
 describe('SpriteSerializer.serialize: アイテムの入れ子', () => {
     it('elements・boundsが、同じ図形を素の配列で渡したものと一致する', () => {
         const shapes = makeShapes();
-        const fromItems = SpriteSerializer.serialize(makeItems(shapes));
+        const fromItems = SpriteSerializer.serialize(makeItems(shapes, false));
         const fromPlain = SpriteSerializer.serialize(shapes);
         assert.deepEqual(fromItems.elements, fromPlain.elements);
         assert.deepEqual(fromItems.bounds, fromPlain.bounds);
@@ -100,7 +102,7 @@ describe('SpriteSerializer.serialize: アイテムの入れ子', () => {
 
     it('elementsが各図形のtoDrawElement()の並び（平らにした重なり順）と一致する', () => {
         const shapes = makeShapes();
-        const data = SpriteSerializer.serialize(makeItems(shapes));
+        const data = SpriteSerializer.serialize(makeItems(shapes, false));
         assert.deepEqual(data.elements, shapes.map((shape) => shape.toDrawElement()));
         assert.deepEqual(data.elements.map((e) => e.id), ['s1', 's2', 's3', 's4', 's5', 's6']);
     });
@@ -115,7 +117,7 @@ describe('SpriteSerializer.serialize: アイテムの入れ子', () => {
     });
 
     it('elements・boundsが本作業の前の値（文字どおりの期待値）と一致する', () => {
-        const data = SpriteSerializer.serialize(makeItems(makeShapes()));
+        const data = SpriteSerializer.serialize(makeItems(makeShapes(), false));
         assert.deepEqual(data.elements, EXPECTED_ELEMENTS);
         assert.deepEqual(data.bounds, { minX: -21, minY: -21, maxX: 41, maxY: 61 });
         assert.deepEqual(Object.keys(data), ['format', 'formatVersion', 'bounds', 'elements', 'source']);

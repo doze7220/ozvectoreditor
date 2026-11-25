@@ -3,7 +3,8 @@
  * DOMに依存しない。
  */
 import { DocumentSerializer } from './DocumentSerializer.js';
-import { toItems, listShapes } from '../core/ItemTreeRules.js';
+import { toItems } from '../core/ItemTreeRules.js';
+import { listVisibleShapes } from '../core/ItemStateRules.js';
 
 /**
  * スプライトデータ形式の識別子。スプライトデータ最上位の`format`に格納する（作業データの識別子とは別の値）。
@@ -292,14 +293,14 @@ export class SpriteSerializer {
 
     /**
      * アイテムまたは素の図形インスタンスの配列をスプライトデータ（現行版）へ変換する。入力を検証しない（`toDrawElement`を持たない図形が混ざると例外）。
-     * `elements`・`bounds`は入れ子を描画順（深さ優先・前順）に平らにした図形から求める（名前・表示・ロックは効かない）。`source`は`DocumentSerializer.serialize(values)`の戻り値そのもの。
+     * `elements`・`bounds`は入れ子を描画順（深さ優先・前順）に平らにした図形のうち、見えている図形（自分の表示が切でなく、上のフォルダのどれも表示が切でないもの。ロックは効かない）だけから求める（名前・ロックは効かない）。すべて隠れていれば`elements`は空・`bounds`は`null`。`source`は隠れた図形も含む全部で、`DocumentSerializer.serialize(values)`の戻り値そのもの。
      * 名前・表示・ロック・フォルダを保つには`model.getItems()`または`DocumentSerializer.deserialize`の`items`を渡す（素の図形を渡すと名前が振り直され、フォルダは無い）。
      * @param {Array<Object>} values - アイテムまたは素の図形インスタンスの配列（描画順）
      * @returns {SpriteData} 新しいスプライトデータ（図形インスタンスと配列・頂点を共有しない。引数は書き換えない）
      * @throws {Error} 未知の`kind`の描画要素が得られた場合、または`toDrawElement`を持たない要素が混ざった場合
      */
     static serialize(values) {
-        const elements = listShapes(toItems(values)).map((shape) => shape.toDrawElement());
+        const elements = listVisibleShapes(toItems(values)).map((shape) => shape.toDrawElement());
         return {
             format: SPRITE_FORMAT,
             formatVersion: SPRITE_FORMAT_VERSION,
