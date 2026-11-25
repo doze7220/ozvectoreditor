@@ -220,7 +220,7 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
         *   「共通の計算: `core/ItemStateRules`」のとおり、typedef`ItemState`・`listItemStates`・`listVisibleShapes`・`listEditableShapes`・`collectEditableIds`・`collectItemStates`・`resolveVisibleToggle`・`resolveLockToggle`・`applyItemStates`をJSDoc付きで作る。
         *   テスト：自分だけ・親だけ・両方・深い入れ子・兄弟に効かない・空のフォルダ・値が無いアイテム・隠すとロックの組み合わせ、中のものの値が書き換わらないこと、並びが重なり順のまま、切り替え（図形・フォルダ・無いid・値が無いアイテム）、`applyItemStates`（複数・片方だけ・変わらなければ同じ参照・無いid・真偽値でない値・通り道でないフォルダは同じ参照・引数を書き換えない・図形インスタンスの共有・`collapsed`等のほかのキーが残る）。
 
-*   [ ] タスク2: 消えるもの・残すもの・写すものの規則
+*   [x] タスク2: 消えるもの・残すもの・写すものの規則
     *   **対象ファイル** :
         *   `./js/core/RemovalRules.js` :（新規）
         *   `./test/core/RemovalRules.test.js` :（新規）
@@ -358,6 +358,8 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
 
 ### タスク2: 消えるもの・残すもの・写すものの規則
 *   **作業内容** :
+    *   `js/core/RemovalRules.js`（新規・CRLF）に typedef`RemovalResult`・`resolveRemoval(items, unitIds)`をJSDoc付きで作成。importは`ItemTreeRules`（`ITEM_KIND`）・`GroupTreeRules`（`itemIdOf`）・`ItemStateRules`（`collectEditableIds`）のみ。まとまり1つを分ける非公開`splitUnit`（図形：変えられれば消えて写す／フォルダ：自分が変えられ残る中身が無ければ消えて写す、それ以外は残る中身で残り写すものがあれば写す）と、まとまりの外のフォルダを再構築する処理。写しが1つも無ければ`null`。
+    *   `test/core/RemovalRules.test.js`（新規・CRLF）に計画どおりの観点のテストを作成（`removeItems`・`pickItems`との一致を含む）。`node --test`は tests 3419 / pass 3419 / fail 0。
 
 ### タスク3: その行だけの表示の規則
 *   **作業内容** :
