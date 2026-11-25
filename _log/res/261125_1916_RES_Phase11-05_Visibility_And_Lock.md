@@ -262,7 +262,7 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
         *   洗い出しの表のとおり照会へ置き換える。`ShapeExtentReader`のJSDocの「見えない図形も含む」は意味を整理する（線も塗りも無い図形は今までどおり含む。隠れている図形は含まない）。
         *   テスト（新しいファイルに、4つのクラスと`ShapeAlignEditor`を通して）：変えられないものが混ざったとき変えられるものだけが動く・変形する・整列する、変えられないものだけのとき選んでいないときと同じ（`false`・記録なし・欄は空・外枠は`null`・整列は押せない）、フォルダから受け継いだとき、`getAllBounds`が隠れた図形を含まずロックした図形を含む・すべて隠れると`null`、外枠・大きさ・位置の値が変えられるものだけで決まる。
 
-*   [ ] タスク7: 結合・色と線と塗り・スポイトの対象
+*   [x] タスク7: 結合・色と線と塗り・スポイトの対象
     *   **対象ファイル** :
         *   `./js/edit/PathJoiner.js`・`./js/edit/ShapeStyleEditor.js`・`./js/edit/StyleEyedropper.js` :（更新）
         *   `./test/edit/EditableTargets.style.test.js` :（新規）
@@ -389,6 +389,12 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
 
 ### タスク7: 結合・色と線と塗り・スポイトの対象
 *   **作業内容** :
+    *   `js/edit/PathJoiner.js`（LF）：`#selectedShapesInOrder`を`model.getEditableSelectedShapes()`へ。先頭の責務・クラスJSDoc（「`model`は`getEditableSelectedShapes`・`replaceShape`だけ」・前提に「変えられない図形は無視」）・`canJoin`・`join`のJSDocを直した。
+    *   `js/edit/ShapeStyleEditor.js`（LF）：`#selectedShapes`を`getEditableSelectedShapes()`へ。先頭の責務・クラスJSDoc（`model`の照会の列挙・対象は選択中で変えられる図形・変えられないものだけのときは選択なしと同じ）・`COLOR_ITEMS`・各メソッドのJSDocの「選択中の図形」を直した。`#finishPreview`の`getShapes()`は変えず、理由（プレビューの後に隠れた・ロックされても、変えられる間に付けた色を1件として記録し終える）をJSDocへ書いた。
+    *   `js/edit/StyleEyedropper.js`（LF）：`pickFrom`を`getEditableShapes()`へ（変えられない図形なら`false`・待ち受けは続く）。`model`の型・クラスJSDoc・コンストラクタのJSDocを`getEditableShapes`へ直した。
+    *   `test/edit/EditableTargets.style.test.js`（新規・CRLF）：11件（色・太さ・有無・`D`・ピッカー・塗り・変えられないものだけ（直前に使った値だけ変わる・記録なし・表示が選択なしと同じ）・フォルダから受け継ぎ・プレビュー後のロック・スポイト2件・結合3件）。
+    *   `test/edit/PathJoiner.test.js`（mixed。直した行はLF/CRLFの周りに合わせてCRLF）・`StyleEyedropper.test.js`（LF）：偽のモデルへ`getEditableSelectedShapes`・`getEditableShapes`を足しただけ。`test/edit/PathJoiner.items.test.js`（LF）：「要件10」のとおり、甲組・A線・奥・P名を`true, false`へ、期待値の`visible`・`locked`を合わせた。
+    *   `node --test`は tests 3511 / pass 3511 / fail 0。
 
 ### タスク8: 削除・切り取り・`Alt`＋ドラッグの複製
 *   **作業内容** :
@@ -418,6 +424,7 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
 *   **作業内容** :
 
 ## 5. 懸念事項・要確認ポイント
+*   **タスク7の目視確認**：ロックしたフォルダの図形を選んだままオプションバーで色・太さを変えても図形が変わらず、次に描く図形の初期値だけが変わること。ピッカーを開いたまま一覧でロックしても、閉じたときに1件で記録されること（`ShapeStyleEditor#finishPreview`だけ`getShapes()`＝全部を見る。将来`getEditableShapes()`へ寄せると、プレビュー中にロックした色が戻らなくなる）。
 *   **その行だけの表示の「覚えている行」**（計画の判断）：覚えるのは、「その行だけ」にしたことで変わり得る行（その行・上のフォルダ・それぞれの兄弟）のはじめの前の値。その間に、その行の中のもの・非表示にしたフォルダの中のものの目を切り替えた場合、それが覚えている行でなければ、戻したときもその切り替えは残る（「その行だけの表示」かどうかの見分けにも入らないため）。
 *   **その後に増えた行**（計画の判断）：「その行だけ」にした後に描いた図形は、兄弟でも「間に表示が変わった」とみなさない（REQの「その後に増えた行はそのまま」を成り立たせるため）。増えた行を`Alt`＋クリックすると、その行だけの表示に移り、もう一度ではじめの前の表示に戻る。
 *   **戻した後の記憶**（計画の判断）：戻しても記憶は消さない（戻すのを取り消してから、もう一度`Alt`＋クリックしたときに戻れるようにするため）。忘れるのはキャンバスの切り替えだけ。古い記憶は、次のとおり今の表示の値から使うかを決め、使わなければ次の`Alt`＋クリックで置き換わる。

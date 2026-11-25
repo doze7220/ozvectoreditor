@@ -50,7 +50,7 @@ function setupFake(shapes) {
     const applied = [];
     const notified = { count: 0 };
     const eyedropper = new StyleEyedropper({
-        model: { getShapes: () => shapes },
+        model: { getShapes: () => shapes, getEditableShapes: () => shapes },
         applyStyle: (style) => { applied.push(style); return true; }
     });
     eyedropper.onChange(() => { notified.count += 1; });
@@ -92,8 +92,8 @@ function countUndo(history) {
 }
 
 test('コンストラクタ: applyStyleが関数でなければErrorをthrowする', () => {
-    assert.throws(() => new StyleEyedropper({ model: { getShapes: () => [] } }), Error);
-    assert.throws(() => new StyleEyedropper({ model: { getShapes: () => [] }, applyStyle: 1 }), Error);
+    assert.throws(() => new StyleEyedropper({ model: { getShapes: () => [], getEditableShapes: () => [] } }), Error);
+    assert.throws(() => new StyleEyedropper({ model: { getShapes: () => [], getEditableShapes: () => [] }, applyStyle: 1 }), Error);
 });
 
 test('初期状態は待ち受けでない', () => {

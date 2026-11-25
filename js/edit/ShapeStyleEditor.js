@@ -1,5 +1,5 @@
 /**
- * 責務: オプションバーでの変更とスタイルをまとめて当てる入口（`D`・スポイト）を、選択中の図形（塗りは塗れる形だけ）と直前に使った値へ
+ * 責務: オプションバーでの変更とスタイルをまとめて当てる入口（`D`・スポイト）を、選択中で変えられる図形（塗りは塗れる形だけ）と直前に使った値へ
  * 反映する編集操作と、ピッカー操作中の記録の確定、オプションバーが覚えている色の保持を担う。DOMに触れない。
  */
 import { buildStylePanelView, nextEnabledOnToggle, parseStrokeWidthInput, RESET_COLORS_STYLE, toColorInputValue } from './StylePanelRules.js';
@@ -7,7 +7,7 @@ import { buildStylePanelView, nextEnabledOnToggle, parseStrokeWidthInput, RESET_
 /**
  * 色の項目（線・塗り）ごとの対応表。項目による分岐はこの表引きで行う。
  * `shapeKey`は図形の共通プロパティ名（直前に使った値の色のキーも同じ名前）、`enabledKey`は直前に使った値の有無のキー、
- * `selectTargets`は選択中の図形（描画順）から反映の対象を選ぶ関数（塗りは`isFillable()`が真の図形だけ）。
+ * `selectTargets`は選択中で変えられる図形（描画順）から反映の対象を選ぶ関数（塗りは`isFillable()`が真の図形だけ）。
  * @type {Readonly<Record<string, {shapeKey: string, enabledKey: string, selectTargets: (shapes: object[]) => object[]}>>}
  */
 const COLOR_ITEMS = Object.freeze({
@@ -33,8 +33,9 @@ const COLOR_ITEMS = Object.freeze({
 
 /**
  * オプションバーでの変更と、スタイルをまとめて当てる入口（`applyStyle`・`resetColors`。`D`・スポイトが使う）を反映する編集操作のクラス。
+ * 図形への反映の対象は「選択中で変えられる図形」（`model.getEditableSelectedShapes()`。隠れてもロックされてもいない図形）だけ。選択中の図形が変えられないものだけのときは、選択が無いときと同じ（直前に使った値だけが変わり、記録しない。オプションバーの表示も選択なしと同じ）。
  * 識別子の「Panel」（`getPanelView`・`StylePanelRules`等）は表示の部品一般を指す名前として残しており実体はオプションバー。テスト名（`test/edit/ShapeStyleEditor.test.js`）の「パネル」「パネルが覚えている色」は、オプションバー・「オプションバーが覚えている色」（`#rememberedColors`）のこと。
- * 依存の制約：importは`./StylePanelRules.js`のみ。`model`（`getShapes`・`isSelected`・`getNewShapeStyle`・`updateNewShapeStyle`・`updateShapeStyles`だけを使う）と
+ * 依存の制約：importは`./StylePanelRules.js`のみ。`model`（`getShapes`・`getEditableSelectedShapes`・`getNewShapeStyle`・`updateNewShapeStyle`・`updateShapeStyles`だけを使う）と
  * `editRecorder`（`beginEdit()`・`commitEdit()`）は注入で受け取る。知らないこと：DOM・図形種別の分岐・操作モード・`InputTracker`。
  * 図形の共通プロパティのスタイル3つ（`strokeColor`・`strokeWidth`・`fillColor`）は読むが、書き換えは`model.updateShapeStyles`へ渡すだけ。
  * 前提：ドラッグ中（`isDragging()`）を判定しない。判定すると太さの欄に打ち込んで`Enter`を押さずにキャンバスを押したときに入力が失われるため
@@ -56,7 +57,7 @@ export class ShapeStyleEditor {
 
     /**
      * @param {Object} deps - 依存
-     * @param {object} deps.model - `getShapes`・`isSelected`・`getNewShapeStyle`・`updateNewShapeStyle`・`updateShapeStyles`を持つモデル（`VectorModel`）
+     * @param {object} deps.model - `getShapes`・`getEditableSelectedShapes`・`getNewShapeStyle`・`updateNewShapeStyle`・`updateShapeStyles`を持つモデル（`VectorModel`）
      * @param {{beginEdit: function(): void, commitEdit: function(): boolean}} deps.editRecorder - 編集操作の記録先（`HistoryManager`）
      */
     constructor({ model, editRecorder }) {
@@ -91,7 +92,7 @@ export class ShapeStyleEditor {
     }
 
     /**
-     * 塗りの有無を変える。選択中の図形があるのに塗れる形が1つも無ければ何もせず`false`。
+     * 塗りの有無を変える。選択中で変えられる図形があるのに塗れる形が1つも無ければ何もせず`false`。
      * @param {boolean} enabled - 塗りありか
      * @returns {boolean} 受理したか
      */
@@ -108,7 +109,7 @@ export class ShapeStyleEditor {
     }
 
     /**
-     * 塗りの有無を切り替える。選択中の図形があるのに塗れる形が無ければ何もせず`false`。
+     * 塗りの有無を切り替える。選択中で変えられる図形があるのに塗れる形が無ければ何もせず`false`。
      * @returns {boolean} 受理したか
      */
     toggleFillEnabled() {
@@ -116,7 +117,7 @@ export class ShapeStyleEditor {
     }
 
     /**
-     * 線の太さを変える（線なしの図形を含む選択中の全図形、図形が無ければ直前に使った値だけ）。
+     * 線の太さを変える（線なしの図形を含む選択中で変えられる全図形、対象の図形が無ければ直前に使った値だけ）。
      * @param {string} text - 太さの入力（`<input type="number">`の`value`の形）
      * @returns {boolean} 受理したか（`parseStrokeWidthInput`が`null`なら`false`）
      */
@@ -140,7 +141,7 @@ export class ShapeStyleEditor {
      * スタイル（線の色・塗りの色・線の太さ）をまとめて当てる入口（`D`・スポイトが使う）。
      * 冒頭でピッカー操作中の記録を確定する。`style`が自身のプロパティとして持つ項目だけを当て、値の検証・変換はしない
      * （スポイトの「そのまま写す」ため。オプションバー由来の値は既存のメソッドが検証済み）。
-     * 選択中の図形があれば、当てる項目（線の色・太さは全図形、塗りの色は塗れる形だけ）を1件の編集操作で反映する
+     * 選択中で変えられる図形があれば、当てる項目（線の色・太さは全図形、塗りの色は塗れる形だけ）を1件の編集操作で反映する
      * （前後が同じなら`HistoryManager`が記録しない）。選択の有無によらず、直前に使った値へ`updateNewShapeStyle`の1回で写す
      * （色が`null`なら有無を`false`にして色は変えない、文字列なら有無を`true`にして色、太さはその値）。
      * 既存の変更メソッドを続けて呼ばない（直前に使った値を更新するのは本クラスだけ）。
@@ -201,7 +202,7 @@ export class ShapeStyleEditor {
 
     /**
      * ピッカーで色を動かしている間の反映（履歴には記録しない。確定は`commitColor`・`finishColorPreview`・他の変更メソッドの冒頭）。
-     * 対象は線＝選択中の全図形、塗り＝その中の塗れる形。図形が無ければ直前に使った値だけを変える。
+     * 対象は線＝選択中で変えられる全図形、塗り＝その中の塗れる形。選択中で変えられる図形が無ければ直前に使った値だけを変える。
      * 別の項目、または対象の図形の組が違うピッカー操作中の記録があれば、先に確定してから作り直す。
      * @param {string} target - 色の項目（`'stroke'`・`'fill'`。表に無ければ`false`）
      * @param {string} color - 色（`toColorInputValue`で変換できなければ`false`）
@@ -297,11 +298,11 @@ export class ShapeStyleEditor {
     }
 
     /**
-     * 選択中の図形を描画順で返す。
-     * @returns {object[]} 選択中の図形
+     * 選択中で変えられる図形（隠れてもロックされてもいない図形）を描画順で返す。
+     * @returns {object[]} 選択中で変えられる図形
      */
     #selectedShapes() {
-        return this.#model.getShapes().filter((shape) => this.#model.isSelected(shape.id));
+        return this.#model.getEditableSelectedShapes();
     }
 
     /**
@@ -320,6 +321,7 @@ export class ShapeStyleEditor {
     /**
      * ピッカー操作中の記録を確定する。無ければ何もしない。
      * 記録した図形が1つでも現在の図形に無ければ（入れ替わった）記録せず捨てる。
+     * 「現在の図形」は`getShapes()`（全部）で見る：プレビューの後に図形が隠れた・ロックされても、変えられる間に付けた色を1件として記録し終えるため（`getEditableShapes()`にしない）。
      * 残っていれば、開始時の色へ戻し、`beginEdit()` → 最後の色 → `commitEdit()`の1件として記録する。
      */
     #finishPreview() {

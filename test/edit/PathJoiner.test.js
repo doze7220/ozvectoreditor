@@ -75,6 +75,7 @@ function setupFake(shapes, selectedIds, { tolerance = 0, replaceResult = 'placed
     const lengths = [];
     const model = {
         getShapes: () => shapes,
+        getEditableSelectedShapes: () => shapes.filter((shape) => selectedIds.includes(shape.id)),
         isSelected: (id) => selectedIds.includes(id),
         replaceShape: (...args) => {
             calls.push(['replaceShape', ...args]);

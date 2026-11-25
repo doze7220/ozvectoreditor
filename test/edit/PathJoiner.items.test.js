@@ -136,8 +136,8 @@ function assertUndoRedo(model, history, before, after) {
 
 test('結合（2本）: 奥の線（基準）の名前・表示・ロックを引き継ぎ新しいidになり、同じフォルダの同じ位置に入る。除かれた側の名前は消える', () => {
     const { model, history, joiner } = setupReal([
-        groupItem('group-1', '甲組', false, true, [
-            shapeItem(makeLine('shape-1', 0, 10), 'A線', false, true),
+        groupItem('group-1', '甲組', true, false, [
+            shapeItem(makeLine('shape-1', 0, 10), 'A線', true, false),
             shapeItem(makeLine('shape-2', 20, 30), 'B線', true, false)
         ]),
         shapeItem(makeLine('shape-3', 40, 50), 'C線', true, true)
@@ -152,8 +152,8 @@ test('結合（2本）: 奥の線（基準）の名前・表示・ロックを�
     assert.notEqual(newId, 'shape-2');
     assert.deepEqual(result, [
         {
-            id: 'group-1', name: '甲組', visible: false, locked: true, children: [
-                { id: newId, name: 'A線', visible: false, locked: true }
+            id: 'group-1', name: '甲組', visible: true, locked: false, children: [
+                { id: newId, name: 'A線', visible: true, locked: false }
             ]
         },
         { id: 'shape-3', name: 'C線', visible: true, locked: true }
@@ -167,7 +167,7 @@ test('結合（2本）: 奥の線（基準）の名前・表示・ロックを�
 test('結合（閉じる）: 元のidのまま名前・表示・ロック・フォルダが保たれ、閉じたパスになる', () => {
     const { model, history, joiner } = setupReal([
         groupItem('group-1', '甲組', true, false, [
-            shapeItem(makePath('shape-1'), 'P名', false, true)
+            shapeItem(makePath('shape-1'), 'P名', true, false)
         ]),
         shapeItem(makeLine('shape-2', 40, 50), '他', true, false)
     ], ['shape-1']);
@@ -197,7 +197,7 @@ test('結合（2本）: 直線「直線 2」を基準にした結合がパスに
 
 test('結合（2本）: 手前の線が基準側でも、重なり順で奥の線の名前等になる（選択の順に依らない）', () => {
     const { model, joiner } = setupReal([
-        shapeItem(makeLine('shape-1', 0, 10), '奥', false, true),
+        shapeItem(makeLine('shape-1', 0, 10), '奥', true, false),
         shapeItem(makeLine('shape-2', 20, 30), '手前', true, false)
     ], ['shape-2', 'shape-1']);
 
@@ -205,14 +205,14 @@ test('結合（2本）: 手前の線が基準側でも、重なり順で奥の�
     const result = outline(model.getItems());
     assert.equal(result.length, 1);
     assert.equal(result[0].name, '奥');
-    assert.equal(result[0].visible, false);
-    assert.equal(result[0].locked, true);
+    assert.equal(result[0].visible, true);
+    assert.equal(result[0].locked, false);
 });
 
 test('結合（2本）: 除かれた側が別のフォルダにあっても壊れない（両方のフォルダが残り、除かれた側の入っていたフォルダは空になる）', () => {
     const { model, history, joiner } = setupReal([
-        groupItem('group-1', '甲組', false, true, [
-            shapeItem(makeLine('shape-1', 0, 10), 'A線', false, true)
+        groupItem('group-1', '甲組', true, false, [
+            shapeItem(makeLine('shape-1', 0, 10), 'A線', true, false)
         ]),
         groupItem('group-2', '乙組', true, false, [
             shapeItem(makeLine('shape-2', 20, 30), 'B線', true, false)
@@ -224,7 +224,7 @@ test('結合（2本）: 除かれた側が別のフォルダにあっても壊�
     const result = outline(model.getItems());
     const newId = result[0].children[0].id;
     assert.deepEqual(result, [
-        { id: 'group-1', name: '甲組', visible: false, locked: true, children: [{ id: newId, name: 'A線', visible: false, locked: true }] },
+        { id: 'group-1', name: '甲組', visible: true, locked: false, children: [{ id: newId, name: 'A線', visible: true, locked: false }] },
         { id: 'group-2', name: '乙組', visible: true, locked: false, children: [] }
     ]);
     assertUndoRedo(model, history, before, json(model));

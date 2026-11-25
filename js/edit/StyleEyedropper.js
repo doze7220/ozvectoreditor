@@ -17,12 +17,12 @@ import { sampleStyleFromShape } from './StylePanelRules.js';
  *
  * 依存の制約:
  *   - importは ./StylePanelRules.js の sampleStyleFromShape のみ（edit/内の例外）。
- *   - modelはgetShapes()だけ使う。
+ *   - modelはgetEditableShapes()だけ使う（隠れている図形・ロックされている図形は手本にならない）。
  */
 export class StyleEyedropper {
     /**
-     * 図形一式の読み取り元（getShapesのみ使用）。
-     * @type {{ getShapes: () => Array<Object> }}
+     * 図形一式の読み取り元（getEditableShapesのみ使用）。
+     * @type {{ getEditableShapes: () => Array<Object> }}
      */
     #model;
 
@@ -46,7 +46,7 @@ export class StyleEyedropper {
 
     /**
      * @param {Object} deps 依存
-     * @param {{ getShapes: () => Array<Object> }} deps.model 図形一式の読み取り元（getShapesのみ使用）
+     * @param {{ getEditableShapes: () => Array<Object> }} deps.model 図形一式の読み取り元（getEditableShapesのみ使用。変えられる図形だけ）
      * @param {(style: Object) => boolean} deps.applyStyle 取り込んだスタイル（StyleApplication）を反映する関数
      * @throws {Error} applyStyleが関数でないとき
      */
@@ -107,7 +107,7 @@ export class StyleEyedropper {
 
     /**
      * 待ち受け中にクリックされた図形のスタイルを取り込んで反映し、待ち受けをやめる。
-     * 待ち受けでなければ何もしない。idの図形が無ければ何もせず待ち受けは続く（通知なし）。
+     * 待ち受けでなければ何もしない。idの図形が無い・変えられない図形（隠れている・ロックされている）なら何もせず待ち受けは続く（通知なし）。
      * @param {string} shapeId 手本にする図形のid
      * @returns {boolean} 取り込んだらtrue（待ち受けでない・図形が無いときはfalse）
      */
@@ -115,7 +115,7 @@ export class StyleEyedropper {
         if (!this.#picking) {
             return false;
         }
-        const shape = this.#model.getShapes().find((s) => s.id === shapeId);
+        const shape = this.#model.getEditableShapes().find((s) => s.id === shapeId);
         if (!shape) {
             return false;
         }

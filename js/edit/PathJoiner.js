@@ -1,5 +1,5 @@
 /**
- * 責務: 選択中の線（直線・開いたパス・今の曲線・弧）の結合を、結合の規則（`shapes/PathJoinRules`）で作った計画に従ってモデルへ反映する
+ * 責務: 選択中で変えられる線（直線・開いたパス・今の曲線・弧）の結合を、結合の規則（`shapes/PathJoinRules`）で作った計画に従ってモデルへ反映する
  * 1件の編集操作（閉じる・2本の結合）と、結合できる選択かの照会を担う。DOMに触れない。
  */
 import { JOIN_TOLERANCE_SCREEN_PX, classifyJoin, planJoin } from '../shapes/PathJoinRules.js';
@@ -16,13 +16,14 @@ import { JOIN_TOLERANCE_SCREEN_PX, classifyJoin, planJoin } from '../shapes/Path
  *
  * 前提（呼び出し側の責務）:
  *   - ドラッグ中でないこと（`main.js`の`performJoin()`が判定する）。
+ *   - 結合の対象は選択中の「変えられる図形」（隠れてもロックされてもいない図形）だけ。変えられない図形が選択に混ざっていても無視する。
  *   - 選択モード以外では選択集合が空のため何もしない（操作モードは知らない）。
  *   本クラスは進行中の入力操作の中断・モード切り替えを行わない
  *   （選択モードで選択集合が空でない状態では作成途中の図形が無い）。
  */
 export class PathJoiner {
     /**
-     * 図形一式と選択集合を保持するモデル（`getShapes`・`isSelected`・`replaceShape`だけを使う）。
+     * 図形一式と選択集合を保持するモデル（`getEditableSelectedShapes`・`replaceShape`だけを使う）。
      * @type {import('../core/VectorModel.js').VectorModel}
      */
     #model;
@@ -52,7 +53,7 @@ export class PathJoiner {
     }
 
     /**
-     * 現在の選択が結合できる選択（開いたパス1本で頂点3つ以上／結合できる線2本）か。
+     * 現在の選択（のうち変えられる図形）が結合できる選択（開いたパス1本で頂点3つ以上／結合できる線2本）か。
      * 表示倍率は見ない。モデル・履歴を変えない。
      * @returns {boolean} 結合できる選択なら`true`
      */
@@ -64,7 +65,7 @@ export class PathJoiner {
      * 選択中の線を結合する。
      *
      * 処理順:
-     *   1. 選択中の図形を重なり順（奥が先）で集める。
+     *   1. 選択中で変えられる図形を重なり順（奥が先）で集める。
      *   2. `planJoin`で計画を作る（許容距離は`screenLengthToWorld(JOIN_TOLERANCE_SCREEN_PX)`）。`null`なら何も呼ばず`false`。
      *   3. `editRecorder.beginEdit()` → `model.replaceShape(...)` → `editRecorder.commitEdit()`。
      *   4. `replaceShape`の戻り値が`null`でなければ`true`。
@@ -91,11 +92,11 @@ export class PathJoiner {
     }
 
     /**
-     * 選択集合の図形を重なり順（`model.getShapes()`の並び。奥が先）で返す。
-     * @returns {Array<Object>} 選択中の図形
+     * 選択集合のうち変えられる図形を重なり順（`model.getEditableSelectedShapes()`の並び。奥が先）で返す。
+     * @returns {Array<Object>} 選択中で変えられる図形
      * @private
      */
     #selectedShapesInOrder() {
-        return this.#model.getShapes().filter((shape) => this.#model.isSelected(shape.id));
+        return this.#model.getEditableSelectedShapes();
     }
 }
