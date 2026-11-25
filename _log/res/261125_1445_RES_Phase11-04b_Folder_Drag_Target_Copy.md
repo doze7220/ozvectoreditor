@@ -186,7 +186,7 @@
 ## 3. タスクリスト
 ※ 全タスク共通：(a) コード修正の後、JSDocの記載漏れ（新しいファイルの先頭の3行以内の責務、関数・引数・戻り値・typedef、意味が変わった既存のJSDocと先頭の責務・importの記述）が無いことを確認する。(b) `node --test`が全件合格することを確認する。(c) 本RESの「4. 詳細作業内容」の担当の欄を書き、タスクを`[x]`にする。(d) 開発資料に影響が出たら資料本体は直さず『開発資料の更新予定』へ追記する。(e) 行末を保つ。(f) 既存のテストは「要件6」の表にある件だけを、その理由の範囲で直す。
 
-*   [ ] タスク1: 入る場所の計算の規則
+*   [x] タスク1: 入る場所の計算の規則
     *   **対象ファイル** :
         *   `./js/core/ItemPlaceRules.js` :（新規）
         *   `./js/core/GroupTreeRules.js` :（更新。`pickItems`・`listGroupIds`を足し、`wrapUnits`が`pickItems`を使う）
@@ -341,7 +341,10 @@
 
 ### タスク1: 入る場所の計算の規則
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/ItemPlaceRules.js`を新規作成（CRLF）：`PLACE_KIND`・typedef`ItemPlace`・`ItemLocation`・`findItemLocation`・`insertItemsAt`・`canMoveItems`・`moveItems`。内部関数`updateListAt`（`ancestorIds`の通り道だけ新しいオブジェクトにして並びを置き換える）を非公開で持つ。importは`ItemTreeRules`・`GroupTreeRules`のみ。
+    *   `GroupTreeRules.js`：`pickItems`・`listGroupIds`を追加し、`wrapUnits`は`pickItems`を使う（結果は同じ）。`hasGroupItem`は残した。先頭の責務・importの記述は変更不要のため触れていない。
+    *   `ItemTreeRules.insertItemsAbove`は残した。
+    *   テスト：`test/core/ItemPlaceRules.test.js`を新規（CRLF）、`GroupTreeRules.test.js`へ`pickItems`・`listGroupIds`を追加のみ。`node --test`は tests 3235 / pass 3235 / fail 0。
 
 ### タスク2: 描き込む先の決まり方と、貼り付け・複製の場所の規則
 *   **作業内容** :
@@ -419,6 +422,7 @@
 *   **自動スクロールで見えている範囲の端の行に入るときの場所は、その端の行の位置で決まる**（上下へ外れたときは見えている端として扱う、今の規則のまま）。一番下まで送り切ってから下へ外れると、いちばん外側の一番下になる（送り切ったかは`maxScrollTop`との差が1px以内で見る。表示倍率が125%等でスクロール位置が小数になっても届くようにするため）。
 *   **頂点の選択（`A`）でも、行のドラッグ・フォルダの選択はできる**（今の一覧の規則）。まとめる（`Ctrl`+`G`）・削除・切り取りは選択（`V`）だけ（今の規則）。
 *   タスク3〜7の途中では、描き込む先の線の印が出ない（タスク8・9で出る）。タスク12までは、フォルダのある絵で行のドラッグは始まらない。
+*   （タスク1）`insertItemsAt`の`above`は、基準がフォルダでも「そのフォルダ行のすぐ上」（同じ並びのすぐ後ろ）へ入る（`insertItemsAbove`は図形だけが基準だった）。`moveItems`の目印は`Symbol`のidを持つ一時のフォルダで、結果には残らない。開発資料への影響はタスク16・17で反映する予定の範囲内。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0.  **準備**：画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。塗りのボタン（🪣）をONにし、色の違う塗った図形を8つほど、少しずつ重ねて描く。描き終えたら`V`（選択）にし、いくつか選んで`Ctrl`+`G`でフォルダを2つ作る（1つは、フォルダの行を押し、`Ctrl`を押しながら図形の行を押して`Ctrl`+`G`＝入れ子）。

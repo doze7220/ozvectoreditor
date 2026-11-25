@@ -25,6 +25,47 @@ export function hasGroupItem(items) {
 }
 
 /**
+ * ids のアイテムを前順で集めた新しい配列を返す。当たったフォルダの中へは進まない。
+ * 要素は引数のアイテムそのもの（写しを作らない）。引数は書き換えない。
+ * @param {Item[]} items - アイテムの入れ子
+ * @param {Set<string>} ids - 集めるアイテムのid
+ * @returns {Item[]} 集めたアイテム（前順）
+ */
+export function pickItems(items, ids) {
+    const picked = [];
+    const collect = (list) => {
+        for (const item of list) {
+            if (ids.has(itemIdOf(item))) {
+                picked.push(item);
+            } else if (item.kind === ITEM_KIND.GROUP) {
+                collect(item.children);
+            }
+        }
+    };
+    collect(items);
+    return picked;
+}
+
+/**
+ * フォルダのidを前順で（入れ子の中も）列挙した新しい配列を返す。
+ * @param {Item[]} items - アイテムの入れ子
+ * @returns {string[]} フォルダのid（前順）
+ */
+export function listGroupIds(items) {
+    const ids = [];
+    const visit = (list) => {
+        for (const item of list) {
+            if (item.kind === ITEM_KIND.GROUP) {
+                ids.push(item.id);
+                visit(item.children);
+            }
+        }
+    };
+    visit(items);
+    return ids;
+}
+
+/**
  * まとまり（unitIds のアイテム）をすべて抜き、前順で最後のまとまりの位置へ、
  * group の children にまとまりを前順で入れたフォルダを置いた新しい入れ子を返す。
  * まとまりが1つも無ければ並びは変えない。引数は書き換えない。
@@ -34,17 +75,7 @@ export function hasGroupItem(items) {
  * @returns {Item[]} 新しいアイテムの入れ子
  */
 export function wrapUnits(items, unitIds, group) {
-    const units = [];
-    const collect = (list) => {
-        for (const item of list) {
-            if (unitIds.has(itemIdOf(item))) {
-                units.push(item);
-            } else if (item.kind === ITEM_KIND.GROUP) {
-                collect(item.children);
-            }
-        }
-    };
-    collect(items);
+    const units = pickItems(items, unitIds);
     if (units.length === 0) {
         return mapSiblingLists(items, (list) => list.slice());
     }

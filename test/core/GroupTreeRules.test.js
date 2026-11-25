@@ -11,7 +11,9 @@ import {
     removeItems,
     listSiblingLists,
     mapSiblingLists,
-    isSameTree
+    isSameTree,
+    pickItems,
+    listGroupIds
 } from '../../js/core/GroupTreeRules.js';
 
 const s = (id) => ({ kind: 'shape', shape: { id } });
@@ -219,5 +221,28 @@ describe('isSameTree', () => {
     });
     it('名前等の属性は見ない', () => {
         assert.equal(isSameTree([{ ...g('G1'), name: 'x' }], [{ ...g('G1'), name: 'y' }]), true);
+    });
+});
+
+describe('pickItems / listGroupIds', () => {
+    it('pickItems は前順で集め、当たったフォルダの中へは進まない（要素は同じ参照）', () => {
+        const inner = s('b');
+        const group = g('G1', [inner, s('c')]);
+        const items = [s('a'), group, g('G2', [s('d')])];
+        const picked = pickItems(items, new Set(['G1', 'b', 'd']));
+        assert.equal(picked.length, 2);
+        assert.equal(picked[0], group);
+        assert.equal(picked[1], items[2].children[0]);
+    });
+    it('pickItems は当たらなければ空・引数を書き換えない', () => {
+        const items = [s('a'), g('G1', [s('b')])];
+        const before = JSON.stringify(items);
+        assert.deepEqual(pickItems(items, new Set(['zzz'])), []);
+        assert.equal(JSON.stringify(items), before);
+    });
+    it('listGroupIds は入れ子の中も前順で列挙する', () => {
+        const items = [g('G1', [g('G2', [s('a')]), s('b')]), s('c'), g('G3')];
+        assert.deepEqual(listGroupIds(items), ['G1', 'G2', 'G3']);
+        assert.deepEqual(listGroupIds([s('a')]), []);
     });
 });
