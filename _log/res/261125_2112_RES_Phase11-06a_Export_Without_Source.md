@@ -200,7 +200,7 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
         *   `SpriteSerializer.js`は非公開の関数`resolveStrokeWidth`に`export`を付け、JSDocに使う側（外枠の計算と`DrawElementReader`）を書くだけ。
         *   「要件2-1」のとおり`DrawElementReader`を作る（責務定義を先頭に3行以内・JSDoc）。`Error`の文は`DrawElementReader: `で始め、`kind`・項目名が分かる日本語にする。
         *   テスト：`kind`ごとの変換（REQ要件2の表の全行）、スタイルの読み方（線なし・塗りなし・太さの不正・`fillColor`／`closed`／`rotation`のキーが無い・塗れない要素の塗り）、閉じた要素の判定は`true`だけ、円弧（約束の位置の円・弧の5点が描いたときと同じ・左右／上下／両方の裏返し・90°／180°／30°の回転・傾いた楕円・`rotation`が数値でない・負の開き）、断る入力（オブジェクトでない・未知の`kind`（`'toString'`等の継承した名前を含む）・項目の不足・半径が負・`NaN`・閉じた半周・開いた1周・4分の1周・`segments`の未知の`kind`）、知らないキー（`id`・`name`・`type`。要素へ明示的に足す）を読まない、引数を書き換えない。入力は文字どおりの要素か、`toDrawElement()`の戻り値から作り、後者でも戻り値の`id`の有無に依らない（タスク8の後もこのファイルを変えずに、同じ観点を確かめたまま全件合格すること）。結果は`ShapeFactory.fromJSON`に通して確かめる（点の数の不足等は`ShapeFactory.fromJSON`が投げることを見る）。
-*   [ ] タスク2: 変換関数を受ける読み込みの入口（`DocumentSerializer.deserializeShapeElements`）
+*   [x] タスク2: 変換関数を受ける読み込みの入口（`DocumentSerializer.deserializeShapeElements`）
     *   **対象ファイル** :
         *   `./js/io/DocumentSerializer.js` :（更新）
         *   `./test/io/DocumentSerializer.shapeElements.test.js` :（新規）
@@ -309,6 +309,8 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
 
 ### タスク2: 変換関数を受ける読み込みの入口（`DocumentSerializer.deserializeShapeElements`）
 *   **作業内容** :
+    *   `js/io/DocumentSerializer.js`（LFのまま）：静的メソッド`deserializeShapeElements(elements, toShapeData)`を追加。後段（`skipped`の用意・`resolveItems`→`listShapes`・`try/catch`・2つの`#failure`の文言）を非公開`#buildResult(collect)`へ切り出し、`deserialize`と共有（文言・警告・結果は変えない）。図形単位は`ShapeFactory.fromJSON(toShapeData(element))`を`try/catch`し、`#recordSkip(skipped, [position], ...)`で記録、`RangeError`は再送出して全体失敗。責務定義・クラス・`SkippedShape`・`DeserializeResult`のJSDocを合わせた。
+    *   `test/io/DocumentSerializer.shapeElements.test.js`（新規・LF）：9件（図形になる・自動の名前・既定の表示／ロック、飛ばしの記録と警告回数、`type`の記録、すべて飛ばす、空配列、配列でない→全体失敗・警告1回、`RangeError`、変換関数が関数でない、引数不変）。`node --test`は tests 3646 / pass 3646 / fail 0。
 
 ### タスク3: `source`の無いJSの読み込み（`FileContentReader`）
 *   **作業内容** :

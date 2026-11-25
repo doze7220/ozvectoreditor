@@ -1,6 +1,7 @@
 /**
  * 責務: 作業データ形式（キャンバス全体の版番号付きJSON表現。図形の名前・表示・ロックとフォルダの入れ子・折りたたみを含む）の
- * シリアライズ・デシリアライズと旧版からのマイグレーションを担う。図形単位の変換はShapeFactory・図形クラスへ委譲する。
+ * シリアライズ・デシリアライズと旧版からのマイグレーション、および変換関数つきの図形の並びの読み込みを担う。
+ * 図形単位の変換はShapeFactory・図形クラスへ委譲する。
  */
 import { ShapeFactory } from '../core/ShapeFactory.js';
 import { ITEM_KIND, listShapes } from '../core/ItemTreeRules.js';
@@ -173,14 +174,14 @@ const MIGRATIONS = Object.freeze({ 1: migrateVersion1To2, 2: migrateVersion2To3,
 /**
  * 読み込めずにスキップした図形の記録。
  * @typedef {Object} SkippedShape
- * @property {number} index 最上位の`shapes`配列内での位置（0始まり。入れ子の中なら、それを含む最上位の要素の位置）
- * @property {Array<number>} path 最上位からの位置の並び（例: [1, 2]＝`shapes[1].children[2]`。最上位なら[index]）
+ * @property {number} index 最上位の`shapes`配列内での位置（0始まり。入れ子の中なら、それを含む最上位の要素の位置。`deserializeShapeElements`では`elements`内の位置）
+ * @property {Array<number>} path 最上位からの位置の並び（例: [1, 2]＝`shapes[1].children[2]`。最上位なら[index]。`deserializeShapeElements`では[index]）
  * @property {string|null} type 要素が文字列の`type`を持てばその値、なければnull
  * @property {string} reason スキップした理由（捕捉したErrorのmessage）
  */
 
 /**
- * デシリアライズの結果オブジェクト。
+ * デシリアライズの結果オブジェクト（`deserialize`・`deserializeShapeElements`が返す）。
  * @typedef {Object} DeserializeResult
  * @property {boolean} ok 全体の読み込みに成功したか（全図形がスキップされた場合・図形0個の場合もtrue）
  * @property {Array<Object>} items 復元できたアイテムの入れ子（名前・表示・ロック補い済み。ok=falseなら空配列）
@@ -194,6 +195,8 @@ const MIGRATIONS = Object.freeze({ 1: migrateVersion1To2, 2: migrateVersion2To3,
  * 保存対象は図形データ・図形の名前・表示・ロック・フォルダの入れ子のみ（選択集合・ホバー・作成中の図形・選択矩形・ビュー変換は含めない）。
  * 文字列層（serializeToString / deserializeFromString）とオブジェクト層（serialize / deserialize）の両方を提供する。
  * デシリアライズ系のメソッドは例外をthrowせず、すべての失敗をDeserializeResultで返す。
+ * `deserializeShapeElements`は、作業データではなく「図形データへ変換できる要素の並び」と変換関数を受け取って同じ結果を返す
+ * （変換元の形式は知らない。名前・表示・ロックは持たない図形が読み込みの規則で自動の名前・既定の表示・ロックなしになる）。
  */
 export class DocumentSerializer {
     /**
@@ -279,11 +282,47 @@ export class DocumentSerializer {
             return DocumentSerializer.#failure('shapesが配列ではありません');
         }
 
+        return DocumentSerializer.#buildResult((skipped) => DocumentSerializer.#readElements(migrated.shapes, [], skipped));
+    }
+
+    /**
+     * 「図形データへ変換できる要素の並び」から図形を作り、結果オブジェクトを返す。例外をthrowしない。引数を書き換えない。
+     * `elements`の要素ごとに`toShapeData(element)`で図形データを得て`ShapeFactory.fromJSON`で図形にし、
+     * 名前・表示・ロックのキーを持たない図形のアイテムとして集める（名前は読み込みの規則が自動で付け、表示・ロックは既定になる。フォルダは作らない）。
+     * `toShapeData`が投げたError・`ShapeFactory.fromJSON`が投げたErrorは図形単位で捕捉し、その要素だけをスキップとして記録して続行する
+     * （`index`は`elements`内の位置、`path`は`[index]`。RangeErrorは全体失敗）。スキップ1件ごと・全体失敗時にconsole.warnを出す。
+     * `elements`が配列でない等、図形単位の捕捉の外で例外が出た場合は全体の読み込み失敗（ok=false）にする。
+     * @param {*} elements - 図形データへ変換できる要素の並び（配列でなければ全体失敗）
+     * @param {function(*): Object} toShapeData - 要素1つを図形データ（`ShapeFactory.fromJSON`が受ける形）へ変換する関数。変換できなければErrorを投げる
+     * @returns {DeserializeResult} 結果オブジェクト
+     */
+    static deserializeShapeElements(elements, toShapeData) {
+        return DocumentSerializer.#buildResult((skipped) => {
+            const items = [];
+            elements.forEach((element, position) => {
+                try {
+                    items.push({ kind: ITEM_KIND.SHAPE, shape: ShapeFactory.fromJSON(toShapeData(element)) });
+                } catch (error) {
+                    if (error instanceof RangeError) throw error;
+                    DocumentSerializer.#recordSkip(skipped, [position], element, DocumentSerializer.#messageOf(error));
+                }
+            });
+            return items;
+        });
+    }
+
+    /**
+     * 読めたアイテムの集め方を受け取り、名前の補い・図形の取り出しをして結果オブジェクトを作る（`deserialize`と`deserializeShapeElements`の共通の後段）。
+     * 集める処理・`resolveItems`・`listShapes`が投げた例外は外へ出さず、全体の読み込み失敗にする（RangeErrorは「入れ子が深すぎて」の文言）。
+     * @param {function(Array<SkippedShape>): Array<Object>} collect - 読み飛ばしの記録の追加先を受け取り、読めたアイテムの配列（名前・表示・ロックの補い前）を返す関数
+     * @returns {DeserializeResult} 結果オブジェクト
+     */
+    static #buildResult(collect) {
         const skipped = [];
         let items;
         let shapes;
         try {
-            items = resolveItems(DocumentSerializer.#readElements(migrated.shapes, [], skipped));
+            items = resolveItems(collect(skipped));
             shapes = listShapes(items);
         } catch (error) {
             if (error instanceof RangeError) {
