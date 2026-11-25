@@ -292,7 +292,7 @@
     *   **作業内容** :
         *   実物（`VectorModel`・`SnapshotAdapter`・`HistoryManager`・`GroupEditor`・`ShapeOrderEditor`・`PathJoiner`・`ShapeInserter`・`ClipboardController`・`ItemRenameEditor`・`DocumentSerializer`・`SpriteSerializer`）で、公開APIだけを通して確かめる（補助関数にもJSDoc）：隣り合う図形をまとめる前後で`elements`・`bounds`が同じ／別々のフォルダの線の結合の結果が、奥の線の場所・名前になり両方のフォルダが残る／フォルダを選んだ複製・コピー・貼り付け・切り取り・記録しない複製で、フォルダが壊れず図形が消えず二重にならない／フォルダの名前の変更と取り消し／まとめる→入れ子→キー→解除→削除を続けて、取り消しをすべて往復するとJSONとフォルダの選択が一致する／描き込む先（フォルダを選ぶ＝中の一番上、空のフォルダだけ＝今の値）／作業データの往復・インポートで入れ子・名前・折りたたみが戻る。
 
-*   [ ] タスク17: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
+*   [x] タスク17: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新）
     *   **作業内容** :
@@ -412,7 +412,11 @@
 
 ### タスク17: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
 *   **作業内容** :
-    *   （未実施）
+    *   `PROJECT_ARCHITECTURE.md`（CRLFのまま。編集後も全行CRLFを実測）を、実コードを読んで確かめながら反映した。ほかのファイルは変えていない。
+    *   1章：構成図（新しい5つの規則・`edit/GroupEditor`・新しいテスト15件、`ItemListRules`・`ListSelectionRules`・`ItemAttributeRules`・`KeyboardShortcuts`・`ItemListPanel`・`ItemListWiring`・`ShapeOrderEditor`・`index.html`の一言）、「存在しないもの」（「グループ化」の語・フォルダの項の更新、Phase 11-04aで入ったもの・やらないと決めたもの・版は上げていないこと）、フォルダ分割の方針（`core/`の5つの規則、`id`を読む計算を`GroupTreeRules`に置く理由）、依存方向（`edit/ → core/`の例外を8ファイルから11ファイルへ、`GroupEditor`・`ShapeOrderEditor`・`SnapshotAdapter`の実際のimport、`core/`の規則どうしのimport）。
+    *   2章：アイテム（フォルダの`collapsed`・`rearrangeItems`・フォルダを画面から作れること）、作業データ形式（`collapsed`。版4のまま）、選択状態（「選んでいるフォルダ」＝持ち主・不変条件・候補の区別・経路ごとの候補、「フォルダの折りたたみ」＝自動で開く・自動保存の契機・取り消しの対象外）、描き込む先の`setSelectionByUser`の条件、保存しないものの2か所の列挙。
+    *   3章：3.（選び直し/足すの区別・削除の受理・`Ctrl`+`G`/`Ctrl`+`Shift`+`G`）・6.（スナップショット・記録する操作＝削除/まとめる/解除/空のフォルダ/重なり順、記録しない操作＝折りたたみ、適用の流れ）・7.（フォルダを選んだコピー・切り取り）・8.（自動保存の契機`requestSave`）・9.（折りたたみの扱い・インポートで保たれること）・11.（フォルダをまたぐ結合・同じidのまま閉じるとき）・14.（まとまり・兄弟の並び・`GroupEditor`・重なり順のキー）・16.（一覧での選択）・18.（`Esc`）・28.（フォルダの行・折りたたみ・選択・作るボタン・行のドラッグの条件・ふるまいの注意・確認の状況）。4章の一覧に57〜61を追加。
+    *   `node --test`は tests 3192 / pass 3192 / fail 0（資料のみの変更のため件数は不変）。
 
 ### タスク18: 開発資料の反映（`_doc/arch/`）
 *   **作業内容** :
@@ -440,6 +444,7 @@
 *   （タスク9）`apply`は`model.getSelectedGroupIds()`を`Set`にして`resolveSelectedUnitIds`へ渡す。選択のとき折りたたんだフォルダは自動で開くため、折りたたみのテストは選択の後に`setGroupCollapsed`で閉じている。`rearrangeItems`へはフォルダのアイテムを`{...item, children}`で写して渡す（idは今のまま、`collapsed`も保たれる）。開発資料への影響：既存の更新予定（`ShapeOrderEditor`の一言・1章の依存の例外）に含まれており、追記は無い。
 *   （タスク12）`resolveRowViews`の`selectedGroupIds`は`Iterable`で受ける。`insertTarget`は`insertMarkId`と行のidが一致するだけ（`hiddenMark`と独立）。`resolveRowClickSelection`の`Ctrl`の足す/外すの別は、`resolveListClickSelection`の結果に`hitId`が含まれるかで決める。`Shift`の範囲では、範囲内のフォルダの行が全中身を選ぶため、範囲の外の中身も選ばれる（不変条件と整合）。開発資料への影響：既存の更新予定（`ItemRowRules`＝61・`ListSelectionRules`・`ItemListRules`）に含まれており、追記は無い。
 *   （タスク15）三角は`canToggleGroup`が偽（ロック中・キャンバスのドラッグ中）なら何もしない。ボタンの`＋`と絵は`button`の既定の見た目のまま（`.item-row-folder-icon`の既存CSSを再利用）。目視確認推奨：パネルの縦の並び（一覧の下端のボタンの帯）、ボタンの見た目、三角の押しやすさ。開発資料への影響：既存の更新予定（`ItemListPanel`・`ItemListWiring`・`index.html`・3章28.）に含まれており、追記は無い。
+*   （タスク17）資料の記述は実コードで確かめた（新規5つの規則・`GroupEditor`のimport、`KeyboardShortcuts`の2エントリ、`InputTracker.deleteSelection`、`SnapshotAdapter`、`VectorModel`の`setSelection`/`setSelectionByUser`/`rearrangeItems`/`setGroupCollapsed`、`ItemRowRules`・`GroupCommandRules`・`canStartRowDrag`/`canToggleGroup`、`ListSelectionRules.resolveRowClickSelection`、`main.js`の注入）。既存の長い段落（1章の依存方向・「存在しないもの」など）には、段落の末尾か該当箇所に「Phase 11-04a」の文を足し、ほかの記述は変えていない。`PROJECT_ARCHITECTURE.md`の1章のテスト一覧は、新しいテストファイル15件（`GroupTreeRules`・`GroupSelectionRules`・`GroupCollapseRules`・`GroupCommandRules`・`ItemRowRules`・`KeyboardShortcuts.group`・`VectorModel.collapse`・`.groupSelection`・`.rearrangeItems`・`DocumentSerializer.collapsed`・`CanvasLibrary.collapse`・`GroupEditor`・`GroupEditor.flow`・`ShapeOrderEditor.groups`・`SnapshotAdapter.groups`）を追加。`main.js`・`InputTracker.js`の行数・テストの件数は`_doc/arch/`側（タスク18）で実測して直す（本資料には行数の記載が無い）。確認の状況は「発注者のテストプレイ待ち」と書いた（テストプレイ後に直す）。
 *   DOM（`ItemListPanel`・`ItemListWiring`・`main.js`・CSS）と`InputTracker`は自動テストの対象外で、下のテストプレイで確かめる。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
