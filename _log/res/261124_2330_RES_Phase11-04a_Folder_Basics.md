@@ -275,7 +275,7 @@
     *   **作業内容** :
         *   `sync`を`ItemRowRules`（`buildItemRows` → `resolveRowViews` → `panel.render` → `resolveRowHighlight`）へ差し替える。`#handleRowClick`は`resolveRowClickSelection` → `model.setSelectionByUser(ids, { groupIds, keepsCollapsed: true })`。`#handleRowPress`は`canStartRowDrag`へ`hasGroups: hasGroupItem(model.getItems())`を渡す。サムネイルはフォルダの行を飛ばす。`getRowIds`・名前の編集・ホバーは`buildItemRows`の置き場所の変更だけ。判定を書かない。JSDocを直す。
 
-*   [ ] タスク15: 折りたたみの三角と、作るボタン
+*   [x] タスク15: 折りたたみの三角と、作るボタン
     *   **対象ファイル** :
         *   `./js/palette/ItemListPanel.js` :（更新）
         *   `./js/wiring/ItemListWiring.js` :（更新）
@@ -399,7 +399,11 @@
 
 ### タスク15: 折りたたみの三角と、作るボタン
 *   **作業内容** :
-    *   （未実施）
+    *   `js/palette/ItemListPanel.js`（LF）：オプション`onGroupToggle(id)`・`onAddGroup()`を追加（関数でなければ`Error`）。`.item-row-toggle`の中のクリックは`onGroupToggle`だけを呼び`onRowClick`を呼ばない。`#item-list-add-group`（`rootElement`から取得。無ければ配線しない）の`click`は`blur()`してから`onAddGroup()`。typedef・クラスのJSDocを更新。
+    *   `js/wiring/ItemListWiring.js`（LF）：引数`groupEditor`を追加。`#handleGroupToggle`は`consumeSuppressedClick`後に`canToggleGroup`が真なら`model.setGroupCollapsed(id, !row.collapsed)` → `sync({ allowScroll: false })`。`#handleAddGroup`は`resolveFolderButtonAction`（`hasUnits`は`groupEditor.hasSelectedUnits()`、`isRowDragging`は`#rowDrag.isActive()`）の結果で`groupSelection()`／`addEmptyGroup({ selects: true })`／`addEmptyGroup({ selects: false })`／何もしない。モード・ツールには触れない。
+    *   `js/main.js`（CRLF）：`ItemListWiring`の生成に`groupEditor`を渡すだけ。
+    *   `index.html`（LF）：パネルを`display: flex; flex-direction: column`、`.item-list`を`flex: 1; min-height: 0`に。`.item-list-footer`の中に`<button id="item-list-add-group" title="フォルダを作る (Ctrl+G)">`（`＋`と既存の`.item-row-folder-icon`の絵）を追加し、CSSを足した。
+    *   テストの追加・変更なし。`node --test`は tests 3174 / pass 3174 / fail 0。
 
 ### タスク16: 通しのテスト
 *   **作業内容** :
@@ -434,6 +438,7 @@
 *   （タスク8）`ungroupSelection`は、選択中のフォルダが複数ある場合、解除しないフォルダの選択は引き継がない（`selectedGroupIds`は解除したフォルダの直下のフォルダだけ。解除するのはまとまりのフォルダすべてなので、実際に外れるフォルダは無い）。`GroupEditor`は新しいフォルダの名前・idを付けず`rearrangeItems`に任せる。開発資料への影響：既存の更新予定（`GroupEditor`・`GroupCommandRules`＝60）に含まれており、追記は無い。
 *   （タスク9）`apply`は`model.getSelectedGroupIds()`を`Set`にして`resolveSelectedUnitIds`へ渡す。選択のとき折りたたんだフォルダは自動で開くため、折りたたみのテストは選択の後に`setGroupCollapsed`で閉じている。`rearrangeItems`へはフォルダのアイテムを`{...item, children}`で写して渡す（idは今のまま、`collapsed`も保たれる）。開発資料への影響：既存の更新予定（`ShapeOrderEditor`の一言・1章の依存の例外）に含まれており、追記は無い。
 *   （タスク12）`resolveRowViews`の`selectedGroupIds`は`Iterable`で受ける。`insertTarget`は`insertMarkId`と行のidが一致するだけ（`hiddenMark`と独立）。`resolveRowClickSelection`の`Ctrl`の足す/外すの別は、`resolveListClickSelection`の結果に`hitId`が含まれるかで決める。`Shift`の範囲では、範囲内のフォルダの行が全中身を選ぶため、範囲の外の中身も選ばれる（不変条件と整合）。開発資料への影響：既存の更新予定（`ItemRowRules`＝61・`ListSelectionRules`・`ItemListRules`）に含まれており、追記は無い。
+*   （タスク15）三角は`canToggleGroup`が偽（ロック中・キャンバスのドラッグ中）なら何もしない。ボタンの`＋`と絵は`button`の既定の見た目のまま（`.item-row-folder-icon`の既存CSSを再利用）。目視確認推奨：パネルの縦の並び（一覧の下端のボタンの帯）、ボタンの見た目、三角の押しやすさ。開発資料への影響：既存の更新予定（`ItemListPanel`・`ItemListWiring`・`index.html`・3章28.）に含まれており、追記は無い。
 *   DOM（`ItemListPanel`・`ItemListWiring`・`main.js`・CSS）と`InputTracker`は自動テストの対象外で、下のテストプレイで確かめる。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）

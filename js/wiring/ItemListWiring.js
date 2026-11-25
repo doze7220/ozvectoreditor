@@ -8,6 +8,7 @@ import {
     canSetInsertTargetByRow,
     canStartNameEdit,
     canStartRowDrag,
+    canToggleGroup,
     isListLocked,
     isOwnHover,
     resolveNameEditKey,
@@ -18,6 +19,7 @@ import {
 import { resolveInsertMarkId } from '../core/InsertTargetRules.js';
 import { buildItemRows, resolveRowHighlight, resolveRowViews } from '../core/ItemRowRules.js';
 import { hasGroupItem } from '../core/GroupTreeRules.js';
+import { FOLDER_BUTTON_ACTION, resolveFolderButtonAction } from '../core/GroupCommandRules.js';
 import { resolveRowClickSelection } from '../core/ListSelectionRules.js';
 import { hasHighlightChanged, resolveSelectionScrollTop, resolveVisibleRowRange } from '../core/ListScrollRules.js';
 import { THUMBNAIL_SIZE_PX, buildThumbnailKey, needsThumbnailRedraw } from '../core/ThumbnailRules.js';
@@ -57,6 +59,8 @@ export class ItemListWiring {
     #readCtrlModifier;
     /** @type {import('../edit/ItemRenameEditor.js').ItemRenameEditor} 名前を変える編集操作 */
     #itemRenameEditor;
+    /** @type {import('../edit/GroupEditor.js').GroupEditor} フォルダを作る編集操作 */
+    #groupEditor;
     /** @type {ItemListRowDrag} 行のドラッグ（並べ替え）の進行 */
     #rowDrag;
     /** @type {string|null} `Shift`＋クリックの範囲の起点の図形id */
@@ -80,8 +84,9 @@ export class ItemListWiring {
      * @param {(event: MouseEvent) => boolean} deps.readCtrlModifier - `Ctrl`（`Meta`）が押されているかの読み取り
      * @param {import('../edit/ItemRenameEditor.js').ItemRenameEditor} deps.itemRenameEditor - 名前を変える編集操作
      * @param {(orderedIds: string[]) => boolean} deps.applyRowOrder - 行のドラッグで決まった並び全体（描画順）を適用する（記録つきの編集操作）
+     * @param {import('../edit/GroupEditor.js').GroupEditor} deps.groupEditor - フォルダをまとめる・空のフォルダを足す編集操作（作るボタンが使う）
      */
-    constructor({ model, shapeExtentReader, displayState, canvasLibrary, getMode, isDragging, isPicking, selectSelectTool, readCtrlModifier, itemRenameEditor, applyRowOrder }) {
+    constructor({ model, shapeExtentReader, displayState, canvasLibrary, getMode, isDragging, isPicking, selectSelectTool, readCtrlModifier, itemRenameEditor, applyRowOrder, groupEditor }) {
         this.#model = model;
         this.#shapeExtentReader = shapeExtentReader;
         this.#canvasLibrary = canvasLibrary;
@@ -91,6 +96,7 @@ export class ItemListWiring {
         this.#selectSelectTool = selectSelectTool;
         this.#readCtrlModifier = readCtrlModifier;
         this.#itemRenameEditor = itemRenameEditor;
+        this.#groupEditor = groupEditor;
         this.#lastOpenCanvasId = canvasLibrary.getState().openCanvasId;
         this.#panel = new ItemListPanel(document.getElementById('item-list-panel'), {
             thumbnailSize: THUMBNAIL_SIZE_PX,
@@ -103,7 +109,9 @@ export class ItemListWiring {
             onRowHover: (id) => this.#handleRowHover(id),
             onNameEditRequest: (id, event) => this.#handleNameEditRequest(id, event),
             onNameCommit: (id, text) => this.#itemRenameEditor.rename(id, text),
-            resolveNameEditKey
+            resolveNameEditKey,
+            onGroupToggle: (id) => this.#handleGroupToggle(id),
+            onAddGroup: () => this.#handleAddGroup()
         });
         this.#rowDrag = new ItemListRowDrag({
             panel: this.#panel,
@@ -269,6 +277,45 @@ export class ItemListWiring {
         this.sync({ allowScroll: false });
         // 切り替え（setMode）がホバーを消すため、その行のホバーを当て直す
         this.#handleRowHover(id);
+    }
+
+    /**
+     * フォルダの三角のクリックを処理する。押してよいかは`canToggleGroup`に任せ、`model.setGroupCollapsed`へ渡すだけ（選択に触れない）。
+     * @param {string} id - 三角を押したフォルダの行のid
+     * @returns {void}
+     */
+    #handleGroupToggle(id) {
+        if (this.#rowDrag.consumeSuppressedClick()) return;
+        const canToggle = canToggleGroup({
+            isDragging: this.#isDragging(),
+            isLocked: isListLocked(this.#canvasLibrary.getState())
+        });
+        if (!canToggle) return;
+        const row = buildItemRows(this.#model.getItems()).find((candidate) => candidate.id === id);
+        if (!row || row.kind !== 'group') return;
+        this.#model.setGroupCollapsed(id, !row.collapsed);
+        this.sync({ allowScroll: false });
+    }
+
+    /**
+     * フォルダを作るボタンのクリックを処理する。動作は`resolveFolderButtonAction`に任せ、結果に従って`groupEditor`を呼ぶだけ（モード・ツールは変えない）。
+     * @returns {void}
+     */
+    #handleAddGroup() {
+        const action = resolveFolderButtonAction({
+            mode: this.#getMode(),
+            hasUnits: this.#groupEditor.hasSelectedUnits(),
+            isDragging: this.#isDragging(),
+            isRowDragging: this.#rowDrag.isActive(),
+            isLocked: isListLocked(this.#canvasLibrary.getState())
+        });
+        if (action === FOLDER_BUTTON_ACTION.GROUP) {
+            this.#groupEditor.groupSelection();
+        } else if (action === FOLDER_BUTTON_ACTION.ADD_AND_SELECT) {
+            this.#groupEditor.addEmptyGroup({ selects: true });
+        } else if (action === FOLDER_BUTTON_ACTION.ADD) {
+            this.#groupEditor.addEmptyGroup({ selects: false });
+        }
     }
 
     /**

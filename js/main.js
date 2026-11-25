@@ -951,7 +951,9 @@ document.addEventListener('DOMContentLoaded', () => {
         readCtrlModifier: hasCtrlModifier,
         itemRenameEditor,
         // 行のドラッグで決まった並び全体（描画順）の適用。記録つきの編集操作（1件）はShapeOrderEditorが持つ
-        applyRowOrder: (orderedIds) => shapeOrderEditor.applyOrder(orderedIds)
+        applyRowOrder: (orderedIds) => shapeOrderEditor.applyOrder(orderedIds),
+        // フォルダを作るボタンが使う編集操作（7.8.で生成済み）
+        groupEditor
     });
 
     // 8. キーボードショートカット配線

@@ -74,6 +74,8 @@
  * @property {(id: string, event: MouseEvent) => void} onNameEditRequest 名前の`<span>`がダブルクリックされたときに行のidと`MouseEvent`で呼ばれる
  * @property {(id: string, text: string) => void} onNameCommit 名前の欄が確定されたときに行のidと欄の文字列で呼ばれる
  * @property {(key: string, isComposing: boolean) => ('commit'|'cancel'|null)} resolveNameEditKey 名前の欄のキーを確定・取りやめ・無関係（`null`）に対応づける規則
+ * @property {(id: string) => void} onGroupToggle フォルダの行の三角（`.item-row-toggle`）がクリックされたときにフォルダのidで呼ばれる（このとき`onRowClick`は呼ばれない）
+ * @property {() => void} onAddGroup フォルダを作るボタン（`#item-list-add-group`）がクリックされたときに（ボタンを`blur()`してから）呼ばれる
  */
 
 /**
@@ -84,7 +86,7 @@
  *   - 控えに残ったidの行が`render`で除かれていても失敗しない（行が無ければ飛ばす）。
  *
  * ■ 構成
- *   - ルート要素（`#item-list-panel`）の中の`#item-list`に、行（`<div class="item-row" data-item-id>`）を並べる。
+ *   - ルート要素（`#item-list-panel`）の中の`#item-list`に、行（`<div class="item-row" data-item-id>`）を並べる。パネルの下端の`.item-list-footer`にフォルダを作るボタン`#item-list-add-group`がある（`.item-list`の外）。
  *   - 図形の行は`<canvas class="item-row-thumbnail">`と`<span class="item-row-name">`。名前は`textContent`・`title`だけで書く。
  *   - フォルダの行は`<span class="item-row-toggle">`（`▸`／`▾`。押せないときは`visibility: hidden`）・`<span class="item-row-folder-icon">`（CSSで描く絵）・`<span class="item-row-name">`（サムネイルは無い）。
  *   - 字下げはカスタムプロパティ`--row-indent`で行の左の余白に足す。弱い選択は`selected-in-group`、見えない行の印は`has-hidden-mark`のクラスで書く。
@@ -112,6 +114,10 @@ export class ItemListPanel {
     #onNameCommit;
     /** @type {(key: string, isComposing: boolean) => ('commit'|'cancel'|null)} */
     #resolveNameEditKey;
+    /** @type {(id: string) => void} */
+    #onGroupToggle;
+    /** @type {() => void} */
+    #onAddGroup;
     /** @type {Map<string, ItemListRowEntry>} id→行の控え */
     #rows = new Map();
     /** @type {ItemListNameEdit|null} 編集中の名前の欄の控え（編集中でなければ`null`） */
@@ -127,7 +133,7 @@ export class ItemListPanel {
      * 要素を解決してイベントを配線する。要素が欠ければ`console.warn`して配線しない（以後の公開メソッドは何もしない）。
      * @param {HTMLElement} rootElement パネルのルート要素（`#item-list-panel`）
      * @param {ItemListPanelOptions} options 設定
-     * @throws {Error} `onScroll`・`onRowPress`・`onRowClick`・`onRowHover`・`onNameEditRequest`・`onNameCommit`・`resolveNameEditKey`のいずれかが関数でないとき
+     * @throws {Error} `onScroll`・`onRowPress`・`onRowClick`・`onRowHover`・`onNameEditRequest`・`onNameCommit`・`resolveNameEditKey`・`onGroupToggle`・`onAddGroup`のいずれかが関数でないとき
      */
     constructor(rootElement, options) {
         if (!options || typeof options.onScroll !== 'function') {
@@ -151,6 +157,12 @@ export class ItemListPanel {
         if (typeof options.resolveNameEditKey !== 'function') {
             throw new Error('ItemListPanel: options.resolveNameEditKeyは関数である必要があります。');
         }
+        if (typeof options.onGroupToggle !== 'function') {
+            throw new Error('ItemListPanel: options.onGroupToggleは関数である必要があります。');
+        }
+        if (typeof options.onAddGroup !== 'function') {
+            throw new Error('ItemListPanel: options.onAddGroupは関数である必要があります。');
+        }
         this.#onScroll = options.onScroll;
         this.#onRowPress = options.onRowPress;
         this.#onRowClick = options.onRowClick;
@@ -158,6 +170,8 @@ export class ItemListPanel {
         this.#onNameEditRequest = options.onNameEditRequest;
         this.#onNameCommit = options.onNameCommit;
         this.#resolveNameEditKey = options.resolveNameEditKey;
+        this.#onGroupToggle = options.onGroupToggle;
+        this.#onAddGroup = options.onAddGroup;
         this.#thumbnailSize = options.thumbnailSize;
 
         const list = rootElement ? rootElement.querySelector('#item-list') : null;
@@ -181,7 +195,14 @@ export class ItemListPanel {
             this.#mouseDownInInput = false;
             if (startedInInput || this.#isInNameInput(event.target)) return;
             const id = this.#findRowId(event);
-            if (id !== null) this.#onRowClick(id, event);
+            if (id === null) return;
+            // 三角のクリックは折りたたみだけ（行のクリックにしない）
+            const target = event.target;
+            if (target && typeof target.closest === 'function' && target.closest('.item-row-toggle')) {
+                this.#onGroupToggle(id);
+                return;
+            }
+            this.#onRowClick(id, event);
         });
         list.addEventListener('dblclick', (event) => {
             const target = event.target;
@@ -191,6 +212,14 @@ export class ItemListPanel {
         });
         list.addEventListener('mousemove', (event) => this.#onRowHover(this.#findRowId(event)));
         list.addEventListener('mouseleave', () => this.#onRowHover(null));
+        // フォルダを作るボタン（.item-listの外）。無ければ配線しない。押した直後にblurする（Enterで再び押されない）
+        const addButton = rootElement.querySelector('#item-list-add-group');
+        if (addButton) {
+            addButton.addEventListener('click', () => {
+                addButton.blur();
+                this.#onAddGroup();
+            });
+        }
         this.#wired = true;
     }
 

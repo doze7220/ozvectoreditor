@@ -40,6 +40,8 @@
         /* 図形の一覧のパネル（右端。フロートウィンドウではない）。重なりはツールバー・定規と同じ8
            （キャンバス1・覆い5より前面、フロートウィンドウ10以上より背面） */
         .item-list-panel {
+            display: flex;
+            flex-direction: column;
             position: fixed;
             top: var(--toolbar-height);
             bottom: var(--statusbar-height);
@@ -53,9 +55,29 @@
             user-select: none;
         }
         .item-list {
-            height: 100%;
+            flex: 1;
+            min-height: 0;
             overflow-x: hidden;
             overflow-y: auto;
+        }
+        /* パネルの下端（一覧の外）のフォルダを作るボタンの帯 */
+        .item-list-footer {
+            flex: none;
+            display: flex;
+            padding: 4px 8px;
+            border-top: 1px solid #ccc;
+        }
+        .item-list-add-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .item-list-add-group-plus {
+            font-size: 14px;
+            line-height: 1;
         }
         .item-row {
             position: relative;
@@ -733,7 +755,7 @@
             </div>
         </div>
     </header>
-    <aside id="item-list-panel" class="item-list-panel"><div id="item-list" class="item-list"></div></aside>
+    <aside id="item-list-panel" class="item-list-panel"><div id="item-list" class="item-list"></div><div class="item-list-footer"><button type="button" id="item-list-add-group" class="item-list-add-group" title="フォルダを作る (Ctrl+G)"><span class="item-list-add-group-plus">＋</span><span class="item-row-folder-icon"></span></button></div></aside>
     <footer id="status-bar" class="status-bar">
         <div class="status-bar-side status-bar-left">
             <div class="status-bar-group status-bar-group-shrink">
