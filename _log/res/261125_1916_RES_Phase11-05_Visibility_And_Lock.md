@@ -281,7 +281,7 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
         *   「共通の計算: `core/RemovalRules`」の使う側のとおりに直す。
         *   テスト：削除の残り方（混ざり・入れ子・空のフォルダ・受け継ぎ・何も消えない＝選択そのまま・記録なし）、1つでも消えると選択が空・取り消し1回で戻る、切り取り（写るもの・元に残るもの・何も消えないとき`false`でクリップボードと段数が変わらない・貼り付けで形が戻る・残ったフォルダの中が描き込む先のときの貼り付け先）、`Alt`＋ドラッグ（変えられるものだけ写る・入る場所が写すまとまりの一番上のすぐ上・ロックしたフォルダの中のまとまりが一番上でもその中へ入らない・写ったものが`getEditableSelectedIds`に全部入る・変えられないものだけなら`false`）、コピー・複製（`Ctrl`+`D`）・並べ替え（`ShapeOrderEditor`）・まとめる・解除・行のドラッグの`moveTo`・名前の変更が変えられないものにも働き、写したものの表示・ロックが同じこと。
 
-*   [ ] タスク9: 端点への吸い付き
+*   [x] タスク9: 端点への吸い付き
     *   **対象ファイル** :
         *   `./js/edit/EndpointSnapper.js` :（更新）
         *   `./test/edit/EndpointSnapper.itemStates.test.js` :（新規）
@@ -406,6 +406,11 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
 
 ### タスク9: 端点への吸い付き
 *   **作業内容** :
+    *   `js/edit/EndpointSnapper.js`（LF）：`model.getShapes()`をすべて`getEditableShapes()`へ（照会・計画とも6か所）。非公開`#toUsableSnap(snap)`を足し、`commitDrawnLine`（`startSnap`・`endSnap`）・`clickDrawnLine`（同）・`finishDrawnLine`・`findDrawnLineSnap`（`startSnap`）の冒頭で通す。クラスJSDoc（`model`が使う照会に`getShapes`（判定だけ）・`getEditableShapes`が並ぶ記述・変えられる図形だけが対象の記述）・`findDrawSnap`・`resolveDragEndpoint`・`findDrawnLineSnap`のJSDocを直した。先頭の責務は変えていない。
+    *   `test/edit/EndpointSnapper.test.js`（CRLF）：`setupFake`・`setupFakeDrawing`へ`getEditableShapes: () => shapes`を足しただけ。
+    *   `test/edit/EndpointSnapper.items.test.js`（LF）：「要件10」のとおり、A線・P名・甲組を`true, false`へ、期待値の`visible`・`locked`を合わせた。
+    *   `test/edit/EndpointSnapper.itemStates.test.js`（新規・CRLF）：6件（隠れ・ロック・フォルダ越しの吸い付き、ドラッグの解決・結合、引き始めた後でロックされたときの`finishDrawnLine`・`commitDrawnLine`・`clickDrawnLine`、もう無い図形はそのまま）。
+    *   `node --test`は tests 3537 / pass 3537 / fail 0。
 
 ### タスク10: 入力・描画・削除ボタン・全選択・選択の反転
 *   **作業内容** :

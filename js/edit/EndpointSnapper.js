@@ -30,8 +30,9 @@ import {
  *
  * 依存の制約:
  *   - importは`../shapes/EndpointSnapRules.js`と`../shapes/PathJoinRules.js`のみ（`edit/`の例外）。
- *     VectorModel・HistoryManagerはimportせず、インスタンスを注入で受け取る。`model`は`getShapes`・`getDraftShape`・`cancelDraft`・`replaceShape`・`replaceDraft`・`commitDraft`のみ使う。
+ *     VectorModel・HistoryManagerはimportせず、インスタンスを注入で受け取る。`model`は`getShapes`（変えられなくなった図形の判定だけ）・`getEditableShapes`・`getDraftShape`・`cancelDraft`・`replaceShape`・`replaceDraft`・`commitDraft`のみ使う。
  *   - InputTrackerには依存しない。DOMに触れない。
+ *   - 吸い付く先・結合の対象は変えられる図形（`model.getEditableShapes()`）だけ。隠れている・ロックされている図形の端点には吸い付かず、結合・描き足しもしない。
  *   - 図形種別の分岐・図形固有のプロパティ名・idの形式・操作モードの知識を持たない（読むのは共通プロパティ`id`のみ）。
  *   - `try/catch`を持たない。
  *
@@ -81,7 +82,7 @@ export class EndpointSnapper {
     /**
      * 直線・曲線のツールで描き始めるときの吸い付く端点を照会する。
      * `isSnapDrawShapeType(shapeType)`が偽（直線・曲線のツール以外）なら`screenLengthToWorld`も呼ばず`null`。
-     * 真なら`findSnapTarget(model.getShapes(), point, screenLengthToWorld(SNAP_TOLERANCE_SCREEN_PX))`。
+     * 真なら`findSnapTarget(model.getEditableShapes(), point, screenLengthToWorld(SNAP_TOLERANCE_SCREEN_PX))`。
      * @param {*} shapeType 描く図形種別（不透明な値として規則へ渡す）
      * @param {{x: number, y: number}} point 照会する点（ワールド座標）
      * @returns {import('../shapes/EndpointSnapRules.js').SnapTarget|null} 吸い付く端点。無ければnull
@@ -91,7 +92,7 @@ export class EndpointSnapper {
             return null;
         }
         return findSnapTarget(
-            this.#model.getShapes(),
+            this.#model.getEditableShapes(),
             point,
             this.#screenLengthToWorld(SNAP_TOLERANCE_SCREEN_PX)
         );
@@ -99,13 +100,13 @@ export class EndpointSnapper {
 
     /**
      * ドラッグ開始したハンドルが結合できる線の端点のハンドルかを解決する。
-     * 図形が`model.getShapes()`に無ければ`null`。あれば`resolveEndpointHandle`の結果。
+     * 図形が`model.getEditableShapes()`に無ければ`null`。あれば`resolveEndpointHandle`の結果。
      * @param {*} shapeId ドラッグしている図形のid
      * @param {*} handleName ドラッグしているハンドル名
      * @returns {'start'|'end'|null} 端点のハンドルなら'start'/'end'、それ以外はnull
      */
     resolveDragEndpoint(shapeId, handleName) {
-        const shape = this.#model.getShapes().find((s) => s.id === shapeId);
+        const shape = this.#model.getEditableShapes().find((s) => s.id === shapeId);
         if (shape === undefined) {
             return null;
         }
@@ -120,7 +121,7 @@ export class EndpointSnapper {
      */
     findDragSnap(dragged, point) {
         return findSnapTarget(
-            this.#model.getShapes(),
+            this.#model.getEditableShapes(),
             point,
             this.#screenLengthToWorld(SNAP_TOLERANCE_SCREEN_PX),
             dragged
@@ -146,6 +147,8 @@ export class EndpointSnapper {
      * @returns {boolean} 反映（または何も起きない扱い）にしたか。両方nullのときだけfalse
      */
     commitDrawnLine(startSnap, endSnap) {
+        startSnap = this.#toUsableSnap(startSnap);
+        endSnap = this.#toUsableSnap(endSnap);
         if (startSnap === null && endSnap === null) {
             return false;
         }
@@ -167,7 +170,7 @@ export class EndpointSnapper {
      */
     joinDraggedEndpoint(dragged, snap) {
         const plan = planEndpointDragJoin(
-            this.#model.getShapes(),
+            this.#model.getEditableShapes(),
             dragged,
             snap,
             this.#screenLengthToWorld(JOIN_TOLERANCE_SCREEN_PX)
@@ -201,19 +204,20 @@ export class EndpointSnapper {
      *
      * 処理順:
      *   1. 作成途中の図形が無ければ`screenLengthToWorld`も呼ばず`null`。
-     *   2. `findDrawnLineSnapTarget(model.getShapes(), 作成途中の図形, point, screenLengthToWorld(SNAP_TOLERANCE_SCREEN_PX), startSnap)`を返す。
+     *   2. `findDrawnLineSnapTarget(model.getEditableShapes(), 作成途中の図形, point, screenLengthToWorld(SNAP_TOLERANCE_SCREEN_PX), startSnap)`を返す。
      *
      * @param {import('../shapes/PathJoinRules.js').EndpointRef|null} startSnap 描き始めの点が吸い付いた端点
      * @param {{x: number, y: number}} point 照会する点（ワールド座標）
      * @returns {import('../shapes/EndpointSnapRules.js').SnapTarget|import('../shapes/EndpointSnapRules.js').DrawnStartSnap|null} 吸い付く先。無ければnull
      */
     findDrawnLineSnap(startSnap, point) {
+        startSnap = this.#toUsableSnap(startSnap);
         const drawn = this.#model.getDraftShape();
         if (drawn === null || drawn === undefined) {
             return null;
         }
         return findDrawnLineSnapTarget(
-            this.#model.getShapes(),
+            this.#model.getEditableShapes(),
             drawn,
             point,
             this.#screenLengthToWorld(SNAP_TOLERANCE_SCREEN_PX),
@@ -249,6 +253,8 @@ export class EndpointSnapper {
      * @returns {boolean} 点を打って引き続けるならtrue、終えた（または何もしなかった）ならfalse
      */
     clickDrawnLine(startSnap, endSnap) {
+        startSnap = this.#toUsableSnap(startSnap);
+        endSnap = this.#toUsableSnap(endSnap);
         const drawn = this.#model.getDraftShape();
         if (drawn === null || drawn === undefined) {
             return false;
@@ -282,6 +288,7 @@ export class EndpointSnapper {
      * @param {import('../shapes/PathJoinRules.js').EndpointRef|null} startSnap 描き始めの点が吸い付いた端点
      */
     finishDrawnLine(startSnap) {
+        startSnap = this.#toUsableSnap(startSnap);
         const drawn = this.#model.getDraftShape();
         if (drawn === null || drawn === undefined) {
             return;
@@ -323,6 +330,25 @@ export class EndpointSnapper {
     }
 
     /**
+     * 引き始めた後で変えられなくなった図形の端点への吸い付きを外す（線を引いている途中に、一覧の行のドラッグでロックしたフォルダの中へ動かされた場合など）。
+     * `null`・`undefined`・始点への吸い付きはそのまま。`model.getShapes()`にあるのに`model.getEditableShapes()`に無い図形の端点なら`null`。
+     * それ以外（今ある変えられる図形・もう無い図形）はそのまま。モデル・記録先を変えない。
+     * @param {import('../shapes/PathJoinRules.js').EndpointRef|import('../shapes/EndpointSnapRules.js').DrawnStartSnap|null|undefined} snap 吸い付き
+     * @returns {import('../shapes/PathJoinRules.js').EndpointRef|import('../shapes/EndpointSnapRules.js').DrawnStartSnap|null|undefined} 使える吸い付き。外すときはnull
+     */
+    #toUsableSnap(snap) {
+        if (snap === null || snap === undefined || isDrawnStartSnap(snap)) {
+            return snap;
+        }
+        const exists = this.#model.getShapes().some((s) => s.id === snap.shapeId);
+        if (!exists) {
+            return snap;
+        }
+        const editable = this.#model.getEditableShapes().some((s) => s.id === snap.shapeId);
+        return editable ? snap : null;
+    }
+
+    /**
      * 吸い付きなしで終えた線を、直前に使った値のスタイル・新しいidで確定する（記録は1件）。
      * `model.replaceDraft(shape)` → `editRecorder.beginEdit()` → `model.commitDraft({ atInsertTarget: true })`（描き込む先（行の上・フォルダの中・一番下）へ入る。描き込む先が無ければ最前面）→ `editRecorder.commitEdit()`。
      * @param {Object} shape 終えた線（`buildFinishedDrawnLine`の結果）
@@ -352,7 +378,7 @@ export class EndpointSnapper {
         const plan = drawn === null || drawn === undefined
             ? null
             : planDrawnLineJoin(
-                this.#model.getShapes(),
+                this.#model.getEditableShapes(),
                 drawn,
                 startSnap,
                 endSnap,

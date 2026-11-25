@@ -153,7 +153,7 @@ function drawPoints(model, snapper, points) {
 test('描き足し: 線の端点から描き足すと、元のidのまま名前・表示・ロック・フォルダが保たれ、パスになる', () => {
     const { model, history, snapper } = setupReal([
         groupItem('group-1', '甲組', true, false, [
-            shapeItem(makeLine('shape-1', 0, 0, 100, 0), 'A線', false, true)
+            shapeItem(makeLine('shape-1', 0, 0, 100, 0), 'A線', true, false)
         ]),
         shapeItem(makeLine('shape-2', 0, 50, 10, 50), 'M線', true, true)
     ]);
@@ -171,7 +171,7 @@ test('描き足し: 線の端点から描き足すと、元のidのまま名前�
 test('描き足し（線を続けて引いて終える）: 描き始めが端点なら元のidのまま名前等が保たれる', () => {
     const { model, history, snapper } = setupReal([
         groupItem('group-1', '甲組', true, false, [
-            shapeItem(makeLine('shape-1', 0, 0, 100, 0), 'A線', false, true)
+            shapeItem(makeLine('shape-1', 0, 0, 100, 0), 'A線', true, false)
         ])
     ]);
     const before = json(model);
@@ -190,8 +190,8 @@ test('描き足し（線を続けて引いて終える）: 描き始めが端点
 
 test('閉じる: 開いたパスの両端で描いて閉じると、元のidのまま名前・表示・ロック・フォルダが保たれ、閉じたパスになる', () => {
     const { model, history, snapper } = setupReal([
-        groupItem('group-1', '甲組', false, true, [
-            shapeItem(makePath('shape-1'), 'P名', false, true)
+        groupItem('group-1', '甲組', true, false, [
+            shapeItem(makePath('shape-1'), 'P名', true, false)
         ])
     ]);
     const before = json(model);
@@ -210,8 +210,8 @@ test('閉じる: 開いたパスの両端で描いて閉じると、元のidの�
 
 test('描いた線での2本の結合: 奥の線の名前等を引き継ぎ新しいidになり、別のフォルダの除かれた側の名前は消える', () => {
     const { model, history, snapper } = setupReal([
-        groupItem('group-1', '甲組', false, true, [
-            shapeItem(makeLine('shape-1', 0, 0, 100, 0), 'A線', false, true)
+        groupItem('group-1', '甲組', true, false, [
+            shapeItem(makeLine('shape-1', 0, 0, 100, 0), 'A線', true, false)
         ]),
         groupItem('group-2', '乙組', true, false, [
             shapeItem(makeLine('shape-2', 200, 0, 300, 0), 'B線', true, false)
@@ -230,7 +230,7 @@ test('描いた線での2本の結合: 奥の線の名前等を引き継ぎ新�
     assert.notEqual(newId, 'shape-1');
     assert.notEqual(newId, 'shape-2');
     assert.deepEqual(result, [
-        { id: 'group-1', name: '甲組', visible: false, locked: true, children: [{ id: newId, name: 'A線', visible: false, locked: true }] },
+        { id: 'group-1', name: '甲組', visible: true, locked: false, children: [{ id: newId, name: 'A線', visible: true, locked: false }] },
         { id: 'group-2', name: '乙組', visible: true, locked: false, children: [] }
     ]);
     assert.equal(json(model).includes('B線'), false);
@@ -239,8 +239,8 @@ test('描いた線での2本の結合: 奥の線の名前等を引き継ぎ新�
 
 test('端点のドラッグでの結合: 奥の線の名前等を引き継ぎ新しいidになり、結果だけが選択される', () => {
     const { model, history, snapper } = setupReal([
-        groupItem('group-1', '甲組', false, true, [
-            shapeItem(makeLine('shape-1', 0, 0, 100, 0), 'A線', false, true)
+        groupItem('group-1', '甲組', true, false, [
+            shapeItem(makeLine('shape-1', 0, 0, 100, 0), 'A線', true, false)
         ]),
         groupItem('group-2', '乙組', true, false, [
             shapeItem(makeLine('shape-2', 200, 0, 300, 0), 'B線', true, false)
@@ -262,7 +262,7 @@ test('端点のドラッグでの結合: 奥の線の名前等を引き継ぎ新
     assert.notEqual(newId, 'shape-1');
     assert.notEqual(newId, 'shape-2');
     assert.deepEqual(result, [
-        { id: 'group-1', name: '甲組', visible: false, locked: true, children: [{ id: newId, name: 'A線', visible: false, locked: true }] },
+        { id: 'group-1', name: '甲組', visible: true, locked: false, children: [{ id: newId, name: 'A線', visible: true, locked: false }] },
         { id: 'group-2', name: '乙組', visible: true, locked: false, children: [] }
     ]);
     assert.deepEqual(model.getSelectedIds(), [newId]);
@@ -271,8 +271,8 @@ test('端点のドラッグでの結合: 奥の線の名前等を引き継ぎ新
 
 test('端点のドラッグでの閉じる: 自身のもう一方の端点に重ねると、元のidのまま名前・表示・ロック・フォルダが保たれる', () => {
     const { model, history, snapper } = setupReal([
-        groupItem('group-1', '甲組', false, true, [
-            shapeItem(makePath('shape-1'), 'P名', false, true)
+        groupItem('group-1', '甲組', true, false, [
+            shapeItem(makePath('shape-1'), 'P名', true, false)
         ])
     ]);
     const before = json(model);
@@ -294,7 +294,7 @@ test('端点のドラッグでの閉じる: 自身のもう一方の端点に重
 
 test('線を続けて引いて終える（点2つ）: 新しい直線は「直線 <最大番号+1>」・表示・ロックなしで最外の末尾に入る', () => {
     const { model, history, snapper } = setupReal([
-        groupItem('group-1', '甲組', false, true, [
+        groupItem('group-1', '甲組', true, false, [
             shapeItem(makeLine('shape-1', 0, 500, 10, 500), '直線 3', false, true)
         ])
     ]);
