@@ -975,6 +975,20 @@ document.addEventListener('DOMContentLoaded', () => {
         model.setSelection(invertSelection(model.getShapes().map((shape) => shape.id), model.getSelectedIds()));
     }
 
+    /**
+     * フォルダにまとめる・解除のキー（Ctrl+G・Ctrl+Shift+G）の経路。キャンバスのドラッグ中（InputTracker.isDragging()が真）は実行しない
+     * （ドラッグが開いている編集操作とbeginEdit／commitEditの対を崩さないため）。実行した後は結果によらず常にtrue
+     * （ブラウザの標準の動作＝ページ内検索等を起こさない）。ドラッグ中もtrueを返す（KeyboardShortcuts側でもctrl付きはpreventDefault()される）。
+     * @param {() => boolean} run groupEditorのメソッド（groupSelection／ungroupSelection）を呼ぶ関数
+     * @returns {boolean} 常にtrue
+     */
+    function performGroupCommand(run) {
+        if (!inputTracker.isDragging()) {
+            run();
+        }
+        return true;
+    }
+
     // キー→操作の対応表と受理判定はKeyboardShortcutsが担い、操作の実体はここで注入するコールバックが行う。
     // 各コールバックの戻り値はtrue＝受理（KeyboardShortcutsがpreventDefault()する）、false＝受理せず。
     // UI同期は既存経路（applyMode/applyShapeType、viewTransform.onChange、model.onChange）のみを通り、
@@ -1090,6 +1104,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // 反転した場合のみtrue。選択（V）で図形を選んでいない・ドラッグ中はfalseを返し、preventDefault()しない）
         flipHorizontal: () => performFlip(FLIP_AXIS.HORIZONTAL),
         flipVertical: () => performFlip(FLIP_AXIS.VERTICAL),
+        // フォルダにまとめる（Ctrl+G）・フォルダの解除（Ctrl+Shift+G）。groupEditorの結果によらず常にtrue（performGroupCommand）
+        group: () => performGroupCommand(() => groupEditor.groupSelection()),
+        ungroup: () => performGroupCommand(() => groupEditor.ungroupSelection()),
     });
 
     // Altキーの単独押下・単独解放でブラウザのメニューへフォーカスが移らないようにする（AltKeyGuardが

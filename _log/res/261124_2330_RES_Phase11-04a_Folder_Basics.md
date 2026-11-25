@@ -236,7 +236,7 @@
         *   `InputTracker`：`InputAssist.deleteSelectedItems`（typedef・`NO_INPUT_ASSIST`・コンストラクタの写し・JSDoc）、`deleteSelection`の受理条件と、受理した後の処理（`beginEdit` → `deleteShapes` → `commitEdit`を、補助`deleteSelectedItems()`を呼ぶだけに替える。記録は補助の実体が行う旨をJSDocに書く）、`#applySelectionChange(change, additive)`と4つの呼び出し。関係するJSDocを直す。それ以外のコードは変えない。
         *   `main.js`：`GroupEditor`の生成（`shapeOrderEditor`の近く）、`inputTracker`への注入`deleteSelectedItems`（実体は`groupEditor.removeSelection()`。`clipboardController`と同じ前方参照）、`syncDeleteButtonState`の条件、`model.onCollapsedChange(() => canvasLibrary.requestSave())`（`canvasLibrary`の生成の後）。判定・計算を書かない。
 
-*   [ ] タスク11: `Ctrl`+`G`・`Ctrl`+`Shift`+`G`
+*   [x] タスク11: `Ctrl`+`G`・`Ctrl`+`Shift`+`G`
     *   **対象ファイル** :
         *   `./js/core/KeyboardShortcuts.js` :（更新）
         *   `./js/main.js` :（更新）
@@ -371,7 +371,9 @@
 
 ### タスク11: `Ctrl`+`G`・`Ctrl`+`Shift`+`G`
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/KeyboardShortcuts.js`（CRLF）：対応表に`{ codes: ['KeyG'], ctrl: true, shift: FORBIDDEN, repeatable: false, action: 'group' }`と`shift: REQUIRED`・`action: 'ungroup'`を追加。typedef`ShortcutActions`に`group`・`ungroup`（常に`true`）、`ShiftRule`・対応表のJSDoc（`KeyG`の項）・`preventDefault()`の例外の列挙（`Ctrl+G`）・`#findBinding`のJSDocを更新。
+    *   `js/main.js`（CRLF）：`performGroupCommand(run)`（`inputTracker.isDragging()`が偽のときだけ`run()`し、常に`true`）を`performInvertSelection`の後に追加し、`KeyboardShortcuts`への注入`group`・`ungroup`（`groupEditor.groupSelection()`・`ungroupSelection()`）を足した。
+    *   `test/core/KeyboardShortcuts.group.test.js`（新規・CRLF）8件。`node --test`は tests 3138 / pass 3138 / fail 0。
 
 ### タスク12: 行の並びの規則と、一覧の判定
 *   **作業内容** :
@@ -437,3 +439,4 @@
 10. **保存と書き出し**：フォルダのある絵を、作業データファイルに出力して開く・インポートする・ページを開き直すと、フォルダと名前・折りたたみが戻る（インポートは描き込む先のすぐ上、無ければ一番上へ入り、入った図形が選ばれる）。隣り合う図形をフォルダにまとめる前と後に書き出したJSを確認用ページ（`sprite-check.html`）で開くと、同じに描かれる。
 11. **結合**：別々のフォルダの線（直線・曲線・開いたパス・弧）を`V`で2本選んで`J`で結合すると、**奥の線（一覧で下の行）** のあった場所に入り、その名前・色・太さを引き継ぐ。手前の線の入っていたフォルダは、空になっても残る。
 12. **ほかが今までどおり**：フォルダの無い絵での一覧・行のドラッグでの並べ替え・描き込む先・複製・コピー、描く・動かす・変形・色・整列・保存・書き出し・開くが今までどおり動く。フォルダが1つでもある絵では、行のドラッグは始まらない。複製・コピー・貼り付けは図形だけを写す（写した後はフォルダを選んでいる状態ではない）。
+*   **タスク11（`Ctrl`+`G`）**：`performGroupCommand`はキャンバスのドラッグ中（`inputTracker.isDragging()`）のみ見る（RESの指定どおり。一覧の行のドラッグ中は`KeyboardShortcuts`の`isDragging`が先に弾く）。ブラウザのページ内検索（`Ctrl`+`G`）を抑えるため常に`true`。目視確認推奨：実機で`Ctrl`+`G`・`Ctrl`+`Shift`+`G`が検索を開かないこと（`GroupEditor`が`false`のときも）。開発資料の更新予定：3章のキーの割り当て・キーボードの項に`Ctrl`+`G`・`Ctrl`+`Shift`+`G`と`ShortcutActions`の`group`・`ungroup`（既に列挙済みの更新予定に含まれる）。
