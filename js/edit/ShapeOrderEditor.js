@@ -1,17 +1,18 @@
 /**
  * 責務: 選んでいるまとまり（図形・フォルダ）の重なり順の変更（規則`./ShapeOrderRules.js`で求めた、兄弟の並びごとの並び）と、
- * 並び全体の指定（一覧の行のドラッグ）を、モデルへ反映する1件の編集操作を担う。DOMに触れない。
+ * 行のドラッグでの出し入れ・並べ替え（`moveTo`）を、モデルへ反映する1件の編集操作を担う。DOMに触れない。
  */
 import { canReorderSelected, reorderSelected } from './ShapeOrderRules.js';
-import { itemIdOf, listSiblingLists, mapSiblingLists } from '../core/GroupTreeRules.js';
+import { isSameTree, itemIdOf, listSiblingLists, mapSiblingLists } from '../core/GroupTreeRules.js';
 import { resolveSelectedUnitIds } from '../core/GroupSelectionRules.js';
+import { moveItems } from '../core/ItemPlaceRules.js';
 
 /**
- * 選んでいるまとまりの重なり順を変える1件の編集操作と、並び全体を指定する1件の編集操作（`applyOrder`）を行うクラス。
- * `apply`はキー（`main.js`の`performShapeOrder`）の手順、`applyOrder`は一覧の行のドラッグの手順である。
+ * 選んでいるまとまりの重なり順を変える1件の編集操作と、動かすまとまりを場所へ動かす1件の編集操作（`moveTo`）を行うクラス。
+ * `apply`はキー（`main.js`の`performShapeOrder`）の手順、`moveTo`は一覧の行のドラッグの手順である。
  *
  * 依存の制約:
- *   - importは`./ShapeOrderRules.js`（`edit/`内）と、`core/GroupTreeRules.js`・`core/GroupSelectionRules.js`（状態を持たない規則の関数。
+ *   - importは`./ShapeOrderRules.js`（`edit/`内）と、`core/GroupTreeRules.js`・`core/GroupSelectionRules.js`・`core/ItemPlaceRules.js`（状態を持たない規則の関数。
  *     `edit/ → core/`の例外）のみ。VectorModel・HistoryManagerはimportせず、インスタンスを注入で受け取る。
  *   - `model`は`getShapes`・`getItems`・`isSelected`・`getSelectedGroupIds`・`reorderShapes`・`rearrangeItems`だけを使う。
  *   - InputTrackerには依存しない。DOMに触れない。
@@ -19,10 +20,10 @@ import { resolveSelectedUnitIds } from '../core/GroupSelectionRules.js';
  *   - `try/catch`を持たない。
  *
  * 前提（呼び出し側の責務）:
- *   - ドラッグ中でないこと（`apply`は`main.js`の`performShapeOrder()`が判定する。`applyOrder`は一覧の行のドラッグの配線が、
+ *   - ドラッグ中でないこと（`apply`は`main.js`の`performShapeOrder()`が判定する。`moveTo`は一覧の行のドラッグの配線が、
  *     ドラッグの終わりにだけ呼ぶことで守る）。
  *   - `apply`は選択モード以外・キャンバスの読み込み中は選択集合が空のため何もしない（操作モードは知らない）。
- *     `applyOrder`は選択が空でも働く。
+ *     `moveTo`は選択が空でも働く。
  *   本クラスは進行中の入力操作の中断・モード切り替えを行わない
  *   （選択モードで選択集合が空でない状態では作成途中の図形が無い）。
  */
@@ -78,6 +79,32 @@ export class ShapeOrderEditor {
             return false;
         }
         const nextItems = mapSiblingLists(items, (list) => reorderSelected(list, isUnit, operation));
+        this.#editRecorder.beginEdit();
+        const changed = this.#model.rearrangeItems(nextItems);
+        this.#editRecorder.commitEdit();
+        return changed;
+    }
+
+    /**
+     * 動かすまとまり（アイテムのid）を`place`の場所へ動かす（一覧の行のドラッグの結果）1件の編集操作。
+     * 選択・選んでいるフォルダ・折りたたみは変えない（選択・選んでいるフォルダは`rearrangeItems`の既定で、不変条件に絞られる）。
+     *
+     * 処理順:
+     *   1. `moveItems(model.getItems(), new Set(ids), place)`で新しい入れ子を求める。
+     *   2. `null`（入れられない場所・動かすものが無い）か、今と同じ構造（`isSameTree`）なら、何も呼ばずに`false`（`beginEdit`も呼ばないため履歴は増えない）。
+     *   3. `editRecorder.beginEdit()` → `model.rearrangeItems(nextItems)` → `editRecorder.commitEdit()`。
+     *   4. `rearrangeItems`の戻り値を返す。
+     *
+     * @param {Array<string>} ids 動かすアイテムのid（図形のid・フォルダのid）
+     * @param {import('../core/ItemPlaceRules.js').ItemPlace|null} place 入れる場所
+     * @returns {boolean} 入れ子を変えたか
+     */
+    moveTo(ids, place) {
+        const items = this.#model.getItems();
+        const nextItems = moveItems(items, new Set(ids), place);
+        if (nextItems === null || isSameTree(items, nextItems)) {
+            return false;
+        }
         this.#editRecorder.beginEdit();
         const changed = this.#model.rearrangeItems(nextItems);
         this.#editRecorder.commitEdit();

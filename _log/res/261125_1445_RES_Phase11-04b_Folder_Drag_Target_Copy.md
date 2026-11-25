@@ -282,7 +282,7 @@
         *   「要件1」の`resolveDraggedUnitIds`・`resolveDraggedRowIds`・`resolveDropPlace`・`resolvePlaceMark`・`isSameRows`をJSDoc付きで足す（typedef`PlaceMark`）。`resolveAutoScrollTop`は変えない。
         *   テスト：動かすもの（まとまり・押した行だけ・選んでいるフォルダの中の行・折りたたまれて行の無いもの）、うすく見せる行、ドロップ位置（図形の行の上半分/下半分と境目・開いた/閉じた/空のフォルダの行の上/真ん中/下と境目・一番上より上・最後の行より下の空いている所・下へ外れた・深い入れ子・スクロール中・左右へ外れた（端は内側）・行0個・寸法0。**小数のスクロール位置**：20行・行の高さ36・`height` 498・`maxScrollTop` 222で、最後の行が開いたフォルダの中のとき、`scrollTop` 221.6なら`pointerY`が`top + height`ちょうどでもずっと下でも`{ bottom, null }`、`top + height`より少し上なら最後の行の`below`。`scrollTop` 221（余裕の境）は`{ bottom, null }`、220.9は最後の行の`below`。途中までしか送っていないときに下へ外れたら見えている端の行の場所。既存の`makeArea`の既定は`maxScrollTop: 0`なので、スクロールする件では`maxScrollTop`を必ず渡す）、線と目立たせる行（4つの形・字下げ・6段で頭打ち・最後の行・`null`）、`isSameRows`、フォルダの無い並びで`resolveDropPlace` → `ItemPlaceRules.moveItems`の結果が「ドロップ位置より上の動かさない行＋動かす行＋残り」と全位置で一致すること（期待値はテストの中で組み立てる）。
 
-*   [ ] タスク11: 行のドラッグの編集操作
+*   [x] タスク11: 行のドラッグの編集操作
     *   **対象ファイル** :
         *   `./js/edit/ShapeOrderEditor.js` :（更新。`moveTo`を足す。`applyOrder`はこのタスクでは残す）
         *   `./test/edit/ShapeOrderEditor.move.test.js` :（新規）
@@ -400,7 +400,8 @@
 
 ### タスク11: 行のドラッグの編集操作
 *   **作業内容** :
-    *   （未記入）
+    *   `js/edit/ShapeOrderEditor.js`（LF）：`moveTo(ids, place)`を追加（`moveItems`→`null`か`isSameTree`なら何も呼ばず`false`、そうでなければ`beginEdit`→`rearrangeItems(nextItems)`→`commitEdit`、戻り値は`rearrangeItems`のもの）。importに`isSameTree`・`ItemPlaceRules.moveItems`を足し、先頭の責務・クラスJSDoc・依存の制約・前提を直した。`applyOrder`・`#commitOrder`は残した（タスク13で消す）。
+    *   テスト：`test/edit/ShapeOrderEditor.move.test.js`を新規（CRLF。15件。偽の依存で呼び出し順・同じ場所・入れられない場所、実物で出し入れ・フォルダごと・まとまり・選んでいるフォルダの中の行・選択が外れる・空のフォルダが残る・折りたたみは開かない・自分の中は不変・記録1件と取り消し/やり直し・描き込む先が行と一緒に動く・フォルダの無い絵）。`node --test`は tests 3401 / pass 3401 / fail 0。
 
 ### タスク12: 行のドラッグの切り替え（進行・配線）
 *   **作業内容** :
@@ -461,5 +462,6 @@
 11. **フォルダの無い絵**：新しいキャンバスで図形だけを描き、並べ替え・描き込む先・複製・コピー・切り取りが今までどおり（一番下の行の切り取りと貼り付けは、元の場所に戻るようになった）。
 12. **ほかが今までどおり**：一覧での選択・折りたたみ・名前の変更（名前の編集中にほかの操作をしても欄が壊れない）・`Ctrl`+`G`・`Home`等のキー、描く・動かす・変形・色・整列・保存・書き出し・開くが今までどおり動く。
 
+*   （タスク11）`ShapeOrderEditor`のクラスJSDocの「`model`は…だけを使う」の行は`applyOrder`が残るため`reorderShapes`を含めたまま（タスク13で直す）。`moveTo`が使うmodelは`getItems`・`rearrangeItems`のみ。
 *   （タスク3）`ShapeInserter.insertTarget.test.js`の切り取り→貼り付けの件は、表のとおり名前も「…描き込む先がいちばん外側の一番下になり、そこへ戻る（仕様）」へ直した。`VectorModel.js`の`listShapes`・`ITEM_KIND`等のimportはほかで使うため残した。
 *   （タスク7）`ClipboardController.groups.test.js`の閉じたフォルダの件：閉じたフォルダ（図形を含む入れ子のもの・いちばん外側のもの）は、貼り付け・複製・その場の複製・切り取って貼り付けで閉じたまま入り、元も閉じたまま（`VectorModel.#applyState`の`revealIds`で開くのは変わる前にあったフォルダだけで、貼り付けで入った新しいフォルダは開かない）。テストの`select`は一覧の行で選ぶ操作と同じ`keepsCollapsed: true`で選ぶ。`GroupEditor.flow.test.js`の`setup`の`ShapeInserter`は`insertsAtTarget`なしのため、そこでの複製・貼り付けはいちばん外側の末尾へ入る（`place`は使われない）。入る場所の確認は新しいテスト（`insertsAtTarget: true`）で行った。
