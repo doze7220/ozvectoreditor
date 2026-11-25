@@ -236,7 +236,7 @@ E
     * 3章・`14_edit.md` の行は`[既存]`の文も既知の傷2の手順で見る。
     * 実コードから読み取れる事実のみを抽出し、推測を含める場合はどこまでが事実でどこからが推測かを明示して、4章の『事実』『推測・所見』欄に書く。相違は5章にタスク番号を添えて書く（作業は中断しない。資料に無い事項がコードにあることは相違としない）。判定は資料の原文とコードの該当行を両方開いて行い、一致には `ファイル:行`、または検索した語と件数を添える。
     * タスクの終わりに `git status` で、ソースコードおよび資料ファイルを一切変更していないこと（変更があるのは本RESだけ）を確かめる。
-* [ ] タスク10: PROJECT_ARCHITECTURE 3章14.（重なり順）とGroupTreeRules・ItemPlaceRules・InsertTargetRules・ListDragRules
+* [x] タスク10: PROJECT_ARCHITECTURE 3章14.（重なり順）とGroupTreeRules・ItemPlaceRules・InsertTargetRules・ListDragRules
   * **対象ファイル**:
     * 資料: `./PROJECT_ARCHITECTURE.md` 655〜672行（3章14.「重なり順の変更」）
     * 資料: `./_doc/arch/54_InsertTargetRules.md`・`./_doc/arch/55_ListDragRules.md`・`./_doc/arch/57_GroupTreeRules.md`・`./_doc/arch/62_ItemPlaceRules.md`（いずれも全行）
@@ -583,11 +583,70 @@ E
 
 ### タスク10: PROJECT_ARCHITECTURE 3章14.（重なり順）とGroupTreeRules・ItemPlaceRules・InsertTargetRules・ListDragRules
 * **調査内容**: 
-  * （未実施）
+  * `PROJECT_ARCHITECTURE.md` 655〜671行（3章14.「重なり順の変更」。672行は15.で対象外）と、`_doc/arch/54_InsertTargetRules.md`・`55_ListDragRules.md`・`57_GroupTreeRules.md`・`62_ItemPlaceRules.md`（全行）の `[新]` の文を、抜き出しコマンドで取り出して1文ずつ実コードと照合した。
+  * 照合先：`js/core/GroupTreeRules.js`（196行）・`ItemPlaceRules.js`（184行）・`InsertTargetRules.js`（174行）・`ListDragRules.js`（198行）を全行開いた。ほかに `js/edit/ShapeOrderEditor.js`・`ShapeOrderRules.js`・`GroupEditor.js`、`js/main.js`（`performShapeOrder` 735行・`applyRowDrop` 963行・キー注入 1059〜1062行）、`js/core/KeyboardShortcuts.js`（176〜179行）、`js/core/GroupSelectionRules.js`・`GroupCommandRules.js`、`js/core/VectorModel.js`（`rearrangeItems`・`#applyState`・`setInsertTarget`・`#placeAdded`）、`js/wiring/ItemListRowDrag.js`・`ItemListWiring.js`、`js/palette/ItemListPanel.js`、`index.html`。
+  * 呼び出し元・importは `grep`（`js/` 全体）で確認した。消えた名前（`reorderShapes`・`applyOrder`・`hasGroupItem`・`insertItemsAbove`・`resolveDraggedIds`・`resolveDropIndex`・`resolveDropMark`・`reorderRowsForDrop`・`isSameOrder`・`toDrawOrder`・`resolveInsertTarget`・`resolveInsertMarkId`・`OptionBarOrderGroup`・`syncOptionBarOrderGroup`・`getAvailability`〔重なり順の分〕・`ShapeOrderAvailability`・`option-order-group`）は `js/`・`index.html` を検索した。
+  * テスト件数は `node --test test/core/<名>.test.js` の実行結果で確認した。
+  * 過去の時点の値（`GroupTreeRules` の「Phase 11-04aの38件」・「resolveAutoScrollTop はPhase 11-03から変えていない」）は `git show d1cdb79:test/core/GroupTreeRules.test.js`・`git show 9726dfe:js/core/ListDragRules.js` で確かめた。
 * **事実（実コードの記述）**:
-  * （未実施）
+  * **PROJECT_ARCHITECTURE.md 3章14.（655〜671行）**
+    * 655行（キー `Home`・`PageUp`・`PageDown`・`End`、オプションバーの重なり順のまとまりが無い）：一致。`js/core/KeyboardShortcuts.js:176-179`。`index.html` に `option-order-group` は0件。`js/palette/` に `OptionBarOrderGroup.js` は無い。
+    * 656行：`ShapeOrderRules` が状態なし・DOMなし・importなし：一致（`ShapeOrderRules.js` に import 行なし）。`canReorderSelected` の1か所で判定：一致（`ShapeOrderRules.js:119`、`ShapeOrderEditor.js:78`）。正本が `VectorModel.rearrangeItems`：一致（`VectorModel.js:1175`）。`reorderShapes`・`OptionBarOrderGroup`・`getAvailability`（重なり順の分）・`ShapeOrderAvailability`・`applyOrder` が `js/` に無い：一致。`ShapeOrderEditor.moveTo(ids, place)`：一致（`ShapeOrderEditor.js:102`）。**「配線＝`main.js`（…だけ）」は5章へ**。
+    * 657行（流れ）：キー→`performShapeOrder`（ドラッグ中は不受理）→`shapeOrderEditor.apply`：一致（`main.js:735-740`、キーの注入は `main.js:1059-1062`）。`canReorderSelected` が全並びで偽なら何もしない・`beginEdit` → `rearrangeItems` → `commitEdit`：一致（`ShapeOrderEditor.js:78-85`）。
+    * 658行（押せる/押せないの同期が無い）：一致（`syncOptionBarOrderGroup`・`getAvailability` は無い。`main.js:808-812` の `getAvailability` は `ShapeAlignEditor` のもの）。
+    * 660行：「この時点」の注記つきで、`DocumentSerializer` の作業データは今も `shapes` のキー（`DocumentSerializer.js:171`）。版4（`DocumentSerializer.js:142`）。一致。
+    * 661行：`#items` が正本、`getShapes()` が平らにした並び：一致（`VectorModel`）。`reorderShapes` 消滅：一致。「入れ子を動かす公開操作は`rearrangeItems`だけ」：`VectorModel` の入れ子を動かす公開メソッドは `rearrangeItems` のみ（`replaceAllShapes`・`deleteShapes` は入れ替え・削除）。
+    * 663行：`resolveSelectedUnitIds({ items, isSelected, selectedGroupIds })` の1か所、選んでいるフォルダの中へ進まない：一致（`GroupSelectionRules.js:86-105`）。`itemIdOf` が1か所：一致（`GroupTreeRules.js:14`）。「既存の`ItemAttributeRules.applyItemRename`・`VectorModel.replaceAllShapes`の同じ式は変えていない」：同じ式が残っている（`ItemAttributeRules.js:133`〔`id` 比較の形〕・`VectorModel.js:927`）。
+    * 664行：`wrapUnits`・`unwrapGroups`・`removeItems`・`listSiblingLists`・`mapSiblingLists`・`isSameTree`・`pickItems`・`listGroupIds` の挙動（前順で最後のまとまりの位置・中のフォルダはそのまま・フォルダは中身ごと・写しを作らない・当たったフォルダの中へ進まない・`fn` は空の並びでも1回呼ぶ）：一致（`GroupTreeRules.js:25-173`）。`hasGroupItem` は消えている：一致。場所を指定した追加・動かす計算が `ItemPlaceRules`：一致。
+    * 665行：`GroupEditor({ model, editRecorder, getMode })`：一致（`GroupEditor.js:50`）。`groupSelection`：`canEditGroups(getMode())` が偽・まとまり無しなら `beginEdit` なしで `false`、`rearrangeItems(wrapUnits(...), { selectedGroupIds: [], selectsNewGroups: true })`：一致（`GroupEditor.js:70-87`）。`ungroupSelection`：一致（`GroupEditor.js:95-128`。`selectedGroupIds: 解除したフォルダの直下のフォルダ`）。`addEmptyGroup({ selects })`：`insertItemsAt(items, model.getInsertTarget(), [空のフォルダ])`、`selects` が偽なら `targetsNewGroup: true`、操作モードを見ない：一致（`GroupEditor.js:137-147`、`VectorModel.js:1202-1204`）。`resolveFolderButtonAction`：一致（`GroupCommandRules.js:41`）。`removeSelection`（まとまりが無ければ `beginEdit` なしで `false`）・`hasSelectedUnits`：一致（`GroupEditor.js:60,156`）。`GroupEditor` が操作モードを解釈せず `canEditGroups` へ渡す：一致。
+    * 666行：`apply` の流れ（`listSiblingLists`・`canReorderSelected`・未知の操作の `Error` が `beginEdit` より前・`mapSiblingLists` → `rearrangeItems`）：一致（`ShapeOrderEditor.js:69-86`）。フォルダは兄弟の並びの1要素で、選んでいるフォルダの中の並びには「選択中」が無い：一致（`isUnit` は `unitIds` のみ。`:76`）。フォルダを `{...item, children}` の写しで渡す：一致（`GroupTreeRules.js:170`）。
+    * 667行：`moveTo`（`moveItems(items, new Set(ids), place)`、`null`か `isSameTree` なら `false` で `beginEdit` なし、`beginEdit` → `rearrangeItems` → `commitEdit`）：一致（`ShapeOrderEditor.js:102-112`）。`ItemPlaceRules` の import は `ItemTreeRules`・`GroupTreeRules` のみ：一致（`ItemPlaceRules.js:5-6`）。`ItemPlace`・`PLACE_KIND`（`above`・`below`・`inside`・`bottom`）・`findItemLocation`（`{ parentId, siblings, index, ancestorIds }`）・`insertItemsAt` の各場所の入り方・`canMoveItems`・`moveItems`（目印を先に置いてから抜く）：一致（`ItemPlaceRules.js:16,45,93,134,169`）。動かすのは選んでいるまとまり（押した行がまとまりにあればその写し・無ければその行だけ）：一致（`ListDragRules.js:53-58`）。自分の中では線を出さず離しても何も起きない：一致（`ItemListRowDrag.js:206,245`）。折りたたんだフォルダへ入れても開かない：`rearrangeItems` が `revealIds` を渡さない（`VectorModel.js:1205`）ので開かない。空のフォルダが残る：一致（`removeItems` の挙動、`GroupTreeRules.js:124`）。
+    * 668行：描き込む先が選んでいるまとまりの一番上で決まる：一致（`InsertTargetRules.js:88-95`、`VectorModel.js:1299`）。
+    * 669行（やらないこと）：方針の記述のため、コードの振る舞いとしては `Home`/`End` 等が選んだものを端へ寄せるだけで、離れた選択をまとめる操作が無い点のみ確認（`ShapeOrderRules.js:61-72` は選択中をまとめて端へ寄せるが、`PageUp`/`PageDown` は離れた選択を1つずつ動かす）。
+    * 670行：`#option-order-group`・`OptionBarOrderGroup.js`・`syncOptionBarOrderGroup`・`getAvailability`・`ShapeOrderAvailability` が無い：一致。残したもの（`KeyboardShortcuts` の対応表・4つの注入・`performShapeOrder`・`ShapeOrderOperation`・`ShapeOrderRules`・`ShapeOrderEditor.apply`）：一致。「1行目の幅の見積もりは約489px」：一致（`index.html:735`）。
+    * 671行：重なり順のキー・行のドラッグ・まとめる・解除は隠れている・ロックされているものにも働く：`ShapeOrderEditor`・`GroupEditor` は表示・ロックを見ない（`isSelected`・`getSelectedGroupIds` のみ）。`canStartRowDrag` も表示・ロックを条件に持たない（`ItemListRules.js:69`）：一致。`ShapeOrderEditor` は `bf26f07`（11-04b）以降変更なし、`GroupEditor` の変更は削除のみ（`git diff bf26f07 HEAD`）：一致。削除だけ変えられるものに限る：一致（`GroupEditor.js:161` の `resolveRemoval`）。頂点の選択が外れる：一致（`#pruneSelectedVertices` が `collectEditableIds` で絞る。`VectorModel.js:1439`、`rearrangeItems` が `:1209` で呼ぶ）。
+  * **_doc/arch/54_InsertTargetRules.md**
+    * 公開：`resolveNextInsertTarget`・`resolveRowInsertTarget`・`isSameInsertTarget`・`resolvePastePlace`・`resolveDuplicatePlace`・`resolveInsertMark` と typedef `InsertTarget`：一致（`InsertTargetRules.js:15,87,111,128,142,155,169`）。旧 `resolveInsertTarget`・`resolveInsertMarkId` が無い：一致。
+    * 描き込む先の3つの形・`null`：一致。`resolveNextInsertTarget` の (1)〜(4) の順序と内容（有効の条件・`resolveVanishedTarget` の元の場所のたどり方・`{ bottom, null }`・`null`・さかのぼり）：一致（`InsertTargetRules.js:26-103`）。`resolveRowInsertTarget`・`isSameInsertTarget`・`resolvePastePlace`（`inside` かつ `copiedGroupIds` にあれば `above`）・`resolveDuplicatePlace`（`{ above, 最後のid }`）・`resolveInsertMark`（`selectedCount` が1以上なら `null`）：一致。
+    * import は `ItemTreeRules`・`GroupTreeRules`・`GroupSelectionRules`・`ItemPlaceRules` のみ：一致（`InsertTargetRules.js:5-8`）。
+    * 使う側：`VectorModel`（`#applyState` が `resolveNextInsertTarget`〔`VectorModel.js:1299`〕、`setInsertTarget` が `resolveRowInsertTarget`・`isSameInsertTarget`〔`:444,450`〕）・`ItemListWiring.sync`（`resolveInsertMark`。`ItemListWiring.js:192`）・`ClipboardController`（`resolvePastePlace`・`resolveDuplicatePlace`。`ClipboardController.js:8,212,312`）：一致。
+    * テスト46件：一致（`node --test` で46件・成功）。内容の列挙（`resolveInsertMark`・`resolveNextInsertTarget` の各場合・`resolveRowInsertTarget`・`isSameInsertTarget`・`resolvePastePlace`・`resolveDuplicatePlace`）：テストの `describe`・`it` の題と一致。
+  * **_doc/arch/55_ListDragRules.md**
+    * 公開（`resolveDraggedUnitIds`・`resolveDraggedRowIds`・`resolveDropPlace`・`resolvePlaceMark`・`isSameRows`・`resolveAutoScrollTop`・typedef `ListArea`・`PlaceMark`）：一致。定数（24px・90・900・50ms・0.5・0.25・0.75・1px）は export されない：一致（`ListDragRules.js:10-24`）。旧関数・typedef（`resolveDraggedIds`・`resolveDropIndex`・`resolveDropMark`・`reorderRowsForDrop`・`isSameOrder`・`toDrawOrder`・`RowIds`・`DropMark`）は無い：一致。
+    * `resolveDropPlace` の判定順（(1)〜(5)・(4)の(a)(b)・図形の行0.5・フォルダの行0.25/0.75・`!row.collapsed && !row.isEmpty`・一番上より上へ外れると `y`＝0）：一致（`ListDragRules.js:86-117`）。「入れられない場所は `canDrop` で見る」：一致（`ItemListRowDrag.js:206,245`、`ItemListWiring.js:147`）。
+    * `resolvePlaceMark`（`before`/`after`/`inside`・`resolveRowIndent(row.depth)`・`{ bottom, null }` は最後の行の `after`・字下げ0・`{ bottom, フォルダ }` は `null`）：一致（`ListDragRules.js:128-144`）。`drop-inside`：一致（`ItemListPanel.js:471`）。
+    * `isSameRows`（長さと `id`・`depth`・`collapsed`・`isEmpty`）：一致。`resolveAutoScrollTop`（帯・境目ちょうどは帯の外・`null` の条件）：一致。Phase 11-03から変えていない：`git show 9726dfe:js/core/ListDragRules.js` の関数本体と現在の関数本体が差分なし。
+    * 「フォルダの無い絵」の項：テストで `moveItems` の結果と一致を確かめている（`ListDragRules.test.js:241-`）：一致。
+    * import は `ItemTreeRules`・`ItemRowRules`（`resolveRowIndent`）・`ItemPlaceRules`（`PLACE_KIND`）のみ、`ItemRowRules` は `ListDragRules` を import しない：一致（`ListDragRules.js:5-7`、`ItemRowRules.js:5-8`）。使う側は `ItemListRowDrag` だけ：一致（`grep ListDragRules js` の結果は `ItemListRowDrag.js:13` のみ）。
+    * テスト49件：一致（`node --test` で49件・成功。`it(` の行は46行だが、`ListDragRules.test.js:254` の `it` はループの中にあり、実行時に件数が増えて49件になる）。
+  * **_doc/arch/57_GroupTreeRules.md**
+    * 公開（`itemIdOf`・`pickItems`・`listGroupIds`・`wrapUnits`・`unwrapGroups`・`removeItems`・`listSiblingLists`・`mapSiblingLists`・`isSameTree`）：一致（`GroupTreeRules.js` の `export` 9件）。`hasGroupItem` は消えた：一致。各関数の挙動：一致（`GroupTreeRules.js:14-196`）。import は `ItemTreeRules`（`ITEM_KIND`）のみ：一致（`GroupTreeRules.js:5`）。
+    * 「`removeItems` を使うのは `ItemPlaceRules.moveItems` だけ」：一致（`grep removeItems js` → `ItemPlaceRules.js:6,180` のみ）。「`GroupEditor` は `removeItems` をやめた」：一致。
+    * 使う側の一覧：`GroupSelectionRules`・`GroupCollapseRules`・`ItemRowRules`・`ItemStateRules`・`RemovalRules`・`SoloVisibilityRules`（いずれも `itemIdOf`）、`InsertTargetRules`、`ItemPlaceRules`（`itemIdOf`・`pickItems`・`removeItems`・`mapSiblingLists`）、`VectorModel`（`itemIdOf`・`isSameTree`）、`GroupEditor`（`wrapUnits`・`unwrapGroups`）、`ShapeOrderEditor`（`itemIdOf`・`listSiblingLists`・`mapSiblingLists`・`isSameTree`）、`ClipboardController`（`pickItems`・`listGroupIds`）：一致（`grep` の結果と完全に同じ）。
+    * 循環が無い（`ItemTreeRules` ← `GroupTreeRules` ← …、`ItemStateRules` ← `RemovalRules`・`SoloVisibilityRules`・`ItemRowRules`、`GroupTreeRules` は `ItemStateRules` を import しない）：一致（各ファイルの import 行）。
+    * テスト40件：一致（`node --test` で40件）。「Phase 11-04aの38件」：一致（`git show d1cdb79:test/core/GroupTreeRules.test.js` の `it(` 38件）。「`pickItems`・`listGroupIds` の3件を足し、`hasGroupItem` の1件を消した」：一致（38＋3−1＝40。`GroupTreeRules.test.js:222,231,237`）。
+  * **_doc/arch/62_ItemPlaceRules.md**
+    * 公開（`PLACE_KIND`・`findItemLocation`・`insertItemsAt`・`canMoveItems`・`moveItems`・typedef `ItemPlace`・`ItemLocation`）：一致。`PLACE_KIND` の値と凍結：一致（`ItemPlaceRules.js:16-21`）。`'below'` は「ドロップ位置だけが使う」：一致（`resolveRowInsertTarget`・`resolveNextInsertTarget`・`insertItemsAt` の呼び出し元〔`GroupEditor`・`VectorModel`〕は `above`・`inside`・`bottom` のみ。`below` を作るのは `ListDragRules.js:107,116`）。
+    * `findItemLocation`・`insertItemsAt`（各場所・`null`・無い `id`・`inside`/`bottom` の基準が図形のとき・`{ bottom, null }` が先頭・通り道だけ新しいオブジェクト）・`canMoveItems`（`null`は偽・`{ bottom, null }` は真・`ancestorIds`・`inside`/`bottom` で自分・図形は偽・ほかは真）・`moveItems`（手順(1)〜(4)・目印の形）：一致（`ItemPlaceRules.js:45-184`）。
+    * 使う側：`VectorModel`（`PLACE_KIND`・`insertItemsAt`。`#placeAdded`＝描いた図形・追加）・`GroupEditor.addEmptyGroup`・`moveItems`・`InsertTargetRules`・`ItemRowRules`・`ListDragRules`・`SoloVisibilityRules`（`findItemLocation`）・`ShapeOrderEditor`（`moveItems`）・`ItemListWiring`（`canMoveItems`）：一致（`grep` の結果）。
+    * `insertItemsAbove` は消えた：一致（`js/` に0件）。
+    * テスト40件：一致（`node --test`）。「旧 `insertItemsAbove` と同じ値の5件」：一致（`ItemPlaceRules.test.js:136-` の `describe` に `it` が5件）。
+  * 既知の傷2（`PROJECT_ARCHITECTURE.md` 3章14.の655〜671行の `[既存]` の文）：古い形が「今もそうである」と読める形で残っているものは、資料の記述としては無し（659行の「何も選んでいない・すでに端にある・全図形が選択中のときは何もしない」・「選択中の各図形」は図形だけの書き方だが、同じ項の666行が兄弟の並び・フォルダへ広げた規則を書いている。660行の「`model.getShapes()`の並び」は、直後に「この時点」の注記と661行の入れ子の説明がある）。
 * **推測・所見**:
-  * （未実施）
+  * 読み方が分かれる記述：
+    * 3章14. 659行（`[既存]`）：「選択中の各図形は並びの上で隣の1つ分だけ動く」「全図形が選択中のときは何もしない」は、実際は「兄弟の並びごとの選んでいるまとまり」（`ShapeOrderEditor.js:76-81`）。666行が広げた規則を書いているので、読み合わせれば矛盾しないが、659行だけを読むと図形だけの規則に見える。
+    * 3章14. 661行：「入れ子を動かす公開操作は`rearrangeItems`だけ」は、`VectorModel` の入れ子を並べ替える・動かす公開メソッドが他に無いという意味なら成り立つ。追加（`addShapesWithNewIds`・`replaceShape`等）・入れ替え（`replaceAllShapes`）・削除（`deleteShapes`）も入れ子を変えるので、「変える」と読むと文字どおりには成り立たない。
+    * 3章14. 665行：`removeSelection()` の「まとまりが無ければ`beginEdit`も呼ばず`false`」は、現在は「何も消えないとき（変えられないものだけのとき）」も `beginEdit` なしで `false`（`GroupEditor.js:161-164`）。671行・`_doc/arch/57_GroupTreeRules.md` の記述と合わせれば矛盾しないが、665行の条件は網羅ではない。
+    * `54_InsertTargetRules.md` 11行：「`VectorModel`は規則を知らず持ち主であるだけ」は、`VectorModel` が `InsertTargetRules`・`ItemPlaceRules` を import して `#applyState` から呼んでいる（`VectorModel.js:9-10,1299`）。同じファイルの10行に「状態を持つクラスが規則をimportする向き」とあるので、「規則の中身を持たない」という意味と読める。
+    * `62_ItemPlaceRules.md` 3行：「`'below'`は…ドロップ位置だけが使う」は、`ListDragRules.resolveDropPlace` が作り、`insertItemsAt`・`canMoveItems`・`moveItems`・`resolvePlaceMark` が受ける。描き込む先・貼り付け・複製が `below` を作らないという意味なら成り立つ。
+  * コードのコメント：
+    * 特になし（`GroupTreeRules.js`・`ItemPlaceRules.js`・`InsertTargetRules.js`・`ListDragRules.js`・`ShapeOrderEditor.js`・`GroupEditor.js`・`ItemListRowDrag.js` の冒頭・JSDocで古い説明は見つからなかった）。
+  * 照合できなかった主張：
+    * 3章14. 665行「できたフォルダは…閉じたフォルダに印が出る」：`ItemRowRules.js:43`（`hiddenMark`）の存在までは確認したが、表示の見え方はブラウザでの確認が要るため照合しなかった。
+    * 3章14. 669行（やらないこと）：方針の記述であり、是非は扱わない。
+    * `55_ListDragRules.md` 4行の例「見える高さ498.4px・20行 → 498 ＋ 221.6 ＝ 719.6 ＜ 720」：算術は一致するが、実際のブラウザの `clientHeight`・表示倍率125%での値は照合できない（テスト `ListDragRules.test.js:215-` に同じ値が使われていることだけ確認した）。
+  * 既知の傷：
+    * 既知の傷3〜6は本タスクの担当外。既知の傷1・2のうち、本タスクの対象に当たるのは3章14.（上記「既知の傷2」の行）。
 
 ### タスク11: PROJECT_ARCHITECTURE 3章28.（表示・選択・名前）とItemListRules・ItemListWiring
 * **調査内容**: 
@@ -676,8 +735,11 @@ E
 * （タスク5）**（`_doc/arch/03_VectorModel.md` 5行 照会の項。`+`行）**： 「`getVisibleShapes()`（見えている図形。ロックされた図形を含む。描画・書き出し・⛶の外枠が使う）」 → `getVisibleShapes()`を呼ぶのは描画（`js/main.js:220`）と⛶の外枠（`js/edit/ShapeExtentReader.js:86`）の2か所で、書き出しは呼ばない。`SpriteSerializer`は`toItems(values)`に`ItemStateRules.listVisibleShapes`を直接かける（`js/io/SpriteSerializer.js:6,301`）。書き出しが見えている図形だけを対象にすることは正しいが、`getVisibleShapes()`の使い手ではない。
 * （タスク5）**（`_doc/arch/03_VectorModel.md` 13行 経路ごとの候補。`+`行）**： 「`clearSelection`・`replaceAllShapes`・`addShapesWithNewIds`・`replaceShape`（`select`が真で`keepId`が偽）は空（選び直し）」 → `addShapesWithNewIds`は`asUnits`が真なら、選んでいるフォルダの候補が入れた並びのいちばん外側のフォルダのidになり空ではない（`js/core/VectorModel.js:1020-1022`）。同じ資料の3行と`PROJECT_ARCHITECTURE.md` 2章443行は`asUnits`が真の場合を書いている。
 * （タスク5）**（`_doc/arch/03_VectorModel.md` 16行 テストの項。`+`行）**： 「`VectorModel.insertTarget.test.js`（50件。Phase 11-04bで描き込む先の3つの形の11件を足した）」 → 50件は現在の件数と一致するが、足した件数は12件（`git show d0fda6f`で38件・04bの`a1c6f6f`で50件。追加は`describe('描き込む先の3つの形（フォルダ）')`の中の`it`12件。`test/core/VectorModel.insertTarget.test.js`）。
+* （タスク10）**（`PROJECT_ARCHITECTURE.md` 3章14. 656行「モジュールの分担」）**： 「配線＝`main.js`（キーの4つの注入と`performShapeOrder`だけ）。」 → `main.js` は重なり順の配線として、このほかに行のドラッグの `applyRowDrop: (ids, place) => shapeOrderEditor.moveTo(ids, place)` を `ItemListWiring` へ注入している（`js/main.js:963`）。「だけ」は文字どおりには成り立たない。キーの4つの注入は `js/main.js:1059-1062`、`performShapeOrder` は `js/main.js:735`。
 
 ## 6. 懸念事項・今後の修正における注意点
 * （タスク19で、「読み方が分かれる記述」「コードのコメント」「照合できなかった主張」の一覧を記載する）
 * （タスク4）`15_io.md` 9行の`[既存]`の文「作業データの版は2、書き出し形式の版は3のまま」はPhase 09-02aの項にあり、経緯として読める文のため5章に挙げていない。タスク17の版の検索で現在の値との関係を再確認すること。
 * （タスク5）5章の`03_VectorModel.md` 3行・13行・5行の3件は、同じ資料の別の行や前後の文を読めば補える小さな食い違いで、`VectorModel`の動作の記述そのものは一致している。443行・451行の「今の値のまま」は、読み手が`03_VectorModel.md` 13行に合わせて直す必要がある（描き込む先の挙動を誤解しやすい箇所）。
+* （タスク10）5章に挙げた656行は、同じ項の後ろの文（656行の最後の文と667行）が行のドラッグを `moveTo` として別に書いているため、「キーの配線だけ」の意味で書かれた可能性がある。発注者が直す・直さないを決められるよう5章へ入れた。
+* （タスク10）`57_GroupTreeRules.md` 3行・3章14. 663行の「既存の`applyItemRename`・`replaceAllShapes`にある同じ式」は、`applyItemRename`（`ItemAttributeRules.js:133`）では `item.kind === GROUP ? item.id === id : item.shape.id === id` の形（`itemIdOf` の式そのままではなく、`id` と比べる形）。意味は同じ種類の分岐で、文の趣旨と合うので相違には挙げなかった。
