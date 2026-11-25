@@ -266,7 +266,7 @@ E
     * 既知の傷4（`ItemListRules.js` の `resolveRowHover` の `@param id`）が残っているかを「推測・所見」に書く。
     * 実コードから読み取れる事実のみを抽出し、推測を含める場合はどこまでが事実でどこからが推測かを明示して、4章の『事実』『推測・所見』欄に書く。相違は5章にタスク番号を添えて書く（作業は中断しない。資料に無い事項がコードにあることは相違としない）。判定は資料の原文とコードの該当行を両方開いて行い、一致には `ファイル:行`、または検索した語と件数を添える。
     * タスクの終わりに `git status` で、ソースコードおよび資料ファイルを一切変更していないこと（変更があるのは本RESだけ）を確かめる。
-* [ ] タスク12: PROJECT_ARCHITECTURE 3章28.（行のドラッグ・描き込む先・フォルダの行）とItemListRowDrag・ItemRowRules等
+* [x] タスク12: PROJECT_ARCHITECTURE 3章28.（行のドラッグ・描き込む先・フォルダの行）とItemListRowDrag・ItemRowRules等
   * **対象ファイル**:
     * 資料: `./PROJECT_ARCHITECTURE.md` 929〜939行（3章28.の行のドラッグ・始まりと取りやめ・描き込む先の見せ方と変え方・Phase 11-03のふるまいの注意・フォルダの行（行の並び・パネル・折りたたみ・選択・作るボタン・行のドラッグとの関係））
     * 資料: `./_doc/arch/56_ItemListRowDrag.md`・`./_doc/arch/59_GroupCollapseRules.md`・`./_doc/arch/60_GroupCommandRules.md`・`./_doc/arch/61_ItemRowRules.md`（いずれも全行）
@@ -859,11 +859,115 @@ E
 
 ### タスク12: PROJECT_ARCHITECTURE 3章28.（行のドラッグ・描き込む先・フォルダの行）とItemListRowDrag・ItemRowRules等
 * **調査内容**: 
-  * （未実施）
+  * 資料: `PROJECT_ARCHITECTURE.md` 929〜939行（3章28.。929〜939行の全`+`行が`[新]`。`[既存]`の文は無し）、`_doc/arch/56_ItemListRowDrag.md`（15行）・`59_GroupCollapseRules.md`（12行）・`60_GroupCommandRules.md`（9行）・`61_ItemRowRules.md`（13行）の全行。
+  * 確かめ方：抜き出しコマンドで`[新]`の文を取り、次のコードを開いて1つずつ照合した。`js/wiring/ItemListRowDrag.js`（270行）・`ItemListWiring.js`（489行）、`js/core/ItemRowRules.js`（266行）・`GroupCollapseRules.js`（169行）・`GroupCommandRules.js`（52行）・`ListDragRules.js`（198行）・`InsertTargetRules.js`（174行）・`GroupSelectionRules.js`（151行）・`ItemListRules.js`・`ListSelectionRules.js`・`ItemPlaceRules.js`・`DragTracker.js`（先頭）、`js/palette/ItemListPanel.js`（696行）、`js/edit/GroupEditor.js`（191行）・`ShapeOrderEditor.js`（113行）、`js/main.js`（配線部）、`js/core/VectorModel.js`（選択・描き込む先・`#applyState`）、`index.html`（CSS・フッターの要素）。import・呼び出し元は`grep`で確認。テストの件数は`it(`を数えた。
+  * 既知の傷2（3章29の対象行＝929〜939行）：`[既存]`の文は無く、全文を読んだ。要件2の古い形（「画面からフォルダは作れない」「フォルダを含む絵では行のドラッグが始まらない」「描き込む先は図形だけ」「`hasGroupItem`」など）が「今もそう」と読める形では残っていない。`hasGroups`は「消した」、フォルダを含む絵で始まらなかったのは「それまでは」、と過去形で書かれている（`hasGroups`・`hasGroupItem`・`reorderShapes`・`applyOrder`・`insertItemsAbove`を`js`で検索した結果は0件。`insertItemsAbove`は`test/core/ItemPlaceRules.test.js:136`の題だけ）。
 * **事実（実コードの記述）**:
-  * （未実施）
+  * `PROJECT_ARCHITECTURE.md` 929行（行のドラッグでの出し入れ・並べ替え）：
+    * `canStartRowDrag`の条件（左ボタン・`Ctrl`/`⌘`と`Shift`なし・編集中の行でない・キャンバスのドラッグ/パン中でない・ロック中でない）：操作モードを見ない点は一致（`js/core/ItemListRules.js:69-70`。操作モードは引数に無い）が、条件にもう1つ`!isOnStateIcon`（目・鍵のアイコンの上でない。Phase 11-05）があり、資料の「…ロック中でないときだけ真」の列挙に無いため食い違いあり（5章）。`hasModifier`は`ItemListWiring.js:226`で`readCtrlModifier(event) || event.shiftKey`。
+    * `shouldSelectPressedRow`（選択・頂点の選択、スポイト待ち受け中でない、押した行がまとまりに無い）：一致（`ItemListRules.js:142-144`）。
+    * `ListDragRules`の関数名・引数・戻り値（`resolveDraggedUnitIds`・`resolveDraggedRowIds`・`resolveDropPlace`・`resolvePlaceMark`・`isSameRows`・`resolveAutoScrollTop`）：一致（`ListDragRules.js:53,67,86,128,152,172`）。`resolveDraggedUnitIds`は押した行がまとまりにあれば写し、無ければ押した行だけ（`:53-58`）。`resolveDraggedRowIds`は動かすものの行と上のフォルダが動かすものの行（`:67-72`）。
+    * ドロップ位置の決め方：一致。図形は0.5で`above`／`below`（`:21-22,106-108`）、フォルダは0.25・0.75（`:17-20,109-116`）、下の4分の1は開いていて中身があれば`inside`・折りたたみ／空なら`below`（`:115-116`）。最後の行より下・送り切って下へ外れたときは`bottom`・`id: null`、差は1px以内（`:24,97-102`）。上下へ外れたときは`clampedY`で端（`:94`）。左右は`null`（`:87-89`）。
+    * `ItemListRowDrag`が`DragTracker`を1つ持つ・閾値3px・`suppressClick: 'whenMoved'`：一致（`ItemListRowDrag.js:16,39,98`）。注入の名前（`panel`・`getRows`・`getUnitIds`・`shouldSelectPressedRow`・`selectRow`・`canDrop`・`applyDrop`・`onDragStart`）：一致（`:65`）。`#startRows`を控える：一致（`:43,164`）。`VectorModel`・`InputTracker`・`HistoryManager`・操作モードをimportしない：一致（import文は`DragTracker`・`ListDragRules`のみ。`:5-13`）。
+    * 動く・毎フレーム・スクロールで`resolveDropPlace` → `canDrop`が偽なら`showDropMark(null)`、真なら`resolvePlaceMark` → `showDropMark`：一致（`:236-250`。呼び出しは`#handleMove`・`#handleFrame`・`refresh`）。
+    * 離したときは後始末を先に行い、`isSameRows`が偽なら何もせず、`place`が`null`か`canDrop`が偽なら何もせず、そうでなければ`applyDrop(draggedIds, place)`：一致（`:191-208`）。`applyDrop`は`main.js:963`の`applyRowDrop: (ids, place) => shapeOrderEditor.moveTo(ids, place)`：一致。
+    * 配線：`getRows`（`ItemListWiring.js:126`）・`getUnitIds`が非公開`#resolveUnitIds`（`:127,271`）・`selectRow`が`resolveRowClickSelection`を`additive: false`・`range: false`で呼び`setSelectionByUser(ids, { groupIds, keepsCollapsed: true })`・起点の更新・`sync({ allowScroll: false })`（`:133-146`）・`canDrop`＝`canMoveItems`（`:147`）：一致。
+    * `ItemListPanel`：`onRowPress`が`mousedown`のたびの通知で`preventDefault()`しない（`ItemListPanel.js:215-220`。ただし引数は4つになっている。下の所見）・`setDraggedRows`（`:437`）・`showDropMark({ id, edge, indent })`（`:458-476`）・`getListArea`（`:482`）：一致。クラス`drop-before`／`drop-after`／`drop-inside`・`--drop-indent`：一致（`:471-474`）。`.item-list`の子に要素を足さない：一致（`render`・`showDropMark`はクラスの書き換えのみ）。
+    * `ShapeOrderEditor.moveTo(ids, place)`が1件の編集操作（`beginEdit` → `rearrangeItems` → `commitEdit`）：一致（`ShapeOrderEditor.js:102-112`）。
+  * 930行（ドラッグの始まりと取りやめ）：
+    * `ItemListWiring`の行の押下が`canStartRowDrag`の結果とともに`rowDrag.press`を呼び、`press`の先頭で`clearSuppressedClick()`：一致（`ItemListWiring.js:223-233`、`ItemListRowDrag.js:89-91`）。
+    * 始まった時点で`shouldSelectPressedRow`が真なら`selectRow`、その後`getUnitIds()`を照会し直して`resolveDraggedUnitIds`：一致（`ItemListRowDrag.js:166-168`）。フォルダの行を押すと`resolveRowClickSelection`で中身も選ぶ：一致（`ListSelectionRules.js:159-175`）。
+    * 三角の上から押しても行のドラッグになる・動かさず離せば開閉：一致（`ItemListPanel.js:215-220`は三角でも`onRowPress`を呼ぶ。`:238-243`で三角のclickは`onGroupToggle`、`ItemListWiring.js:361-372`）。
+    * 描くツール・キャンバス移動・スポイト待ち受け中は選択を変えない：一致（`ItemListRules.js:142-144`は`SELECT`・`VERTEX`のみ）。
+    * `#handleRowClick`の先頭の`consumeSuppressedClick()`：一致（`ItemListWiring.js:305`）。ホバーの`isDragging`に`rowDrag.isMoving()`：一致（`:425`）。
+    * 取りやめの契機：`Esc`（`cancel()`は押している間なら真を返す。`ItemListRowDrag.js:106-110`）・`sync()`の先頭の`cancelIfRowsChanged`（`ItemListWiring.js:186`）・`openCanvasId`の変化（`:155-164`）・ロック中（`:165-168`）・一覧を隠した（`:170-175`）：一致。
+    * `window`のcaptureの`mousedown`で`isActive()`の間の押下を`preventDefault()`＋`stopPropagation()`：一致（`ItemListRowDrag.js:75-79`）。`canStartRowDrag`が`inputTracker.isDragging()`を見る（`ItemListWiring.js:228`）：一致。
+    * `main.js`の`// 8.`の注入：`isDragging`（`main.js:1011`）・`isCancelableDrag`（`:1013`）・`cancel`（`:1039`）：一致。`// 8.`は`:970`。
+    * 「`KeyboardShortcuts`の対応表・判定の関数・`DragTracker`・`InputTracker`のコードは変えていない」：Phase 11-03の時点の記述。現在の`HEAD`では`ff8718e`からの差分がある（`KeyboardShortcuts.js` 40行・`DragTracker.js` 7行・`InputTracker.js` 115行）が、過去の時点の記述として扱い相違にしない（下の所見）。
+    * `DragTracker`の使い手が`InputTracker`と`ItemListRowDrag`の2つ：一致（`DragTracker.js`のクラスJSDoc。`ItemListRowDrag.js:39`）。
+  * 931行（描き込む先の見せ方と変え方）：
+    * `resolveInsertMark({ selectedCount, target })`の結果を`insertMark`として`resolveRowViews`へ渡す：一致（`InsertTargetRules.js:169-174`、`ItemListWiring.js:192-201`。`selectedCount`＝選択の図形数＋選んでいるフォルダ数）。割り当ては内部関数の1か所：一致（`ItemRowRules.js:141`の`resolveInsertMarkEffects`）。
+    * 図形の行の`above`・`inside`＝`insert-target`、フォルダの行の`above`＝上の破線（`insertLine`・`before`）、`bottom`＝開いていて中身があれば中の最後の行の下の線（字下げ1段深い）・空なら`insert-target`・閉じていれば`has-hidden-mark`、いちばん外側の`bottom`＝最後の行の下の線（字下げ0）、閉じたフォルダの中の行が描き込む先なら`hiddenMark`：一致（`ItemRowRules.js:147-185`、`:152-158`）。`insert-line-before`／`insert-line-after`・`--insert-line-indent`：一致（`ItemListPanel.js:346-357`）。
+    * 行のドラッグ中は描き込む先の線を隠す・行の印はそのまま：一致（`index.html:162-175`は`.item-list:not(.row-dragging)`の線だけ。`insert-target`の印は別。`ItemListPanel.js:450`で`row-dragging`）。
+    * 描くツールで行を離したとき`canSetInsertTargetByRow`が真なら`model.setInsertTarget(id)` → `sync({ allowScroll: false })`：一致（`ItemListWiring.js:312-325`、`ItemListRules.js:53-55`。作成モードでスポイト・ドラッグ・ロック中でない）。`Ctrl`・`Shift`は読まない：一致。`resolveRowPressAction`は作成モードで`none`：一致（`ItemListRules.js:27-41`）。`setInsertTarget`は図形が`above`・フォルダが`inside`：一致（`InsertTargetRules.js:111-120`、`VectorModel.js:443-455`）。
+    * 無しになるとき：`setSelectionByUser`で結果が空なら`insertTarget: null`（`VectorModel.js:373-375`）：一致。呼び出し元は`InputTracker.js:704,1809`・`ItemListWiring.js:143,348`（キャンバスのクリック・範囲選択・`Esc`・一覧）。図形一式の入れ替え：`replaceAllShapes`が`keepInsertTarget`が偽なら`insertTarget: null`（`VectorModel.js:956`）：一致。`Ctrl`+`I`・`Ctrl`+`A`は`model.setSelection`（`main.js:988`、`InputTracker.js:722`）、ツール切り替えは`clearSelection()`（`InputTracker.js:553`）で、どちらも描き込む先を消さない（`VectorModel.js:333,382`）：一致。
+    * 新しい図形・貼り付け・複製・インポートが描き込む先へ入る：貼り付け・複製は`ClipboardController.js:187,212,229,255`（`resolvePastePlace`・`resolveDuplicatePlace`）、描く・`Alt`+ドラッグ・インポートは`VectorModel.js:729,1018`の`atInsertTarget`・`#placeAdded`。空のフォルダ：`GroupEditor.js:138-142`。複製は描き込む先へ入らない（`resolveDuplicatePlace`は選んでいるまとまりの一番上のもののすぐ上。`InsertTargetRules.js:155-160`）ため、この文は食い違いあり（5章）。貼り付けの例外（描き込む先が自分のコピーのフォルダの中ならそのフォルダのすぐ上。`:142-148`）は注記にとどめる（下の所見）。
+  * 932行（Phase 11-03のふるまいの注意）：
+    * (a) いちばん下の行を切り取って貼り付けると描き込む先が`bottom`・`id: null`：一致（`InsertTargetRules.js:62-64`の`resolveVanishedTarget`。外側の並びで前の行が無ければ`{ BOTTOM, id: null }`）。
+    * (c) 行のドラッグ・キーはどちらも`rearrangeItems`で、選んでいるまとまりが1つ以上あれば描き込む先は選んでいるまとまりの最後のもの（前順の最後＝一番上）で決まる：一致（`ShapeOrderEditor.js:83,109`、`InsertTargetRules.js:93-95`）。
+    * (d)(e)(h)：(d)は`selectRow`が始まった時点で選ぶ（`ItemListRowDrag.js:166`）、(e)は`cancel({ suppressClick: true })`（`:108`）で一致。(h)は`shouldSelectPressedRow`が`isPicking`で偽（`ItemListRules.js:143`）、`Alt`は`hasModifier`に入らない（`ItemListWiring.js:226`）：一致。
+    * (f) 左右へ外れている間は自動スクロールもしない：一致（`ListDragRules.js:173-175`。箱の端は`getBoundingClientRect`の`left`・`right`＝スクロールバーを含む。`ItemListPanel.js:487-491`）。
+    * (g) ドラッグ中の`Space`：`InputTracker.handleKeyDown`は`Space`だけを解釈（`InputTracker.js:1210-1214`）し、行のドラッグの状態を見ない（`isRowDragging`の検索で`InputTracker.js`に0件）。カーソルの形が変わる点は`#updateCursor`の動きで、ここでは追わず。
+    * (i) フォルダを含む絵でも行のドラッグが始まる：一致（`canStartRowDrag`に`hasGroups`は無い。`ItemListRules.js:69`）。
+    * (j) `.item-list`の子は行だけ：一致（`ItemListPanel.js:404-419`・`getViewport`の`firstElementChild`）。
+    * (k) `replaceAllShapes`は渡された`values`から作った`nextItems`の`item.shape.id`を直接書き換え（`VectorModel.js`の`replaceAllShapes`の`reassignTargets`）、`#applyState`は`previousItems = this.#items`を呼び出し時に取る（`:1287`）：記述の前半（呼び出し時の`#items`から求める）は一致。「同じインスタンスが渡されると前のidが現在のidになる」の結果までは追っていない（下の所見）。
+    * (l) `DragTracker`の取りこぼしの保険（次の`mousemove`の`buttons`で離れたと知り、その位置で離したものとして扱う）：一致（`DragTracker.js`の`onEnd`のJSDoc）。
+  * 933〜934行（フォルダの行・行の並び）：
+    * `buildItemRows(items)`が見えている行を上（前面）から返す・フォルダは「行 → 中身」・折りたたんだ中身は行にしない・1回の再帰・引数を書き換えない：一致（`ItemRowRules.js:63-116`。後ろの要素から`for (index = list.length - 1 ...)`）。
+    * 行のキー（`id`・`kind`・`name`・`depth`・`ancestorIds`・`shape`・`shapeIds`・`groupIds`・`collapsed`・`isEmpty`）と`shapeIds`・`groupIds`の意味は一致（`ItemRowRules.js:85-101`）。ただし行は15キーで、資料の10キーの列挙に無い`visible`・`locked`・`hiddenByAncestor`・`lockedByAncestor`・`hidden`がある（Phase 11-05）。`resolveRowViews`のキーも16個（`:217-234`）で資料の11個より5つ多い。同じ文に断りが無く今の形として書かれているため食い違いあり（5章）。
+    * アイテムのidは`itemIdOf`：一致（`ItemRowRules.js:82`、`GroupTreeRules.itemIdOf`）。
+    * `resolveRowIndent`は1段12px・6段で頭打ち：一致（`:51-54,123-126`）。
+    * `resolveRowViews`：`selectedInGroup`・`selected`・`hiddenMark`の決め方：一致（`:210-216`）。`canToggle`＝空でないフォルダ（`:223`）：一致。`insertMark`は場所または`null`：一致。
+    * `resolveRowHighlight`の`{ selectedIds, markId, indexes }`とその意味：一致（`:246-265`）。`hasHighlightChanged`・`resolveSelectionScrollTop`へ渡す：一致（`ItemListWiring.js:203-209`）。
+    * 同期は1フレームに1回（`#requestSync`、`:454-461`）・`sync`が`buildItemRows` → `resolveRowViews` → `panel.render` → `resolveRowHighlight`の順：一致（`:188-203`）。フォルダの行のサムネイルは`shape`が無い行を飛ばす：一致（`:480`）。ホバーの`queryExists`は`model.getShapes()`で図形だけを見る：一致（`:427`）。
+  * 935行（パネル）：`.item-row-toggle`（`▸`／`▾`・押せないときは`visibility: hidden`）・`.item-row-folder-icon`（疑似要素の絵）・名前の`<span>`・サムネイルなし：一致（`ItemListPanel.js:366,371,635-648`、`index.html:106-117,118-133`。ただしフォルダの行にも末尾に目・鍵の`.item-row-states`がある。`ItemListPanel.js:655-669`。下の所見）。`--row-indent`：一致（`ItemListPanel.js:360`）。`getSelectedRowIds()`が`selected`・`selected-in-group`の両方：一致（`:402-410`）。`getMarkedRowId()`が`insert-target`・`insert-line-before`／`insert-line-after`・`has-hidden-mark`のいずれかを持つ最初の行：一致（`:417-430`）。`getInsertMarkId()`は消した：一致（`js`に0件）。`render`が同じidで`kind`が変わったとき編集中の控えを捨ててから作り直す：一致（`:287-293`）。三角のclickは`onGroupToggle`だけ（`:238-243`）：一致。名前の編集は`.item-row-name`の`dblclick`（`:246-251`）で、三角・絵は名前の外：一致。`ItemRenameEditor`がフォルダのidを扱う点は未確認（下の所見）。
+  * 936行（折りたたみ）：`canToggleGroup({ isDragging, isLocked })`が真のとき`model.setGroupCollapsed(id, !今の値)` → `sync({ allowScroll: false })`：一致（`ItemListWiring.js:361-372`、`ItemListRules.js:129-131`）。選択に触れない：一致（`VectorModel.js:401-417`）。
+  * 937行（フォルダを選ぶ）：`resolveRowClickSelection`の`selectedIds`が今の選択の全体で、`hitId`の行が無ければ今の選択と起点をそのまま返す：一致（`ListSelectionRules.js:90-96`、`ItemListWiring.js:136,339-347`）。ふつう・`Shift`は結果の行の`shapeIds`の和と、フォルダの行の`groupIds`：一致（`:159-175`）。`Ctrl`で外すと、押した行の`id`・中のフォルダ・上のフォルダがフォルダの選択から外れる：一致（`:153-158`）。`Shift`の範囲で範囲内のフォルダの`shapeIds`が全部選ばれる：一致（`:162-174`）。「キャンバスのクリックでフォルダごと選ぶことはしない」：キャンバスの選択は`setSelectionByUser(ids)`へ図形idを渡す経路（`InputTracker.js:1809`。`groupIds`を渡さない）で、一致。
+  * 938行（フォルダを作るボタン）：`#item-list-add-group`が`.item-list-footer`の中、`title="フォルダを作る (Ctrl+G)"`：一致（`index.html:850`）。クリックで`blur()`してから`onAddGroup()`：一致（`ItemListPanel.js:257-260`）。`resolveFolderButtonAction`の引数・分岐・結果（`group`／`addAndSelect`／`add`／`none`）と、`groupSelection()`／`addEmptyGroup({ selects: true })`／`addEmptyGroup({ selects: false })`を呼ぶこと：一致（`ItemListWiring.js:378-393`、`GroupCommandRules.js:41-52`）。`setMode`等を呼ばない：一致。`ItemListWiring`のコンストラクタが`groupEditor`を受け取り、`main.js`の`// 7.15.`が渡す：一致（`ItemListWiring.js:95`、`main.js:944,965`）。`addEmptyGroup({ selects: false })`で新しい空のフォルダが描き込む先（`inside`）になる：一致（`GroupEditor.js:143-145`の`targetsNewGroup`、`VectorModel.js:1175,1202`）。
+  * 939行：フォルダの行を押すと描くツールで`setInsertTarget(フォルダのid)`（`inside`）：一致（`ItemListWiring.js:321`、`InsertTargetRules.js:116-119`）。一覧の削除は削除ボタン・`Delete`と同じ経路：`GroupEditor.removeSelection`は`main.js:202`の`deleteSelectedItems`で、一覧に削除の経路は無い（`ItemListWiring.js`に`removeSelection`0件）ため一致。
+  * `_doc/arch/56_ItemListRowDrag.md`：
+    * 公開（コンストラクタの引数・`press(id, event, canStart)`・`cancel()`・`cancelIfRowsChanged()`・`isActive()`・`isMoving()`・`consumeSuppressedClick()`・`refresh()`）：一致（`ItemListRowDrag.js:65,89,106,116,125,133,141,149`）。`ItemListWiring`だけが生成：一致（`js`の`ItemListRowDrag`のimportは`ItemListWiring.js:31`だけ）。
+    * コンストラクタ（`DragTracker`・クライアント座標・captureの`mousedown`）、`press`の流れ、進行（`onStart`で押した行が見えている行に無ければ取りやめ・`#startRows`・`onDragStart()`・`selectRow`・`getUnitIds()`の照会し直し・`setDraggedRows(resolveDraggedRowIds)`・`requestAnimationFrame`）、`onEnd`の流れ：一致（`ItemListRowDrag.js:157-208`）。毎フレームは先に`resolveAutoScrollTop`で`setScrollTop`：一致（`:215-230`）。
+    * 取りやめ・照会・持つ値（`DragTracker`・押した行のid・始まった時点の行・動かすまとまりのid・最後のポインター位置・`requestAnimationFrame`のID・前のフレームの時刻）：一致（`:40-51`。保存・履歴・作業データへ入れていない）。`cancelIfRowsChanged`が`isSameRows`が偽で取りやめ（id・深さ・折りたたみ・空かどうか）：一致（`ListDragRules.js:152-160`）。
+    * import（`core/DragTracker`・`core/ListDragRules`のみ。`palette/ItemListPanel`・`core/ItemPlaceRules`・`core/ItemRowRules`は`import('…')`の型参照だけ。`VectorModel`・`InputTracker`・`edit/`・`io/`はimportしない）：一致（`ItemListRowDrag.js:5-13`、型参照は`:22-37`）。
+    * 使う側が`ItemListWiring`だけ、`isRowDragging()`・`cancelRowDrag()`を通る：一致（`ItemListWiring.js:284-294`、`main.js:1011,1013,1039`）。
+    * テスト：なし：一致（`test/wiring/`は無く、`test`内に`ItemListRowDrag`を参照するファイルは0件）。`_doc/arch/16_test.md`の「テストできない箇所（11-03の追加）」の存在は`grep`で見出しの有無までは確かめていない（16_testは別タスクの担当）。
+  * `_doc/arch/59_GroupCollapseRules.md`：
+    * 公開5つ（`setCollapsed`・`expandGroupsContaining`・`withoutCollapsed`・`listCollapsedIds`・`restoreCollapsed`）の名前・引数：一致（`GroupCollapseRules.js:54,68,111,125,149`。ほかの`export`は無い）。
+    * 閉じているときだけ`collapsed: true`のキーを持つ・図形に付けない・整えるのは`ItemAttributeRules.resolveItems`：一致（`GroupCollapseRules.js:16-22`、`ItemAttributeRules.js:72,101-102`）。
+    * `setCollapsed`が変わらないとき同じ参照：一致（`:30-58`の`mapGroups`）。`VectorModel.setGroupCollapsed`がこれで判定：一致（`VectorModel.js:409-411`）。
+    * `expandGroupsContaining`（`canExpand`が偽でも上のフォルダは対象の図形を含めば開く・変わらなければ同じ参照・`VectorModel.#applyState`が変わる前の`#items`にあったフォルダだけ渡す）：一致（`GroupCollapseRules.js:68-104`、`VectorModel.js:1291-1292`）。
+    * `withoutCollapsed`（新しい入れ子・図形のアイテムも写す）・`listCollapsedIds`（前順）・`restoreCollapsed`（今あれば今の値、無ければ`recordedIds`）：一致（`:111-118,125-139,149-169`）。
+    * 読むもの・import（`ItemTreeRules`・`GroupTreeRules`のみ）：一致（`:5-6`）。使う側：`VectorModel`・`SnapshotAdapter`だけ：一致（`js`内のimportは`VectorModel.js:15`・`SnapshotAdapter.js:5`の2か所）。
+    * テスト16件：一致（`test/core/GroupCollapseRules.test.js`の`it(`は16）。
+  * `_doc/arch/60_GroupCommandRules.md`：
+    * 公開（`FOLDER_BUTTON_ACTION`が凍結・4つの値、`canEditGroups`、`resolveFolderButtonAction`）：一致（`GroupCommandRules.js:13-18,25,41`）。`canEditGroups`は選択モードだけ真：一致（`:26`）。`GroupEditor.groupSelection`・`ungroupSelection`が`getMode()`の結果を渡す：一致（`GroupEditor.js:71,96`）。`removeSelection`・`addEmptyGroup`はこの規則を通らない：一致（`GroupEditor.js:137-147,156-166`）。受理の判定は`InputTracker.deleteSelection()`・`resolveFolderButtonAction`が行う：後者は一致。`InputTracker.deleteSelection()`は`js/core/InputTracker.js`内の定義を開いていない（削除の受理は`main.js:202`の`deleteSelectedItems`経由で`groupEditor.removeSelection()`を呼ぶことだけ確認）。
+    * `resolveFolderButtonAction`の分岐順：一致（`:42-51`）。結果に従って`ItemListWiring.#handleAddGroup`が`groupEditor`を呼ぶ：一致。
+    * 読むもの・import（`core/InputModes`の`OperationMode`のみ）：一致（`:5`）。使う側（`GroupEditor`・`ItemListWiring`）：一致（`GroupEditor.js:10`、`ItemListWiring.js:25`）。
+    * テスト8件：一致（`test/core/GroupCommandRules.test.js`の`it(`は8）。
+  * `_doc/arch/61_ItemRowRules.md`：
+    * 公開（`buildItemRows`・`resolveRowIndent`・`resolveRowViews`・`resolveRowHighlight`と、typedef`ItemRow`・`RowView`）：一致（`ItemRowRules.js:63,123,205,246`、`:12,32`）。ほかの`export`は無い。
+    * `buildItemRows`：折りたたんだフォルダの中身は行にしないが、フォルダの行の`shapeIds`・`groupIds`には入る：一致（`:102-114`）。隠れている・ロックの図形・フォルダも行にする：一致（`:109-111`は`visible`だけで判定）。表示・ロックは`collectItemStates(items)`を1回求めてidで引く：一致（`:65,84`）。`ItemRow`の15個のキー（`visible`・`locked`・`hiddenByAncestor`・`lockedByAncestor`・`hidden`を含む）と値の意味：一致（`:85-101`、`:23-27`）。`name`は未定なら空文字：一致（`:88`）。
+    * `resolveRowIndent`の「≒98px」「≒78px」の算術：下の5章の1件を除き、`240−1−17−16−28−8−72=98`・`98−20=78`の計算は合う。「三角の分（16＋間4）」は一致（`index.html:106-115`：`width: 16px; margin-right: -4px`、行の`gap: 8px`で実効20px。`:82-91`）。幅240・サムネイル28・左右の余白16・間8も一致（`index.html:15,49`、`ThumbnailRules.js:8`、`index.html:86-90`）。「スクロールバー約17」はブラウザの実測値のため未照合。
+    * `resolveRowViews`のキー（`id`・`kind`・`name`・`indent`・`collapsed`・`canToggle`・`selected`・`selectedInGroup`・`insertTarget`・`insertLine`・`hiddenMark`・`visible`・`locked`・`hiddenByAncestor`・`lockedByAncestor`・`hidden`）：一致（`:217-234`）。`ItemListPanel`が`item-hidden`・目の`is-off`・`is-inherited`・鍵の`is-on`・`is-inherited`で表す：一致（`ItemListPanel.js:303-327`）。描き込む先の印の割り当ての各場合（`above`・`inside`・`bottom`・`bottom`＋`id: null`・見えていない行）：一致（`ItemRowRules.js:141-187`）。`insertTarget`は`insertLine`と同時には付かない：一致（各場合で片方のみ設定）。`hiddenMark`の条件：一致（`:212-216`）。`selectedGroupIds`は`Iterable`：一致（`:206`）。
+    * `resolveRowHighlight`：一致（`:246-265`）。ホバー（`queryExists`が図形だけ）：一致（`ItemListWiring.js:427`）。
+    * 読むもの：`kind`・`name`・`children`・`collapsed`と`itemIdOf`の結果だけ：食い違いあり（5章。`ItemRowRules.js:91`は`item.shape`も読む）。import（`ItemTreeRules`・`GroupTreeRules`・`ItemPlaceRules`・`ItemStateRules`）：一致（`:5-8`）。
+    * 使う側：一致（`ItemListWiring.js:22`、`ListDragRules.js:6`。`ItemListRules`・`ListSelectionRules`・`ItemListRowDrag`は型参照・コメントだけでimportしない）。
+    * テスト50件：一致（`test/core/ItemRowRules.test.js`の`it(`は50）。内訳（11件・39件・28件・7件・11件）は個別には数えていない（件数の合計だけ照合）。
 * **推測・所見**:
-  * （未実施）
+  * 読み方が分かれる記述：
+    * 3章 929行の`onRowPress`は資料の「行の上の`mousedown`のたびの通知」のとおりだが、引数は4つ（第4引数`isOnStateIcon`。`ItemListPanel.js:86,219`。Phase 11-05）。資料は引数を列挙していないため相違にしない。
+    * 3章 931行の貼り付け：描き込む先を通すが、描き込む先が「自分のコピーのフォルダの中」なら、そのフォルダのすぐ上へ変わる（`InsertTargetRules.js:142-148`）。複製の食い違いは5章に挙げた。
+    * 3章 935行「フォルダの行は…名前の`<span>`（サムネイルは無い）」：今はフォルダの行にも末尾に目・鍵の`.item-row-states`（`<span class="item-row-states">`。`ItemListPanel.js:655-669`。Phase 11-05）がある。「だけ」の無い列挙なので相違にしていない。
+    * 3章 934行「同期は今までどおり1フレームに1回・行の組み立ては1回」：通常は一致。ただし行のドラッグが始まっているときは、`sync`の先頭の`cancelIfRowsChanged`が`getRows()`（`buildItemRows`）をもう1回呼ぶ（`ItemListRowDrag.js:116-119`、`ItemListWiring.js:186`）。好意的に読めば「`sync`の中の」組み立ての数と読める。
+    * 3章 930行「`KeyboardShortcuts`の対応表・判定の関数・`DragTracker`・`InputTracker`のコードは変えていない」：Phase 11-03の項に書かれた過去の事実。現在の`HEAD`は`ff8718e`からその3つのファイルとも差分がある（`git diff --stat`で`KeyboardShortcuts.js` 40行・`DragTracker.js` 7行・`InputTracker.js` 115行）。後のサブフェイズ（`group`・`ungroup`の追加など）の変更を含むと推測するが、11-03のコミット単独では確かめていない。
+    * 3章 929行「フォルダがあっても始まる＝Phase 11-04aの引数`hasGroups`は消した）」：括弧の開きが無く閉じだけがある書き方（文中の`（`が欠けている。原文のまま）。内容は一致。
+    * `61_ItemRowRules.md` 3行目の「（図形の数×深さ）」：直前の文の計算量の注記と読めるが、前の文の終わり（「…idで引く（受け継ぐ計算はここに書かない。Phase 11-05）」）の後に置かれ、何にかかるか読み取りにくい（`buildItemRows`の計算量と推測）。
+  * コードのコメント：
+    * `ItemListRules.js:171`の`resolveRowHover`の`@param id`が「カーソルの下の行の図形 id」のまま（既知の傷4）。フォルダの行のidも渡る（`ItemListWiring.js:419`のJSDocは「図形またはフォルダ」）。今も残っている。
+    * `ItemListWiring.js:73`の`@type`の「自分が出したホバーとして記録している図形id」も同じく図形idのまま（フォルダのidが記録されることはない＝`queryExists`が図形だけを見る、と読めば誤りではない）。
+    * ほかにこの範囲のコード（`ItemListRowDrag.js`・`ListDragRules.js`・`ItemRowRules.js`・`GroupCollapseRules.js`・`GroupCommandRules.js`・`InsertTargetRules.js`・`GroupEditor.js`・`ShapeOrderEditor.js`）のJSDocに、古い説明は見つけなかった。
+  * 照合できなかった主張：
+    * 3章 929行・936行・938行・939行の参照先（「2章・3章14.」「3章6.・8.・9.」「3章3.・14.」「3章3.・6.」「3章7.」「2章『描き込む先』『選んでいるフォルダ』『フォルダの折りたたみ』」）：節の対応は対象外のため確かめていない。
+    * 3章 935行「名前の編集は…`ItemRenameEditor`はフォルダのidを扱える」：`ItemRenameEditor`は照合に使うコードの対象外のため開いていない（別タスクの担当）。
+    * 3章 932行(g)「ドラッグ中にカーソルがキャンバスの上へ出たときの、キャンバス側のホバーと引いている途中の線の先の追従は今までどおり」「`Space`はカーソルの形だけが変わる」：ブラウザでの見え方・`InputTracker`の動きの全体に及ぶため、`Space`が行のドラッグの状態を見ないこと（`InputTracker.js:1211-1214`）までしか確かめていない。
+    * 3章 932行(k)の「前のidが現在のidになる」の挙動、(l)の「次の`mousemove`で知り、その位置で離したものとして扱う」の挙動の細部：JSDoc・コードの該当箇所は確かめたが、実際に動かして確かめてはいない。
+    * `61_ItemRowRules.md`のスクロールバー幅「約17px」：ブラウザ・OSで変わる値のため未照合。
+    * `56_ItemListRowDrag.md` 14行「置き場所の理由」・15行「テストプレイで確かめる」、`59`・`60`・`61`の「置き場所の理由」：方針の記述のため、コードで確かめられる範囲（上記）だけを照合した。
+    * 3章・各資料の「Phase 11-03で新設」「Phase 11-04b」等の経緯の記述：`git show`での各コミット時点の確認はしていない（現在のコードと食い違うものは5章・所見に挙げた）。
+  * 既知の傷：
+    * 既知の傷2（3章29の929〜939行）：上の「調査内容」のとおり、要件2の古い形は見つからなかった（5章へ挙げたものは別件）。
+    * 既知の傷4：`js/core/ItemListRules.js:171`の`resolveRowHover`の`@param params.id`が「カーソルの下の行の図形 id（行が無ければ null）」のまま残っている（今も残る）。
 
 ### タスク13: PROJECT_ARCHITECTURE 3章28.（ふるまいの注意・確認の状況・目と鍵）とListSelectionRules・ListScrollRules・Thumbnail
 * **調査内容**: 
@@ -1073,6 +1177,11 @@ E
 * （タスク11）**（`PROJECT_ARCHITECTURE.md` 3章918行、28.「モジュールの分担」）**： 「一覧が`wiring/`の一時的な値として持つのは、`Shift`の起点・自分が出したホバーのid・描いたサムネイルの鍵・最後に見た`openCanvasId`・同期の予約だけ」 → `ItemListWiring`の5つは合うが、11-03で足された`wiring/ItemListRowDrag`も一覧の一時的な値を持つ（`js/wiring/ItemListRowDrag.js:41-51`の`#pressedId`・`#startRows`・`#draggedIds`・`#pointer`・`#frameId`・`#lastFrameTime`）。`_doc/arch/53_ItemListWiring.md`（持つ値は5つ。ドラッグの控えは`ItemListRowDrag`が持つと別の行にある）とも「だけ」の範囲が合わない。
 * （タスク11）**（`PROJECT_ARCHITECTURE.md` 3章921行、28.「一覧で選ぶ」）**： 「`Shift`の起点は、ふつうのクリックと`Ctrl`＋クリックでだけ変わる」 → 行のドラッグの押下で選ぶ`selectRow`も`#anchorId`を書き換え（`js/wiring/ItemListWiring.js:133-145`、`:144`）、キャンバスの切り替えで`null`にする（`:158`）。
 * （タスク11）**（`PROJECT_ARCHITECTURE.md` 3章924行、28.「名前の編集」）**： 「（`KeyboardShortcuts`・`FocusKeyYieldRules`は変えていない）」（同じ行にPhaseの番号も断りも無い） → `js/core/KeyboardShortcuts.js`はf9074eb（11-03。`isCancelableDrag`等）・1b647d0（11-04a。`group`/`ungroup`）で変わっている（`git diff ff8718e HEAD --stat -- js/core/KeyboardShortcuts.js js/core/FocusKeyYieldRules.js`は`KeyboardShortcuts.js`だけ）。`FocusKeyYieldRules.js`は変わっていない。
+* （タスク12）**（`_doc/arch/61_ItemRowRules.md` 4行目 `resolveRowIndent(depth)` の「名前の幅の見積もり」）**： 「名前の幅の見積もり＝240−枠1−スクロールバー約17−左右の余白16−サムネイル28−間8−字下げ72≒98px（図形）、フォルダは三角の分（16＋間4）を引いて約78px。どちらも名前が読める」 → 図形の行には、名前の後ろに目・鍵のアイコンの帯`.item-row-states`（`.item-row-state`の幅20px×2＝40px。`index.html:206-215`。Phase 11-05。`ItemListPanel.js`の`#createRow`で全行に付く＝フォルダの行にも）が`flex: none`であり、行の`gap: 8px`（`index.html:86`）も名前とその帯の間に1つ増える。見積もりはこの48px（40＋8）を引いていないため、同じ式で引けば図形は約50px（98−48）、フォルダの行は約30px（78−48。フォルダの絵の幅16pxは図形のサムネイル28pxと違うため、フォルダは約42px前後。絵の差を入れない単純な式の場合は約30px）になる。「どちらも名前が読める」は11-05の後の幅では確かめられていない。
+* （タスク12）**（`_doc/arch/61_ItemRowRules.md` 8行目「読むもの」）**： 「読むもの：渡された入れ子の`kind`・`name`・`children`・`collapsed`と、`itemIdOf`の結果だけ」 → `buildItemRows`は上に加えて図形のアイテムの`item.shape`も読み、行へ入れる（`js/core/ItemRowRules.js:91`の`shape: isGroup ? null : item.shape`）。「だけ」と書かれた列挙に`shape`が無い（同じ資料の3行目の`ItemRow`の説明には`shape`が書かれている）。
+* （タスク12）**（`PROJECT_ARCHITECTURE.md` 929行 `canStartRowDrag`）**： 「`canStartRowDrag`（左ボタンで`Ctrl`/`⌘`・`Shift`なし・編集中の行でない…・キャンバスの左ドラッグ/パン中でない・ロック中でないときだけ真。操作モードは見ない…）」 → 条件にもう1つ、押したのが目・鍵のアイコンの上でないこと（`isOnStateIcon`）がある（`js/core/ItemListRules.js:69-70`、`js/wiring/ItemListWiring.js:230`付近。Phase 11-05）。資料の列挙に無い。
+* （タスク12）**（`PROJECT_ARCHITECTURE.md` 931行 描き込む先の見せ方と変え方）**： 「新しい図形（描く・貼り付け・複製・`Alt`+ドラッグ・インポート）と作るボタンの空のフォルダは、描き込む先の場所へ入る」 → 複製は描き込む先ではなく、選んでいるまとまりの一番上のもののすぐ上へ入る（`js/core/InsertTargetRules.js:155-160`の`resolveDuplicatePlace`、使うのは`js/edit/ClipboardController.js:212,255`）。フォルダが一番上なら描き込む先（その中）と違い、そのフォルダのすぐ上。なお貼り付けも、描き込む先が自分のコピーのフォルダの中ならそのフォルダのすぐ上へ変わる（`InsertTargetRules.js:142-148`）。
+* （タスク12）**（`PROJECT_ARCHITECTURE.md` 934行 行の並び）**： 「行は`{ id, kind, name, depth, ancestorIds, shape, shapeIds, groupIds, collapsed, isEmpty }`」「`resolveRowViews`が行ごとの`{ id, kind, name, indent, collapsed, canToggle, selected, selectedInGroup, insertTarget, insertLine, hiddenMark }`を決める」 → 今の`ItemRow`は15キー（`js/core/ItemRowRules.js:85-101`）、`RowView`は16キー（`:217-234`）で、どちらも`visible`・`locked`・`hiddenByAncestor`・`lockedByAncestor`・`hidden`の5つが多い（Phase 11-05）。同じ文に断りが無い。
 
 ## 6. 懸念事項・今後の修正における注意点
 * （タスク19で、「読み方が分かれる記述」「コードのコメント」「照合できなかった主張」の一覧を記載する）
@@ -1097,3 +1206,7 @@ E
 * （タスク13）942行の「確認の状況（Phase 11-03）」に、11-04bで消えた `ItemTreeRules.insertItemsAbove`・`ShapeOrderEditor.applyOrder` が並んでいる。「時点で」と書かれているため相違にはしていないが、後で読む人（AI）が今もあると誤読しないか、発注者の判断で確認してほしい。
 * （タスク13）「確認の状況」のテストの件数（2764・2912・3192・3380）は、各コミットを `git archive` でスクラッチへ展開して `node --test` を実行し、すべて一致を確認した（現在のリポジトリのファイルは変更していない）。
 * （タスク11）`ItemListRules.js:172`（既知の傷4）に加え、`ListSelectionRules.js` の `resolveListClickSelection` のJSDoc・`ItemListWiring.js:73` の `#hoveredRowId` の型の説明にも「図形id」の古い言い回しがある（コードのコメントで、5章の対象ではない）。
+* （タスク12）5章の1件目（幅の見積もり）は計算の前提の差で、実測ではなく`index.html`のCSSの値からの計算。フォルダの行の約30px／約42pxのどちらを採るかはフォルダの絵の幅の扱い次第（上の本文のとおり）で、目視（実際のブラウザでの名前の見える幅）での確認を推奨する。
+* （タスク12）5章の2件目（`61_ItemRowRules.md`の「読むもの」の`shape`）は、「だけ」の文字どおりの照合で挙げた。好意的に読めば同じ資料の3行目で`shape`を扱っており成り立つため、重大度は低い。
+* （タスク12）3章929行の`canStartRowDrag`（`isOnStateIcon`）・931行の複製・934行の`ItemRow`/`RowView`のキーの3件は、今の形として書かれ断りが無いため5章に挙げた（好意的に読めば条件・キーが増えただけとも読めるが、列挙の食い違いとして扱った）。3章935行のフォルダの行の`.item-row-states`は「だけ」の無い列挙なので4章の所見にとどめた。
+* （タスク12）3章930行の「`KeyboardShortcuts`・`DragTracker`・`InputTracker`のコードは変えていない」は、Phase 11-03の項に書かれた過去の事実として扱った（今は`ff8718e`以降に差分がある）。
