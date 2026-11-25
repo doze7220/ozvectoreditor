@@ -218,7 +218,7 @@
         *   `canEditGroups(mode)`・`FOLDER_BUTTON_ACTION`（凍結）・`resolveFolderButtonAction`と、「要件4」の`GroupEditor`をJSDoc付きで作る。
         *   テスト：規則の表（操作モード・まとまり・ドラッグ・ロックの組み合わせ）、偽の記録先での呼び出し順（まとめる・解除・空のフォルダ・削除のそれぞれで`beginEdit` → `rearrangeItems` → `commitEdit`が1回ずつ。何もしないとき（まとまりの無い削除を含む）は`beginEdit`も呼ばない）、実物（`VectorModel`・`SnapshotAdapter`・`HistoryManager`）でのまとめる/解除/空のフォルダ/削除の結果・選択・名前・記録1件・取り消し/やり直しのJSONの一致とフォルダを選んでいる状態、頂点の選択モードではまとめる・解除を受け付けない、図形だけの選択の解除は何もしない。
 
-*   [ ] タスク9: 重なり順のキーの範囲
+*   [x] タスク9: 重なり順のキーの範囲
     *   **対象ファイル** :
         *   `./js/edit/ShapeOrderEditor.js` :（更新。`apply`と依存の制約のJSDoc）
         *   `./test/edit/ShapeOrderEditor.test.js` :（更新。要件9の表の範囲だけ）
@@ -359,7 +359,9 @@
 
 ### タスク9: 重なり順のキーの範囲
 *   **作業内容** :
-    *   （未実施）
+    *   `js/edit/ShapeOrderEditor.js`（LF）：`apply`を、`model.getItems()`の兄弟の並び（`listSiblingLists`）ごと・まとまり（`resolveSelectedUnitIds`）を「選択中」として`reorderSelected`する形に変更。どの並びでも`canReorderSelected`が偽なら`beginEdit`も呼ばず`false`、真なら`beginEdit` → `model.rearrangeItems(mapSiblingLists(...))` → `commitEdit`。`applyOrder`・`#commitOrder`は不変。責務・クラスのJSDoc・依存の制約（importに`GroupTreeRules`・`GroupSelectionRules`を追加、`model`の使うメソッド）を更新。
+    *   `test/edit/ShapeOrderEditor.test.js`（LF）：`setupFake`に`getItems`・`getSelectedGroupIds`・`rearrangeItems`を足し、`apply`5件の記録の名前を`rearrangeItems`に（期待する並び・順・戻り値は不変）。`test/edit/ShapeOrderEditor.items.test.js`（LF）：5件の期待をフォルダも外側の並びの1要素として動く結果に直し、`skeleton`の不変の確認を入れ子の期待値の比較に替えた。
+    *   `test/edit/ShapeOrderEditor.groups.test.js`（新規・CRLF）13件。`node --test`は tests 3130 / pass 3130 / fail 0。
 
 ### タスク10: 削除の受理と、選び直し/足すの区別
 *   **作業内容** :
@@ -416,6 +418,7 @@
 *   （タスク5）`rearrangeItems`の検証は、図形のアイテムの`shape`が今の図形インスタンスであること・フォルダの`id`が`null`／`undefined`か今あるフォルダであること・どの要素も`kind`が`shape`／`group`であることまで見る（図形が減るのは許す＝除く操作のため）。`selectedIds`・`selectedGroupIds`は`Iterable`で受け、`undefined`だけを「省く」と扱う（空の配列は指定）。新しいフォルダの採番は前順。呼び出し側（`GroupEditor`・`ShapeOrderEditor`）は、新しいフォルダのアイテムを`id`なしで渡すこと。
 *   （タスク6）履歴は`document`が同じだと記録しないため、選択だけの変化は記録されない（テストの編集は`renameItem`を伴わせている）。`SnapshotAdapter`の2項目はtypedefでは省略可（任意）とし、無いスナップショットは空として扱う。開発資料への影響：既存の更新予定（スナップショット・3章6.）に含まれており、追記は無い。
 *   （タスク8）`ungroupSelection`は、選択中のフォルダが複数ある場合、解除しないフォルダの選択は引き継がない（`selectedGroupIds`は解除したフォルダの直下のフォルダだけ。解除するのはまとまりのフォルダすべてなので、実際に外れるフォルダは無い）。`GroupEditor`は新しいフォルダの名前・idを付けず`rearrangeItems`に任せる。開発資料への影響：既存の更新予定（`GroupEditor`・`GroupCommandRules`＝60）に含まれており、追記は無い。
+*   （タスク9）`apply`は`model.getSelectedGroupIds()`を`Set`にして`resolveSelectedUnitIds`へ渡す。選択のとき折りたたんだフォルダは自動で開くため、折りたたみのテストは選択の後に`setGroupCollapsed`で閉じている。`rearrangeItems`へはフォルダのアイテムを`{...item, children}`で写して渡す（idは今のまま、`collapsed`も保たれる）。開発資料への影響：既存の更新予定（`ShapeOrderEditor`の一言・1章の依存の例外）に含まれており、追記は無い。
 *   DOM（`ItemListPanel`・`ItemListWiring`・`main.js`・CSS）と`InputTracker`は自動テストの対象外で、下のテストプレイで確かめる。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）

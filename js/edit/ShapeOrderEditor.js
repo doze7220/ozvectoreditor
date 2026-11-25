@@ -1,16 +1,19 @@
 /**
- * 責務: 選択中の図形の重なり順の変更（規則`./ShapeOrderRules.js`で求めた並び）と、並び全体の指定
- * （一覧の行のドラッグ）を、モデルへ反映する1件の編集操作を担う。DOMに触れない。
+ * 責務: 選んでいるまとまり（図形・フォルダ）の重なり順の変更（規則`./ShapeOrderRules.js`で求めた、兄弟の並びごとの並び）と、
+ * 並び全体の指定（一覧の行のドラッグ）を、モデルへ反映する1件の編集操作を担う。DOMに触れない。
  */
 import { canReorderSelected, reorderSelected } from './ShapeOrderRules.js';
+import { itemIdOf, listSiblingLists, mapSiblingLists } from '../core/GroupTreeRules.js';
+import { resolveSelectedUnitIds } from '../core/GroupSelectionRules.js';
 
 /**
- * 選択中の図形の重なり順を変える1件の編集操作と、並び全体を指定する1件の編集操作（`applyOrder`）を行うクラス。
+ * 選んでいるまとまりの重なり順を変える1件の編集操作と、並び全体を指定する1件の編集操作（`applyOrder`）を行うクラス。
  * `apply`はキー（`main.js`の`performShapeOrder`）の手順、`applyOrder`は一覧の行のドラッグの手順である。
  *
  * 依存の制約:
- *   - importは`./ShapeOrderRules.js`のみ（`edit/`内の例外）。VectorModel・HistoryManagerはimportせず、インスタンスを注入で受け取る。
- *   - `model`は`getShapes`・`isSelected`・`reorderShapes`だけを使う。
+ *   - importは`./ShapeOrderRules.js`（`edit/`内）と、`core/GroupTreeRules.js`・`core/GroupSelectionRules.js`（状態を持たない規則の関数。
+ *     `edit/ → core/`の例外）のみ。VectorModel・HistoryManagerはimportせず、インスタンスを注入で受け取る。
+ *   - `model`は`getShapes`・`getItems`・`isSelected`・`getSelectedGroupIds`・`reorderShapes`・`rearrangeItems`だけを使う。
  *   - InputTrackerには依存しない。DOMに触れない。
  *   - 図形種別の分岐・図形固有のプロパティ名・idの形式・操作モードの知識を持たない（読むのは共通プロパティ`id`のみ）。
  *   - `try/catch`を持たない。
@@ -47,28 +50,38 @@ export class ShapeOrderEditor {
     }
 
     /**
-     * 選択中の図形の重なり順を変える。
+     * 選んでいるまとまり（選んでいるフォルダと、選んでいるフォルダの中に無い選ばれている図形）の重なり順を変える。
+     * 動くのは兄弟の並び（いちばん外側と各フォルダの`children`）ごとで、隣のフォルダの中へは入らない。
+     * フォルダは並びの1要素として動き、選んでいるフォルダの中の並びには「選択中」が無いため動かない。
      *
      * 処理順:
-     *   1. 現在の図形のidの並びと、選択中かの判定を用意する。
-     *   2. `canReorderSelected`が偽なら、何も呼ばずに`false`（`beginEdit`も呼ばないため履歴は増えない）。
+     *   1. `model.getItems()`から兄弟の並びを作り、選んでいるまとまりのidを求める。
+     *   2. どの並びでも`canReorderSelected`が偽なら、何も呼ばずに`false`（`beginEdit`も呼ばないため履歴は増えない）。
      *      未知の操作はここで規則が`Error`をthrowする（`beginEdit`より前のため対が崩れない）。
-     *   3. `reorderSelected`で新しいidの並びを求める。
-     *   4. `editRecorder.beginEdit()` → `model.reorderShapes(新しい並び)` → `editRecorder.commitEdit()`。
-     *   5. `reorderShapes`の戻り値を返す。
+     *   3. `editRecorder.beginEdit()` → `model.rearrangeItems(各並びを`reorderSelected`で並べ替えた入れ子)` → `editRecorder.commitEdit()`。
+     *   4. `rearrangeItems`の戻り値を返す。
      *
      * @param {import('./ShapeOrderRules.js').ShapeOrderOperation} operation 操作
      * @returns {boolean} 並びを変えたか
      * @throws {Error} 未知の操作のとき
      */
     apply(operation) {
-        const ids = this.#model.getShapes().map((shape) => shape.id);
-        const isSelected = (id) => this.#model.isSelected(id);
-        if (!canReorderSelected(ids, isSelected, operation)) {
+        const items = this.#model.getItems();
+        const unitIds = new Set(resolveSelectedUnitIds({
+            items,
+            isSelected: (id) => this.#model.isSelected(id),
+            selectedGroupIds: new Set(this.#model.getSelectedGroupIds())
+        }));
+        const isUnit = (item) => unitIds.has(itemIdOf(item));
+        const lists = listSiblingLists(items);
+        if (!lists.some((list) => canReorderSelected(list, isUnit, operation))) {
             return false;
         }
-        const nextIds = reorderSelected(ids, isSelected, operation);
-        return this.#commitOrder(nextIds);
+        const nextItems = mapSiblingLists(items, (list) => reorderSelected(list, isUnit, operation));
+        this.#editRecorder.beginEdit();
+        const changed = this.#model.rearrangeItems(nextItems);
+        this.#editRecorder.commitEdit();
+        return changed;
     }
 
     /**

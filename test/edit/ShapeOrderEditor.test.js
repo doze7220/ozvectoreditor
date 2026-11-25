@@ -20,14 +20,20 @@ const OPS = Object.values(ShapeOrderOperation);
  * 偽のmodelと、呼び出しの記録つきの偽のeditRecorderを作る。
  * @param {Array<string>} ids 図形のid（描画順）
  * @param {Array<string>} selected 選択中のid
- * @param {boolean} [reorderResult=true] reorderShapesの戻り値
+ * @param {boolean} [reorderResult=true] reorderShapes・rearrangeItemsの戻り値
  * @returns {{ editor: ShapeOrderEditor, calls: Array<Array<*>> }} 手順と呼び出しの記録
  */
 function setupFake(ids, selected, reorderResult = true) {
     const calls = [];
     const model = {
         getShapes: () => ids.map((id) => ({ id })),
+        getItems: () => ids.map((id) => ({ kind: ITEM_KIND.SHAPE, shape: { id } })),
+        getSelectedGroupIds: () => [],
         isSelected: (id) => selected.includes(id),
+        rearrangeItems: (nextItems) => {
+            calls.push(['rearrangeItems', nextItems.map((item) => item.shape.id)]);
+            return reorderResult;
+        },
         reorderShapes: (orderedIds) => {
             calls.push(['reorderShapes', orderedIds]);
             return reorderResult;
@@ -82,16 +88,16 @@ function order(model) {
     return model.getShapes().map((s) => s.id);
 }
 
-test('偽の依存: 並びが変わる操作は beginEdit → reorderShapes(新しい並び) → commitEdit の順で、戻り値はreorderShapesの戻り値', () => {
+test('偽の依存: 並びが変わる操作は beginEdit → rearrangeItems(新しい並び) → commitEdit の順で、戻り値はrearrangeItemsの戻り値', () => {
     const { editor, calls } = setupFake(['A', 'B', 'C', 'D', 'E'], ['B', 'D']);
     assert.equal(editor.apply(ShapeOrderOperation.BRING_FORWARD), true);
-    assert.deepEqual(calls, [['beginEdit'], ['reorderShapes', ['A', 'C', 'B', 'E', 'D']], ['commitEdit']]);
+    assert.deepEqual(calls, [['beginEdit'], ['rearrangeItems', ['A', 'C', 'B', 'E', 'D']], ['commitEdit']]);
 });
 
-test('偽の依存: reorderShapesがfalseを返せばapplyもfalse（commitEditは呼ぶ）', () => {
+test('偽の依存: rearrangeItemsがfalseを返せばapplyもfalse（commitEditは呼ぶ）', () => {
     const { editor, calls } = setupFake(['A', 'B', 'C'], ['B'], false);
     assert.equal(editor.apply(ShapeOrderOperation.SEND_TO_BACK), false);
-    assert.deepEqual(calls.map((c) => c[0]), ['beginEdit', 'reorderShapes', 'commitEdit']);
+    assert.deepEqual(calls.map((c) => c[0]), ['beginEdit', 'rearrangeItems', 'commitEdit']);
 });
 
 test('偽の依存: 4操作それぞれの引数が規則どおり', () => {
@@ -104,7 +110,7 @@ test('偽の依存: 4操作それぞれの引数が規則どおり', () => {
     for (const op of OPS) {
         const { editor, calls } = setupFake(['A', 'B', 'C', 'D', 'E'], ['B', 'D']);
         editor.apply(op);
-        assert.deepEqual(calls[1], ['reorderShapes', expected[op]], op);
+        assert.deepEqual(calls[1], ['rearrangeItems', expected[op]], op);
     }
 });
 

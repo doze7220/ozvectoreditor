@@ -1,5 +1,5 @@
 /**
- * 責務: ShapeOrderEditorと実物のVectorModel・SnapshotAdapter・HistoryManagerを組み合わせ、重なり順の4操作でフォルダの位置と入れ子が残り、名前・表示・ロックが図形について動くことを検証する。
+ * 責務: ShapeOrderEditorと実物のVectorModel・SnapshotAdapter・HistoryManagerを組み合わせ、重なり順の4操作で、フォルダも外側の並びの1要素として動き入れ子が残り、名前・表示・ロックが図形について動くことを検証する。
  * 公開APIだけを通し、取り消し/やり直しで作業データのJSONが一致し、記録が1件であることも確かめる。
  */
 import test from 'node:test';
@@ -107,15 +107,19 @@ function attributesById(items) {
     return result;
 }
 
+/**
+ * 4操作それぞれの、期待する平らな並びと、いちばん外側の並びの入れ替え方（`skeleton`の添字の並び）。
+ * 外側の並びは「フォルダ1・図形3・フォルダ2・図形5」で、図形3を選んでいる。フォルダは並びの1要素として動く。
+ */
 const CASES = [
-    [ShapeOrderOperation.BRING_TO_FRONT, ['shape-1', 'shape-2', 'shape-4', 'shape-5', 'shape-3']],
-    [ShapeOrderOperation.BRING_FORWARD, ['shape-1', 'shape-2', 'shape-4', 'shape-3', 'shape-5']],
-    [ShapeOrderOperation.SEND_BACKWARD, ['shape-1', 'shape-3', 'shape-2', 'shape-4', 'shape-5']],
-    [ShapeOrderOperation.SEND_TO_BACK, ['shape-3', 'shape-1', 'shape-2', 'shape-4', 'shape-5']]
+    [ShapeOrderOperation.BRING_TO_FRONT, ['shape-1', 'shape-2', 'shape-4', 'shape-5', 'shape-3'], [0, 2, 3, 1]],
+    [ShapeOrderOperation.BRING_FORWARD, ['shape-1', 'shape-2', 'shape-4', 'shape-3', 'shape-5'], [0, 2, 1, 3]],
+    [ShapeOrderOperation.SEND_BACKWARD, ['shape-3', 'shape-1', 'shape-2', 'shape-4', 'shape-5'], [1, 0, 2, 3]],
+    [ShapeOrderOperation.SEND_TO_BACK, ['shape-3', 'shape-1', 'shape-2', 'shape-4', 'shape-5'], [1, 0, 2, 3]]
 ];
 
-for (const [operation, expectedOrder] of CASES) {
-    test(`重なり順（${operation}）: 平らな並びが指定どおりになり、フォルダの位置・入れ子が残り、名前・表示・ロックは図形について動く。記録は1件`, () => {
+for (const [operation, expectedOrder, outerOrder] of CASES) {
+    test(`重なり順（${operation}）: 外側の並びの中でフォルダも1要素として動き、入れ子・名前・表示・ロックは図形について動く。記録は1件`, () => {
         const { model, history, editor } = setupReal(['shape-3']);
         const before = json(model);
         const skeletonBefore = skeleton(model.getItems());
@@ -123,7 +127,7 @@ for (const [operation, expectedOrder] of CASES) {
 
         assert.equal(editor.apply(operation), true);
         assert.deepEqual(model.getShapes().map((shape) => shape.id), expectedOrder);
-        assert.deepEqual(skeleton(model.getItems()), skeletonBefore);
+        assert.deepEqual(skeleton(model.getItems()), outerOrder.map((i) => skeletonBefore[i]));
         assert.deepEqual(attributesById(model.getItems()), attributesBefore);
 
         const after = json(model);
@@ -136,20 +140,20 @@ for (const [operation, expectedOrder] of CASES) {
     });
 }
 
-test('重なり順: フォルダの中の図形を最前面へ送っても、フォルダは空にならず残り、図形は新しい位置の所属になる', () => {
+test('重なり順: フォルダの中の図形を最前面へ送っても、動くのはフォルダの中だけで、フォルダの外へは出ない', () => {
     const { model, editor } = setupReal(['shape-1']);
 
     assert.equal(editor.apply(ShapeOrderOperation.BRING_TO_FRONT), true);
-    assert.deepEqual(model.getShapes().map((shape) => shape.id), ['shape-2', 'shape-3', 'shape-4', 'shape-5', 'shape-1']);
+    assert.deepEqual(model.getShapes().map((shape) => shape.id), ['shape-2', 'shape-1', 'shape-3', 'shape-4', 'shape-5']);
     const items = model.getItems();
     assert.equal(items[0].kind, 'group');
     assert.equal(items[0].id, 'group-1');
-    assert.deepEqual(items[0].children.map((item) => item.shape.id), ['shape-2', 'shape-3']);
+    assert.deepEqual(items[0].children.map((item) => item.shape.id), ['shape-2', 'shape-1']);
+    assert.equal(items[0].children[1].name, '名shape-1');
     assert.equal(items[1].kind, 'shape');
-    assert.equal(items[1].shape.id, 'shape-4');
+    assert.equal(items[1].shape.id, 'shape-3');
     assert.equal(items[2].kind, 'group');
     assert.equal(items[2].id, 'group-2');
-    assert.deepEqual(items[2].children.map((item) => item.shape.id), ['shape-5']);
-    assert.equal(items[3].shape.id, 'shape-1');
-    assert.equal(items[3].name, '名shape-1');
+    assert.deepEqual(items[2].children.map((item) => item.shape.id), ['shape-4']);
+    assert.equal(items[3].shape.id, 'shape-5');
 });
