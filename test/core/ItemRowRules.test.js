@@ -13,10 +13,11 @@ import {
 /**
  * 図形のアイテムを作る。
  * @param {string} id - 図形の id
+ * @param {Object} [extra] - 追加のプロパティ
  * @returns {Object} 図形のアイテム
  */
-function sItem(id) {
-    return { kind: 'shape', shape: { id }, name: `n${id}`, visible: true, locked: false };
+function sItem(id, extra = {}) {
+    return { kind: 'shape', shape: { id }, name: `n${id}`, visible: true, locked: false, ...extra };
 }
 
 /**
@@ -43,7 +44,7 @@ function selecting(ids) {
 }
 
 describe('buildItemRows', () => {
-    it('空なら行は無い', () => {
+    it('0個なら空（空なら行は無い）', () => {
         assert.deepEqual(buildItemRows([]), []);
     });
 
@@ -110,6 +111,46 @@ describe('buildItemRows', () => {
         const rows = buildItemRows([gItem('g1', [gItem('g2', [sItem('a')], true)])]);
         assert.deepEqual(rows.map((row) => row.id), ['g1', 'g2']);
         assert.equal(rows[1].collapsed, true);
+    });
+
+    it('前面（前順の末尾）が先頭になる', () => {
+        const rows = buildItemRows([sItem('a'), sItem('b'), sItem('c')]);
+        assert.deepEqual(rows.map((r) => r.id), ['c', 'b', 'a']);
+        assert.deepEqual(rows.map((r) => r.name), ['nc', 'nb', 'na']);
+    });
+
+    it('フォルダは行になり、入れ子の中の図形も含み、全体が逆順', () => {
+        const items = [sItem('a'), gItem('G', [sItem('b'), gItem('H', [sItem('c')]), sItem('d')]), sItem('e')];
+        assert.deepEqual(buildItemRows(items).map((r) => r.id), ['e', 'G', 'd', 'H', 'c', 'b', 'a']);
+    });
+
+    it('空のフォルダだけなら行は1つ', () => {
+        const rows = buildItemRows([gItem('G', [])]);
+        assert.equal(rows.length, 1);
+        assert.equal(rows[0].id, 'G');
+    });
+
+    it('隠れている・ロックの図形も含める', () => {
+        const rows = buildItemRows([sItem('a', { visible: false }), sItem('b', { locked: true })]);
+        assert.deepEqual(rows.map((r) => r.id), ['b', 'a']);
+    });
+
+    it('名前が未定なら空文字', () => {
+        const rows = buildItemRows([{ kind: 'shape', shape: { id: 'a' } }]);
+        assert.equal(rows[0].name, '');
+    });
+
+    it('図形のインスタンスは同じで、引数を書き換えない', () => {
+        const a = sItem('a');
+        const b = sItem('b');
+        const items = [a, gItem('G', [b])];
+        const snapshot = JSON.stringify(items);
+        const rows = buildItemRows(items);
+        assert.equal(rows[0].kind, 'group');
+        assert.equal(rows[1].shape, b.shape);
+        assert.equal(rows[2].shape, a.shape);
+        assert.equal(JSON.stringify(items), snapshot);
+        assert.deepEqual(items.map((i) => i.kind), ['shape', 'group']);
     });
 
     it('引数を書き換えない', () => {

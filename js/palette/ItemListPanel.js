@@ -320,18 +320,6 @@ export class ItemListPanel {
     }
 
     /**
-     * 今の表示で描き込む先の印を出している行のidを返す。
-     * @returns {string|null} 印の行のid（無ければ`null`）
-     */
-    getInsertMarkId() {
-        if (!this.#wired) return null;
-        for (const [id, entry] of this.#rows) {
-            if (entry.insertTarget) return id;
-        }
-        return null;
-    }
-
-    /**
      * 動かしている行のクラスを書き換える（今までの分は消す）。一覧には`row-dragging`を付ける。空なら全部消す。一覧に無い行のidは飛ばす。
      * @param {string[]} ids 動かしている行のid
      * @returns {void}

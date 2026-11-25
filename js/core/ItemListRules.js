@@ -1,29 +1,8 @@
 /**
- * 責務：図形の一覧の行の並び、行の操作（押す・カーソルを置く・名前の編集・行のドラッグ）の判定の規則。
- * 状態を持たず、DOMにも`VectorModel`にも触れない。importは`ItemTreeRules`・`InputModes`だけ。
+ * 責務：図形の一覧の行の操作（押す・カーソルを置く・名前の編集・行のドラッグ・三角）の判定の規則。
+ * 状態を持たず、DOMにも`VectorModel`にも触れない。importは`InputModes`だけ（行の並びは`ItemRowRules`）。
  */
-import { listShapeItems } from './ItemTreeRules.js';
 import { OperationMode } from './InputModes.js';
-
-/**
- * 一覧の1行。
- * @typedef {Object} ItemRow
- * @property {string} id - 図形の id
- * @property {string} name - 名前（未定なら空文字）
- * @property {Object} shape - 図形インスタンス（共有。書き換えない）
- */
-
-/**
- * アイテムの入れ子から、一覧の行を作る。先頭が前面（図形のアイテムの前順の逆順）。フォルダは行にしない。
- * 隠れている・ロックの図形も含める。引数は書き換えない。
- * @param {Array<Object>} items - アイテムの入れ子
- * @returns {ItemRow[]} 行の配列（先頭が前面）
- */
-export function buildItemRows(items) {
-    return listShapeItems(items)
-        .reverse()
-        .map((item) => ({ id: item.shape.id, name: item.name ?? '', shape: item.shape }));
-}
 
 /**
  * 行を押したときの動作の値。

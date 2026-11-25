@@ -5,7 +5,6 @@
 import {
     ROW_HOVER_ACTION,
     ROW_PRESS_ACTION,
-    buildItemRows,
     canSetInsertTargetByRow,
     canStartNameEdit,
     canStartRowDrag,
@@ -17,7 +16,9 @@ import {
     shouldSelectPressedRow
 } from '../core/ItemListRules.js';
 import { resolveInsertMarkId } from '../core/InsertTargetRules.js';
-import { resolveListClickSelection } from '../core/ListSelectionRules.js';
+import { buildItemRows, resolveRowHighlight, resolveRowViews } from '../core/ItemRowRules.js';
+import { hasGroupItem } from '../core/GroupTreeRules.js';
+import { resolveRowClickSelection } from '../core/ListSelectionRules.js';
 import { hasHighlightChanged, resolveSelectionScrollTop, resolveVisibleRowRange } from '../core/ListScrollRules.js';
 import { THUMBNAIL_SIZE_PX, buildThumbnailKey, needsThumbnailRedraw } from '../core/ThumbnailRules.js';
 import { drawThumbnail } from '../core/ThumbnailRenderer.js';
@@ -153,25 +154,22 @@ export class ItemListWiring {
         this.#rowDrag.cancelIfRowsChanged();
         const model = this.#model;
         const rows = buildItemRows(model.getItems());
-        const selectedIds = rows.filter((row) => model.isSelected(row.id)).map((row) => row.id);
         const previousIds = this.#panel.getSelectedRowIds();
-        const previousMarkId = this.#panel.getInsertMarkId();
-        const markId = resolveInsertMarkId({ selectedCount: selectedIds.length, insertTargetId: model.getInsertTargetId() });
-        this.#panel.render(rows.map(({ id, name }) => ({
-            id,
-            name,
-            selected: model.isSelected(id),
-            insertTarget: id === markId
-        })));
+        const previousMarkId = this.#panel.getMarkedRowId();
+        const insertMarkId = resolveInsertMarkId({ selectedCount: model.getSelectedIds().length, insertTargetId: model.getInsertTargetId() });
+        const views = resolveRowViews({
+            rows,
+            isSelected: (id) => model.isSelected(id),
+            selectedGroupIds: model.getSelectedGroupIds(),
+            insertMarkId
+        });
+        this.#panel.render(views);
+        const { selectedIds, markId, indexes } = resolveRowHighlight(views);
 
         if (allowScroll && hasHighlightChanged({ previousSelectedIds: previousIds, selectedIds, previousMarkId, markId })) {
             // 選ばれている行があればその行、無ければ印の行を見せる
-            const highlightedIndexes = [];
-            rows.forEach((row, index) => {
-                if (selectedIds.length > 0 ? model.isSelected(row.id) : row.id === markId) highlightedIndexes.push(index);
-            });
             const { scrollTop, height, rowHeight } = this.#panel.getViewport();
-            const top = resolveSelectionScrollTop({ selectedIndexes: highlightedIndexes, scrollTop, height, rowHeight });
+            const top = resolveSelectionScrollTop({ selectedIndexes: indexes, scrollTop, height, rowHeight });
             if (top !== null) this.#panel.setScrollTop(top);
         }
 
@@ -191,7 +189,8 @@ export class ItemListWiring {
             hasModifier: this.#readCtrlModifier(event) || event.shiftKey === true,
             isEditingRow,
             isDragging: this.#isDragging(),
-            isLocked: isListLocked(this.#canvasLibrary.getState())
+            isLocked: isListLocked(this.#canvasLibrary.getState()),
+            hasGroups: hasGroupItem(this.#model.getItems())
         });
         this.#rowDrag.press(id, event, canStart);
     }
@@ -213,9 +212,9 @@ export class ItemListWiring {
     }
 
     /**
-     * 行のクリックを処理する。押したときの判定は`resolveRowPressAction`（描くツールでは`canSetInsertTargetByRow`）、次の選択は`resolveListClickSelection`に任せ、
-     * 結果を`model`へ渡すだけ（選択は`setSelectionByUser`、描くツールでは`setInsertTarget`）。選択の変化は記録しない。
-     * @param {string} id - 押した行の図形id
+     * 行のクリックを処理する。押したときの判定は`resolveRowPressAction`（描くツールでは`canSetInsertTargetByRow`）、次の選択は`resolveRowClickSelection`に任せ、
+     * 結果を`model`へ渡すだけ（選択は`setSelectionByUser`（折りたたみは保つ）、描くツールでは`setInsertTarget`）。選択の変化は記録しない。
+     * @param {string} id - 押した行のid（図形またはフォルダ）
      * @param {MouseEvent} event - クリックのイベント
      * @returns {void}
      */
@@ -244,8 +243,8 @@ export class ItemListWiring {
         }
 
         const model = this.#model;
-        const rowIds = buildItemRows(model.getItems()).map((row) => row.id);
-        if (!rowIds.includes(id)) return;
+        const rows = buildItemRows(model.getItems());
+        if (!rows.some((row) => row.id === id)) return;
 
         let additive = this.#readCtrlModifier(event);
         let range = event.shiftKey === true;
@@ -255,9 +254,16 @@ export class ItemListWiring {
             additive = false;
             range = false;
         }
-        const selectedIds = rowIds.filter((rowId) => model.isSelected(rowId));
-        const result = resolveListClickSelection({ rowIds, selectedIds, hitId: id, additive, range, anchorId: this.#anchorId });
-        model.setSelectionByUser(result.ids);
+        const result = resolveRowClickSelection({
+            rows,
+            selectedIds: model.getSelectedIds(),
+            selectedGroupIds: model.getSelectedGroupIds(),
+            hitId: id,
+            additive,
+            range,
+            anchorId: this.#anchorId
+        });
+        model.setSelectionByUser(result.ids, { groupIds: result.groupIds, keepsCollapsed: true });
         this.#anchorId = result.anchorId;
         // 表示を先に今の選択へそろえ、予約済みの同期で「選択が変わった」とならないようにする（一覧での選択ではスクロールしない）
         this.sync({ allowScroll: false });
@@ -335,7 +341,7 @@ export class ItemListWiring {
 
     /**
      * 見えている行（前後に余裕を足す）のサムネイルのうち、図形の今の内容が最後に描いたものと違う行だけ描き直す。
-     * @param {Array<{id: string, shape: Object}>} rows - 行（先頭＝いちばん上）
+     * @param {Array<{id: string, shape: ?Object}>} rows - 行（先頭＝いちばん上。フォルダの行は`shape`が`null`で飛ばす）
      * @returns {void}
      */
     #drawVisibleThumbnails(rows) {
@@ -350,6 +356,7 @@ export class ItemListWiring {
         const pixelRatio = window.devicePixelRatio || 1;
         for (let index = start; index < end; index++) {
             const row = rows[index];
+            if (!row.shape) continue;
             const canvas = this.#panel.getThumbnailCanvas(row.id);
             if (!canvas) continue;
             const key = buildThumbnailKey(row.shape.toJSON(), pixelRatio);

@@ -4,7 +4,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    buildItemRows,
     ROW_PRESS_ACTION,
     resolveRowPressAction,
     isListLocked,
@@ -19,69 +18,6 @@ import {
     resolveNameEditKey
 } from '../../js/core/ItemListRules.js';
 import { OperationMode } from '../../js/core/InputModes.js';
-
-/**
- * 図形のアイテムを作る。
- * @param {string} id - 図形の id
- * @param {Object} [extra] - 追加のプロパティ
- * @returns {Object} 図形のアイテム
- */
-function sItem(id, extra = {}) {
-    return { kind: 'shape', shape: { id }, name: `n${id}`, visible: true, locked: false, ...extra };
-}
-
-/**
- * フォルダのアイテムを作る。
- * @param {string} id - フォルダの id
- * @param {Object[]} children - 中身
- * @returns {Object} フォルダのアイテム
- */
-function gItem(id, children) {
-    return { kind: 'group', id, name: id, visible: true, locked: false, children };
-}
-
-describe('buildItemRows', () => {
-    it('前面（前順の末尾）が先頭になる', () => {
-        const rows = buildItemRows([sItem('a'), sItem('b'), sItem('c')]);
-        assert.deepEqual(rows.map((r) => r.id), ['c', 'b', 'a']);
-        assert.deepEqual(rows.map((r) => r.name), ['nc', 'nb', 'na']);
-    });
-
-    it('0個なら空', () => {
-        assert.deepEqual(buildItemRows([]), []);
-    });
-
-    it('フォルダは行にならず、入れ子の中の図形も含み、全体が逆順', () => {
-        const items = [sItem('a'), gItem('G', [sItem('b'), gItem('H', [sItem('c')]), sItem('d')]), sItem('e')];
-        assert.deepEqual(buildItemRows(items).map((r) => r.id), ['e', 'd', 'c', 'b', 'a']);
-    });
-
-    it('空のフォルダだけなら空', () => {
-        assert.deepEqual(buildItemRows([gItem('G', [])]), []);
-    });
-
-    it('隠れている・ロックの図形も含める', () => {
-        const rows = buildItemRows([sItem('a', { visible: false }), sItem('b', { locked: true })]);
-        assert.deepEqual(rows.map((r) => r.id), ['b', 'a']);
-    });
-
-    it('名前が未定なら空文字', () => {
-        const rows = buildItemRows([{ kind: 'shape', shape: { id: 'a' } }]);
-        assert.equal(rows[0].name, '');
-    });
-
-    it('図形のインスタンスは同じで、引数を書き換えない', () => {
-        const a = sItem('a');
-        const b = sItem('b');
-        const items = [a, gItem('G', [b])];
-        const snapshot = JSON.stringify(items);
-        const rows = buildItemRows(items);
-        assert.equal(rows[0].shape, b.shape);
-        assert.equal(rows[1].shape, a.shape);
-        assert.equal(JSON.stringify(items), snapshot);
-        assert.deepEqual(items.map((i) => i.kind), ['shape', 'group']);
-    });
-});
 
 describe('resolveRowPressAction', () => {
     const base = { mode: OperationMode.SELECT, isPicking: false, isDragging: false, isLocked: false };

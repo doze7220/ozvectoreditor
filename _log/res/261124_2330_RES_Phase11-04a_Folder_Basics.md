@@ -265,7 +265,7 @@
         *   行の表示内容に`kind`・`indent`・`collapsed`・`canToggle`・`selectedInGroup`・`hiddenMark`を足す（省かれたら図形の行・0・偽。この時点の`ItemListWiring`のまま今と同じに動く）。フォルダの行は`<span class="item-row-toggle">`（`▸`／`▾`。空のフォルダは`visibility: hidden`）＋`<span class="item-row-folder-icon">`（CSSで描くフォルダの絵）＋名前。字下げはカスタムプロパティ`--row-indent`で行の左の余白に足す。同じidで`kind`が変わったら要素を作り直す（編集中なら先に控えを捨てる）。`getThumbnailCanvas`はフォルダの行で`null`。`getSelectedRowIds()`は`selected`・`selected-in-group`の両方を返す。`getMarkedRowId()`（上から最初の、描き込む先か見えない行の印の行）を足す（`getInsertMarkId()`はタスク14まで残す）。typedef・クラスのJSDocを直す。
         *   CSS：`.selected-in-group`（`.selected`より薄い背景）・`.has-hidden-mark`（破線の枠。`.selected`・`.insert-target`と重なっても見分けられる）・三角・フォルダの絵・字下げ。線を描く疑似要素（`drop-before`・`drop-after`）は変えない。図形の行の見た目は字下げ0で今と同じ。
 
-*   [ ] タスク14: 一覧の配線（行・選択・行のドラッグの条件）
+*   [x] タスク14: 一覧の配線（行・選択・行のドラッグの条件）
     *   **対象ファイル** :
         *   `./js/wiring/ItemListWiring.js` :（更新）
         *   `./js/palette/ItemListPanel.js` :（更新。`getInsertMarkId()`を消すだけ）
@@ -391,7 +391,11 @@
 
 ### タスク14: 一覧の配線（行・選択・行のドラッグの条件）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/wiring/ItemListWiring.js`（LF）：`sync`を`buildItemRows` → `resolveRowViews`（`insertMarkId`は`resolveInsertMarkId`に`model.getSelectedIds().length`を渡す）→ `panel.render` → `resolveRowHighlight`へ差し替え（前の印は`getMarkedRowId()`）。`#handleRowClick`は`resolveRowClickSelection`（`selectedIds`は`model.getSelectedIds()`）→ `setSelectionByUser(ids, { groupIds, keepsCollapsed: true })`。`#handleRowPress`は`canStartRowDrag`へ`hasGroups: hasGroupItem(model.getItems())`を渡す。サムネイルは`shape`が無い（フォルダの）行を飛ばす。`buildItemRows`のimportを`ItemRowRules`へ。JSDoc更新。
+    *   `js/palette/ItemListPanel.js`（LF）：`getInsertMarkId()`を削除。
+    *   `js/core/ItemListRules.js`（LF）：`buildItemRows`・typedef`ItemRow`・`ItemTreeRules`のimportを削除、責務のJSDocを直した。
+    *   `test/core/ItemListRules.test.js`（LF）：`buildItemRows`の7件とimportを削除。未使用になった補助`sItem`・`gItem`も削除。
+    *   `test/core/ItemRowRules.test.js`（CRLF）：監査の指摘で修正。元の7件を`buildItemRows`のdescribeへ移した（補助`sItem`に`extra`を足した）。値を変えない4件（前面が先頭／0個なら空／隠れている・ロックの図形も含める／名前が未定なら空文字）、新しい値の3件（フォルダの行を含む並び`['e','G','d','H','c','b','a']`／空のフォルダだけなら行1つ／図形のインスタンスは同じで…はフォルダの行の分だけ添字がずれる）。既存の「空なら行は無い」は「0個なら空」と同内容のため1件にまとめた（名前を「0個なら空（空なら行は無い）」に）。`node --test`は tests 3174 / pass 3174 / fail 0。
 
 ### タスク15: 折りたたみの三角と、作るボタン
 *   **作業内容** :
