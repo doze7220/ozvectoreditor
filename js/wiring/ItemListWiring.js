@@ -63,7 +63,7 @@ export class ItemListWiring {
     #groupEditor;
     /** @type {ItemListRowDrag} 行のドラッグ（並べ替え）の進行 */
     #rowDrag;
-    /** @type {string|null} `Shift`＋クリックの範囲の起点の図形id */
+    /** @type {string|null} `Shift`＋クリックの範囲の起点の行のid（図形またはフォルダ） */
     #anchorId = null;
     /** @type {string|null} 自分が出したホバーとして記録している図形id */
     #hoveredRowId = null;
@@ -186,7 +186,7 @@ export class ItemListWiring {
 
     /**
      * 行の押下を処理する。ドラッグを始めてよいかは`canStartRowDrag`に任せ、結果とともに行のドラッグの進行へ渡すだけ。
-     * @param {string} id - 押した行の図形id
+     * @param {string} id - 押した行のid（図形またはフォルダ）
      * @param {MouseEvent} event - `mousedown`のイベント
      * @param {boolean} isEditingRow - 押した行が名前の編集中か
      * @returns {void}
@@ -320,7 +320,7 @@ export class ItemListWiring {
 
     /**
      * 名前の編集の開始を処理する。始めるかは`canStartNameEdit`に任せ、始めるなら表示を今の`model`にそろえて欄を出す。
-     * @param {string} id - ダブルクリックされた行の図形id
+     * @param {string} id - ダブルクリックされた行のid（図形またはフォルダ）
      * @param {MouseEvent} event - ダブルクリックのイベント
      * @returns {void}
      */
@@ -339,7 +339,7 @@ export class ItemListWiring {
 
     /**
      * 行へのカーソルの出入りを処理する。判定は`resolveRowHover`に任せ、返った値に従って`model`へ反映するだけ。
-     * @param {string|null} id - カーソルのある行の図形id（行の無い所・外へ出たときは`null`）
+     * @param {string|null} id - カーソルのある行のid（図形またはフォルダ。行の無い所・外へ出たときは`null`）
      * @returns {void}
      */
     #handleRowHover(id) {
