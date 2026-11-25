@@ -132,7 +132,7 @@ describe('VectorModel 選んでいるフォルダ', () => {
         assert.equal(model.getInsertTargetId(), 'd');
         assert.equal(model.setSelectionByUser([], { groupIds: ['e'] }), true);
         assert.deepEqual(model.getSelectedGroupIds(), ['e']);
-        assert.equal(model.getInsertTargetId(), 'd');
+        assert.deepEqual(model.getInsertTarget(), { kind: 'inside', id: 'e' });
     });
 
     it('setSelectionByUser: 図形もフォルダも空になれば描き込む先は無しになる', () => {

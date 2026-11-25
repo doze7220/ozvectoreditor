@@ -1,12 +1,13 @@
 /**
  * 責務：図形とフォルダのアイテムの入れ子の並び・選択集合・ホバー・作成中図形・選択矩形・吸い付きの表示の点・新しく描く図形のスタイル（直前に使った値）の
  * 状態管理（SSOT：Single Source of Truth）と更新通知を担う。
- * 頂点の選択（選択集合の図形のid＋ハンドル名の組。保存・履歴・書き出しの対象外の一時的な状態）と、新しい図形が入る位置を決める「描き込む先」（保存しない）も保持し、アイテムの名前の変更も受け付ける。
+ * 頂点の選択（選択集合の図形のid＋ハンドル名の組。保存・履歴・書き出しの対象外の一時的な状態）と、新しい図形が入る場所を決める「描き込む先」（行の上・フォルダの中・一番下の3つの形。保存しない）も保持し、アイテムの名前の変更も受け付ける。
  */
 import { ShapeFactory, SHAPE_TYPES } from './ShapeFactory.js';
-import { ITEM_KIND, toItems, listItems, listShapeItems, listShapes, placeShapeItems, filterShapes, insertItemsAbove } from './ItemTreeRules.js';
+import { ITEM_KIND, toItems, listItems, listShapeItems, listShapes, placeShapeItems, filterShapes } from './ItemTreeRules.js';
 import { resolveItems, applyItemRename } from './ItemAttributeRules.js';
-import { resolveInsertTarget } from './InsertTargetRules.js';
+import { resolveNextInsertTarget, resolveRowInsertTarget, isSameInsertTarget } from './InsertTargetRules.js';
+import { PLACE_KIND, insertItemsAt } from './ItemPlaceRules.js';
 import { itemIdOf, isSameTree } from './GroupTreeRules.js';
 import { resolveGroupCandidates, resolveSelectedGroupIds, resolveRevealIds } from './GroupSelectionRules.js';
 import { setCollapsed, expandGroupsContaining } from './GroupCollapseRules.js';
@@ -93,7 +94,7 @@ const ID_PATTERN = new RegExp(`^(?:${ID_PREFIX}|${GROUP_ID_PREFIX})(\\d+)$`);
  * 新しく描く図形のスタイル（直前に使った値）も保持する（作業データ・履歴のスナップショットには含まれない）。
  * 選んでいるフォルダ（`#selectedGroupIds`。明示して選んだフォルダのidだけ。保存・履歴の比較・書き出しに入らず、不変条件は`GroupSelectionRules`）と、
  * フォルダの折りたたみ（フォルダのアイテムの`collapsed`。`setGroupCollapsed`・選択が変わったときの自動で開く。`onCollapsedChange`で通知）も扱う。
- * 描き込む先（`#insertTargetId`。図形のidまたはnull。新しい図形はそのすぐ上へ入る。保存せず、履歴の対象外）の唯一の持ち主でもある。
+ * 描き込む先（`#insertTarget`。場所（`{ kind: 'above'|'inside'|'bottom', id }`）またはnull。新しい図形はその場所へ入る。保存せず、履歴の対象外）の唯一の持ち主でもある。
  * `#items`・選択集合・選んでいるフォルダ・描き込む先への代入は、コンストラクタと非公開メソッド`#applyState`だけが行い、描き込む先の決まり方は`InsertTargetRules`へ委譲する。
  * 図形の差し替えの入口として、既定では新しいidを採番する`replaceShape`・並びを変えない`replaceShapesKeepingIds`（複数・同じidのまま・通知1回）を持つ。
  * 図形のスタイルについては、共通プロパティの`strokeColor`・`strokeWidth`・`fillColor`の3つだけを書く（図形固有のプロパティ名は知らない）。
@@ -137,12 +138,12 @@ export class VectorModel {
     #collapsedChanged;
 
     /**
-     * @type {string|null} 描き込む先：次に入る図形のすぐ下になる図形のid（無ければnull＝いちばん外側の末尾）。
-     * 常に現存図形のidかnull。選択集合が1つ以上あれば選ばれている一番上の図形になる（`InsertTargetRules.resolveInsertTarget`）。
-     * 保存せず、履歴の対象外。書き込みは`#applyState`だけが行う。
+     * @type {{kind: string, id: (string|null)}|null} 描き込む先：次に入る図形の入る場所（`above`＝行のすぐ上・`inside`＝フォルダの中の一番上・`bottom`＝フォルダ（idがnullならいちばん外側）の一番下）。無ければnull（いちばん外側の末尾）。
+     * 常に今ある行・フォルダを指すかnull。選んでいるまとまりが1つ以上あれば、その一番上のもの（図形は`above`・フォルダは`inside`）になる（`InsertTargetRules.resolveNextInsertTarget`）。
+     * 保存せず、履歴の対象外。書き込みはコンストラクタと`#applyState`だけが行う。
      * @private
      */
-    #insertTargetId;
+    #insertTarget;
 
     /**
      * @type {string|null} ホバー中の図形のid
@@ -210,7 +211,7 @@ export class VectorModel {
         this.#selectedGroupIds = new Set();
         this.#collapsedListeners = [];
         this.#collapsedChanged = false;
-        this.#insertTargetId = null;
+        this.#insertTarget = null;
         this.#hoveredId = null;
         this.#draftShape = null;
         this.#selectionRect = null;
@@ -264,7 +265,7 @@ export class VectorModel {
      * 単一選択は setSelection([id]) で表現する。
      * 選んでいるフォルダは`groupIds`で指定したものになる（省けば空。不変条件を通り、中の図形がすべて選ばれているものだけ残る）。
      * `keepsCollapsed`が偽なら、選択が変わったとき新しく選ばれた図形を含む閉じたフォルダを開く（`GroupSelectionRules.resolveRevealIds`。変わる前にあったフォルダだけ）。
-     * 描き込む先は、結果の選択集合が1つ以上ならその一番上の図形になり、空になっても残る（利用者が外す操作は`setSelectionByUser`）。
+     * 描き込む先は、結果の選択（図形・フォルダ）が1つ以上ならその一番上のまとまり（図形は行の上・フォルダはその中）になり、空になっても残る（利用者が外す操作は`setSelectionByUser`）。
      * @param {Iterable<string>} ids 新しい選択集合とする図形idの集合
      * @param {Object} [options] オプション
      * @param {Iterable<string>} [options.groupIds] 選ぶフォルダのid（省けば空）
@@ -285,7 +286,7 @@ export class VectorModel {
     /**
      * 利用者が選ぶ・外す操作の入口。`setSelection`と同じく現存しないidを除き、頂点の選択から選択中でなくなった図形の組を落とす。
      * 選んでいるフォルダは、`groupIds`が渡されていればそれ、無ければ`additive`が真なら今の値、偽なら空になる（`GroupSelectionRules.resolveGroupCandidates`。不変条件を通る）。
-     * 結果の図形の選択もフォルダの選択も空なら、描き込む先も無しにする（空にならなければ描き込む先は規則どおり選ばれている一番上の図形）。
+     * 結果の図形の選択もフォルダの選択も空なら、描き込む先も無しにする（空にならなければ描き込む先は規則どおり選んでいる一番上のまとまり。図形なら行の上・フォルダならその中）。
      * 図形の選択・フォルダの選択が今も結果も空で、描き込む先も無いときだけ、何もせず（通知もせず）falseを返す。それ以外は変更を通知して（1回）trueを返す。
      * `keepsCollapsed`が偽なら、選択が変わったとき新しく選ばれた図形を含む閉じたフォルダを開く（`additive`が真なら新しく選ばれた図形だけ）。
      * @param {Iterable<string>} ids 新しい選択集合とする図形idの集合
@@ -300,12 +301,12 @@ export class VectorModel {
         const candidateIds = resolveGroupCandidates({ currentIds: this.#selectedGroupIds, requestedIds: groupIds, additive });
         const nextGroupIds = resolveSelectedGroupIds({ previousItems: this.#items, items: this.#items, selectedIds, candidateIds });
         const isEmptyResult = selectedIds.size === 0 && nextGroupIds.size === 0;
-        if (isEmptyResult && this.#selectedIds.size === 0 && this.#selectedGroupIds.size === 0 && this.#insertTargetId === null) {
+        if (isEmptyResult && this.#selectedIds.size === 0 && this.#selectedGroupIds.size === 0 && this.#insertTarget === null) {
             return false;
         }
         const revealIds = keepsCollapsed ? [] : this.#resolveReveal({ items: this.#items, nextIds: selectedIds, candidateIds, additive });
         this.#applyState(isEmptyResult
-            ? { selectedIds, selectedGroupIds: candidateIds, insertTargetId: null, revealIds }
+            ? { selectedIds, selectedGroupIds: candidateIds, insertTarget: null, revealIds }
             : { selectedIds, selectedGroupIds: candidateIds, revealIds });
         this.#pruneSelectedVertices();
         this.#notifyChange();
@@ -351,27 +352,37 @@ export class VectorModel {
     }
 
     /**
-     * 描き込む先（新しい図形がそのすぐ上へ入る図形のid）を取得する。
-     * @returns {string|null} 描き込む先の図形id。無ければnull（いちばん外側の末尾へ入る）
+     * 描き込む先（新しい図形の入る場所）を取得する。製品コードはこちらを使う。
+     * @returns {{kind: string, id: (string|null)}|null} 描き込む先の写し。無ければnull（いちばん外側の末尾へ入る）
      */
-    getInsertTargetId() {
-        return this.#insertTargetId;
+    getInsertTarget() {
+        return this.#insertTarget === null ? null : { ...this.#insertTarget };
     }
 
     /**
-     * 描き込む先を、今ある図形のidへ変える。今ある図形のidでなければ何もしない（通知もしない）。
-     * 規則（`InsertTargetRules`）を通した結果、描き込む先が変わったときだけ変更を通知する（1回。選択集合が1つ以上あれば規則により変わらない）。
+     * 描き込む先が`above`（行のすぐ上）のときの行のidを取得する。ほかの形・無しはnull（値は`#insertTarget`から毎回求める）。
+     * @returns {string|null} `above`のときの行のid。それ以外はnull
+     */
+    getInsertTargetId() {
+        const target = this.#insertTarget;
+        return target !== null && target.kind === PLACE_KIND.ABOVE ? target.id : null;
+    }
+
+    /**
+     * 描き込む先を、今ある行へ変える（図形なら行の上・フォルダならその中）。今あるアイテムのidでなければ何もしない（通知もしない）。
+     * 規則（`InsertTargetRules`）を通した結果、描き込む先が変わったときだけ変更を通知する（1回。選んでいるまとまりが1つ以上あれば規則により変わらない）。
      * 図形・選択・作成中の図形・履歴には触れない。
-     * @param {string} id 描き込む先にする図形のid
+     * @param {string} id 描き込む先にする行（図形またはフォルダ）のid
      * @returns {boolean} 描き込む先が変わったか
      */
     setInsertTarget(id) {
-        if (!this.#shapes.some((s) => s.id === id)) {
+        const target = resolveRowInsertTarget(this.#items, id);
+        if (target === null) {
             return false;
         }
-        const previous = this.#insertTargetId;
-        this.#applyState({ insertTargetId: id });
-        if (this.#insertTargetId === previous) {
+        const previous = this.#insertTarget;
+        this.#applyState({ insertTarget: target });
+        if (isSameInsertTarget(previous, this.#insertTarget)) {
             return false;
         }
         this.#notifyChange();
@@ -635,11 +646,11 @@ export class VectorModel {
     /**
      * 作成中の図形に一意なidを採番（#issueId()。`shape-<連番>`）して#itemsの末尾（いちばん外側）へ確定登録し、作成中データを破棄する。
      * 名前・表示・ロックは`ItemAttributeRules.resolveItems`が決める（名前は確定した図形の種別の呼び名＋番号）。
-     * `atInsertTarget`が真で描き込む先があれば、末尾ではなく描き込む先のすぐ上（同じ並びの、すぐ後ろ）へ入れる（位置は、この呼び出しで描き込む先を書き換える前の値で決める）。
-     * 確定した図形が新しい描き込む先になる（選択集合が1つ以上ある場合は規則により選ばれている一番上の図形）。
+     * `atInsertTarget`が真で描き込む先があれば、末尾ではなく描き込む先の場所（行のすぐ上・フォルダの中の一番上・一番下）へ入れる（位置は、この呼び出しで描き込む先を書き換える前の値で決める）。
+     * 確定した図形のすぐ上が新しい描き込む先になる（選んでいるまとまりが1つ以上ある場合は規則によりその一番上のまとまり）。
      * 作成中の図形が存在しない場合は何もしない。
      * @param {Object} [options] オプション
-     * @param {boolean} [options.atInsertTarget=false] 真なら描き込む先のすぐ上へ入れる。偽（既定）なら末尾（いちばん外側）
+     * @param {boolean} [options.atInsertTarget=false] 真なら描き込む先の場所へ入れる。偽（既定）なら末尾（いちばん外側）
      */
     commitDraft({ atInsertTarget = false } = {}) {
         if (!this.#draftShape) {
@@ -649,8 +660,8 @@ export class VectorModel {
         draft.id = this.#issueId();
         const addedItems = resolveItems([draft], this.#items);
         this.#applyState({
-            items: this.#placeAdded(addedItems, atInsertTarget),
-            insertTargetId: draft.id,
+            items: this.#placeAdded(addedItems, atInsertTarget ? this.#insertTarget : null),
+            insertTarget: { kind: PLACE_KIND.ABOVE, id: draft.id },
         });
         this.#draftShape = null;
         this.#notifyChange();
@@ -876,7 +887,7 @@ export class VectorModel {
             items: nextItems,
             selectedIds: new Set(),
             selectedGroupIds: new Set(),
-            insertTargetId: keepInsertTarget ? this.#insertTargetId : null,
+            insertTarget: keepInsertTarget ? this.#insertTarget : null,
         });
         this.#pruneSelectedVertices();
         this.#hoveredId = null;
@@ -889,7 +900,7 @@ export class VectorModel {
     }
 
     /**
-     * 指定したアイテム（または素の図形）を、新しいidを採番したうえで#itemsの末尾（いちばん外側。`atInsertTarget`が真で描き込む先があれば、その図形のすぐ上）へ引数の順に追加し、
+     * 指定したアイテム（または素の図形）を、新しいidを採番したうえで#itemsの末尾（いちばん外側。`atInsertTarget`が真で描き込む先があれば、その場所）へ引数の順に追加し、
      * 追加した図形だけを選択する（貼り付け・複製・インポート等で図形を追加する場合の公開操作）。
      * (1)idの上書き：追加する各図形の`id`・各フォルダの`id`を常に#issueId()で発行した新しいid（図形は`shape-`、フォルダは`group-`）で上書きする
      *    （引数のidは引き継がない）。#nextIdは単調増加で減らさないため、キャンバス上の既存のidとも、過去に発行したidとも衝突しない。
@@ -897,7 +908,7 @@ export class VectorModel {
      *    同じidを持つ2要素を作らないためconsole.warnのうえ追加しない（判定はインスタンス参照で行う）。フォルダは空になっても残す。
      * (3)図形が1つも残らなければ（フォルダだけの場合を含む）何も変えず（通知もせず）空配列を返す。
      * (4)名前・表示・ロックは`resolveItems`が決める（名前のあるアイテムはそのまま。名前の無い図形・フォルダには今のキャンバスの名前と重ならない自動の名前が付く）。
-     * (5)選択集合を、追加した図形のidの集合で置き換える（追加した図形だけが選択される。選んでいるフォルダは空になる。追加した図形を含む、変わる前にあった閉じたフォルダは開く。描き込む先は規則により、追加した図形の一番上になる）。
+     * (5)選択集合を、追加した図形のidの集合で置き換える（追加した図形だけが選択される。選んでいるフォルダは空になる。追加した図形を含む、変わる前にあった閉じたフォルダは開く。描き込む先は規則により、追加した図形の一番上のすぐ上になる）。
      *    頂点の選択から、選択中でなくなった図形の組を落とす。ホバー状態・作成中の図形・選択矩形には触れない。
      * (6)変更を通知する（1回。図形数分は発行しない）。
      * 受け取った図形インスタンスをそのまま保持して`id`を書き換えるため、呼び出し側は追加後にそのインスタンスを他の用途に流用しない。
@@ -905,7 +916,7 @@ export class VectorModel {
      * 前提：呼び出し側が選択モードであることを保証すること（選択集合は選択モード以外では常に空という不変条件を守るため）。
      * @param {Array<Object>} values 追加するアイテムの入れ子（描画順）。アイテムまたは素の図形インスタンス（共通インターフェースを持つ）の配列
      * @param {Object} [options] オプション
-     * @param {boolean} [options.atInsertTarget=false] 真なら描き込む先のすぐ上（同じ並びの、すぐ後ろ）へ入れる。偽（既定）・描き込む先なしなら末尾（いちばん外側）。位置は書き換える前の描き込む先で決める
+     * @param {boolean} [options.atInsertTarget=false] 真なら描き込む先の場所（行のすぐ上・フォルダの中の一番上・一番下）へ入れる。偽（既定）・描き込む先なしなら末尾（いちばん外側）。位置は書き換える前の描き込む先で決める
      * @returns {Array<string>} 追加した図形の新しいidの配列（描画順。フォルダのidは含まない。追加0件なら空配列）
      */
     addShapesWithNewIds(values, { atInsertTarget = false } = {}) {
@@ -935,7 +946,7 @@ export class VectorModel {
             }
         }
         this.#applyState({
-            items: this.#placeAdded(addedItems, atInsertTarget),
+            items: this.#placeAdded(addedItems, atInsertTarget ? this.#insertTarget : null),
             selectedIds: new Set(addedIds),
             selectedGroupIds: new Set(),
             revealIds: addedIds,
@@ -958,7 +969,7 @@ export class VectorModel {
      *    （置き換えで消えた元のid・除いた図形のid）だけを選択集合から外す（作成モードでは空のまま）。
      *    頂点の選択から、選択中でなくなった図形の組を落とす。
      *    ホバー中のidが現存しなくなればホバーを解除する。作成中の図形・選択矩形には触れない。
-     *    描き込む先は、`select`が偽で置き換えた後の選択集合が空なら結果の図形になる（線を引くツールでの描き足し・結合・閉じる）。それ以外は規則（`InsertTargetRules`）に任せる。
+     *    描き込む先は、`select`が偽で置き換えた後の選択集合が空なら結果の図形のすぐ上になる（線を引くツールでの描き足し・結合・閉じる）。それ以外は規則（`InsertTargetRules`）に任せる。
      * (6)変更を通知する（1回）。
      * 受け取ったインスタンスをそのまま保持して`id`を書き換えるため、呼び出し側は以後そのインスタンスを他の用途に流用しない。
      * 図形インスタンスには`id`の代入以外で触れない（頂点・図形固有のプロパティ・図形種別を関知しない）。
@@ -1008,7 +1019,7 @@ export class VectorModel {
             ? this.#resolveReveal({ items: nextItems, nextIds: nextSelectedIds, candidateIds, additive: false })
             : [];
         this.#applyState(nextSelectedIds.size === 0 && !select
-            ? { items: nextItems, selectedIds: nextSelectedIds, selectedGroupIds: candidateIds, insertTargetId: shape.id, revealIds }
+            ? { items: nextItems, selectedIds: nextSelectedIds, selectedGroupIds: candidateIds, insertTarget: { kind: PLACE_KIND.ABOVE, id: shape.id }, revealIds }
             : { items: nextItems, selectedIds: nextSelectedIds, selectedGroupIds: candidateIds, revealIds });
         if (this.#hoveredId !== null && !this.#shapes.some((s) => s.id === this.#hoveredId)) {
             this.#hoveredId = null;
@@ -1224,12 +1235,12 @@ export class VectorModel {
      * `#items`・選択集合・選んでいるフォルダ・描き込む先への唯一の書き込み口（コンストラクタを除く）。省いた引数は今の値のまま。
      * `revealIds`の図形を含む閉じたフォルダ（変わる前の`#items`にあったものだけ）を開く。開いたら折りたたみが変わったことを覚える。
      * 選んでいるフォルダは候補を`GroupSelectionRules.resolveSelectedGroupIds`の不変条件に通した結果になる。
-     * 変わる前後の図形idの並び（描画順）から`InsertTargetRules.resolveInsertTarget`で描き込む先を決めて代入する。通知はしない。
+     * 描き込む先は、選んでいるフォルダを先に求めてから`InsertTargetRules.resolveNextInsertTarget`で決めて代入する。通知はしない。
      * @param {Object} [state] 書き込む値
      * @param {Array<Object>} [state.items] 新しいアイテムの入れ子
      * @param {Set<string>} [state.selectedIds] 新しい選択集合
      * @param {Set<string>} [state.selectedGroupIds] 選んでいるフォルダの候補（不変条件で絞る）
-     * @param {string|null} [state.insertTargetId] 描き込む先の候補（規則で最終的に決まる）
+     * @param {{kind: string, id: (string|null)}|null} [state.insertTarget] 描き込む先の候補（場所またはnull。規則で最終的に決まる）
      * @param {Iterable<string>} [state.revealIds] 見えるようにする（上の閉じたフォルダを開く）図形のid
      * @private
      */
@@ -1237,7 +1248,7 @@ export class VectorModel {
         items = this.#items,
         selectedIds = this.#selectedIds,
         selectedGroupIds = this.#selectedGroupIds,
-        insertTargetId = this.#insertTargetId,
+        insertTarget = this.#insertTarget,
         revealIds = [],
     } = {}) {
         const previousItems = this.#items;
@@ -1251,12 +1262,17 @@ export class VectorModel {
                 this.#collapsedChanged = true;
             }
         }
-        const previousIds = listShapes(previousItems).map((s) => s.id);
-        const ids = listShapes(nextItems).map((s) => s.id);
-        this.#insertTargetId = resolveInsertTarget({ previousIds, ids, selectedIds, targetId: insertTargetId });
+        const nextGroupIds = resolveSelectedGroupIds({ previousItems, items: nextItems, selectedIds, candidateIds: selectedGroupIds });
+        this.#insertTarget = resolveNextInsertTarget({
+            previousItems,
+            items: nextItems,
+            selectedIds,
+            selectedGroupIds: nextGroupIds,
+            target: insertTarget,
+        });
         this.#items = nextItems;
         this.#selectedIds = selectedIds;
-        this.#selectedGroupIds = resolveSelectedGroupIds({ previousItems, items: nextItems, selectedIds, candidateIds: selectedGroupIds });
+        this.#selectedGroupIds = nextGroupIds;
     }
 
     /**
@@ -1327,19 +1343,14 @@ export class VectorModel {
     }
 
     /**
-     * 追加するアイテムを入れた新しい入れ子を返す。`atInsertTarget`が真で描き込む先があれば、その図形のすぐ上（同じ並びのすぐ後ろ）へ、
-     * そうでなければいちばん外側の末尾へ入れる。
+     * 追加するアイテムを入れた新しい入れ子を返す（`ItemPlaceRules.insertItemsAt`）。`place`が無し（null）ならいちばん外側の末尾へ入れる。
      * @param {Array<Object>} addedItems 追加するアイテム（順のまま入る）
-     * @param {boolean} atInsertTarget 描き込む先のすぐ上へ入れるか
+     * @param {{kind: string, id: (string|null)}|null} place 入る場所（描き込む先の値。無しならnull）
      * @returns {Array<Object>} 新しい入れ子
      * @private
      */
-    #placeAdded(addedItems, atInsertTarget) {
-        const targetId = this.#insertTargetId;
-        if (atInsertTarget && targetId !== null) {
-            return insertItemsAbove(this.#items, (shape) => shape.id === targetId, addedItems);
-        }
-        return [...this.#items, ...addedItems];
+    #placeAdded(addedItems, place) {
+        return insertItemsAt(this.#items, place, addedItems);
     }
 
     /**

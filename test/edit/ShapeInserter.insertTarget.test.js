@@ -183,7 +183,7 @@ test('インポート相当（入れ子の作業データ）: 入れ子のまま
     assert.equal(history.canUndo(), false);
 });
 
-test('切り取って貼り付けると元の位置へ戻る。いちばん下の行を切り取ったときは描き込む先が無しになり最前面へ入る（仕様）', () => {
+test('切り取って貼り付けると元の位置へ戻る。いちばん下の行を切り取ったときは描き込む先がいちばん外側の一番下になり、そこへ戻る（仕様）', () => {
     const { model, clipboard } = setup();
     model.setSelection(['b']);
     assert.equal(clipboard.cut(), true);
@@ -194,9 +194,9 @@ test('切り取って貼り付けると元の位置へ戻る。いちばん下�
     const second = setup();
     second.model.setSelection(['a']);
     assert.equal(second.clipboard.cut(), true);
-    assert.equal(second.model.getInsertTargetId(), null);
+    assert.deepEqual(second.model.getInsertTarget(), { kind: 'bottom', id: null });
     assert.equal(second.clipboard.paste(), true);
-    assert.deepEqual(names(second.model), ['b', 'c', 'd', 'a']);
+    assert.deepEqual(names(second.model), ['a', 'b', 'c', 'd']);
 });
 
 test('insertsAtTargetを省くと、選んだ図形があっても末尾（最前面）へ入る', () => {

@@ -204,7 +204,7 @@
         *   「要件2」の`resolveNextInsertTarget`・`resolveRowInsertTarget`・`isSameInsertTarget`と、「要件4」の`resolvePastePlace`・`resolveDuplicatePlace`をJSDoc付きで足す。先頭の責務を「描き込む先の決まり方と、一覧で印に出す描き込む先・貼り付けと複製の入る場所の規則」に直し、importの記述も直す。typedef`InsertTarget`（`ItemPlace`のうち`above`・`inside`・`bottom`）を書く。
         *   テスト：今の`resolveInsertTarget`の9件と同じ場面を新しい関数で（下が全部消えたときは`{ bottom, null }`）、まとまりの一番上が図形／フォルダ／空のフォルダ／フォルダと外の図形の混ざり、`inside`・`bottom`がそのまま残る、行が動いた（別のフォルダへ移っても同じid）、元の場所（フォルダの中の途中・一番下・入れ子の中・下の行がフォルダ＝そのフォルダの`above`・下の行も消えた・下の行が別のフォルダへ移った＝数えない・フォルダごと無くなった・外側のフォルダも無くなった・`inside`/`bottom`のフォルダが無くなった・いちばん外側が空＝`null`・`{ bottom, null }`で空になった）、前の入れ子にも無い＝`null`、引数を書き換えない、`resolveRowInsertTarget`、`isSameInsertTarget`、`resolvePastePlace`（自分のコピー・違うフォルダ・`above`/`bottom`/`null`）、`resolveDuplicatePlace`。
 
-*   [ ] タスク3: VectorModelが描き込む先を1つの値で持つ
+*   [x] タスク3: VectorModelが描き込む先を1つの値で持つ
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js` :（更新）
         *   `./js/core/InsertTargetRules.js` :（更新。古い`resolveInsertTarget`を消す）
@@ -353,7 +353,9 @@
 
 ### タスク3: VectorModelが描き込む先を1つの値で持つ
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/VectorModel.js`（LF）：`#insertTargetId`を`#insertTarget`（場所またはnull）へ。`#applyState`は引数`insertTarget`とし、選んでいるフォルダを先に不変条件へ通してから`resolveNextInsertTarget`を呼ぶ。`getInsertTarget()`（写し）を追加、`getInsertTargetId()`は`above`のときのidだけ（値は毎回求める）。`setInsertTarget(id)`は`resolveRowInsertTarget`・`isSameInsertTarget`で判定（フォルダの行も可）。`commitDraft`・`replaceShape`（select偽で選択空）は`{ above, 図形のid }`、`replaceAllShapes`は`keepInsertTarget`で今の値か`null`。`#placeAdded(addedItems, place)`は`insertItemsAt`で書き直し、呼び出し（`commitDraft`・`addShapesWithNewIds`）は`atInsertTarget`が真なら`#insertTarget`、偽なら`null`を渡す。`insertItemsAbove`のimportを外し、`resolveNextInsertTarget`・`resolveRowInsertTarget`・`isSameInsertTarget`・`PLACE_KIND`・`insertItemsAt`をimport。クラスJSDoc・先頭の責務・各JSDocを3つの形へ直した。
+    *   `js/core/InsertTargetRules.js`（CRLF）：古い`resolveInsertTarget`を消した（`resolveInsertMarkId`はタスク8まで残す）。
+    *   テスト：`InsertTargetRules.test.js`の旧9件とimportを消した。要件6の表の既存5件（`VectorModel.groupSelection`・`VectorModel.collapse`・`GroupEditor.flow`の`描き込む先`の2件・`ShapeInserter.insertTarget`の切り取り→貼り付け）を新しい期待値へ。`VectorModel.insertTarget.test.js`へ`描き込む先の3つの形（フォルダ）`の11件を追加のみ。`node --test`は tests 3281 / pass 3281 / fail 0。
 
 ### タスク4: 作るボタンの空のフォルダと描き込む先
 *   **作業内容** :
@@ -441,3 +443,5 @@
 10. **作るボタン**：図形を描くツールのまま作るボタン（一覧の下端）を押すと、描き込む先に空のフォルダができ、そのフォルダの行に印が出て、続けて描くとその中に入る（ツール・引いている途中の線はそのまま）。`V`で何かを選んでいるときは、今までどおりまとめるボタンとして働く。
 11. **フォルダの無い絵**：新しいキャンバスで図形だけを描き、並べ替え・描き込む先・複製・コピー・切り取りが今までどおり（一番下の行の切り取りと貼り付けは、元の場所に戻るようになった）。
 12. **ほかが今までどおり**：一覧での選択・折りたたみ・名前の変更（名前の編集中にほかの操作をしても欄が壊れない）・`Ctrl`+`G`・`Home`等のキー、描く・動かす・変形・色・整列・保存・書き出し・開くが今までどおり動く。
+
+*   （タスク3）`ShapeInserter.insertTarget.test.js`の切り取り→貼り付けの件は、表のとおり名前も「…描き込む先がいちばん外側の一番下になり、そこへ戻る（仕様）」へ直した。`VectorModel.js`の`listShapes`・`ITEM_KIND`等のimportはほかで使うため残した。

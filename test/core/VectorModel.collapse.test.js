@@ -87,7 +87,7 @@ describe('VectorModel 折りたたみ', () => {
         model.setGroupCollapsed('g1', true);
         assert.deepEqual(model.getSelectedIds(), ['a', 'b']);
         assert.deepEqual(model.getSelectedGroupIds(), ['g1']);
-        assert.equal(model.getInsertTargetId(), 'b');
+        assert.deepEqual(model.getInsertTarget(), { kind: 'inside', id: 'g1' });
     });
 
     it('setSelectionで選んだ図形の上の閉じたフォルダ（入れ子の上すべて）が開き、通知は1回ずつ', () => {

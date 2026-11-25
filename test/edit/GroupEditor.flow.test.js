@@ -359,14 +359,14 @@ describe('まとめる→入れ子→キー→解除→削除と、取り消し�
 });
 
 describe('描き込む先', () => {
-    it('フォルダを選ぶと、描き込む先は中の一番上の図形になる', () => {
+    it('フォルダを選ぶと、描き込む先はそのフォルダの中になる', () => {
         const { model } = setup([g('g1', [s('a', 0), s('b', 20)]), s('c', 40)]);
         model.setSelection(['a', 'b'], { groupIds: ['g1'] });
 
-        assert.equal(model.getInsertTargetId(), 'b');
+        assert.deepEqual(model.getInsertTarget(), { kind: 'inside', id: 'g1' });
     });
 
-    it('空のフォルダだけを選んでも、描き込む先は今の値のまま', () => {
+    it('空のフォルダだけを選ぶと、描き込む先はそのフォルダの中になる', () => {
         const { model, groupEditor } = setup([s('a', 0), s('b', 20)]);
         model.setSelection(['a']);
         assert.equal(model.getInsertTargetId(), 'a');
@@ -375,7 +375,7 @@ describe('描き込む先', () => {
 
         assert.deepEqual(model.getSelectedIds(), []);
         assert.equal(model.getSelectedGroupIds().length, 1);
-        assert.equal(model.getInsertTargetId(), 'a');
+        assert.deepEqual(model.getInsertTarget(), { kind: 'inside', id: model.getSelectedGroupIds()[0] });
     });
 
     it('描き込む先の図形のすぐ上に空のフォルダが入り、選択には触れない', () => {

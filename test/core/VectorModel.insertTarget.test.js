@@ -1,5 +1,5 @@
 /**
- * 責務: VectorModelの描き込む先（getInsertTargetId・setInsertTarget・setSelectionByUser・各経路での付け替え・入る位置の指定）の振る舞いを検証する。
+ * 責務: VectorModelの描き込む先（getInsertTarget・getInsertTargetId・setInsertTarget・setSelectionByUser・各経路での付け替え・入る位置の指定）の振る舞いを検証する。
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -416,5 +416,168 @@ describe('replaceAllShapes', () => {
         model.replaceAllShapes(['a', 'b', 'c', 'd'].map(makeLine), { keepInsertTarget: true });
         model.setSelection(['c']);
         assert.equal(model.getInsertTargetId(), 'c');
+    });
+});
+
+/**
+ * フォルダ入りのモデルを作る（g1の中にa・b、外にc。gEは空のフォルダ）。
+ * @returns {VectorModel} モデル
+ */
+function setupFolders() {
+    const model = new VectorModel();
+    model.replaceAllShapes([
+        groupItem('g1', [shapeItem('a'), shapeItem('b')]),
+        shapeItem('c'),
+        groupItem('gE', [])
+    ]);
+    return model;
+}
+
+/**
+ * アイテムの入れ子を、図形はid・フォルダは `{ id, children }` で表した配列にして返す。
+ * @param {Array<Object>} items アイテムの入れ子
+ * @returns {Array<*>} 入れ子を表す配列
+ */
+function outline(items) {
+    return items.map((item) => (item.kind === ITEM_KIND.GROUP
+        ? { id: item.id, children: outline(item.children) }
+        : item.shape.id));
+}
+
+describe('描き込む先の3つの形（フォルダ）', () => {
+    it('フォルダを選ぶと inside、図形の選択だけなら above', () => {
+        const model = setupFolders();
+        model.setSelection(['a', 'b'], { groupIds: ['g1'] });
+        assert.deepEqual(model.getInsertTarget(), { kind: 'inside', id: 'g1' });
+        assert.equal(model.getInsertTargetId(), null);
+        model.setSelection(['b']);
+        assert.deepEqual(model.getInsertTarget(), { kind: 'above', id: 'b' });
+        assert.equal(model.getInsertTargetId(), 'b');
+    });
+
+    it('空のフォルダだけを選ぶと inside になる', () => {
+        const model = setupFolders();
+        model.setSelectionByUser([], { groupIds: ['gE'] });
+        assert.deepEqual(model.getInsertTarget(), { kind: 'inside', id: 'gE' });
+    });
+
+    it('フォルダの選択を外す（setSelectionByUser）と無しになる', () => {
+        const model = setupFolders();
+        model.setSelection(['a', 'b'], { groupIds: ['g1'] });
+        assert.equal(model.setSelectionByUser([]), true);
+        assert.equal(model.getInsertTarget(), null);
+    });
+
+    it('clearSelection では inside が残る', () => {
+        const model = setupFolders();
+        model.setSelection(['a', 'b'], { groupIds: ['g1'] });
+        model.clearSelection();
+        assert.deepEqual(model.getInsertTarget(), { kind: 'inside', id: 'g1' });
+    });
+
+    it('setInsertTarget: フォルダの行なら inside・同じ値は通知なし・図形からフォルダへ切り替わる', () => {
+        const model = setupFolders();
+        let count = 0;
+        model.onChange(() => { count++; });
+        assert.equal(model.setInsertTarget('b'), true);
+        assert.deepEqual(model.getInsertTarget(), { kind: 'above', id: 'b' });
+        assert.equal(model.setInsertTarget('g1'), true);
+        assert.deepEqual(model.getInsertTarget(), { kind: 'inside', id: 'g1' });
+        assert.equal(count, 2);
+        assert.equal(model.setInsertTarget('g1'), false);
+        assert.equal(model.setInsertTarget('zzz'), false);
+        assert.equal(count, 2);
+    });
+
+    it('getInsertTarget は写しを返す', () => {
+        const model = setupFolders();
+        model.setInsertTarget('g1');
+        const copy = model.getInsertTarget();
+        copy.id = 'x';
+        assert.deepEqual(model.getInsertTarget(), { kind: 'inside', id: 'g1' });
+    });
+
+    it('commitDraft({ atInsertTarget: true }): inside はフォルダの中の一番上へ入り、閉じていても開かない', () => {
+        const model = setupFolders();
+        model.setInsertTarget('g1');
+        const id = draw(model, { atInsertTarget: true });
+        assert.deepEqual(outline(model.getItems()), [{ id: 'g1', children: ['a', 'b', id] }, 'c', { id: 'gE', children: [] }]);
+        assert.deepEqual(model.getInsertTarget(), { kind: 'above', id });
+
+        const closed = new VectorModel();
+        closed.replaceAllShapes([{ ...groupItem('g1', [shapeItem('a')]), collapsed: true }]);
+        closed.setInsertTarget('g1');
+        draw(closed, { atInsertTarget: true });
+        assert.equal(closed.getItems()[0].collapsed, true);
+        assert.equal(closed.getItems()[0].children.length, 2);
+    });
+
+    it('commitDraft({ atInsertTarget: true }): bottom（フォルダ・いちばん外側）とフォルダの上の行（above）', () => {
+        const inFolder = setupFolders();
+        inFolder.setInsertTarget('a');
+        inFolder.deleteShapes(['a']);
+        assert.deepEqual(inFolder.getInsertTarget(), { kind: 'bottom', id: 'g1' });
+        const id = draw(inFolder, { atInsertTarget: true });
+        assert.deepEqual(outline(inFolder.getItems())[0], { id: 'g1', children: [id, 'b'] });
+
+        const outer = new VectorModel();
+        outer.replaceAllShapes([shapeItem('a'), shapeItem('b')]);
+        outer.setInsertTarget('a');
+        outer.deleteShapes(['a']);
+        assert.deepEqual(outer.getInsertTarget(), { kind: 'bottom', id: null });
+        const z = draw(outer, { atInsertTarget: true });
+        assert.deepEqual(outline(outer.getItems()), [z, 'b']);
+
+        const above = new VectorModel();
+        above.replaceAllShapes([shapeItem('x'), groupItem('g1', [shapeItem('a')])]);
+        above.setInsertTarget('g1');
+        above.setInsertTarget('x');
+        const y = draw(above, { atInsertTarget: true });
+        assert.deepEqual(outline(above.getItems()), ['x', y, { id: 'g1', children: ['a'] }]);
+    });
+
+    it('元の場所：外側が空なら無し・図形をすべて消してもフォルダは残るのでその一番下', () => {
+        const outer = new VectorModel();
+        outer.replaceAllShapes([shapeItem('a')]);
+        outer.setInsertTarget('a');
+        outer.deleteShapes(['a']);
+        assert.equal(outer.getInsertTarget(), null);
+
+        const whole = setupFolders();
+        whole.setInsertTarget('b');
+        whole.deleteShapes(['a', 'b']);
+        assert.deepEqual(whole.getInsertTarget(), { kind: 'bottom', id: 'g1' });
+    });
+
+    it('keepInsertTarget での復元：inside が残り、偽なら無しになる', () => {
+        const model = setupFolders();
+        model.setInsertTarget('g1');
+        model.replaceAllShapes(model.getItems(), { keepInsertTarget: true });
+        assert.deepEqual(model.getInsertTarget(), { kind: 'inside', id: 'g1' });
+        model.replaceAllShapes(model.getItems(), { keepInsertTarget: false });
+        assert.equal(model.getInsertTarget(), null);
+    });
+
+    it('rearrangeItems で行が動いても、同じ行を指し続ける', () => {
+        const model = setupFolders();
+        model.setInsertTarget('b');
+        const items = model.getItems();
+        model.rearrangeItems([items[1], items[0], items[2]]);
+        assert.deepEqual(model.getInsertTarget(), { kind: 'above', id: 'b' });
+        model.setInsertTarget('g1');
+        const next = model.getItems();
+        model.rearrangeItems([next[1], next[2], next[0]]);
+        assert.deepEqual(model.getInsertTarget(), { kind: 'inside', id: 'g1' });
+    });
+
+    it('まとめる・解除しても、描き込む先の行は同じ行のまま', () => {
+        const model = setupFolders();
+        model.setInsertTarget('c');
+        const items = model.getItems();
+        model.rearrangeItems([items[0], { kind: ITEM_KIND.GROUP, id: null, name: 'n', visible: true, locked: false, children: [items[1]] }, items[2]]);
+        assert.deepEqual(model.getInsertTarget(), { kind: 'above', id: 'c' });
+        const wrapped = model.getItems();
+        model.rearrangeItems([wrapped[0], ...wrapped[1].children, wrapped[2]]);
+        assert.deepEqual(model.getInsertTarget(), { kind: 'above', id: 'c' });
     });
 });
