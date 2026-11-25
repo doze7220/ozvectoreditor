@@ -302,7 +302,7 @@
         *   `ItemListWiring`の注入：`getRows`＝`buildItemRows(model.getItems())`、`getUnitIds`＝`resolveSelectedUnitIds({ … })`、`shouldSelectPressedRow`＝`isSelected`にまとまりの判定を渡す、`selectRow`＝`resolveRowClickSelection`の結果を`setSelectionByUser`へ（起点の更新・`sync({ allowScroll: false })`）、`canDrop`＝`canMoveItems(model.getItems(), new Set(ids), place)`、`applyDrop`＝注入された`applyRowDrop`。`#handleRowPress`の`hasGroups`と`hasGroupItem`のimportを外す。`#handleRowClick`の描くツールの枝のコメントをフォルダの行も受けることに合わせる（コードは`setInsertTarget(id)`のまま）。
         *   確認：`node --input-type=module -e "await import('./js/wiring/ItemListWiring.js')"`で、importの名前の誤りが無いこと。
 
-*   [ ] タスク13: 使われなくなった並べ替えの規則・操作を消す
+*   [x] タスク13: 使われなくなった並べ替えの規則・操作を消す
     *   **対象ファイル** :
         *   `./js/core/ListDragRules.js`・`./js/core/GroupTreeRules.js`・`./js/core/VectorModel.js`・`./js/edit/ShapeOrderEditor.js` :（更新。「要件1」の「消すもの」）
         *   `./test/core/ListDragRules.test.js`・`./test/core/GroupTreeRules.test.js`・`./test/core/VectorModel.items.test.js`・`./test/core/VectorModel.insertTarget.test.js`・`./test/core/VectorModel.groupSelection.test.js`・`./test/core/VectorModel.collapse.test.js`・`./test/edit/ShapeOrderEditor.test.js`・`./test/edit/SnapshotAdapter.items.test.js`・`./test/edit/InsertTarget.flow.test.js` :（更新。要件6の表のタスク13の件）
@@ -412,7 +412,9 @@
 
 ### タスク13: 使われなくなった並べ替えの規則・操作を消す
 *   **作業内容** :
-    *   （未記入）
+    *   消す前に`Grep`で、`js/`・`index.html`に呼び出しが残っていないことを確かめた（定義と`ShapeOrderEditor`の内部だけ）。消した後、`js/`・`index.html`・`test/`に消した名前は残っていない（`test/core/ItemPlaceRules.test.js`の`describe`名に`insertItemsAbove`が1か所あるがタスク13の対象外のため直していない）。
+    *   `js/core/ListDragRules.js`（CRLF）：`resolveDraggedIds`・`resolveDropIndex`・`resolveDropMark`・`reorderRowsForDrop`・`isSameOrder`・`toDrawOrder`とtypedef`RowIds`・`DropMark`を消した（先頭の責務は今の内容のままで合うため変更なし）。`js/core/GroupTreeRules.js`（CRLF）：`hasGroupItem`を消した。`js/core/VectorModel.js`（LF）：`reorderShapes`を消し、`addShapesWithNewIds`のJSDoc(5)の描き込む先の記述を、`InsertTargetRules`の規則（選んでいるまとまりの一番上のもので決まる）に合わせ、`asUnits`が偽なら追加した図形の一番上のすぐ上・真で一番上が図形ならそのすぐ上・フォルダならそのフォルダの中（一番上）と直した（実コードの`#placeAdded`・`resolveNextInsertTarget`の規則1で確認。コードは変えていない）。`js/edit/ShapeOrderEditor.js`（LF）：`applyOrder`・`#commitOrder`を消し、クラスJSDocの「`model`は…だけを使う」を`getItems`・`isSelected`・`getSelectedGroupIds`・`rearrangeItems`に、`#model`のJSDocも直した。
+    *   テスト：`ListDragRules.test.js`は旧6関数の`describe`を消してimportを整理。`GroupTreeRules.test.js`は`hasGroupItem`1件とimportを消した。`VectorModel.reorderShapes.test.js`は`git rm`で削除。`VectorModel.items.test.js`は`reorderShapes`1件を消し、「通知の回数」を`rearrangeItems([...getItems()].reverse())`へ。`VectorModel.insertTarget.test.js`・`groupSelection`・`collapse`・`SnapshotAdapter.items`は`rearrangeItems`で同じ並びを作る形へ。`ShapeOrderEditor.test.js`は`applyOrder`の6件と`setupFake`の`reorderShapes`を消した。`InsertTarget.flow.test.js`は`applyOrder`の呼び出し2か所を`moveTo`へ置き換えた（並べ替えの件は、`moveTo(['d'], below a)`で`[d,a,b,c]`になる形に期待値を直した）。`node --test`は tests 3356 / pass 3356 / fail 0。
 
 ### タスク14: 通しのテスト
 *   **作業内容** :
@@ -441,6 +443,7 @@
 *   **フォルダの行の三角の上から押して動かしても、行のドラッグになる**（動かさずに離せば開閉）。
 *   **自動スクロールで見えている範囲の端の行に入るときの場所は、その端の行の位置で決まる**（上下へ外れたときは見えている端として扱う、今の規則のまま）。一番下まで送り切ってから下へ外れると、いちばん外側の一番下になる（送り切ったかは`maxScrollTop`との差が1px以内で見る。表示倍率が125%等でスクロール位置が小数になっても届くようにするため）。
 *   **頂点の選択（`A`）でも、行のドラッグ・フォルダの選択はできる**（今の一覧の規則）。まとめる（`Ctrl`+`G`）・削除・切り取りは選択（`V`）だけ（今の規則）。
+*   （タスク13）`ListDragRules`・`ShapeOrderEditor`・`VectorModel`の旧関数・`applyOrder`・`reorderShapes`・`hasGroupItem`は消した。`test/core/ItemPlaceRules.test.js`の`describe`名「insertItemsAt：insertItemsAbove と同じ値（above）」に`insertItemsAbove`の名前が残る（対象外のため直していない）。
 *   （タスク12）`ItemListWiring`の`getUnitIds`・`shouldSelectPressedRow`は同じ`resolveSelectedUnitIds`の呼び出しを`#resolveUnitIds`1か所にまとめて使う。行のドラッグがフォルダのある絵でも始まるようになった（目視：テストプレイ1〜4）。`ShapeOrderEditor.applyOrder`・`ListDragRules`の旧関数・`hasGroupItem`はタスク13まで残っている。
 *   タスク3〜7の途中では、描き込む先の線の印が出ない（タスク8・9で出る）。タスク12までは、フォルダのある絵で行のドラッグは始まらない。
 *   （タスク1）`insertItemsAt`の`above`は、基準がフォルダでも「そのフォルダ行のすぐ上」（同じ並びのすぐ後ろ）へ入る（`insertItemsAbove`は図形だけが基準だった）。`moveItems`の目印は`Symbol`のidを持つ一時のフォルダで、結果には残らない。開発資料への影響はタスク16・17で反映する予定の範囲内。

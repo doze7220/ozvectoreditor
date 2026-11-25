@@ -223,11 +223,11 @@ test('角の切り替えでは描き込む先が変わらない', () => {
 test('並べ替え: 記録は1件・取り消し1回で戻り、描き込む先は行と一緒に動く', () => {
     const { model, history, orderEditor } = setup();
     assert.equal(model.setInsertTarget('b'), true);
-    assert.equal(orderEditor.applyOrder(['a', 'b', 'c', 'd']), false);
+    assert.equal(orderEditor.moveTo(['a'], { kind: 'below', id: 'b' }), false);
     assert.equal(history.canUndo(), false, '同じ並びでは記録しない');
 
-    assert.equal(orderEditor.applyOrder(['d', 'c', 'b', 'a']), true);
-    assert.deepEqual(ids(model), ['d', 'c', 'b', 'a']);
+    assert.equal(orderEditor.moveTo(['d'], { kind: 'below', id: 'a' }), true);
+    assert.deepEqual(ids(model), ['d', 'a', 'b', 'c']);
     assert.equal(model.getInsertTargetId(), 'b');
     assert.equal(history.canUndo(), true);
 
@@ -236,7 +236,7 @@ test('並べ替え: 記録は1件・取り消し1回で戻り、描き込む先�
     assert.equal(model.getInsertTargetId(), 'b');
     assert.equal(history.canUndo(), false, '取り消し1回で元に戻る（記録は1件）');
     assert.equal(history.redo(), true);
-    assert.deepEqual(ids(model), ['d', 'c', 'b', 'a']);
+    assert.deepEqual(ids(model), ['d', 'a', 'b', 'c']);
     assert.equal(model.getInsertTargetId(), 'b');
 });
 
@@ -317,7 +317,7 @@ test('描き込む先を変えても、capture()・作業データ・スプラ�
         restore: (snapshot) => adapter.restore(snapshot)
     });
     const orderEditor = new ShapeOrderEditor({ model, editRecorder: history });
-    assert.equal(orderEditor.applyOrder(['b', 'a', 'c', 'd']), true);
+    assert.equal(orderEditor.moveTo(['a'], { kind: 'above', id: 'b' }), true);
     let historyNotifications = 0;
     history.onChange(() => { historyNotifications += 1; });
 

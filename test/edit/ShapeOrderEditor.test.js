@@ -1,5 +1,5 @@
 /**
- * 責務: ShapeOrderEditor（重なり順の変更・並び全体の指定の手順・履歴の単位・保存と書き出しへの追従）の振る舞いを検証する。
+ * 責務: ShapeOrderEditor（重なり順の変更・場所への移動`moveTo`の手順・履歴の単位・保存と書き出しへの追従）の振る舞いを検証する。
  * 偽の依存での呼び出し順の確認と、実物のVectorModel・SnapshotAdapter・HistoryManager・DocumentSerializer・SpriteSerializerとの組み合わせを扱う。
  */
 import test from 'node:test';
@@ -20,7 +20,7 @@ const OPS = Object.values(ShapeOrderOperation);
  * 偽のmodelと、呼び出しの記録つきの偽のeditRecorderを作る。
  * @param {Array<string>} ids 図形のid（描画順）
  * @param {Array<string>} selected 選択中のid
- * @param {boolean} [reorderResult=true] reorderShapes・rearrangeItemsの戻り値
+ * @param {boolean} [reorderResult=true] rearrangeItemsの戻り値
  * @returns {{ editor: ShapeOrderEditor, calls: Array<Array<*>> }} 手順と呼び出しの記録
  */
 function setupFake(ids, selected, reorderResult = true) {
@@ -32,10 +32,6 @@ function setupFake(ids, selected, reorderResult = true) {
         isSelected: (id) => selected.includes(id),
         rearrangeItems: (nextItems) => {
             calls.push(['rearrangeItems', nextItems.map((item) => item.shape.id)]);
-            return reorderResult;
-        },
-        reorderShapes: (orderedIds) => {
-            calls.push(['reorderShapes', orderedIds]);
             return reorderResult;
         }
     };
@@ -202,80 +198,4 @@ test('実物: 並べ替えた後のモデルの並びが、保存（作業デー
     assert.deepEqual(restored.shapes.map((s) => s.id), expected);
 
     assert.deepEqual(SpriteSerializer.serialize(model.getShapes()).elements.map((e) => e.id), expected);
-});
-
-test('applyOrder 偽の依存: 違う並びは beginEdit → reorderShapes(その並び) → commitEdit の順で、戻り値はreorderShapesの戻り値', () => {
-    const { editor, calls } = setupFake(['A', 'B', 'C'], []);
-    assert.equal(editor.applyOrder(['C', 'A', 'B']), true);
-    assert.deepEqual(calls, [['beginEdit'], ['reorderShapes', ['C', 'A', 'B']], ['commitEdit']]);
-
-    const failing = setupFake(['A', 'B', 'C'], [], false);
-    assert.equal(failing.editor.applyOrder(['B', 'A', 'C']), false);
-    assert.deepEqual(failing.calls.map((c) => c[0]), ['beginEdit', 'reorderShapes', 'commitEdit']);
-});
-
-test('applyOrder 偽の依存: 今と同じ並び（図形0個を含む）では何も呼ばずfalse', () => {
-    const same = setupFake(['A', 'B', 'C'], ['B']);
-    assert.equal(same.editor.applyOrder(['A', 'B', 'C']), false);
-    assert.deepEqual(same.calls, []);
-
-    const empty = setupFake([], []);
-    assert.equal(empty.editor.applyOrder([]), false);
-    assert.deepEqual(empty.calls, []);
-});
-
-test('applyOrder 実物: 選択が空でも並びが変わり、履歴が1件・undoで戻りredoで再適用', () => {
-    const { model, history, editor } = setupReal(['A', 'B', 'C', 'D'], []);
-    assert.equal(editor.applyOrder(['D', 'B', 'A', 'C']), true);
-    assert.deepEqual(order(model), ['D', 'B', 'A', 'C']);
-    assert.equal(history.canUndo(), true);
-    history.undo();
-    assert.deepEqual(order(model), ['A', 'B', 'C', 'D']);
-    assert.equal(history.canUndo(), false, 'undo1回で履歴が空');
-    history.redo();
-    assert.deepEqual(order(model), ['D', 'B', 'A', 'C']);
-});
-
-test('applyOrder 実物: 同じ並びでは並び・履歴・通知が変わらない', () => {
-    const { model, history, editor, historyNotifications } = setupReal(['A', 'B', 'C'], ['B']);
-    let modelNotifications = 0;
-    model.onChange(() => { modelNotifications += 1; });
-    assert.equal(editor.applyOrder(['A', 'B', 'C']), false);
-    assert.deepEqual(order(model), ['A', 'B', 'C']);
-    assert.equal(history.canUndo(), false);
-    assert.equal(historyNotifications(), 0);
-    assert.equal(modelNotifications, 0);
-});
-
-test('applyOrder 実物: 選択集合が残る（並べ替えの前後・undo/redo後）', () => {
-    const { model, history, editor } = setupReal(['A', 'B', 'C', 'D'], ['B', 'C']);
-    editor.applyOrder(['C', 'D', 'A', 'B']);
-    assert.deepEqual([...model.getSelectedIds()].sort(), ['B', 'C']);
-    history.undo();
-    assert.deepEqual([...model.getSelectedIds()].sort(), ['B', 'C']);
-    history.redo();
-    assert.deepEqual([...model.getSelectedIds()].sort(), ['B', 'C']);
-});
-
-test('applyOrder 実物: フォルダの位置と入れ子が残り、名前は図形について動く', () => {
-    const model = new VectorModel();
-    const named = (id, name) => ({ kind: ITEM_KIND.SHAPE, shape: makeRect(id), name, visible: true, locked: false });
-    model.replaceAllShapes([
-        named('A', 'na'),
-        { kind: ITEM_KIND.GROUP, id: 'G', name: 'g', visible: true, locked: false, children: [named('B', 'nb'), named('C', 'nc')] },
-        named('D', 'nd')
-    ]);
-    const adapter = new SnapshotAdapter({ model, shouldRestoreSelection: () => true });
-    const history = new HistoryManager({ capture: () => adapter.capture(), restore: (s) => adapter.restore(s) });
-    const editor = new ShapeOrderEditor({ model, editRecorder: history });
-
-    assert.equal(editor.applyOrder(['D', 'C', 'B', 'A']), true);
-    assert.deepEqual(order(model), ['D', 'C', 'B', 'A']);
-    const items = model.getItems();
-    assert.equal(items.length, 3);
-    assert.deepEqual([items[0].shape.id, items[0].name], ['D', 'nd']);
-    assert.equal(items[1].kind, ITEM_KIND.GROUP);
-    assert.equal(items[1].id, 'G');
-    assert.deepEqual(items[1].children.map((c) => [c.shape.id, c.name]), [['C', 'nc'], ['B', 'nb']]);
-    assert.deepEqual([items[2].shape.id, items[2].name], ['A', 'na']);
 });

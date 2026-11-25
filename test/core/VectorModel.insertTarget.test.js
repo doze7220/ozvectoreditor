@@ -347,18 +347,19 @@ describe('replaceShape', () => {
 });
 
 describe('変わらない経路', () => {
-    it('reorderShapes: 選択が無ければ描き込む先は変わらない', () => {
+    it('rearrangeItems: 選択が無ければ描き込む先は変わらない', () => {
         const { model } = setup();
         model.setInsertTarget('b');
-        assert.equal(model.reorderShapes(['d', 'c', 'b', 'a']), true);
+        assert.equal(model.rearrangeItems([...model.getItems()].reverse()), true);
         assert.equal(model.getInsertTargetId(), 'b');
     });
 
-    it('reorderShapes: 選択があれば新しい並びでの選ばれている一番上になる', () => {
+    it('rearrangeItems: 選択があれば新しい並びでの選ばれている一番上になる', () => {
         const { model } = setup();
         model.setSelection(['a', 'b']);
         assert.equal(model.getInsertTargetId(), 'b');
-        model.reorderShapes(['b', 'a', 'c', 'd']);
+        const [first, second, ...rest] = model.getItems();
+        model.rearrangeItems([second, first, ...rest]);
         assert.equal(model.getInsertTargetId(), 'a');
     });
 

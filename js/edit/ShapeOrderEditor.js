@@ -14,7 +14,7 @@ import { moveItems } from '../core/ItemPlaceRules.js';
  * 依存の制約:
  *   - importは`./ShapeOrderRules.js`（`edit/`内）と、`core/GroupTreeRules.js`・`core/GroupSelectionRules.js`・`core/ItemPlaceRules.js`（状態を持たない規則の関数。
  *     `edit/ → core/`の例外）のみ。VectorModel・HistoryManagerはimportせず、インスタンスを注入で受け取る。
- *   - `model`は`getShapes`・`getItems`・`isSelected`・`getSelectedGroupIds`・`reorderShapes`・`rearrangeItems`だけを使う。
+ *   - `model`は`getItems`・`isSelected`・`getSelectedGroupIds`・`rearrangeItems`だけを使う。
  *   - InputTrackerには依存しない。DOMに触れない。
  *   - 図形種別の分岐・図形固有のプロパティ名・idの形式・操作モードの知識を持たない（読むのは共通プロパティ`id`のみ）。
  *   - `try/catch`を持たない。
@@ -29,7 +29,7 @@ import { moveItems } from '../core/ItemPlaceRules.js';
  */
 export class ShapeOrderEditor {
     /**
-     * 図形一式と選択集合を保持するモデル（`getShapes`・`isSelected`・`reorderShapes`だけを使う）。
+     * 図形一式と選択集合を保持するモデル（`getItems`・`isSelected`・`getSelectedGroupIds`・`rearrangeItems`だけを使う）。
      * @type {import('../core/VectorModel.js').VectorModel}
      */
     #model;
@@ -107,38 +107,6 @@ export class ShapeOrderEditor {
         }
         this.#editRecorder.beginEdit();
         const changed = this.#model.rearrangeItems(nextItems);
-        this.#editRecorder.commitEdit();
-        return changed;
-    }
-
-    /**
-     * 並び全体を指定して図形の重なり順を変える（一覧の行のドラッグの結果）。選択集合は変えない（選択が空でも働く）。
-     *
-     * 処理順:
-     *   1. 今の図形のidの並びと同じなら、何も呼ばずに`false`（`beginEdit`も呼ばないため履歴は増えない）。
-     *   2. `editRecorder.beginEdit()` → `model.reorderShapes(orderedIds)` → `editRecorder.commitEdit()`。
-     *   3. `reorderShapes`の戻り値を返す（並びの正本は`model.reorderShapes`。フォルダの位置と入れ子を保つ）。
-     *
-     * @param {Array<string>} orderedIds 今の全図形のidをちょうど1回ずつ並べた配列（描画順。先頭＝最も奥）
-     * @returns {boolean} 並びを変えたか
-     */
-    applyOrder(orderedIds) {
-        const ids = this.#model.getShapes().map((shape) => shape.id);
-        if (ids.length === orderedIds.length && ids.every((id, i) => id === orderedIds[i])) {
-            return false;
-        }
-        return this.#commitOrder(orderedIds);
-    }
-
-    /**
-     * 並びを1件の編集操作としてモデルへ反映する（`apply`と`applyOrder`で共有する）。
-     * `editRecorder.beginEdit()` → `model.reorderShapes(orderedIds)` → `editRecorder.commitEdit()`の順に呼ぶ。
-     * @param {Array<string>} orderedIds 新しい並び（描画順）
-     * @returns {boolean} `reorderShapes`の戻り値（並びを変えたか）
-     */
-    #commitOrder(orderedIds) {
-        this.#editRecorder.beginEdit();
-        const changed = this.#model.reorderShapes(orderedIds);
         this.#editRecorder.commitEdit();
         return changed;
     }

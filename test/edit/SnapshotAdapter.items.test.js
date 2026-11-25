@@ -82,7 +82,7 @@ test('capture: 入れ子・フォルダのid・名前・表示・ロックを含
 
 for (const [label, op] of [
     ['削除', (model) => model.deleteShapes(['shape-2'])],
-    ['重なり順', (model) => model.reorderShapes(['shape-3', 'shape-2', 'shape-1'])],
+    ['重なり順', (model) => model.rearrangeItems([...model.getItems()].reverse())],
     ['結合（作り直し）', (model) => model.replaceShape('shape-1', makeRect('shape-9', 5), { removeIds: ['shape-3'] })],
     ['追加', (model) => model.addShapesWithNewIds([makeRect('x', 100)])]
 ]) {

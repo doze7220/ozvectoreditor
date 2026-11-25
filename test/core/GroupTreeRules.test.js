@@ -5,7 +5,6 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
     itemIdOf,
-    hasGroupItem,
     wrapUnits,
     unwrapGroups,
     removeItems,
@@ -25,15 +24,10 @@ function shape(items) {
     return items.map((item) => (item.kind === 'group' ? { [item.id ?? 'new']: shape(item.children) } : item.shape.id));
 }
 
-describe('itemIdOf / hasGroupItem', () => {
+describe('itemIdOf', () => {
     it('図形は shape.id、フォルダは id', () => {
         assert.equal(itemIdOf(s('a')), 'a');
         assert.equal(itemIdOf(g('G1')), 'G1');
-    });
-    it('hasGroupItem は入れ子にフォルダがあるかを返す', () => {
-        assert.equal(hasGroupItem([]), false);
-        assert.equal(hasGroupItem([s('a')]), false);
-        assert.equal(hasGroupItem([s('a'), g('G1')]), true);
     });
 });
 

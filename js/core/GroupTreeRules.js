@@ -16,15 +16,6 @@ export function itemIdOf(item) {
 }
 
 /**
- * アイテムの入れ子にフォルダが1つでもあるかを返す。
- * @param {Item[]} items - アイテムの入れ子
- * @returns {boolean} フォルダがあれば true
- */
-export function hasGroupItem(items) {
-    return items.some((item) => item.kind === ITEM_KIND.GROUP);
-}
-
-/**
  * ids のアイテムを前順で集めた新しい配列を返す。当たったフォルダの中へは進まない。
  * 要素は引数のアイテムそのもの（写しを作らない）。引数は書き換えない。
  * @param {Item[]} items - アイテムの入れ子

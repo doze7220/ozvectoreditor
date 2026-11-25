@@ -207,12 +207,12 @@ describe('VectorModel 選んでいるフォルダ', () => {
         assert.deepEqual(model.getSelectedGroupIds(), ['g2']);
     });
 
-    it('renameItem・reorderShapesではフォルダの選択は残る', () => {
+    it('renameItem・rearrangeItemsではフォルダの選択は残る', () => {
         const { model } = setup(standardItems());
         model.setSelection(['a', 'b'], { groupIds: ['g1'] });
         model.renameItem('g1', '名前');
         assert.deepEqual(model.getSelectedGroupIds(), ['g1']);
-        model.reorderShapes(['b', 'a', 'c', 'd']);
+        model.rearrangeItems([...model.getItems()].reverse());
         assert.deepEqual(model.getSelectedGroupIds(), ['g1']);
     });
 

@@ -213,31 +213,6 @@ describe('VectorModel 入れ子の並び', () => {
         ]);
     });
 
-    it('reorderShapes：フォルダの位置・入れ子・空のフォルダが保たれ、名前は図形について動く', () => {
-        const model = new VectorModel();
-        const a = makeShape();
-        const b = makeShape();
-        const c = makeShape();
-        model.replaceAllShapes([
-            sItem(a, 'shape-1', { name: 'A', visible: false }),
-            gItem('group-2', [sItem(b, 'shape-3', { name: 'B' }), gItem('group-4', [])], { name: 'G' }),
-            sItem(c, 'shape-5', { name: 'C', locked: true }),
-        ]);
-        assert.equal(model.reorderShapes(['shape-5', 'shape-1', 'shape-3']), true);
-        assert.deepEqual(brief(model.getItems()), [
-            { id: 'shape-5', name: 'C', visible: true, locked: true },
-            {
-                id: 'group-2', name: 'G', visible: true, locked: false, children: [
-                    { id: 'shape-1', name: 'A', visible: false, locked: false },
-                    { id: 'group-4', name: 'フォルダ 1', visible: true, locked: false, children: [] },
-                ],
-            },
-            { id: 'shape-3', name: 'B', visible: true, locked: false },
-        ]);
-        assert.deepEqual(model.getShapes().map((s) => s.id), ['shape-5', 'shape-1', 'shape-3']);
-        assert.equal(model.reorderShapes(['shape-5', 'shape-1', 'shape-3']), false);
-    });
-
     it('replaceShape：位置の名前・表示・ロック・所属を引き継ぎ、種別が変わっても名前は変わらない', () => {
         const model = new VectorModel();
         const a = makeShape('line');
@@ -390,7 +365,7 @@ describe('VectorModel 入れ子の並び', () => {
         assert.equal(warn.mock.callCount(), 3);
     });
 
-    it('通知の回数：commitDraft・deleteShapes・reorderShapes は1回', () => {
+    it('通知の回数：commitDraft・deleteShapes・rearrangeItems は1回', () => {
         const model = new VectorModel();
         model.startDraft(0, 0, 'rect');
         let count = 0;
@@ -399,7 +374,7 @@ describe('VectorModel 入れ子の並び', () => {
         assert.equal(count, 1);
         draw(model, 'rect');
         count = 0;
-        model.reorderShapes(model.getShapes().map((s) => s.id).reverse());
+        model.rearrangeItems([...model.getItems()].reverse());
         assert.equal(count, 1);
         model.deleteShapes([model.getShapes()[0].id]);
         assert.equal(count, 2);

@@ -909,7 +909,7 @@ export class VectorModel {
      * (3)`asUnits`が偽（既定）：図形が1つも残らなければ（フォルダだけの場合を含む）何も変えず（通知もせず）空配列を返す。
      *    `asUnits`が真：アイテムが1つも残らなければ何も変えず空配列を返す（フォルダだけ・空のフォルダだけでも入れる）。
      * (4)名前・表示・ロックは`resolveItems`が決める（名前のあるアイテムはそのまま。名前の無い図形・フォルダには今のキャンバスの名前と重ならない自動の名前が付く）。
-     * (5)選択集合を、追加した図形のidの集合で置き換える（追加した図形だけが選択される。選んでいるフォルダは、`asUnits`が偽なら空になり、真なら入れた並びのいちばん外側のフォルダ（不変条件を満たすもの）になる。追加した図形を含む、変わる前にあった閉じたフォルダは開く。描き込む先は規則により、追加した図形の一番上のすぐ上になる）。
+     * (5)選択集合を、追加した図形のidの集合で置き換える（追加した図形だけが選択される。選んでいるフォルダは、`asUnits`が偽なら空になり、真なら入れた並びのいちばん外側のフォルダ（不変条件を満たすもの）になる。追加した図形を含む、変わる前にあった閉じたフォルダは開く。描き込む先は規則（`InsertTargetRules`）により、選んでいるまとまりの一番上のもので決まる：`asUnits`が偽なら追加した図形の一番上のすぐ上、`asUnits`が真で一番上が図形ならその図形のすぐ上、フォルダならそのフォルダの中（一番上）になる）。
      *    頂点の選択から、選択中でなくなった図形の組を落とす。ホバー状態・作成中の図形・選択矩形には触れない。
      * (6)変更を通知する（1回。図形数分は発行しない）。
      * 受け取った図形インスタンスをそのまま保持して`id`を書き換えるため、呼び出し側は追加後にそのインスタンスを他の用途に流用しない。
@@ -1084,49 +1084,6 @@ export class VectorModel {
         this.#pruneSelectedVertices();
         this.#notifyChange();
         return count;
-    }
-
-    /**
-     * 図形の並び（重なり順。先頭＝最も奥、末尾＝最も手前）を、指定したidの並び全体で置き換える。
-     * (1)`orderedIds`が配列でない・要素数が今の図形の数と違う・今の図形に無いidを含む・同じidを2回以上含む場合は、
-     *    console.warnのうえ何も変えず（通知もせず）falseを返す（並びを壊さない）。
-     * (2)idから今の図形インスタンスを引いて新しい配列を作る。今の並びとすべての位置で同じインスタンスなら、
-     *    何も変えず（通知もせず・警告もせず）falseを返す（図形0個で`[]`を渡す場合を含む）。
-     * (3)フォルダの位置と入れ子を保ったまま、図形のアイテム（名前・表示・ロックごと）を新しい順に図形の位置へ置き直し
-     *    （名前は図形について動き、所属は位置のものになる）、変更を通知して（1回）trueを返す。
-     * 操作の種類（最前面へ等）は受け取らず、新しい並び全体だけを受け取る（並べ替えの規則を`VectorModel`へ持ち込まず、
-     * 任意の並びの設定からも同じ公開操作を使えるようにするため。規則は`edit/ShapeOrderRules.js`と`core/ListDragRules.js`が持つ）。
-     * 触れないもの：選択集合（同じidの図形が選ばれたまま。`getSelectedIds()`が返す順は新しい並びに従う。選択が1つ以上あれば描き込む先は新しい並びでの選ばれている一番上の図形になる）・ホバー・
-     * 作成中の図形・選択矩形・吸い付きの表示の点・新しく描く図形のスタイル（直前に使った値）・idの採番（#nextId）・
-     * 図形インスタンスの中身（id・頂点・スタイル。インスタンスは並び替えるだけで作り直さない）。
-     * 履歴の記録（beginEdit/commitEdit）は呼び出し側の責務。
-     * @param {Array<string>} orderedIds 現在の全図形のidをちょうど1回ずつ並べた配列（先頭＝最も奥）
-     * @returns {boolean} 並びを変えたか
-     */
-    reorderShapes(orderedIds) {
-        const currentShapes = this.#shapes;
-        if (!Array.isArray(orderedIds) || orderedIds.length !== currentShapes.length) {
-            console.warn('VectorModel.reorderShapes: 現在の全図形のidをちょうど1回ずつ並べた配列ではないため、並びを変えません。', orderedIds);
-            return false;
-        }
-        const shapeById = new Map(currentShapes.map((s) => [s.id, s]));
-        const nextShapes = [];
-        const usedIds = new Set();
-        for (const id of orderedIds) {
-            if (!shapeById.has(id) || usedIds.has(id)) {
-                console.warn('VectorModel.reorderShapes: 現在の全図形のidをちょうど1回ずつ並べた配列ではないため、並びを変えません。', orderedIds);
-                return false;
-            }
-            usedIds.add(id);
-            nextShapes.push(shapeById.get(id));
-        }
-        if (nextShapes.every((s, i) => s === currentShapes[i])) {
-            return false;
-        }
-        const itemByShape = new Map(listShapeItems(this.#items).map((item) => [item.shape, item]));
-        this.#applyState({ items: placeShapeItems(this.#items, nextShapes.map((shape) => itemByShape.get(shape))) });
-        this.#notifyChange();
-        return true;
     }
 
     /**

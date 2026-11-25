@@ -202,7 +202,7 @@ describe('VectorModel 折りたたみ', () => {
 
     it('並べ替え・名前の変更・削除では開かない', () => {
         const { model } = setup([g('g1', [s('a')], true), s('b')]);
-        model.reorderShapes(['b', 'a']);
+        model.rearrangeItems([...model.getItems()].reverse());
         model.renameItem('g1', '名前');
         model.deleteShapes(['b']);
         assert.equal(groupOf(model, 'g1').collapsed, true);
