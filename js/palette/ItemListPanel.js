@@ -1,6 +1,6 @@
 /**
- * 責務：右端の図形の一覧のパネル（`#item-list-panel`内の`#item-list`）の行の表示（差分の反映）・スクロール・サムネイル用`<canvas>`の提供を担う。
- * 図形・VectorModel・状態の持ち主には関与しない。DOM操作と通知だけ。
+ * 責務：右端の図形の一覧のパネル（`#item-list-panel`内の`#item-list`）の行の表示（差分の反映。目と鍵のアイコンを含む）・スクロール・サムネイル用`<canvas>`の提供を担う。
+ * 図形・VectorModel・状態の持ち主には関与しない。DOM操作と通知だけ（表示・ロックの規則は持たない）。
  */
 
 /**
@@ -17,6 +17,11 @@
  * @property {boolean} [selectedInGroup] 上のフォルダが選ばれているか（弱い見た目。省けば偽）
  * @property {boolean} [hiddenMark] 閉じたフォルダの中に選択・描き込む先の印があるか（省けば偽）
  * @property {{edge: 'before'|'after', indent: number}|null} [insertLine] 描き込む先の線（青の破線）を出す側と字下げ（px）。省くか`null`なら出さない
+ * @property {boolean} [visible] 自分の表示が入か（省けば真。偽なら目に`is-off`）
+ * @property {boolean} [locked] 自分のロックが入か（省けば偽。真なら鍵に`is-on`）
+ * @property {boolean} [hiddenByAncestor] 上のフォルダの表示が切のため隠れているか（省けば偽。真なら目に`is-inherited`）
+ * @property {boolean} [lockedByAncestor] 上のフォルダのロックが入のためロックされているか（省けば偽。真なら鍵に`is-inherited`）
+ * @property {boolean} [hidden] 隠れているか（省けば偽。真なら行に`item-hidden`）
  */
 
 /**
@@ -35,6 +40,8 @@
  * @property {HTMLCanvasElement|null} canvas サムネイルの`<canvas>`（フォルダの行は`null`）
  * @property {HTMLSpanElement|null} toggleElement 三角の`<span class="item-row-toggle">`（図形の行は`null`）
  * @property {HTMLSpanElement} nameElement 名前の`<span>`
+ * @property {HTMLSpanElement} eyeElement 目の`<span class="item-row-state item-row-eye">`
+ * @property {HTMLSpanElement} lockElement 鍵の`<span class="item-row-state item-row-lock">`
  * @property {string} name 表示中の名前
  * @property {boolean} selected 表示中の選択
  * @property {boolean} insertTarget 表示中の描き込む先の印
@@ -42,6 +49,11 @@
  * @property {boolean} hiddenMark 表示中の見えない行の印
  * @property {'before'|'after'|null} insertLineEdge 表示中の描き込む先の線の側（出していなければ`null`）
  * @property {number} insertLineIndent 表示中の描き込む先の線の字下げ（px）
+ * @property {boolean} hidden 表示中の`item-hidden`
+ * @property {boolean} eyeOff 表示中の目の`is-off`
+ * @property {boolean} eyeInherited 表示中の目の`is-inherited`
+ * @property {boolean} lockOn 表示中の鍵の`is-on`
+ * @property {boolean} lockInherited 表示中の鍵の`is-inherited`
  * @property {number} indent 表示中の字下げ（px）
  * @property {boolean|null} collapsed 表示中の折りたたみ（フォルダの行。`null`は未描画で、最初の`render`で必ず書く）
  * @property {boolean|null} canToggle 表示中の三角の有無（フォルダの行。`null`は未描画で、最初の`render`で必ず書く）
@@ -71,7 +83,8 @@
  * @typedef {Object} ItemListPanelOptions
  * @property {number} thumbnailSize サムネイルのCSS上の大きさ（正方形の一辺、px）
  * @property {() => void} onScroll 一覧がスクロールされたときに呼ばれる
- * @property {(id: string, event: MouseEvent, isEditingRow: boolean) => void} onRowPress 行の上で`mousedown`されるたびに行のid・`MouseEvent`・その行が名前の編集中かで呼ばれる（名前の欄の中・修飾キー付き・左以外のボタンでも呼ぶ。`preventDefault()`しない）
+ * @property {(id: string, event: MouseEvent, isEditingRow: boolean, isOnStateIcon: boolean) => void} onRowPress 行の上で`mousedown`されるたびに行のid・`MouseEvent`・その行が名前の編集中か・押したのが目か鍵のアイコンの上かで呼ばれる（名前の欄の中・修飾キー付き・左以外のボタンでも呼ぶ。`preventDefault()`しない）
+ * @property {(id: string, icon: string, event: MouseEvent) => void} onStateIconClick 目・鍵のアイコンがクリックされたときに行のid・アイコンの種類（`data-state-icon`の値。`'visible'`／`'lock'`）・`MouseEvent`で呼ばれる（アイコンの上で押して離したときだけ。このとき`onRowClick`は呼ばれない）
  * @property {(id: string, event: MouseEvent) => void} onRowClick 行がクリックされたときに行のidと`MouseEvent`で呼ばれる（行の無い所のクリックでは呼ばれない）
  * @property {(id: string|null) => void} onRowHover カーソルが行の上を動いたときにその行のid、行の無い所・一覧の外へ出たときに`null`で呼ばれる
  * @property {(id: string, event: MouseEvent) => void} onNameEditRequest 名前の`<span>`がダブルクリックされたときに行のidと`MouseEvent`で呼ばれる
@@ -93,9 +106,11 @@
  *   - ルート要素（`#item-list-panel`）の中の`#item-list`に、行（`<div class="item-row" data-item-id>`）を並べる。パネルの下端の`.item-list-footer`にフォルダを作るボタン`#item-list-add-group`がある（`.item-list`の外）。
  *   - 図形の行は`<canvas class="item-row-thumbnail">`と`<span class="item-row-name">`。名前は`textContent`・`title`だけで書く。
  *   - フォルダの行は`<span class="item-row-toggle">`（`▸`／`▾`。押せないときは`visibility: hidden`）・`<span class="item-row-folder-icon">`（CSSで描く絵）・`<span class="item-row-name">`（サムネイルは無い）。
+ *   - すべての行の末尾に`<span class="item-row-states">`があり、目（`data-state-icon="visible"`）と鍵（`data-state-icon="lock"`）の`<span class="item-row-state">`が入る。隠れている行は`item-hidden`、目は`is-off`・`is-inherited`、鍵は`is-on`・`is-inherited`のクラスで書く（クラスの書き換えと押した通知だけで、表示・ロックの規則は持たない）。
+ *   - アイコンの上の押下は`onRowPress`の第4引数で知らせ、クリックは行のクリックにせず`onStateIconClick`だけで知らせる。
  *   - 字下げはカスタムプロパティ`--row-indent`で行の左の余白に足す。弱い選択は`selected-in-group`、見えない行の印は`has-hidden-mark`のクラスで書く。
  *   - `render`は差分だけをDOMへ反映する（行の要素はidごとに持ち回る。同じidで種類が変わったときだけ作り直す）。
- *   - 名前の編集は行に`<input>`を足して行う。確定・取りやめの出口は`#finishNameEdit`の1つ。編集中の行の要素はDOMの中で動かさない。
+ *   - 名前の編集は行に`<input>`を足して行う（名前の`<span>`の直後。アイコンは右端のまま）。確定・取りやめの出口は`#finishNameEdit`の1つ。編集中の行の要素はDOMの中で動かさない。
  */
 export class ItemListPanel {
     /** @type {HTMLElement|null} スクロールする一覧の要素（配線済みのときのみ） */
@@ -106,8 +121,10 @@ export class ItemListPanel {
     #thumbnailSize;
     /** @type {() => void} */
     #onScroll;
-    /** @type {(id: string, event: MouseEvent, isEditingRow: boolean) => void} */
+    /** @type {(id: string, event: MouseEvent, isEditingRow: boolean, isOnStateIcon: boolean) => void} */
     #onRowPress;
+    /** @type {(id: string, icon: string, event: MouseEvent) => void} */
+    #onStateIconClick;
     /** @type {(id: string, event: MouseEvent) => void} */
     #onRowClick;
     /** @type {(id: string|null) => void} */
@@ -128,6 +145,8 @@ export class ItemListPanel {
     #editing = null;
     /** @type {boolean} 直近の`mousedown`が名前の欄の中で始まったか */
     #mouseDownInInput = false;
+    /** @type {Element|null} 直近の`mousedown`で押したアイコンの要素（アイコンの上でなければ`null`） */
+    #pressedStateIcon = null;
     /** @type {Set<string>} `dragging`を書いている行のid */
     #draggedIds = new Set();
     /** @type {{id: string, edge: 'before'|'after'|'inside'}|null} 線（`inside`は目立たせる）を出している行と側 */
@@ -137,7 +156,7 @@ export class ItemListPanel {
      * 要素を解決してイベントを配線する。要素が欠ければ`console.warn`して配線しない（以後の公開メソッドは何もしない）。
      * @param {HTMLElement} rootElement パネルのルート要素（`#item-list-panel`）
      * @param {ItemListPanelOptions} options 設定
-     * @throws {Error} `onScroll`・`onRowPress`・`onRowClick`・`onRowHover`・`onNameEditRequest`・`onNameCommit`・`resolveNameEditKey`・`onGroupToggle`・`onAddGroup`のいずれかが関数でないとき
+     * @throws {Error} `onScroll`・`onRowPress`・`onStateIconClick`・`onRowClick`・`onRowHover`・`onNameEditRequest`・`onNameCommit`・`resolveNameEditKey`・`onGroupToggle`・`onAddGroup`のいずれかが関数でないとき
      */
     constructor(rootElement, options) {
         if (!options || typeof options.onScroll !== 'function') {
@@ -145,6 +164,9 @@ export class ItemListPanel {
         }
         if (typeof options.onRowPress !== 'function') {
             throw new Error('ItemListPanel: options.onRowPressは関数である必要があります。');
+        }
+        if (typeof options.onStateIconClick !== 'function') {
+            throw new Error('ItemListPanel: options.onStateIconClickは関数である必要があります。');
         }
         if (typeof options.onRowClick !== 'function') {
             throw new Error('ItemListPanel: options.onRowClickは関数である必要があります。');
@@ -169,6 +191,7 @@ export class ItemListPanel {
         }
         this.#onScroll = options.onScroll;
         this.#onRowPress = options.onRowPress;
+        this.#onStateIconClick = options.onStateIconClick;
         this.#onRowClick = options.onRowClick;
         this.#onRowHover = options.onRowHover;
         this.#onNameEditRequest = options.onNameEditRequest;
@@ -192,14 +215,26 @@ export class ItemListPanel {
         list.addEventListener('mousedown', (event) => {
             this.#mouseDownInInput = this.#isInNameInput(event.target);
             const id = this.#findRowId(event);
-            if (id !== null) this.#onRowPress(id, event, this.#editing !== null && this.#editing.id === id);
+            this.#pressedStateIcon = id !== null ? this.#findStateIcon(event.target) : null;
+            if (id !== null) this.#onRowPress(id, event, this.#editing !== null && this.#editing.id === id, this.#pressedStateIcon !== null);
         });
         list.addEventListener('click', (event) => {
             const startedInInput = this.#mouseDownInInput;
             this.#mouseDownInInput = false;
+            const pressedIcon = this.#pressedStateIcon;
+            this.#pressedStateIcon = null;
             if (startedInInput || this.#isInNameInput(event.target)) return;
             const id = this.#findRowId(event);
             if (id === null) return;
+            // アイコンの上で押した・アイコンの上のclickは行のクリックにしない。押したアイコンと同じ要素の上のclickだけがアイコンのクリック
+            const targetIcon = this.#findStateIcon(event.target);
+            if (pressedIcon !== null || targetIcon !== null) {
+                if (pressedIcon !== null && pressedIcon === targetIcon) {
+                    event.preventDefault();
+                    this.#onStateIconClick(id, targetIcon.dataset.stateIcon, event);
+                }
+                return;
+            }
             // 三角のクリックは折りたたみだけ（行のクリックにしない）
             const target = event.target;
             if (target && typeof target.closest === 'function' && target.closest('.item-row-toggle')) {
@@ -264,6 +299,31 @@ export class ItemListPanel {
                 entry.nameElement.textContent = row.name;
                 entry.nameElement.title = row.name;
                 entry.name = row.name;
+            }
+            const hidden = row.hidden === true;
+            if (entry.hidden !== hidden) {
+                entry.element.classList.toggle('item-hidden', hidden);
+                entry.hidden = hidden;
+            }
+            const eyeOff = row.visible === false;
+            if (entry.eyeOff !== eyeOff) {
+                entry.eyeElement.classList.toggle('is-off', eyeOff);
+                entry.eyeOff = eyeOff;
+            }
+            const eyeInherited = row.hiddenByAncestor === true;
+            if (entry.eyeInherited !== eyeInherited) {
+                entry.eyeElement.classList.toggle('is-inherited', eyeInherited);
+                entry.eyeInherited = eyeInherited;
+            }
+            const lockOn = row.locked === true;
+            if (entry.lockOn !== lockOn) {
+                entry.lockElement.classList.toggle('is-on', lockOn);
+                entry.lockOn = lockOn;
+            }
+            const lockInherited = row.lockedByAncestor === true;
+            if (entry.lockInherited !== lockInherited) {
+                entry.lockElement.classList.toggle('is-inherited', lockInherited);
+                entry.lockInherited = lockInherited;
             }
             if (entry.selected !== row.selected) {
                 entry.element.classList.toggle('selected', row.selected);
@@ -501,7 +561,7 @@ export class ItemListPanel {
             if (this.#editing && this.#editing.input === input) this.#finishNameEdit(true);
         });
         entry.nameElement.hidden = true;
-        entry.element.appendChild(input);
+        entry.nameElement.after(input);
         this.#editing = { id, input };
         input.focus();
         input.select();
@@ -538,6 +598,17 @@ export class ItemListPanel {
      */
     #isInNameInput(target) {
         return !!target && typeof target.closest === 'function' && !!target.closest('.item-row-name-input');
+    }
+
+    /**
+     * イベントの対象が含まれる目・鍵のアイコンの要素を返す。
+     * @param {EventTarget|null} target イベントの対象
+     * @returns {Element|null} アイコン（`.item-row-state`）の要素（一覧の中に無ければ`null`）
+     */
+    #findStateIcon(target) {
+        if (!target || typeof target.closest !== 'function') return null;
+        const icon = target.closest('.item-row-state');
+        return icon && this.#list.contains(icon) ? icon : null;
     }
 
     /**
@@ -582,12 +653,29 @@ export class ItemListPanel {
             canvas.style.height = `${this.#thumbnailSize}px`;
             element.append(canvas, nameElement);
         }
+
+        // 目と鍵（すべての行の末尾。値は`render`が書く）
+        const eyeElement = document.createElement('span');
+        eyeElement.className = 'item-row-state item-row-eye';
+        eyeElement.dataset.stateIcon = 'visible';
+        eyeElement.title = '表示/非表示（Alt+クリックでこの行だけ表示）';
+        const lockElement = document.createElement('span');
+        lockElement.className = 'item-row-state item-row-lock';
+        lockElement.dataset.stateIcon = 'lock';
+        lockElement.title = 'ロック';
+        const statesElement = document.createElement('span');
+        statesElement.className = 'item-row-states';
+        statesElement.append(eyeElement, lockElement);
+        element.append(statesElement);
+
         return {
             element,
             kind,
             canvas,
             toggleElement,
             nameElement,
+            eyeElement,
+            lockElement,
             name: null,
             selected: false,
             insertTarget: false,
@@ -595,6 +683,11 @@ export class ItemListPanel {
             hiddenMark: false,
             insertLineEdge: null,
             insertLineIndent: 0,
+            hidden: false,
+            eyeOff: false,
+            eyeInherited: false,
+            lockOn: false,
+            lockInherited: false,
             indent: 0,
             collapsed: null,
             canToggle: null

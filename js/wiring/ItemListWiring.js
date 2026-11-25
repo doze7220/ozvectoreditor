@@ -1,5 +1,5 @@
 /**
- * 責務：右端の図形の一覧の配線（購読・生成・注入と、規則の結果を`model`・パネルへ渡す橋渡し）を担う。
+ * 責務：右端の図形の一覧の配線（購読・生成・注入と、規則の結果を`model`・パネル・`itemStateEditor`へ渡す橋渡し）を担う。
  * 判定・計算の規則は持たず、各規則のモジュールへ渡すだけ。保存しない一時的な値だけを持つ。
  */
 import {
@@ -14,6 +14,8 @@ import {
     resolveNameEditKey,
     resolveRowHover,
     resolveRowPressAction,
+    resolveStateIconAction,
+    STATE_ICON_ACTION,
     shouldSelectPressedRow
 } from '../core/ItemListRules.js';
 import { resolveInsertMark } from '../core/InsertTargetRules.js';
@@ -62,6 +64,8 @@ export class ItemListWiring {
     #itemRenameEditor;
     /** @type {import('../edit/GroupEditor.js').GroupEditor} フォルダを作る編集操作 */
     #groupEditor;
+    /** @type {import('../edit/ItemStateEditor.js').ItemStateEditor} 表示・ロックを切り替える編集操作 */
+    #itemStateEditor;
     /** @type {ItemListRowDrag} 行のドラッグ（並べ替え）の進行 */
     #rowDrag;
     /** @type {string|null} `Shift`＋クリックの範囲の起点の行のid（図形またはフォルダ） */
@@ -86,8 +90,9 @@ export class ItemListWiring {
      * @param {import('../edit/ItemRenameEditor.js').ItemRenameEditor} deps.itemRenameEditor - 名前を変える編集操作
      * @param {(ids: Array<string>, place: import('../core/ItemPlaceRules.js').ItemPlace) => boolean} deps.applyRowDrop - 行のドラッグで決まった場所へ動かす（動かすもののidと場所を渡す。記録つきの編集操作）
      * @param {import('../edit/GroupEditor.js').GroupEditor} deps.groupEditor - フォルダをまとめる・空のフォルダを足す編集操作（作るボタンが使う）
+     * @param {import('../edit/ItemStateEditor.js').ItemStateEditor} deps.itemStateEditor - 目・鍵・その行だけの表示の編集操作（アイコンが使う。キャンバスを切り替えたときに記憶を忘れさせる）
      */
-    constructor({ model, shapeExtentReader, displayState, canvasLibrary, getMode, isDragging, isPicking, selectSelectTool, readCtrlModifier, itemRenameEditor, applyRowDrop, groupEditor }) {
+    constructor({ model, shapeExtentReader, displayState, canvasLibrary, getMode, isDragging, isPicking, selectSelectTool, readCtrlModifier, itemRenameEditor, applyRowDrop, groupEditor, itemStateEditor }) {
         this.#model = model;
         this.#shapeExtentReader = shapeExtentReader;
         this.#canvasLibrary = canvasLibrary;
@@ -98,6 +103,7 @@ export class ItemListWiring {
         this.#readCtrlModifier = readCtrlModifier;
         this.#itemRenameEditor = itemRenameEditor;
         this.#groupEditor = groupEditor;
+        this.#itemStateEditor = itemStateEditor;
         this.#lastOpenCanvasId = canvasLibrary.getState().openCanvasId;
         this.#panel = new ItemListPanel(document.getElementById('item-list-panel'), {
             thumbnailSize: THUMBNAIL_SIZE_PX,
@@ -105,7 +111,8 @@ export class ItemListWiring {
                 this.#requestSync();
                 this.#rowDrag.refresh();
             },
-            onRowPress: (id, event, isEditingRow) => this.#handleRowPress(id, event, isEditingRow),
+            onRowPress: (id, event, isEditingRow, isOnStateIcon) => this.#handleRowPress(id, event, isEditingRow, isOnStateIcon),
+            onStateIconClick: (id, icon, event) => this.#handleStateIconClick(id, icon, event),
             onRowClick: (id, event) => this.#handleRowClick(id, event),
             onRowHover: (id) => this.#handleRowHover(id),
             onNameEditRequest: (id, event) => this.#handleNameEditRequest(id, event),
@@ -149,6 +156,8 @@ export class ItemListWiring {
                 this.#lastOpenCanvasId = state.openCanvasId;
                 // 図形のidは別のキャンバスと同じ値になり得るため、起点を忘れる
                 this.#anchorId = null;
+                // その行だけの表示の前の表示の記憶は、別のキャンバスでは使えない
+                this.#itemStateEditor.forgetSolo();
                 // キャンバスを切り替えてもidが同じ図形があり得るため、編集中の名前は捨てる
                 this.#panel.cancelNameEdit();
                 this.#rowDrag.cancel();
@@ -208,17 +217,51 @@ export class ItemListWiring {
      * @param {string} id - 押した行のid（図形またはフォルダ）
      * @param {MouseEvent} event - `mousedown`のイベント
      * @param {boolean} isEditingRow - 押した行が名前の編集中か
+     * @param {boolean} isOnStateIcon - 押したのが目・鍵のアイコンの上か（真ならドラッグを始めない）
      * @returns {void}
      */
-    #handleRowPress(id, event, isEditingRow) {
+    #handleRowPress(id, event, isEditingRow, isOnStateIcon) {
         const canStart = canStartRowDrag({
             button: event.button,
             hasModifier: this.#readCtrlModifier(event) || event.shiftKey === true,
             isEditingRow,
             isDragging: this.#isDragging(),
-            isLocked: isListLocked(this.#canvasLibrary.getState())
+            isLocked: isListLocked(this.#canvasLibrary.getState()),
+            isOnStateIcon
         });
         this.#rowDrag.press(id, event, canStart);
+    }
+
+    /**
+     * 目・鍵のアイコンのクリックを処理する。何をするかは`resolveStateIconAction`に任せ、結果に従って`itemStateEditor`を呼び、表示を今の`model`にそろえるだけ。
+     * 選択・描き込む先・ツール・折りたたみ・ホバー・`Shift`＋クリックの起点には触れない。
+     * @param {string} id - アイコンを押した行のid（図形またはフォルダ）
+     * @param {string} icon - アイコンの種類（`STATE_ICON`の値）
+     * @param {MouseEvent} event - クリックのイベント（`Alt`の有無を見る）
+     * @returns {void}
+     */
+    #handleStateIconClick(id, icon, event) {
+        // 行のドラッグ（または取りやめ）の直後のclickは、クリックとして扱わない
+        if (this.#rowDrag.consumeSuppressedClick()) return;
+        if (!buildItemRows(this.#model.getItems()).some((row) => row.id === id)) return;
+        const action = resolveStateIconAction({
+            icon,
+            hasAlt: event.altKey === true,
+            isDragging: this.#isDragging(),
+            isRowDragging: this.#rowDrag.isActive(),
+            isLocked: isListLocked(this.#canvasLibrary.getState()),
+            hasDraft: this.#model.getDraftShape() !== null
+        });
+        if (action === STATE_ICON_ACTION.TOGGLE_VISIBLE) {
+            this.#itemStateEditor.toggleVisible(id);
+        } else if (action === STATE_ICON_ACTION.SOLO) {
+            this.#itemStateEditor.toggleSolo(id);
+        } else if (action === STATE_ICON_ACTION.TOGGLE_LOCK) {
+            this.#itemStateEditor.toggleLocked(id);
+        } else {
+            return;
+        }
+        this.sync({ allowScroll: false });
     }
 
     /**

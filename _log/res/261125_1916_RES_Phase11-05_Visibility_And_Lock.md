@@ -318,7 +318,7 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
         *   「一覧の見た目とアイコン（要件1）」の規則の部分のとおりに足す（先頭の責務・importの記述も直す）。
         *   テスト：行と見た目の5つの項目（自分・フォルダから・深い入れ子・折りたたんだ中・空のフォルダ・値が無い）、`resolveStateIconAction`の全部の組み合わせの代表、`canStartRowDrag`の`isOnStateIcon`（省いたとき今のまま）。
 
-*   [ ] タスク13: 一覧のアイコン（部品・CSS・配線）
+*   [x] タスク13: 一覧のアイコン（部品・CSS・配線）
     *   **対象ファイル** :
         *   `./js/palette/ItemListPanel.js` :（更新）
         *   `./index.html` :（更新。一覧の行のCSSだけ）
@@ -436,6 +436,11 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
 
 ### タスク13: 一覧のアイコン（部品・CSS・配線）
 *   **作業内容** :
+    *   `js/palette/ItemListPanel.js`（LF）：すべての行の末尾に`.item-row-states`（目`data-state-icon="visible"`・鍵`data-state-icon="lock"`、`title`付き）を足し、`render`が`item-hidden`・目の`is-off`・`is-inherited`・鍵の`is-on`・`is-inherited`を差分で書く（省かれた項目は表示・ロックなし）。設定に必須の`onStateIconClick(id, icon, event)`を足し（関数でなければ例外）、`mousedown`でアイコンの要素を控えて`onRowPress`の第4引数`isOnStateIcon`で渡す。`click`は控えを先に戻し、控えがある・`event.target`がアイコンの中なら行のクリックにせず、控えと同じ要素のときだけ`preventDefault()`して`onStateIconClick`を呼ぶ。名前の欄は`nameElement.after(input)`へ。先頭の責務・typedef・クラスJSDocを直した（importは無いまま）。
+    *   `index.html`：一覧の行のCSSだけ。データURIのSVG4つ（開いた目・閉じた目・塗りつぶした閉じた錠・線だけの開いた錠。色`#444`）、`.item-row-states`・`.item-row-state`（幅20px・`::before`に16pxの絵）、不透明度（目＝1、閉じた錠＝1、開いた錠＝.4、`is-inherited`は目.4・閉じた錠.5・開いた錠.2）、`is-inherited`の`::after`の点線（幅10px・1px・`#888`）、`.item-row.item-hidden`の名前・サムネイル・フォルダの絵の`opacity: .4`。
+    *   `js/wiring/ItemListWiring.js`（LF）：依存に`itemStateEditor`を足し、`#handleStateIconClick`（`consumeSuppressedClick`→行の有無→`resolveStateIconAction`→`toggleVisible`／`toggleSolo`／`toggleLocked`→`sync({ allowScroll: false })`。選択等に触れない）、`canStartRowDrag`へ`isOnStateIcon`、`openCanvasId`が変わった枝で`forgetSolo()`。責務・コンストラクタのJSDocを直した。
+    *   `js/main.js`（CRLF）：`ItemStateEditor`のimportと、`// 7.15.`で`new ItemStateEditor({ model, editRecorder: historyManager })`を作って渡すだけ。
+    *   `node --test`は tests 3582 / pass 3582 / fail 0（DOMのテストは足していない）。
 
 ### タスク14: 通しのテスト
 *   **作業内容** :
@@ -447,6 +452,7 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
 *   **作業内容** :
 
 ## 5. 懸念事項・要確認ポイント
+*   **タスク13の目視確認**：目・鍵のアイコンの絵（開閉の目・塗りつぶし／線だけの錠・上から受け継いだ点線・隠れた行のうすさ）がブラウザで意図どおり見えること、アイコンの上で押してもドラッグが始まらず行の選択が変わらないこと、`Alt`＋クリックでその行だけの表示になること、名前の編集中（欄が名前の直後）でもアイコンが右端のままであること。SVGの絵は計画の記述から作った案で、見た目の調整は発注者の目視が要る。
 *   **タスク7の目視確認**：ロックしたフォルダの図形を選んだままオプションバーで色・太さを変えても図形が変わらず、次に描く図形の初期値だけが変わること。ピッカーを開いたまま一覧でロックしても、閉じたときに1件で記録されること（`ShapeStyleEditor#finishPreview`だけ`getShapes()`＝全部を見る。将来`getEditableShapes()`へ寄せると、プレビュー中にロックした色が戻らなくなる）。
 *   **その行だけの表示の「覚えている行」**（計画の判断）：覚えるのは、「その行だけ」にしたことで変わり得る行（その行・上のフォルダ・それぞれの兄弟）のはじめの前の値。その間に、その行の中のもの・非表示にしたフォルダの中のものの目を切り替えた場合、それが覚えている行でなければ、戻したときもその切り替えは残る（「その行だけの表示」かどうかの見分けにも入らないため）。
 *   **その後に増えた行**（計画の判断）：「その行だけ」にした後に描いた図形は、兄弟でも「間に表示が変わった」とみなさない（REQの「その後に増えた行はそのまま」を成り立たせるため）。増えた行を`Alt`＋クリックすると、その行だけの表示に移り、もう一度ではじめの前の表示に戻る。

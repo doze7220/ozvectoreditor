@@ -39,6 +39,7 @@ import { OptionBarStyleGroup } from './palette/OptionBarStyleGroup.js';
 import { ShapeOrderEditor } from './edit/ShapeOrderEditor.js';
 import { GroupEditor } from './edit/GroupEditor.js';
 import { ItemRenameEditor } from './edit/ItemRenameEditor.js';
+import { ItemStateEditor } from './edit/ItemStateEditor.js';
 import { NudgeEditor } from './edit/NudgeEditor.js';
 import { PositionInputEditor } from './edit/PositionInputEditor.js';
 import { ShapeExtentReader } from './edit/ShapeExtentReader.js';
@@ -945,6 +946,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // ここは生成のみを行う（判定・計算を書かない）。外枠の照会は4.で生成した同じshapeExtentReaderを使う。同期はmodel.onChangeで行う。
     // 名前の変更の編集操作（記録つき）はItemRenameEditor（edit/）が持ち、ここで生成して渡す。
     const itemRenameEditor = new ItemRenameEditor({ model, editRecorder: historyManager });
+    // 目・鍵・その行だけの表示の編集操作（記録つき）はItemStateEditor（edit/）が持ち、ここで生成して渡す。
+    const itemStateEditor = new ItemStateEditor({ model, editRecorder: historyManager });
     const itemListWiring = new ItemListWiring({
         model,
         shapeExtentReader,
@@ -959,7 +962,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // 行のドラッグで決まった場所へ動かす編集操作（動かすもののidと場所を渡す）。記録つきの1件はShapeOrderEditorが持つ
         applyRowDrop: (ids, place) => shapeOrderEditor.moveTo(ids, place),
         // フォルダを作るボタンが使う編集操作（7.8.で生成済み）
-        groupEditor
+        groupEditor,
+        // 目・鍵のアイコンが使う編集操作（上で生成）
+        itemStateEditor
     });
 
     // 8. キーボードショートカット配線
