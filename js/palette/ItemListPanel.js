@@ -6,10 +6,16 @@
 /**
  * 一覧の1行の表示内容。
  * @typedef {Object} ItemListRowView
- * @property {string} id 図形のid
+ * @property {string} id アイテムのid（図形は図形のid、フォルダはフォルダのid）
  * @property {string} name 表示する名前
- * @property {boolean} selected 選ばれているか
+ * @property {boolean} selected 選ばれているか（強い見た目）
  * @property {boolean} insertTarget 描き込む先の印を出すか
+ * @property {'shape'|'group'} [kind] 行の種類（省けば`'shape'`）
+ * @property {number} [indent] 字下げ（px。省けば0）
+ * @property {boolean} [collapsed] フォルダが閉じているか（省けば偽。フォルダの行だけ使う）
+ * @property {boolean} [canToggle] 三角を押せるか（省けば偽。偽なら三角は見えない。フォルダの行だけ使う）
+ * @property {boolean} [selectedInGroup] 上のフォルダが選ばれているか（弱い見た目。省けば偽）
+ * @property {boolean} [hiddenMark] 閉じたフォルダの中に選択・描き込む先の印があるか（省けば偽）
  */
 
 /**
@@ -24,11 +30,18 @@
  * 行ごとの控え。
  * @typedef {Object} ItemListRowEntry
  * @property {HTMLDivElement} element 行の要素
- * @property {HTMLCanvasElement} canvas サムネイルの`<canvas>`
+ * @property {'shape'|'group'} kind 行の種類
+ * @property {HTMLCanvasElement|null} canvas サムネイルの`<canvas>`（フォルダの行は`null`）
+ * @property {HTMLSpanElement|null} toggleElement 三角の`<span class="item-row-toggle">`（図形の行は`null`）
  * @property {HTMLSpanElement} nameElement 名前の`<span>`
  * @property {string} name 表示中の名前
  * @property {boolean} selected 表示中の選択
  * @property {boolean} insertTarget 表示中の描き込む先の印
+ * @property {boolean} selectedInGroup 表示中の弱い選択
+ * @property {boolean} hiddenMark 表示中の見えない行の印
+ * @property {number} indent 表示中の字下げ（px）
+ * @property {boolean|null} collapsed 表示中の折りたたみ（フォルダの行。`null`は未描画で、最初の`render`で必ず書く）
+ * @property {boolean|null} canToggle 表示中の三角の有無（フォルダの行。`null`は未描画で、最初の`render`で必ず書く）
  */
 
 /**
@@ -46,7 +59,7 @@
 /**
  * 編集中の名前の欄の控え。
  * @typedef {Object} ItemListNameEdit
- * @property {string} id 編集中の行の図形id
+ * @property {string} id 編集中の行のid
  * @property {HTMLInputElement} input 名前の欄
  */
 
@@ -72,8 +85,10 @@
  *
  * ■ 構成
  *   - ルート要素（`#item-list-panel`）の中の`#item-list`に、行（`<div class="item-row" data-item-id>`）を並べる。
- *   - 行は`<canvas class="item-row-thumbnail">`と`<span class="item-row-name">`。名前は`textContent`・`title`だけで書く。
- *   - `render`は差分だけをDOMへ反映する（行の要素はidごとに持ち回り、作り直さない）。
+ *   - 図形の行は`<canvas class="item-row-thumbnail">`と`<span class="item-row-name">`。名前は`textContent`・`title`だけで書く。
+ *   - フォルダの行は`<span class="item-row-toggle">`（`▸`／`▾`。押せないときは`visibility: hidden`）・`<span class="item-row-folder-icon">`（CSSで描く絵）・`<span class="item-row-name">`（サムネイルは無い）。
+ *   - 字下げはカスタムプロパティ`--row-indent`で行の左の余白に足す。弱い選択は`selected-in-group`、見えない行の印は`has-hidden-mark`のクラスで書く。
+ *   - `render`は差分だけをDOMへ反映する（行の要素はidごとに持ち回る。同じidで種類が変わったときだけ作り直す）。
  *   - 名前の編集は行に`<input>`を足して行う。確定・取りやめの出口は`#finishNameEdit`の1つ。編集中の行の要素はDOMの中で動かさない。
  */
 export class ItemListPanel {
@@ -180,7 +195,7 @@ export class ItemListPanel {
     }
 
     /**
-     * 行を差分で反映する。無くなった行を除き、足りない行を作り、変わった名前・選択・印だけ書き、並びが違うときだけ並べ替える。
+     * 行を差分で反映する。無くなった行を除き、足りない行を作り（種類が変わった行は作り直し）、変わった名前・選択・印・字下げ・三角だけ書き、並びが違うときだけ並べ替える。
      * @param {ItemListRowView[]} rows 表示する行（先頭＝いちばん上）
      * @returns {void}
      */
@@ -199,9 +214,17 @@ export class ItemListPanel {
         }
 
         for (const row of rows) {
+            const kind = row.kind === 'group' ? 'group' : 'shape';
             let entry = this.#rows.get(row.id);
+            if (entry && entry.kind !== kind) {
+                // 同じidで種類が変わった：編集中なら先に控えを捨ててから（除いたときのblurで確定させない）作り直す
+                if (this.#editing && this.#editing.id === row.id) this.#editing = null;
+                entry.element.remove();
+                this.#rows.delete(row.id);
+                entry = undefined;
+            }
             if (!entry) {
-                entry = this.#createRow(row.id);
+                entry = this.#createRow(row.id, kind);
                 this.#rows.set(row.id, entry);
             }
             if (entry.name !== row.name) {
@@ -216,6 +239,33 @@ export class ItemListPanel {
             if (entry.insertTarget !== row.insertTarget) {
                 entry.element.classList.toggle('insert-target', row.insertTarget);
                 entry.insertTarget = row.insertTarget;
+            }
+            const selectedInGroup = row.selectedInGroup === true;
+            if (entry.selectedInGroup !== selectedInGroup) {
+                entry.element.classList.toggle('selected-in-group', selectedInGroup);
+                entry.selectedInGroup = selectedInGroup;
+            }
+            const hiddenMark = row.hiddenMark === true;
+            if (entry.hiddenMark !== hiddenMark) {
+                entry.element.classList.toggle('has-hidden-mark', hiddenMark);
+                entry.hiddenMark = hiddenMark;
+            }
+            const indent = typeof row.indent === 'number' ? row.indent : 0;
+            if (entry.indent !== indent) {
+                entry.element.style.setProperty('--row-indent', `${indent}px`);
+                entry.indent = indent;
+            }
+            if (kind === 'group') {
+                const collapsed = row.collapsed === true;
+                if (entry.collapsed !== collapsed) {
+                    entry.toggleElement.textContent = collapsed ? '▸' : '▾';
+                    entry.collapsed = collapsed;
+                }
+                const canToggle = row.canToggle === true;
+                if (entry.canToggle !== canToggle) {
+                    entry.toggleElement.style.visibility = canToggle ? '' : 'hidden';
+                    entry.canToggle = canToggle;
+                }
             }
         }
 
@@ -241,16 +291,32 @@ export class ItemListPanel {
     }
 
     /**
-     * 表示中の選ばれた行のidを上から返す。
-     * @returns {string[]} 選ばれた行のid
+     * 表示中の選ばれた行（強い・弱いの両方）のidを上から返す。
+     * @returns {string[]} `selected`か`selected-in-group`の行のid
      */
     getSelectedRowIds() {
         if (!this.#wired) return [];
         const ids = [];
         for (const element of this.#list.children) {
-            if (element.classList.contains('selected')) ids.push(element.dataset.itemId);
+            if (element.classList.contains('selected') || element.classList.contains('selected-in-group')) {
+                ids.push(element.dataset.itemId);
+            }
         }
         return ids;
+    }
+
+    /**
+     * 今の表示で、描き込む先の印か見えない行の印を出している最初の（上から）行のidを返す。
+     * @returns {string|null} 印の行のid（無ければ`null`）
+     */
+    getMarkedRowId() {
+        if (!this.#wired) return null;
+        for (const element of this.#list.children) {
+            if (element.classList.contains('insert-target') || element.classList.contains('has-hidden-mark')) {
+                return element.dataset.itemId;
+            }
+        }
+        return null;
     }
 
     /**
@@ -353,8 +419,8 @@ export class ItemListPanel {
 
     /**
      * 行のサムネイルの`<canvas>`を返す。
-     * @param {string} id 図形のid
-     * @returns {HTMLCanvasElement|null} 無ければ`null`
+     * @param {string} id アイテムのid
+     * @returns {HTMLCanvasElement|null} 行が無い・フォルダの行なら`null`
      */
     getThumbnailCanvas(id) {
         const entry = this.#rows.get(id);
@@ -444,24 +510,48 @@ export class ItemListPanel {
     }
 
     /**
-     * 1行の要素を作る（名前・選択は未設定。`render`が書く）。
-     * @param {string} id 図形のid
+     * 1行の要素を作る（名前・選択等は未設定。`render`が書く）。
+     * @param {string} id アイテムのid
+     * @param {'shape'|'group'} kind 行の種類
      * @returns {ItemListRowEntry} 行の控え
      */
-    #createRow(id) {
+    #createRow(id, kind) {
         const element = document.createElement('div');
-        element.className = 'item-row';
+        element.className = kind === 'group' ? 'item-row item-row-group' : 'item-row';
         element.dataset.itemId = id;
-
-        const canvas = document.createElement('canvas');
-        canvas.className = 'item-row-thumbnail';
-        canvas.style.width = `${this.#thumbnailSize}px`;
-        canvas.style.height = `${this.#thumbnailSize}px`;
 
         const nameElement = document.createElement('span');
         nameElement.className = 'item-row-name';
 
-        element.append(canvas, nameElement);
-        return { element, canvas, nameElement, name: null, selected: false, insertTarget: false };
+        let canvas = null;
+        let toggleElement = null;
+        if (kind === 'group') {
+            toggleElement = document.createElement('span');
+            toggleElement.className = 'item-row-toggle';
+            const icon = document.createElement('span');
+            icon.className = 'item-row-folder-icon';
+            element.append(toggleElement, icon, nameElement);
+        } else {
+            canvas = document.createElement('canvas');
+            canvas.className = 'item-row-thumbnail';
+            canvas.style.width = `${this.#thumbnailSize}px`;
+            canvas.style.height = `${this.#thumbnailSize}px`;
+            element.append(canvas, nameElement);
+        }
+        return {
+            element,
+            kind,
+            canvas,
+            toggleElement,
+            nameElement,
+            name: null,
+            selected: false,
+            insertTarget: false,
+            selectedInGroup: false,
+            hiddenMark: false,
+            indent: 0,
+            collapsed: null,
+            canToggle: null
+        };
     }
 }

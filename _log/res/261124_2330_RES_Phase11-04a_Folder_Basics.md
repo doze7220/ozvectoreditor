@@ -257,7 +257,7 @@
         *   「要件1」「要件2」「要件3」「要件8」の規則をJSDoc付きで作る。`ItemRowRules`の行のidは`GroupTreeRules.itemIdOf`で求める（種類で分ける同じ式を書かない）。
         *   テスト：行の並び（字下げの深さ・空・多段・折りたたみ・折りたたんだ中の折りたたみ・`shapeIds`/`groupIds`/`ancestorIds`）、字下げの頭打ち、見た目（強い/弱い・入れ子のフォルダ・描き込む先・見えない行の印の3種・多段では見えている外側のフォルダだけ）、スクロールの対象、次の選択（ふつう・`Ctrl`で足す/外す・選んでいるフォルダの中の図形を外す・中の空のフォルダを外す・`Shift`の範囲に開いた/閉じたフォルダ・起点がフォルダ・折りたたまれて行の無い選択が残る・行が無いid）、行のドラッグの条件、三角の条件。
 
-*   [ ] タスク13: 一覧のパネルのフォルダの行
+*   [x] タスク13: 一覧のパネルのフォルダの行
     *   **対象ファイル** :
         *   `./js/palette/ItemListPanel.js` :（更新）
         *   `./index.html` :（更新。行のCSSだけ）
@@ -384,7 +384,10 @@
 
 ### タスク13: 一覧のパネルのフォルダの行
 *   **作業内容** :
-    *   （未実施）
+    *   `js/palette/ItemListPanel.js`（LF）：行の表示内容に`kind`・`indent`・`collapsed`・`canToggle`・`selectedInGroup`・`hiddenMark`を追加（省けば図形の行・0・偽）。フォルダの行は`.item-row-toggle`（`▸`／`▾`。押せないときは`visibility: hidden`）・`.item-row-folder-icon`・名前の`<span>`（サムネイル無し）。字下げは`--row-indent`。`render`は同じidで`kind`が変わったとき、編集中なら控えを捨ててから要素を作り直す。`getThumbnailCanvas`はフォルダの行で`null`。`getSelectedRowIds()`は`selected`・`selected-in-group`の両方。`getMarkedRowId()`を追加（`getInsertMarkId()`は残す）。typedef・クラスのJSDocを更新。
+    *   `index.html`（LF。行のCSSだけ）：行の左の余白を`calc(8px + var(--row-indent, 0px))`に、`.selected-in-group`・`.has-hidden-mark`（破線の枠）・`.item-row-toggle`・`.item-row-folder-icon`（疑似要素のタブ付き）を追加。`drop-before`・`drop-after`は不変。
+    *   テストの追加・変更なし。`node --test`は tests 3175 / pass 3175 / fail 0。
+    *   監査の指摘の修正：①②行の控えの`collapsed`・`canToggle`の初期値を`null`（未描画）にし、最初の`render`で必ず三角の文字・`visibility`を書く（最初から開いたフォルダで`▾`が出ない不具合の修正）。typedefも`boolean|null`へ。③`.item-row-toggle`を幅16px（`margin-right: -4px`のまま）・`align-self: stretch`＋`display: flex`の中央寄せにし、行の高さいっぱいを押せる範囲にした。
 
 ### タスク14: 一覧の配線（行・選択・行のドラッグの条件）
 *   **作業内容** :
@@ -444,3 +447,4 @@
 11. **結合**：別々のフォルダの線（直線・曲線・開いたパス・弧）を`V`で2本選んで`J`で結合すると、**奥の線（一覧で下の行）** のあった場所に入り、その名前・色・太さを引き継ぐ。手前の線の入っていたフォルダは、空になっても残る。
 12. **ほかが今までどおり**：フォルダの無い絵での一覧・行のドラッグでの並べ替え・描き込む先・複製・コピー、描く・動かす・変形・色・整列・保存・書き出し・開くが今までどおり動く。フォルダが1つでもある絵では、行のドラッグは始まらない。複製・コピー・貼り付けは図形だけを写す（写した後はフォルダを選んでいる状態ではない）。
 *   **タスク11（`Ctrl`+`G`）**：`performGroupCommand`はキャンバスのドラッグ中（`inputTracker.isDragging()`）のみ見る（RESの指定どおり。一覧の行のドラッグ中は`KeyboardShortcuts`の`isDragging`が先に弾く）。ブラウザのページ内検索（`Ctrl`+`G`）を抑えるため常に`true`。目視確認推奨：実機で`Ctrl`+`G`・`Ctrl`+`Shift`+`G`が検索を開かないこと（`GroupEditor`が`false`のときも）。開発資料の更新予定：3章のキーの割り当て・キーボードの項に`Ctrl`+`G`・`Ctrl`+`Shift`+`G`と`ShortcutActions`の`group`・`ungroup`（既に列挙済みの更新予定に含まれる）。
+*   （タスク13）三角のクリック（`onGroupToggle`）・作るボタンはタスク15。フォルダの行の`canToggle`の既定は、行の控えの初期値が`null`（未描画）で最初の`render`が必ず書き、省略時は偽として`visibility: hidden`になる。`has-hidden-mark`は`outline`で描いたため、`insert-target`の`box-shadow`・`selected`の背景と重なっても見分けられる。見た目（字下げ・三角・フォルダの絵・破線）はブラウザでの目視確認を推奨。開発資料への影響：既存の更新予定（`ItemListPanel`の一言・`index.html`）に含まれており、追記は無い。
