@@ -540,7 +540,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // 貼り付け・複製は編集操作の記録先（EditRecorder）としてhistoryManagerを注入する
     const shapeInserter = new ShapeInserter({ model, editRecorder: historyManager, insertsAtTarget: true });
     // 切り取りの削除は、既存の唯一の削除経路inputTracker.deleteSelection()を注入する（削除ボタンと同一経路。Delete/BackspaceはdeleteLastLinePointOrSelection()を通り、線を引いている途中でなければ同じ削除）
-    const clipboardController = new ClipboardController({ model, inserter: shapeInserter, deleteSelection: () => inputTracker.deleteSelection() });
+    // getCanvasIdは「自分のコピー」の見分け用。canvasLibraryはこの後で宣言されるが、呼ばれるのは操作のとき（起動完了後）だけ
+    const clipboardController = new ClipboardController({
+        model,
+        inserter: shapeInserter,
+        deleteSelection: () => inputTracker.deleteSelection(),
+        getCanvasId: () => canvasLibrary.getState().openCanvasId
+    });
 
     /**
      * 貼り付け系の操作（`Ctrl`+`V`の貼り付け・`Ctrl`+`Shift`+`V`の同じ位置に貼り付け）の共通の前処理。

@@ -246,7 +246,7 @@
         *   「要件4」の第4引数`{ place, asUnits }`（両方の入口）と`InsertResult.inserted`。先頭の責務・クラスJSDoc・処理順のJSDocを直す。
         *   テスト：`place`の指定、`insertsAtTarget`が偽なら`place`を使わない、`asUnits`でフォルダだけの作業データが入り1件の記録になる（取り消しで消える）、`asUnits`が偽なら今までどおり何も起きない（`inserted`は偽）、`inserted`の真偽（図形あり・全体の失敗・0件）、記録しない入口、インポート相当（引数なし）が`inside`・`bottom`の描き込む先に入る。
 
-*   [ ] タスク7: フォルダの形を保ったコピー・切り取り・貼り付け・複製
+*   [x] タスク7: フォルダの形を保ったコピー・切り取り・貼り付け・複製
     *   **対象ファイル** :
         *   `./js/edit/ClipboardController.js` :（更新）
         *   `./js/main.js` :（更新。`// 7.5.`の`ClipboardController`の生成に`getCanvasId: () => canvasLibrary.getState().openCanvasId`を足すだけ。`canvasLibrary`は後で宣言されるが、呼ばれるのは操作のとき（起動完了後）だけである旨をコメントに書く）
@@ -376,7 +376,9 @@
 
 ### タスク7: フォルダの形を保ったコピー・切り取り・貼り付け・複製
 *   **作業内容** :
-    *   （未記入）
+    *   `js/edit/ClipboardController.js`（CRLF）：`#serializeSelection`を`#pickSelection`（`resolveSelectedUnitIds`→`pickItems`。まとまりのidとアイテムを返す）へ置き換え、コピー・切り取り・複製はまとまりを`DocumentSerializer.serialize`で写す。`paste`・`pasteInPlace`は`{ place: resolvePastePlace(…), asUnits: true }`、`duplicate`・`duplicateInPlaceWithinEdit`は`{ place: resolveDuplicatePlace(unitIds), asUnits: true }`で入れ、成否は`result.inserted`で見る。`#copiedGroupIdsByCanvas`（コピー・切り取りで作り直し、貼り付けで入ったフォルダを`listGroupIds(pickItems(…選んでいるフォルダ))`で足す）と省ける依存`getCanvasId`を追加。`listShapeItems`のimportを外し、先頭の責務・クラスJSDoc・各メソッドのJSDocを直した。
+    *   `js/main.js`（CRLF）：`ClipboardController`の生成に`getCanvasId: () => canvasLibrary.getState().openCanvasId`を足し、`canvasLibrary`が後で宣言されるが呼ばれるのは操作のときだけである旨のコメントを書いた（生成を複数行にした）。
+    *   テスト：`test/edit/ClipboardController.groups.test.js`を新規（CRLF。30件）。`test/edit/GroupEditor.flow.test.js`（CRLF）は要件6の表の3件をフォルダの形で写る結果へ直した（「空のフォルダだけを選んだ切り取り・コピー」は、コピー・切り取り・貼り付けができる内容へ）。`node --test`は tests 3334 / pass 3334 / fail 0。
 
 ### タスク8: 描き込む先の印の規則と一覧の同期
 *   **作業内容** :
@@ -450,3 +452,4 @@
 12. **ほかが今までどおり**：一覧での選択・折りたたみ・名前の変更（名前の編集中にほかの操作をしても欄が壊れない）・`Ctrl`+`G`・`Home`等のキー、描く・動かす・変形・色・整列・保存・書き出し・開くが今までどおり動く。
 
 *   （タスク3）`ShapeInserter.insertTarget.test.js`の切り取り→貼り付けの件は、表のとおり名前も「…描き込む先がいちばん外側の一番下になり、そこへ戻る（仕様）」へ直した。`VectorModel.js`の`listShapes`・`ITEM_KIND`等のimportはほかで使うため残した。
+*   （タスク7）`ClipboardController.groups.test.js`の閉じたフォルダの件：閉じたフォルダ（図形を含む入れ子のもの・いちばん外側のもの）は、貼り付け・複製・その場の複製・切り取って貼り付けで閉じたまま入り、元も閉じたまま（`VectorModel.#applyState`の`revealIds`で開くのは変わる前にあったフォルダだけで、貼り付けで入った新しいフォルダは開かない）。テストの`select`は一覧の行で選ぶ操作と同じ`keepsCollapsed: true`で選ぶ。`GroupEditor.flow.test.js`の`setup`の`ShapeInserter`は`insertsAtTarget`なしのため、そこでの複製・貼り付けはいちばん外側の末尾へ入る（`place`は使われない）。入る場所の確認は新しいテスト（`insertsAtTarget: true`）で行った。

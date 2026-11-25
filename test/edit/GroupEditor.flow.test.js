@@ -173,7 +173,7 @@ describe('フォルダを選んだ複製・コピー・貼り付け・切り取�
      */
     const makeItems = () => [g('g1', [s('a', 0), s('b', 20)]), s('c', 40)];
 
-    it('複製: フォルダは壊れず、元の図形は消えず、複製が二重にならない', () => {
+    it('複製: フォルダの形のまま写り、元の図形は消えず、複製が二重にならない', () => {
         const { model, clipboard } = setup(makeItems());
         model.setSelection(['a', 'b'], { groupIds: ['g1'] });
 
@@ -181,10 +181,12 @@ describe('フォルダを選んだ複製・コピー・貼り付け・切り取�
 
         assert.equal(model.getShapes().length, 5);
         assert.deepEqual(tree(model.getItems()).slice(0, 2), [['g1', ['a', 'b']], 'c'], '元のフォルダ・図形はそのまま');
-        assert.equal(model.getItems().filter((i) => i.kind === 'group').length, 1, '複製はフォルダを作らず平らに入る');
+        const groups = model.getItems().filter((i) => i.kind === 'group');
+        assert.equal(groups.length, 2, '複製もフォルダの形のまま入る');
+        assert.equal(groups[1].children.length, 2);
         assert.equal(new Set(model.getShapes().map((shape) => shape.id)).size, 5);
         assert.equal(model.getSelectedIds().length, 2, '追加した図形だけが選ばれる');
-        assert.deepEqual(model.getSelectedGroupIds(), []);
+        assert.deepEqual(model.getSelectedGroupIds(), [groups[1].id], '写ったフォルダが選ばれる');
         assertUniqueIds(model);
     });
 
@@ -203,7 +205,7 @@ describe('フォルダを選んだ複製・コピー・貼り付け・切り取�
         assertUniqueIds(model);
     });
 
-    it('切り取り→貼り付け: フォルダごと消え、貼り付けで図形が平らに戻る（二重にならない）', () => {
+    it('切り取り→貼り付け: フォルダごと消え、貼り付けでフォルダの形のまま戻る（二重にならない）', () => {
         const { model, history, clipboard } = setup(makeItems());
         model.setSelection(['a', 'b'], { groupIds: ['g1'] });
 
@@ -215,7 +217,9 @@ describe('フォルダを選んだ複製・コピー・貼り付け・切り取�
 
         assert.equal(clipboard.paste(), true);
         assert.equal(model.getShapes().length, 3);
-        assert.equal(model.getItems().filter((i) => i.kind === 'group').length, 0);
+        assert.equal(model.getItems().filter((i) => i.kind === 'group').length, 1, 'フォルダの形のまま戻る');
+        assert.equal(model.getItems().find((i) => i.kind === 'group').children.length, 2);
+        assert.equal(model.getSelectedGroupIds().length, 1);
         assertUniqueIds(model);
     });
 
@@ -231,15 +235,24 @@ describe('フォルダを選んだ複製・コピー・貼り付け・切り取�
         assert.deepEqual(model.getSelectedGroupIds(), ['g1']);
     });
 
-    it('空のフォルダだけを選んだ切り取り・コピーは何もしない（フォルダも消えない）', () => {
+    it('空のフォルダだけを選んだコピー・切り取りができ、貼り付けで空のフォルダが入る', () => {
         const { model, history, clipboard } = setup([g('g1', []), s('c')]);
         model.setSelection([], { groupIds: ['g1'] });
 
-        assert.equal(clipboard.cut(), false);
-        assert.equal(clipboard.copy(), false);
-
-        assert.deepEqual(tree(model.getItems()), [['g1', []], 'c']);
+        assert.equal(clipboard.copy(), true);
+        assert.deepEqual(tree(model.getItems()), [['g1', []], 'c'], 'コピーでは何も消えない');
         assert.equal(history.canUndo(), false);
+
+        assert.equal(clipboard.cut(), true);
+        assert.deepEqual(tree(model.getItems()), ['c'], '切り取りでフォルダが消える');
+        assert.equal(history.canUndo(), true);
+
+        assert.equal(clipboard.paste(), true);
+        const items = model.getItems();
+        assert.equal(items.length, 2);
+        assert.equal(items[1].kind, 'group');
+        assert.equal(items[1].children.length, 0, '空のフォルダのまま入る');
+        assertUniqueIds(model);
     });
 
     it('記録しない複製（Alt+ドラッグの手順）: 開いた編集操作の中なら1件で記録され、フォルダは壊れない', () => {
