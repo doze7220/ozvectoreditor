@@ -212,7 +212,7 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
 ## 3. タスクリスト
 ※ 全タスク共通：(a) コード修正の後、JSDocの記載漏れ（新しいファイルの先頭の3行以内の責務、関数・引数・戻り値・typedef、意味が変わった既存のJSDocと先頭の責務・importの記述・「`model`は…だけを使う」の記述）が無いことを確認する。(b) `node --test`が全件合格することを確認する。(c) 本RESの「4. 詳細作業内容」の担当の欄を書き、タスクを`[x]`にする。(d) 開発資料に影響が出たら資料本体は直さず『開発資料の更新予定』欄へ追記する。(e) 行末を実測して保つ。(f) 既存のテストは「要件10」に挙げた箇所だけを直す。
 
-*   [ ] タスク1: 表示・ロックの規則
+*   [x] タスク1: 表示・ロックの規則
     *   **対象ファイル** :
         *   `./js/core/ItemStateRules.js` :（新規）
         *   `./test/core/ItemStateRules.test.js` :（新規）
@@ -352,6 +352,9 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
 
 ### タスク1: 表示・ロックの規則
 *   **作業内容** :
+    *   `js/core/ItemStateRules.js`（新規・CRLF）に、typedef`ItemState`・`ItemStateChange`と、`listItemStates`・`listVisibleShapes`・`listEditableShapes`・`collectEditableIds`・`collectItemStates`・`resolveVisibleToggle`・`resolveLockToggle`・`applyItemStates`をJSDoc付きで作成。importは`ItemTreeRules`（`ITEM_KIND`）・`GroupTreeRules`（`itemIdOf`）のみ。
+    *   `applyItemStates`：同じidの変更は後の値を優先して統合。現在の有効な値（`visible !== false`／`locked === true`）と同じ値への変更は「変わらない」とみなし、キーを足さず同じ参照を返す。
+    *   `test/core/ItemStateRules.test.js`（新規・CRLF）に計画どおりの観点のテストを作成。`node --test`は tests 3408 / pass 3408 / fail 0。
 
 ### タスク2: 消えるもの・残すもの・写すものの規則
 *   **作業内容** :
