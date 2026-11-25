@@ -354,7 +354,7 @@ E
     * 見つかった箇所を1つずつ読み、「今もそうである」と読める古い記述か、経緯・過去の状態として正しいかを判定する。検索した語と件数を4章に書く（件数0も書く）。
     * 実コードから読み取れる事実のみを抽出し、推測を含める場合はどこまでが事実でどこからが推測かを明示して、4章の『事実』『推測・所見』欄に書く。相違は5章にタスク番号を添えて書く（作業は中断しない。資料に無い事項がコードにあることは相違としない）。判定は資料の原文とコードの該当行を両方開いて行い、一致には `ファイル:行`、または検索した語と件数を添える。
     * タスクの終わりに `git status` で、ソースコードおよび資料ファイルを一切変更していないこと（変更があるのは本RESだけ）を確かめる。
-* [ ] タスク19: （固定）『開発資料との相違』の確認と一覧の作成
+* [x] タスク19: （固定）『開発資料との相違』の確認と一覧の作成
   * **対象ファイル**:
     * 本RESファイル（4章・5章・6章） :（監査・追記）
   * **調査内容**:
@@ -1360,14 +1360,23 @@ E
 
 ### タスク19: （固定）『開発資料との相違』の確認と一覧の作成
 * **調査内容**: 
-  * （未実施）
+  * 5章『開発資料との相違』の全項（タスク1〜18が追記した65項）を読み、件数と重複を数えた。4章のタスク1〜18の「推測・所見」欄を全部読み、「読み方が分かれる記述」「コードのコメント」「照合できなかった主張」を6章へ一覧にした（内容は書き換えていない）。
 * **事実（実コードの記述）**:
-  * （未実施）
+  * 5章の項は延べ65件（タスク1：1、2：3、3：2、4：2、5：5、6：2、7：2、8：1、9：1、10：1、11：3、12：5、13：1、14：3、15：10、16：3、17：8、18：12）。同じ資料の同じ行の同じ記述を1件と数えると56件。重複の9件は5章の冒頭に「重複：」として書いた。
 * **推測・所見**:
-  * （未実施）
+  * 相違は1件以上あり、5章の「（未確認。…）」の行を件数を書いた行に置き換えた。6章の一覧では、4章で「読み方が分かれる記述」に書かれ同じ記述が5章にもあるもの（`15_io.md` 37行の`DrawElementReader`、`16_test.md` 130・131行、`PROJECT_ARCHITECTURE.md` 931行の貼り付け）の末尾に「（5章にあり）」を付けた。「特になし」のものは載せていない。
 
 ## 5. 開発資料との相違
-* （未確認。各タスクで相違を見つけ次第、「（タスクN）**（資料のファイルと節・行）**： （資料の記述） → （実コードの実態。`ファイル:行`）」の形で、この下に追記する。全タスクの後に一件もなければ、タスク19で「相違なし」と記載する）
+* 相違あり。延べ65件（5章の項の数。タスク1〜18の報告）。同じ資料の同じ行の同じ記述を1件と数えると56件（延べ65件のうち9件が別のタスクと同じ記述の重複）。
+* 重複：`PROJECT_ARCHITECTURE.md` 673行＝タスク2・17
+* 重複：`PROJECT_ARCHITECTURE.md` 685行＝タスク2・18
+* 重複：`PROJECT_ARCHITECTURE.md` 859行＝タスク8・17
+* 重複：`_doc/arch/16_test.md` 10行（注入の例外の数）＝タスク15・18
+* 重複：`_doc/arch/16_test.md` 30行＝タスク15・17
+* 重複：`_doc/arch/16_test.md` 162行＝タスク15・17
+* 重複：`_doc/arch/16_test.md` 172行＝タスク15・17
+* 重複：`_doc/arch/16_test.md` 180行＝タスク15・17
+* 重複：`_doc/arch/16_test.md` 191行＝タスク15・17
 * （タスク1）**（`PROJECT_ARCHITECTURE.md` 1章の構成図 57行 `ItemTreeRules.js` の項）**： 「VectorModel・io/DocumentSerializer・io/SpriteSerializer・ItemAttributeRules・ItemListRulesから使う」 → `ItemListRules`は`ItemTreeRules`をimportしていない（`js/core/ItemListRules.js:3`に「importは`InputModes`だけ」、`:5`のimportも`InputModes`のみ）。同じ資料の59行にも「Phase 11-04aで…importの`ItemTreeRules`をやめた」とあり、57行と矛盾している。
 * （タスク2）**（`PROJECT_ARCHITECTURE.md` 3章15. 673行 表示の1行目）**： 「表示の状態は作業データ・書き出し・履歴・ブラウザの保存先のいずれにも入れない（作業データの版・書き出し形式の版は2のまま）」（`[既存]`の文） → 作業データの版は`js/io/DocumentSerializer.js:21`が`CURRENT_DOCUMENT_VERSION = 4`、書き出し形式の版は`js/io/SpriteSerializer.js:21`が`SPRITE_FORMAT_VERSION = 4`で、「2のまま」は今の値と異なる（要件2の「版」の古い形）。
 * （タスク2）**（`PROJECT_ARCHITECTURE.md` 1章 309行 Phase 11-02の文）**： 「`ItemListRules`・`ListSelectionRules`・`ListScrollRules`・`ThumbnailRules`は`wiring/ItemListWiring`だけが使う」 → `ThumbnailRules`のimport元は`wiring/ItemListWiring`（`js/wiring/ItemListWiring.js:28`）のほかに`core/ThumbnailRenderer`（`js/core/ThumbnailRenderer.js:5`）がある（importで真偽が決まる主張）。直後の文には「`ThumbnailRenderer`は…`ThumbnailRules`をimportする」と書かれており、資料の中でも食い違う。ほかの3つ（`ItemListRules`・`ListSelectionRules`・`ListScrollRules`）は`wiring/ItemListWiring`だけで一致。
@@ -1435,7 +1444,168 @@ E
 * （タスク18）**（`_doc/arch/14_edit.md:78` `ShapeAlignRules.js`）**： 「選んでいる図形の整列・分布の規則」 → 規則は `items` の外枠だけを見る（`js/edit/ShapeAlignRules.js`）が、`items` は選択中で変えられる図形の外枠（`js/edit/ShapeAlignEditor.js:87`）。同じ段落（`:78`〜`:84`）に断りが無い（次のモジュール `ShapeAlignEditor.js` の段落 `:85` には「選んでいる中の変えられる図形」とある）。
 
 ## 6. 懸念事項・今後の修正における注意点
-* （タスク19で、「読み方が分かれる記述」「コードのコメント」「照合できなかった主張」の一覧を記載する）
+### 読み方が分かれる記述（4章の各タスクの「推測・所見」から転記。1件1行：資料のファイルと節・行、要点、タスク番号。内容は書き換えていない）
+* `PROJECT_ARCHITECTURE.md` 1章の構成図（各項。行番号の記載なし）：「〜から使う」の一覧が実際の使い手の一部だけ（`GroupTreeRules`・`ItemPlaceRules`・`GroupSelectionRules`・`ItemTreeRules`の項）。一覧が全部と読むと誤る（タスク1）
+* `PROJECT_ARCHITECTURE.md` 1章の構成図（行番号の記載なし）`ItemListRowDrag`の項：「判定・計算は`core/ListDragRules`・`core/ItemListRules`」。`ItemListRowDrag.js`は`ItemListRules`をimportも使いもしない。「始めてよいか」の判定の意味なら正しい（タスク1）
+* `PROJECT_ARCHITECTURE.md` 1章 309行（Phase 11-03）：`InsertTargetRules`は「`VectorModel`が唯一の持ち主として呼ぶ」。import元は`VectorModel`・`ClipboardController`・`wiring/ItemListWiring`の3つ（タスク2）
+* `PROJECT_ARCHITECTURE.md` 1章 316行 依存方向の「例外（Phase 11-02）」：`ItemListRules → ItemTreeRules`・`InputModes`。今は`InputModes`だけをimportする。Phase名の付いた経緯の文と読めば相違ではない（タスク2）
+* `PROJECT_ARCHITECTURE.md` 1章 316行末尾：`EndpointSnapRules`・`PathJoinRules`の「`model.getShapes()`の並び」は残る。実際は`getEditableShapes()`・`getEditableSelectedShapes()`の並びが渡る。部分列のため「並び」の意味なら成り立つ（タスク2）
+* `PROJECT_ARCHITECTURE.md` 2章 331行：`getShapes()`ほかの「全部を返す」の丸括弧の列挙（使い道）。列挙を使い道の網羅と読むと食い違う（`InputTracker.js:1388`ほか多数。列挙を例示と読めば一致）（タスク3）
+* `_doc/arch/47_ItemAttributeRules.md` テスト行：「`resolveItems`系の29件」。`resolveItems`のdescribeだけなら24件（`normalizeItemName`5件を含めて29件）。合計45件は一致（タスク3）
+* `_doc/arch/12_shapes.md` 35行：契約の列挙順（`toDrawElement`が10番目）と各図形クラスのJSDocの番号（`toJSON`＝第10、`fromJSON`＝第11、`toDrawElement`＝第12）が異なる。資料は番号を付けていない。差分の`+`行ではない（タスク3）
+* `_doc/arch/46_ItemTreeRules.md`（行番号の記載なし）「使う側」：`ItemTreeRules`のimport元の一部しか挙げていない。一覧が全部と読むと誤る（タスク3）
+* `PROJECT_ARCHITECTURE.md` 2章 392行・`_doc/arch/15_io.md` 37行：「`DrawElementReader`は描画要素の語彙と変換に要る項目の有無だけを見る」。`ellipse`では`x`・`y`などの有限性・半径が負でないかを検査する（`DrawElementReader.js:189-198`）。「変換に要る項目」の中の検査と読めば成り立つ（5章にあり）（タスク4）
+* `PROJECT_ARCHITECTURE.md` 2章 361行：「`source`は…エンジンも利用側も読まない」。本アプリの確認用ページの情報欄が`source.version`を読む（`SpriteCheckInspector.js:85-86`）。エンジンと利用側の話と読めば成り立つ（タスク4）
+* `_doc/arch/15_io.md` 9行（`[既存]`。Phase 09-02aの項）：「作業データの版は2、書き出し形式の版は3のまま」。その時点の値として読めるが、現在は4・4（タスク4。タスク17でも再度見た）
+* `_doc/arch/03_VectorModel.md` 10行：`getInsertTargetId`の「既存のテスト約90か所」。実測は100行（コメント1行を除き99か所）。「約」の幅で読めば合う（タスク5）
+* `PROJECT_ARCHITECTURE.md` 451行：`targetsNewGroup`の説明の「選ばれている図形があれば規則(1)が優先」。規則(1)は選んでいるフォルダも数える（`InsertTargetRules.js:87-93`）。「選んでいるまとまり」と読めば成り立つ（タスク5）
+* `_doc/arch/02_main.md` 30行（`// 8.`行）：`performGroupCommand`は`performSegmentKindSwitch`と「同じ形」。戻り値の扱いは異なる（`main.js:848-853`・`:998-1003`）。構造の類似の意味と読めば成り立つ（タスク6）
+* `PROJECT_ARCHITECTURE.md` 534行：「変わらなければ記録先に一切触れない」。`toggleVisible`・`toggleLocked`は存在するidなら必ず変更がある。「無いidのとき」の意味と読めば成り立つ（タスク6）
+* `PROJECT_ARCHITECTURE.md` 498行：「何も起きない（操作モードが選択でない・…）ときは`beginEdit`も呼ばず記録しない」。`addEmptyGroup`は操作モードを見ない（`GroupEditor.js:130-143`）。まとめる・解除のことと読めば成り立つ（タスク6）
+* `_doc/arch/02_main.md` 80行（同一経路の原則。差分の`+`行ではない）：「キャンバス要素の大きさを使う計算は…集める（例外は2つ）」。`RulerRenderer.js:91-92`・`ItemListPanel.js:493,509`も`clientWidth`/`clientHeight`を読む。`#editor-canvas`の意味と読めば成り立つ（タスク6）
+* `_doc/arch/09_DragTracker.md` 3行：呼び出し元は`InputTracker.cancelDraftOrClearSelection`の(1)と`wiring/ItemListRowDrag.cancel`。`cancel()`の呼び出し元全体の列挙と読むと`InputTracker.js:817`・`ItemListRowDrag.js:161`が漏れる。`suppressClick: true`で呼ぶ側の列挙と読めば成り立つ（タスク7）
+* `PROJECT_ARCHITECTURE.md` 696行・711行：「版は2のまま」「版はどちらも2のまま」。同じ行にPhase 07-04・07-05があり経緯として読める。文面だけでは「今も2」とも読める（現在は4・4）（タスク7）
+* `_doc/arch/27_SelectionRules.md` 10行：「規則＋`VectorModel`の組み合わせ5件（…）」。括弧内に4項目しか並べていない（件数は5で一致）（タスク7）
+* `PROJECT_ARCHITECTURE.md` 788行・915行：「外枠は`ShapeExtentReader`の選択の外枠」。実際に読むのは`getSelectedGeometryBounds()`（`PositionInputEditor.js:86`・`TransformInputEditor.js:136`）。`getSelectedBounds()`と読むと食い違う（タスク8）
+* `PROJECT_ARCHITECTURE.md` 760行（19.）・773行（20.）・790行（21.）・896行（27.）：「作業データ形式・書き出し形式・履歴のエントリの形は変えない（版は…）」。同じ行にPhase番号があり経緯として読める。現行は4・4（タスク8）
+* `PROJECT_ARCHITECTURE.md` 806行：「整列・分布の対象は選択の外枠（`ShapeExtentReader`）の結果に従い」。実際は`getSelectedBoundsPerShape`の結果に従う。文脈上は成り立つ（タスク8）
+* `_doc/arch/14_edit.md` 55行・57行：`getEditableShapes`は「6か所の`getShapes()`から変えた」。現在の呼び出しは7か所（`#toUsableSnap`内の347行を含む）。変えた当時の数として読めば一致（タスク8）
+* `_doc/arch/14_edit.md` 94行：「頂点の選択が変えられる図形だけになるため、…対象にならない」。`PathCornerEditor`自身は`getSelectedIds`を使い、絞るのは`VectorModel`側の持ち方による。資料の言い方は成り立つ（タスク8）
+* `_doc/arch/14_edit.md` 137行：「`edit/`から`core/`をimportする8つ目の例外」。Phase 11-02の時点では8つで正しく、現在は12ファイル。今の総数と読むと誤る（タスク9）
+* `_doc/arch/64_RemovalRules.md`（全行）：テスト項目の列挙は10項目で、テストは11件（`RemovalRules.test.js:58`が列挙に無い）。網羅とは書かれていない（タスク9）
+* `PROJECT_ARCHITECTURE.md` 659行（14.）（`[既存]`）：「選択中の各図形は並びの上で隣の1つ分だけ動く」「全図形が選択中のときは何もしない」。実際は兄弟の並びごとの選んでいるまとまり（`ShapeOrderEditor.js:76-81`）。666行と読み合わせれば矛盾しない（タスク10。タスク17でも再度見た）
+* `PROJECT_ARCHITECTURE.md` 661行（14.）：「入れ子を動かす公開操作は`rearrangeItems`だけ」。追加・入れ替え・削除も入れ子を変える。「並べ替える・動かす」の意味なら成り立つ（タスク10）
+* `PROJECT_ARCHITECTURE.md` 665行（14.）：`removeSelection()`の「まとまりが無ければ`beginEdit`も呼ばず`false`」。現在は何も消えないとき（変えられないものだけ）も同様（`GroupEditor.js:161-164`）。条件は網羅ではない（タスク10）
+* `_doc/arch/54_InsertTargetRules.md` 11行：「`VectorModel`は規則を知らず持ち主であるだけ」。`VectorModel`は規則をimportして`#applyState`から呼ぶ（`VectorModel.js:9-10,1299`）。10行の「状態を持つクラスが規則をimportする向き」と合わせて読む（タスク10）
+* `_doc/arch/62_ItemPlaceRules.md` 3行：「`'below'`は…ドロップ位置だけが使う」。`ListDragRules.resolveDropPlace`が作り複数の関数が受ける。描き込む先・貼り付け・複製が`below`を作らない意味なら成り立つ（タスク10）
+* `PROJECT_ARCHITECTURE.md` 917行（28.。Phase 11-02の節の冒頭）：「作業データ・書き出し形式・履歴のエントリの形・版は変えていない」。11-02で変えていない意味に読める。「今も変えていない」と読むと古い（タスク11）
+* `PROJECT_ARCHITECTURE.md` 918行：「`WindowManager`・…`InputTracker`・`KeyboardShortcuts`・…は変えていない」。Phase 11-02の範囲では事実。現在の`InputTracker`・`KeyboardShortcuts`は後のPhaseで変わっている（タスク11）
+* `PROJECT_ARCHITECTURE.md` 924行：「名前の欄の中のクリック・ドラッグは行を押したことにしない」。`click`の経路では成り立つが、`mousedown`は欄の中でも`onRowPress`を呼ぶ（`ItemListPanel.js:219`）。「行のクリック」の意味と読む（タスク11）
+* `PROJECT_ARCHITECTURE.md` 923行：「ドラッグ中（`isDragging()`）・ロック中は出さない」。コードは`isDragging() || rowDrag.isMoving()`（`ItemListWiring.js:425`）。53の注意(d)が補っている（タスク11）
+* `PROJECT_ARCHITECTURE.md` 929行：`onRowPress`は「行の上の`mousedown`のたびの通知」のとおり。引数は4つ（第4引数`isOnStateIcon`。`ItemListPanel.js:86,219`）。資料は引数を列挙していない（タスク12）
+* `PROJECT_ARCHITECTURE.md` 931行の貼り付け：描き込む先が「自分のコピーのフォルダの中」ならそのフォルダのすぐ上へ変わる（`InsertTargetRules.js:142-148`）（5章にあり）（タスク12）
+* `PROJECT_ARCHITECTURE.md` 935行：「フォルダの行は…名前の`<span>`（サムネイルは無い）」。フォルダの行にも末尾に目・鍵の`.item-row-states`がある（`ItemListPanel.js:655-669`）。「だけ」の無い列挙（タスク12）
+* `PROJECT_ARCHITECTURE.md` 934行：「同期は今までどおり1フレームに1回・行の組み立ては1回」。行のドラッグが始まっているときは`cancelIfRowsChanged`が`getRows()`をもう1回呼ぶ（`ItemListRowDrag.js:116-119`）。「`sync`の中の」数と読めば一致（タスク12）
+* `PROJECT_ARCHITECTURE.md` 930行：「`KeyboardShortcuts`の対応表・判定の関数・`DragTracker`・`InputTracker`のコードは変えていない」。Phase 11-03の時点の事実。現在のHEADは3ファイルとも差分がある（タスク12）
+* `PROJECT_ARCHITECTURE.md` 929行：「フォルダがあっても始まる＝Phase 11-04aの引数`hasGroups`は消した）」。括弧の開きが無く閉じだけがある書き方（原文のまま）。内容は一致（タスク12）
+* `_doc/arch/61_ItemRowRules.md` 3行目：「（図形の数×深さ）」が何にかかるか読み取りにくい（`buildItemRows`の計算量と推測）（タスク12）
+* `PROJECT_ARCHITECTURE.md` 942行（確認の状況 11-03）：`ItemTreeRules.insertItemsAbove`・`ShapeOrderEditor.applyOrder`を確かめた対象に並べるが、11-04bで消えた。「Phase 11-03のタスク10の時点で2912件」とあり過去の記録と読める（タスク13。タスク18でも再度見た）
+* `PROJECT_ARCHITECTURE.md` 947行(1)：「名前などの上で押してアイコンの上で離したときは…通常の行のクリック」。ブラウザの`click`の対象に依存する（`ItemListPanel.js:230-241`）。実ブラウザは未確認（タスク13）
+* `_doc/arch/01_index_html.md` 6行（`[既存]`）：1280px幅での`#unit-snap-group`の位置の実測。Phase 07-05時点の値として書かれ、その後の最小幅の増加（`index.html:429-431`）を区別していない（タスク14）
+* `_doc/arch/01_index_html.md` 16行：「（`X: Y: │ W: 🔒 H: px │ ∠ ° 基準点 反転 │ 整列・分布 │ 角`）」は並びの略記。`index.html:800-848`と並びは一致（タスク14）
+* `_doc/arch/16_test.md` 135行（Phase 09-01aの項）：「確認用ページでの版3の表示」。同じ行にPhase番号があり当時の記録として読める。`FileContentReader.test.js:408`・`SpriteSerializer.test.js:494`の`describe`の題に「版3」が残る（タスク15）
+* `_doc/arch/16_test.md` 32行：「`DocumentSerializer.migration.test.js`：版1→版2の移行」。ファイルは1→2・2→3・3→4を持つ（`:2,64,186`）。227行と合わせれば矛盾しない（タスク15）
+* `_doc/arch/16_test.md` 56行（Phase 07-04の項）：`ClipboardController`の「最前面」。テストは`insertsAtTarget`の既定（偽）を使うため成り立つ。製品では描き込む先へ入る（タスク15。タスク17でも再度見た）
+* `_doc/arch/16_test.md` 242行（Phase 11-01の項）：`ShapeInserter`「入れ子ごと外側の末尾」・`CanvasFileOperations`「フォルダだけのファイルは空」。「空」は図形0個の意味なら一致（タスク15）
+* `_doc/arch/16_test.md` 259〜265行（Phase 11-03の項）：`resolveInsertTarget`・`resolveInsertMarkId`・`toDrawOrder`・`isSameOrder`・`applyOrder`・`insertItemsAbove`は今のHEADに無い。「今は無い」の断りは無い。見出しで経緯と読める。判断は発注者へ（タスク15）
+* `_doc/arch/16_test.md` 225行・226行・233行：`OptionBarOrderGroup`・`syncOptionBarOrderGroup`・「並べ替えは`model.getShapes()`の順を変えるだけ」。267行の「過去の記述」の断りがある（225・233）。226行は行頭の「（06-04）」で経緯と読める（タスク15）
+* `_doc/arch/16_test.md` 195行・202〜205行（Phase 10-02）：件数（計81・132・16・64・23件）は現在の実測と同じ。当時の値と今の値が同じなので矛盾しない（タスク15）
+* `_doc/arch/16_test.md` 270行（11-04aの項）：`hasGroupItem`が挙がるが、`GroupTreeRules.js`には無い。295行に消したと書かれ、11-04a時点の記述として読める（タスク16）
+* `_doc/arch/16_test.md` 295行：「`resolveInsertTarget`の9件」「`resolveInsertMarkId`の3件」。現在のコードに無い旧名。「新しい関数の形へ」とあり書き換えの経緯として読める（タスク16）
+* `PROJECT_ARCHITECTURE.md` 306行：キー`Home`/`PageUp`/`PageDown`/`End`は「選択中の図形1つずつに働くまま」。Phase 11-04a以降、選んでいるフォルダも1つのまとまりとして兄弟の並びごとに動かす（`ShapeOrderEditor.js:2`・`14_edit.md:72`）。5章には挙げなかった（タスク17）
+* `PROJECT_ARCHITECTURE.md` 655行・659行：「選択中の図形の重なり順を…変える」「選択中の各図形は並びの上で隣の1つ分だけ動く」。フォルダへの断りが無い（`ShapeOrderEditor.js:1-14`）（タスク17）
+* `PROJECT_ARCHITECTURE.md` 696行、`_doc/arch/12_shapes.md` 89行、`_doc/arch/15_io.md` 10行：「版は2のまま」「作業データの版は2のまま」「書き出しの版は3のまま」。同じ行にPhase番号があり経緯として読める（今は4・4）（タスク17）
+* `PROJECT_ARCHITECTURE.md` 896行（Phase 10-03の項）：「作業データ形式（版3）・書き出し形式（版4）・履歴のエントリの形は変えない」。Phase 10-03で変えなかったことを述べる文で、今の値ではない（タスク17）
+* `_doc/arch/15_io.md` 9行（Phase 09-02aの項）：「作業データの版は2、書き出し形式の版は3のまま」。現在の値と読むと食い違う（今は4・4）（タスク17。タスク4でも見た）
+* `_doc/arch/16_test.md` 130行・131行（Phase 09-01aの項）：「`checkFormat`が版1〜3を受理」。当時の変更として書かれ経緯として読める（5章にあり）（タスク17）
+* `_doc/arch/17_sprite_check.md` 19行：「書き出し形式が版3になっても（Phase 09-01a）」。当時の変更として書かれ経緯として読める（タスク17）
+* `_doc/arch/16_test.md` 195行・203行・309行：件数の内訳「書き出し形式の版4 2367、作業データの版3 2381」「版1〜3の形」。当時の変更として書かれ経緯として読める（タスク17）
+* `_doc/arch/16_test.md` 56行：`pasteInPlace`・`duplicateInPlaceWithinEdit`の「最前面」。`ClipboardController.test.js`は`insertsAtTarget`を省いた`ShapeInserter`を使う（`:38`）。「本番も最前面」と読むと今の挙動と食い違う（タスク17。タスク15でも見た）
+* `_doc/arch/16_test.md` 226行（06-04の項）：「並べ替えは`model.getShapes()`の順を変えるだけ」。当時の説明。今は`rearrangeItems`が入れ子を並べ替える。経緯として読める（タスク17）
+* `_doc/arch/16_test.md` 239行（Phase 11-01の項）：「`VectorModel.items.test.js`（22件）…`reorderShapes`」。当時の件数と内容。295行が「22 → 21」と続ける。経緯として正しい（タスク17）
+* `_doc/arch/04_CanvasManager.md` 4行：「全図形の`draw(ctx)`」「全図形の描画の後」。`render`が受け取った図形すべてのこと。見えている図形だけを渡すのは呼び出し側（`main.js:220`）。同ファイルに「見えている図形だけが渡る」の記述は無い（タスク18）
+* 「節の別の行の断りで読める」もの（タスク18）：`_doc/arch/14_edit.md` 9行（→11行）・38行・41行（→40行）、`PROJECT_ARCHITECTURE.md` 760行（→763行・772行）・773行（→777行・788行）、`_doc/arch/06_InputTracker.md` 45行の`duplicateSelection`・`deleteSelectedItems`（→46行・47行）、`PROJECT_ARCHITECTURE.md` 593行・594行（→612行。`PathJoiner.js:95-100`）、`_doc/arch/02_main.md` 41行の`deleteSelectedItems`（→79行）
+* `_doc/arch/16_test.md` 225行・233行：「`OptionBarOrderGroup`（DOM）」「`syncOptionBarOrderGroup`」を「テストできない箇所」に挙げる。267行に「Phase 11-03でなくなった」の注記がある。経緯として読める（タスク18）
+* `_doc/arch/16_test.md` 239行・260行・261行・270行・277行：`reorderShapes`・`hasGroupItem`・`toDrawOrder`・`isSameOrder`を含む項。「Phase 11-01〜11-04aの新設・追加分」の項で、後の増減は295〜297行。経緯として読める（タスク18）
+* `PROJECT_ARCHITECTURE.md` 942行（確認の状況 11-03）：`insertItemsAbove`・`applyOrder`を確かめた対象に挙げる。Phase 11-03完了時の記述で経緯として読める（タスク18。タスク13でも見た）
+
+### コードのコメント（4章の各タスクの「推測・所見」から転記。1件1行：ファイル:行、要点、タスク番号）
+* `js/shapes/` の各クラスのJSDoc（`Line.js:17`・`:250`・`:272`・`:295` ほか）：「共通メソッド契約の第10メソッド（`toJSON`）・第12メソッド（`toDrawElement`）」。`12_shapes.md`の列挙順と番号が異なる（コードの内部では矛盾しない）（タスク3）
+* `js/wiring/DisplayWiring.js:183`：JSDocの「全図形の外枠がキャンバスの領域に…収まる」。実際の外枠は`getAllBounds`＝見えている図形だけ（`ShapeExtentReader.js:85-87`）（タスク4）
+* `js/core/VectorModel.js:189-190`・`:1257-1259`：`#nextId`・`#issueId`のJSDocの「採番はこのメソッドを経由する（commitDraft・…・replaceShape）」。`rearrangeItems`も`#issueId`を呼ぶ（`:1187`）が括弧に無い（タスク5）
+* `js/core/VectorModel.js:1156`：`rearrangeItems`のJSDoc冒頭の用途の列挙に、行のドラッグでの出し入れ（`ShapeOrderEditor.moveTo`。Phase 11-04b）が無い（タスク5）
+* `js/main.js:205-207`：`renderCurrentState`のJSDoc冒頭「Modelの現在の状態（shapes/…）」。実コードは`getVisibleShapes()`（`:220`）。直後の`:211`に「描く図形は見えている図形」とあり古いとは言い切れない（タスク6）
+* `js/main.js:343`：「ここでmodel.deleteShapesを直接呼ばないこと」。削除の実体は`groupEditor.removeSelection()`で`deleteShapes`は製品コードから呼ばれない（守る対象が古い）（タスク6）
+* `js/core/InputTracker.js:1081`：JSDocの「描き込む先のすぐ上へ入り、描き込む先が無ければ末尾」（既知の傷3。今も残る。`06_InputTracker.md` 44行が古いと断っている）（タスク7・8・17）
+* `js/core/InputTracker.js:412`：コンストラクタ第7引数のJSDocが6項目で`deleteSelectedItems`を欠く（`:232`・typedef `:131-147`は7項目）（タスク7）
+* `js/core/KeyboardShortcuts.js:54`・`:55`・`:82`・`:86`：`selectAll`「全図形を選択する」・`deleteSelection`「選択集合の全図形を削除する」・`invertSelection`「全図形のうち…」・`resetColors`「その全図形」。11-05以後（変えられる図形だけ）と文言が合わない（タスク7・18。`:86`はタスク7のみ）
+* `js/core/InputModes.js:11`：`MOVING_SELECTION`「選択集合の全図形を平行移動する」。移動の対象は`getEditableSelectedIds()`（`InputTracker.js:1553`）（タスク7）
+* `js/shapes/EndpointSnapRules.js:77,141`・`js/shapes/PathJoinRules.js:271`：JSDocが「`model.getShapes()`の並び」のまま（既知の傷5。残っている）（タスク8）
+* `js/core/ItemListRules.js:172`（タスク12では`:171`と記載）：`resolveRowHover`の`@param id`が「カーソルの下の行の図形 id」のまま。フォルダの行のidも渡る（既知の傷4。今も残る）（タスク11・12）
+* `js/core/ListSelectionRules.js:6-22,29`：`resolveListClickSelection`のJSDocが「図形id」のまま。`resolveRowClickSelection`は行のid（フォルダを含む）で呼ぶ（`:85-`）（タスク11）
+* `js/wiring/ItemListWiring.js:73`：`#hoveredRowId`の型の説明「図形id」。フォルダのidが記録されることはないと読めば誤りではない（タスク11・12）
+* `js/wiring/ItemListWiring.js:38`：クラスJSDocの一時的な値が3つ。実際は`#isSyncRequested`（`:48`）・`#drawnKeys`（`:50`）も持つ（古い）（タスク11）
+* `js/palette/ItemListPanel.js:536`：`startNameEdit`の`@param {string} id 図形のid`。フォルダの行も編集できる（`ItemListWiring.js:405-411`）。影響は表記のみ（タスク14）
+* `js/palette/ItemListPanel.js:2`：責務文が目と鍵のアイコンに触れ、フォルダの行・折りたたみ・名前の編集に触れない。古いとまでは言えない（タスク14）
+* `test/io/DocumentSerializer.roundtrip.test.js:432`：`describe`の題「塗り・線なしの往復（作業データの版2）」のまま。中のケース（`:542`）は版4（タスク15・17）
+* `test/io/FileContentReader.test.js:300`・`:408`：題が「（書き出し形式の版2）」「（書き出し形式の版3）」のまま。期間の呼び名として読める（タスク15）
+* `_doc/arch/16_test.md` 235行（資料の記述）：「Node.js v24.20.0で確認」が2行目の「v24.15.0」と合わない。`ff8718e`の時点から同じ（Phase 11の差分外）（タスク15・18）
+* `test/core/ItemPlaceRules.test.js:136`：`describe('insertItemsAt：insertItemsAbove と同じ値（above）', …)`に`insertItemsAbove`が残る（既知の傷6の前半）（タスク16・18）
+* `js/edit/ShapeInserter.js:59`：JSDoc「真なら描き込む先（行の上・フォルダの中・一番下。無ければ末尾）」。現行と一致し古くない（記録のみ）（タスク17）
+
+### 照合できなかった主張（4章の各タスクの「推測・所見」から転記。1件1行：資料のファイルと節・行、要点、タスク番号）
+* 目と鍵のアイコンのうすさ・点線・色の見た目（CSSの値の存在までで、実ブラウザの見え方は見ていない。資料・行の記載なし）（タスク1）
+* 「一覧の幅・行の高さは変えていない」（Phase 11-04aより前の値との差を網羅して確かめていない。行の記載なし）（タスク1）
+* `_doc/PROJECT_MILESTONE.md`の将来の野望（読まない決まりのため）（タスク1）
+* 一覧のパネルを隠したときスクロール位置を失うブラウザがある（ブラウザの挙動。コード側は`visibility: hidden`のCSSまで。資料・行の記載なし）（タスク2）
+* `_doc/arch/36_DisplayWiring.md`：「（コードはJSDocの文言だけを直した）」（過去の変更。`git show`で当時の差分は確かめていない。行の記載なし）（タスク2）
+* `_doc/arch/36_DisplayWiring.md`・`_doc/arch/20_DisplayState.md`：「`main.js`の行数は1018行から888行へ」など過去の値（差分の`+`行でないため対象外。行の記載なし）（タスク2）
+* 「発注者のテストプレイ：全項目OK」（実際の操作の結果。資料・行の記載なし）、`resetViewToCenter`が起動時の復元・開く・新規作成の各経路から呼ばれること（経路を1つずつは追っていない）（タスク2）
+* `PROJECT_ARCHITECTURE.md` 2章 341・343・357・358行：「古いエディタで開くと…」（過去の版のコードの動作。現在のコードに無い）（タスク3）
+* `PROJECT_ARCHITECTURE.md` 2章 331行：「許される操作は並べ替え・まとめる/解除・名前の変更・コピー・複製」の実行結果（実際の操作は実行していない）（タスク3）
+* `PROJECT_ARCHITECTURE.md` 2章 331行・`_doc/arch/63_ItemStateRules.md`：「3章6.・28.」ほかの章番号の参照先の内容（他のタスクの範囲）（タスク3）
+* `PROJECT_ARCHITECTURE.md` 2章 361行(a)(d)・Phase 11-06b：「`format`・`formatVersion`・`elements`はエンジンも利用側も読まない」「エンジンの機体`assets/sprites/ship.js`は`source`入り」「エンジンへ連絡済み…`oz/ENGINE_API.md`は変えていない」（本リポジトリの外）（タスク4）
+* `PROJECT_ARCHITECTURE.md` 2章 383行：「版を上げる条件」（方針の記述）（タスク4）
+* `PROJECT_ARCHITECTURE.md` 3章9. 586行：「2026-11-25に発注者のテストプレイで合格」「`node --test`で確かめた」（実行結果・過去の事実）（タスク4）
+* `_doc/arch/15_io.md` 7行：「古いエディタは`type: 'group'`を未知の図形種別として読み飛ばし…版4の作業データを古いエディタで開くと全体が断られる」（過去の版のコードの動作）（タスク4）
+* `PROJECT_ARCHITECTURE.md` 2章 400行：「回した・裏返した円・弧が別の値になる」の実際の値（実行していない）（タスク4）
+* `_doc/arch/03_VectorModel.md` 6行「（要件の仕様）」、`PROJECT_ARCHITECTURE.md` 444行：自動で開く処理を`VectorModel`の中に置く理由（意図・方針。描き込む先が隠したフォルダの中でも保たれる点＝`InsertTargetRules.js:22-33`だけ照合）（タスク5）
+* `_doc/arch/02_main.md` 87行：「ビュー変換の値に触れないため絵の位置と倍率は動かない」「キー1回につき描き直しが1回増える」の見え方（`main.js:278-283`までを確認。画面の見え方は未照合）（タスク6）
+* `_doc/arch/02_main.md` 3行：`Interrupt 261123_1213`以前の行数（1187・1094・1088・1074・1053・1010・988・944行等）。`git show`で確かめられるのは`ff8718e`以降のみ（`-`行にそのまま同じ文がある）（タスク6）
+* `PROJECT_ARCHITECTURE.md` 567行以降：「保存に失敗した変更」「非同期保存」の節の細則（IndexedDBの書き込み順・`window.confirm`の文言など。差分の`+`行ではない）（タスク6）
+* `PROJECT_ARCHITECTURE.md` 709行：「スポイトは変えられる図形だけが手本になる（13.）」（13.の実体`StyleEyedropper.pickFrom`を開いていない）（タスク7）
+* `PROJECT_ARCHITECTURE.md` 735行・757行・753行：発注者のテストプレイ・合成イベントによる実測値（幅のpx、確認の結果）（タスク7）
+* `PROJECT_ARCHITECTURE.md` 758行：「戻しても頂点の選択は戻らない」の「戻しても」の部分（実行せず`VectorModel.js:312-322`の読みだけで確認）（タスク7）
+* `PROJECT_ARCHITECTURE.md` 3章の894行・914行付近：「発注者のテストプレイで合格」「2026-11-22に…」（`[既存]`。リポジトリ外の事実）（タスク8）
+* `PROJECT_ARCHITECTURE.md` 3章19.〜27.：「画面上で一定の8px・20px」などの画面表示の寸法（今回の`[新]`の範囲ではない）（タスク8）
+* `_doc/arch/65_SoloVisibilityRules.md`：「`test/edit/VisibilityAndLock.flow.test.js`の確認項目10の2件」の「確認項目10」の番号（作業計画書の項目番号。該当するテストは`:380`・`:408`の2件で一致）（タスク9）
+* `PROJECT_ARCHITECTURE.md` 3章7.：「ページ上の文字の標準のコピーを妨げない」「ブラウザ標準の貼り付けを起こさない」の実ブラウザでの挙動（`KeyboardShortcuts`の戻り値`false`までは確認）（タスク9）
+* `PROJECT_ARCHITECTURE.md` 3章14. 665行：「できたフォルダは…閉じたフォルダに印が出る」の見え方（`ItemRowRules.js:43`の`hiddenMark`の存在までは確認）（タスク10）
+* `PROJECT_ARCHITECTURE.md` 3章14. 669行（やらないこと）：方針の記述（タスク10）
+* `_doc/arch/55_ListDragRules.md` 4行：例「見える高さ498.4px・20行 → 498 ＋ 221.6 ＝ 719.6 ＜ 720」の実ブラウザ（`clientHeight`・表示倍率125%）での値（算術は一致。`ListDragRules.test.js:215-`に同じ値）（タスク10）
+* `PROJECT_ARCHITECTURE.md` 3章923行：「`mousemove`ではなく`mouseover`を使わない理由」、925行：「切り替え前の値を覚える状態を足さない方を選んだ」、926行：「後から変えられるようにする可能性があるため」、927行：「計画で決めた値」（設計の意図・経緯）（タスク11）
+* `PROJECT_ARCHITECTURE.md` 919行：「`devicePixelRatio`の変化」が`resize`を起こす（ブラウザの挙動）、928行(c)(d)：ブラウザ・OSの既定の動き（タスク11）
+* `PROJECT_ARCHITECTURE.md` 928行(a)：「スポイトの待ち受けは終わり選択集合は空になってから選ぶ」（`InputTracker.js:553`・`main.js:448-452`までを確認。色を取り込まない点は`styleEyedropper`側で未確認）（タスク11）
+* `_doc/arch/53_ItemListWiring.md`「テスト」の項：指す`16_test.md`の「テストできない箇所（11-02）」の有無（タスク15・16の範囲。照合していない）（タスク11）
+* `PROJECT_ARCHITECTURE.md` 3章 929行・936行・938行・939行：参照先「2章・3章14.」「3章6.・8.・9.」「3章3.・14.」「3章3.・6.」「3章7.」「2章『描き込む先』『選んでいるフォルダ』『フォルダの折りたたみ』」の節の対応（タスク12）
+* `PROJECT_ARCHITECTURE.md` 3章 935行：「名前の編集は…`ItemRenameEditor`はフォルダのidを扱える」（`ItemRenameEditor`を開いていない）（タスク12）
+* `PROJECT_ARCHITECTURE.md` 3章 932行(g)：「ドラッグ中にカーソルがキャンバスの上へ出たときの…今までどおり」「`Space`はカーソルの形だけが変わる」（`InputTracker.js:1211-1214`までを確認）、(k)「前のidが現在のidになる」・(l)「次の`mousemove`で知り…」の挙動の細部（実際には動かしていない）（タスク12）
+* `_doc/arch/61_ItemRowRules.md`：スクロールバー幅「約17px」（ブラウザ・OSで変わる値）（タスク12）
+* `_doc/arch/56_ItemListRowDrag.md` 14行「置き場所の理由」・15行「テストプレイで確かめる」、`59`・`60`・`61`の「置き場所の理由」（方針の記述）（タスク12）
+* 3章・各資料の「Phase 11-03で新設」「Phase 11-04b」等の経緯の記述（`git show`での各コミット時点の確認はしていない。行の記載なし）（タスク12）
+* `PROJECT_ARCHITECTURE.md` 941行・942行・944行・946行・948行：「実ブラウザでの確認」「2026-1x-xxに発注者のテストプレイで合格」。確認項目の出典の`_log/res/…`の中身は照合していない（タスク13）
+* `PROJECT_ARCHITECTURE.md` 947行(4)：「不透明度・点線・絵の細部は発注者の目視で調整する値」（値自体は`index.html`と一致を確認）（タスク13）
+* `PROJECT_ARCHITECTURE.md` 947行(1)：「`.item-list`の子は行だけのまま」（全経路の`append`を網羅して確かめていない）（タスク13）
+* 51行（資料の特定は4章に「51行」とのみ。`51_ThumbnailRules.md`の項と推測）：「下限で太くした線は外枠より片側0.5pxまで広がるが、余白2pxの内側に収まる」（計算上の見立て。画面上の見え方）（タスク13）
+* `PROJECT_ARCHITECTURE.md` 948行の`_doc/arch/16_test.md`への参照（担当はタスク15・16）（タスク13）
+* `_doc/arch/01_index_html.md` 22行・21行：「この見た目（絵・不透明度・点線の位置）は計画で決めた値」「行の高さ36px・サムネイル28px・枠の灰色は計画で決めた値」「幅240pxの固定は発注者の決定」（`index.html`の値との一致だけ確認）（タスク14）
+* `_doc/arch/01_index_html.md` 19行・6行：1280px幅での各要素の画面上の位置（x 790〜1032の算術は確認。`#unit-snap-group`の1107〜1168pxは実測値）、12行：ツールパレットの縦の範囲 y 108〜486（`top`は108で一致）（タスク14）
+* `_doc/arch/16_test.md` 11-01〜11-03の各項：個々のテストの題の中身（「200段の入れ子」「サロゲートペア」「全8通り」など）の一つひとつ（件数とファイル・関数名の存在は確認）（タスク15）
+* `_doc/arch/16_test.md` 244行：「書き換えた既存のテスト」の個々の期待値（3→4など。`git show`で全件は比べていない）（タスク15）
+* `_doc/arch/16_test.md` 256行・267行：「発注者のテストプレイで合格」（2026-11-24）（タスク15）
+* `_doc/arch/16_test.md` 245行・257行・268行：「作業前は tests …」のうち257行・268行の作業前の値（直前のPhaseの完了値と同じことだけ確認）（タスク15）
+* `_doc/arch/16_test.md` 288行・299行・307行・313行：作業前／完了時の tests・suites の値のうち、313行の現在値以外（3192/511、3380/543、3607/589）は各完了コミットの全体実行をしておらず足し算の整合のみ確認（タスク16）
+* `_doc/arch/16_test.md` 287行・298行・306行・314行：「テストプレイで確かめる」「2026-11-25に発注者のテストプレイで合格」「画面での確認（11-06a）」（タスク16）
+* `_doc/arch/16_test.md` 298行・306行・287行：`Alt`＋ドラッグの複製の見え方、`CanvasManager`の描画（隠れた図形が渡されないこと）と`index.html`のCSSの見た目（絵・不透明度・点線・パネルの縦の並び・フォルダの絵・三角・印・青の破線）（タスク16）
+* `_doc/arch/16_test.md` 301〜303行・309〜310行・270〜284行・290〜294行：各テストの内容の細目（括弧内の観点）。件数・関数名・主な題の存在までで、1つ1つの`it`の中身との突き合わせはしていない（タスク16）
+* `PROJECT_ARCHITECTURE.md` 361行(c)(d)：「エンジンの機体`assets/sprites/ship.js`は本アプリの書き出し（版2。`source`入り）」「エンジン本体…への連絡は連絡済み」（本リポジトリの外）（タスク17）
+* `PROJECT_ARCHITECTURE.md` 894行・914行・941〜948行：「2026-11-2xに発注者のテストプレイで合格」（タスク17）
+* `PROJECT_ARCHITECTURE.md` 651行：1280px幅での見積もり約489px・約1026pxの実測値（`index.html:735`のコメントの値までは照合）（タスク17）
+* `_doc/arch/02_main.md` 3行・`_doc/arch/06_InputTracker.md` 58行：過去の行数の値（1229・1223・1194・1216・1183・2017など。「Phase 11-0x完了時の値」で`git show`での再確認はしていない。現在の値は一致を確認）（タスク18）
+* `_doc/arch/16_test.md` 235行：「Node.js v24.20.0で確認」と2行目のv24.15.0の食い違い（Phase 11の差分の外。5章には挙げず）（タスク18。タスク15も所見に記載）
+* 「テストプレイで合格」等、実ブラウザの確認についての記述（資料・行の記載なし）（タスク18）
+
+### 各タスクの注意（作業中に各タスクが追記したもの。そのまま）
 * （タスク4）`15_io.md` 9行の`[既存]`の文「作業データの版は2、書き出し形式の版は3のまま」はPhase 09-02aの項にあり、経緯として読める文のため5章に挙げていない。タスク17の版の検索で現在の値との関係を再確認すること。
 * （タスク5）5章の`03_VectorModel.md` 3行・13行・5行の3件は、同じ資料の別の行や前後の文を読めば補える小さな食い違いで、`VectorModel`の動作の記述そのものは一致している。443行・451行の「今の値のまま」は、読み手が`03_VectorModel.md` 13行に合わせて直す必要がある（描き込む先の挙動を誤解しやすい箇所）。
 * （タスク10）5章に挙げた656行は、同じ項の後ろの文（656行の最後の文と667行）が行のドラッグを `moveTo` として別に書いているため、「キーの配線だけ」の意味で書かれた可能性がある。発注者が直す・直さないを決められるよう5章へ入れた。
