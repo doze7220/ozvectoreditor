@@ -267,7 +267,7 @@
         *   「要件3」の`resolveInsertMark`・`resolveRowViews`の`insertMark`と`insertLine`・`resolveRowHighlight`。`sync`は`resolveInsertMark({ selectedCount: 図形の数 + フォルダの数, target: model.getInsertTarget() })`の結果を`insertMark`へ渡す。
         *   テスト：図形の`above`・フォルダの`above`（線・字下げ）・`inside`（開いた/閉じた/空）・`bottom`（外側・開いたフォルダの最後の見えている行が入れ子の中・空・閉じた）・見えない行（`above`/`inside`/`bottom`が閉じたフォルダの中、多段）・行が無い、`resolveRowHighlight`の印とスクロールの対象、選択があれば印が出ない、空のフォルダだけを選んでいるときも出ない。
 
-*   [ ] タスク9: 一覧のパネルの線と目立たせる行
+*   [x] タスク9: 一覧のパネルの線と目立たせる行
     *   **対象ファイル** :
         *   `./js/palette/ItemListPanel.js` :（更新）
         *   `./index.html` :（更新。一覧の行のCSSだけ）
@@ -389,7 +389,9 @@
 
 ### タスク9: 一覧のパネルの線と目立たせる行
 *   **作業内容** :
-    *   （未記入）
+    *   `js/palette/ItemListPanel.js`（LF）：`render`が`insertLine`を書く（クラス`insert-line-before`／`insert-line-after`とカスタムプロパティ`--insert-line-indent`。控え`insertLineEdge`・`insertLineIndent`と比べ、変わった行だけ。字下げ0ならプロパティを消す）。`getMarkedRowId`は`insert-line-*`の行も印とする。`showDropMark({ id, edge: 'before'|'after'|'inside', indent })`はクラス`drop-before`／`drop-after`／`drop-inside`と`--drop-indent`（`indent`無し・0なら書かない）を書き、消すときは3クラスとプロパティを消す。typedef（`ItemListRowView`・`ItemListRowEntry`）・クラスJSDoc・`#dropMark`の型を直した。子要素は足していない。
+    *   `index.html`（LF）：ドラッグの線を`left: var(--drop-indent, 0px)`に。描き込む先の線（`.item-list:not(.row-dragging) .item-row.insert-line-before::before`／`insert-line-after::after`、`border-top: 2px dashed #1a73e8`、`left: var(--insert-line-indent, 0px)`）と`.item-row.drop-inside`（背景`#b9d4ff`・`outline: 2px solid #1a73e8`・`outline-offset: -2px`。`.selected`・`.has-hidden-mark`より後）を追加。
+    *   テストは足していない（タスクに指定なし）。`node --test`は tests 3345 / pass 3345 / fail 0。
 
 ### タスク10: 行のドラッグの規則
 *   **作業内容** :
@@ -440,6 +442,8 @@
 *   （タスク2）「すぐ下の行が別のフォルダへ移った」場合は、その行を数えず、さらに下（配列で前）の同じ並びの行へたどる（テストは、たどった先がフォルダ行なら`above`・無ければ`bottom`）。`resolveNextInsertTarget`の規則1は、まとまりの種類を`resolveRowInsertTarget`で決める（規則の二重化なし）。
 
 *   （タスク8）見えない行の印は、描き込む先の行が`rows`に無いとき、`shapeIds`か`groupIds`に`id`を含む閉じた行に付ける（`id`が全くどこにも無ければ何も付かない）。選択（図形）による`hiddenMark`の条件は今のまま。`resolveRowViews`の`insertTarget`は`insertLine`と同時には付かない。パネル側（クラス・CSS）はタスク9。
+
+*   （タスク9）`drop-inside`の背景・枠の色（`#b9d4ff`）は目視で見え方を確認したい（`.selected`の`#dbe9ff`より濃いめ）。`--insert-line-indent`・`--drop-indent`は`resolveRowIndent`が返すpx値をそのまま`px`付きで書く前提。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0.  **準備**：画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。塗りのボタン（🪣）をONにし、色の違う塗った図形を8つほど、少しずつ重ねて描く。描き終えたら`V`（選択）にし、いくつか選んで`Ctrl`+`G`でフォルダを2つ作る（1つは、フォルダの行を押し、`Ctrl`を押しながら図形の行を押して`Ctrl`+`G`＝入れ子）。

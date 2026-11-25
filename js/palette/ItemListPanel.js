@@ -16,6 +16,7 @@
  * @property {boolean} [canToggle] 三角を押せるか（省けば偽。偽なら三角は見えない。フォルダの行だけ使う）
  * @property {boolean} [selectedInGroup] 上のフォルダが選ばれているか（弱い見た目。省けば偽）
  * @property {boolean} [hiddenMark] 閉じたフォルダの中に選択・描き込む先の印があるか（省けば偽）
+ * @property {{edge: 'before'|'after', indent: number}|null} [insertLine] 描き込む先の線（青の破線）を出す側と字下げ（px）。省くか`null`なら出さない
  */
 
 /**
@@ -39,6 +40,8 @@
  * @property {boolean} insertTarget 表示中の描き込む先の印
  * @property {boolean} selectedInGroup 表示中の弱い選択
  * @property {boolean} hiddenMark 表示中の見えない行の印
+ * @property {'before'|'after'|null} insertLineEdge 表示中の描き込む先の線の側（出していなければ`null`）
+ * @property {number} insertLineIndent 表示中の描き込む先の線の字下げ（px）
  * @property {number} indent 表示中の字下げ（px）
  * @property {boolean|null} collapsed 表示中の折りたたみ（フォルダの行。`null`は未描画で、最初の`render`で必ず書く）
  * @property {boolean|null} canToggle 表示中の三角の有無（フォルダの行。`null`は未描画で、最初の`render`で必ず書く）
@@ -82,7 +85,8 @@
  * 図形の一覧のパネルのUI部品。importを持たず、図形・VectorModel・InputTracker・HistoryManagerを参照しない。
  *
  * ■ 行のドラッグの表示
- *   - `setDraggedRows`（行の`dragging`・一覧の`row-dragging`）・`showDropMark`（行の`drop-before`／`drop-after`）はクラスだけを書く。線はCSSの疑似要素で描き、`.item-list`の子に要素を足さない。
+ *   - `setDraggedRows`（行の`dragging`・一覧の`row-dragging`）・`showDropMark`（行の`drop-before`／`drop-after`／`drop-inside`とカスタムプロパティ`--drop-indent`）はクラスとプロパティだけを書く。線はCSSの疑似要素で描き、`.item-list`の子に要素を足さない。`drop-inside`は線を出さず、フォルダの行を目立たせる。
+ *   - 描き込む先の線（`render`の`insertLine`）は行のクラス`insert-line-before`／`insert-line-after`とカスタムプロパティ`--insert-line-indent`で表す（行のドラッグ中はCSSが出さない）。
  *   - 控えに残ったidの行が`render`で除かれていても失敗しない（行が無ければ飛ばす）。
  *
  * ■ 構成
@@ -126,7 +130,7 @@ export class ItemListPanel {
     #mouseDownInInput = false;
     /** @type {Set<string>} `dragging`を書いている行のid */
     #draggedIds = new Set();
-    /** @type {{id: string, edge: 'before'|'after'}|null} 線を出している行と側 */
+    /** @type {{id: string, edge: 'before'|'after'|'inside'}|null} 線（`inside`は目立たせる）を出している行と側 */
     #dropMark = null;
 
     /**
@@ -279,6 +283,18 @@ export class ItemListPanel {
                 entry.element.classList.toggle('has-hidden-mark', hiddenMark);
                 entry.hiddenMark = hiddenMark;
             }
+            const insertLineEdge = row.insertLine ? row.insertLine.edge : null;
+            const insertLineIndent = row.insertLine && typeof row.insertLine.indent === 'number' ? row.insertLine.indent : 0;
+            if (entry.insertLineEdge !== insertLineEdge) {
+                entry.element.classList.toggle('insert-line-before', insertLineEdge === 'before');
+                entry.element.classList.toggle('insert-line-after', insertLineEdge === 'after');
+                entry.insertLineEdge = insertLineEdge;
+            }
+            if (entry.insertLineIndent !== insertLineIndent) {
+                if (insertLineIndent === 0) entry.element.style.removeProperty('--insert-line-indent');
+                else entry.element.style.setProperty('--insert-line-indent', `${insertLineIndent}px`);
+                entry.insertLineIndent = insertLineIndent;
+            }
             const indent = typeof row.indent === 'number' ? row.indent : 0;
             if (entry.indent !== indent) {
                 entry.element.style.setProperty('--row-indent', `${indent}px`);
@@ -335,13 +351,18 @@ export class ItemListPanel {
     }
 
     /**
-     * 今の表示で、描き込む先の印か見えない行の印を出している最初の（上から）行のidを返す。
+     * 今の表示で、描き込む先の印・見えない行の印・描き込む先の線を出している最初の（上から）行のidを返す。
      * @returns {string|null} 印の行のid（無ければ`null`）
      */
     getMarkedRowId() {
         if (!this.#wired) return null;
         for (const element of this.#list.children) {
-            if (element.classList.contains('insert-target') || element.classList.contains('has-hidden-mark')) {
+            if (
+                element.classList.contains('insert-target') ||
+                element.classList.contains('has-hidden-mark') ||
+                element.classList.contains('insert-line-before') ||
+                element.classList.contains('insert-line-after')
+            ) {
                 return element.dataset.itemId;
             }
         }
@@ -370,21 +391,27 @@ export class ItemListPanel {
     }
 
     /**
-     * 入る場所の線を出す行を切り替える（今までの線は消す）。`null`・一覧に無い行なら消すだけ。
-     * @param {{id: string, edge: 'before'|'after'}|null} mark 線を出す行と側（`before`＝行の上端、`after`＝行の下端）
+     * 入る場所の表示を出す行を切り替える（今までの表示は消す）。`null`・一覧に無い行なら消すだけ。
+     * @param {{id: string, edge: 'before'|'after'|'inside', indent?: number}|null} mark 表示を出す行と側（`before`＝行の上端の線、`after`＝行の下端の線、`inside`＝線ではなく行を目立たせる）と、線の字下げ（px。省けば0）
      * @returns {void}
      */
     showDropMark(mark) {
         if (!this.#wired) return;
         if (this.#dropMark) {
             const previous = this.#rows.get(this.#dropMark.id);
-            if (previous) previous.element.classList.remove('drop-before', 'drop-after');
+            if (previous) {
+                previous.element.classList.remove('drop-before', 'drop-after', 'drop-inside');
+                previous.element.style.removeProperty('--drop-indent');
+            }
             this.#dropMark = null;
         }
         if (!mark) return;
         const entry = this.#rows.get(mark.id);
         if (!entry) return;
-        entry.element.classList.add(mark.edge === 'before' ? 'drop-before' : 'drop-after');
+        const className = mark.edge === 'before' ? 'drop-before' : mark.edge === 'inside' ? 'drop-inside' : 'drop-after';
+        entry.element.classList.add(className);
+        const indent = typeof mark.indent === 'number' ? mark.indent : 0;
+        if (indent !== 0) entry.element.style.setProperty('--drop-indent', `${indent}px`);
         this.#dropMark = { id: mark.id, edge: mark.edge };
     }
 
@@ -566,6 +593,8 @@ export class ItemListPanel {
             insertTarget: false,
             selectedInGroup: false,
             hiddenMark: false,
+            insertLineEdge: null,
+            insertLineIndent: 0,
             indent: 0,
             collapsed: null,
             canToggle: null

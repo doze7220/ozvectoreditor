@@ -146,7 +146,7 @@
         .item-row.drop-after::after {
             content: '';
             position: absolute;
-            left: 0;
+            left: var(--drop-indent, 0px);
             right: 0;
             height: 2px;
             background-color: #1a73e8;
@@ -157,6 +157,29 @@
         }
         .item-row.drop-after::after {
             bottom: 0;
+        }
+        /* 描き込む先の線（青の破線）。行のドラッグ中は出さない（ドラッグの線と疑似要素を取り合わない） */
+        .item-list:not(.row-dragging) .item-row.insert-line-before::before,
+        .item-list:not(.row-dragging) .item-row.insert-line-after::after {
+            content: '';
+            position: absolute;
+            left: var(--insert-line-indent, 0px);
+            right: 0;
+            height: 0;
+            border-top: 2px dashed #1a73e8;
+            pointer-events: none;
+        }
+        .item-list:not(.row-dragging) .item-row.insert-line-before::before {
+            top: 0;
+        }
+        .item-list:not(.row-dragging) .item-row.insert-line-after::after {
+            bottom: 0;
+        }
+        /* フォルダの中へ入れるときの行（.selected・.has-hidden-markより後に書く） */
+        .item-row.drop-inside {
+            background-color: #b9d4ff;
+            outline: 2px solid #1a73e8;
+            outline-offset: -2px;
         }
         .item-row-thumbnail {
             flex: none;
