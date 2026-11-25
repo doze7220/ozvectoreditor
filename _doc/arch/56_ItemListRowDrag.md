@@ -9,7 +9,7 @@
     *   **持つ値（すべて一時的。保存・履歴・作業データ・書き出しに入れない）**：`DragTracker`・押した行のid・始まった時点の行の並び（`null`なら始まっていない）・動かす行のid・最後のポインター位置・`requestAnimationFrame`のID・前のフレームの時刻。
     *   **import**：`core/DragTracker`・`core/ListDragRules`。`palette/ItemListPanel`は型の参照だけ。`core/VectorModel`・`core/InputTracker`・`edit/`・`io/`はimportしない。
     *   **知らないこと**：判定・計算（`ListDragRules`・`ItemListRules`）・DOMの更新の中身（`ItemListPanel`）・図形・選択集合・履歴・操作モード。並べ替えの記録は`applyOrder`（`ShapeOrderEditor`）の側。
-    *   **キャンバスのドラッグと同時に始まらない**：始めるときは`canStartRowDrag`が`inputTracker.isDragging()`（`ItemListWiring`の`isDragging`）を見る。逆向き（行のドラッグ中のキャンバスの中ボタンのパン等）は上の`window`のcaptureの`mousedown`で止める。
+    *   **キャンバスのドラッグと同時に始まらない**：始めるときは`canStartRowDrag`が`inputTracker.isDragging()`（`ItemListWiring`の`isDragging`）を見る。**フォルダのある絵では始めない**（Phase 11-04a。`canStartRowDrag`の`hasGroups`＝`ItemListWiring.#handleRowPress`が`hasGroupItem(model.getItems())`を渡す。`ItemListRowDrag`のコードは変えていない。`getRowIds`は`buildItemRows(…)`のidだが、フォルダのある絵では始まらないため図形だけの並びを前提にした今の規則のまま動く。始まった時点の行の並びと変われば取りやめる条件は、フォルダの行・折りたたみが変わっても同じに働く）。逆向き（行のドラッグ中のキャンバスの中ボタンのパン等）は上の`window`のcaptureの`mousedown`で止める。
     *   **使う側**：`wiring/ItemListWiring`だけ。`Esc`・ショートカットの照会は`ItemListWiring.isRowDragging()`・`cancelRowDrag()`を通る。
     *   **置き場所の理由**：押下から離すまでの進行・`requestAnimationFrame`・取りやめの購読を持つため、`core/`の規則にも`palette/`にも置けない。`ItemListWiring`に書くと橋渡しだけという役割を超えるため、行のドラッグだけを切り出した`wiring/`の部品にした。
     *   **テスト**：なし（DOM・`requestAnimationFrame`・`window`の購読。`_doc/arch/16_test.md`の「テストできない箇所（11-03の追加）」）。判定・計算は`ListDragRules`・`ItemListRules`に出してあり、テストプレイで確かめる。

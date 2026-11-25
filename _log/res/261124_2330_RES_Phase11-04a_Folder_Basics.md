@@ -298,7 +298,7 @@
     *   **作業内容** :
         *   『開発資料の更新予定』（各タスクの追記を含む）を、1章・2章・3章（6.・7.・8.・14.・16.・28.・キーの割り当てほか）・4章の一覧へ、実コードを確かめて反映する。行末を実測して保つ。
 
-*   [ ] タスク18: 開発資料の反映（`_doc/arch/`）
+*   [x] タスク18: 開発資料の反映（`_doc/arch/`）
     *   **対象ファイル** :
         *   `./_doc/arch/`の01・02・03・06・07・08・13・14・15・16・46・47・48・49・53・56 :（更新）
         *   `./_doc/arch/57_GroupTreeRules.md`・`./_doc/arch/58_GroupSelectionRules.md`・`./_doc/arch/59_GroupCollapseRules.md`・`./_doc/arch/60_GroupCommandRules.md`・`./_doc/arch/61_ItemRowRules.md` :（新規）
@@ -420,7 +420,17 @@
 
 ### タスク18: 開発資料の反映（`_doc/arch/`）
 *   **作業内容** :
-    *   （未実施）
+    *   `_doc/arch/`の16ファイルを更新し、新規5ファイルを作成した（行末は実測して保った。更新：CRLF＝01・02・03・06・08・13・14・15・16・56、LF＝07・46・47・48・49・53。新規57〜61はCRLF）。ほかのファイルは変えていない。実コードを読んで確かめて書いた。
+    *   01：図形の一覧のパネル（`.item-list-footer`・`#item-list-add-group`・パネルの縦の並び・字下げ`--row-indent`・`.selected-in-group`・`.has-hidden-mark`・`.item-row-toggle`・`.item-row-folder-icon`）。
+    *   02：`main.js`の行数を1223行（実測。1194行から29行増）に直し、`// 7.8.`の`GroupEditor`・`// 7.15.`の`groupEditor`の注入・`// 8.`の`group`・`ungroup`・`performGroupCommand`・`inputTracker`の補助`deleteSelectedItems`・`model.onCollapsedChange`の登録・削除ボタンの同期・注入の一覧。
+    *   03：`VectorModel`のフォルダを選んでいる状態（`#selectedGroupIds`・経路ごとの候補・不変条件・`setSelection`/`setSelectionByUser`の引数・描き込む先の例外）・折りたたみ（`setGroupCollapsed`・自動で開く・`onCollapsedChange`）・`rearrangeItems`・公開メソッドの一覧。
+    *   06：`InputTracker`の行数を2023行（実測。2017行から6行増）に直し、`deleteSelection`の受理条件と補助`deleteSelectedItems`（`InputAssist`の項目を6→7）・`#applySelectionChange`の第2引数（`Ctrl`の値）。
+    *   07：`Ctrl`+`G`・`Ctrl`+`Shift`+`G`の2エントリ。08：`Snapshot`の2項目・呼び出し元。13：`ItemListPanel`（フォルダの行・三角・`onGroupToggle`・`onAddGroup`・`getMarkedRowId`）。14：`GroupEditor`の節（新規）・`ShapeOrderEditor`の`apply`・`SnapshotAdapter`・`CanvasLibrary.requestSave`・`edit/ → core/`の例外（8個から11個）。15：`DocumentSerializer`の`collapsed`。
+    *   16：Phase 11-04aの新設・追加分の節（新設15ファイル267件、既存3ファイルへの追加＋20件・移して消した7件）・書き換えた既存のテスト・テストできない箇所・件数（`node --test`は tests 3192 / suites 511 / pass 3192 / fail 0、テストファイルは117）。
+    *   46・47・48・49・53・56：`ItemTreeRules`の`collapsed`と使う側、`ItemAttributeRules`の`collapsed`の整え（テスト45件）、`ItemListRules`（`buildItemRows`の移動・`canToggleGroup`・`hasGroups`。テスト35件）、`ListSelectionRules`（`resolveRowClickSelection`。テスト29件）、`ItemListWiring`（`sync`の順・三角・作るボタン・`groupEditor`の注入）、`ItemListRowDrag`（フォルダのある絵では始めない）。
+    *   新規：`57_GroupTreeRules.md`（38件）・`58_GroupSelectionRules.md`（26件）・`59_GroupCollapseRules.md`（16件）・`60_GroupCommandRules.md`（8件）・`61_ItemRowRules.md`（28件）。
+    *   `node --test`は tests 3192 / pass 3192 / fail 0（資料のみの変更のため件数は不変）。
+    *   監査の指摘による修正：`16_test.md`の見出しの「既存3ファイルへの追加18件」を20件に直した（ItemAttributeRules +5・ItemListRules +2・ListSelectionRules +13。2912＋267＋20−7＝3192）。`PROJECT_ARCHITECTURE.md`の`KeyboardShortcuts.js`の行の、フォルダのキーの位置を実コードのとおり「`invertSelection`（`Ctrl`+`I`）の直後（表示の切り替えの前）」に直した。
 
 ## 5. 懸念事項・要確認ポイント
 *   **取り消し/やり直しで、折りたたんだフォルダの中の図形の選択が戻っても、フォルダは開かない**（要件2の「取り消し/やり直しをしても、今の折りたたみが保たれる」を優先した計画の判断。フォルダの行に印が出る）。
@@ -445,6 +455,7 @@
 *   （タスク12）`resolveRowViews`の`selectedGroupIds`は`Iterable`で受ける。`insertTarget`は`insertMarkId`と行のidが一致するだけ（`hiddenMark`と独立）。`resolveRowClickSelection`の`Ctrl`の足す/外すの別は、`resolveListClickSelection`の結果に`hitId`が含まれるかで決める。`Shift`の範囲では、範囲内のフォルダの行が全中身を選ぶため、範囲の外の中身も選ばれる（不変条件と整合）。開発資料への影響：既存の更新予定（`ItemRowRules`＝61・`ListSelectionRules`・`ItemListRules`）に含まれており、追記は無い。
 *   （タスク15）三角は`canToggleGroup`が偽（ロック中・キャンバスのドラッグ中）なら何もしない。ボタンの`＋`と絵は`button`の既定の見た目のまま（`.item-row-folder-icon`の既存CSSを再利用）。目視確認推奨：パネルの縦の並び（一覧の下端のボタンの帯）、ボタンの見た目、三角の押しやすさ。開発資料への影響：既存の更新予定（`ItemListPanel`・`ItemListWiring`・`index.html`・3章28.）に含まれており、追記は無い。
 *   （タスク17）資料の記述は実コードで確かめた（新規5つの規則・`GroupEditor`のimport、`KeyboardShortcuts`の2エントリ、`InputTracker.deleteSelection`、`SnapshotAdapter`、`VectorModel`の`setSelection`/`setSelectionByUser`/`rearrangeItems`/`setGroupCollapsed`、`ItemRowRules`・`GroupCommandRules`・`canStartRowDrag`/`canToggleGroup`、`ListSelectionRules.resolveRowClickSelection`、`main.js`の注入）。既存の長い段落（1章の依存方向・「存在しないもの」など）には、段落の末尾か該当箇所に「Phase 11-04a」の文を足し、ほかの記述は変えていない。`PROJECT_ARCHITECTURE.md`の1章のテスト一覧は、新しいテストファイル15件（`GroupTreeRules`・`GroupSelectionRules`・`GroupCollapseRules`・`GroupCommandRules`・`ItemRowRules`・`KeyboardShortcuts.group`・`VectorModel.collapse`・`.groupSelection`・`.rearrangeItems`・`DocumentSerializer.collapsed`・`CanvasLibrary.collapse`・`GroupEditor`・`GroupEditor.flow`・`ShapeOrderEditor.groups`・`SnapshotAdapter.groups`）を追加。`main.js`・`InputTracker.js`の行数・テストの件数は`_doc/arch/`側（タスク18）で実測して直す（本資料には行数の記載が無い）。確認の状況は「発注者のテストプレイ待ち」と書いた（テストプレイ後に直す）。
+*   （タスク18）`_doc/arch/`の記述は実コードで確かめた（新規5規則・`GroupEditor`・`VectorModel`のフォルダの選択/折りたたみ/`rearrangeItems`・`SnapshotAdapter`・`CanvasLibrary.requestSave`・`InputTracker`の削除の受理とCtrlの受け渡し・`KeyboardShortcuts`の2エントリ・`ItemListPanel`/`ItemListWiring`/`index.html`のCSS・`DocumentSerializer`の`collapsed`）。**`PROJECT_ARCHITECTURE.md`（タスク17）の`KeyboardShortcuts.js`の行は、フォルダのキーを「反転のキーのさらに後ろ」と書いているが、実コードの対応表では`invertSelection`（`Ctrl`+`I`）の直後（表示の切り替えの前）にある**。`_doc/arch/07`は実コードのとおり書いた。資料本体の食い違い（`PROJECT_ARCHITECTURE.md`の`KeyboardShortcuts.js`の行）は、監査の指摘を受けて直した（`invertSelection`の直後・表示の切り替えの前、と実コードのとおりに修正）。`53_ItemListWiring.md`の既存の「`resolveListClickSelection`」「`getInsertMarkId`」の記述は、Phase 11-04aの`resolveRowClickSelection`・`getMarkedRowId`に合わせて直した。`49`の「結果の`ids`を`model.setSelection`へ」は11-03時点ですでに実コードと違っていた（`setSelectionByUser`）ため、あわせて直した。`16_test.md`の既存の件数（11-02・11-03時点）は時点の記録として残した（`ItemListRules`の31件・40件、`ListSelectionRules`の16件など）。
 *   DOM（`ItemListPanel`・`ItemListWiring`・`main.js`・CSS）と`InputTracker`は自動テストの対象外で、下のテストプレイで確かめる。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）

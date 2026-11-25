@@ -1,0 +1,13 @@
+*   **ItemRowRules.js**：図形の一覧の行の並び（フォルダの入れ子・折りたたみ）と、字下げ・行の見た目・スクロールの対象を決める規則を、状態を持たない関数として提供する（Phase 11-04aで新設。`buildItemRows`は`ItemListRules`から移した。流れは`PROJECT_ARCHITECTURE.md`3章28.）。
+    *   **公開**：`buildItemRows(items)`・`resolveRowIndent(depth)`・`resolveRowViews({ rows, isSelected, selectedGroupIds, insertMarkId })`・`resolveRowHighlight(views)`と、typedef`ItemRow`・`RowView`。
+    *   **`buildItemRows(items)`** → `ItemRow[]`（見えている行だけ。上から）：並びの後ろの要素から順に、フォルダなら「フォルダの行 → 中身の行（同じ規則）」。折りたたんだフォルダの中身は行にしない（行は無くても、フォルダの行の`shapeIds`・`groupIds`には入る）。隠れている・ロックの図形も含める。1回の再帰で作る（図形の数×深さ）。引数を書き換えない。`ItemRow`＝`{ id, kind: 'shape'|'group', name（未定なら空文字）, depth, ancestorIds（外側から）, shape（フォルダはnull。図形インスタンスは共有）, shapeIds（図形は[id]、フォルダは中の図形すべて。行の並びの順）, groupIds（フォルダの中のフォルダすべて。図形は[]）, collapsed, isEmpty（`children`が空のフォルダ）}`。
+    *   **`resolveRowIndent(depth)`**：字下げ（px）。1段12px、6段で頭打ち（72px。7段目以降は同じ字下げ）。名前の幅の見積もり＝240−枠1−スクロールバー約17−左右の余白16−サムネイル28−間8−字下げ72≒98px（図形）、フォルダは三角の分（16＋間4）を引いて約78px。どちらも名前が読める。
+    *   **`resolveRowViews({ rows, isSelected, selectedGroupIds, insertMarkId })`** → 行ごとの`RowView`＝`{ id, kind, name, indent, collapsed, canToggle（空でないフォルダ）, selected, selectedInGroup, insertTarget, hiddenMark }`。`selectedInGroup`＝上のフォルダのどれかが選ばれている（図形・フォルダとも。弱い見た目）。`selected`＝`selectedInGroup`でなく、図形なら`isSelected(id)`、フォルダなら`selectedGroupIds`にある（強い見た目）。`insertTarget`＝行のidが`insertMarkId`と一致（`hiddenMark`と独立）。**見えない行の印`hiddenMark`**：閉じているフォルダの行で、その中の図形に選ばれているもの・`insertMarkId`の図形があるとき、または中のフォルダに選んでいるフォルダがあるときに真（自分が選ばれていても出す。見えている外側の閉じたフォルダにだけ出る）。`selectedGroupIds`は`Iterable`で受ける。
+    *   **`resolveRowHighlight(views)`** → `{ selectedIds, markId, indexes }`：`selectedIds`＝`selected`か`selectedInGroup`の行のid、`markId`＝`insertTarget`か`hiddenMark`の最初の行のid（無ければ`null`）、`indexes`＝スクロールの対象の添字（`selectedIds`の行。1つも無ければ`markId`の行）。既存の`ListScrollRules.hasHighlightChanged`・`resolveSelectionScrollTop`へ渡す。
+    *   **ホバー**：`resolveRowHover`の`queryExists`（図形だけを見る）がフォルダのidで偽になり、今の規則のまま`clear`になる（変更なし）。
+    *   **読むもの**：渡された入れ子の`kind`・`name`・`children`・`collapsed`と、`itemIdOf`の結果だけ。importは`core/ItemTreeRules`（`ITEM_KIND`）・`core/GroupTreeRules`（`itemIdOf`）のみ。
+    *   **知らないこと**：DOM・`VectorModel`・`ItemListPanel`・図形のプロパティ・図形種別・操作モード。状態を持たない。
+    *   **使う側**：`wiring/ItemListWiring`（`sync`・行のクリック・三角・行のドラッグの`getRowIds`・サムネイルの描画）。
+    *   **重さ**：同期は1フレームに1回（`ItemListWiring.#requestSync`）、行の組み立ては1回。パネルは変わった行だけDOMへ書く。フォルダの行のサムネイルは描かない。
+    *   **置き場所の理由**：行の並び・見た目の判定を`wiring/`（判定を持たない）にも`palette/`（何もimportしない）にも置けず、`node --test`で確かめるため、状態を持たない関数として`core/`に置いた。`buildItemRows`は元は`ItemListRules`にあったが、フォルダの行・折りたたみ・見た目の材料まで持つようになったため分けた。
+    *   **テスト**：`test/core/ItemRowRules.test.js`（28件。`ItemListRules.test.js`から移した`buildItemRows`の7件を含む。`_doc/arch/16_test.md`）。

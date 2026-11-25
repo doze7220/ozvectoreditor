@@ -1,0 +1,15 @@
+*   **GroupTreeRules.js**：図形とフォルダのアイテムの入れ子を動かす計算（まとめる・解除・除く・兄弟の並びごとの並べ替え・構造の比較）と、アイテムのidの照会を、状態を持たない関数として提供する（Phase 11-04aで新設。形は2章「アイテム」、流れは`PROJECT_ARCHITECTURE.md`3章14.・28.）。
+    *   **公開**：`itemIdOf(item)`・`hasGroupItem(items)`・`wrapUnits(items, unitIds, group)`・`unwrapGroups(items, groupIds)`・`removeItems(items, ids)`・`listSiblingLists(items)`・`mapSiblingLists(items, fn)`・`isSameTree(a, b)`。
+    *   **`itemIdOf(item)`**：アイテムのid（図形は`item.shape.id`、フォルダは`item.id`）。**種類で分ける式の唯一の箇所**で、Phase 11-04a以降に新しく書くコードは必ずこれを使う（既存の`ItemAttributeRules.applyItemRename`・`VectorModel.replaceAllShapes`にある同じ式はそのまま）。`ItemTreeRules`が図形のプロパティを読まない責務のため、`id`を読む計算はこのファイルに置く。
+    *   **`hasGroupItem(items)`**：入れ子にフォルダが1つでもあるか。`ItemListWiring`が`canStartRowDrag`の`hasGroups`へ渡す。
+    *   **`wrapUnits(items, unitIds, group)`**：`unitIds`のアイテム（まとまり。互いに含み合わない）をすべて抜き、**前順で最後のまとまりの位置**へ、`group`の`children`にまとまりを前順で入れたフォルダを置いた新しい入れ子を返す（`{ ...group, children: まとまり }`。`group`のid・名前は渡された値のまま＝新しいフォルダは`id`・`name`が無く`VectorModel.rearrangeItems`が決める）。離れたまとまりをまとめると重なり順が変わる。元のフォルダが空になっても残る。まとまりが1つも無ければ並びは変えない（写しを返す）。
+    *   **`unwrapGroups(items, groupIds)`**：`groupIds`のフォルダを、その`children`へ置き換えた新しい入れ子を返す。中のフォルダは`groupIds`に無ければそのまま残る（`groupIds`が入れ子の中のフォルダを含めばそれも解除する）。空のフォルダは消える。
+    *   **`removeItems(items, ids)`**：`ids`のアイテムを除いた新しい入れ子（フォルダは中身ごと）。図形だけを除いたフォルダは空になっても残す。
+    *   **`listSiblingLists(items)`**：兄弟の並び（いちばん外側と各フォルダの`children`）を、いちばん外側 → 前順のフォルダの順に列挙する（空のフォルダの空の並びも含む。要素は引数の配列そのもの）。`mapSiblingLists(items, fn)`：それぞれの並びを`fn(並び)`の結果にした新しい入れ子（`fn`はいちばん外側 → `fn`の結果の中の前順のフォルダの順に、空の並びでも1回ずつ呼ぶ。`fn`は並びを書き換えず新しい配列を返すこと）。`ShapeOrderEditor.apply`が兄弟の並びごとの重なり順に使う。
+    *   **`isSameTree(a, b)`**：2つの入れ子の構造（並び順・入れ子・アイテムのid・種類）が同じか。名前・表示・ロック・折りたたみ等の属性は見ない。`VectorModel.rearrangeItems`の「今と同じなら何もしない」の判定。
+    *   **契約**：引数を書き換えず、毎回新しい配列・オブジェクトを返す（図形のアイテムは共有）。
+    *   **読むもの**：渡された入れ子の`kind`・フォルダの`id`・`children`と、図形の`shape.id`だけ。図形のほかのプロパティを読まない。
+    *   **知らないこと**：DOM・`VectorModel`・図形クラス・図形種別・選択・折りたたみ・名前の規則・作業データ形式。importは`core/ItemTreeRules`（`ITEM_KIND`）のみ（`ItemTreeRules`のほかをimportしない）。
+    *   **使う側**：`core/GroupSelectionRules`・`core/GroupCollapseRules`・`core/ItemRowRules`（いずれも`itemIdOf`）・`core/VectorModel`（`itemIdOf`・`isSameTree`）・`edit/GroupEditor`（`wrapUnits`・`unwrapGroups`・`removeItems`）・`edit/ShapeOrderEditor`（`itemIdOf`・`listSiblingLists`・`mapSiblingLists`）・`wiring/ItemListWiring`（`hasGroupItem`）。
+    *   **置き場所の理由**：入れ子の計算を`VectorModel`に持たせると状態を持つクラスが計算の規則まで抱え、`edit/`が同じ計算を使えない。`ItemTreeRules`は図形のプロパティを読まない責務のため`id`を読む計算を置けない。状態を持たない新しいファイルに分けたため、`edit/`が`core/`の規則だけをimportして入れ子を動かせる。循環は無い（`ItemTreeRules` ← `GroupTreeRules` ← `GroupSelectionRules`・`GroupCollapseRules`・`ItemRowRules`）。
+    *   **テスト**：`test/core/GroupTreeRules.test.js`（38件。`_doc/arch/16_test.md`）。

@@ -51,7 +51,7 @@
 │   │   ├── CanvasCursorTracker.js # キャンバス上のカーソル位置
 │   │   ├── ViewFitRules.js     # 全体を画面に収める計算（状態なし）。wiring/DisplayWiringから使う
 │   │   ├── StatusReadoutRules.js # ステータスバーの表示の文字列の規則と数字の形（小数第1位）の規則（状態なし）。wiring/DisplayWiring・edit/PositionInputRules・edit/TransformInputRulesから使う
-│   │   ├── KeyboardShortcuts.js # キー→操作の対応表と`keydown`の受理判定。拡大縮小・回転のドラッグ中の`Esc`だけを`Shift`・`Alt`・`Ctrl`を問わず通す例外の判定`findCancelableDragBinding`（export。Phase 10-01。回転はPhase 10-02）を持つ（Phase 11-03で、一覧の行のドラッグ中も`main.js`の注入の照会`isCancelableDrag`が真になり同じ例外で`Esc`が通る。判定の関数・対応表は変えていない）。対応表の末尾に反転のキー`Shift`+`H`・`Shift`+`V`の2エントリ（Phase 10-03。3章27.）、さらにその後ろにフォルダのキー`Ctrl`+`G`（`group`）・`Ctrl`+`Shift`+`G`（`ungroup`）の2エントリ（Phase 11-04a。3章3.・14.）
+│   │   ├── KeyboardShortcuts.js # キー→操作の対応表と`keydown`の受理判定。拡大縮小・回転のドラッグ中の`Esc`だけを`Shift`・`Alt`・`Ctrl`を問わず通す例外の判定`findCancelableDragBinding`（export。Phase 10-01。回転はPhase 10-02）を持つ（Phase 11-03で、一覧の行のドラッグ中も`main.js`の注入の照会`isCancelableDrag`が真になり同じ例外で`Esc`が通る。判定の関数・対応表は変えていない）。対応表の末尾に反転のキー`Shift`+`H`・`Shift`+`V`の2エントリ（Phase 10-03。3章27.）、`invertSelection`（`Ctrl`+`I`）の直後（表示の切り替えの前）にフォルダのキー`Ctrl`+`G`（`group`）・`Ctrl`+`Shift`+`G`（`ungroup`）の2エントリ（Phase 11-04a。3章3.・14.）
 │   │   ├── DragTracker.js      # 左ドラッグ・パンの押下から解放まで。`cancel`は省ける引数`suppressClick`で、中断の後のclickを1回抑止できる（Phase 10-01）。座標の取得関数は注入で受け取り、使う側は`InputTracker`（キャンバスのドラッグ・パン）と`wiring/ItemListRowDrag`（一覧の行のドラッグ。Phase 11-03）の2つ
 │   │   ├── HistoryManager.js
 │   │   ├── ItemTreeRules.js    # 図形とフォルダのアイテム（入れ子の並び）を平らにする・図形だけ取り出す・図形の位置へ置き直す・図形を除く計算・ある図形のすぐ上へアイテムを入れる計算`insertItemsAbove`（Phase 11-03）の規則（状態なし・importなし。Phase 11-01）。VectorModel・io/DocumentSerializer・io/SpriteSerializer・edit/ClipboardController・ItemAttributeRules・ItemListRulesから使う
