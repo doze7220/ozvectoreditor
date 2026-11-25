@@ -138,32 +138,3 @@ export function filterShapes(items, keep) {
     }
     return result;
 }
-
-/**
- * isTarget(shape) が真になる最初（前順）の図形のアイテムと同じ並び（同じフォルダの children）の、
- * すぐ後ろへ addedItems を順のまま入れた新しい入れ子を返す。見つからなければいちばん外側の末尾へ足す。
- * 図形は不透明に扱う。引数は書き換えない（通り道のフォルダだけ新しいオブジェクト。通らないフォルダは同じ参照）。
- * @param {Item[]} items - アイテムの入れ子
- * @param {(shape: Object) => boolean} isTarget - 入れる位置の基準になる図形なら true を返す判定
- * @param {Item[]} addedItems - 入れるアイテム（順のまま入る）
- * @returns {Item[]} 新しいアイテムの入れ子
- */
-export function insertItemsAbove(items, isTarget, addedItems) {
-    const insert = (list) => {
-        for (let index = 0; index < list.length; index += 1) {
-            const item = list[index];
-            if (item.kind === ITEM_KIND.GROUP) {
-                const children = insert(item.children);
-                if (children !== null) {
-                    const result = list.slice();
-                    result[index] = { ...item, children };
-                    return result;
-                }
-            } else if (isTarget(item.shape)) {
-                return [...list.slice(0, index + 1), ...addedItems, ...list.slice(index + 1)];
-            }
-        }
-        return null;
-    };
-    return insert(items) ?? [...items, ...addedItems];
-}

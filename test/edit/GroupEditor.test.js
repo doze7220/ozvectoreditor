@@ -81,17 +81,17 @@ function snapshotJson(model) {
  * @param {Array<Object>} [options.items] getItemsの戻り値
  * @param {string[]} [options.selectedIds] 選ばれている図形のid
  * @param {string[]} [options.selectedGroupIds] 選んでいるフォルダのid
- * @param {string|null} [options.insertTargetId] 描き込む先
+ * @param {{kind: string, id: string|null}|null} [options.insertTarget] 描き込む先（場所）
  * @param {string} [options.mode] 操作モード
  * @returns {{ editor: GroupEditor, calls: Array<*> }} 偽の依存で作ったエディタと呼び出しの記録
  */
-function setupFake({ items = [], selectedIds = [], selectedGroupIds = [], insertTargetId = null, mode = OperationMode.SELECT } = {}) {
+function setupFake({ items = [], selectedIds = [], selectedGroupIds = [], insertTarget = null, mode = OperationMode.SELECT } = {}) {
     const calls = [];
     const model = {
         getItems: () => items,
         isSelected: (id) => selectedIds.includes(id),
         getSelectedGroupIds: () => selectedGroupIds,
-        getInsertTargetId: () => insertTargetId,
+        getInsertTarget: () => insertTarget,
         rearrangeItems: (nextItems, options) => {
             calls.push(['rearrangeItems', tree(nextItems), options]);
             return true;
@@ -141,7 +141,7 @@ describe('GroupEditor: 偽の依存での呼び出し順', () => {
     });
 
     it('空のフォルダ：描き込む先のすぐ上へ、beginEdit → rearrangeItems → commitEdit', () => {
-        const { editor, calls } = setupFake({ items: [s('a'), s('b')], insertTargetId: 'a' });
+        const { editor, calls } = setupFake({ items: [s('a'), s('b')], insertTarget: { kind: 'above', id: 'a' } });
         assert.equal(editor.addEmptyGroup({ selects: true }), true);
         assert.deepEqual(calls.map((call) => call[0]), ['beginEdit', 'rearrangeItems', 'commitEdit']);
         assert.deepEqual(calls[1][1], ['a', [undefined, []], 'b']);
@@ -152,7 +152,23 @@ describe('GroupEditor: 偽の依存での呼び出し順', () => {
         const { editor, calls } = setupFake({ items: [s('a')] });
         editor.addEmptyGroup();
         assert.deepEqual(calls[1][1], ['a', [undefined, []]]);
-        assert.deepEqual(calls[1][2], {});
+        assert.deepEqual(calls[1][2], { targetsNewGroup: true });
+    });
+
+    it('空のフォルダ：描き込む先の各場所（フォルダの中・一番下・フォルダの行の上・いちばん外側の一番下）へ入る', () => {
+        const items = () => [g('g1', [s('a'), s('b')]), s('c')];
+        const inside = setupFake({ items: items(), insertTarget: { kind: 'inside', id: 'g1' } });
+        inside.editor.addEmptyGroup();
+        assert.deepEqual(inside.calls[1][1], [['g1', ['a', 'b', [undefined, []]]], 'c']);
+        const bottom = setupFake({ items: items(), insertTarget: { kind: 'bottom', id: 'g1' } });
+        bottom.editor.addEmptyGroup();
+        assert.deepEqual(bottom.calls[1][1], [['g1', [[undefined, []], 'a', 'b']], 'c']);
+        const aboveGroup = setupFake({ items: items(), insertTarget: { kind: 'above', id: 'g1' } });
+        aboveGroup.editor.addEmptyGroup();
+        assert.deepEqual(aboveGroup.calls[1][1], [['g1', ['a', 'b']], [undefined, []], 'c']);
+        const outerBottom = setupFake({ items: items(), insertTarget: { kind: 'bottom', id: null } });
+        outerBottom.editor.addEmptyGroup();
+        assert.deepEqual(outerBottom.calls[1][1], [[undefined, []], ['g1', ['a', 'b']], 'c']);
     });
 
     it('空のフォルダ：操作モードを見ない', () => {
@@ -292,6 +308,35 @@ describe('GroupEditor: 実物での結果', () => {
         assert.equal(editor.addEmptyGroup({ selects: true }), true);
         const items = model.getItems();
         assert.deepEqual(tree(items), ['a', [items[1].id, []]]);
+    });
+
+    it('空のフォルダ：selectsが偽ならできたフォルダが描き込む先になり、続けて描くとその中へ入る。記録は1件で取り消せる', () => {
+        const { model, history, editor } = setupReal([g('g1', [s('a')]), s('b')]);
+        model.setInsertTarget('g1');
+        const before = snapshotJson(model);
+        assert.equal(editor.addEmptyGroup(), true);
+        const items = model.getItems();
+        const newId = items[0].children[1].id;
+        assert.deepEqual(tree(items), [['g1', ['a', [newId, []]]], 'b']);
+        assert.deepEqual(model.getInsertTarget(), { kind: 'inside', id: newId });
+        model.startDraft(0, 0, 'line');
+        model.commitDraft({ atInsertTarget: true });
+        const draftId = model.getInsertTargetId();
+        assert.deepEqual(tree(model.getItems()), [['g1', ['a', [newId, [draftId]]]], 'b']);
+        history.undo();
+        history.undo();
+        assert.equal(snapshotJson(model), before);
+        assert.equal(history.canUndo(), false);
+    });
+
+    it('空のフォルダ：フォルダの一番下が描き込む先なら、そのフォルダの中の一番下へ入る', () => {
+        const { model, editor } = setupReal([g('g1', [s('a'), s('b')]), s('c')]);
+        model.setSelection(['a']);
+        editor.removeSelection();
+        assert.deepEqual(model.getInsertTarget(), { kind: 'bottom', id: 'g1' });
+        assert.equal(editor.addEmptyGroup(), true);
+        const items = model.getItems();
+        assert.deepEqual(tree(items), [['g1', [[items[0].children[0].id, []], 'b']], 'c']);
     });
 
     it('削除：フォルダは中身ごと消え、図形だけの削除では空のフォルダが残る。記録は1件ずつで取り消し/やり直しが戻る', () => {

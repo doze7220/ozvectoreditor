@@ -270,3 +270,40 @@ describe('VectorModel.rearrangeItems', () => {
         assert.deepEqual(log, ['change']);
     });
 });
+
+describe('VectorModel.rearrangeItems: targetsNewGroup', () => {
+    it('選択が無ければ新しいフォルダのうち前順で最初のものの中が描き込む先になる', () => {
+        const { model } = setup([s('a'), s('b')]);
+        model.setSelection([]);
+        const items = model.getItems();
+        assert.equal(model.rearrangeItems([items[0], g(null, []), g(null, []), items[1]], { targetsNewGroup: true }), true);
+        const after = model.getItems();
+        assert.deepEqual(model.getInsertTarget(), { kind: 'inside', id: after[1].id });
+    });
+
+    it('図形が選ばれていれば選択（一番上の図形のすぐ上）が優先される', () => {
+        const { model } = setup([s('a'), s('b')]);
+        model.setSelection(['a']);
+        const items = model.getItems();
+        model.rearrangeItems([items[0], g(null, []), items[1]], { targetsNewGroup: true });
+        assert.deepEqual(model.getInsertTarget(), { kind: 'above', id: 'a' });
+    });
+
+    it('新しいフォルダが無ければ描き込む先は今のまま', () => {
+        const { model } = setup([s('a'), s('b')]);
+        model.setSelection([]);
+        model.setInsertTarget('a');
+        const items = model.getItems();
+        model.rearrangeItems([items[1], items[0]], { targetsNewGroup: true });
+        assert.deepEqual(model.getInsertTarget(), { kind: 'above', id: 'a' });
+    });
+
+    it('省けば描き込む先は今のまま', () => {
+        const { model } = setup([s('a'), s('b')]);
+        model.setSelection([]);
+        model.setInsertTarget('a');
+        const items = model.getItems();
+        model.rearrangeItems([items[0], g(null, []), items[1]]);
+        assert.deepEqual(model.getInsertTarget(), { kind: 'above', id: 'a' });
+    });
+});

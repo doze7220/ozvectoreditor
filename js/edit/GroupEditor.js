@@ -2,8 +2,9 @@
  * 責務: フォルダをまとめる・解除する・空のフォルダを足す・選んでいるまとまりを削除する、をそれぞれ1件の編集操作としてモデルへ反映する。
  * DOMに触れない。入れ子の計算は`core/`の規則へ委ね、記録の`beginEdit`／`commitEdit`を自分で挟む。
  */
-import { ITEM_KIND, insertItemsAbove } from '../core/ItemTreeRules.js';
+import { ITEM_KIND } from '../core/ItemTreeRules.js';
 import { wrapUnits, unwrapGroups, removeItems } from '../core/GroupTreeRules.js';
+import { insertItemsAt } from '../core/ItemPlaceRules.js';
 import { resolveSelectedUnitIds } from '../core/GroupSelectionRules.js';
 import { canEditGroups } from '../core/GroupCommandRules.js';
 
@@ -11,8 +12,8 @@ import { canEditGroups } from '../core/GroupCommandRules.js';
  * フォルダの編集操作（まとめる・解除・空のフォルダ・削除）を行うクラス。
  *
  * 依存の制約:
- *   - importは`core/`の`GroupTreeRules`・`GroupSelectionRules`・`GroupCommandRules`・`ItemTreeRules`のみ（`edit/`内の例外。状態を持たない規則の関数）。
- *   - `model`は`getItems`・`isSelected`・`getSelectedGroupIds`・`getInsertTargetId`・`rearrangeItems`だけを使う。
+ *   - importは`core/`の`GroupTreeRules`・`GroupSelectionRules`・`GroupCommandRules`・`ItemTreeRules`・`ItemPlaceRules`のみ（`edit/`内の例外。状態を持たない規則の関数）。
+ *   - `model`は`getItems`・`isSelected`・`getSelectedGroupIds`・`getInsertTarget`・`rearrangeItems`だけを使う。
  *   - 操作モードは解釈せず`canEditGroups(getMode())`へ渡す（まとめる・解除のみ）。図形種別・図形固有のプロパティ名を知らない。
  *   - `try/catch`を持たない。
  *
@@ -126,22 +127,21 @@ export class GroupEditor {
     }
 
     /**
-     * 空のフォルダを足す（1件の編集操作）。位置は描き込む先の図形のすぐ上（無ければいちばん外側の末尾）。
+     * 空のフォルダを足す（1件の編集操作）。位置は描き込む先の場所（行のすぐ上・フォルダの中の一番上・フォルダの一番下。無ければいちばん外側の末尾）。
      * 操作モードは見ない（呼び出し側が判定の結果で呼ぶ）。
      * @param {Object} [options] - オプション
-     * @param {boolean} [options.selects=false] - 真なら選択を空にして新しいフォルダだけを選ぶ。偽なら選択に触れない
+     * @param {boolean} [options.selects=false] - 真なら選択を空にして新しいフォルダだけを選ぶ。偽なら選択に触れず、新しいフォルダを描き込む先（その中）にする
      * @returns {boolean} 変更したか
      */
     addEmptyGroup({ selects = false } = {}) {
-        const targetId = this.#model.getInsertTargetId();
-        const nextItems = insertItemsAbove(
+        const nextItems = insertItemsAt(
             this.#model.getItems(),
-            (shape) => shape.id === targetId,
+            this.#model.getInsertTarget(),
             [{ kind: ITEM_KIND.GROUP, children: [] }]
         );
         const options = selects
             ? { selectedIds: [], selectedGroupIds: [], selectsNewGroups: true }
-            : {};
+            : { targetsNewGroup: true };
         return this.#commit(() => this.#model.rearrangeItems(nextItems, options));
     }
 

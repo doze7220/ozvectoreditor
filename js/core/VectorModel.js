@@ -1141,9 +1141,10 @@ export class VectorModel {
      * @param {Iterable<string>} [options.selectedIds] 新しい図形の選択（省けば今の値。残った図形だけが選ばれる）
      * @param {Iterable<string>} [options.selectedGroupIds] 選んでいるフォルダの候補（省けば今の値）
      * @param {boolean} [options.selectsNewGroups=false] 真なら新しいフォルダを選んでいるフォルダの候補に足す
+     * @param {boolean} [options.targetsNewGroup=false] 真なら描き込む先の候補を、新しいフォルダのうち前順で最初のものの中（`inside`）にする（新しいフォルダが無ければ今の値。図形が選ばれていれば選択が優先される）
      * @returns {boolean} 入れ子を変えたか
      */
-    rearrangeItems(nextItems, { selectedIds, selectedGroupIds, selectsNewGroups = false } = {}) {
+    rearrangeItems(nextItems, { selectedIds, selectedGroupIds, selectsNewGroups = false, targetsNewGroup = false } = {}) {
         if (!this.#isValidRearrangement(nextItems)) {
             console.warn('VectorModel.rearrangeItems: 今ある図形・フォルダだけ（重複なし）で作った入れ子ではないため、何も変えません。', nextItems);
             return false;
@@ -1169,7 +1170,11 @@ export class VectorModel {
                 candidateIds.add(id);
             }
         }
-        this.#applyState({ items: resolved, selectedIds: nextSelectedIds, selectedGroupIds: candidateIds });
+        const nextState = { items: resolved, selectedIds: nextSelectedIds, selectedGroupIds: candidateIds };
+        if (targetsNewGroup && newGroupIds.length > 0) {
+            nextState.insertTarget = { kind: PLACE_KIND.INSIDE, id: newGroupIds[0] };
+        }
+        this.#applyState(nextState);
         if (this.#hoveredId !== null && !remainingIds.has(this.#hoveredId)) {
             this.#hoveredId = null;
         }

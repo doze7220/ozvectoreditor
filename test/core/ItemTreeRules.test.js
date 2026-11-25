@@ -10,8 +10,7 @@ import {
     listShapeItems,
     listShapes,
     placeShapeItems,
-    filterShapes,
-    insertItemsAbove
+    filterShapes
 } from '../../js/core/ItemTreeRules.js';
 
 /**
@@ -270,70 +269,5 @@ describe('filterShapes', () => {
         const result = filterShapes(tree, (s) => s.id !== 's2');
         assert.equal(JSON.stringify(tree), before);
         assert.notEqual(result[1], tree[1]);
-    });
-});
-
-describe('insertItemsAbove', () => {
-    const is = (id) => (s) => s.id === id;
-
-    it('外側の図形のすぐ後ろへ入る', () => {
-        const result = insertItemsAbove(deepTree(), is('s1'), [sItem('n1', 'x')]);
-        assert.deepEqual(ids(result), ['s1', 'n1', 'G1', 's6']);
-    });
-
-    it('フォルダの中の図形なら同じフォルダの中へ入る', () => {
-        const result = insertItemsAbove(deepTree(), is('s2'), [sItem('n1', 'x')]);
-        assert.deepEqual(ids(result), ['s1', 'G1', 's6']);
-        assert.deepEqual(ids(result[1].children), ['s2', 'n1', 'G2', 's5']);
-    });
-
-    it('深い入れ子の中の図形でも、その並びへ入る', () => {
-        const result = insertItemsAbove(deepTree(), is('s4'), [sItem('n1', 'x')]);
-        const g3 = result[1].children[1].children[1];
-        assert.deepEqual(ids(g3.children), ['s4', 'n1']);
-    });
-
-    it('見つからなければいちばん外側の末尾へ足す', () => {
-        const result = insertItemsAbove(deepTree(), is('none'), [sItem('n1', 'x')]);
-        assert.deepEqual(ids(result), ['s1', 'G1', 's6', 'n1']);
-    });
-
-    it('複数は順のまま入る', () => {
-        const result = insertItemsAbove(deepTree(), is('s3'), [sItem('n1', 'x'), sItem('n2', 'y')]);
-        const g2 = result[1].children[1];
-        assert.deepEqual(ids(g2.children), ['s3', 'n1', 'n2', 'G3']);
-    });
-
-    it('フォルダを含む追加もそのまま入る', () => {
-        const added = [gItem('NG', [sItem('n1', 'x')]), sItem('n2', 'y')];
-        const result = insertItemsAbove(deepTree(), is('s6'), added);
-        assert.deepEqual(ids(result), ['s1', 'G1', 's6', 'NG', 'n2']);
-        assert.deepEqual(ids(result[3].children), ['n1']);
-    });
-
-    it('最初（前順）に当たった図形だけが基準になる', () => {
-        const result = insertItemsAbove(deepTree(), () => true, [sItem('n1', 'x')]);
-        assert.deepEqual(ids(result), ['s1', 'n1', 'G1', 's6']);
-    });
-
-    it('引数を書き換えない。通り道のフォルダだけ新しく、通らないものは同じ参照', () => {
-        const tree = deepTree();
-        const before = JSON.stringify(tree);
-        const added = [sItem('n1', 'x')];
-        const addedBefore = JSON.stringify(added);
-        const result = insertItemsAbove(tree, is('s3'), added);
-        assert.equal(JSON.stringify(tree), before);
-        assert.equal(JSON.stringify(added), addedBefore);
-        assert.notEqual(result, tree);
-        assert.notEqual(result[1], tree[1]);
-        assert.notEqual(result[1].children[1], tree[1].children[1]);
-        assert.equal(result[0], tree[0]);
-        assert.equal(result[2], tree[2]);
-        assert.equal(result[1].children[1].children[2], tree[1].children[1].children[1]);
-    });
-
-    it('空の入れ子には末尾（先頭）へ足す', () => {
-        const result = insertItemsAbove([], is('s1'), [sItem('n1', 'x')]);
-        assert.deepEqual(ids(result), ['n1']);
     });
 });

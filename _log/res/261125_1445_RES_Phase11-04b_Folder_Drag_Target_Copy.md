@@ -218,7 +218,7 @@
         *   `#insertTargetId` → `#insertTarget`、`#applyState`の引数`insertTarget`（選んでいるフォルダを先に求める）、`getInsertTarget()`（写し）・`getInsertTargetId()`（`above`のidだけ）、`setInsertTarget`・`setSelectionByUser`・`commitDraft`・`replaceShape`・`replaceAllShapes`を「要件2」のとおりにする。`#placeAdded(addedItems, place)`を`insertItemsAt`で書き直す（呼び出しは`atInsertTarget`が真なら今の`#insertTarget`、偽なら`null`）。`insertItemsAbove`のimportを外す。クラスJSDoc・先頭の責務・各メソッドのJSDocの「図形のid」「描き込む先のすぐ上」を3つの形へ直す。
         *   テスト（追加）：フォルダを選ぶ＝`inside`、空のフォルダだけ、フォルダの選択を外す＝無し、`clearSelection`で`inside`が残る、`setInsertTarget`（フォルダの行・同じ値で通知なし・図形→フォルダの切り替え）、`commitDraft({ atInsertTarget: true })`が`inside`・`bottom`（フォルダ・外側）・フォルダの`above`・閉じたフォルダの`inside`（開かない）へ入る、元の場所（フォルダの中の一番下を消す・フォルダごと消す・外側が空・`keepInsertTarget`での復元）、`rearrangeItems`で行が動いたら一緒に動く、まとめる・解除、`getInsertTarget`が写しであること、`getInsertTargetId`が`above`以外で`null`。
 
-*   [ ] タスク4: 作るボタンの空のフォルダと描き込む先
+*   [x] タスク4: 作るボタンの空のフォルダと描き込む先
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js` :（更新。`rearrangeItems`の`targetsNewGroup`）
         *   `./js/edit/GroupEditor.js` :（更新。`addEmptyGroup`とクラスJSDocだけ）
@@ -359,7 +359,10 @@
 
 ### タスク4: 作るボタンの空のフォルダと描き込む先
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/VectorModel.js`（LF）：`rearrangeItems`に省ける引数`targetsNewGroup`（既定`false`）を追加。真で新しいフォルダがあれば、前順で最初の新しいフォルダの`{ inside, id }`を`#applyState`の`insertTarget`へ渡す（図形が選ばれていれば規則1が優先）。JSDocを更新。
+    *   `js/edit/GroupEditor.js`（CRLF）：`addEmptyGroup`を`insertItemsAt(items, model.getInsertTarget(), [空のフォルダ])`にし、`selects`が偽なら`{ targetsNewGroup: true }`を渡す。import（`insertItemsAbove`→`ItemPlaceRules.insertItemsAt`）・クラスJSDoc・使うmodelのメソッド・`addEmptyGroup`のJSDocを直した。
+    *   `js/core/ItemTreeRules.js`（LF）：`insertItemsAbove`を消した。
+    *   テスト：`ItemTreeRules.test.js`の`insertItemsAbove`の9件とimportを消した。`GroupEditor.test.js`は偽のmodelを`getInsertTarget`へ、`selects`が偽の期待値を`{ targetsNewGroup: true }`へ直し、4つの場所の件・実物で`selects`偽→続けて描くとその中・一番下の件を追加。`VectorModel.rearrangeItems.test.js`へ`targetsNewGroup`の4件を追加のみ。`node --test`は tests 3279 / pass 3279 / fail 0。
 
 ### タスク5: 追加の入口（入る場所・まとまりとして入れる）
 *   **作業内容** :
