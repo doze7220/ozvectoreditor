@@ -274,7 +274,7 @@
     *   **作業内容** :
         *   「要件3」「要件1」の見た目：`render`の`insertLine`（クラスと`--insert-line-indent`。変わった行だけ書く）、`getMarkedRowId`、`showDropMark({ id, edge: 'before'|'after'|'inside', indent })`（クラス`drop-before`／`drop-after`／`drop-inside`と`--drop-indent`。`indent`が無ければ0。消すときはクラスもカスタムプロパティも消す）、CSS。typedef（`ItemListRowView`・`ItemListRowEntry`）・クラスJSDocを直す。行の要素をDOMの中で動かさない・`.item-list`の子に要素を足さない。
 
-*   [ ] タスク10: 行のドラッグの規則
+*   [x] タスク10: 行のドラッグの規則
     *   **対象ファイル** :
         *   `./js/core/ListDragRules.js` :（更新。古い関数はこのタスクでは残す）
         *   `./test/core/ListDragRules.test.js` :（追加のみ）
@@ -395,7 +395,8 @@
 
 ### タスク10: 行のドラッグの規則
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/ListDragRules.js`（CRLF）：`resolveDraggedUnitIds`・`resolveDraggedRowIds`・`resolveDropPlace`・`resolvePlaceMark`・`isSameRows`とtypedef`PlaceMark`を追加。割合の境（0.5・0.25・0.75）と送り切りの余裕（1px）はファイル内の定数。先頭の責務とimport（`ItemTreeRules`の`ITEM_KIND`・`ItemRowRules`の`resolveRowIndent`・`ItemPlaceRules`の`PLACE_KIND`）の記述を直した。古い関数と`resolveAutoScrollTop`は残した。
+    *   テスト：`test/core/ListDragRules.test.js`（CRLF）へ追加のみ（importの行は新しい関数・`buildItemRows`・`moveItems`の分だけ足した）。フォルダの無い並びでの`moveItems`との一致（動かすもの4通り×全位置）と、小数のスクロール位置（221.6／221／220.9）を含む。`node --test`は tests 3386 / pass 3386 / fail 0。
 
 ### タスク11: 行のドラッグの編集操作
 *   **作業内容** :
