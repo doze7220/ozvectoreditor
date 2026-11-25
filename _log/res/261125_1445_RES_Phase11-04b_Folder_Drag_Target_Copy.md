@@ -310,7 +310,7 @@
     *   **作業内容** :
         *   消す前に、製品コード（`js/`・`index.html`）に呼び出しが残っていないことを`Grep`で確かめる。消した後、`js/`のコメントに消した名前（`reorderShapes`・`applyOrder`・`applyRowOrder`・`hasGroupItem`・`hasGroups`・`insertItemsAbove`・`resolveInsertTarget`・`resolveInsertMarkId`・`insertMarkId`・`resolveDraggedIds`・`resolveDropIndex`・`resolveDropMark`・`reorderRowsForDrop`・`isSameOrder`・`toDrawOrder`）が残っていないことも確かめる（残っていて、このタスクの対象ファイル以外なら、直さず5章へ書く）。`ListDragRules`・`ShapeOrderEditor`・`VectorModel`の先頭の責務・クラスJSDocを直す。
 
-*   [ ] タスク14: 通しのテスト
+*   [x] タスク14: 通しのテスト
     *   **対象ファイル** :
         *   `./test/edit/FolderDragTargetCopy.flow.test.js` :（新規）
     *   **作業内容** :
@@ -418,7 +418,8 @@
 
 ### タスク14: 通しのテスト
 *   **作業内容** :
-    *   （未記入）
+    *   `test/edit/FolderDragTargetCopy.flow.test.js`を新規作成（CRLF。24件）。実物は`VectorModel`・`SnapshotAdapter`・`HistoryManager`・`GroupEditor`・`ShapeOrderEditor`・`ShapeInserter`（`insertsAtTarget: true`）・`ClipboardController`・`DocumentSerializer`・`SpriteSerializer`と、`ListDragRules.resolveDropPlace`・`ItemRowRules.buildItemRows`。切り取りの削除は`GroupEditor.removeSelection`。
+    *   内容：座標→場所→`moveTo`（入れる・出す・フォルダごと・自分の中へは入れられない・一番下・まとめて）／描く→取り消す→描き直す（途中・フォルダの一番下・いちばん外側の一番下・空のフォルダ・絵が空になる。やり直しで`getInsertTarget()`が動かない）／切り取り→取り消し→貼り付け／`clearSelection`後の`inside`で2回描くと中の一番上へ重なる／作るボタン（`addEmptyGroup`）→描く／インポート（引数なしの`insertDocument`）／`replaceAllShapes`で無し／描き込む先を変えても`capture()`・作業データ・スプライトのテキスト・履歴通知が変わらない／フォルダの複製・コピー→貼り付けの連続・空のフォルダ／まとめる・移す・複製・コピー・貼り付け・切り取りを続けた後の取り消し/やり直しの各段階でJSONと選んでいるフォルダが一致しidの重複が無い／フォルダの無い絵のドラッグ・複製・コピー・切り取り→貼り付け。製品コードは変えていない。`node --test`は tests 3380 / pass 3380 / fail 0。
 
 ### タスク15: 周りのJSDocの言葉合わせ
 *   **作業内容** :
@@ -443,6 +444,7 @@
 *   **フォルダの行の三角の上から押して動かしても、行のドラッグになる**（動かさずに離せば開閉）。
 *   **自動スクロールで見えている範囲の端の行に入るときの場所は、その端の行の位置で決まる**（上下へ外れたときは見えている端として扱う、今の規則のまま）。一番下まで送り切ってから下へ外れると、いちばん外側の一番下になる（送り切ったかは`maxScrollTop`との差が1px以内で見る。表示倍率が125%等でスクロール位置が小数になっても届くようにするため）。
 *   **頂点の選択（`A`）でも、行のドラッグ・フォルダの選択はできる**（今の一覧の規則）。まとめる（`Ctrl`+`G`）・削除・切り取りは選択（`V`）だけ（今の規則）。
+*   （タスク14）不具合は見つからなかった。`VectorModel.setSelection`で選んでいるフォルダにできるのは中の図形がすべて選ばれているものだけ（空のフォルダは除く）のため、テストでは`setSelection(['b','c'], { groupIds: ['g1'] })`の形で選ぶ。
 *   （タスク13）`ListDragRules`・`ShapeOrderEditor`・`VectorModel`の旧関数・`applyOrder`・`reorderShapes`・`hasGroupItem`は消した。`test/core/ItemPlaceRules.test.js`の`describe`名「insertItemsAt：insertItemsAbove と同じ値（above）」に`insertItemsAbove`の名前が残る（対象外のため直していない）。
 *   （タスク12）`ItemListWiring`の`getUnitIds`・`shouldSelectPressedRow`は同じ`resolveSelectedUnitIds`の呼び出しを`#resolveUnitIds`1か所にまとめて使う。行のドラッグがフォルダのある絵でも始まるようになった（目視：テストプレイ1〜4）。`ShapeOrderEditor.applyOrder`・`ListDragRules`の旧関数・`hasGroupItem`はタスク13まで残っている。
 *   タスク3〜7の途中では、描き込む先の線の印が出ない（タスク8・9で出る）。タスク12までは、フォルダのある絵で行のドラッグは始まらない。
