@@ -5,6 +5,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { SpriteCheckInspector } from '../../js/check/SpriteCheckInspector.js';
 import { SpriteSerializer } from '../../js/io/SpriteSerializer.js';
+import { DocumentSerializer } from '../../js/io/DocumentSerializer.js';
 import { Line } from '../../js/shapes/Line.js';
 import { Rect } from '../../js/shapes/Rect.js';
 
@@ -18,6 +19,19 @@ function makeSpriteData() {
     const rect = new Rect(-5, -5, 15, 25, '#445566', 3);
     rect.id = 'rect-1';
     return SpriteSerializer.serialize([line, rect]);
+}
+
+/**
+ * 今までのJS（source入り）の形のスプライトデータを作る（`source` は作業データそのもの）。
+ * @returns {Object} スプライトデータ（書き出しの戻り値に `source` を足したもの）
+ */
+function makeSpriteDataWithSource() {
+    const line = new Line(0, 0, 10, 20, '#112233', 2);
+    line.id = 'line-1';
+    const rect = new Rect(-5, -5, 15, 25, '#445566', 3);
+    rect.id = 'rect-1';
+    const shapes = [line, rect];
+    return { ...SpriteSerializer.serialize(shapes), source: DocumentSerializer.serialize(shapes) };
 }
 
 /**
@@ -81,7 +95,7 @@ describe('SpriteCheckInspector.inspectModuleExport', () => {
 
 describe('SpriteCheckInspector.summarize', () => {
     it('版・作業データの版・要素数・外枠と幅・高さを返す（丸めない）', () => {
-        const data = makeSpriteData();
+        const data = makeSpriteDataWithSource();
         const summary = SpriteCheckInspector.summarize(data);
         assert.equal(summary.formatVersion, data.formatVersion);
         assert.equal(summary.sourceVersion, data.source.version);

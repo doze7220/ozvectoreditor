@@ -10,6 +10,8 @@ import { SnapshotAdapter } from '../../js/edit/SnapshotAdapter.js';
 import { VectorModel } from '../../js/core/VectorModel.js';
 import { HistoryManager } from '../../js/core/HistoryManager.js';
 import { DocumentSerializer } from '../../js/io/DocumentSerializer.js';
+import { SpriteSerializer } from '../../js/io/SpriteSerializer.js';
+import { CodeExporter } from '../../js/io/CodeExporter.js';
 import { Rect } from '../../js/shapes/Rect.js';
 
 /**
@@ -47,6 +49,15 @@ function nestedItems() {
         },
         { kind: 'shape', shape: makeRect('shape-3', 40), name: '丙', visible: true, locked: true }
     ];
+}
+
+/**
+ * 今までのJS（source入り）の形のスプライトデータを作る（`source` は作業データそのもの）。
+ * @param {object[]} items - アイテムの入れ子
+ * @returns {object} スプライトデータ（書き出しの戻り値に `source` を足したもの）
+ */
+function withSource(items) {
+    return { ...SpriteSerializer.serialize(items), source: DocumentSerializer.serialize(items) };
 }
 
 /**
@@ -182,12 +193,12 @@ describe('CanvasFileOperations: 入れ子の出力→開く・インポート', 
         assert.equal(h.model.getShapes().length, 6);
     });
 
-    it('出力（エンジン用）のJS→開く・インポートも同じ', async (t) => {
+    it('今までのJS（source入り）→開く・インポートも同じ', async (t) => {
         silenceWarn(t);
         const h = setup();
         h.ops.exportSprite();
         assert.equal(h.downloads.length, 1);
-        const text = h.downloads[0].text;
+        const text = CodeExporter.toModuleText(withSource(h.model.getItems()));
         const opened = await h.ops.openFile({ name: 's.js', text });
         assert.equal(opened, true);
         assert.equal(shapesJson(h.opened[0].items), shapesJson(h.model.getItems()));

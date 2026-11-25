@@ -455,12 +455,13 @@ describe('保存と復元・書き出し', () => {
         assert.equal(json(restored), json(model));
     });
 
-    it('書き出しは隠した図形（隠れたフォルダの中を含む）を描画要素に出さず、ロックした図形は出す。sourceには全部が残り、開くと値が戻る', () => {
+    it('書き出しは隠した図形（隠れたフォルダの中を含む）を描画要素に出さず、ロックした図形は出す。作業データには全部が残り、開くと値が戻る', () => {
         const { model } = stated();
         const sprite = SpriteSerializer.serialize(model.getItems());
+        const work = DocumentSerializer.serialize(model.getItems());
         assert.equal(sprite.elements.length, 2);
-        assert.equal(sprite.source.shapes.length, 4);
-        const result = DocumentSerializer.deserialize(JSON.parse(SpriteSerializer.stringify(sprite)).source);
+        assert.equal(work.shapes.length, 4);
+        const result = DocumentSerializer.deserialize(JSON.parse(JSON.stringify(work)));
         assert.equal(result.ok, true);
         assert.deepEqual(stateMap(result.items), stateMap(model.getItems()));
     });

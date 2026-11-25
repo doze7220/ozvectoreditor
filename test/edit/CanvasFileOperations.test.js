@@ -315,8 +315,17 @@ describe('CanvasFileOperations: インポート', () => {
  * @returns {object} スプライトデータ
  */
 function makeSpriteDataWithSourceShapes(shapes, shapesData) {
-    const data = SpriteSerializer.serialize(shapes);
+    const data = withSource(shapes);
     return { ...data, source: { ...data.source, shapes: shapesData } };
+}
+
+/**
+ * 今までのJS（source入り）の形のスプライトデータを作る（`source` は作業データそのもの）。
+ * @param {object[]} shapes - 図形インスタンスの配列
+ * @returns {object} スプライトデータ（書き出しの戻り値に `source` を足したもの）
+ */
+function withSource(shapes) {
+    return { ...SpriteSerializer.serialize(shapes), source: DocumentSerializer.serialize(shapes) };
 }
 
 /**
@@ -353,7 +362,7 @@ describe('CanvasFileOperations: 開く（スプライトのJS）', () => {
         for (const spriteCase of spriteFileCases(
             shapesData === 'partial'
                 ? makeSpriteDataWithSourceShapes(shapes, [shapes[0].toJSON(), makeBadShapeData(), shapes[1].toJSON()])
-                : SpriteSerializer.serialize(shapes)
+                : withSource(shapes)
         )) {
             it(`${label}（${spriteCase.label}）: 作業データファイルと同じ図形・同じ通知・名前はtoCanvasName`, async (t) => {
                 silenceWarn(t);
@@ -396,7 +405,7 @@ describe('CanvasFileOperations: 開く（スプライトのJS）', () => {
         it(`スプライトのJSON（ship.json、sourceあり・${label}）: false・キャンバスを作らない・readFailed`, async (t) => {
             silenceWarn(t);
             const h = createHarness();
-            const result = await h.ops.openFile(makeFile('ship.json', SpriteSerializer.stringify(SpriteSerializer.serialize(shapes))));
+            const result = await h.ops.openFile(makeFile('ship.json', SpriteSerializer.stringify(withSource(shapes))));
             assert.equal(result, false);
             assert.equal(h.createCalls.length, 0);
             assert.deepStrictEqual(h.ops.getState().fileNotice, notice('readFailed', 'ship.json', 0));
@@ -406,9 +415,9 @@ describe('CanvasFileOperations: 開く（スプライトのJS）', () => {
 
 describe('CanvasFileOperations: インポート（スプライトのJS）', () => {
     const cases = [
-        { label: '全部', shapes: makeShapes(), spriteData: SpriteSerializer.serialize(makeShapes()), workShapesData: makeShapes().map((s) => s.toJSON()) },
+        { label: '全部', shapes: makeShapes(), spriteData: withSource(makeShapes()), workShapesData: makeShapes().map((s) => s.toJSON()) },
         { label: '一部', shapes: makeShapes().slice(0, 2), spriteData: makeSpriteDataWithSourceShapes(makeShapes().slice(0, 2), [makeShapes()[0].toJSON(), makeBadShapeData(), makeShapes()[1].toJSON()]), workShapesData: 'partial' },
-        { label: '図形0個', shapes: [], spriteData: SpriteSerializer.serialize([]), workShapesData: [] },
+        { label: '図形0個', shapes: [], spriteData: withSource([]), workShapesData: [] },
     ];
     for (const { label, shapes, spriteData, workShapesData } of cases) {
         for (const spriteCase of spriteFileCases(spriteData)) {
@@ -451,7 +460,7 @@ describe('CanvasFileOperations: インポート（スプライトのJS）', () =
         it(`スプライトのJSON（ship.json、sourceあり・${label}）: false・何も呼ばない・readFailed`, async (t) => {
             silenceWarn(t);
             const h = createHarness();
-            const result = await h.ops.importFile(makeFile('ship.json', SpriteSerializer.stringify(SpriteSerializer.serialize(shapes))));
+            const result = await h.ops.importFile(makeFile('ship.json', SpriteSerializer.stringify(withSource(shapes))));
             assert.equal(result, false);
             assert.deepStrictEqual(h.calls, []);
             assert.deepStrictEqual(h.ops.getState().fileNotice, notice('readFailed', 'ship.json', 0));

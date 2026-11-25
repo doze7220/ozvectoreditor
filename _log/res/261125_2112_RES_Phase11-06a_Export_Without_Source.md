@@ -228,7 +228,7 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
     *   **作業内容** :
         *   「要件4」の表で「T4」の行だけを直す（替え方A・B）。期待値は変えず、確かめている観点を減らさない。題・先頭の責務定義が実際と合わなくなるものは合わせる。`source`を書き出しから外す前でも全件合格すること。
         *   足した関数にはJSDocを書く。
-*   [ ] タスク5: 既存のテストの入力を「今までのJSの形」「作業データ」へ替える・`test/edit/`と`test/check/`（製品コードは変えない）
+*   [x] タスク5: 既存のテストの入力を「今までのJSの形」「作業データ」へ替える・`test/edit/`と`test/check/`（製品コードは変えない）
     *   **対象ファイル** :
         *   `./test/edit/CanvasFileOperations.test.js` :（更新）
         *   `./test/edit/CanvasFileOperations.items.test.js` :（更新）
@@ -331,6 +331,12 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
 
 ### タスク5: 既存のテストの入力を「今までのJSの形」「作業データ」へ替える・`test/edit/`と`test/check/`
 *   **作業内容** :
+    *   `test/edit/CanvasFileOperations.test.js`（CRLF）：替え方Aの関数`withSource(values)`を足し、`makeSpriteDataWithSourceShapes`の元・スプライトのJS（開く・インポートの全部／一部／図形0個）・スプライトのJSON（開く・インポートの各2件）の入力を`withSource`へ替えた。
+    *   `test/edit/CanvasFileOperations.items.test.js`（LF）：`withSource(items)`を足し、題を「今までのJS（source入り）→開く・インポートも同じ」へ、入力を`CodeExporter.toModuleText(withSource(h.model.getItems()))`へ替えた（`exportSprite`の呼び出しと`downloads`1件の確認は残した）。`SpriteSerializer`・`CodeExporter`をimport。
+    *   `test/edit/GroupEditor.flow.test.js`（CRLF）：127は最後の1行を替え方B（まとめる前後の`DocumentSerializer.serialize`が異なる）へ。441は題を「今までのJS（source入り）の…」とし、`sprite`をその場で`source`を足した形へ（替え方A。`elements`3件の確認は残した）。
+    *   `test/edit/VisibilityAndLock.flow.test.js`（CRLF）：458は替え方B（`sprite.elements`2件・作業データ`shapes`4件・開くと値が戻る）、題の「sourceには」を「作業データには」へ。
+    *   `test/check/SpriteCheckInspector.test.js`（CRLF）：`makeSpriteDataWithSource()`を足し、83の「作業データの版を返す」テストだけその入力へ替えた。
+    *   `node --test`は tests 3659 / suites 599 / pass 3659 / fail 0。
 
 ### タスク6: 書き出しから`source`を外す
 *   **作業内容** :
@@ -363,6 +369,7 @@ importの向き：`FileContentReader → DocumentSerializer・SpriteSerializer�
 *   **古いエディタ**（本作業の前のもの）で新しいJSを開くと、`source`が無いため読み込み不可になる（書き出し形式の版を上げない決定のとおり）。
 *   **タスク3**：新しいテストのうち「書き出し直すと同じ描画要素」は、円・弧（`ellipse`）の描画要素の値の比較を避け、型・外枠・直線／曲線／パス系の要素の一致のみ確かめた（要件の「等価な別の値」のため）。`FileContentReader.js`の責務定義は3行以内のまま（2行）。
 *   **タスク4**：`FileContentReader.test.js`・`SpriteSerializer.items.test.js`に替え方Aの関数`withSource(values)`を置いた（`SpriteSerializer.test.js`・`SpriteSerializer.visibility.test.js`・`DocumentSerializer.collapsed.test.js`は替え方Bで、その場で`DocumentSerializer.serialize`を呼ぶ）。`data.source`が`DocumentSerializer.serialize(items)`と同じことを見ていた行（`SpriteSerializer.test.js` 185・`.visibility` 74・109）は、替え方Bにすると同じ式の比較（自明）になるため除いた（往復・値の確認は残した）。describeの題の`source`・`.visibility`の先頭の責務定義の`source`はT6で直す。
+*   **タスク5**：`GroupEditor.flow.test.js`の441・`CanvasFileOperations.items.test.js`は、書き出しの戻り値に`source`を足す形（替え方A）をテスト内に置いた（前者はその場、後者は`withSource`）。`SpriteCheckInspector.test.js`は83のテストだけ`makeSpriteDataWithSource()`にし、`makeSpriteData()`（ほかのテストが使う）は変えていない（`source`のキー自体が無い入力の行はT6で足す）。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0.  **準備**：画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。**今までのJS**（本作業の前に「出力（エンジン用）」したもの。矩形・フォルダ・隠した図形を含む絵がよい）を1つ手元に用意しておく（無ければ`asset/sprite/select-arrow.js`で代える。この場合はパス1つの絵で、矩形・フォルダは確かめられない）。

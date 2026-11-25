@@ -127,6 +127,7 @@ describe('まとめる前後の書き出し', () => {
     it('隣り合う図形をまとめても、elementsとboundsは変わらない（フォルダの要素は出ない）', () => {
         const { model, groupEditor } = setup([s('a', 0), s('b', 20), s('c', 40)]);
         const before = SpriteSerializer.serialize(model.getItems());
+        const workBefore = DocumentSerializer.serialize(model.getItems());
         model.setSelection(['b', 'c']);
 
         assert.equal(groupEditor.groupSelection(), true);
@@ -136,7 +137,7 @@ describe('まとめる前後の書き出し', () => {
         const after = SpriteSerializer.serialize(model.getItems());
         assert.deepEqual(after.elements, before.elements);
         assert.deepEqual(after.bounds, before.bounds);
-        assert.notDeepEqual(after.source, before.source, 'source（作業データ）にはフォルダが出る');
+        assert.notDeepEqual(DocumentSerializer.serialize(model.getItems()), workBefore, '作業データにはフォルダが出る');
     });
 });
 
@@ -438,9 +439,9 @@ describe('作業データの往復・インポート', () => {
         assert.equal(json(restored), json(model));
     });
 
-    it('スプライトデータのsourceからも入れ子・名前・折りたたみが戻り、elementsにフォルダは出ない', () => {
+    it('今までのJS（source入り）のsourceからも入れ子・名前・折りたたみが戻り、elementsにフォルダは出ない', () => {
         const model = makeModel();
-        const sprite = SpriteSerializer.serialize(model.getItems());
+        const sprite = { ...SpriteSerializer.serialize(model.getItems()), source: DocumentSerializer.serialize(model.getItems()) };
 
         assert.equal(sprite.elements.length, 3);
         const result = DocumentSerializer.deserialize(sprite.source);
