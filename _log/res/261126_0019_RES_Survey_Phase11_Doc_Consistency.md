@@ -307,7 +307,7 @@ E
     * `ItemListPanel` の公開メソッド・注入・構成・イベント・名前の編集を照合する。
     * 実コードから読み取れる事実のみを抽出し、推測を含める場合はどこまでが事実でどこからが推測かを明示して、4章の『事実』『推測・所見』欄に書く。相違は5章にタスク番号を添えて書く（作業は中断しない。資料に無い事項がコードにあることは相違としない）。判定は資料の原文とコードの該当行を両方開いて行い、一致には `ファイル:行`、または検索した語と件数を添える。
     * タスクの終わりに `git status` で、ソースコードおよび資料ファイルを一切変更していないこと（変更があるのは本RESだけ）を確かめる。
-* [ ] タスク15: 16_test（前半。1〜268行）
+* [x] タスク15: 16_test（前半。1〜268行）
   * **対象ファイル**:
     * 資料: `./_doc/arch/16_test.md` 1〜268行（書き方の決まり・以前のPhaseの項のうち書き換えられた行・Phase 11-01〜11-03の項）
     * 照合に使うコード: `./test/` 配下（Phase 11-01〜11-03の新設・変更のテストファイル） :（監査）
@@ -1110,11 +1110,86 @@ E
 
 ### タスク15: 16_test（前半。1〜268行）
 * **調査内容**: 
-  * （未実施）
+  * `_doc/arch/16_test.md` 1〜268行を照合した。`[新]` の文（10・14・33・36・191・214・227・236〜268行）は、テストファイルを開いて確かめた。
+  * 件数は `it(`／`test(` の数だけでは足りない（ループで増える）ので、`node --test <ファイル>` の `tests` で数えた。当時の値は `git archive <コミット> js test index.html` を作業用フォルダへ展開して確かめた（リポジトリは書き換えていない）。使ったコミットは、作業前 `739f722`、11-01完了 `d62cdc1`、11-02完了 `1e152c5`、11-03完了 `9726dfe`。
+  * 全体の件数も同じ方法で実測した。
+  * 既知の傷1（`DocumentSerializer.roundtrip.test.js` の「`version`は2」、`CanvasFileOperations` の項）は、30・39・40行のほか、要件2の語（版・`getShapes`・`CanvasFileOperations`・`OptionBarOrderGroup`・末尾・最前面・`reorderShapes`・`applyOrder`・`insertItemsAbove`・`hasGroupItem`・`deleteShapes`など）の検索で見つかった行（56・77・130・131・135・162・172・180・191・195・202〜205・225・226・233・242・262〜267行）を読んだ。
+  * 既知の傷2（16_test の1〜268行）：`[既存]` の文も全文を読み、版・対象・並びの古い形を探した。結果は5章に載せたもの（30・130・131・162・172・180・191行）と、下の「読み方が分かれる記述」にある。
 * **事実（実コードの記述）**:
-  * （未実施）
+  * **1〜9行（書き方の決まり・実行方法）**：
+    * `test/` の配置、`CodeExporter.assembly.test.js` だけが `node:fs` 等を使う例外、`KeyboardShortcuts.keydown.test.js` だけが `globalThis` へ代入する例外。この例外の記述は一致（差分外で確認のみ）。
+    * 参照したテストファイルのパスは、1〜268行に出るもの（`test/…/*.test.js`）が全部ある。`test/edit/*.items.test.js` は15ファイルに当たる。`test/core/VectorModel.reorderShapes.test.js` は無く、資料も参照していない。
+  * **10行（注入の例外の一覧）**：
+    * Phase 11-05で足されたと書かれた6ファイル（`ItemStateEditor`・`EditableTargets.move`・`EditableTargets.removal`・`EditableTargets.style`・`EndpointSnapper.itemStates`・`VisibilityAndLock.flow`）は `test/edit/` に全部ある（`.test.js`）。`test/core/EditableHit.test.js` は `VectorModel` を import している（`test/core/EditableHit.test.js:7`）。一致。
+    * Phase 11-03で加わる3ファイルの組み合わせは import と一致。`ShapeInserter.insertTarget`＝`VectorModel`・`ShapeInserter`・`ClipboardController`・`SnapshotAdapter`・`HistoryManager`（`:7-11`。`DocumentSerializer` も使う）。`EndpointSnapper.insertTarget`＝`EndpointSnapper`・`VectorModel`・`HistoryManager`・`SnapshotAdapter`（`:7-10`）。`InsertTarget.flow`＝`VectorModel`・`HistoryManager`・`SnapshotAdapter`・`ShapeInserter`・`ClipboardController`・`PathJoiner`・`PathCornerEditor`・`ShapeOrderEditor`・`CanvasLibrary`・`DocumentSerializer`・`SpriteSerializer`（`:7-18`）。
+    * 「12ファイル（Phase 11-04bまで）」の数え方は相違（5章）。資料に挙がる12ファイルは、すべて `VectorModel` を import する（ff8718e の時点で確認）。ff8718e の `test/edit/` で `VectorModel` を import するのは13ファイル（12＋`TransformInputEditor`）。11-04b（bf26f07）では35、HEAD では42。
+  * **14行（ShapeOrderEditor.test.js）**：
+    * 現在 `tests 9`（`node --test`）。11-03完了時は15（`9726dfe`）で、`applyOrder` の6件を消して9になる。`applyOrder` はHEADの `js`・`test` のどこにも無い。
+    * 偽の依存は `rearrangeItems`（`test/edit/ShapeOrderEditor.test.js:23,26,33`）。`setupFake` に `reorderShapes` は無い（11-03完了時の `:31` には有った）。
+    * `test/edit/ShapeOrderEditor.move.test.js` は有り、`moveTo` を検証する（`:2,113,116`）。一致。
+  * **30行**：5種とパスの往復で「`version`は2」は相違（5章）。
+  * **32行（migration）**：責務は「版1→2・2→3・3→4」（`test/io/DocumentSerializer.migration.test.js:2`）。資料の「版1→版2の移行。…」は1→2の内容だけを書く（下の読み方参照）。
+  * **33行（SpriteSerializer.test.js）**：
+    * 現行は版4＝`formatVersion` 4（`test/io/SpriteSerializer.test.js:59`。`SPRITE_FORMAT_VERSION` は4）。
+    * キーが `format`・`formatVersion`・`bounds`・`elements` で `source` が無い（`:57,61`）。一致。
+    * 作業データ（`serialize`）には塗れない形の `fillColor` が残る（`:367`）。一致。
+    * `checkFormat` の `supported`（版1も：`:376,583`）・`notSprite`（`:242`）・`unsupportedVersion`（`:250`）、`stringify`（`:199`）、未知の `kind` は `Error`（`:180`）、図形0個（`:135`）、`strokeWidth` が `undefined`（`:172`）、作業データの往復（`:187`）。一致。
+    * 描画要素に `id` が無い：`:906` の題に「idのキーは無い」。要素の `deepStrictEqual` で確かめている。一致。
+    * 「Phase 10-02」（版4）：`:1011,1055`。一致。
+  * **36行（FileContentReader.test.js）**：
+    * `withSource(values)` は `test/io/FileContentReader.test.js:77` に有る。`SpriteSerializer.items.test.js:32` にも有る。
+    * `source` の無いJSは `FileContentReader.elements.test.js` が検証する（ファイル有り）。
+    * 版2のJS（`:357,369`）、版1のJS（`:381,396`）、作業データファイル（`:191`）、`source` の読めない図形のスキップ（`:210`）、読み込み不可（`:232-299`。スプライトのJSON（source あり）`:272`、`source` なしのJSON `:244`、版が範囲外 `:259,290`、宣言の中身がJSONでない `:281`、作業データ `:285`）。一致。
+    * 現在 `tests 24`（11-01完了時に24、作業前は21）。
+  * **39・40行（CanvasFileOperations）**：
+    * `.export.test.js` の題と一致：JSのダウンロード1回（`:140`）、受理条件（`:157,164,170`）、空のキャンバス（`:176`）、組み立て失敗（`:184`）、失敗の通知（`:193`）、通知の消去（`:201,215`）、`prepareInsert` 等を呼ばない（`:224,266`）。
+    * `CanvasFileOperations.test.js` の分類（読み込み不可・空・一部・全部：`:198-290`）、スプライトのJS（`:355,416`）、スプライトのJSON（`sourceあり`）が読み込み不可（`:405,460`）。一致。
+    * `CanvasFileOperations` の項に古い記述は見つからなかった（既知の傷1の「`CanvasFileOperations` の項」は、この2行では食い違いなし）。
+  * **191行**：「版2」「弧は上半分のまま」は相違（5章）。
+  * **214行（TransformInputEditor.test.js）**：新設・23件は現在も23（`node --test`）。`SpriteSerializer.serialize` の最上位のキー `bounds`・`elements`・`format`・`formatVersion`、`formatVersion` が4、`work.version` が4、作業データのキー `format`・`shapes`・`version`（`test/edit/TransformInputEditor.test.js:378-382`）。一致。
+  * **227行**：現在は版4で `MIGRATIONS` に1→2・2→3・3→4（`js/io/DocumentSerializer.js:21,161`）。移行は `DocumentSerializer.migration.test.js`。一致。
+  * **236〜245行（Phase 11-01）**：
+    * 件数。作業前 tests 2470 / suites 401（`739f722`）、完了時 2650 / 426（`d62cdc1`）。+180／+25 は一致。
+    * 新設15ファイル（5＋`edit/*.items` 10）の合計は175（26＋29＋22＋26＋9＋10＋7＋7＋8＋3＋5＋9＋4＋5＋5）。一致。
+    * 各ファイルの件数（`node --test`）：`ItemTreeRules` 26、`ItemAttributeRules` 29、`VectorModel.items` 22、`DocumentSerializer.items` 26、`SpriteSerializer.items` 9、`SnapshotAdapter.items` 10、`ShapeInserter.items` 7、`ClipboardController.items` 7、`CanvasFileOperations.items` 8、`CanvasLibrary.items` 3、`PathJoiner.items` 5、`EndpointSnapper.items` 9、`PathCornerEditor.items` 4、`TransformInputEditor.items` 5、`ShapeOrderEditor.items` 5。資料と一致。
+    * 既存2ファイルの追加は `ShapeFactory` 10→12（+2）、`FileContentReader` 21→24（+3）で5件。一致。
+    * 書き換えたテスト（244行）：`DocumentSerializer.migration` の責務に3→4（`:2`）。一致（他の書き換えの中身は当時の差分の主張で、現在の値は照合していない。下の照合できなかった主張参照）。
+    * 項目の中の識別子・題（`ITEM_KIND`・`toItems`・`listItems`・`listShapeItems`・`listShapes`・`placeShapeItems`・`filterShapes`：`js/core/ItemTreeRules.js:34-130`。`normalizeItemName`・`resolveItems`・`applyItemRename`：`ItemAttributeRules.js:33,80,126`）は現在もある。`reorderShapes` は11-01完了時のテストにあり（`d62cdc1` で6ファイルに出る）、HEADでは無い。
+  * **246〜257行（Phase 11-02）**：
+    * 完了時 tests 2764 / suites 449（`1e152c5`）。+114／+23 は一致。作業前 2650 / 426。
+    * 新設7ファイルの件数：`ItemListRules` 31、`ListSelectionRules` 16、`ListScrollRules` 22、`ThumbnailRules` 10、`ThumbnailRenderer` 10、`VectorModel.renameItem` 5、`ItemRenameEditor` 6。**合計100**で、資料の「96件」は相違（5章）。
+    * 既存2ファイルの追加：`ItemAttributeRules` 29→40（+11）、`ShapeExtentReader` 18→21（+3）で計14。資料の「14件」「計40件」「計21件」は一致。
+    * `THUMBNAIL_SIZE_PX` が28（`js/core/ThumbnailRules.js:8`）。一致。
+    * 「テストできない箇所（11-02）」：`js/palette/ItemListPanel.js`・`js/wiring/ItemListWiring.js`・`js/main.js:944`（`// 7.15.`）が有る。`resizeAndRenderViews`（`js/main.js:278`）が `displayState.onChange(resizeAndRenderViews)`（`:415`）と `window` の `resize`（`:284`）の2経路から呼ばれる。`index.html:31` に `--canvas-area-width`。一致。
+  * **258〜268行（Phase 11-03）**：
+    * 完了時 tests 2912 / suites 470（`9726dfe`）。+148／+21 は一致。
+    * 新設6ファイルは `InsertTargetRules` 12・`VectorModel.insertTarget` 38・`ListDragRules` 32・`ShapeInserter.insertTarget` 10・`EndpointSnapper.insertTarget` 8・`InsertTarget.flow` 9＝109。一致。
+    * 既存6ファイル：`ItemTreeRules` 26→35（+9）、`SelectionRules` 36→45（+9）、`ItemListRules` 31→40（+9）、`ListScrollRules` 22→27（+5）、`ShapeOrderEditor` 10→15（+6／−1）、`KeyboardShortcuts.keydown` 9→11（+2）。「計15件」「計11件」は一致。ただし追加の合計は40件で、資料の「39件」は相違（5章）。
+    * 項目の中の関数名（`resolveInsertTarget`・`resolveInsertMarkId`・`toDrawOrder`・`isSameOrder`・`applyOrder`・`insertItemsAbove`）は、11-03完了時（`9726dfe`）の `js`・`test` に有る（確認済み）。HEADでは無い（読み方の項参照）。`OptionBarOrderGroup`・`syncOptionBarOrderGroup` が11-03で無くなったという記述は、HEADに無いことと一致。
+    * 「テストできない箇所（11-03）」：`ItemListPanel` の `onRowPress`・`setDraggedRows`・`getListArea`・`showDropMark`・`insert-target`（`js/palette/ItemListPanel.js:86,101,333,437`）。`wiring/ItemListRowDrag.js` が `DragTracker`（`:5,39`）・`requestAnimationFrame`（`:48`）・取りやめ（`:106`）。`InputTracker` が `resolveUserClickSelection` を import（`js/core/InputTracker.js:15`）・`Esc` の(4)（`:670`）・`commitDraft({ atInsertTarget: true })`（`:1081`）。`main.js` の `// 7.5.`（`:539`）・`// 7.15.`（`:944`）・`// 8.`（`:970`）。`index.html` の `.insert-target`・`.drop-before`・`.row-dragging` のCSS（`:138,145,162`）。一致。
+  * **その他（差分外で見つけたもの）**：現在の全体は tests 3699 / suites 609 / pass 3699 / fail 0（`node --test`）。16_test の1〜268行にある最後の件数は11-03完了時（2912）で、当時の値として一致。
 * **推測・所見**:
-  * （未実施）
+  * 読み方が分かれる記述：
+    * 135行（Phase 09-01aの項、「テストできない箇所（09-01aの追加）」）の「確認用ページ（`sprite-check.html`）での版3の表示」は、同じ行に Phase の番号（09-01a）があり、当時のテストできない箇所の記録として読める。確認用ページは版を実行時に表示する作りで（`sprite-check.html:74,75`）、テストの対象ではない。ほかに、`test/io/FileContentReader.test.js:408` の `describe` の題は「書き出し形式の版3」のままで、同じ describe の中のケース題は版4（`:432`）。`test/io/SpriteSerializer.test.js:494` の `describe` の題「版3・bezierPath」は今もある。
+    * 32行「`DocumentSerializer.migration.test.js`：版1→版2の移行。…」は、1→2の内容だけを書く。ファイルは1→2・2→3・3→4を持つ（`:2,64,186`）。「版1→版2の移行」を「このファイルは1→2だけ」と読むと不足。227行の `[新]` 文が全3段の移行を書くので、両方読めば矛盾はしない。
+    * 56行（Phase 07-04の項）の `ClipboardController` の「最前面」は、テストの組み立てでは成り立つ。`ShapeInserter` の `insertsAtTarget` の既定が偽（常に最前面。`js/edit/ShapeInserter.js:60,69`）で、テストはこの既定を使うため。製品では描き込む先のすぐ上へ入る（11-03）。資料は条件を書いていないので、読み方が分かれる。
+    * 242行（Phase 11-01の項）の `ShapeInserter`「入れ子ごと外側の末尾」と `CanvasFileOperations`「フォルダだけのファイルは空」。前者はテストの題（`test/edit/ShapeInserter.items.test.js:58`）が今も「外側の末尾」。製品では `insertsAtTarget` を真にする場合は描き込む先へ入る。後者はテストの題が「開く＝フォルダごと開く・インポート＝noShapes」（`test/edit/CanvasFileOperations.items.test.js:232,243`）。「空」は図形が0個の意味なら一致するが、キャンバスが空という意味だと不一致。
+    * 259〜265行の11-03の項は、下の関数名（`resolveInsertTarget`・`resolveInsertMarkId`・`toDrawOrder`・`isSameOrder`・`applyOrder`・`insertItemsAbove`）を、「Phase 11-03の新設・追加分」の見出しの下で当時の内容として述べる。今のHEADには無く（`ListDragRules` の関数は `resolveDraggedUnitIds`・`resolveDraggedRowIds`・`resolveDropPlace`・`resolvePlaceMark`・`isSameRows`・`resolveAutoScrollTop`、`InsertTargetRules` は `resolveNextInsertTarget`・`resolveRowInsertTarget`・`isSameInsertTarget`・`resolvePastePlace`・`resolveDuplicatePlace`・`resolveInsertMark`）、各行に「今は無い」という断りは無い。見出しで経緯と読めるので5章に挙げていない。「今のテストの中身」と読む人には古い形。判断は発注者へ。
+    * 225・233行（06-04・07-02の項）の `OptionBarOrderGroup`・`syncOptionBarOrderGroup` と、226行の「並べ替えは`model.getShapes()`の順を変えるだけ」は、267行の「過去の記述」という断りがある（225・233の2項目）。226行の `getShapes` の文には断りが無いが、行頭に「（06-04）」とあるので経緯として読める。
+    * 195・202〜205行（Phase 10-02）の件数（計81・132・16・64・23件）は、現在の実測と同じ。当時の値と今の値が同じなので矛盾しない。
+  * コードのコメント：
+    * `test/io/DocumentSerializer.roundtrip.test.js:432` の `describe` の題が「塗り・線なしの往復（作業データの版2）」のまま。中のケース（`:542` の題）は「serializeの version が 4 である」。
+    * `test/io/FileContentReader.test.js:300` の題が「（書き出し形式の版2）」、`:408` が「（書き出し形式の版3）」のまま。どちらも期間の呼び名（その版で足した機能）として読める。
+    * 16_test.md 235行の「Node.js v24.20.0で確認」は、2行目の「確認したNode.jsの版はv24.15.0」と合わない（差分外。`node --version` は v24.15.0）。ff8718e の時点から同じ記述（Phase 11の差分ではない）。
+  * 照合できなかった主張：
+    * 11-01〜11-03の各項にある、個々のテストの題の中身（例：「200段の入れ子」「サロゲートペア」「全8通り」）の一つひとつ。件数とファイル・関数名の存在は確かめたが、全題の文言は照合していない（テストは `pass` で、題と内容の突き合わせは各ケースの本体まで読んでいない）。
+    * 244行の「書き換えた既存のテスト」の個々の期待値（3→4など）。当時の差分の主張で、`git show` で全件は比べていない。
+    * 256・267行の「発注者のテストプレイで合格」（2026-11-24）。ブラウザでの確認の結果で、コードから確かめられない。
+    * 245・257・268行の「作業前は tests …」のうち、257・268行の作業前の値は、直前のPhaseの完了値（2650 / 426、2764 / 449）と同じことだけを確かめた。
+  * 既知の傷：
+    * 既知の傷1：30行「`version`は2」は実際に食い違い、5章へ挙げた。`CanvasFileOperations` の項（39・40行）に古い記述は無かった。ほかに、130・131・162・172・180・191行（以前のPhaseの項）に古い版の記述が残る（5章）。
+    * 既知の傷2（16_test の1〜268行）：長い一文の `[既存]` 文を全文読み、5章の30・130・131・162・172・180・191行を見つけた。ほかに要件2の古い形（`OptionBarOrderGroup`・`getShapes`・「末尾」など）は、上の読み方のものだけ。
+    * 既知の傷3〜6はこのタスクの担当外（確認していない）。
 
 ### タスク16: 16_test（後半。269〜315行）
 * **調査内容**: 
@@ -1301,6 +1376,16 @@ E
 * （タスク17）**（`_doc/arch/16_test.md:180`、Phase 09-03bの項の `DocumentSerializer.roundtrip.test.js`）**： 「弧と直線・半月形の閉じた塗りあり・弧2本の結合の結果の往復（…。`version` は2のまま・`console.warn` なし）」（この行に Phase の番号・断りが無い） → 現行の作業データの版は4（`js/io/DocumentSerializer.js:21`、`test/io/DocumentSerializer.roundtrip.test.js:542-545`・`:790`）。
 * （タスク17）**（`_doc/arch/16_test.md:191`、Phase 10-01の項の `SpriteSerializer.test.js`・`DocumentSerializer.roundtrip.test.js`）**： 「作業データの往復（…パスの曲がり方を持つ区間・版2・復元後に動かしても元が不変）」（この行に Phase の番号・「この時点」等の断りが無い。Phase の番号は親の箇条書きの `:184` にだけある） → 現行のテストは版4を照合している（`test/io/DocumentSerializer.roundtrip.test.js:904` の題「変換後の図形の作業データは版4で…」・`:907` `assert.equal(doc.version, 4)`、`js/io/DocumentSerializer.js:21` `CURRENT_DOCUMENT_VERSION = 4`）。
 * （タスク17）**（`_doc/arch/02_main.md:3`、配線ブロックの切り出しの説明）**： 「`// 7.7.`（オプションバーのスタイルのまとまり。約30行）・`// 7.8.`（重なり順のまとまり。約40行）は…独立したブロックのため、切り出さなかった」（同じ文に Phase 11-03 の断りが無く、7.8を「重なり順のまとまり」の約40行と読める） → Phase 11-03でオプションバーの重なり順のまとまりをなくしたため、`// 7.8.` は「重なり順（キー）配線」で `ShapeOrderEditor`・`GroupEditor` の生成と `performShapeOrder` だけの約24行（`js/main.js:718`〜`:741`。`// 7.8.` の次の `// 7.9.` は `:742`）。`// 7.7.` は `:689`〜`:717` の約28行（約30行は概ね一致）。
+* （タスク15）**（`_doc/arch/16_test.md` 10行・注入の例外の数）**： 「例外（…）は12ファイル（Phase 11-04bまで）」 → 資料自身が、12ファイルの後に11-03で3ファイル、11-05で6ファイル加わると書き、11-01・11-02の項でも `test/edit/` のテストが「例外の数え方に加わる」と書く（242・253行）。実コードでは、11-04bの完了時（`bf26f07`）で `test/edit/` の35ファイルが `VectorModel` を import し、HEAD では42。元の12は ff8718e の時点で13ファイル（`TransformInputEditor.test.js` を数えていない）だった。「12ファイル（Phase 11-04bまで）」は実数と合わない。
+* （タスク15）**（`_doc/arch/16_test.md` 30行・`DocumentSerializer.roundtrip.test.js` の項）**： 「5種の図形とパス（…塗り・線なしを含む。`version`は2）が…往復」 → 作業データの `version` は4（`test/io/DocumentSerializer.roundtrip.test.js:542-545` が `serialize(...).version` を4と確かめる。`js/io/DocumentSerializer.js:21`）。版2は `describe` の題（`:432`）に残る言い方で、このテストの `version` ではない。
+* （タスク15）**（`_doc/arch/16_test.md` 130行・Phase 09-01aの項、`SpriteSerializer.test.js`）**： 「版3・`bezierPath`（…`checkFormat`が版1〜3を受理）」 → `checkFormat` は版1〜4を受理する（`test/io/SpriteSerializer.test.js:1055`・`:1058`）。行に Phase の番号も当時の断りも無い（見出し側の「09-01a」は別の行）。
+* （タスク15）**（`_doc/arch/16_test.md` 131行・Phase 09-01aの項、`FileContentReader.test.js`）**： 「版3の曲線のパスを含むJS（`LF`・`CRLF`）が読める」 → 今のテストが扱うのは版4のJS（`test/io/FileContentReader.test.js:432` の題「版4のJS・CRLFのJS」、`:436` で `formatVersion` が4）。版3のJSを作るテストは無い（`describe` の題 `:408` が「版3」と残るだけ）。行に Phase の番号も当時の断りも無い。
+* （タスク15）**（`_doc/arch/16_test.md` 162行・Phase 09-02bの項）**： 「作業データの往復（…`corners`のキーの有無、版2・キー順）と、…書き出し形式の版3」 → 同じテストは作業データの版は4（`test/io/DocumentSerializer.roundtrip.test.js:648`「作業データの版は4のまま」）、書き出し形式の版は4（`test/io/SpriteSerializer.test.js:681`「書き出し形式の版は4のまま」）。行に当時を示す断りは無い。
+* （タスク15）**（`_doc/arch/16_test.md` 172行・Phase 09-03aの項）**： 「…今の曲線と直線の結合結果。`version`は2のまま」 → 作業データの `version` は4（`test/io/DocumentSerializer.roundtrip.test.js:704`「作業データの版は4のまま」・`:721`）。行に当時を示す断りは無い。
+* （タスク15）**（`_doc/arch/16_test.md` 180行・Phase 09-03bの項）**： 「`DocumentSerializer.roundtrip.test.js`（+6件・`describe`+1）…`version`は2のまま・`console.warn`なし」 → 作業データの `version` は4（`test/io/DocumentSerializer.roundtrip.test.js:780`「作業データの版は4のまま」・`:790`）。行に当時を示す断りは無い。
+* （タスク15）**（`_doc/arch/16_test.md` 191行・Phase 10-01の項）**： 「作業データの往復（…円は楕円・弧は上半分のまま。パスの曲がり方を持つ区間・版2・復元後に動かしても元が不変）」 → 同じテスト群の作業データは版4（`test/io/DocumentSerializer.roundtrip.test.js:904-907`）。弧は上下・左右に裏返った下半分で復元される（`:880`。205行の(c)も「弧は下半分の弧として読まれる」と書く）。
+* （タスク15）**（`_doc/arch/16_test.md` 246行・Phase 11-02の項）**： 「新設7ファイル96件＋既存2ファイルへの追加14件。tests 2650 → 2764＝+114」 → 新設7ファイルは合計100件（`ItemListRules` 31・`ListSelectionRules` 16・`ListScrollRules` 22・`ThumbnailRules` 10・`ThumbnailRenderer` 10・`VectorModel.renameItem` 5・`ItemRenameEditor` 6。`1e152c5` で `node --test`）。100＋14＝114で+114と合う。「96件」だけが合わない（`ThumbnailRenderer` は `it(` が6でも、ループで10件）。
+* （タスク15）**（`_doc/arch/16_test.md` 258行・Phase 11-03の項）**： 「新設6ファイル109件＋既存6ファイルへの追加39件・消した1件。tests 2764 → 2912＝+148」 → 既存6ファイルの追加はファイル別に9＋9＋9＋5＋6＋2＝40件、消したのは1件で、純増は39件（109＋39＝148）。「追加39件・消した1件」は、追加の総数としては40件と合わず、純増と読めば合う。265行の個別の値は「+6件・−1件」。
 
 ## 6. 懸念事項・今後の修正における注意点
 * （タスク19で、「読み方が分かれる記述」「コードのコメント」「照合できなかった主張」の一覧を記載する）
@@ -1337,3 +1422,6 @@ E
 * （タスク17）`_doc/arch/16_test.md:56` の `ClipboardController.test.js` の項（「`pasteInPlace`（…最前面…）」）は、テストの前提（`insertsAtTarget` 無し）としては正しいが、本番（`main.js:542`）では描き込む先の場所へ入る。「貼り付け・複製は最前面」の古い形として5章に挙げるか迷い、テストの前提の記述なので4章の「読み方が分かれる記述」に留めた。
 * （タスク17）`PROJECT_ARCHITECTURE.md:306`・`:655`・`:659` の「選択中の図形」は、Phase 11-04a以降フォルダも1つのまとまりとして動くため読み方が分かれる（4章に記載。5章には挙げていない）。
 * （タスク17）`_doc/arch/16_test.md:162`・`191` の「版2」（162行は「書き出し形式の版3」も）は、当時のテストの内容を項目名だけで挙げた書き方だが、その行自体に Phase の番号も断りも無いため、172・180行と同じ形として5章に挙げた。
+* （タスク15）5章の「10行・12ファイル」は、資料の文が「12ファイル（Phase 11-04bまで）」と書きつつ、後ろの文で追加を書く構造。数え方を「元の12に加わるものを別に数える」と読むなら、12はff8718e時点の13ファイルとの1件の差（`TransformInputEditor`）だけが誤りになる。どちらの読みでも「12ファイル（Phase 11-04bまで）」は実数とは合わない。
+* （タスク15）11-03の項の関数名（`resolveInsertTarget`・`toDrawOrder`・`isSameOrder`・`applyOrder`・`insertItemsAbove`）は、HEADに無い。11-03完了時には有ったことを `9726dfe` で確かめた。項の見出しで経緯と読めるので5章へは入れず、4章の読み方に書いた。5章へ移すかは発注者の判断。
+* （タスク15）作業用に `git archive` で展開したフォルダが、スクラッチパッドの `t_fddc451`・`t_d62cdc1`・`t_1e152c5`・`t_9726dfe`・`t_base` に残っている（リポジトリの外。リポジトリ内のファイルは変更していない）。
