@@ -290,7 +290,7 @@
         *   「要件1」の`moveTo(ids, place)`。先頭の責務（重なり順と、行のドラッグでの出し入れ・並べ替え）・クラスJSDoc（import・使うmodelのメソッド）を直す。
         *   テスト：偽の依存で呼び出し順・同じ場所と入れられない場所では何も呼ばない、実物で出し入れ（中へ・外へ・別のフォルダへ・フォルダごと・まとまり・選んでいるフォルダの中の行だけ・空になったフォルダ・折りたたんだフォルダへ入れても開かない・自分の中/自分の中のフォルダの中は不変）、記録1件と取り消し/やり直しのJSONの一致、選択が残る、選んでいるフォルダへ選ばれていない図形を入れると選んでいる状態が外れる、描くツール相当（選択なし）で描き込む先が行と一緒に動く、フォルダの無い絵で今までと同じ並び。
 
-*   [ ] タスク12: 行のドラッグの切り替え（進行・配線）
+*   [x] タスク12: 行のドラッグの切り替え（進行・配線）
     *   **対象ファイル** :
         *   `./js/wiring/ItemListRowDrag.js` :（更新）
         *   `./js/wiring/ItemListWiring.js` :（更新）
@@ -405,7 +405,10 @@
 
 ### タスク12: 行のドラッグの切り替え（進行・配線）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/wiring/ItemListRowDrag.js`（CRLF）：注入を`{ panel, getRows, getUnitIds, shouldSelectPressedRow, selectRow, canDrop, applyDrop, onDragStart }`へ。始まった時点の見えている行`#startRows`を控え、`cancelIfRowsChanged`・離したときは`isSameRows`で比べる。動くたび・毎フレーム・スクロールは`resolveDropPlace` → `canDrop`が偽なら`showDropMark(null)`、真なら`resolvePlaceMark` → `showDropMark`。離したときは後始末を先に行い、行が同じで場所があり`canDrop`が真なら`applyDrop(draggedIds, place)`。選んだ後に`getUnitIds()`を照会し直して`resolveDraggedUnitIds`、`setDraggedRows(resolveDraggedRowIds(…))`。閾値・自動スクロール・`Esc`・click抑止は変えていない。先頭の責務・JSDocを直した。
+    *   `js/wiring/ItemListWiring.js`（LF）：`getRows`・`getUnitIds`（`resolveSelectedUnitIds`を非公開の`#resolveUnitIds`にまとめた）・`shouldSelectPressedRow`（`isSelected`＝押した行のidがまとまりにあるか）・`selectRow`（`resolveRowClickSelection`を`additive: false, range: false`で呼び`setSelectionByUser(ids, { groupIds, keepsCollapsed: true })`・起点の更新・`sync({ allowScroll: false })`）・`canDrop`（`canMoveItems`）・`applyDrop`（注入`applyRowDrop`）。`#handleRowPress`から`hasGroups`・`hasGroupItem`のimportを外し、`#handleRowClick`のコメントを直した。
+    *   `js/core/ItemListRules.js`（LF）：`canStartRowDrag`から`hasGroups`を消し、`canStartRowDrag`・`shouldSelectPressedRow`のJSDocを直した。`js/main.js`（CRLF）：`applyRowDrop: (ids, place) => shapeOrderEditor.moveTo(ids, place)`とコメント。
+    *   テスト：`test/core/ItemListRules.test.js`の`canStartRowDrag（フォルダ）`1件を消した。`ItemListWiring`のimport確認OK。`node --test`は tests 3400 / pass 3400 / fail 0。
 
 ### タスク13: 使われなくなった並べ替えの規則・操作を消す
 *   **作業内容** :
@@ -438,6 +441,7 @@
 *   **フォルダの行の三角の上から押して動かしても、行のドラッグになる**（動かさずに離せば開閉）。
 *   **自動スクロールで見えている範囲の端の行に入るときの場所は、その端の行の位置で決まる**（上下へ外れたときは見えている端として扱う、今の規則のまま）。一番下まで送り切ってから下へ外れると、いちばん外側の一番下になる（送り切ったかは`maxScrollTop`との差が1px以内で見る。表示倍率が125%等でスクロール位置が小数になっても届くようにするため）。
 *   **頂点の選択（`A`）でも、行のドラッグ・フォルダの選択はできる**（今の一覧の規則）。まとめる（`Ctrl`+`G`）・削除・切り取りは選択（`V`）だけ（今の規則）。
+*   （タスク12）`ItemListWiring`の`getUnitIds`・`shouldSelectPressedRow`は同じ`resolveSelectedUnitIds`の呼び出しを`#resolveUnitIds`1か所にまとめて使う。行のドラッグがフォルダのある絵でも始まるようになった（目視：テストプレイ1〜4）。`ShapeOrderEditor.applyOrder`・`ListDragRules`の旧関数・`hasGroupItem`はタスク13まで残っている。
 *   タスク3〜7の途中では、描き込む先の線の印が出ない（タスク8・9で出る）。タスク12までは、フォルダのある絵で行のドラッグは始まらない。
 *   （タスク1）`insertItemsAt`の`above`は、基準がフォルダでも「そのフォルダ行のすぐ上」（同じ並びのすぐ後ろ）へ入る（`insertItemsAbove`は図形だけが基準だった）。`moveItems`の目印は`Symbol`のidを持つ一時のフォルダで、結果には残らない。開発資料への影響はタスク16・17で反映する予定の範囲内。
 

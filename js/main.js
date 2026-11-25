@@ -956,8 +956,8 @@ document.addEventListener('DOMContentLoaded', () => {
         selectSelectTool: () => selectTool(OperationMode.SELECT),
         readCtrlModifier: hasCtrlModifier,
         itemRenameEditor,
-        // 行のドラッグで決まった並び全体（描画順）の適用。記録つきの編集操作（1件）はShapeOrderEditorが持つ
-        applyRowOrder: (orderedIds) => shapeOrderEditor.applyOrder(orderedIds),
+        // 行のドラッグで決まった場所へ動かす編集操作（動かすもののidと場所を渡す）。記録つきの1件はShapeOrderEditorが持つ
+        applyRowDrop: (ids, place) => shapeOrderEditor.moveTo(ids, place),
         // フォルダを作るボタンが使う編集操作（7.8.で生成済み）
         groupEditor
     });

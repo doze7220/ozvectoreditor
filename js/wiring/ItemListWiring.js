@@ -18,7 +18,8 @@ import {
 } from '../core/ItemListRules.js';
 import { resolveInsertMark } from '../core/InsertTargetRules.js';
 import { buildItemRows, resolveRowHighlight, resolveRowViews } from '../core/ItemRowRules.js';
-import { hasGroupItem } from '../core/GroupTreeRules.js';
+import { resolveSelectedUnitIds } from '../core/GroupSelectionRules.js';
+import { canMoveItems } from '../core/ItemPlaceRules.js';
 import { FOLDER_BUTTON_ACTION, resolveFolderButtonAction } from '../core/GroupCommandRules.js';
 import { resolveRowClickSelection } from '../core/ListSelectionRules.js';
 import { hasHighlightChanged, resolveSelectionScrollTop, resolveVisibleRowRange } from '../core/ListScrollRules.js';
@@ -83,10 +84,10 @@ export class ItemListWiring {
      * @param {() => void} deps.selectSelectTool - 選択ツールへ切り替える
      * @param {(event: MouseEvent) => boolean} deps.readCtrlModifier - `Ctrl`（`Meta`）が押されているかの読み取り
      * @param {import('../edit/ItemRenameEditor.js').ItemRenameEditor} deps.itemRenameEditor - 名前を変える編集操作
-     * @param {(orderedIds: string[]) => boolean} deps.applyRowOrder - 行のドラッグで決まった並び全体（描画順）を適用する（記録つきの編集操作）
+     * @param {(ids: Array<string>, place: import('../core/ItemPlaceRules.js').ItemPlace) => boolean} deps.applyRowDrop - 行のドラッグで決まった場所へ動かす（動かすもののidと場所を渡す。記録つきの編集操作）
      * @param {import('../edit/GroupEditor.js').GroupEditor} deps.groupEditor - フォルダをまとめる・空のフォルダを足す編集操作（作るボタンが使う）
      */
-    constructor({ model, shapeExtentReader, displayState, canvasLibrary, getMode, isDragging, isPicking, selectSelectTool, readCtrlModifier, itemRenameEditor, applyRowOrder, groupEditor }) {
+    constructor({ model, shapeExtentReader, displayState, canvasLibrary, getMode, isDragging, isPicking, selectSelectTool, readCtrlModifier, itemRenameEditor, applyRowDrop, groupEditor }) {
         this.#model = model;
         this.#shapeExtentReader = shapeExtentReader;
         this.#canvasLibrary = canvasLibrary;
@@ -115,15 +116,29 @@ export class ItemListWiring {
         });
         this.#rowDrag = new ItemListRowDrag({
             panel: this.#panel,
-            getRowIds: () => buildItemRows(model.getItems()).map((row) => row.id),
-            isSelected: (id) => model.isSelected(id),
-            shouldSelectPressedRow: (id) => shouldSelectPressedRow({ mode: getMode(), isPicking: isPicking(), isSelected: model.isSelected(id) }),
+            getRows: () => buildItemRows(model.getItems()),
+            getUnitIds: () => this.#resolveUnitIds(),
+            shouldSelectPressedRow: (id) => shouldSelectPressedRow({
+                mode: getMode(),
+                isPicking: isPicking(),
+                isSelected: this.#resolveUnitIds().includes(id)
+            }),
             selectRow: (id) => {
-                model.setSelectionByUser([id]);
-                this.#anchorId = id;
+                const result = resolveRowClickSelection({
+                    rows: buildItemRows(model.getItems()),
+                    selectedIds: model.getSelectedIds(),
+                    selectedGroupIds: model.getSelectedGroupIds(),
+                    hitId: id,
+                    additive: false,
+                    range: false,
+                    anchorId: this.#anchorId
+                });
+                model.setSelectionByUser(result.ids, { groupIds: result.groupIds, keepsCollapsed: true });
+                this.#anchorId = result.anchorId;
                 this.sync({ allowScroll: false });
             },
-            applyOrder: applyRowOrder,
+            canDrop: (ids, place) => canMoveItems(model.getItems(), new Set(ids), place),
+            applyDrop: applyRowDrop,
             onDragStart: () => this.#clearOwnHover()
         });
         model.onChange(() => this.#requestSync());
@@ -201,10 +216,22 @@ export class ItemListWiring {
             hasModifier: this.#readCtrlModifier(event) || event.shiftKey === true,
             isEditingRow,
             isDragging: this.#isDragging(),
-            isLocked: isListLocked(this.#canvasLibrary.getState()),
-            hasGroups: hasGroupItem(this.#model.getItems())
+            isLocked: isListLocked(this.#canvasLibrary.getState())
         });
         this.#rowDrag.press(id, event, canStart);
+    }
+
+    /**
+     * 選んでいるまとまり（図形またはフォルダ）のidを、規則に任せて求める（前順）。
+     * @returns {Array<string>} まとまりのid
+     */
+    #resolveUnitIds() {
+        const model = this.#model;
+        return resolveSelectedUnitIds({
+            items: model.getItems(),
+            isSelected: (id) => model.isSelected(id),
+            selectedGroupIds: new Set(model.getSelectedGroupIds())
+        });
     }
 
     /**
@@ -240,7 +267,7 @@ export class ItemListWiring {
             isLocked: isListLocked(this.#canvasLibrary.getState())
         });
         if (action === ROW_PRESS_ACTION.NONE) {
-            // 描くツールでは、行のクリックは描き込む先の指定（行が今あるかは`setInsertTarget`が見る）
+            // 描くツールでは、行（図形もフォルダも）のクリックは描き込む先の指定（行が今あるかは`setInsertTarget`が見る）
             const canSetTarget = canSetInsertTargetByRow({
                 mode: this.#getMode(),
                 isPicking: this.#isPicking(),
