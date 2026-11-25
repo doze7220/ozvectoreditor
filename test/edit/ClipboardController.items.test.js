@@ -112,26 +112,26 @@ test('pasteInPlace: 同じ位置・同じ名前で入り、undoで元に戻る',
 
 test('duplicateInPlaceWithinEdit（Alt+ドラッグの複製）: 名前・表示・ロックが元と同じで、編集操作の確定で1件として記録される', () => {
     const { model, history, clipboard } = setup();
-    model.setSelection(['A']);
+    model.setSelection(['B']);
     history.beginEdit();
     assert.equal(clipboard.duplicateInPlaceWithinEdit(), true);
     assert.equal(history.canUndo(), false);
     history.commitEdit();
-    assert.deepEqual(tailAttrs(model, 2), [{ kind: 'shape', name: '甲', visible: false, locked: true }]);
+    assert.deepEqual(tailAttrs(model, 2), [{ kind: 'shape', name: '乙', visible: true, locked: false }]);
     assert.equal(history.canUndo(), true);
 });
 
 test('cut→paste: 元は消え、貼り付けた図形の名前・表示・ロックが元と同じ（切り取り直後は元の位置）', () => {
     const { model, clipboard } = setup();
-    model.setSelection(['A']);
+    model.setSelection(['B']);
     assert.equal(clipboard.cut(), true);
     assert.equal(model.getShapes().length, 2);
     assert.equal(clipboard.paste(), true);
     const last = model.getItems()[2];
-    assert.equal(last.name, '甲');
-    assert.equal(last.visible, false);
-    assert.equal(last.locked, true);
-    assert.equal(last.shape.toJSON().points[0].x, 0);
+    assert.equal(last.name, '乙');
+    assert.equal(last.visible, true);
+    assert.equal(last.locked, false);
+    assert.equal(last.shape.toJSON().points[0].x, 20);
 });
 
 test('選択が空のコピー・複製は何もしない', () => {

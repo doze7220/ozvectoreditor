@@ -6,6 +6,7 @@ import { DocumentSerializer } from '../io/DocumentSerializer.js';
 import { pickItems, listGroupIds } from '../core/GroupTreeRules.js';
 import { resolveSelectedUnitIds } from '../core/GroupSelectionRules.js';
 import { resolvePastePlace, resolveDuplicatePlace } from '../core/InsertTargetRules.js';
+import { resolveRemoval } from '../core/RemovalRules.js';
 
 /**
  * 貼り付け・複製した図形を元の位置から右下（x・yとも正の方向）へずらす量の1段分（ワールド座標。倍率100%で画面上20px）。
@@ -48,7 +49,7 @@ const PASTE_OFFSET_STEP = 20;
  *   - DOMに触れない。図形種別の分岐・図形固有のプロパティ名・id形式の知識を持たない
  *     （変換はDocumentSerializer、追加・id採番・選択はShapeInserter経由でVectorModelへ委ねる）。
  *   - coreからimportするのは状態を持たない規則の関数だけ（GroupTreeRulesのpickItems・listGroupIds、GroupSelectionRulesのresolveSelectedUnitIds、
- *     InsertTargetRulesのresolvePastePlace・resolveDuplicatePlace）。modelはgetItems・isSelected・getSelectedGroupIds・getInsertTargetだけを使う。
+ *     InsertTargetRulesのresolvePastePlace・resolveDuplicatePlace、RemovalRulesのresolveRemoval）。modelはgetItems・isSelected・getSelectedGroupIds・getInsertTargetだけを使う。
  *   - 貼り付け・複製はまとまりとして（asUnits）、入る場所（place）を指定してShapeInserterへ渡す。
  */
 export class ClipboardController {
@@ -143,8 +144,9 @@ export class ClipboardController {
 
     /**
      * 選んでいるまとまり（フォルダを含む。形のまま）をクリップボードへ記録し、キャンバスから削除する（切り取り）。
-     * 選んでいるまとまりが空なら何もせずfalseを返す（クリップボードの内容・段数を変えない）。
-     * 先に選択集合の図形を作業データへ変換して手元に保持し、注入されたdeleteSelection()を呼ぶ。
+     * 写すのは選んでいるまとまりのうち消えるもの（変えられるもの。隠れている・ロックされているものは写さず、元に残る）だけ。
+     * 選んでいるまとまりが空・何も消えない（変えられるものが無い）なら何もせずfalseを返す（クリップボードの内容・段数・履歴を変えない）。
+     * 先に消えるものを作業データへ変換して手元に保持し、注入されたdeleteSelection()を呼ぶ。
      * 削除が受理された場合のみクリップボードをその内容で置き換え、段数を0にリセットしてtrueを返す
      * （切り取り直後の貼り付けは元の位置）。非受理ならクリップボードを変えずにfalseを返す。
      * 削除は既存の唯一の削除経路（deleteSelection）を通るため、結果（選択集合が空になる）・履歴への記録
@@ -153,7 +155,7 @@ export class ClipboardController {
      * @returns {boolean} 切り取った（削除を受理した）らtrue
      */
     cut() {
-        const picked = this.#pickSelection();
+        const picked = this.#pickRemovable();
         if (picked === null) {
             return false;
         }
@@ -233,8 +235,9 @@ export class ClipboardController {
     }
 
     /**
-     * 選んでいるまとまりの新しい複製を、クリップボードを経由せずに同じ位置へフォルダの形のまま新しいidで、まとまりの一番上のもののすぐ上へ追加し、複製だけを選択する
-     * （Alt+ドラッグの複製の手順）。選んでいるまとまりが空なら何もせずfalseを返す。
+     * 選んでいるまとまりのうち変えられるもの（隠れている・ロックされているものは写さない）の新しい複製を、クリップボードを経由せずに同じ位置へフォルダの形のまま新しいidで、
+     * 写したまとまりの一番上のもののすぐ上へ追加し、複製だけを選択する（Alt+ドラッグの複製の手順。入る場所は写したまとまりのidだけで求める）。
+     * 選んでいるまとまりが空・変えられるものが無いなら何もせずfalseを返す。
      * クリップボードの内容・段数は変えない。
      * 履歴へは記録しない（ShapeInserter.insertDocumentWithinEditを使う）。呼び出し側が開いている編集操作
      * （ドラッグの編集操作。main.jsがInputTrackerへ注入して閾値超過時のbeginEditの後に呼ばせる）の中で呼ぶ前提で、
@@ -243,7 +246,7 @@ export class ClipboardController {
      * @returns {boolean} 1件以上複製したらtrue
      */
     duplicateInPlaceWithinEdit() {
-        const picked = this.#pickSelection();
+        const picked = this.#pickRemovable();
         if (picked === null) {
             return false;
         }
@@ -269,6 +272,27 @@ export class ClipboardController {
             return null;
         }
         return { unitIds, items: pickItems(items, new Set(unitIds)) };
+    }
+
+    /**
+     * 選んでいるまとまりのうち、消えるもの（変えられるもの）だけの写しと、写したまとまりのidを求める（切り取り・Alt+ドラッグの複製用）。
+     * 変えられないものは写さない。フォルダは変えられるものを入れた形で写す（resolveRemoval）。
+     * @returns {{ unitIds: string[], items: Array<Object> }|null} 写したまとまりのidと写し（選んでいるまとまりが空・何も消えないならnull）
+     */
+    #pickRemovable() {
+        const unitIds = resolveSelectedUnitIds({
+            items: this.#model.getItems(),
+            isSelected: (id) => this.#model.isSelected(id),
+            selectedGroupIds: new Set(this.#model.getSelectedGroupIds())
+        });
+        if (unitIds.length === 0) {
+            return null;
+        }
+        const removal = resolveRemoval(this.#model.getItems(), new Set(unitIds));
+        if (removal === null) {
+            return null;
+        }
+        return { unitIds: removal.copyUnitIds, items: removal.copies };
     }
 
     /**

@@ -272,7 +272,7 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
         *   洗い出しの表のとおり照会へ置き換える。`ShapeStyleEditor`の`#finishPreview`の`getShapes`は変えない（理由をJSDocに書く）。
         *   テスト：混ざったとき（色・太さ・有無・`D`・スポイトの反映・ピッカーのプレビューと確定が変えられるものだけ）、変えられないものだけのとき（直前に使った値だけが変わる・記録なし・パネルの表示が選択なしと同じ）、フォルダから受け継いだとき、プレビューの後にロックしても1件で記録し終える、スポイトが変えられない図形を拾わない、結合（変えられる2本＋ロック1本の選択は2本の結合になる・ロックした線と変えられる線の2本では結合できない・`canJoin`）。
 
-*   [ ] タスク8: 削除・切り取り・`Alt`＋ドラッグの複製
+*   [x] タスク8: 削除・切り取り・`Alt`＋ドラッグの複製
     *   **対象ファイル** :
         *   `./js/edit/GroupEditor.js`・`./js/edit/ClipboardController.js` :（更新）
         *   `./test/edit/EditableTargets.removal.test.js` :（新規）
@@ -398,6 +398,11 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
 
 ### タスク8: 削除・切り取り・`Alt`＋ドラッグの複製
 *   **作業内容** :
+    *   `js/edit/GroupEditor.js`（CRLF）：`removeSelection`を`resolveRemoval`へ（まとまりが無い・`null`なら`beginEdit`も呼ばず`false`。それ以外は`rearrangeItems(nextItems, { selectedIds: [], selectedGroupIds: [] })`）。`removeItems`のimportをやめ`RemovalRules`を足した。importの記述・`removeSelection`のJSDocを直した。
+    *   `js/edit/ClipboardController.js`（CRLF）：非公開`#pickRemovable()`を足し、`cut`・`duplicateInPlaceWithinEdit`だけがこれを使う（`copy`・`duplicate`は`#pickSelection()`のまま）。importの記述・`cut`・`duplicateInPlaceWithinEdit`のJSDocを直した。
+    *   `test/edit/ClipboardController.items.test.js`（LF）：「要件10」のとおり、`duplicateInPlaceWithinEdit`と`cut→paste`の2件の選ぶ図形を`A`から`B`へ、期待値を`乙`・`true`・`false`（x座標`20`）へ。
+    *   `test/edit/EditableTargets.removal.test.js`（新規・CRLF）：19件（削除7・切り取り4・`Alt`＋ドラッグ3・変えられないものにも働く操作5）。
+    *   `node --test`は tests 3530 / pass 3530 / fail 0。
 
 ### タスク9: 端点への吸い付き
 *   **作業内容** :
@@ -457,3 +462,4 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
 11. **描き込む先**：`V`でフォルダの行を押して選び、そのフォルダの目を押して隠してから、描くツールに持ち替えて描く（描き込む先の印はフォルダの行に出たまま）。描き終えると、図形はフォルダの中に入って隠れる（一覧に行が増える）。ロックしたフォルダでも同じ（描いた図形は見えるが、クリックで選べない）。
 12. **保存と書き出し**：少し待ってからページを開き直しても、表示・ロックが保たれる。出力（エンジン用）のJSを確認用ページ（`sprite-check.html`）で見ると、隠した図形は出ず、ロックした図形は出る。そのJSを開く（ファイル）で開くと、隠した図形も、表示・ロックの値も戻る。⛶は見えている図形（ロックしたものを含む）に合う。すべて隠すと⛶は最初の表示に戻るのと同じになる。
 13. **ほかが今までどおり**：何も隠さず・ロックしない絵で、描く・選ぶ・動かす・変形・色・整列・一覧・コピー・保存・書き出しが今までどおり動く。
+*   **タスク8の注意**：テストの組み立てで`ShapeInserter`に`insertsAtTarget: true`（main.jsと同じ）を渡さないと、`Alt`＋ドラッグの複製の`place`（写したまとまりのすぐ上）が効かず末尾へ入る。貼り付けは描き込む先（残ったフォルダの中なら、そのフォルダのすぐ上）へ入るため、切り取り直後の貼り付けの位置は、元の末尾とは限らない。
