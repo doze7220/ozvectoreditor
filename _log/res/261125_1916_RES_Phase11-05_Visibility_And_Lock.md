@@ -25,7 +25,7 @@
 | --- | --- |
 | `core/ItemStateRules.js`（新規） | 表示・ロックの判定（自分の値・上のフォルダから受け継ぐ計算・変えられるか）と、値を変えた入れ子の計算。**`visible`・`locked`の値を見るのはここだけ**（不備を補う`ItemAttributeRules`と、読み書きする`DocumentSerializer`を除く）。importは`ItemTreeRules`・`GroupTreeRules`（`itemIdOf`）のみ |
 | `core/RemovalRules.js`（新規） | 選んでいるまとまりから、消えるもの・残すもの・写すものを求める（削除・切り取り・`Alt`＋ドラッグの複製の共通の規則）。importは`ItemTreeRules`・`GroupTreeRules`（`itemIdOf`）・`ItemStateRules`（`collectEditableIds`）のみ |
-| `core/SoloVisibilityRules.js`（新規） | その行だけの表示（要件8）の、見分け・次の表示・覚える内容の計算。importは`ItemTreeRules`・`GroupTreeRules`（`itemIdOf`）・`ItemPlaceRules`（`findItemLocation`）・`ItemStateRules`（`listItemStates`）のみ |
+| `core/SoloVisibilityRules.js`（新規） | その行だけの表示（要件8）の、見分け・次の表示・覚える内容の計算。importは`GroupTreeRules`（`itemIdOf`）・`ItemPlaceRules`（`findItemLocation`）・`ItemStateRules`（`listItemStates`）のみ |
 | `core/VectorModel.js`（更新） | 上の規則を使った照会と、値を変える唯一の公開操作`setItemStates`。頂点の選択を変えられる図形に限る |
 | `core/ItemRowRules.js`（更新） | 行の見た目に表示・ロックの項目を足す |
 | `core/ItemListRules.js`（更新） | アイコンを押したときの動作・アイコンの上の押下で行のドラッグを始めない判定 |
@@ -128,7 +128,7 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
 *   `model`が使う照会に`getShapes`（上の判定）と`getEditableShapes`が並ぶ。クラスJSDocを直す。
 
 ### その行だけの表示（要件8）: `core/SoloVisibilityRules`・`edit/ItemStateEditor`
-責務の3行（規則）：「その行だけの表示（Alt+クリック）の見分け・次の表示の値・覚える内容を求める。状態を持たず、DOMにも触れない。importするのは ItemTreeRules・GroupTreeRules・ItemPlaceRules・ItemStateRules のみ。図形は id だけを読む。」
+責務の3行（規則）：「その行だけの表示（Alt+クリック）の見分け・次の表示の値・覚える内容を求める。状態を持たず、DOMにも触れない。importするのは GroupTreeRules・ItemPlaceRules・ItemStateRules のみ。図形は id だけを読む。」
 *   typedef`SoloDisplay`＝`{ visibleById: Map<string, boolean>, knownIds: Set<string> }`（1回の「その行だけ」にした直後の控え。`visibleById`＝その時点で覚えている行（今ある行だけ）の、直後の値、`knownIds`＝その時点の全部の行のid）。
 *   typedef`SoloMemory`＝`{ visibleById: Map<string, boolean>, displays: SoloDisplay[] }`（`visibleById`＝覚えている行の、はじめの前の値、`displays`＝はじめから今までの控え。古い順）。
 *   **行ごとの目標の値**（非公開）：その行と上のフォルダは`true`、その行と上のフォルダそれぞれの兄弟は`false`（`findItemLocation`の`siblings`・`ancestorIds`から）。その行の中のもの・非表示にしたフォルダの中のものは入らない。
@@ -228,7 +228,7 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
         *   「共通の計算: `core/RemovalRules`」のとおり、`resolveRemoval`をJSDoc付きで作る。
         *   テスト：すべて変えられる（今の`removeItems`・`pickItems`と同じ結果）、ロックした図形・隠した図形が混ざるフォルダ（フォルダと残ったものが残る・写しは変えられるものだけ）、入れ子の一部だけ消える、ロックしたフォルダ・隠したフォルダ（上から受け継ぐ）は何も消えない、空のフォルダ（変えられる＝消える・変えられない＝残る）、変えられないものだけのフォルダの中の空のフォルダ、写しの無いまとまりが`copyUnitIds`に入らない、まとまりの外のフォルダが空になっても残る、何も消えないと`null`、まとまりが空で`null`、写しの名前・折りたたみ等が元と同じ、引数を書き換えない。
 
-*   [ ] タスク3: その行だけの表示の規則
+*   [x] タスク3: その行だけの表示の規則
     *   **対象ファイル** :
         *   `./js/core/SoloVisibilityRules.js` :（新規）
         *   `./test/core/SoloVisibilityRules.test.js` :（新規）
@@ -363,6 +363,9 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
 
 ### タスク3: その行だけの表示の規則
 *   **作業内容** :
+    *   `js/core/SoloVisibilityRules.js`（新規・CRLF）に typedef`SoloDisplay`・`SoloMemory`と`resolveSoloToggle({ items, id, memory })`をJSDoc付きで作成。importは`GroupTreeRules`（`itemIdOf`）・`ItemPlaceRules`（`findItemLocation`）・`ItemStateRules`（`listItemStates`）のみ（先頭の責務の文言も実際のimportに合わせてある）。非公開の`buildTargets`（目標の値）・`findMatchingDisplay`（当たる控え）・`isSoloDisplay`（その行だけの表示か）。
+    *   `resolveSoloToggle`：`memory`省略時は`null`。その行だけの表示で記憶が使えないときの「全部表示」は、記憶なしなら今ある行のうち非表示のもの全部を表示にする。変えるものが無い場合（行が1つだけ等）は`changes`が空で`memory`はそのまま（記憶なしなら`null`のまま）。
+    *   `test/core/SoloVisibilityRules.test.js`（新規・CRLF）に計画どおりの観点のテスト29件（`applyItemStates`で変更を当てる）。`node --test`は tests 3448 / pass 3448 / fail 0。
 
 ### タスク4: VectorModelの照会と値を変える操作・頂点の選択
 *   **作業内容** :
