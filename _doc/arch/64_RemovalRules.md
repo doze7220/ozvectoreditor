@@ -1,0 +1,12 @@
+*   **RemovalRules.js**：選んでいるまとまりのうち、消えるもの・残すもの・写すものを求める規則`resolveRemoval`を、状態を持たない関数として提供する（Phase 11-05で新設。削除・切り取り・`Alt`＋ドラッグの複製の共通の規則。流れは`PROJECT_ARCHITECTURE.md`3章3.・6.・7.）。
+    *   **公開**：`resolveRemoval(items, unitIds)`と、typedef`RemovalResult`（`{ nextItems, copies, copyUnitIds }`）。
+    *   **`resolveRemoval(items, unitIds)`** → `{ nextItems, copies, copyUnitIds }|null`（`unitIds`は`Set`＝選んでいるまとまりのid。`GroupSelectionRules.resolveSelectedUnitIds`の結果で、互いに含み合わない）：`editable = collectEditableIds(items)`を求め、まとまりとその中のものを再帰（非公開`splitUnit`）で「残るもの」と「写すもの」へ分ける。
+        *   図形：変えられるなら消えて（残らず）写す。変えられないなら残り、写さない。
+        *   フォルダ：中身をそれぞれ分ける。**自分が変えられ、残る中身が1つも無い**（空のフォルダを含む）なら消え、中身の写しを入れた形で写す。それ以外は、残る中身を入れた形で残り（自分が変えられなくても残る）、写すものが1つ以上あるときだけ、写すものを入れた形（名前等の値はそのまま）で写す。
+        *   まとまりの外のアイテムは残る（フォルダは、中のまとまりを分けた結果の中身で残る。空になっても残る）。
+        *   `copies`＝まとまりごとの写し（前順。写しの無いまとまりは入らない）、`copyUnitIds`＝`copies`に対応するまとまりのid（前順）、`nextItems`＝消えた後の入れ子。**写すものが1つも無ければ（＝消えるものが1つも無ければ）`null`**（まとまりが空のときも）。引数は書き換えない（残る・写すフォルダは新しいオブジェクト、図形は同じ参照）。
+    *   **読むもの**：渡された入れ子の`kind`・フォルダの`id`・`children`と、`itemIdOf`の結果（図形の`shape.id`）、`collectEditableIds`の結果だけ。図形のほかのプロパティを読まない。`visible`・`locked`の値は読まない（変えられるかは`ItemStateRules`が決める）。
+    *   **知らないこと**：DOM・`VectorModel`・図形クラス・図形種別・選択・折りたたみ・描き込む先・操作モード・履歴・作業データ形式。状態を持たない。importは`core/ItemTreeRules`（`ITEM_KIND`）・`core/GroupTreeRules`（`itemIdOf`）・`core/ItemStateRules`（`collectEditableIds`）のみ。
+    *   **使う側**：`core/VectorModel`（`hasRemovableSelection`＝結果が`null`でないか）・`edit/GroupEditor`（`removeSelection`が`nextItems`を`rearrangeItems`へ渡す。まとまりが無い・結果が`null`なら`beginEdit`も呼ばず`false`。`GroupTreeRules.removeItems`のimportはやめた。`removeItems`は`ItemPlaceRules`が使うため`GroupTreeRules`に残る）・`edit/ClipboardController`（非公開`#pickRemovable()`が`copies`・`copyUnitIds`を使う。`cut`・`duplicateInPlaceWithinEdit`だけ。`copy`・`duplicate`は今の`#pickSelection()`＝選んでいるまとまり全部のまま）。`Alt`＋ドラッグの入る場所は`resolveDuplicatePlace(copyUnitIds)`（変えられないまとまりがロックしたフォルダの中にあるとき、複製がその中へ入って動かせなくなるのを防ぐ。写すまとまりの上のフォルダはすべて変えられるので、複製は必ず変えられる）。`cut`の「自分のコピー」は`copies`の中のフォルダ（元に残ったフォルダと同じidを含む）。
+    *   **置き場所の理由**：削除・切り取り・`Alt`＋ドラッグの複製が同じ「何が消えるか」の規則を使うため（食い違いを作らない。`GroupEditor`と`ClipboardController`が別々に求めない）。`GroupTreeRules`は表示・ロックの値を知らない責務のため、`ItemStateRules`を使う計算を別のファイルに分けた。循環は無い（`ItemStateRules` ← `RemovalRules`）。
+    *   **テスト**：`test/core/RemovalRules.test.js`（11件。すべて変えられる＝`removeItems`・`pickItems`と同じ結果／ロック・隠した図形が混ざるフォルダ／入れ子の一部だけ／ロック・隠したフォルダは何も消えない／空のフォルダ／変えられるフォルダの中の空のフォルダ／写しの無いまとまりは`copyUnitIds`に入らない／まとまりの外のフォルダが空になっても残る／何も消えないと`null`／引数不変。`_doc/arch/16_test.md`）。

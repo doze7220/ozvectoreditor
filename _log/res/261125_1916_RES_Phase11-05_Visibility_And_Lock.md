@@ -341,7 +341,7 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
     *   **作業内容** :
         *   『開発資料の更新予定』を確認し、1章・2章・3章・4章の一覧へ反映する。書く内容は実コードで確かめる。「表示・ロックは値を持つだけ」「効かない」という古い記述を残さない。行末を実測して保つ。
 
-*   [ ] タスク16: 開発資料の反映（`_doc/arch/`）
+*   [x] タスク16: 開発資料の反映（`_doc/arch/`）
     *   **対象ファイル** :
         *   `./_doc/arch/`の`01_index_html.md`・`02_main.md`・`03_VectorModel.md`・`06_InputTracker.md`・`13_palette.md`・`14_edit.md`・`15_io.md`・`16_test.md`・`18_PointHitRules.md`・`36_DisplayWiring.md`・`38_VertexHandleRules.md`・`46_ItemTreeRules.md`・`47_ItemAttributeRules.md`・`48_ItemListRules.md`・`53_ItemListWiring.md`・`57_GroupTreeRules.md`・`58_GroupSelectionRules.md`・`61_ItemRowRules.md`・`62_ItemPlaceRules.md` :（更新）
         *   `./_doc/arch/63_ItemStateRules.md`・`64_RemovalRules.md`・`65_SoloVisibilityRules.md` :（新規）
@@ -410,7 +410,7 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
     *   `js/edit/EndpointSnapper.js`（LF）：`model.getShapes()`をすべて`getEditableShapes()`へ（照会・計画とも6か所）。非公開`#toUsableSnap(snap)`を足し、`commitDrawnLine`（`startSnap`・`endSnap`）・`clickDrawnLine`（同）・`finishDrawnLine`・`findDrawnLineSnap`（`startSnap`）の冒頭で通す。クラスJSDoc（`model`が使う照会に`getShapes`（判定だけ）・`getEditableShapes`が並ぶ記述・変えられる図形だけが対象の記述）・`findDrawSnap`・`resolveDragEndpoint`・`findDrawnLineSnap`のJSDocを直した。先頭の責務は変えていない。
     *   `test/edit/EndpointSnapper.test.js`（CRLF）：`setupFake`・`setupFakeDrawing`へ`getEditableShapes: () => shapes`を足しただけ。
     *   `test/edit/EndpointSnapper.items.test.js`（LF）：「要件10」のとおり、A線・P名・甲組を`true, false`へ、期待値の`visible`・`locked`を合わせた。
-    *   `test/edit/EndpointSnapper.itemStates.test.js`（新規・CRLF）：6件（隠れ・ロック・フォルダ越しの吸い付き、ドラッグの解決・結合、引き始めた後でロックされたときの`finishDrawnLine`・`commitDrawnLine`・`clickDrawnLine`、もう無い図形はそのまま）。
+    *   `test/edit/EndpointSnapper.itemStates.test.js`（新規・CRLF）：7件（隠れ・ロック・フォルダ越しの吸い付き、ドラッグの解決・結合、引き始めた後でロックされたときの`finishDrawnLine`・`commitDrawnLine`・`clickDrawnLine`、もう無い図形はそのまま）。
     *   `node --test`は tests 3537 / pass 3537 / fail 0。
 
 ### タスク10: 入力・描画・削除ボタン・全選択・選択の反転
@@ -456,6 +456,11 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
 
 ### タスク16: 開発資料の反映（`_doc/arch/`）
 *   **作業内容** :
+    *   `_doc/arch/`の19ファイルを実コード・実測で確かめて更新し、3ファイルを新設した。行末は実測して保った（CRLF＝`01`・`02`・`03`・`06`・`13`・`14`・`15`・`16`・`57`・`58`・`61`・`62`と新設の`63`〜`65`、LF＝`18`・`36`・`38`・`46`・`47`・`48`・`53`。混在なし）。
+    *   **新設**：`63_ItemStateRules.md`・`64_RemovalRules.md`・`65_SoloVisibilityRules.md`（公開・規則・読むもの・知らないこと・使う側・置き場所の理由・注意・テスト）。
+    *   **追記**（Phase 11-05の項）：`01`（目と鍵・隠れた行のCSS）・`02`（行数1234行〔実測。作業前1229〕・`// 7.15.`の注入・`itemStateEditor`）・`03`（表示・ロックの照会・`setItemStates`・頂点の選択）・`06`（行数2023行〔実測・変わらず〕）・`13`（`ItemListPanel`のアイコン・`onStateIconClick`・`onRowPress`の第4引数）・`14`（`ItemStateEditor`の新設・依存の例外12個・`ClipboardController`の`#pickRemovable`・`EndpointSnapper`の`#toUsableSnap`）・`15`（`SpriteSerializer`の`elements`・`bounds`）・`16`（Phase 11-05の新設・追加分・書き換えた既存のテスト・テストできない箇所・件数 tests 3607 / suites 589。テストファイル121 → 133）・`48`（`resolveStateIconAction`・`isOnStateIcon`）・`53`（`#handleStateIconClick`・`forgetSolo`）・`57`・`58`・`61`・`62`・`46`・`47`。
+    *   **前からある記述を今の実装に合わせて直したもの**（実コードで確かめた）：`03`の「表示・ロックの値は持つだけで…効かせない」「公開操作は`renameItem`だけで、フォルダを作る等の公開操作は無い」・頂点の選択の不変条件（変えられる図形だけ）、`14`の`ShapeExtentReader`（選択の外枠＝変えられる図形・全体の外枠＝見えている図形。「見えない図形も含む」を削除）・`NudgeEditor`・`PositionInputEditor`・`TransformInputEditor`・`PathJoiner`・`ShapeStyleEditor`・`StyleEyedropper`・`EndpointSnapper`の`model`が使う照会、`GroupEditor.removeSelection`（`removeItems`→`resolveRemoval`）・importの列挙、`ClipboardController`の削除の記述、`15`の`SpriteSerializer`（「名前・表示・ロックは効かない」「`listShapes`」）、`47`の「描画・当たり判定・選択・書き出しには効かない」、`46`の`SpriteSerializer`の使う関数、`57`の`removeItems`の使う側、`18`・`38`の`shapes`の渡し方、`02`の削除ボタン・`renderCurrentState`・`collectVertexHandles`、`06`の`#classifyPoint`・削除の受理・本体ドラッグの追従・`originals`、`01`のステータスバーの大きさ、`61`の「隠れている・ロックの図形も含める」。過去のPhaseの経緯として書かれたものは残した。
+    *   `_doc/arch/`のうち挙がっていないファイルは変えていない（食い違いの疑いは5章に記した）。
 
 ## 5. 懸念事項・要確認ポイント
 *   **タスク13の目視確認**：目・鍵のアイコンの絵（開閉の目・塗りつぶし／線だけの錠・上から受け継いだ点線・隠れた行のうすさ）がブラウザで意図どおり見えること、アイコンの上で押してもドラッグが始まらず行の選択が変わらないこと、`Alt`＋クリックでその行だけの表示になること、名前の編集中（欄が名前の直後）でもアイコンが右端のままであること。SVGの絵は計画の記述から作った案で、見た目の調整は発注者の目視が要る。
@@ -477,7 +482,8 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
 *   **`is-inherited`等の不透明度・点線の印・アイコンの絵（閉じた錠は塗りつぶし・開いた錠は線だけ）**は計画で決めた値（発注者の目視で調整する）。
 *   `test/edit/PathJoiner.test.js`は行末が混在している（計画前から）。
 *   **タスク14の注意**：通しのテストで不具合は見つからなかった。「描き込む先」の設定は、選んでいるまとまりが1つ以上あると規則により変わらない（`setInsertTarget`）ため、貼り付けのテストでは選択を空にしてから描き込む先を決めている。目視は、確認項目10（いちばん外側のほかの行とフォルダの中の行の違い）を実際の画面で確かめるとよい。
-*   **タスク15の注意**：`PROJECT_ARCHITECTURE.md`の3章へは、各節の末尾にPhase 11-05の項を足す形で反映した（既存の文の書き換えは、"値を持つだけ・効かせない"という古い記述と、頂点の選択の不変条件・保存しないもの・`elements`/`bounds`の求め方・依存方向の列挙に限った）。「ロック」は、一覧の操作を止める一覧のロック中（`isListLocked`）とアイテムの`locked`で言葉が重なるため、3章28.に区別を書いた。`_doc/arch/`の各ファイルは未更新（タスク16）。`PROJECT_ARCHITECTURE.md`は発注者・設計AIによる読み直しで、各節の文の位置・言い回しの調整を推奨する。
+*   **タスク15の注意**：`PROJECT_ARCHITECTURE.md`の3章へは、各節の末尾にPhase 11-05の項を足す形で反映した（既存の文の書き換えは、当初は"値を持つだけ・効かせない"という古い記述と、頂点の選択の不変条件・保存しないもの・`elements`/`bounds`の求め方・依存方向の列挙に限ったが、その後の修正〔タスク15の「修正（指摘対応）」〕で、節末の項と食い違っていた前からの記述も今の実装に合わせて直した＝語の置き換えと「変えられる図形だけ」の限定が中心。過去のPhaseの経緯として書かれた記述は変えていない）。「ロック」は、一覧の操作を止める一覧のロック中（`isListLocked`）とアイテムの`locked`で言葉が重なるため、3章28.に区別を書いた。`_doc/arch/`の各ファイルはタスク16で更新した。`PROJECT_ARCHITECTURE.md`は発注者・設計AIによる読み直しで、各節の文の位置・言い回しの調整を推奨する。
+*   **タスク16の注意**：`_doc/arch/`は、実コードで確かめられた範囲を直した。長い一文の中の古い記述は、見つけたものだけを直しており、読み切れていないものが残る可能性がある（発注者・設計AIによる読み直しを推奨。特に`14_edit.md`・`16_test.md`・`06_InputTracker.md`）。挙がっていない`_doc/arch/`のファイル（`12`・`34`・`35`・`49`・`27`・`04`等）は変えていない。見た範囲では、表示・ロックと食い違う記述は見つからなかった（`34`・`35`の`isSelected`は、変えられないものを含む選択の照会のまま使うため、実装と合っている。`04_CanvasManager.md`は「渡された図形を描く」だけで、隠れた図形を渡さない側の記述は`02`・`03`にある）。`16_test.md`の`EndpointSnapper.itemStates.test.js`は実測で7件（RESのタスク9の記述は6件）。`16_test.md`の件数は`node --test`の実測（tests 3607 / suites 589 / テストファイル133）で、`ItemListRules`34 → 41・`ItemRowRules`39 → 50も実測。`02`の`main.js`は1234行（作業前1229行）、`06`の`InputTracker.js`は2023行（作業前も2023行。呼ぶ照会の置き換えだけで行数は変わらない）。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0.  **準備**：画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。塗りのボタン（🪣）をONにし、色の違う塗った図形を8つほど、少しずつ重ねて描く。描き終えたら`V`（選択）にし、いくつか選んで`Ctrl`+`G`でフォルダを2つ作る（1つは、フォルダの行を押し、`Ctrl`を押しながら図形の行を押して`Ctrl`+`G`＝入れ子）。
