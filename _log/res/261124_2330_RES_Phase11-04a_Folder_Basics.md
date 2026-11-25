@@ -200,7 +200,7 @@
         *   「要件2」「要件3」の取り消しの設計のとおり`capture`・`restore`を変える（2項目が無いスナップショットは空として扱う）。`SnapshotAdapter`のtypedefと依存の制約のJSDocも直す。通知の回数は変えない。
         *   テスト：折りたたみだけの変化は記録されない・まとめの鍵の畳みと往復の結果が変わらない・編集の間や後に折りたたみを変えても今の状態が保たれる・取り消しで戻ったフォルダは記録時の状態・フォルダを選んでいる状態が戻る（まだあるフォルダだけ・`shouldRestoreSelection`が偽なら戻らない）・復元で閉じたフォルダが開かない。
 
-*   [ ] タスク7: 折りたたみの自動保存
+*   [x] タスク7: 折りたたみの自動保存
     *   **対象ファイル** :
         *   `./js/edit/CanvasLibrary.js` :（更新）
         *   `./test/edit/CanvasLibrary.collapse.test.js` :（新規）
@@ -347,7 +347,8 @@
 
 ### タスク7: 折りたたみの自動保存
 *   **作業内容** :
-    *   （未実施）
+    *   `js/edit/CanvasLibrary.js`（CRLF）：`requestSave()`（`#scheduleSave()`を呼ぶだけ）をJSDoc付きで追加。クラスJSDocの自動保存の契機に`requestSave()`（履歴によらない。折りたたみの変化）を追記。
+    *   `test/edit/CanvasLibrary.collapse.test.js`（新規・CRLF）6件：`setGroupCollapsed`で記録に`collapsed`が出る/消える（履歴は増えない）・選択による自動で開くで消える・切り替えて戻ると保たれる・開く（ファイル）で閉じたまま記録/復元・切り替えだけでは`onCollapsedChange`が起きない・読み込み完了前の`requestSave()`は何もしない。`node --test`は tests 3088 / pass 3088 / fail 0。
 
 ### タスク8: まとめる・解除・空のフォルダ・削除の編集操作
 *   **作業内容** :

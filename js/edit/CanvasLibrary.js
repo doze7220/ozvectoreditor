@@ -73,9 +73,9 @@ const CANVAS_NAME_MAX_LENGTH = 100;
  *     一覧に同じidがあれば採り直す）。図形のid（`shape-<連番>`）とは別体系で、他のモジュールは形式を解釈しない。
  *
  * ■ 自動保存
- *   - 契機は`historyManager.onChange`のみ（編集操作の記録・取り消し・やり直しの適用成功・`clear()`での破棄）。
+ *   - 契機は`historyManager.onChange`（編集操作の記録・取り消し・やり直しの適用成功・`clear()`での破棄）と、履歴によらない`requestSave()`（折りたたみの変化。main.jsが`model.onCollapsedChange`でつなぐ）。
  *     選択の変更・ホバー・パン・ズーム・作成途中の図形の開始/破棄・ドラッグ中の途中経過では通知されないため保存しない。
- *     `model.onChange`は使わない。
+ *     `model.onChange`は使わない（`requestSave()`は呼び出し側がつなぐ）。
  *   - 通知のたびに保留中のタイマーを張り直し、最後の通知から`AUTOSAVE_DELAY_MS`後に1回保存する。
  *   - 予約しない条件：開いているキャンバスが無い（読み込み完了前）／`'unavailable'`／`#isSwitching`が真。
  *   - ページ非表示時の確定：main.jsが`visibilitychange`（hidden）・`pagehide`で`flushPendingSave()`を呼ぶ
@@ -594,6 +594,15 @@ export class CanvasLibrary {
             this.#isBusy = false;
             this.#notifyChange();
         }
+    }
+
+    /**
+     * 履歴によらない自動保存を予約する（折りたたみの変化用。`#scheduleSave()`を呼ぶだけ）。
+     * 予約しない条件・保留・失敗の扱いは`historyManager.onChange`での予約と同じ（開いているキャンバスが無い・切り替え中・`'unavailable'`では予約しない）。
+     * @returns {void}
+     */
+    requestSave() {
+        this.#scheduleSave();
     }
 
     /**
