@@ -335,7 +335,7 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
     *   **作業内容** :
         *   実物の`VectorModel`・`HistoryManager`・`SnapshotAdapter`・各編集操作・`DocumentSerializer`・`SpriteSerializer`を組み合わせ、REQの確認項目2〜12に当たる流れ（隠す/ロック→選ぶ→混ざった操作→取り消し、フォルダの切り替えと戻し、許される操作、描き込む先が隠したフォルダの中のときに描く・貼り付ける＝入ったとたんに隠れる、その行だけの表示と取り消し、保存と復元、書き出し）と、すべて表示・ロックなしの絵での操作の結果が今までと同じことを確かめる。不具合が見つかったら直さず、5章へ書いて「質問:」で終える。
 
-*   [ ] タスク15: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
+*   [x] タスク15: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新）
     *   **作業内容** :
@@ -451,6 +451,8 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
 
 ### タスク15: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
 *   **作業内容** :
+    *   `PROJECT_ARCHITECTURE.md`（CRLFのまま）を実コードで確かめて更新：1章＝構成図（`ItemStateRules`・`RemovalRules`・`SoloVisibilityRules`・`edit/ItemStateEditor`と対応するテスト11件、`index.html`のCSS、`ItemAttributeRules`・`ItemListRules`・`ItemRowRules`・`ItemListPanel`・`ItemListWiring`・`ClipboardController`・`GroupEditor`・`ShapeExtentReader`の行）・「存在しないもの」（Phase 11-01・11-02・11-04a・11-04bの「効かせない」を、Phase 11-05で入ったことへ直し、11-05で入ったもの・やらないと決めたことを追記）・「フォルダ分割の方針」・「依存方向」（`GroupEditor`から`removeItems`を外し、`RemovalRules`・`ItemStateEditor`を足して12ファイルに。Phase 11-05の例外の段落）。2章＝アイテムの照会・「表示・ロック」（受け継ぎ・変えられる・持ち主・`setItemStates`・見る場所）・`source`と`elements`・`bounds`（見えている図形だけ）・保存しないもの（その行だけの表示の記憶）・選択状態（変えられないものも選べる・頂点の選択）。3章＝2.・3.・6.・7.・9.・11.・12.・13.・14.・15.・16.・18.・19.・20.・21.・25.・26.・27.・28.へPhase 11-05の項（28.は見出しの文も直した）。4章＝一覧へ63〜65を追加。行末の混在なし（lone LF 0）。
+    *   **修正（指摘対応）**：節末のPhase 11-05の項と前からの記述が食い違っていた箇所を、実コードで確かめて今のふるまいへ直した（語の置き換えと「変えられる図形だけ」の限定が中心）。1章＝`NudgeEditor`・`PositionInputEditor`の行の対象語、モジュール説明の「選択中の図形のスタイルの変更」。3章3.＝当たり分類・範囲選択（頂点の範囲選択を含む）の対象を`getEditableShapes()`に、削除の受理を`hasRemovableSelection()`に、削除ボタンの可否と空のフォルダの切り取り（変えられれば写して消える）、`Alt`+ドラッグの複製の写すもの、反転キーの受理。6.＝削除の記録（`resolveRemoval`の`nextItems`・消えるものが無ければ`beginEdit`も呼ばない）・微調整・`D`・スポイトの記録の対象。7.＝切り取りの写すもの・`Alt`+ドラッグの`#pickRemovable`。13.＝スタイルの対象・表示・反映の範囲・`applyStyle`。15.＝ステータスバーの大きさの対象・⛶の`getAllBounds()`（見えている図形だけ）。16.＝`D`・選択の反転（変えられる図形のid）。18.＝頂点のハンドル・範囲選択・描画順（見えている図形）。19.＝微調整の対象。20.＝位置の基準の外枠。21.＝整列・分布の対象。25.・26.＝控え・外枠の図形。27.＝数値入力の対象・押せる条件。過去のPhaseの経緯の記述とPhase 11-05の各項は変えていない。行末は変えていない（CRLFのまま・lone LF 0）。
 
 ### タスク16: 開発資料の反映（`_doc/arch/`）
 *   **作業内容** :
@@ -475,6 +477,7 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
 *   **`is-inherited`等の不透明度・点線の印・アイコンの絵（閉じた錠は塗りつぶし・開いた錠は線だけ）**は計画で決めた値（発注者の目視で調整する）。
 *   `test/edit/PathJoiner.test.js`は行末が混在している（計画前から）。
 *   **タスク14の注意**：通しのテストで不具合は見つからなかった。「描き込む先」の設定は、選んでいるまとまりが1つ以上あると規則により変わらない（`setInsertTarget`）ため、貼り付けのテストでは選択を空にしてから描き込む先を決めている。目視は、確認項目10（いちばん外側のほかの行とフォルダの中の行の違い）を実際の画面で確かめるとよい。
+*   **タスク15の注意**：`PROJECT_ARCHITECTURE.md`の3章へは、各節の末尾にPhase 11-05の項を足す形で反映した（既存の文の書き換えは、"値を持つだけ・効かせない"という古い記述と、頂点の選択の不変条件・保存しないもの・`elements`/`bounds`の求め方・依存方向の列挙に限った）。「ロック」は、一覧の操作を止める一覧のロック中（`isListLocked`）とアイテムの`locked`で言葉が重なるため、3章28.に区別を書いた。`_doc/arch/`の各ファイルは未更新（タスク16）。`PROJECT_ARCHITECTURE.md`は発注者・設計AIによる読み直しで、各節の文の位置・言い回しの調整を推奨する。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0.  **準備**：画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。塗りのボタン（🪣）をONにし、色の違う塗った図形を8つほど、少しずつ重ねて描く。描き終えたら`V`（選択）にし、いくつか選んで`Ctrl`+`G`でフォルダを2つ作る（1つは、フォルダの行を押し、`Ctrl`を押しながら図形の行を押して`Ctrl`+`G`＝入れ子）。
