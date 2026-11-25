@@ -126,8 +126,8 @@ function assertUndoRedo(model, history, before, after) {
  */
 function nestedItems(path) {
     return [
-        groupItem('group-1', '甲組', false, true, [shapeItem(path, 'P名', false, true)]),
-        shapeItem(makeRect('shape-9'), '矩形名', true, false)
+        groupItem('group-1', '甲組', true, false, [shapeItem(path, 'P名', true, false)]),
+        shapeItem(makeRect('shape-9'), '矩形名', false, true)
     ];
 }
 
@@ -179,7 +179,7 @@ test('区間の切り替え（直線に）: 作り直した図形でも名前・
 
 test('区間の切り替え: 別のフォルダの2つのパスを同時に切り替えても、それぞれの名前・表示・ロックが保たれ記録は1件', () => {
     const { model, history, editor } = setupReal([
-        groupItem('group-1', '甲組', false, true, [shapeItem(makePath('shape-1', SEGMENT_KIND_LINE), 'P甲', false, true)]),
+        groupItem('group-1', '甲組', true, false, [shapeItem(makePath('shape-1', SEGMENT_KIND_LINE), 'P甲', true, false)]),
         groupItem('group-2', '乙組', true, false, [shapeItem(makePath('shape-2', SEGMENT_KIND_LINE), 'P乙', true, false)])
     ], ['shape-1', 'shape-2'], [
         { shapeId: 'shape-1', handle: 'vertex-0' },

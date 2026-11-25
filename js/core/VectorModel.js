@@ -1,7 +1,7 @@
 /**
  * 責務：図形とフォルダのアイテムの入れ子の並び・選択集合・ホバー・作成中図形・選択矩形・吸い付きの表示の点・新しく描く図形のスタイル（直前に使った値）の
- * 状態管理（SSOT：Single Source of Truth）と更新通知を担う。
- * 頂点の選択（選択集合の図形のid＋ハンドル名の組。保存・履歴・書き出しの対象外の一時的な状態）と、新しい図形が入る場所を決める「描き込む先」（行の上・フォルダの中・一番下の3つの形。保存しない）も保持し、アイテムの名前の変更も受け付ける。
+ * 状態管理（SSOT：Single Source of Truth）と更新通知を担う。頂点の選択（変えられる図形の組だけ。一時的な状態）と、描き込む先（保存しない）も保持する。
+ * アイテムの名前・表示・ロックの値の変更を受け付け、表示・ロックの照会（見えている図形・変えられる図形・選んでいる変えられる図形・消えるものがあるか）を規則へ渡して答える。
  */
 import { ShapeFactory, SHAPE_TYPES } from './ShapeFactory.js';
 import { ITEM_KIND, toItems, listItems, listShapeItems, listShapes, placeShapeItems, filterShapes } from './ItemTreeRules.js';
@@ -9,7 +9,9 @@ import { resolveItems, applyItemRename } from './ItemAttributeRules.js';
 import { resolveNextInsertTarget, resolveRowInsertTarget, isSameInsertTarget } from './InsertTargetRules.js';
 import { PLACE_KIND, insertItemsAt } from './ItemPlaceRules.js';
 import { itemIdOf, isSameTree } from './GroupTreeRules.js';
-import { resolveGroupCandidates, resolveSelectedGroupIds, resolveRevealIds } from './GroupSelectionRules.js';
+import { resolveGroupCandidates, resolveSelectedGroupIds, resolveRevealIds, resolveSelectedUnitIds } from './GroupSelectionRules.js';
+import { listVisibleShapes, listEditableShapes, collectEditableIds, applyItemStates } from './ItemStateRules.js';
+import { resolveRemoval } from './RemovalRules.js';
 import { setCollapsed, expandGroupsContaining } from './GroupCollapseRules.js';
 
 /**
@@ -178,7 +180,7 @@ export class VectorModel {
     /**
      * @type {Array<{shapeId: string, handle: string}>}
      * 頂点の選択（選んだ順）。表示専用で保存しない（作業データ・履歴・書き出しに入れない）。
-     * 常に選択集合に含まれる図形の組だけを含む（#pruneSelectedVerticesで保つ）。
+     * 常に選択集合に含まれ、かつ変えられる図形の組だけを含む（#pruneSelectedVerticesで保つ）。
      * @private
      */
     #selectedVertices;
@@ -256,6 +258,69 @@ export class VectorModel {
      */
     getShapes() {
         return [...this.#shapes];
+    }
+
+    /**
+     * 見えている（隠れていない）図形の配列を取得する。値は`#items`から毎回求める。ロックされた図形は含む。
+     * @returns {Array<Object>} 図形オブジェクトの新しい配列（重なり順）
+     */
+    getVisibleShapes() {
+        return listVisibleShapes(this.#items);
+    }
+
+    /**
+     * 変えられる（隠れてもロックされてもいない）図形の配列を取得する。値は`#items`から毎回求める。
+     * @returns {Array<Object>} 図形オブジェクトの新しい配列（重なり順）
+     */
+    getEditableShapes() {
+        return listEditableShapes(this.#items);
+    }
+
+    /**
+     * 選ばれている図形のうち変えられるものの配列を取得する。
+     * @returns {Array<Object>} 図形オブジェクトの新しい配列（描画順）
+     */
+    getEditableSelectedShapes() {
+        return this.getEditableShapes().filter((s) => this.#selectedIds.has(s.id));
+    }
+
+    /**
+     * 選ばれている図形のうち変えられるもののidを取得する。
+     * @returns {Array<string>} 図形idの新しい配列（描画順）
+     */
+    getEditableSelectedIds() {
+        return this.getEditableSelectedShapes().map((s) => s.id);
+    }
+
+    /**
+     * 選んでいるまとまりに、削除・切り取りで消えるものが1つ以上あるかを返す（`RemovalRules.resolveRemoval`が`null`でないか）。
+     * @returns {boolean} 消えるものがあればtrue
+     */
+    hasRemovableSelection() {
+        const unitIds = new Set(resolveSelectedUnitIds({
+            items: this.#items,
+            isSelected: (id) => this.#selectedIds.has(id),
+            selectedGroupIds: this.#selectedGroupIds
+        }));
+        return resolveRemoval(this.#items, unitIds) !== null;
+    }
+
+    /**
+     * アイテムの表示・ロックの値を変える唯一の公開操作。変わらなければ何もせず（通知もせず）falseを返す。
+     * 変われば入れ子を差し替え、頂点の選択から変えられなくなった図形の組を落とし、変更を通知して（1回）trueを返す。
+     * 選択・選んでいるフォルダ・描き込む先・作成途中の図形・折りたたみには触れない。履歴の記録はしない。
+     * @param {Array<{id: string, visible?: boolean, locked?: boolean}>} changes 変更（真偽値でない値・無いidは無視）
+     * @returns {boolean} 値が変わったか
+     */
+    setItemStates(changes) {
+        const nextItems = applyItemStates(this.#items, changes);
+        if (nextItems === this.#items) {
+            return false;
+        }
+        this.#applyState({ items: nextItems });
+        this.#pruneSelectedVertices();
+        this.#notifyChange();
+        return true;
     }
 
     /**
@@ -410,15 +475,16 @@ export class VectorModel {
 
     /**
      * 頂点の選択を、指定した「図形のid＋ハンドル名」の組の配列で置き換える。
-     * 受理するのは、`shapeId`が現在の選択集合に含まれ、かつ`handle`が空でない文字列の組だけ（与えられた順。同じ組の重複は除く）。
+     * 受理するのは、`shapeId`が現在の選択集合に含まれ、かつ変えられる図形で、かつ`handle`が空でない文字列の組だけ（与えられた順。同じ組の重複は除く）。
      * 要素は新しいオブジェクトとして持つ（引数のオブジェクトを保持せず、書き換えない）。
      * 内容（組と順）が変わったときだけ変更を通知する（1回）。
      * @param {Array<{shapeId: string, handle: string}>} pairs 新しい頂点の選択
      */
     setSelectedVertices(pairs) {
         const next = [];
+        const editableIds = collectEditableIds(this.#items);
         for (const pair of pairs) {
-            if (!pair || typeof pair.handle !== 'string' || pair.handle === '' || !this.#selectedIds.has(pair.shapeId)) {
+            if (!pair || typeof pair.handle !== 'string' || pair.handle === '' || !this.#selectedIds.has(pair.shapeId) || !editableIds.has(pair.shapeId)) {
                 continue;
             }
             if (next.some((p) => p.shapeId === pair.shapeId && p.handle === pair.handle)) {
@@ -1366,12 +1432,13 @@ export class VectorModel {
     }
 
     /**
-     * 頂点の選択から、選択集合に含まれない図形の組を落とす（通知はしない。呼び出し側の既存の通知に相乗りする）。
+     * 頂点の選択から、選択集合に含まれない図形・変えられない図形の組を落とす（通知はしない。呼び出し側の既存の通知に相乗りする）。
      * @returns {boolean} 1つ以上落としたらtrue
      * @private
      */
     #pruneSelectedVertices() {
-        const kept = this.#selectedVertices.filter((p) => this.#selectedIds.has(p.shapeId));
+        const editableIds = collectEditableIds(this.#items);
+        const kept = this.#selectedVertices.filter((p) => this.#selectedIds.has(p.shapeId) && editableIds.has(p.shapeId));
         const pruned = kept.length !== this.#selectedVertices.length;
         this.#selectedVertices = kept;
         return pruned;

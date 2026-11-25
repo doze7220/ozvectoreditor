@@ -236,7 +236,7 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
         *   「その行だけの表示（要件8）」の規則の部分のとおり、typedef`SoloDisplay`・`SoloMemory`・`resolveSoloToggle`をJSDoc付きで作る。
         *   テスト（`applyItemStates`で変更を当てながら確かめる）：いちばん外側の図形・フォルダの中の図形・フォルダの行・入れ子のフォルダ、上のフォルダが隠れていた行、中のものの値を変えない、もう一度で戻る、間にほかの行（兄弟・親のフォルダ・別のフォルダの中）を挟んでもはじめの前へ戻る、間に目の切り替えがあると新しく始まる、取り消しに当たる値の戻し（はじめの前へ）の後に目を切り替えると新しく始まる、戻した後に取り消した（＝その行だけに戻った）ときもう一度で戻る、A→Bの後に取り消してAだけに戻ったとき（Aをもう一度＝全部表示ではなくはじめの前へ戻る・Bをもう一度＝Bだけになり、次のBではじめの前へ戻る・間に増えた行があっても同じ・目を切り替えてどの控えとも違う表示なら新しく始まる）、フォルダ→その中の行と移った後に中の目だけを切り替えてから外の行を押すと新しく始まる、当たる控えは無いが押した行がその行だけの表示で要る分を覚えている（手で作った表示・記憶が置き換わった後の取り消し。はじめの前へ戻る）、その行だけにしたフォルダの中ではじめからその行だけだった行（はじめの前へ戻る）、増えた行（兄弟・行の中）がそのまま、消えた行があっても戻る、行が別のフォルダへ動いた、記憶なしでその行だけの表示（全部表示になる。入れ子の中の非表示も表示になる）、行が1つだけで変わるものが無い、覚えている表示はあるが戻すものが無いとき変更なし（A表示・B非表示で始め、B→A→もう一度A＝`changes`が空で`memory`も変わらない）、覚えている表示に要る分が無い（その行だけの表示だが、当たる控えが無く、別のフォルダの中の覚えていない行）とき全部表示、無いid、引数・`memory`を書き換えない。
 
-*   [ ] タスク4: VectorModelの照会と値を変える操作・頂点の選択
+*   [x] タスク4: VectorModelの照会と値を変える操作・頂点の選択
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js` :（更新）
         *   `./test/core/VectorModel.itemStates.test.js` :（新規）
@@ -369,6 +369,10 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
 
 ### タスク4: VectorModelの照会と値を変える操作・頂点の選択
 *   **作業内容** :
+    *   `js/core/VectorModel.js`（LF）：`getVisibleShapes`・`getEditableShapes`・`getEditableSelectedShapes`・`getEditableSelectedIds`・`hasRemovableSelection`・`setItemStates`を追加（照会は`#items`から毎回求める）。`setSelectedVertices`・`#pruneSelectedVertices`は`collectEditableIds`を1回求めて、変えられる図形の組だけを受理・保持する。import（`ItemStateRules`・`RemovalRules`・`GroupSelectionRules.resolveSelectedUnitIds`）と先頭の責務（3行）・関連JSDocを更新。
+    *   `test/core/VectorModel.itemStates.test.js`（新規・CRLF）：19件。照会・`hasRemovableSelection`・`setItemStates`・頂点の選択・全部を返す操作・保存と復元。
+    *   `test/edit/PathCornerEditor.items.test.js`（LF）：「要件10」のとおり`nestedItems`のフォルダ・パスを`true, false`、外の矩形を`false, true`、「別のフォルダの2つのパス」の甲組・P甲を`true, false`へ。
+    *   `node --test`は tests 3467 / pass 3467 / fail 0。
 
 ### タスク5: 表示・ロックを切り替える編集操作
 *   **作業内容** :
