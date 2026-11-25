@@ -253,7 +253,7 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
         *   「その行だけの表示（要件8）」の`ItemStateEditor`のとおり、`toggleVisible`・`toggleLocked`・`toggleSolo`・`forgetSolo`をJSDoc付きで作る（配線はタスク13）。
         *   テスト：偽の依存での呼び順、実物の`VectorModel`・`HistoryManager`・`SnapshotAdapter`で、切り替えが1件・取り消し/やり直しのJSONの一致・選択が残る・無いidで記録なし、`DocumentSerializer`の往復で保たれる（版4）、フォルダの切り替えで中の値が変わらない、`toggleSolo`の1件・もう一度で戻る・取り消しの後（A→Bと移って取り消し、Aをもう一度ではじめの前へ戻る）・`forgetSolo`の後（全部表示になる）・変わるものが無いとき記録なし（覚えている表示はあるが戻すものが無いときを含む。履歴の段数・記憶が変わらない）、スナップショットに記憶が入らない。
 
-*   [ ] タスク6: 移動・変形・外枠の対象
+*   [x] タスク6: 移動・変形・外枠の対象
     *   **対象ファイル** :
         *   `./js/edit/NudgeEditor.js`・`./js/edit/PositionInputEditor.js`・`./js/edit/TransformInputEditor.js`・`./js/edit/ShapeExtentReader.js` :（更新）
         *   `./test/edit/EditableTargets.move.test.js` :（新規）
@@ -381,6 +381,11 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
 
 ### タスク6: 移動・変形・外枠の対象
 *   **作業内容** :
+    *   `js/edit/NudgeEditor.js`（CRLF）・`PositionInputEditor.js`・`TransformInputEditor.js`（LF）：対象の取得を`getSelectedIds()`から`getEditableSelectedIds()`へ。JSDocの「`model`は…だけを使う」を直した（頂点のid引きの`getShapes`は変えず）。
+    *   `js/edit/ShapeExtentReader.js`（LF）：選択の外枠3つを`getEditableSelectedShapes()`へ、`getAllBounds`を`getVisibleShapes()`へ。先頭の責務（3行）・クラスJSDoc・型・各メソッドのJSDocの「見えない図形も含む」を「線も塗りも無い図形は含む。隠れている・ロックされている図形は含まない（`getAllBounds`はロックされた図形を含み隠れた図形を含まない）」へ整理。
+    *   `test/edit/EditableTargets.move.test.js`（新規・CRLF）：15件（混ざったとき・変えられないものだけ・フォルダから受け継いだとき・`getAllBounds`）。
+    *   `test/edit/TransformInputEditor.items.test.js`（LF）：「要件10」のとおり`nestedItems`のフォルダ・矩形を`true, false`へ。件名「反転（縦）」と`nestedItems`のJSDocの言葉を入力に合わせた。
+    *   `node --test`は tests 3500 / pass 3500 / fail 0。
 
 ### タスク7: 結合・色と線と塗り・スポイトの対象
 *   **作業内容** :

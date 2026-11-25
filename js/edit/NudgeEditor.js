@@ -17,7 +17,7 @@ import { resolveNudgeTarget, buildNudgeGroupKey } from '../core/NudgeTargetRules
  *
  * 依存の制約:
  *   - importは`../core/NudgeTargetRules.js`の2関数のみ。VectorModel・HistoryManagerはimportせず、注入で受け取る。
- *   - `model`は`getSelectedIds`・`getSelectedVertices`・`getShapes`・`moveShapes`・`updateVertices`だけを使う。
+ *   - `model`は`getEditableSelectedIds`・`getSelectedVertices`・`getShapes`・`moveShapes`・`updateVertices`だけを使う（図形の対象は変えられる図形に限る）。
  *   - 操作モードの値は解釈せず（`OperationMode`をimportせず、比較も分岐もせず）規則へ渡すだけ。
  *   - DOM・InputTracker・CanvasManager・ビュー変換・スナップの設定を受け取らない。再描画・UI同期を自分で呼ばない。
  *   - 図形種別の分岐・図形固有のプロパティ名を持たない。`try/catch`を持たない。
@@ -87,7 +87,7 @@ export class NudgeEditor {
      * @returns {boolean} 動かしたらtrue、動かさなかったらfalse
      */
     #applyMove(dx, dy, grouped) {
-        const target = resolveNudgeTarget(this.#getMode(), this.#model.getSelectedIds(), this.#model.getSelectedVertices());
+        const target = resolveNudgeTarget(this.#getMode(), this.#model.getEditableSelectedIds(), this.#model.getSelectedVertices());
         if (target === null) {
             return false;
         }

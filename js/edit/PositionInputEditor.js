@@ -16,7 +16,7 @@ import { buildPositionInputView, resolvePositionDelta } from './PositionInputRul
  * - 記録（`beginEdit`・`commitEdit`）は`NudgeEditor.nudgeWithoutGrouping`に任せ、このクラスは`HistoryManager`を持たない。
  *
  * 依存の制約:
- *   - `model`は`getSelectedIds`・`getSelectedVertices`・`getShapes`だけを使う（読むだけ。書き換えない）。
+ *   - `model`は`getEditableSelectedIds`・`getSelectedVertices`・`getShapes`だけを使う（読むだけ。書き換えない。図形の対象は変えられる図形に限る）。
  *   - 操作モードの値は解釈せず（`getMode`の戻り値を規則へ渡すだけ）、DOM・ビュー変換を知らない。
  *   - 図形固有のプロパティ名を持たない。スナップ（刻みへの丸め）・端点への吸い付きを通さない。
  *   - 再描画・UI同期を自分で呼ばない。`try/catch`を持たない。
@@ -80,7 +80,7 @@ export class PositionInputEditor {
      * @returns {{ target: (Object|null), bounds: ({minX: number, minY: number, maxX: number, maxY: number}|null) }} 対象と範囲（対象なしなら両方`null`）
      */
     #resolveTargetAndBounds() {
-        const target = resolveNudgeTarget(this.#getMode(), this.#model.getSelectedIds(), this.#model.getSelectedVertices());
+        const target = resolveNudgeTarget(this.#getMode(), this.#model.getEditableSelectedIds(), this.#model.getSelectedVertices());
         if (target === null) return { target: null, bounds: null };
         if (target.type === 'shapes') {
             const frame = this.#shapeExtentReader.getSelectedGeometryBounds();

@@ -131,13 +131,13 @@ function assertUndoRedo(model, history, before, after) {
 }
 
 /**
- * フォルダの中の矩形（名前・非表示・ロック）と、フォルダの外の線からなる入れ子を作る。
+ * フォルダの中の矩形（名前・表示あり・ロックなし）と、フォルダの外の線からなる入れ子を作る。
  * @returns {Array<Object>} アイテムの入れ子
  */
 function nestedItems() {
     return [
-        groupItem('group-1', '甲組', false, true, [
-            shapeItem(makeRect('shape-1', 20, 30, 60, 70), '矩形名', false, true)
+        groupItem('group-1', '甲組', true, false, [
+            shapeItem(makeRect('shape-1', 20, 30, 60, 70), '矩形名', true, false)
         ]),
         shapeItem(makeLine('shape-2', 100, 100, 160, 130), '線名', true, false)
     ];
@@ -184,7 +184,7 @@ test('反転: フォルダの中の矩形と外の線を一緒に反転しても
     assertUndoRedo(model, history, before, json(model));
 });
 
-test('反転（縦）: 非表示・ロックの図形でも名前・表示・ロックが保たれる', () => {
+test('反転（縦）: 外の線でも名前・表示・ロックが保たれる', () => {
     const { model, history, editor } = setupReal(nestedItems(), ['shape-2']);
     const before = json(model);
     const outlineBefore = outline(model.getItems());

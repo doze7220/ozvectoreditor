@@ -22,7 +22,7 @@ import {
  * - 変換は図形の`createTransformed`で作り、`VectorModel.replaceShapesKeepingIds`（`id`・並び・選択を保つ）で差し替え、前後を`editRecorder`の`beginEdit`・`commitEdit`で挟む（まとめの鍵なし＝1回が1件）。
  *
  * 依存の制約:
- *   - `model`は`getSelectedIds`・`getSelectedVertices`・`getShapes`・`replaceShapesKeepingIds`だけを使う。
+ *   - `model`は`getEditableSelectedIds`・`getSelectedVertices`・`getShapes`・`replaceShapesKeepingIds`だけを使う（対象は変えられる図形に限る。`getShapes`は絞り込み済みのidで引くだけ）。
  *   - 操作モードの値は解釈せず（`getMode`の戻り値を規則へ渡すだけ）、DOM・ビュー変換を知らない。
  *   - ドラッグ中かどうかを見ない（反転を拒むかは`main.js`の`performFlip`が決める。幅・高さ・角度は拒まない）。
  *   - 図形種別の分岐・図形固有のプロパティ名を持たない。スナップ（刻みへの丸め）・端点への吸い付きを通さない。
@@ -131,7 +131,7 @@ export class TransformInputEditor {
      * @returns {{ target: (Object|null), bounds: ({minX: number, minY: number, maxX: number, maxY: number}|null), enabled: boolean }} 対象・外枠・押せるか
      */
     #resolveFrame() {
-        const target = resolveNudgeTarget(this.#getMode(), this.#model.getSelectedIds(), this.#model.getSelectedVertices());
+        const target = resolveNudgeTarget(this.#getMode(), this.#model.getEditableSelectedIds(), this.#model.getSelectedVertices());
         const bounds = target !== null && target !== undefined && target.type === 'shapes'
             ? this.#shapeExtentReader.getSelectedGeometryBounds()
             : null;
