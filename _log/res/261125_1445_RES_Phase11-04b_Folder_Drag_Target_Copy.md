@@ -230,7 +230,7 @@
         *   「要件2」の`rearrangeItems`の`targetsNewGroup`と、`addEmptyGroup`（`insertItemsAt(items, model.getInsertTarget(), …)`、`selects`が偽なら`{ targetsNewGroup: true }`）。`GroupEditor`のimport・使うmodelのメソッドのJSDocを直す。
         *   テスト：`targetsNewGroup`（選択なし＝`inside`・選択あり＝選択が優先・新しいフォルダなし＝今のまま）、`addEmptyGroup`が`inside`（中の一番上）・`bottom`・フォルダの`above`・無しの各場所に入る、`selects`が偽で続けて描くとその中に入る（実物）、記録1件と取り消し。
 
-*   [ ] タスク5: 追加の入口（入る場所・まとまりとして入れる）
+*   [x] タスク5: 追加の入口（入る場所・まとまりとして入れる）
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js` :（更新。`addShapesWithNewIds`だけ）
         *   `./test/core/VectorModel.addPlace.test.js` :（新規）
@@ -366,7 +366,8 @@
 
 ### タスク5: 追加の入口（入る場所・まとまりとして入れる）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/VectorModel.js`（LF）：`addShapesWithNewIds`に`place`（既定`null`）・`asUnits`（既定`false`）を追加。入る場所は`place ?? (atInsertTarget ? #insertTarget : null)`を`#placeAdded`へ。`asUnits`が真なら0件の判定を「アイテムが残らない」にし、選んでいるフォルダの候補を入れた並びのいちばん外側のフォルダのidにする（偽なら従来どおり空）。JSDoc更新。
+    *   テスト：`test/core/VectorModel.addPlace.test.js`を新規（CRLF）。`node --test`は tests 3297 / pass 3297 / fail 0。
 
 ### タスク6: ShapeInserterの受け渡し
 *   **作業内容** :

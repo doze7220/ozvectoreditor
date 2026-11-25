@@ -906,9 +906,10 @@ export class VectorModel {
      *    （引数のidは引き継がない）。#nextIdは単調増加で減らさないため、キャンバス上の既存のidとも、過去に発行したidとも衝突しない。
      * (2)重複インスタンスの除外：引数内で2回目以降に現れる図形インスタンス、および既に保持している図形インスタンスは、
      *    同じidを持つ2要素を作らないためconsole.warnのうえ追加しない（判定はインスタンス参照で行う）。フォルダは空になっても残す。
-     * (3)図形が1つも残らなければ（フォルダだけの場合を含む）何も変えず（通知もせず）空配列を返す。
+     * (3)`asUnits`が偽（既定）：図形が1つも残らなければ（フォルダだけの場合を含む）何も変えず（通知もせず）空配列を返す。
+     *    `asUnits`が真：アイテムが1つも残らなければ何も変えず空配列を返す（フォルダだけ・空のフォルダだけでも入れる）。
      * (4)名前・表示・ロックは`resolveItems`が決める（名前のあるアイテムはそのまま。名前の無い図形・フォルダには今のキャンバスの名前と重ならない自動の名前が付く）。
-     * (5)選択集合を、追加した図形のidの集合で置き換える（追加した図形だけが選択される。選んでいるフォルダは空になる。追加した図形を含む、変わる前にあった閉じたフォルダは開く。描き込む先は規則により、追加した図形の一番上のすぐ上になる）。
+     * (5)選択集合を、追加した図形のidの集合で置き換える（追加した図形だけが選択される。選んでいるフォルダは、`asUnits`が偽なら空になり、真なら入れた並びのいちばん外側のフォルダ（不変条件を満たすもの）になる。追加した図形を含む、変わる前にあった閉じたフォルダは開く。描き込む先は規則により、追加した図形の一番上のすぐ上になる）。
      *    頂点の選択から、選択中でなくなった図形の組を落とす。ホバー状態・作成中の図形・選択矩形には触れない。
      * (6)変更を通知する（1回。図形数分は発行しない）。
      * 受け取った図形インスタンスをそのまま保持して`id`を書き換えるため、呼び出し側は追加後にそのインスタンスを他の用途に流用しない。
@@ -917,9 +918,11 @@ export class VectorModel {
      * @param {Array<Object>} values 追加するアイテムの入れ子（描画順）。アイテムまたは素の図形インスタンス（共通インターフェースを持つ）の配列
      * @param {Object} [options] オプション
      * @param {boolean} [options.atInsertTarget=false] 真なら描き込む先の場所（行のすぐ上・フォルダの中の一番上・一番下）へ入れる。偽（既定）・描き込む先なしなら末尾（いちばん外側）。位置は書き換える前の描き込む先で決める
+     * @param {{kind: string, id: (string|null)}|null} [options.place=null] 入れる場所（場所の値）。指定があれば`atInsertTarget`より優先する。省く（null）と`atInsertTarget`に従う
+     * @param {boolean} [options.asUnits=false] 真ならフォルダごとのまとまりとして入れる（フォルダだけでも入れ、入れたいちばん外側のフォルダを選んでいる状態にする）
      * @returns {Array<string>} 追加した図形の新しいidの配列（描画順。フォルダのidは含まない。追加0件なら空配列）
      */
-    addShapesWithNewIds(values, { atInsertTarget = false } = {}) {
+    addShapesWithNewIds(values, { atInsertTarget = false, place = null, asUnits = false } = {}) {
         const existingShapes = new Set(this.#shapes);
         const processedShapes = new Set();
         const accepted = filterShapes(toItems(values), (shape) => {
@@ -931,7 +934,7 @@ export class VectorModel {
             return true;
         });
 
-        if (listShapeItems(accepted).length === 0) {
+        if (asUnits ? accepted.length === 0 : listShapeItems(accepted).length === 0) {
             return [];
         }
 
@@ -946,9 +949,11 @@ export class VectorModel {
             }
         }
         this.#applyState({
-            items: this.#placeAdded(addedItems, atInsertTarget ? this.#insertTarget : null),
+            items: this.#placeAdded(addedItems, place ?? (atInsertTarget ? this.#insertTarget : null)),
             selectedIds: new Set(addedIds),
-            selectedGroupIds: new Set(),
+            selectedGroupIds: asUnits
+                ? new Set(addedItems.filter((item) => item.kind === ITEM_KIND.GROUP).map(itemIdOf))
+                : new Set(),
             revealIds: addedIds,
         });
         this.#pruneSelectedVertices();
