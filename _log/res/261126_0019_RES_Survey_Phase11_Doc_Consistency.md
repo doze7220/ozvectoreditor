@@ -281,7 +281,7 @@ E
     * 3章の行は`[既存]`の文も既知の傷2の手順で見る。
     * 実コードから読み取れる事実のみを抽出し、推測を含める場合はどこまでが事実でどこからが推測かを明示して、4章の『事実』『推測・所見』欄に書く。相違は5章にタスク番号を添えて書く（作業は中断しない。資料に無い事項がコードにあることは相違としない）。判定は資料の原文とコードの該当行を両方開いて行い、一致には `ファイル:行`、または検索した語と件数を添える。
     * タスクの終わりに `git status` で、ソースコードおよび資料ファイルを一切変更していないこと（変更があるのは本RESだけ）を確かめる。
-* [ ] タスク13: PROJECT_ARCHITECTURE 3章28.（ふるまいの注意・確認の状況・目と鍵）とListSelectionRules・ListScrollRules・Thumbnail
+* [x] タスク13: PROJECT_ARCHITECTURE 3章28.（ふるまいの注意・確認の状況・目と鍵）とListSelectionRules・ListScrollRules・Thumbnail
   * **対象ファイル**:
     * 資料: `./PROJECT_ARCHITECTURE.md` 940〜948行（3章28.の「やらないこと」・「確認の状況」・Phase 11-04a・04bのふるまいの注意・Phase 11-05（目・鍵のアイコン）と確認の状況）
     * 資料: `./_doc/arch/49_ListSelectionRules.md`・`./_doc/arch/50_ListScrollRules.md`・`./_doc/arch/51_ThumbnailRules.md`・`./_doc/arch/52_ThumbnailRenderer.md`（いずれも全行）
@@ -841,11 +841,86 @@ E
 
 ### タスク13: PROJECT_ARCHITECTURE 3章28.（ふるまいの注意・確認の状況・目と鍵）とListSelectionRules・ListScrollRules・Thumbnail
 * **調査内容**: 
-  * （未実施）
+  * `./PROJECT_ARCHITECTURE.md` 940〜948行（3章28.の「やらないこと」・確認の状況（11-02・11-03・11-04a・11-04b・11-05）・11-04aのふるまいの注意(a)〜(j)・11-04bのふるまいの注意(a)〜(k)・11-05の目・鍵のアイコン(1)〜(5)）と、`./_doc/arch/49_ListSelectionRules.md`・`50_ListScrollRules.md`・`51_ThumbnailRules.md`・`52_ThumbnailRenderer.md`（全行）を、実コードの該当行を開いて照合した。940〜948行は差分抽出コマンドで全文が `[新]`（`[既存]` の文は無い）。
+  * 確かめ方：コードを読む（`js/core/ListSelectionRules.js`・`ListScrollRules.js`・`ThumbnailRules.js`・`ThumbnailRenderer.js`・`SoloVisibilityRules.js`・`ItemRowRules.js`・`ItemListRules.js`・`ListDragRules.js`・`InsertTargetRules.js`・`GroupSelectionRules.js`・`GroupCollapseRules.js`・`RemovalRules.js`・`VectorModel.js`・`js/palette/ItemListPanel.js`・`js/wiring/ItemListWiring.js`・`ItemListRowDrag.js`・`js/edit/ItemStateEditor.js`・`ClipboardController.js`・`GroupEditor.js`・`ShapeExtentReader.js`・`index.html` のCSS・`main.js`）。importは `grep` で確認。テストの件数は `it(` を数え、`node --test test/core/<ファイル>` で実行して確かめた。
+  * 「確認の状況」の過去の時点の件数（2764・2912・3192・3380）は、`git archive <コミット> js test` を作業ツリーの外（スクラッチ）へ展開して `node --test` を実行して確かめた（リポジトリ内のファイルは変更していない）。
 * **事実（実コードの記述）**:
-  * （未実施）
+  * **PROJECT_ARCHITECTURE 940行**（やらないこと）：1章「存在しないもの」（306行）に Phase 11-02・11-03・11-04a・11-04b の「やらないと決めたこと」の記述がある → 一致。
+  * **941行**（確認の状況 11-02）：`ItemListRules`・`ListSelectionRules`・`ListScrollRules`・`ThumbnailRules`・`ThumbnailRenderer` の規則・`ItemAttributeRules.applyItemRename`（`js/core/ItemAttributeRules.js` に `export function applyItemRename` 1件）・`VectorModel.renameItem`・`ItemRenameEditor`（`js/edit/ItemRenameEditor.js`）・`ShapeExtentReader.getShapeBounds`（`js/edit/ShapeExtentReader.js:76`）はすべて存在 → 一致。「2764件すべて合格」＝11-02のTASK9のコミット `c663408` で `node --test` が tests 2764・pass 2764・fail 0 → 当時の値として一致。`ItemListPanel`・`ItemListWiring`・`main.js`・CSSは自動テストの対象外（`test/` に該当テストなし）→ 一致。実ブラウザでの確認（選択・スクロール・サムネイル・ホバー・名前の編集・500個の絵での重さ・2026-11-24の発注者のテストプレイ）→ 照合できなかった主張へ。
+  * **942行**（確認の状況 11-03）：`InsertTargetRules`・`ListDragRules`・`ListScrollRules.hasHighlightChanged`（`ListScrollRules.js:58`）・`SelectionRules.resolveUserClickSelection`・`ShapeInserter`・`EndpointSnapper`（`js/edit/EndpointSnapper.js`）・`KeyboardShortcuts` は存在。テスト `test/edit/InsertTarget.flow.test.js` は存在。「2912件」＝11-03のTASK10のコミット `5b916fe` で tests 2912・pass 2912 → 当時の値として一致。`ItemTreeRules.insertItemsAbove`・`ShapeOrderEditor.applyOrder` は現在のコードに無い（`js/` を検索して定義・呼び出し0件。コメント以外）。11-03の時点の確認の状況として「（Phase 11-03のタスク10の時点で）」と書かれているので、過去の時点の記述として扱う（所見へ）。`ItemListPanel`・`ItemListRowDrag`・`ItemListWiring`・`InputTracker`・`main.js`・CSSが自動テスト対象外 → 一致。ブラウザでの確認は照合できなかった主張へ。
+  * **943行**（11-04aのふるまいの注意）：
+    * (a) 取り消し/やり直しで折りたたみを開かない → `SnapshotAdapter.js:95-97`（`setSelection(..., { keepsCollapsed: true })`）。フォルダの行の見えない行の印は `ItemRowRules.js:212-216`（`hiddenMark`）→ 一致。
+    * (b) `Ctrl`+`A`（`InputTracker.js:722` の `model.setSelection(...)`）・`Ctrl`+`I`（`main.js:988`）は `keepsCollapsed` を渡さず既定の偽 → `VectorModel.js:339-347` で開く。結合は `replaceShape`（`select` が真なら `revealIds`。`VectorModel.js:1089-1091`）、貼り付け・複製は `addShapesWithNewIds`（`revealIds: addedIds`。`VectorModel.js:1023`）で開く → 一致。`Ctrl`＋クリック・`Ctrl`＋範囲選択で新しく足した図形の上のフォルダだけ開く：`resolveRevealIds` の `additive` の分岐（`GroupSelectionRules.js:127-129`）→ 一致。インポートしたフォルダ自身の折りたたみを保つ：`#applyState` が「変わる前にあったフォルダ」だけを開く（`VectorModel.js:1291-1292`）→ 一致。
+    * (c) まとめたとき開かない → `rearrangeItems`（`VectorModel.js:1175-1212`）は `revealIds` を渡さず、折りたたみは入れたアイテムの値のまま。閉じたフォルダへの印は `ItemRowRules.js:212-216`・`resolveInsertMarkEffects`（`ItemRowRules.js:140-186`）→ 一致。
+    * (d) 閉じたフォルダ自身を選んでいるときも印が出る → 中の図形が選ばれていれば `row.shapeIds.some(isSelected)`（`ItemRowRules.js:213`）で真 → 一致（空のフォルダ自身だけを選んで閉じている場合は `shapeIds` が空・`groupIds` に自分を含まないため印は出ないが、(d) はその場合を述べていない）。
+    * (e) `Ctrl`＋クリックで「選んでいるフォルダの中のフォルダ」を押すと、その中のフォルダと外側のフォルダが外れる → `ListSelectionRules.js:100-119`（`removedGroupIds = hitRow.id・hitRow.groupIds・hitRow.ancestorIds`）→ 一致。
+    * (f) 空のフォルダだけを選んだ切り取り・コピー → `RemovalRules.js:41-43`（自分が変えられ残る中身が無ければ消えて写される）と `ClipboardController.js` の `copy`・`cut`（`#pickSelection`・`#pickRemovable`）→ 一致。
+    * (g) 字下げは6段で頭打ち → `ItemRowRules.js:54`（`INDENT_MAX_DEPTH = 6`）・`resolveRowIndent`（`ItemRowRules.js:124`）→ 一致。
+    * (h) `?dev` の復元（`main.js:1146-1158` の `onImport`）は `historyManager.beginEdit()` → `model.replaceAllShapes` → `commitEdit()`。履歴は `document` の `JSON.stringify` の比較で（`HistoryManager.js:153`）、`SnapshotAdapter.js:67` の `document` は `withoutCollapsed` で `collapsed` を除く → 折りたたみだけの違いは記録されない。自動保存は `historyManager` の変化と `model.onCollapsedChange`（`main.js:603`）で、`#collapsedChanged` は `setGroupCollapsed`（`VectorModel.js:414`）と `#applyState` の自動で開く（`VectorModel.js:1295`）でだけ立つ → 復元では立たない → 一致。
+    * (i) `rearrangeItems` は新しいフォルダを `id` が `null`／`undefined` で受ける → `VectorModel.js:1157・1186`。呼び出し側が `GroupEditor`・`ShapeOrderEditor` → 一致。
+    * (j) 履歴は `document` が同じだと記録しない → `HistoryManager.js:153`。フォルダを選ぶ・外すだけは `document` に入らない → 一致。
+  * **944行**（確認の状況 11-04a）：`GroupTreeRules`・`GroupSelectionRules`・`GroupCollapseRules`・`GroupCommandRules`・`ItemRowRules`（`js/core/` に存在）・`ListSelectionRules.resolveRowClickSelection`（`ListSelectionRules.js:85`）・`CanvasLibrary.requestSave`（`js/edit/CanvasLibrary.js`）・`GroupEditor`・`ShapeOrderEditor`・`test/edit/GroupEditor.flow.test.js` は存在。「3192件すべて合格」＝11-04aのTASK17のコミット `625f9c0` で tests 3192・pass 3192 → 当時の値として一致。ブラウザでの確認は照合できなかった主張へ。
+  * **945行**（11-04bのふるまいの注意）：
+    * (a) 自分のコピーの判定は描き込む先で決め、貼り付けの時点の選択を見ない → `InsertTargetRules.js:142-148`（`resolvePastePlace` は `target` と `copiedGroupIds` だけを見る）、`ClipboardController.js` の `#resolvePastePlace`（`model.getInsertTarget()`）→ 一致。
+    * (b) 貼り付けで入ったフォルダを数える → `ClipboardController.js` の `paste`・`pasteInPlace` が `#addPastedGroupIds()` を呼ぶ。`duplicate`（`Ctrl`+`D`）は呼ばない → 一致。
+    * (c) インポートの後は図形だけ選ぶ → `ShapeInserter.js:110` の `asUnits` が偽（インポート）なら `addShapesWithNewIds` の `selectedGroupIds` は空（`VectorModel.js:1024-1026`）→ 一致。
+    * (d) 描き込む先が消えたときのたどり → `InsertTargetRules.js:44-70`（`resolveVanishedTarget`。`index - 1` から順に、`current.parentId === parentId` の行だけを数える）→ 一致。
+    * (e) 折りたたんだフォルダの中への貼り付け・複製で開く：`addShapesWithNewIds` の `revealIds: addedIds`（`VectorModel.js:1023`）。描く（`commitDraft`）・行のドラッグ（`rearrangeItems`）・空のフォルダだけの貼り付け（`addedIds` が空）・作るボタン（`rearrangeItems`）は `revealIds` を渡さない → 一致。
+    * (f) 行のドラッグ中は描き込む先の線を隠す → `index.html:162-175`（`.item-list:not(.row-dragging) .item-row.insert-line-before::before`・`insert-line-after::after`）→ 一致。
+    * (g) フォルダの三角の上から押して動かしても行のドラッグ → `ItemListWiring.js` の `#handleRowPress` の `canStartRowDrag`（三角は除外していない。除外は `isOnStateIcon` だけ）、`ItemListRowDrag.js:83-` の `press` が `suppressClick: 'whenMoved'`（動かさずに離せば `click` で開閉。`ItemListPanel.js` の `click` の三角の分岐）→ 一致。
+    * (h) 自動スクロールで端の行に入るときの場所／一番下まで送り切ると外側の一番下 → `ListDragRules.js:90-101`（`clampedY`・`SCROLL_END_TOLERANCE = 1`・`area.scrollTop >= area.maxScrollTop - SCROLL_END_TOLERANCE`）→ 一致。
+    * (i) 頂点の選択（`A`）でも行のドラッグ・フォルダの選択ができる：`canStartRowDrag`（`ItemListRules.js:69-71`）は操作モードを見ない。まとめる＝`canEditGroups(mode)` は `mode === OperationMode.SELECT`（`GroupCommandRules.js:25-27`）。削除（`InputTracker.deleteSelection`。`InputTracker.js:649`）・切り取り（削除経路を通る）は選択モードだけ → 一致。
+    * (j) `VectorModel.getInsertTargetId()`（`VectorModel.js:431`）の製品コードからの呼び出し元は無い（`js/` の検索で定義とコメントだけ）。`deleteShapes`（`VectorModel.js:879`）も同じ（`main.js:343` はコメント）。テストからは呼ばれている（`getInsertTargetId`・`deleteShapes` とも `test/` に複数）→ 一致。
+    * (k) → 5章へ。
+  * **946行**（確認の状況 11-04b）：`ItemPlaceRules`・`InsertTargetRules`・`ItemRowRules`・`ListDragRules`・`ShapeInserter`・`ClipboardController`・`GroupEditor`・`ShapeOrderEditor.moveTo`（`ShapeOrderEditor.js` に存在）・`addShapesWithNewIds` の `place`／`asUnits`（`VectorModel.js:991`）・`rearrangeItems` の `targetsNewGroup`（`VectorModel.js:1175`）・`test/edit/FolderDragTargetCopy.flow.test.js` は存在。「3380件すべて合格」＝11-04bのTASK14のコミット `e8bb749` で tests 3380・pass 3380 → 当時の値として一致。ブラウザでの確認は照合できなかった主張へ。
+  * **947行**（11-05）：
+    * (1) DOM：`.item-row-states` の中に `span.item-row-state.item-row-eye[data-state-icon="visible"]`・`span.item-row-state.item-row-lock[data-state-icon="lock"]`（`ItemListPanel.js:658-668`）。`tabindex` の設定なし（`ItemListPanel.js` を `tabindex`／`tabIndex` で検索して0件）。`render` が `item-hidden`・`is-off`・`is-inherited`・`is-on`・`is-inherited` を差分で書く（`ItemListPanel.js:303-326`。目は `visible === false` で `is-off`、鍵は `locked === true` で `is-on`。省いた項目は表示・ロックなし）。名前の `<span>` の直後に `.item-row-states` を足す（`ItemListPanel.js:640-668`）。`onStateIconClick` は必須（`ItemListPanel.js:168-170` で関数でなければ `Error`）。`mousedown` が押したアイコンを控え `onRowPress` の第4引数 `isOnStateIcon` で渡す（`ItemListPanel.js:215-220`）・`mousedown` は `preventDefault()` しない。`click` は控えを先に戻し（`:224-225`）、控えがある・`event.target` がアイコンの中なら行のクリックにせず、控えと同じ要素のときだけ `preventDefault()` して通知（`:230-237`）→ 一致。
+    * (2) 規則：`buildItemRows` が `collectItemStates` を1回求めて `visible`・`locked`・`hiddenByAncestor`・`lockedByAncestor`・`hidden` を足す（`ItemRowRules.js:65・96-100`）。`resolveRowViews` がそのまま渡す（`:229-233`）。`ItemListRules.js` に `STATE_ICON`（`:78`）・`STATE_ICON_ACTION`（`:88`）・`resolveStateIconAction`（`:108-119`。ドラッグ中・行のドラッグ中・一覧のロック中・作成途中の図形ありで `NONE`。目は `Alt` で `SOLO`、なければ `TOGGLE_VISIBLE`、鍵は `Alt` によらず `TOGGLE_LOCK`。操作モード・選択は見ない）と、`canStartRowDrag` の省ける引数 `isOnStateIcon`（`:69-70`）。`isListLocked` は `loading`・`busy`（`:153-155`。アイテムの `locked` とは別）→ 一致。
+    * (3) 配線：`#handleStateIconClick`（`ItemListWiring.js:243-265`。順番は `consumeSuppressedClick` → 行の有無 → `resolveStateIconAction` → `ItemStateEditor` の `toggleVisible`／`toggleSolo`／`toggleLocked` → `sync({ allowScroll: false })`）。選択・起点（`#anchorId`）・描き込む先・ツール・折りたたみ・ホバーに触れない（操作モードも見ない）。`canvasLibrary.onChange` で `openCanvasId` が変わったとき `itemStateEditor.forgetSolo()`（`ItemListWiring.js:155-160`）。`main.js:944-950` の `// 7.15.` が `new ItemStateEditor({ model, editRecorder: historyManager })` を作り、`ItemListWiring` へ渡す → 一致。
+    * (4) CSS（`index.html`）：絵はデータURIのSVGが4つ（`:231` 開いた目・`:236` 閉じた目・`:240` 線だけの開いた錠・`:245` 塗りつぶした閉じた錠）。外部ファイル・文字・絵文字は使っていない。`is-inherited` は目 `opacity: .4`（`:249-251`）・鍵 `.2`（`:252-254`）・自分のロックありの受け継ぎ `.5`（`:255-257`）で形は自分の値のまま。`::after` に点線（`:258-267`）。ロックなし＝線だけの錠・点線なし、自分のロックのみ＝塗りつぶし・点線なし、受け継ぎ＝点線つき → 一致。隠れた行の名前・サムネイル・フォルダの絵は `opacity: .4`（`:200-204`）→ 一致。一覧の幅 `--item-list-width: 240px`（`:15`）・行の高さ `36px`（`:88`）は 11-04b完了時点（`bf26f07`）と 11-05完了時点（`3cd4114`）で同じ → 一致。
+    * (5) `resolveSoloToggle({ items, id, memory })`（`SoloVisibilityRules.js:96-`）：目標の値＝その行・上のフォルダは真、それぞれの兄弟は偽。行の中・兄弟の中は対象外（`buildTargets` `:31-45`）。すでにその行だけの表示で覚えている表示が使えれば（`display !== null` または目標の行がすべて記憶にある）はじめの前の値へ戻し、使えなければ全部表示（`:104-122`）。使えるかは今の表示の値から見分ける（`findMatchingDisplay` `:56-70`）。戻すものが無ければ `changes` が空 → `ItemStateEditor.toggleSolo` が `false` を返し記録先に触れない（`ItemStateEditor.js:75-84`）。記憶（`#soloMemory`）は `ItemStateEditor` の一時的な状態で保存・履歴に入らず、忘れるのは `forgetSolo()` だけ（`:90-92`）。`Alt` の単独押下・解放は `AltKeyGuard`（`main.js:1125-1128`）。アイコンの `click` で `preventDefault()`（`ItemListPanel.js:233`）→ 一致。
+  * **948行**（確認の状況 11-05）：「判定・計算は `node --test` で確かめた」→ `_doc/arch/16_test.md` はタスク15・16の担当で未確認。ブラウザでの操作は照合できなかった主張へ。
+  * **`_doc/arch/49_ListSelectionRules.md`**：
+    * 1・2行（公開・引数・戻り値・typedef `ListClickSelection`／`RowClickSelection`）→ `ListSelectionRules.js:31・85` と各typedef と一致。
+    * 3行（`range` の起点の決め方・返す `anchorId` は渡されたまま・`additive` は `resolveClickSelection(...,true)`・防御）→ `ListSelectionRules.js:31-67` と一致。
+    * 4行（`resolveRowClickSelection`）：行ごとの「選ばれている」（図形＝`selectedIds`、フォルダ＝自分か上のフォルダが `selectedGroupIds`）→ `:93-98`。ふつう・`Shift`（行の `shapeIds` の和・フォルダの行が `groupIds`）→ `:121-134`。`Ctrl` で足す・外す → `:100-119`。行が無ければ今の選択と起点を返す → `:90-92`。一致。
+    * 5行（importは `core/SelectionRules` の `resolveClickSelection` のみ）→ `ListSelectionRules.js:5` の1件だけ。一致。
+    * 6行（`#anchorId` は `wiring/ItemListWiring` の一時的な値・保存しない）→ `ItemListWiring.js:72`。一致。
+    * 7行（使う側は `wiring/ItemListWiring` だけ。`model.setSelectionByUser(ids, { groupIds, keepsCollapsed: true })`）→ `js/` 内で `ListSelectionRules` を import するのは `ItemListWiring.js:26` だけ（`resolveRowClickSelection` の呼び出しは `:134-143`・`:339-349`）。一致。
+    * 8行（キャンバスの切り替えで起点を忘れる／`wiring/` が `clearSelectedVertices()` を呼ばない）→ `ItemListWiring.js:158`。`ItemListWiring.js` を `clearSelectedVertices` で検索して0件。`VectorModel` が `#pruneSelectedVertices` で落とす（`VectorModel.js:346・374`）。一致。
+    * 9行（テスト 29件＝16件＋`resolveRowClickSelection` の13件）→ `it(` 29（`resolveListClickSelection` の `describe` 3つで16、`resolveRowClickSelection` の `describe`〔`:99`〕で13）・`node --test` で tests 29・pass 29。一致。
+  * **`_doc/arch/50_ListScrollRules.md`**：
+    * 公開 `resolveVisibleRowRange`・`hasSelectionChanged`・`hasHighlightChanged`・`resolveSelectionScrollTop`（4つ）→ `ListScrollRules.js:16・35・58・73` と一致。`resolveVisibleRowRange` の仕様（`{start,end}`・`end` は含まない・`overscan`・どれかが正でなければ `{0,0}`）→ `:16-27`。余裕4行 → `ItemListWiring.js:34`（`THUMBNAIL_OVERSCAN_ROWS = 4`）。一致。
+    * `hasSelectionChanged`（集合として違えば真）→ `:35-47`。「前」は `panel.getSelectedRowIds()` → `ItemListWiring.js:189`。一致。`hasHighlightChanged` → `:58-60`。`sync` が真なら `resolveSelectionScrollTop` へ渡す（選ばれている行が無ければ印の行。`ItemRowRules.js:261-265`）・一覧で押したときは `sync({ allowScroll: false })` を先に呼ぶ（`ItemListWiring.js:145・351`）。一致。
+    * `resolveSelectionScrollTop`（行の中心が `scrollTop` 以上 `scrollTop + height` 未満なら `null`、上なら行の上端、下なら `行の下端 − height`、`rowHeight > height` なら上端）→ `:73-90`。一致。
+    * 「何もimportしない」→ `ListScrollRules.js` に `import` なし。使う側は `wiring/ItemListWiring` だけ（`sync`・`#drawVisibleThumbnails`）→ `js/` 内の import は `ItemListWiring.js:27` だけ。一致。
+    * テスト 27件（22件＋5件）→ `it(` 27・`node --test` で tests 27・pass 27。`hasHighlightChanged` の `describe`（`:103`）は5件。一致。
+  * **`_doc/arch/51_ThumbnailRules.md`**：
+    * 公開 `THUMBNAIL_SIZE_PX`（28）・`computeThumbnailFit`・`resolveThumbnailStrokeWidth`・`buildThumbnailKey`・`needsThumbnailRedraw`、非公開の余白2px・線の太さの下限1px → `ThumbnailRules.js:8・11・14・21・33・47・57`（`THUMBNAIL_PADDING_PX = 2`・`THUMBNAIL_MIN_STROKE_PX = 1`）。一致。`THUMBNAIL_SIZE_PX` が `ItemListPanel` のCSS上の大きさと `ThumbnailRenderer` の内部バッファの元 → `ItemListWiring.js:109`（`thumbnailSize: THUMBNAIL_SIZE_PX`）・`ItemListPanel.js:652-653`・`ThumbnailRenderer.js:20`。一致。
+    * `computeThumbnailFit` は `computeSpriteFitTransform(bounds, 28, 28, 2)` をそのまま使う・拡大も行う・大きさ0の軸は倍率の制約にしない・`null` なら描かない → `ThumbnailRules.js:21-23`・`SpriteFitRules.js:28-52`（`scale` の初期値1、`bw > 0 && bh > 0` などの分岐）。`bounds` は `ShapeExtentReader.getShapeBounds`（`SpriteSerializer.computeShapesBounds([shape])`。線の太さの半分を含む）→ 一致。
+    * `resolveThumbnailStrokeWidth`（`strokeWidth × scale` が1px未満なら `1 / scale`、`scale` が正の有限でない・`1 / scale` が有限でないときはそのまま）→ `ThumbnailRules.js:33-40`。一致。
+    * `buildThumbnailKey`（`<pixelRatio>|<JSON.stringify(shapeData)>`）・`needsThumbnailRedraw`（`undefined` か違うとき真）→ `:47・57-59`。鍵を持つのは `WeakMap<HTMLCanvasElement, string>`（`ItemListWiring.js:49-50`）・鍵に `toJSON()` と `devicePixelRatio`（`:477・483`）。一致。
+    * 読むもの（importは `core/SpriteFitRules` のみ）→ `ThumbnailRules.js:5` の1件。一致。使う側（`core/ThumbnailRenderer`＝`THUMBNAIL_SIZE_PX`・`computeThumbnailFit`・`resolveThumbnailStrokeWidth`／`wiring/ItemListWiring`＝`THUMBNAIL_SIZE_PX`・`buildThumbnailKey`・`needsThumbnailRedraw`）→ `ThumbnailRenderer.js:5`・`ItemListWiring.js:28`。一致。
+    * テスト 10件 → `it(` 10・`node --test` で tests 10・pass 10。一致。
+  * **`_doc/arch/52_ThumbnailRenderer.md`**：
+    * 公開 `drawThumbnail(canvas, shape, bounds, pixelRatio)` のみ・呼び出し元は `wiring/ItemListWiring` の `#drawVisibleThumbnails` → `ThumbnailRenderer.js:19`（`export` は1つ）・`ItemListWiring.js:485`。一致。
+    * 手順①内部バッファを `THUMBNAIL_SIZE_PX × pixelRatio`（丸めて1以上）の正方形にし直す → `ThumbnailRenderer.js:20-22`。②`computeThumbnailFit` が `null` なら描かず空のまま → `:23-24`。③`createTransformed(恒等変換)` の写しの `strokeWidth` へ `resolveThumbnailStrokeWidth` の値 → `:27-28`。④`ctx.setTransform` で収める変換（内部バッファの倍率 `r` を含む）→ `:29-31`。一致。枠の背景は CSS `#b0b0b0`（`index.html:186`）。
+    * 契約：元の図形を書き換えない（写しの `strokeWidth` だけ）・図形種別の分岐なし・`getContext('2d')` が `null` なら何もしない → `ThumbnailRenderer.js:25-26`。呼ぶのは `createTransformed`・`draw` だけ（`_doc/arch/12_shapes.md` の18メソッド契約に含まれる。35行）。一致。
+    * 読むもの：importは `core/ThumbnailRules` のみ → `ThumbnailRenderer.js:5` の1件。外枠は `wiring/` が `ShapeExtentReader.getShapeBounds` で求めて渡す（`core/` は `io/` を import できないため）→ `ShapeExtentReader` は `io/SpriteSerializer` を import（`ShapeExtentReader.js:6`）。一致。使う側は `wiring/ItemListWiring` だけ → `js/` 内で `ThumbnailRenderer` を import するのは `ItemListWiring.js:29` だけ。一致。
+    * テスト `test/core/ThumbnailRenderer.test.js`（10件。偽の `<canvas>`・実物の図形5種）→ `it(` の行は6（直書き5・ループ内の `it(` 1行が5図形ぶん展開）で、`node --test` で tests 10・pass 10。`describe('drawThumbnail: 実際の図形')` が5種（`:117-`）→ 一致。
+  * **既知の傷2（940〜948行）**：940〜948行はすべて `[新]` の文で、`[既存]` の文は無い。古い形（版・対象・並び・書き出し・表示・ロック・フォルダ・描き込む先などの今もそうであると読める記述）は見当たらなかった。942行の `insertItemsAbove`・`applyOrder` は「Phase 11-03のタスク10の時点で」の確認の記録の中の名前で、今もあると読める書き方ではない。
 * **推測・所見**:
-  * （未実施）
+  * 読み方が分かれる記述：
+    * PROJECT_ARCHITECTURE 942行（確認の状況 11-03）は、`ItemTreeRules.insertItemsAbove`・`ShapeOrderEditor.applyOrder` を `node --test` で確かめた対象に並べている。これらは 11-04b で消えた（1章「Phase 11-04bでなくしたもの」）。文の末尾に「Phase 11-03のタスク10の時点で2912件すべて合格」とあるため過去の時点の記録と読めるが、「確認の状況」の見出しの先頭の文には「（Phase 11-03）」としか無く、現在は無い関数が並んでいる。過去の記録として相違にはしていない（推測）。
+    * PROJECT_ARCHITECTURE 947行(1)「名前などの上で押してアイコンの上で離したときはアイコンは切り替わらず、通常の行のクリック」は、ブラウザの `click` の対象（押した要素と離した要素の共通の祖先）に依存する。コードは `pressedIcon === null` かつ `targetIcon === null` のとき行のクリックにする（`ItemListPanel.js:230-241`）ので、共通の祖先がアイコンの外なら成り立つ。実ブラウザの `click` の対象は確かめていない。
+  * コードのコメント：特になし（`ListSelectionRules.js`・`ListScrollRules.js`・`ThumbnailRules.js`・`ThumbnailRenderer.js`・`ItemListPanel.js` の JSDoc に、今のコードと食い違う説明は見つからなかった。`ThumbnailRenderer.test.js` の `describe` 名も合っている）。
+  * 照合できなかった主張：
+    * 941・942・944・946・948行の「実ブラウザでの確認」「2026-1x-xxに発注者のテストプレイで合格」（各行）：実ブラウザでの見え方・テストプレイの結果のため、コードからは確かめられない。確認項目の出典の `_log/res/…` の5章末尾のファイルは存在するが（`ls` で確認）、中身は照合していない。
+    * 947行(4)「不透明度・点線・絵の細部は発注者の目視で調整する値」：目視の調整の経緯でコードでは確かめられない。値自体は `index.html` と一致を確認。
+    * 947行(1)「`.item-list` の子は行だけのまま」：`ItemListPanel.js` の JSDoc（`:101`）と `#createRow` の構成から子は行だけと読めるが、全経路の `append` を網羅して確かめてはいない（行の子としてのアイコンの追加は確認）。
+    * 51行の「下限で太くした線は外枠より片側0.5pxまで広がるが、余白2pxの内側に収まる」：計算上の見立てで、画面上の見え方に当たるため照合していない。
+    * 948行の `_doc/arch/16_test.md` への参照：担当はタスク15・16。
+  * 既知の傷：本タスクの範囲の既知の傷（3〜6）は該当なし。
 
 ### タスク14: 01_index_html・13_palette
 * **調査内容**: 
@@ -968,6 +1043,7 @@ E
 * （タスク14）**（`_doc/arch/13_palette.md` 87行 ItemListPanel.js の「使う側」）**： 「`wiring/ItemListWiring`だけ（生成・購読・同期）」 → `ItemListPanel` のメソッドを呼ぶのは `ItemListWiring` だけではなく、`wiring/ItemListRowDrag.js` も `ItemListWiring` から注入された `panel` の `setDraggedRows`・`getListArea`・`setScrollTop`・`showDropMark` を呼んでいる（`js/wiring/ItemListRowDrag.js:169・201・223・226・242・246・249・266・267`。型は `import('../palette/ItemListPanel.js').ItemListPanel`＝同:22・56。生成は `ItemListWiring` が1回だけ＝`js/wiring/ItemListWiring.js:108`）。
 * （タスク14）**（`_doc/arch/01_index_html.md` 17行「大きさ・変形のまとまり」の幅の見積もり）**： 「1行目約646px・2行目約1026px…で、どちらも収まる」 → 1行目の見積もりは Phase 11-03 で重なり順140pxと区切り17pxを除いて約489px（`index.html:735` のCSSコメント。同じ資料の16行も「約646px→約489px」と書く）。2行目約1026px は一致（`index.html:736`）。
 * （タスク14）**（`_doc/arch/01_index_html.md` 15行「オプションバー」の角のまとまり）**： 「収まらないときは右のまとまりから切れる（角→整列・分布→位置→スタイルの順）」 → 現在の `index.html` は2行で、切れるのは行ごと（`index.html:344-348`・CSSコメント `index.html:737`）。2行目の右から切れる順は 角→整列・分布→変形→大きさ→位置（`index.html:800-848`）で、順に出る「変形」「大きさ」が無く、「スタイル」は1行目のまとまり。Phase 09-02a 当時の1行構成の記述が `+` 行（Phase 11-03で重なり順の語を除いた書き換え）に残っている。
+* （タスク13）**（`./PROJECT_ARCHITECTURE.md` 3章28. 945行「Phase 11-04bのふるまいの注意」(k)）**： 「`setSelection`で選んでいるフォルダにできるのは、中の図形がすべて選ばれているもの（空のフォルダを除く）だけ」（文字どおりには、空のフォルダは選べないと読める） → 実コードでは、空のフォルダも `setSelection` で選んでいるフォルダにできる。不変条件（`resolveSelectedGroupIds`）は「中が空のフォルダは(2)(3)を満たす」とあり、空のフォルダは残る（`js/core/GroupSelectionRules.js:26-31・45-53`）。テストも「空のフォルダは図形の選択が空でも選べる」（`test/core/VectorModel.groupSelection.test.js:74-78`。`model.setSelection([], { groupIds: ['e'] })` で `getSelectedGroupIds()` が `['e']`）。「空のフォルダを除く」を「条件（中がすべて選ばれている）から空のフォルダを除いて数える」の意味で書いていた可能性もあり、読み方が分かれる
 
 ## 6. 懸念事項・今後の修正における注意点
 * （タスク19で、「読み方が分かれる記述」「コードのコメント」「照合できなかった主張」の一覧を記載する）
@@ -988,3 +1064,6 @@ E
 * （タスク9）`14_edit.md` 137行の「8つ目の例外」は、Phase 11-02の時点では正しい序数で、現在は`js/edit/`で`core/`をimportするファイルが12個ある。5章に入れず4章の「読み方が分かれる記述」に回した。数え方（例外の個数）を扱う要件2の「数え方」を担当するタスク18で、同じ「例外」の数の言い方との矛盾が無いかを併せて見るとよい。
 * （タスク14）5章の1件目（13 87行の「使う側」）は、「だけ」と書かれているため相違に挙げた。`ItemListRowDrag` は `ItemListWiring` が生成して `panel` を注入する（`js/wiring/ItemListWiring.js:124`）従属部品なので、「注入元」として読めば `ItemListWiring` だけとも読める。
 * （タスク14）作業中、`git status` の出力は空（変更なし）だった。リポジトリ内のファイルは変更していない。
+* （タスク13）945行(k)の「（空のフォルダを除く）」は、「空のフォルダは選べない」と「中の図形がすべて選ばれているという条件の対象から空のフォルダを外す（空のフォルダは選べる）」の2通りに読める。実コードは後者（空のフォルダも選べる）。文字どおりの前者の読みでは食い違うため5章に挙げたが、書き手の意図が後者なら表現の問題として扱うのが妥当。目視での判断を推奨する。
+* （タスク13）942行の「確認の状況（Phase 11-03）」に、11-04bで消えた `ItemTreeRules.insertItemsAbove`・`ShapeOrderEditor.applyOrder` が並んでいる。「時点で」と書かれているため相違にはしていないが、後で読む人（AI）が今もあると誤読しないか、発注者の判断で確認してほしい。
+* （タスク13）「確認の状況」のテストの件数（2764・2912・3192・3380）は、各コミットを `git archive` でスクラッチへ展開して `node --test` を実行し、すべて一致を確認した（現在のリポジトリのファイルは変更していない）。
