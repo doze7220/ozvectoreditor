@@ -310,7 +310,7 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
         *   「書き出し（要件9）」のとおりに直す。
         *   テスト：隠れた図形（自分・フォルダから）が`elements`・`bounds`に無く`source`にある、ロックした図形は含む、すべて隠れていると`elements: []`・`bounds: null`（図形0個と同じ。`source`は別）、版4・キーの並び、`CodeExporter`を通した往復で隠した図形と値が戻る、素の図形の配列は今までどおり、すべて表示の入力で今までと同じ、作業データの出力・コピーが全部を持つこと。
 
-*   [ ] タスク12: 行の見た目とアイコンの判定
+*   [x] タスク12: 行の見た目とアイコンの判定
     *   **対象ファイル** :
         *   `./js/core/ItemRowRules.js`・`./js/core/ItemListRules.js` :（更新）
         *   `./test/core/ItemRowRules.test.js`・`./test/core/ItemListRules.test.js` :（追加のみ）
@@ -429,6 +429,10 @@ JSDoc・引数名だけに現れる箇所（`GroupSelectionRules`・`PointHitRul
 
 ### タスク12: 行の見た目とアイコンの判定
 *   **作業内容** :
+    *   `js/core/ItemRowRules.js`（CRLF）：`ItemRow`・`RowView`のtypedefへ`visible`・`locked`・`hiddenByAncestor`・`lockedByAncestor`・`hidden`を足した。`buildItemRows`が`collectItemStates(items)`を1回求め、非公開`visitList`へ渡してidで引く（受け継ぐ計算は書かない）。`resolveRowViews`は5つをそのまま渡す。先頭の責務のimportの記述・JSDocを直した。
+    *   `js/core/ItemListRules.js`（LF）：`STATE_ICON`・`STATE_ICON_ACTION`・`resolveStateIconAction`を追加。`canStartRowDrag`へ省ける`isOnStateIcon`（既定`false`）を足した。先頭の責務へ「目と鍵のアイコン」を足した。importは変えていない。
+    *   `test/core/ItemRowRules.test.js`（CRLF）：11件追加（自分の切・入、フォルダから受け継ぎ、深い入れ子、折りたたんだフォルダ、空のフォルダ、値が無い、`resolveRowViews`、ほかの項目が変わらないこと）。`test/core/ItemListRules.test.js`（LF）：`canStartRowDrag`の`isOnStateIcon`2件・`resolveStateIconAction`5件を追加。
+    *   `node --test`は tests 3582 / pass 3582 / fail 0。
 
 ### タスク13: 一覧のアイコン（部品・CSS・配線）
 *   **作業内容** :

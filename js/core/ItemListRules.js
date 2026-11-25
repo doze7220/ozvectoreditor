@@ -1,5 +1,5 @@
 /**
- * 責務：図形の一覧の行の操作（押す・カーソルを置く・名前の編集・行のドラッグ・三角）の判定の規則。
+ * 責務：図形の一覧の行の操作（押す・カーソルを置く・名前の編集・行のドラッグ・三角・目と鍵のアイコン）の判定の規則。
  * 状態を持たず、DOMにも`VectorModel`にも触れない。importは`InputModes`だけ（行の並びは`ItemRowRules`）。
  */
 import { OperationMode } from './InputModes.js';
@@ -63,10 +63,59 @@ export function canSetInsertTargetByRow({ mode, isPicking, isDragging, isLocked 
  * @param {boolean} params.isEditingRow - 押した行が名前の編集中か
  * @param {boolean} params.isDragging - キャンバスの左ドラッグ・パンの最中か
  * @param {boolean} params.isLocked - 一覧がロック中か
+ * @param {boolean} [params.isOnStateIcon=false] - 押したのが目・鍵のアイコンの上か（真なら始めない）
  * @returns {boolean} 始めてよいなら true
  */
-export function canStartRowDrag({ button, hasModifier, isEditingRow, isDragging, isLocked }) {
-    return button === 0 && !hasModifier && !isEditingRow && !isDragging && !isLocked;
+export function canStartRowDrag({ button, hasModifier, isEditingRow, isDragging, isLocked, isOnStateIcon = false }) {
+    return button === 0 && !hasModifier && !isEditingRow && !isDragging && !isLocked && !isOnStateIcon;
+}
+
+/**
+ * 行の目・鍵のアイコンの種類。
+ * @readonly
+ * @enum {string}
+ */
+export const STATE_ICON = Object.freeze({
+    VISIBLE: 'visible',
+    LOCK: 'lock'
+});
+
+/**
+ * アイコンを押したときの動作の値。
+ * @readonly
+ * @enum {string}
+ */
+export const STATE_ICON_ACTION = Object.freeze({
+    NONE: 'none',
+    TOGGLE_VISIBLE: 'toggleVisible',
+    SOLO: 'solo',
+    TOGGLE_LOCK: 'toggleLock'
+});
+
+/**
+ * 目・鍵のアイコンを押したときに何をするかを決める。操作モード・選択は見ない。
+ * キャンバスのドラッグ/パン中・行のドラッグ中・一覧のロック中・作成途中の図形があるときは何もしない。
+ * 目は`Alt`を押していればその行だけの表示、なければ表示の切り替え。鍵は`Alt`によらず切り替え。
+ * @param {Object} params - 判定の材料
+ * @param {string} params.icon - アイコンの種類（STATE_ICON の値）
+ * @param {boolean} params.hasAlt - `Alt`を押しているか
+ * @param {boolean} params.isDragging - キャンバスの左ドラッグ・パンの最中か
+ * @param {boolean} params.isRowDragging - 行のドラッグの最中か
+ * @param {boolean} params.isLocked - 一覧がロック中か
+ * @param {boolean} params.hasDraft - 作成途中の図形があるか
+ * @returns {string} STATE_ICON_ACTION の値
+ */
+export function resolveStateIconAction({ icon, hasAlt, isDragging, isRowDragging, isLocked, hasDraft }) {
+    if (isDragging || isRowDragging || isLocked || hasDraft) {
+        return STATE_ICON_ACTION.NONE;
+    }
+    if (icon === STATE_ICON.VISIBLE) {
+        return hasAlt ? STATE_ICON_ACTION.SOLO : STATE_ICON_ACTION.TOGGLE_VISIBLE;
+    }
+    if (icon === STATE_ICON.LOCK) {
+        return STATE_ICON_ACTION.TOGGLE_LOCK;
+    }
+    return STATE_ICON_ACTION.NONE;
 }
 
 /**

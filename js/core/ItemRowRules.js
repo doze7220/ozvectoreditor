@@ -1,10 +1,11 @@
 /**
  * 責務：図形の一覧の行の並び（フォルダの入れ子・折りたたみ）と、字下げ・行の見た目・スクロールの対象を決める規則。
- * 状態を持たず、DOMにも`VectorModel`にも触れない。importは`ItemTreeRules`・`GroupTreeRules`（`itemIdOf`）・`ItemPlaceRules`（`PLACE_KIND`）だけ。
+ * 状態を持たず、DOMにも`VectorModel`にも触れない。importは`ItemTreeRules`・`GroupTreeRules`（`itemIdOf`）・`ItemPlaceRules`（`PLACE_KIND`）・`ItemStateRules`（`collectItemStates`）だけ。
  */
 import { ITEM_KIND } from './ItemTreeRules.js';
 import { itemIdOf } from './GroupTreeRules.js';
 import { PLACE_KIND } from './ItemPlaceRules.js';
+import { collectItemStates } from './ItemStateRules.js';
 
 /**
  * 一覧の1行。
@@ -19,6 +20,11 @@ import { PLACE_KIND } from './ItemPlaceRules.js';
  * @property {string[]} groupIds - フォルダの中のフォルダすべて（入れ子の中も。行の並びの順）。図形は空
  * @property {boolean} collapsed - 折りたたまれているフォルダか（図形は false）
  * @property {boolean} isEmpty - 中身（children）が空のフォルダか（図形は false）
+ * @property {boolean} visible - 自分の表示が入か（`visible !== false`。値が無ければ true）
+ * @property {boolean} locked - 自分のロックが入か（`locked === true`。値が無ければ false）
+ * @property {boolean} hiddenByAncestor - 上のフォルダのどれかの表示が切か
+ * @property {boolean} lockedByAncestor - 上のフォルダのどれかのロックが入か
+ * @property {boolean} hidden - 隠れているか（自分の表示が切、または上のフォルダのどれかの表示が切）
  */
 
 /**
@@ -35,6 +41,11 @@ import { PLACE_KIND } from './ItemPlaceRules.js';
  * @property {boolean} insertTarget - 描き込む先の印（行の印）か
  * @property {?{edge: ('before'|'after'), indent: number}} insertLine - 描き込む先の線（行の上／下・字下げpx）。無ければ null
  * @property {boolean} hiddenMark - 閉じたフォルダの中に、選択・描き込む先の印があるか
+ * @property {boolean} visible - 自分の表示が入か（目の絵）
+ * @property {boolean} locked - 自分のロックが入か（鍵の絵）
+ * @property {boolean} hiddenByAncestor - 上のフォルダのどれかの表示が切か（目の受け継ぎの見た目）
+ * @property {boolean} lockedByAncestor - 上のフォルダのどれかのロックが入か（鍵の受け継ぎの見た目）
+ * @property {boolean} hidden - 隠れているか（行の名前・サムネイルをうすくする）
  */
 
 /** 字下げの1段の幅（px）。 */
@@ -45,12 +56,13 @@ const INDENT_MAX_DEPTH = 6;
 /**
  * アイテムの入れ子から、一覧の見えている行を作る。先頭が前面（並びの後ろの要素から順。フォルダは行の次に中身の行）。
  * 折りたたんだフォルダの中身は行にしない。隠れている・ロックの図形も含める。引数は書き換えない。
+ * 表示・ロックの項目は`collectItemStates`を1回求めてidで引く（受け継ぐ計算はここに書かない）。
  * @param {Array<Object>} items - アイテムの入れ子
  * @returns {ItemRow[]} 見えている行の配列（先頭が前面）
  */
 export function buildItemRows(items) {
     const rows = [];
-    visitList(items, [], true, rows);
+    visitList(items, [], true, rows, collectItemStates(items));
     return rows;
 }
 
@@ -60,14 +72,16 @@ export function buildItemRows(items) {
  * @param {ItemRow[]} ancestorRows - 上のフォルダの行（外側から。見えていない行も含む）
  * @param {boolean} visible - この並びの行を結果に入れるか
  * @param {ItemRow[]} rows - 結果の行の配列（追記される）
+ * @param {Map<string, import('./ItemStateRules.js').ItemState>} states - アイテムのid→表示・ロックの状態
  * @returns {void}
  */
-function visitList(list, ancestorRows, visible, rows) {
+function visitList(list, ancestorRows, visible, rows, states) {
     const depth = ancestorRows.length;
     for (let index = list.length - 1; index >= 0; index--) {
         const item = list[index];
         const id = itemIdOf(item);
         const isGroup = item.kind === ITEM_KIND.GROUP;
+        const state = states.get(id);
         const row = {
             id,
             kind: isGroup ? ITEM_KIND.GROUP : ITEM_KIND.SHAPE,
@@ -78,7 +92,12 @@ function visitList(list, ancestorRows, visible, rows) {
             shapeIds: isGroup ? [] : [id],
             groupIds: [],
             collapsed: isGroup && item.collapsed === true,
-            isEmpty: isGroup && item.children.length === 0
+            isEmpty: isGroup && item.children.length === 0,
+            visible: state.visible,
+            locked: state.locked,
+            hiddenByAncestor: state.hiddenByAncestor,
+            lockedByAncestor: state.lockedByAncestor,
+            hidden: state.hidden
         };
         for (const ancestor of ancestorRows) {
             if (isGroup) {
@@ -91,7 +110,7 @@ function visitList(list, ancestorRows, visible, rows) {
             rows.push(row);
         }
         if (isGroup) {
-            visitList(item.children, [...ancestorRows, row], visible && !row.collapsed, rows);
+            visitList(item.children, [...ancestorRows, row], visible && !row.collapsed, rows, states);
         }
     }
 }
@@ -175,6 +194,7 @@ function resolveInsertMarkEffects(rows, insertMark) {
  *   または中のフォルダに選んでいるフォルダがある（自分が選ばれていても出す）。
  *   描き込む先が見えない行（閉じたフォルダの中）・閉じたフォルダの一番下のときも出す。
  * - `insertTarget`・`insertLine`：描き込む先の印（`insertMark`）の割り当て。
+ * - `visible`・`locked`・`hiddenByAncestor`・`lockedByAncestor`・`hidden`：行の値をそのまま渡す（目・鍵・行の見た目の材料）。
  * @param {Object} params
  * @param {ItemRow[]} params.rows - `buildItemRows`の結果（書き換えない）
  * @param {function(string): boolean} params.isSelected - 図形のidが選ばれているか
@@ -205,7 +225,12 @@ export function resolveRowViews({ rows, isSelected, selectedGroupIds, insertMark
             selectedInGroup,
             insertTarget: effects.targetId === row.id,
             insertLine: effects.lines.get(row.id) ?? null,
-            hiddenMark
+            hiddenMark,
+            visible: row.visible,
+            locked: row.locked,
+            hiddenByAncestor: row.hiddenByAncestor,
+            lockedByAncestor: row.lockedByAncestor,
+            hidden: row.hidden
         };
     });
 }

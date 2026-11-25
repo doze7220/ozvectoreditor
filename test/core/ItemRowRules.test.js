@@ -397,3 +397,101 @@ describe('resolveRowHighlight（線の印）', () => {
         assert.deepEqual(resolveRowHighlight(views).indexes, [2]);
     });
 });
+
+describe('表示・ロックの項目（buildItemRows・resolveRowViews）', () => {
+    const noMark = { isSelected: selecting([]), selectedGroupIds: [], insertMark: null };
+    const pick = (obj) => ({
+        visible: obj.visible,
+        locked: obj.locked,
+        hiddenByAncestor: obj.hiddenByAncestor,
+        lockedByAncestor: obj.lockedByAncestor,
+        hidden: obj.hidden
+    });
+    const FLAGS = (visible, locked, hiddenByAncestor, lockedByAncestor, hidden) => ({
+        visible, locked, hiddenByAncestor, lockedByAncestor, hidden
+    });
+    const byIdOf = (rows) => new Map(rows.map((row) => [row.id, row]));
+
+    it('すべて表示・ロックなしなら、5つの項目は true/false/false/false/false', () => {
+        const rows = buildItemRows([sItem('a'), gItem('g1', [sItem('b')])]);
+        for (const row of rows) {
+            assert.deepEqual(pick(row), FLAGS(true, false, false, false, false));
+        }
+    });
+
+    it('自分の表示が切の図形は hidden で、上から受け継いでいない', () => {
+        const rows = buildItemRows([sItem('a', { visible: false })]);
+        assert.deepEqual(pick(rows[0]), FLAGS(false, false, false, false, true));
+    });
+
+    it('自分のロックが入の図形は locked で、hidden ではない', () => {
+        const rows = buildItemRows([sItem('a', { locked: true })]);
+        assert.deepEqual(pick(rows[0]), FLAGS(true, true, false, false, false));
+    });
+
+    it('フォルダの表示が切なら、中身は受け継いで hidden（自分の値は入のまま）', () => {
+        const rows = buildItemRows([{ ...gItem('g1', [sItem('a')]), visible: false }]);
+        const byId = byIdOf(rows);
+        assert.deepEqual(pick(byId.get('g1')), FLAGS(false, false, false, false, true));
+        assert.deepEqual(pick(byId.get('a')), FLAGS(true, false, true, false, true));
+    });
+
+    it('フォルダのロックが入なら、中身は lockedByAncestor（hidden ではない）', () => {
+        const rows = buildItemRows([{ ...gItem('g1', [sItem('a')]), locked: true }]);
+        const byId = byIdOf(rows);
+        assert.deepEqual(pick(byId.get('g1')), FLAGS(true, true, false, false, false));
+        assert.deepEqual(pick(byId.get('a')), FLAGS(true, false, false, true, false));
+    });
+
+    it('深い入れ子では、どの段の切・入も下まで受け継ぐ', () => {
+        const inner = { ...gItem('g2', [sItem('a')]), locked: true };
+        const outer = { ...gItem('g1', [inner]), visible: false };
+        const byId = byIdOf(buildItemRows([outer]));
+        assert.deepEqual(pick(byId.get('g2')), FLAGS(true, true, true, false, true));
+        assert.deepEqual(pick(byId.get('a')), FLAGS(true, false, true, true, true));
+    });
+
+    it('折りたたんだ中の行は出ないが、折りたたんだフォルダ自身は値を持つ', () => {
+        const folder = { ...gItem('g1', [sItem('a')], true), visible: false, locked: true };
+        const rows = buildItemRows([folder]);
+        assert.deepEqual(rows.map((row) => row.id), ['g1']);
+        assert.deepEqual(pick(rows[0]), FLAGS(false, true, false, false, true));
+    });
+
+    it('空のフォルダも自分の値を持つ', () => {
+        const rows = buildItemRows([{ ...gItem('g1', []), visible: false }]);
+        assert.deepEqual(pick(rows[0]), FLAGS(false, false, false, false, true));
+        assert.equal(rows[0].isEmpty, true);
+    });
+
+    it('値が無いアイテム・素の図形は、表示あり・ロックなし', () => {
+        const rows = buildItemRows([
+            { kind: 'shape', shape: { id: 'a' } },
+            { kind: 'group', id: 'g1', children: [] }
+        ]);
+        for (const row of rows) {
+            assert.deepEqual(pick(row), FLAGS(true, false, false, false, false));
+        }
+    });
+
+    it('resolveRowViews は5つの項目をそのまま見た目へ渡す', () => {
+        const inner = { ...gItem('g2', [sItem('a')]), locked: true };
+        const outer = { ...gItem('g1', [inner]), visible: false };
+        const rows = buildItemRows([outer, sItem('b', { locked: true })]);
+        const views = resolveRowViews({ rows, ...noMark });
+        assert.equal(views.length, rows.length);
+        views.forEach((view, index) => {
+            assert.deepEqual(pick(view), pick(rows[index]));
+        });
+    });
+
+    it('ほかの見た目の項目は、表示・ロックの値で変わらない', () => {
+        const plain = resolveRowViews({ rows: buildItemRows([sItem('a'), gItem('g1', [sItem('b')])]), ...noMark });
+        const marked = resolveRowViews({
+            rows: buildItemRows([sItem('a', { visible: false, locked: true }), { ...gItem('g1', [sItem('b')]), visible: false }]),
+            ...noMark
+        });
+        const strip = (view) => ({ ...view, ...FLAGS(undefined, undefined, undefined, undefined, undefined) });
+        assert.deepEqual(marked.map(strip), plain.map(strip));
+    });
+});

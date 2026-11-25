@@ -15,7 +15,10 @@ import {
     canStartRowDrag,
     canToggleGroup,
     shouldSelectPressedRow,
-    resolveNameEditKey
+    resolveNameEditKey,
+    STATE_ICON,
+    STATE_ICON_ACTION,
+    resolveStateIconAction
 } from '../../js/core/ItemListRules.js';
 import { OperationMode } from '../../js/core/InputModes.js';
 
@@ -255,5 +258,55 @@ describe('canToggleGroup', () => {
         assert.equal(canToggleGroup({ isDragging: false, isLocked: false }), true);
         assert.equal(canToggleGroup({ isDragging: true, isLocked: false }), false);
         assert.equal(canToggleGroup({ isDragging: false, isLocked: true }), false);
+    });
+});
+
+describe('canStartRowDrag（isOnStateIcon）', () => {
+    const base = { button: 0, hasModifier: false, isEditingRow: false, isDragging: false, isLocked: false };
+
+    it('省いたとき・偽のときは今までどおり真', () => {
+        assert.equal(canStartRowDrag(base), true);
+        assert.equal(canStartRowDrag({ ...base, isOnStateIcon: false }), true);
+    });
+
+    it('アイコンの上の押下なら偽', () => {
+        assert.equal(canStartRowDrag({ ...base, isOnStateIcon: true }), false);
+    });
+});
+
+describe('resolveStateIconAction', () => {
+    const base = { icon: STATE_ICON.VISIBLE, hasAlt: false, isDragging: false, isRowDragging: false, isLocked: false, hasDraft: false };
+    const act = (over) => resolveStateIconAction({ ...base, ...over });
+
+    it('定数の値', () => {
+        assert.deepEqual({ ...STATE_ICON }, { VISIBLE: 'visible', LOCK: 'lock' });
+        assert.deepEqual({ ...STATE_ICON_ACTION }, {
+            NONE: 'none', TOGGLE_VISIBLE: 'toggleVisible', SOLO: 'solo', TOGGLE_LOCK: 'toggleLock'
+        });
+    });
+
+    it('目は Alt なしで表示の切り替え、Alt ありでその行だけの表示', () => {
+        assert.equal(act({}), STATE_ICON_ACTION.TOGGLE_VISIBLE);
+        assert.equal(act({ hasAlt: true }), STATE_ICON_ACTION.SOLO);
+    });
+
+    it('鍵は Alt によらずロックの切り替え', () => {
+        assert.equal(act({ icon: STATE_ICON.LOCK }), STATE_ICON_ACTION.TOGGLE_LOCK);
+        assert.equal(act({ icon: STATE_ICON.LOCK, hasAlt: true }), STATE_ICON_ACTION.TOGGLE_LOCK);
+    });
+
+    it('ドラッグ中・行のドラッグ中・一覧のロック中・作成途中は、どのアイコン・Alt でも何もしない', () => {
+        for (const over of [{ isDragging: true }, { isRowDragging: true }, { isLocked: true }, { hasDraft: true }]) {
+            for (const icon of [STATE_ICON.VISIBLE, STATE_ICON.LOCK]) {
+                for (const hasAlt of [false, true]) {
+                    assert.equal(act({ ...over, icon, hasAlt }), STATE_ICON_ACTION.NONE);
+                }
+            }
+        }
+    });
+
+    it('未知のアイコンは何もしない', () => {
+        assert.equal(act({ icon: 'unknown' }), STATE_ICON_ACTION.NONE);
+        assert.equal(act({ icon: undefined }), STATE_ICON_ACTION.NONE);
     });
 });
