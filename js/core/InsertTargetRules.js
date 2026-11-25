@@ -160,15 +160,15 @@ export function resolveDuplicatePlace(unitIds) {
 }
 
 /**
- * 一覧で印を出す行のid を決める。選択が1つ以上なら出さない（選ばれた行の見た目が優先）。
+ * 一覧で印に出す描き込む先を決める。選択が1つ以上なら出さない（選ばれた行の見た目が優先）。
  * @param {Object} params - 引数
- * @param {number} params.selectedCount - 選択されている図形の数
- * @param {string|null} params.insertTargetId - 描き込む先の図形id
- * @returns {string|null} 印を出す行のid。出さないなら null
+ * @param {number} params.selectedCount - 選ばれている図形の数＋選んでいるフォルダの数
+ * @param {InsertTarget|null} params.target - 描き込む先
+ * @returns {InsertTarget|null} 印に出す描き込む先。出さないなら null
  */
-export function resolveInsertMarkId({ selectedCount, insertTargetId }) {
+export function resolveInsertMark({ selectedCount, target }) {
     if (selectedCount > 0) {
         return null;
     }
-    return insertTargetId ?? null;
+    return target ?? null;
 }

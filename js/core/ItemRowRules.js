@@ -1,9 +1,10 @@
 /**
  * 責務：図形の一覧の行の並び（フォルダの入れ子・折りたたみ）と、字下げ・行の見た目・スクロールの対象を決める規則。
- * 状態を持たず、DOMにも`VectorModel`にも触れない。importは`ItemTreeRules`・`GroupTreeRules`（`itemIdOf`）だけ。
+ * 状態を持たず、DOMにも`VectorModel`にも触れない。importは`ItemTreeRules`・`GroupTreeRules`（`itemIdOf`）・`ItemPlaceRules`（`PLACE_KIND`）だけ。
  */
 import { ITEM_KIND } from './ItemTreeRules.js';
 import { itemIdOf } from './GroupTreeRules.js';
+import { PLACE_KIND } from './ItemPlaceRules.js';
 
 /**
  * 一覧の1行。
@@ -31,7 +32,8 @@ import { itemIdOf } from './GroupTreeRules.js';
  * @property {boolean} canToggle - 三角を押せるか（空でないフォルダ）
  * @property {boolean} selected - 強い選択の見た目か
  * @property {boolean} selectedInGroup - 上のフォルダが選ばれている弱い選択の見た目か
- * @property {boolean} insertTarget - 描き込む先の印か
+ * @property {boolean} insertTarget - 描き込む先の印（行の印）か
+ * @property {?{edge: ('before'|'after'), indent: number}} insertLine - 描き込む先の線（行の上／下・字下げpx）。無ければ null
  * @property {boolean} hiddenMark - 閉じたフォルダの中に、選択・描き込む先の印があるか
  */
 
@@ -105,27 +107,92 @@ export function resolveRowIndent(depth) {
 }
 
 /**
+ * 描き込む先の印を、行ごとの見た目へ割り当てる（行ごとに規則を二重に書かないための1か所）。
+ * - above：行が見えていれば、図形は`insertTarget`、フォルダはその行の上の線。
+ * - inside：行が見えていれば`insertTarget`（折りたたんでいても同じ）。
+ * - bottom（idなし）：最後の行の下の線（字下げ0）。
+ * - bottom（フォルダ）：行が見えていれば、空なら`insertTarget`、折りたたんでいれば`hiddenMark`、
+ *   開いていて中身があれば、そのフォルダの中の最後の行の下の線（字下げは1段深い）。
+ * - 行が見えていない：その行を含む折りたたんだ行に`hiddenMark`。
+ * @param {ItemRow[]} rows - `buildItemRows`の結果（書き換えない）
+ * @param {?import('./InsertTargetRules.js').InsertTarget} insertMark - 描き込む先の印（無ければ null）
+ * @returns {{targetId: ?string, lines: Map<string, {edge: ('before'|'after'), indent: number}>, hiddenIds: Set<string>}}
+ *   `targetId`＝`insertTarget`にする行のid、`lines`＝行のid→線、`hiddenIds`＝`hiddenMark`にする行のid
+ */
+function resolveInsertMarkEffects(rows, insertMark) {
+    const effects = { targetId: null, lines: new Map(), hiddenIds: new Set() };
+    if (insertMark === null || insertMark === undefined || rows.length === 0) {
+        return effects;
+    }
+    const { kind, id } = insertMark;
+    if (kind === PLACE_KIND.BOTTOM && id === null) {
+        effects.lines.set(rows[rows.length - 1].id, { edge: 'after', indent: 0 });
+        return effects;
+    }
+    const row = rows.find((candidate) => candidate.id === id);
+    if (row === undefined) {
+        for (const candidate of rows) {
+            if (candidate.collapsed && (candidate.shapeIds.includes(id) || candidate.groupIds.includes(id))) {
+                effects.hiddenIds.add(candidate.id);
+            }
+        }
+        return effects;
+    }
+    const isGroup = row.kind === ITEM_KIND.GROUP;
+    if (kind === PLACE_KIND.ABOVE) {
+        if (isGroup) {
+            effects.lines.set(row.id, { edge: 'before', indent: resolveRowIndent(row.depth) });
+        } else {
+            effects.targetId = row.id;
+        }
+    } else if (kind === PLACE_KIND.INSIDE) {
+        effects.targetId = row.id;
+    } else if (kind === PLACE_KIND.BOTTOM && isGroup) {
+        if (row.isEmpty) {
+            effects.targetId = row.id;
+        } else if (row.collapsed) {
+            effects.hiddenIds.add(row.id);
+        } else {
+            let last = null;
+            for (const candidate of rows) {
+                if (candidate.ancestorIds.includes(id)) {
+                    last = candidate;
+                }
+            }
+            if (last !== null) {
+                effects.lines.set(last.id, { edge: 'after', indent: resolveRowIndent(row.depth + 1) });
+            }
+        }
+    }
+    return effects;
+}
+
+/**
  * 行ごとの見た目の材料を決める。
  * - `selectedInGroup`：上のフォルダのどれかが選ばれている（図形・フォルダとも。弱い見た目）。
  * - `selected`：`selectedInGroup`でなく、図形は`isSelected`、フォルダは`selectedGroupIds`にある。
- * - `hiddenMark`：閉じているフォルダの行で、中の図形に選ばれているもの・`insertMarkId`の図形がある、
+ * - `hiddenMark`：閉じているフォルダの行で、中の図形に選ばれているものがある、
  *   または中のフォルダに選んでいるフォルダがある（自分が選ばれていても出す）。
+ *   描き込む先が見えない行（閉じたフォルダの中）・閉じたフォルダの一番下のときも出す。
+ * - `insertTarget`・`insertLine`：描き込む先の印（`insertMark`）の割り当て。
  * @param {Object} params
  * @param {ItemRow[]} params.rows - `buildItemRows`の結果（書き換えない）
  * @param {function(string): boolean} params.isSelected - 図形のidが選ばれているか
  * @param {Iterable<string>} params.selectedGroupIds - 選んでいるフォルダのid
- * @param {?string} params.insertMarkId - 描き込む先の印の図形id（無ければ null）
+ * @param {?import('./InsertTargetRules.js').InsertTarget} params.insertMark - 描き込む先の印（場所または null）
  * @returns {RowView[]} 行ごとの見た目の材料
  */
-export function resolveRowViews({ rows, isSelected, selectedGroupIds, insertMarkId }) {
+export function resolveRowViews({ rows, isSelected, selectedGroupIds, insertMark }) {
     const groupSet = new Set(selectedGroupIds);
+    const effects = resolveInsertMarkEffects(rows, insertMark);
     return rows.map((row) => {
         const isGroup = row.kind === ITEM_KIND.GROUP;
         const selectedInGroup = row.ancestorIds.some((ancestorId) => groupSet.has(ancestorId));
         const selected = !selectedInGroup && (isGroup ? groupSet.has(row.id) : isSelected(row.id));
         const hiddenMark = isGroup && row.collapsed && (
-            row.shapeIds.some((shapeId) => isSelected(shapeId) || shapeId === insertMarkId)
+            row.shapeIds.some((shapeId) => isSelected(shapeId))
             || row.groupIds.some((groupId) => groupSet.has(groupId))
+            || effects.hiddenIds.has(row.id)
         );
         return {
             id: row.id,
@@ -136,7 +203,8 @@ export function resolveRowViews({ rows, isSelected, selectedGroupIds, insertMark
             canToggle: isGroup && !row.isEmpty,
             selected,
             selectedInGroup,
-            insertTarget: insertMarkId !== null && insertMarkId !== undefined && row.id === insertMarkId,
+            insertTarget: effects.targetId === row.id,
+            insertLine: effects.lines.get(row.id) ?? null,
             hiddenMark
         };
     });
@@ -147,7 +215,7 @@ export function resolveRowViews({ rows, isSelected, selectedGroupIds, insertMark
  * `hasHighlightChanged`・`resolveSelectionScrollTop`へ渡す値。
  * @param {RowView[]} views - `resolveRowViews`の結果（書き換えない）
  * @returns {{selectedIds: string[], markId: ?string, indexes: number[]}}
- *   `selectedIds`＝`selected`か`selectedInGroup`の行のid、`markId`＝`insertTarget`か`hiddenMark`の最初の行のid（無ければ null）、
+ *   `selectedIds`＝`selected`か`selectedInGroup`の行のid、`markId`＝`insertTarget`・`insertLine`・`hiddenMark`のいずれかを持つ最初の行のid（無ければ null）、
  *   `indexes`＝スクロールの対象の添字（選ばれている行。1つも無ければ印の行）
  */
 export function resolveRowHighlight(views) {
@@ -160,7 +228,7 @@ export function resolveRowHighlight(views) {
             selectedIds.push(view.id);
             selectedIndexes.push(index);
         }
-        if (markId === null && (view.insertTarget || view.hiddenMark)) {
+        if (markId === null && (view.insertTarget || view.insertLine !== null || view.hiddenMark)) {
             markId = view.id;
             markIndex = index;
         }

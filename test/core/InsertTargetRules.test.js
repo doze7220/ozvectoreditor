@@ -4,7 +4,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    resolveInsertMarkId,
+    resolveInsertMark,
     resolveNextInsertTarget,
     resolveRowInsertTarget,
     isSameInsertTarget,
@@ -12,17 +12,18 @@ import {
     resolveDuplicatePlace
 } from '../../js/core/InsertTargetRules.js';
 
-describe('resolveInsertMarkId', () => {
+describe('resolveInsertMark', () => {
     it('選択が1つ以上なら null', () => {
-        assert.equal(resolveInsertMarkId({ selectedCount: 1, insertTargetId: 'a' }), null);
+        assert.equal(resolveInsertMark({ selectedCount: 1, target: { kind: 'above', id: 'a' } }), null);
     });
 
-    it('選択が無ければ描き込む先のid', () => {
-        assert.equal(resolveInsertMarkId({ selectedCount: 0, insertTargetId: 'a' }), 'a');
+    it('選択が無ければ描き込む先', () => {
+        assert.deepEqual(resolveInsertMark({ selectedCount: 0, target: { kind: 'above', id: 'a' } }), { kind: 'above', id: 'a' });
+        assert.deepEqual(resolveInsertMark({ selectedCount: 0, target: { kind: 'bottom', id: null } }), { kind: 'bottom', id: null });
     });
 
     it('選択も描き込む先も無ければ null', () => {
-        assert.equal(resolveInsertMarkId({ selectedCount: 0, insertTargetId: null }), null);
+        assert.equal(resolveInsertMark({ selectedCount: 0, target: null }), null);
     });
 });
 

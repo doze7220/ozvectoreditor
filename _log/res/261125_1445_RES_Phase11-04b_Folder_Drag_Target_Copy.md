@@ -256,7 +256,7 @@
         *   「要件5」「要件4」のとおり、`#serializeSelection`をまとまりの写しへ、`paste`・`pasteInPlace`・`duplicate`・`duplicateInPlaceWithinEdit`の入る場所と`asUnits`、`#copiedGroupIdsByCanvas`、省ける依存`getCanvasId`。先頭の責務・クラスJSDoc（フォルダを写す・自分のコピーの見分け・importの制約）を直す。`listShapeItems`のimportを外す。
         *   テスト（実物。`ShapeInserter`は`insertsAtTarget: true`、切り取りの削除は`GroupEditor.removeSelection`）：フォルダ・入れ子・空のフォルダ・フォルダと外の図形の混ざり・選んでいるフォルダの中のフォルダを二重に写さない・フォルダの中の図形だけ（図形だけ写る）・折りたたみ・表示・ロック・名前・中の順番・idの採番、ずらし量（段数）が中の図形に効く、複製（まとまりの一番上のすぐ上・フォルダの複製は中でなくすぐ上・離れたまとまり）、コピー→貼り付けの自分のコピー（すぐ上・続けて貼り付けても入り込まずすぐ上・入れ子のフォルダを選んで貼り付け）、違うフォルダを選んで貼り付け＝中の一番上、別のキャンバスの同じid（`getCanvasId`が変わる）では中、切り取って貼り付け＝元の場所（フォルダの中の途中・一番下・いちばん外側の一番下・フォルダごと・空のフォルダ）、`Alt`＋ドラッグの手順（`beginEdit` → 複製 → `moveShapes` → `commitEdit`）で1件・フォルダを選んでいる状態のまま動く・取り消し1回、どれも記録1件で取り消しとやり直しのJSONが一致、フォルダの無い絵での結果が今までと同じ、空のフォルダだけのコピー・切り取り・貼り付け・複製。
 
-*   [ ] タスク8: 描き込む先の印の規則と一覧の同期
+*   [x] タスク8: 描き込む先の印の規則と一覧の同期
     *   **対象ファイル** :
         *   `./js/core/InsertTargetRules.js` :（更新。`resolveInsertMarkId` → `resolveInsertMark`）
         *   `./js/core/ItemRowRules.js` :（更新）
@@ -382,7 +382,10 @@
 
 ### タスク8: 描き込む先の印の規則と一覧の同期
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/InsertTargetRules.js`（CRLF）：`resolveInsertMarkId`を`resolveInsertMark({ selectedCount, target })`へ置き換えた（選択があれば`null`、無ければ`target ?? null`）。
+    *   `js/core/ItemRowRules.js`（CRLF）：`resolveRowViews`の引数を`insertMark`（場所または`null`）にし、`RowView.insertLine`を足した。印の割り当ては内部関数`resolveInsertMarkEffects`の1か所にまとめた（above・inside・bottom・見えない行）。`resolveRowHighlight`の`markId`・`indexes`は`insertLine`を持つ行も印とする。`PLACE_KIND`をimportし、先頭の責務のimportの記述を直した。
+    *   `js/wiring/ItemListWiring.js`（LF）：`sync`が`selectedCount`＝図形の数＋選んでいるフォルダの数、`target: model.getInsertTarget()`で`resolveInsertMark`を呼び、結果を`insertMark`へ渡す。importを差し替えた。
+    *   テスト：`InsertTargetRules.test.js`の`resolveInsertMarkId`3件を`resolveInsertMark`へ。`ItemRowRules.test.js`の`insertMarkId`を`insertMark`へ替えた（期待値は同じ）うえで、3つの形・線・見えない行・`resolveRowHighlight`の線の件を追加。`node --test`は tests 3345 / pass 3345 / fail 0。
 
 ### タスク9: 一覧のパネルの線と目立たせる行
 *   **作業内容** :
@@ -435,6 +438,8 @@
 *   （タスク1）`insertItemsAt`の`above`は、基準がフォルダでも「そのフォルダ行のすぐ上」（同じ並びのすぐ後ろ）へ入る（`insertItemsAbove`は図形だけが基準だった）。`moveItems`の目印は`Symbol`のidを持つ一時のフォルダで、結果には残らない。開発資料への影響はタスク16・17で反映する予定の範囲内。
 
 *   （タスク2）「すぐ下の行が別のフォルダへ移った」場合は、その行を数えず、さらに下（配列で前）の同じ並びの行へたどる（テストは、たどった先がフォルダ行なら`above`・無ければ`bottom`）。`resolveNextInsertTarget`の規則1は、まとまりの種類を`resolveRowInsertTarget`で決める（規則の二重化なし）。
+
+*   （タスク8）見えない行の印は、描き込む先の行が`rows`に無いとき、`shapeIds`か`groupIds`に`id`を含む閉じた行に付ける（`id`が全くどこにも無ければ何も付かない）。選択（図形）による`hiddenMark`の条件は今のまま。`resolveRowViews`の`insertTarget`は`insertLine`と同時には付かない。パネル側（クラス・CSS）はタスク9。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0.  **準備**：画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。塗りのボタン（🪣）をONにし、色の違う塗った図形を8つほど、少しずつ重ねて描く。描き終えたら`V`（選択）にし、いくつか選んで`Ctrl`+`G`でフォルダを2つ作る（1つは、フォルダの行を押し、`Ctrl`を押しながら図形の行を押して`Ctrl`+`G`＝入れ子）。

@@ -16,7 +16,7 @@ import {
     resolveRowPressAction,
     shouldSelectPressedRow
 } from '../core/ItemListRules.js';
-import { resolveInsertMarkId } from '../core/InsertTargetRules.js';
+import { resolveInsertMark } from '../core/InsertTargetRules.js';
 import { buildItemRows, resolveRowHighlight, resolveRowViews } from '../core/ItemRowRules.js';
 import { hasGroupItem } from '../core/GroupTreeRules.js';
 import { FOLDER_BUTTON_ACTION, resolveFolderButtonAction } from '../core/GroupCommandRules.js';
@@ -164,12 +164,16 @@ export class ItemListWiring {
         const rows = buildItemRows(model.getItems());
         const previousIds = this.#panel.getSelectedRowIds();
         const previousMarkId = this.#panel.getMarkedRowId();
-        const insertMarkId = resolveInsertMarkId({ selectedCount: model.getSelectedIds().length, insertTargetId: model.getInsertTargetId() });
+        const selectedGroupIds = model.getSelectedGroupIds();
+        const insertMark = resolveInsertMark({
+            selectedCount: model.getSelectedIds().length + selectedGroupIds.length,
+            target: model.getInsertTarget()
+        });
         const views = resolveRowViews({
             rows,
             isSelected: (id) => model.isSelected(id),
-            selectedGroupIds: model.getSelectedGroupIds(),
-            insertMarkId
+            selectedGroupIds,
+            insertMark
         });
         this.#panel.render(views);
         const { selectedIds, markId, indexes } = resolveRowHighlight(views);

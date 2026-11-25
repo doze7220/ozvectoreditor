@@ -176,19 +176,19 @@ describe('resolveRowViews', () => {
     const rows = buildItemRows(items);
 
     it('図形の行は字下げ・選択・描き込む先の印を持つ', () => {
-        const views = resolveRowViews({ rows, isSelected: selecting(['c']), selectedGroupIds: [], insertMarkId: null });
+        const views = resolveRowViews({ rows, isSelected: selecting(['c']), selectedGroupIds: [], insertMark: null });
         assert.deepEqual(views.map((view) => view.id), ['c', 'g1', 'b', 'a']);
         assert.equal(views[0].selected, true);
         assert.equal(views[0].selectedInGroup, false);
         assert.equal(views[2].indent, 12);
         assert.equal(views[2].selected, false);
-        const marked = resolveRowViews({ rows, isSelected: selecting([]), selectedGroupIds: [], insertMarkId: 'a' });
+        const marked = resolveRowViews({ rows, isSelected: selecting([]), selectedGroupIds: [], insertMark: { kind: 'above', id: 'a' } });
         assert.equal(marked[3].insertTarget, true);
         assert.equal(marked[2].insertTarget, false);
     });
 
     it('選んでいるフォルダは強く、中の図形は弱い見た目になる', () => {
-        const views = resolveRowViews({ rows, isSelected: selecting(['a', 'b']), selectedGroupIds: ['g1'], insertMarkId: null });
+        const views = resolveRowViews({ rows, isSelected: selecting(['a', 'b']), selectedGroupIds: ['g1'], insertMark: null });
         assert.equal(views[1].selected, true);
         assert.equal(views[1].selectedInGroup, false);
         assert.equal(views[2].selected, false);
@@ -199,10 +199,10 @@ describe('resolveRowViews', () => {
 
     it('入れ子のフォルダは、外側が選ばれていれば弱い見た目で、自分だけ選ばれていれば強い', () => {
         const nested = buildItemRows([gItem('g1', [gItem('g2', [sItem('a')])])]);
-        const outer = resolveRowViews({ rows: nested, isSelected: selecting(['a']), selectedGroupIds: ['g1'], insertMarkId: null });
+        const outer = resolveRowViews({ rows: nested, isSelected: selecting(['a']), selectedGroupIds: ['g1'], insertMark: null });
         assert.equal(outer[1].selected, false);
         assert.equal(outer[1].selectedInGroup, true);
-        const inner = resolveRowViews({ rows: nested, isSelected: selecting(['a']), selectedGroupIds: ['g2'], insertMarkId: null });
+        const inner = resolveRowViews({ rows: nested, isSelected: selecting(['a']), selectedGroupIds: ['g2'], insertMark: null });
         assert.equal(inner[0].selected, false);
         assert.equal(inner[1].selected, true);
         assert.equal(inner[2].selectedInGroup, true);
@@ -210,7 +210,7 @@ describe('resolveRowViews', () => {
 
     it('canToggleは空でないフォルダだけ真', () => {
         const withEmpty = buildItemRows([gItem('g1', []), gItem('g2', [sItem('a')]), sItem('b')]);
-        const views = resolveRowViews({ rows: withEmpty, isSelected: selecting([]), selectedGroupIds: [], insertMarkId: null });
+        const views = resolveRowViews({ rows: withEmpty, isSelected: selecting([]), selectedGroupIds: [], insertMark: null });
         assert.equal(views.find((view) => view.id === 'g1').canToggle, false);
         assert.equal(views.find((view) => view.id === 'g2').canToggle, true);
         assert.equal(views.find((view) => view.id === 'b').canToggle, false);
@@ -218,40 +218,40 @@ describe('resolveRowViews', () => {
 
     it('見えない行の印：閉じたフォルダの中の選択・描き込む先・選んでいるフォルダで出る', () => {
         const closed = buildItemRows([gItem('g1', [sItem('a'), gItem('g2', [sItem('b')])], true), sItem('c')]);
-        const none = resolveRowViews({ rows: closed, isSelected: selecting([]), selectedGroupIds: [], insertMarkId: null });
+        const none = resolveRowViews({ rows: closed, isSelected: selecting([]), selectedGroupIds: [], insertMark: null });
         assert.equal(none.find((view) => view.id === 'g1').hiddenMark, false);
-        const bySelect = resolveRowViews({ rows: closed, isSelected: selecting(['a']), selectedGroupIds: [], insertMarkId: null });
+        const bySelect = resolveRowViews({ rows: closed, isSelected: selecting(['a']), selectedGroupIds: [], insertMark: null });
         assert.equal(bySelect.find((view) => view.id === 'g1').hiddenMark, true);
-        const byMark = resolveRowViews({ rows: closed, isSelected: selecting([]), selectedGroupIds: [], insertMarkId: 'b' });
+        const byMark = resolveRowViews({ rows: closed, isSelected: selecting([]), selectedGroupIds: [], insertMark: { kind: 'above', id: 'b' } });
         assert.equal(byMark.find((view) => view.id === 'g1').hiddenMark, true);
-        const byGroup = resolveRowViews({ rows: closed, isSelected: selecting([]), selectedGroupIds: ['g2'], insertMarkId: null });
+        const byGroup = resolveRowViews({ rows: closed, isSelected: selecting([]), selectedGroupIds: ['g2'], insertMark: null });
         assert.equal(byGroup.find((view) => view.id === 'g1').hiddenMark, true);
         assert.equal(byGroup.find((view) => view.id === 'c').hiddenMark, false);
     });
 
     it('見えない行の印は、閉じたフォルダ自身が選ばれていても出る。開いたフォルダ・図形には出ない', () => {
         const closed = buildItemRows([gItem('g1', [sItem('a')], true)]);
-        const views = resolveRowViews({ rows: closed, isSelected: selecting(['a']), selectedGroupIds: ['g1'], insertMarkId: null });
+        const views = resolveRowViews({ rows: closed, isSelected: selecting(['a']), selectedGroupIds: ['g1'], insertMark: null });
         assert.equal(views[0].selected, true);
         assert.equal(views[0].hiddenMark, true);
-        const open = resolveRowViews({ rows, isSelected: selecting(['a']), selectedGroupIds: [], insertMarkId: null });
+        const open = resolveRowViews({ rows, isSelected: selecting(['a']), selectedGroupIds: [], insertMark: null });
         assert.equal(open.some((view) => view.hiddenMark), false);
     });
 
     it('多段では、見えている外側の閉じたフォルダだけに印が出る', () => {
         const nested = buildItemRows([gItem('g1', [gItem('g2', [sItem('a')], true)], true)]);
-        const views = resolveRowViews({ rows: nested, isSelected: selecting(['a']), selectedGroupIds: [], insertMarkId: null });
+        const views = resolveRowViews({ rows: nested, isSelected: selecting(['a']), selectedGroupIds: [], insertMark: null });
         assert.equal(views.length, 1);
         assert.equal(views[0].hiddenMark, true);
         const open = buildItemRows([gItem('g1', [gItem('g2', [sItem('a')], true)])]);
-        const openViews = resolveRowViews({ rows: open, isSelected: selecting(['a']), selectedGroupIds: [], insertMarkId: null });
+        const openViews = resolveRowViews({ rows: open, isSelected: selecting(['a']), selectedGroupIds: [], insertMark: null });
         assert.equal(openViews[0].hiddenMark, false);
         assert.equal(openViews[1].hiddenMark, true);
     });
 
     it('引数を書き換えない', () => {
         const before = JSON.stringify(rows);
-        resolveRowViews({ rows, isSelected: selecting(['a']), selectedGroupIds: ['g1'], insertMarkId: 'a' });
+        resolveRowViews({ rows, isSelected: selecting(['a']), selectedGroupIds: ['g1'], insertMark: { kind: 'above', id: 'a' } });
         assert.equal(JSON.stringify(rows), before);
     });
 });
@@ -260,7 +260,7 @@ describe('resolveRowHighlight', () => {
     const rows = buildItemRows([gItem('g1', [sItem('a'), sItem('b')]), sItem('c')]);
 
     it('selected・selectedInGroupの行のid、印が無ければmarkIdはnull、indexesは選ばれている行', () => {
-        const views = resolveRowViews({ rows, isSelected: selecting(['a', 'b']), selectedGroupIds: ['g1'], insertMarkId: null });
+        const views = resolveRowViews({ rows, isSelected: selecting(['a', 'b']), selectedGroupIds: ['g1'], insertMark: null });
         const highlight = resolveRowHighlight(views);
         assert.deepEqual(highlight.selectedIds, ['g1', 'b', 'a']);
         assert.equal(highlight.markId, null);
@@ -268,7 +268,7 @@ describe('resolveRowHighlight', () => {
     });
 
     it('選ばれている行が無ければ、印の行がindexesになる', () => {
-        const views = resolveRowViews({ rows, isSelected: selecting([]), selectedGroupIds: [], insertMarkId: 'a' });
+        const views = resolveRowViews({ rows, isSelected: selecting([]), selectedGroupIds: [], insertMark: { kind: 'above', id: 'a' } });
         const highlight = resolveRowHighlight(views);
         assert.deepEqual(highlight.selectedIds, []);
         assert.equal(highlight.markId, 'a');
@@ -277,12 +277,123 @@ describe('resolveRowHighlight', () => {
 
     it('markIdは、描き込む先か見えない行の印の最初の行', () => {
         const closed = buildItemRows([gItem('g1', [sItem('a')], true), sItem('b')]);
-        const views = resolveRowViews({ rows: closed, isSelected: selecting([]), selectedGroupIds: [], insertMarkId: 'a' });
+        const views = resolveRowViews({ rows: closed, isSelected: selecting([]), selectedGroupIds: [], insertMark: { kind: 'above', id: 'a' } });
         assert.equal(resolveRowHighlight(views).markId, 'g1');
     });
 
     it('何も無ければ空', () => {
-        const views = resolveRowViews({ rows, isSelected: selecting([]), selectedGroupIds: [], insertMarkId: null });
+        const views = resolveRowViews({ rows, isSelected: selecting([]), selectedGroupIds: [], insertMark: null });
         assert.deepEqual(resolveRowHighlight(views), { selectedIds: [], markId: null, indexes: [] });
+    });
+});
+
+describe('resolveRowViews（描き込む先の3つの形）', () => {
+    const above = (id) => ({ kind: 'above', id });
+    const inside = (id) => ({ kind: 'inside', id });
+    const bottom = (id) => ({ kind: 'bottom', id });
+    const noSel = selecting([]);
+
+    /**
+     * 印だけを見る短縮。
+     * @param {Object[]} items - アイテムの入れ子
+     * @param {Object|null} insertMark - 描き込む先
+     * @returns {Object[]} 行の見た目
+     */
+    function viewsOf(items, insertMark) {
+        return resolveRowViews({ rows: buildItemRows(items), isSelected: noSel, selectedGroupIds: [], insertMark });
+    }
+
+    it('図形のaboveは行の印で、線は無い', () => {
+        const views = viewsOf([sItem('a'), sItem('b')], above('a'));
+        assert.deepEqual(views.map((view) => view.insertTarget), [false, true]);
+        assert.deepEqual(views.map((view) => view.insertLine), [null, null]);
+    });
+
+    it('フォルダのaboveは、その行の上の線（字下げは行の深さ）で、行の印は無い', () => {
+        const views = viewsOf([gItem('g1', [gItem('g2', [sItem('a')])])], above('g2'));
+        const g2 = views.find((view) => view.id === 'g2');
+        assert.deepEqual(g2.insertLine, { edge: 'before', indent: 12 });
+        assert.equal(g2.insertTarget, false);
+        assert.equal(views.filter((view) => view.insertLine !== null).length, 1);
+    });
+
+    it('insideは、開いた・閉じた・空のフォルダのどれでも行の印（閉じても見えない行の印にしない）', () => {
+        const open = viewsOf([gItem('g1', [sItem('a')])], inside('g1'));
+        assert.equal(open.find((view) => view.id === 'g1').insertTarget, true);
+        assert.equal(open.some((view) => view.insertLine !== null), false);
+        const closed = viewsOf([gItem('g1', [sItem('a')], true)], inside('g1'));
+        assert.equal(closed[0].insertTarget, true);
+        assert.equal(closed[0].hiddenMark, false);
+        const empty = viewsOf([gItem('g1', [])], inside('g1'));
+        assert.equal(empty[0].insertTarget, true);
+    });
+
+    it('bottomでidが無ければ、最後の行の下の線（字下げ0）', () => {
+        const views = viewsOf([gItem('g1', [sItem('a')]), sItem('b')], bottom(null));
+        assert.deepEqual(views.map((view) => view.insertLine), [null, null, { edge: 'after', indent: 0 }]);
+    });
+
+    it('bottomでフォルダが開いていて中身があれば、中の最後の見えている行の下の線（1段深い字下げ）', () => {
+        const views = viewsOf([sItem('c'), gItem('g1', [sItem('a'), gItem('g2', [sItem('b')])])], bottom('g1'));
+        assert.deepEqual(views.map((view) => view.id), ['g1', 'g2', 'b', 'a', 'c']);
+        assert.deepEqual(views.map((view) => view.insertLine), [null, null, null, { edge: 'after', indent: 12 }, null]);
+        const nestedLast = viewsOf([gItem('g1', [gItem('g2', [sItem('b')]), sItem('a')])], bottom('g1'));
+        assert.deepEqual(nestedLast.map((view) => view.id), ['g1', 'a', 'g2', 'b']);
+        assert.deepEqual(nestedLast[3].insertLine, { edge: 'after', indent: 12 });
+    });
+
+    it('bottomの空のフォルダは行の印、閉じたフォルダは見えない行の印', () => {
+        const empty = viewsOf([gItem('g1', [])], bottom('g1'));
+        assert.equal(empty[0].insertTarget, true);
+        assert.equal(empty[0].insertLine, null);
+        const closed = viewsOf([gItem('g1', [sItem('a')], true)], bottom('g1'));
+        assert.equal(closed[0].hiddenMark, true);
+        assert.equal(closed[0].insertTarget, false);
+        assert.equal(closed[0].insertLine, null);
+    });
+
+    it('行が見えないとき（閉じたフォルダの中）は、見えている外側の閉じたフォルダに見えない行の印（above・inside・bottom・多段）', () => {
+        const items = [gItem('g1', [gItem('g2', [sItem('a'), gItem('g3', [sItem('b')])])], true), sItem('c')];
+        for (const mark of [above('a'), above('g3'), inside('g3'), bottom('g3'), bottom('g2'), inside('g2')]) {
+            const views = viewsOf(items, mark);
+            assert.equal(views.length, 2);
+            assert.equal(views[1].hiddenMark, true, mark.kind + ':' + mark.id);
+            assert.equal(views[0].hiddenMark, false);
+            assert.equal(views.some((view) => view.insertTarget || view.insertLine !== null), false);
+        }
+    });
+
+    it('行が無い・描き込む先が無い・idの行が無ければ何も付かない', () => {
+        assert.deepEqual(resolveRowViews({ rows: [], isSelected: noSel, selectedGroupIds: [], insertMark: bottom(null) }), []);
+        for (const mark of [null, above('zz'), inside('zz'), bottom('zz')]) {
+            const views = viewsOf([gItem('g1', [sItem('a')]), sItem('b')], mark);
+            assert.equal(views.some((view) => view.insertTarget || view.insertLine !== null || view.hiddenMark), false);
+        }
+    });
+
+    it('引数を書き換えない', () => {
+        const rows = buildItemRows([gItem('g1', [sItem('a')]), sItem('b')]);
+        const before = JSON.stringify(rows);
+        resolveRowViews({ rows, isSelected: noSel, selectedGroupIds: [], insertMark: bottom('g1') });
+        assert.equal(JSON.stringify(rows), before);
+    });
+});
+
+describe('resolveRowHighlight（線の印）', () => {
+    it('線を持つ行が印の行・スクロールの対象になる', () => {
+        const rows = buildItemRows([sItem('c'), gItem('g1', [sItem('a')])]);
+        const views = resolveRowViews({ rows, isSelected: selecting([]), selectedGroupIds: [], insertMark: { kind: 'bottom', id: 'g1' } });
+        const highlight = resolveRowHighlight(views);
+        assert.equal(highlight.markId, 'a');
+        assert.deepEqual(highlight.indexes, [1]);
+        const above = resolveRowViews({ rows, isSelected: selecting([]), selectedGroupIds: [], insertMark: { kind: 'above', id: 'g1' } });
+        assert.equal(resolveRowHighlight(above).markId, 'g1');
+        assert.deepEqual(resolveRowHighlight(above).indexes, [0]);
+    });
+
+    it('選ばれている行があれば、スクロールの対象はそちら', () => {
+        const rows = buildItemRows([sItem('c'), gItem('g1', [sItem('a')])]);
+        const views = resolveRowViews({ rows, isSelected: selecting(['c']), selectedGroupIds: [], insertMark: { kind: 'bottom', id: 'g1' } });
+        assert.deepEqual(resolveRowHighlight(views).indexes, [2]);
     });
 });
