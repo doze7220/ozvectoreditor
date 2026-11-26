@@ -188,7 +188,7 @@
         *   テスト（`PathVertexEditor.test.js`。実物の`VectorModel`・図形クラスと、呼び出しを記録する偽の記録先）：追加＝`beginEdit`→`commitEdit`が1組・その図形だけが選ばれ足した点だけが選ばれる（ハンドル名が新しい図形の`insertedIndex`の名前）・選んでいない図形でも足せる（前の選択・頂点の選択が置き換わる）・`id`が同じ・塗りの内側／許容幅の外／円・弧／無いid／隠れた図形／ロックされた図形（上のフォルダから受け継いだものを含む）では`false`で記録先・モデルに触れない（通知0回）。削除＝`canRemoveSelectedVertices`（頂点の選択で点あり＝真・点なし＝偽・選択（`V`）のモード＝偽）・まとめて消す（複数の図形の点・図形ごと消える図形と残る図形の混在）で記録先が1組・頂点の選択が空・残った図形は選ばれたまま・消えた図形は選択から外れる・`id`が同じ・計画が空なら`false`で触れない・ロックした図形の点は頂点の選択に入らず対象にならない。
         *   テスト（`PathVertexEditor.items.test.js`。実物の`VectorModel`・`SnapshotAdapter`・`HistoryManager`）：追加・削除がそれぞれ取り消し1回で戻り（図形の作業データ・選択が戻り、頂点の選択は外れる）やり直しで戻る、複数の図形の点をまとめて消しても1回で戻る、名前・表示・ロック・一覧での位置・フォルダの所属が引き継がれる、図形ごと消えて空になったフォルダが残る（取り消しで図形が戻る）、何も変わらないときは履歴に入らない、作業データ（`DocumentSerializer`の往復）で結果の`path`・`line`が保たれる・`version`が4のまま。
 
-*   [ ] タスク6: 入力（ダブルクリックの受け付けと削除の入口の振り分け）
+*   [x] タスク6: 入力（ダブルクリックの受け付けと削除の入口の振り分け）
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` :（更新）
     *   **作業内容** :
@@ -256,7 +256,8 @@
 
 ### タスク6: 入力（ダブルクリックの受け付けと削除の入口の振り分け）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/InputTracker.js`（CRLFのまま。2023行→2112行）：`VertexEditRules`の`DELETE_ROUTE`・`resolveDeleteRoute`・`resolveDoubleClickInsertTarget`をimport。`InputAssist`のtypedef・`NO_INPUT_ASSIST`・コンストラクタの組み立てに`insertVertexAt`・`hasRemovableVertices`・`removeSelectedVertices`（既定は`false`）。非公開`#lastClickSuppressed`を足し、`handleClick`冒頭で`consumeSuppressedClick()`の結果を入れる。`dblclick`を購読し公開`handleDoubleClick(event)`（`#classifyPoint`→規則→`insertVertexAt(shapeId, point, #getWorldHitTolerance())`）。公開`deleteSelectionOrVertices()`・`canDeleteSelectionOrVertices()`を足し、`deleteLastLinePointOrSelection()`を`removeLastLinePoint() || deleteSelectionOrVertices()`に。`deleteSelection()`の中身は不変（JSDocに頂点の選択の削除が別経路である旨だけ追記）。クラスのJSDoc・`@param inputAssist`の列挙を更新。`node --test`全体で3801件すべて合格（既存のテストは変更なし。新規テストなし）。
+    *   開発資料の更新予定への追記：`06_InputTracker.md`の行数は2112行（`wc -l`）。
 
 ### タスク7: 配線（`main.js`）
 *   **作業内容** :

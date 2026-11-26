@@ -13,6 +13,7 @@ import { collectVertexHandlesInRect } from './VertexHandleRules.js';
 import { resolvePressAction, resolveVertexPressAction } from './PressActionRules.js';
 import { resolveCursorShape } from './CursorShapeRules.js';
 import { resolveUserClickSelection, resolveMarqueeSelection, resolveVertexMarqueeSelection, resolveVertexClickSelection } from './SelectionRules.js';
+import { DELETE_ROUTE, resolveDeleteRoute, resolveDoubleClickInsertTarget } from './VertexEditRules.js';
 import { constrainMoveDirection } from './MoveDirectionRules.js';
 import { resolveUnitSnapStep, roundPointToUnit, roundDeltaToUnit, roundConstrainedDeltaToUnit, roundPointFromOriginToUnit, roundConstrainedPointFromOriginToUnit } from './UnitSnapRules.js';
 import { collectScaleFrame, hitTestScaleHandle, computeBoundsScale, toScaleTransform } from './ScaleHandleRules.js';
@@ -145,10 +146,16 @@ const NO_SNAP_ASSIST = Object.freeze({
  *     戻り値は検証せずRotationRulesのcomputeRotationCenterへ渡す。既定は常に`null`（外枠の中心）
  * @property {() => void} deleteSelectedItems 選んでいる図形・フォルダの削除の実体（deleteSelectionが受理した後に1回だけ呼ぶ）。
  *     履歴の記録（beginEdit／commitEdit）は実体の側が挟み、本クラスは挟まない。既定は何もしない
+ * @property {(shapeId: string, point: {x: number, y: number}, tolerance: number) => boolean} insertVertexAt 頂点の選択のダブルクリックで、
+ *     図形（shapeId）の区間の上のpoint（ワールド座標）に点を足す実体（handleDoubleClickが規則の許可を得た後に1回だけ呼ぶ。toleranceはワールド換算の許容幅）。
+ *     履歴の記録は実体の側が挟み、本クラスは挟まない。足したらtrue。既定は常にfalse（足さない）
+ * @property {() => boolean} hasRemovableVertices 選んでいる頂点のうち消せるものがあるかの照会（頂点の選択のときの削除ボタンの押せる・押せないと、削除の受理に使う）。既定は常に偽
+ * @property {() => boolean} removeSelectedVertices 選んでいる頂点を消す実体（deleteSelectionOrVerticesが受理した後に1回だけ呼ぶ）。
+ *     履歴の記録は実体の側が挟み、本クラスは挟まない。消したらtrue。既定は常にfalse（消さない）
  */
 
 /**
- * 第7引数の補助が注入されなかった場合の既定値（複製しない・待ち受けなし・図形を渡さない・丸めない・外枠のハンドルなし・回転の中心は外枠の中心・削除しない）。
+ * 第7引数の補助が注入されなかった場合の既定値（複製しない・待ち受けなし・図形を渡さない・丸めない・外枠のハンドルなし・回転の中心は外枠の中心・削除しない・点を足さない・点を消さない）。
  * @type {InputAssist}
  */
 const NO_INPUT_ASSIST = Object.freeze({
@@ -167,6 +174,15 @@ const NO_INPUT_ASSIST = Object.freeze({
         return null;
     },
     deleteSelectedItems() {},
+    insertVertexAt() {
+        return false;
+    },
+    hasRemovableVertices() {
+        return false;
+    },
+    removeSelectedVertices() {
+        return false;
+    },
 });
 
 /**
@@ -229,7 +245,9 @@ export function hasCtrlModifier(event) {
  * 頂点の選択のモード（OperationMode.VERTEX）では、頂点のハンドルのクリックでCtrlの有無により頂点の選択へ足す・外す・その頂点だけに選び直し、
  * 範囲選択（MARQUEE_SELECTING）で範囲に入る頂点をまとめて選び、選んだ頂点のハンドルのドラッグで選んだ頂点をまとめて動かす
  * （選択の次の状態の決定はSelectionRules、押下時の分岐はPressActionRulesへ渡す）。
- * 入力の解釈の外へ委ねる補助（InputAssist。コンストラクタ第7引数。項目はduplicateSelection・isPickingShape・pickShape・getUnitSnapStep・getSelectionFrameBounds・getReferencePoint・deleteSelectedItems）も注入される。
+ * 入力の解釈の外へ委ねる補助（InputAssist。コンストラクタ第7引数。項目はduplicateSelection・isPickingShape・pickShape・getUnitSnapStep・getSelectionFrameBounds・getReferencePoint・deleteSelectedItems・insertVertexAt・hasRemovableVertices・removeSelectedVertices）も注入される。
+ * 頂点の選択のモードのダブルクリック（handleDoubleClick）は、当たり分類の結果をVertexEditRulesのresolveDoubleClickInsertTargetへ渡し、図形のidが返ったときだけ補助のinsertVertexAtを呼ぶ。
+ * 削除の入口（deleteSelectionOrVertices・canDeleteSelectionOrVertices）の振り分けはVertexEditRulesのresolveDeleteRouteへ渡し、頂点の選択のモードでは補助のremoveSelectedVertices・hasRemovableVerticesを呼ぶだけ（点の削除の計算・記録は持たない）。
  * 選択モードで選んだ図形全体の外枠のハンドル（外枠の出し方・位置・当たり・倍率と動かない点の計算・スナップの当て方・変換の組み立てはScaleHandleRulesの関数。
  * 本クラスは持たない）を押して引くと拡大縮小（SCALING_SELECTION）になる。押下の時点の選択中の変えられる図形のインスタンスを#scaleDragに控え、追従のたびに
  * 規則の関数が返した変換を控えの図形へ当てて（図形のcreateTransformed）、VectorModel.replaceShapesKeepingIdsで同じidの位置へ差し替えるだけ。
@@ -327,6 +345,13 @@ export class InputTracker {
     #inputAssist;
 
     /**
+     * 直前のclickがドラッグ直後の抑止（DragTracker.consumeSuppressedClick()が真）だったか。handleClickの冒頭で更新し、
+     * handleDoubleClickが規則（VertexEditRules.resolveDoubleClickInsertTarget）へ渡すだけに使う（2回目のクリックが抑止されたときは点を足さない）。
+     * @type {boolean}
+     */
+    #lastClickSuppressed = false;
+
+    /**
      * 本体ドラッグ（MOVING_SELECTION）を押した時点のAltキーの状態（event.altKey）。真なら閾値超過時（#onLeftDragStart）に
      * 選択中の図形を複製してから動かす。押した後のAltは見ない（途中で切り替わらない）。#beginMoveSelectionで立て、#finishLeftDrag()で下ろす。
      * @type {boolean}
@@ -409,8 +434,8 @@ export class InputTracker {
      * @param {() => boolean} [isFillHitExcluded=() => false] - 塗った内側を当たりに含めないかの照会（真なら含めない。
      *     当たり分類のたびに呼ぶ）。省略時は常に含める（従来どおり動作する）。関数でなければ`console.warn`して既定（常に含める）を使う
      * @param {InputAssist} [inputAssist=NO_INPUT_ASSIST] - 入力の解釈の外へ委ねる補助（実体はmain.jsが注入する）。
-     *     項目（duplicateSelection・isPickingShape・pickShape・getUnitSnapStep・getSelectionFrameBounds・getReferencePoint・deleteSelectedItems）ごとに、関数でなければ既定へ置き換える（`console.warn`は出さない）。
-     *     省略時は従来どおり動作する（複製しない・図形を渡す待ち受けなし・丸めない・外枠のハンドルなし・回転の中心は外枠の中心・削除の実体は何もしない）
+     *     項目（duplicateSelection・isPickingShape・pickShape・getUnitSnapStep・getSelectionFrameBounds・getReferencePoint・deleteSelectedItems・insertVertexAt・hasRemovableVertices・removeSelectedVertices）ごとに、関数でなければ既定へ置き換える（`console.warn`は出さない）。
+     *     省略時は従来どおり動作する（複製しない・図形を渡す待ち受けなし・丸めない・外枠のハンドルなし・回転の中心は外枠の中心・削除の実体は何もしない・点を足さない・点を消さない）
      */
     constructor(canvas, model, viewTransform, editRecorder = NO_EDIT_RECORDER, snapAssist = NO_SNAP_ASSIST, isFillHitExcluded = () => false, inputAssist = NO_INPUT_ASSIST) {
         this.canvas = canvas;
@@ -445,6 +470,15 @@ export class InputTracker {
             deleteSelectedItems: typeof inputAssist?.deleteSelectedItems === 'function'
                 ? () => inputAssist.deleteSelectedItems()
                 : NO_INPUT_ASSIST.deleteSelectedItems,
+            insertVertexAt: typeof inputAssist?.insertVertexAt === 'function'
+                ? (shapeId, point, tolerance) => inputAssist.insertVertexAt(shapeId, point, tolerance)
+                : NO_INPUT_ASSIST.insertVertexAt,
+            hasRemovableVertices: typeof inputAssist?.hasRemovableVertices === 'function'
+                ? () => inputAssist.hasRemovableVertices()
+                : NO_INPUT_ASSIST.hasRemovableVertices,
+            removeSelectedVertices: typeof inputAssist?.removeSelectedVertices === 'function'
+                ? () => inputAssist.removeSelectedVertices()
+                : NO_INPUT_ASSIST.removeSelectedVertices,
         };
 
         /**
@@ -507,6 +541,7 @@ export class InputTracker {
         this.canvas.addEventListener('mousemove', this.handleMouseMove.bind(this));
         this.canvas.addEventListener('mousedown', this.handleMouseDown.bind(this));
         this.canvas.addEventListener('click', this.handleClick.bind(this));
+        this.canvas.addEventListener('dblclick', this.handleDoubleClick.bind(this));
         // preventDefault()でページスクロール・ブラウザズームを抑止するため、passive: falseで購読する
         this.canvas.addEventListener('wheel', this.handleWheel.bind(this), { passive: false });
         document.addEventListener('keydown', this.handleKeyDown.bind(this));
@@ -641,7 +676,8 @@ export class InputTracker {
      * 受理時は補助のdeleteSelectedItems()を呼ぶだけ（実体はmain.jsが注入するGroupEditor.removeSelection()）。非受理時は何もしない。
      * 履歴の記録（beginEdit／commitEdit）・削除の実行は補助の実体が行い、本メソッドは記録先を呼ばない・deleteShapesも呼ばない。
      * 削除ボタン（main.js）・Delete/Backspaceショートカット（KeyboardShortcuts→main.jsの注入コールバック）・
-     * 切り取り（`ClipboardController.cut()`へ`main.js`が注入）の唯一の削除経路であり、呼び出し側で条件を重複判定しないこと。
+     * 切り取り（`ClipboardController.cut()`へ`main.js`が注入）の唯一の「図形・フォルダの」削除経路であり、呼び出し側で条件を重複判定しないこと。
+     * 頂点の選択のモードで選んだ点を消す経路は別の公開メソッドdeleteSelectionOrVertices（本メソッドは頂点の選択では今までどおり何もしない）。
      * ドラッグ中（パン中を含む）は受け付けない（ドラッグ対象の図形が消えたまま追従が続くことを防ぐため）。
      * @returns {boolean} 削除を受理したらtrue（呼び出し側はtrueのときのみpreventDefault()する）
      */
@@ -791,12 +827,42 @@ export class InputTracker {
     }
 
     /**
+     * 削除の入口（削除ボタン・Delete/Backspace）の振り分け。操作モードがVertexEditRules.resolveDeleteRouteでDELETE_ROUTE.VERTICES（頂点の選択）なら、
+     * IDLE状態かつドラッグ中でなく、補助のhasRemovableVertices()が真のときだけ補助のremoveSelectedVertices()を呼んでtrue（ほかはfalse）。
+     * DELETE_ROUTE.ITEMS（それ以外のモード）ならdeleteSelection()の結果をそのまま返す。履歴の記録・点の削除の計算は補助の実体が行い、本メソッドは持たない。
+     * @returns {boolean} 受理したらtrue（呼び出し側はtrueのときのみpreventDefault()する）
+     */
+    deleteSelectionOrVertices() {
+        if (resolveDeleteRoute(this.currentMode) === DELETE_ROUTE.VERTICES) {
+            if (this.state !== InputState.IDLE || this.#drag.isActive() || !this.#inputAssist.hasRemovableVertices()) {
+                return false;
+            }
+            this.#inputAssist.removeSelectedVertices();
+            return true;
+        }
+        return this.deleteSelection();
+    }
+
+    /**
+     * 削除の入口が今受理できるかの照会（削除ボタンの押せる・押せないの唯一の照会）。VertexEditRules.resolveDeleteRouteがVERTICES（頂点の選択）なら
+     * 補助のhasRemovableVertices()、ITEMS（それ以外）ならmodel.hasRemovableSelection()（今の削除ボタンの式そのまま）。
+     * @returns {boolean} 削除できる対象があればtrue
+     */
+    canDeleteSelectionOrVertices() {
+        if (resolveDeleteRoute(this.currentMode) === DELETE_ROUTE.VERTICES) {
+            return this.#inputAssist.hasRemovableVertices();
+        }
+        return this.model.hasRemovableSelection();
+    }
+
+    /**
      * Backspace/Deleteキー（KeyboardShortcutsのdeleteSelection）の実体。線を引いている途中なら最後の点を消し（removeLastLinePoint）、
-     * それ以外は選択集合の一括削除（deleteSelection）へ進む。deleteSelection()の中身は変えない（削除ボタン・切り取りと共有する唯一の削除経路のため）。
+     * それ以外は削除の入口の振り分け（deleteSelectionOrVertices。頂点の選択では選んだ点の削除、ほかは選択集合の一括削除のdeleteSelection）へ進む。
+     * deleteSelection()の中身は変えない（図形・フォルダの削除と切り取りで共有する唯一の削除経路のため）。
      * @returns {boolean} 受理したらtrue（呼び出し側はtrueのときのみpreventDefault()する）
      */
     deleteLastLinePointOrSelection() {
-        return this.removeLastLinePoint() || this.deleteSelection();
+        return this.removeLastLinePoint() || this.deleteSelectionOrVertices();
     }
 
     /**
@@ -1118,7 +1184,8 @@ export class InputTracker {
      * @param {MouseEvent} event
      */
     handleClick(event) {
-        if (this.#drag.consumeSuppressedClick()) {
+        this.#lastClickSuppressed = this.#drag.consumeSuppressedClick();
+        if (this.#lastClickSuppressed) {
             return;
         }
 
@@ -1198,6 +1265,28 @@ export class InputTracker {
             this.model.startDraft(start.x, start.y, this.currentShapeType);
             this.state = InputState.DRAWING;
         }
+    }
+
+    /**
+     * キャンバスのdblclickイベントのハンドラ。頂点の選択のモードで線・パスの区間の上をダブルクリックしたとき、その位置に点を足す入口。
+     * クリックと同じ当たり分類（#classifyPoint・同じ許容幅）の結果を、操作モード・入力状態・ドラッグ中か・直前のclickが抑止されたか（#lastClickSuppressed）と共に
+     * VertexEditRules.resolveDoubleClickInsertTargetへ渡し、図形のidが返ったときだけ補助のinsertVertexAt(idのワールド座標・許容幅)を呼ぶ。
+     * 計算・判定は持たない（足せるか・足す形・履歴の記録は補助の実体の側）。修飾キーは見ない。
+     * @param {MouseEvent} event
+     */
+    handleDoubleClick(event) {
+        const point = this.getWorldCoordinate(event);
+        const shapeId = resolveDoubleClickInsertTarget({
+            mode: this.currentMode,
+            state: this.state,
+            isDragging: this.#drag.isActive(),
+            clickSuppressed: this.#lastClickSuppressed,
+            hit: this.#classifyPoint(point),
+        });
+        if (shapeId === null) {
+            return;
+        }
+        this.#inputAssist.insertVertexAt(shapeId, point, this.#getWorldHitTolerance());
     }
 
     /**
