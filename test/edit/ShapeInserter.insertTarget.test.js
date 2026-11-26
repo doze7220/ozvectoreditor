@@ -290,7 +290,7 @@ test('ShapeInserter inserted: 図形あり・全体の失敗・0件の真偽', (
 });
 
 test('ShapeInserter 記録しない入口: placeとasUnitsを受け、beginEdit/commitEditを呼ばない', () => {
-    const { model, history, inserter } = setup();
+    const { model, history } = setup();
     const calls = [];
     const recorder = { beginEdit() { calls.push('begin'); }, commitEdit() { calls.push('commit'); return true; } };
     const plain = new ShapeInserter({ model, editRecorder: recorder, insertsAtTarget: true });
@@ -302,7 +302,6 @@ test('ShapeInserter 記録しない入口: placeとasUnitsを受け、beginEdit/
     assert.deepEqual(calls, []);
     assert.equal(model.getItems()[1].kind, 'group');
     assert.equal(history.canUndo(), false);
-    assert.ok(inserter);
 });
 
 test('ShapeInserter インポート相当（引数なし）: 描き込む先がフォルダの中・一番下ならそこへ入る', () => {

@@ -132,7 +132,7 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
         *   **C13**（`EndpointSnapRules.js` 77・141行）・**C14**（`PathJoinRules.js` 271行）：「`model.getShapes()`の並び」を、今渡るもの（変えられる図形だけの並び）に合わせる。書く前に、呼び出し側（`edit/EndpointSnapper`・`edit/PathJoiner`）が渡す並び（`getEditableShapes()` 等）を実コードで確かめ、そのメソッド名で書く。**`shapes/` から `core/` への import・`import()` 型参照を足さない**（文中でメソッド名に触れるのはよい）。
         *   0-4 を行う（`node --check` 2ファイル、行末＝CRLF）。
 
-*   [ ] タスク5: テストの題と不要な1行（C16・C17・C19）
+*   [x] タスク5: テストの題と不要な1行（C16・C17・C19）
     *   **対象ファイル** :
         *   `./test/io/DocumentSerializer.roundtrip.test.js` :更新（`describe` の題のみ）
         *   `./test/core/ItemPlaceRules.test.js` :更新（`describe` の題のみ）
@@ -336,12 +336,16 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
 *   **作業内容** :
     *   **C13**（`EndpointSnapRules.js` 77・141行）：「`model.getShapes()`の並び。奥が先」→「`model.getEditableShapes()`の並び（変えられる図形だけ）。奥が先」（141行は「作成途中の図形は含まない」を保持）。根拠：`EndpointSnapper` は `findSnapTarget` 等へ `model.getEditableShapes()` を渡す。
     *   **C14**（`PathJoinRules.js` 271行 `classifyJoin` の `@param shapes`）：「選択集合の図形を重なり順（`model.getShapes()`の並び。奥が先）」→「選択中で変えられる図形を重なり順（`model.getEditableSelectedShapes()`の並び。奥が先）」。根拠：`PathJoiner.#selectedShapesInOrder` が `model.getEditableSelectedShapes()` を返し `classifyJoin`・`planJoin` へ渡す。
-    *   検証：`node --check` 2ファイル通過。`shapes/` へ import は足していない。行数不変（EndpointSnapRules 162・PathJoinRules 779）。行末は2ファイルとも LF のみ（CR＝0。0-3 の表の「CRLF」は実態と異なり、作業前から git の HEAD も LF。変えていない）。
+    *   検証：`node --check` 2ファイル通過。`shapes/` へ import は足していない。行数不変（EndpointSnapRules 162・PathJoinRules 779）。行末：作業後は2ファイルとも LF のみ（CR＝0）になっていた（実装AIは HEAD の LF を作業前の値と取り違えた）。実装統括AIが作業ツリーを CRLF に戻した（LF＝CR＝162・779。0-3 の表どおり）。
     *   原則10：同ファイル内に同じ誤りは見当たらず。
 
 ### タスク5: テストの題と不要な1行（C16・C17・C19）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   C16：`DocumentSerializer.roundtrip.test.js` 432行の `describe` の題「…（作業データの版2）」→「…（作業データの版4）」。
+    *   C17：`ItemPlaceRules.test.js` 136行の `describe` の題「insertItemsAt：insertItemsAbove と同じ値（above）」→「insertItemsAt（above）」。
+    *   C19：`ShapeInserter.insertTarget.test.js` の「記録しない入口」のテストで、`inserter` が最後の `assert.ok(inserter);` 以外で使われないことを確かめ、その1行を削除し、分割代入を `const { model, history } = setup();` にした。
+    *   変更前後とも3ファイルで 189件・全件成功（件数不変）。
+    *   行末：作業後は3ファイルとも LF のみ（CR=0）になっていた。`DocumentSerializer.roundtrip.test.js` は表どおり LF。`ItemPlaceRules.test.js`・`ShapeInserter.insertTarget.test.js` は表では CRLF で、実装統括AIが作業ツリーを CRLF に戻した（LF＝CR＝252・320。後者は C19 で1行減）。
 
 ### タスク6: `PROJECT_ARCHITECTURE.md` 1章（No.1・3・59・60・61、A1・A2・A3・A4）
 *   **作業内容** :
@@ -400,4 +404,4 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
   * タスク14＝No.24・25・26・27・30・31・32、A10・A11・A12／タスク15＝No.6・19・20・65、A14／タスク16＝No.33・34・35・52・53
 * （計画時点）順序の依存：A3（タスク6）は C13・C14（タスク4）の後、`06_InputTracker.md` 44行（タスク11）は C1（タスク1）の後、`PROJECT_ARCHITECTURE.md` 2章の No.8（タスク8）は `15_io.md` 37行（タスク7）の後、C18（タスク9）は C16・C17（タスク5）の後になるよう並べた。同じファイルを触るタスクは並べていない。
 * （計画時点）No.44・57（`16_test.md` 10行の例外の数）は、数え方によって数が大きく変わる（`test/edit/` で `VectorModel` を import するのは計画時点で42ファイル）。数え方の選択と、`test/core/SelectionRules.test.js` を例外に含めるかはタスク9で決め、4章に根拠を書く。
-* （タスク4）0-3 の表で `js/shapes/EndpointSnapRules.js`・`PathJoinRules.js` を CRLF としたが、実測は LF のみ（CR＝0。git の HEAD も LF）。行末は変えていない。他の「CRLF」とした js ファイルも実測と異なる可能性があるため、各タスクは作業前の実測値を基準にすること。
+* （実装統括AI）行末：`core.autocrlf=true` のため、リポジトリ（index・HEAD）はすべて LF で、作業ツリーが CRLF／LF に分かれる。`git show HEAD:…` で測った値は作業前の作業ツリーの値ではない。タスク4・5 で表では CRLF の4ファイル（`js/shapes/EndpointSnapRules.js`・`PathJoinRules.js`・`test/core/ItemPlaceRules.test.js`・`test/edit/ShapeInserter.insertTarget.test.js`）の作業ツリーが LF に変わっていたため、実装統括AIが CRLF に戻した（コミットの中身は LF のままで、差分は出ない）。0-3 の表は正しい。作業ツリーの行末は `git ls-files --eol` の `w/` 欄で確かめられる。

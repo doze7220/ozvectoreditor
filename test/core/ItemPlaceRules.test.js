@@ -133,7 +133,7 @@ describe('insertItemsAt', () => {
     });
 });
 
-describe('insertItemsAt：insertItemsAbove と同じ値（above）', () => {
+describe('insertItemsAt（above）', () => {
     const deep = () => [s('s1'), g('G1', [s('s2'), g('G2', [s('s3')]), s('s4')]), s('s5')];
     it('外側の図形のすぐ後ろ', () => {
         assert.deepEqual(shape(insertItemsAt(deep(), above('s1'), [s('x')])), ['s1', 'x', { G1: ['s2', { G2: ['s3'] }, 's4'] }, 's5']);
