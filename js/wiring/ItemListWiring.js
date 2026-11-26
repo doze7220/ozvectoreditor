@@ -35,7 +35,7 @@ const THUMBNAIL_OVERSCAN_ROWS = 4;
 
 /**
  * 図形の一覧の配線。生成時にパネル・行のドラッグの進行の生成と購読の登録を行い、公開するのはコンストラクタと`sync()`・`isRowDragging()`・`cancelRowDrag()`のみ。
- * 一時的な値として、`Shift`＋クリックの起点・自分が出したホバーのid・最後に見た`openCanvasId`だけを持つ（保存しない）。
+ * 一時的な値として、`Shift`＋クリックの起点・自分が出したホバーのid・描いたサムネイルの鍵・最後に見た`openCanvasId`・同期の予約だけを持つ（保存しない）。
  */
 export class ItemListWiring {
     /** @type {import('../core/VectorModel.js').VectorModel} 図形一式・選択の持ち主 */
@@ -70,7 +70,7 @@ export class ItemListWiring {
     #rowDrag;
     /** @type {string|null} `Shift`＋クリックの範囲の起点の行のid（図形またはフォルダ） */
     #anchorId = null;
-    /** @type {string|null} 自分が出したホバーとして記録している図形id */
+    /** @type {string|null} 自分が出したホバーとして記録している図形id（フォルダの行では記録しない） */
     #hoveredRowId = null;
     /** @type {string|null} 最後に見た`openCanvasId` */
     #lastOpenCanvasId = null;

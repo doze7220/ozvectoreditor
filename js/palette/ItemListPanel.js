@@ -533,7 +533,7 @@ export class ItemListPanel {
 
     /**
      * 行の名前を編集する欄を出し、全体を選んだ状態でフォーカスする。編集中なら先に確定する。行が無ければ何もしない。
-     * @param {string} id 図形のid
+     * @param {string} id アイテム（図形またはフォルダ）のid
      * @param {string} name 欄に入れる今の名前
      * @returns {void}
      */

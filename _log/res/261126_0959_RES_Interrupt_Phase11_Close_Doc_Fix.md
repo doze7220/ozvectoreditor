@@ -112,7 +112,7 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
         *   **C15**（`ItemListRules.js` 171行付近、`resolveRowHover` の `@param id` の「図形 id」）：行のid（図形またはフォルダ）に直す（呼び出し側 `wiring/ItemListWiring` で、フォルダの行のidが渡りうることを確かめる）。
         *   0-4 を行う（`node --check` 3ファイル、行末＝LF）。
 
-*   [ ] タスク3: `js/wiring`・`js/palette` のコメント（C5・C10・C11・C12）
+*   [x] タスク3: `js/wiring`・`js/palette` のコメント（C5・C10・C11・C12）
     *   **対象ファイル** :
         *   `./js/wiring/DisplayWiring.js` :更新（JSDocのみ）
         *   `./js/wiring/ItemListWiring.js` :更新（JSDoc・コメントのみ）
@@ -325,7 +325,12 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
 
 ### タスク3: `js/wiring`・`js/palette` のコメント（C5・C10・C11・C12）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   **C5**（`DisplayWiring.js`）：「全図形の外枠が」→「見えている図形の外枠が」。根拠：`ShapeExtentReader.getAllBounds` は `getVisibleShapes()` から求める（86行）。
+    *   **C10**（`ItemListWiring.js` クラスのJSDoc）：「…最後に見た`openCanvasId`だけ」→「`Shift`＋クリックの起点・自分が出したホバーのid・描いたサムネイルの鍵・最後に見た`openCanvasId`・同期の予約だけ」。一時的な値のprivateフィールドは `#anchorId`・`#hoveredRowId`・`#drawnKeys`・`#lastOpenCanvasId`・`#isSyncRequested` の5つで、列挙と一致（他は注入された依存）。
+    *   **C11**（`#hoveredRowId` の説明）：「図形id（フォルダの行では記録しない）」とした。根拠：代入は `#handleRowHover` の RECORD（`id === model.getHoveredId()` のとき）・SET（`queryExists` が `model.getShapes()` で判定）と `#clearOwnHover` の null のみで、フォルダのidは入らない。
+    *   **C12**（`ItemListPanel.startNameEdit` の `@param id`）：「図形のid」→「アイテム（図形またはフォルダ）のid」（同ファイルの他の `@param id` は「アイテムのid」）。
+    *   検証：`node --check` 3ファイル通過。行末は3ファイルとも LF のみ（CR＝0）。
+    *   原則10：同ファイル内に同じ誤りは見当たらず（`ItemListWiring` の `queryExists: (shapeId)` は C11 の根拠のため直していない）。
 
 ### タスク4: `js/shapes` のJSDoc（C13・C14）
 *   **作業内容** :
