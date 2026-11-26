@@ -160,7 +160,7 @@
         *   テスト（表の行ごと）：パスの`line`・`bezier`・`smooth`の区間（開いた・閉じた・閉じたパスの最後の区間＝足した点が末尾）、直線、矩形（回した矩形を含む。点5つの閉じたパス・区間`line`×5）、今の曲線（点3つの開いたパス・`bezier`×2）、円・弧は`null`、許容幅の外は`null`、`t`が0か1（端の外側・頂点の上）は`null`。それぞれ点・区間・角（足した点は`false`、ほかの角は元のまま）・`closed`・スタイル3つ（開いたパスの`fillColor`の値を含む）・`id`が`null`・`insertedIndex`。形：直線の区間は足した点が線分の上（形が変わらない）、`bezier`・今の曲線は分けた後の2つの区間を多数の`t`で評価した点が元の曲線と一致、`smooth`は足した点が元の曲線の上に乗り、足した区間と前後の区間以外の区間の制御点（`resolveSegmentControls`）が元と同じ。引数の図形・`toJSON()`の値を書き換えない。
         *   テスト（「曲線に」が変わらないこと）：`planSegmentKindSwitch(…, SegmentKindSwitch.TO_CURVE)`を直線・開いたパス・閉じたパスの終点→始点の区間に当てた結果（点の位置＝中点・区間の種類・角・`vertexIndexMap`）が今の値（リテラルで書いた期待値）のままであること。
 
-*   [ ] タスク3: 点を消した図形の組み立て
+*   [x] タスク3: 点を消した図形の組み立て
     *   **対象ファイル** :
         *   `./js/shapes/PathVertexRules.js` :（更新）
         *   `./test/shapes/PathVertexRules.remove.test.js` :（新規）
@@ -241,7 +241,8 @@
 
 ### タスク3: 点を消した図形の組み立て
 *   **作業内容** :
-    *   （未記入）
+    *   `PathVertexRules.js`（LF）：typedef`VertexTarget`・`VertexRemovalPlanItem`、非公開の`connectRun`（つなぐ区間の種類の唯一の箇所）・`buildRemovedPath`（開いた／閉じた3点以上／閉じた2点の組み立て）・`buildRemovedCurve`（今の曲線→`Line`）、export`planVertexRemoval(targets)`を足した。importに`Line`・`SEGMENT_KIND_SMOOTH`を追加。図形は`targets`に最初に現れた順（図形のオブジェクトで束ねる）。
+    *   `test/shapes/PathVertexRules.remove.test.js`（新規・LF）：23件（表の各行・つなぐ区間の組み合わせ・対象外・順序・引数不変）。`node --test`全体で3768件すべて合格（既存のテストは変更なし）。
 
 ### タスク4: ダブルクリックと削除の入口の規則
 *   **作業内容** :
@@ -286,6 +287,8 @@
 *   **確認の状況**：`dblclick`の購読・`handleDoubleClick`・削除の入口の振り分け（`InputTracker`）と`main.js`の配線、ブラウザのダブルクリックの判定（間隔・位置）、カーソルの形、削除ボタンの見た目の切り替わりは`node --test`で確かめられない（テストプレイで確かめる範囲）。
 *   **タスク1で判断した点**：(1) `outlineSourceOf`のパスは「`toJSON()`の値そのもの」と「引数と共有しない」が両立するよう、`toJSON()`と同じ内容の新しい値（`id`も写す）にした。(2) `projectOntoCurve`は、三分探索の結果が折れ線上の位置（`t0`）より遠い場合（単峰でない場合）は`t0`を使う安全策を足した（仕様の三分探索に追加。通常は探索結果が使われる）。(3) 曲線の区間の`distance`は仕様どおり折れ線の近似の距離で、`point`は真の曲線の上の点のため、`point`との実際の距離は`distance`と微小にずれ得る。(4) 新しい`PathVertexRules.js`のimportは、後続タスクで使う`Line`・`readCornerFlags`・`SEGMENT_KIND_SMOOTH`・`SEGMENT_KIND_BEZIER`・`Path`をまだ入れていない（使うタスクで足す）。
 *   **タスク2で判断した点**：(1) 区間が`line`でも`bezier`でもない場合は`smooth`として扱い、`segment.kind`をそのまま2つに複製した（仕様の「点を通る曲線の区間」）。(2) テストで今の曲線の制御点を動かした形は、`Curve`のコンストラクタが終点2つしか取らないため`Curve.fromJSON`で作った。回した矩形も`Rect.fromJSON`で斜めの点を渡して作った。
+
+*   **タスク3で判断した点**：(1) 図形の束ね方は`shape`オブジェクトの同一性（`Map`）で行う。(2) 図形ごと消える組の`targetId`は`shape.id`（`id`が`null`の図形でもそのまま入れる）。(3) 閉じたパスで残りが2点のとき、`b === a + 1`の判定を先にし、次に`a === 0 && b === n - 1`を見る（仕様の順）。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0.  **準備**：画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。直線（直線のツールで2点）・矩形（塗りあり）・直線のツールで描いた折れ線（3点以上）・曲線のツールで描いた曲線（3点以上）・閉じたパス（直線のツールで始点をクリックして閉じたもの）を描く。最後に頂点の選択（`A`）にする。

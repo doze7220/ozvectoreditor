@@ -5,11 +5,13 @@
 import {
     Path,
     SEGMENT_KIND_LINE,
+    SEGMENT_KIND_SMOOTH,
     SEGMENT_KIND_BEZIER,
     SMOOTH_SEGMENT_SAMPLE_COUNT,
     readCornerFlags,
     resolveSegmentControls,
 } from './Path.js';
+import { Line } from './Line.js';
 import { segmentSpecsOf, chainSourceOf } from './PathJoinRules.js';
 import { cubicBezierPoint } from './ShapeGeometry.js';
 
@@ -301,4 +303,154 @@ export function planVertexInsertion(shape, point, tolerance) {
     corners.splice(insertedIndex, 0, false);
     const built = new Path(points, source.closed, source.strokeColor, source.strokeWidth, source.fillColor, segments, corners);
     return { shape: built, insertedIndex };
+}
+
+/**
+ * 消す点の指定（選んだ点）。`PathCornerRules.CornerTarget`と同じ形。
+ * @typedef {Object} VertexTarget
+ * @property {Object} shape - 図形（`type`・`id`・`toJSON()`を持つ）
+ * @property {number} vertexIndex - 頂点の番号（0以上・頂点の数未満の整数）
+ */
+
+/**
+ * 点を消した結果の計画の1件。
+ * @typedef {Object} VertexRemovalPlanItem
+ * @property {*} targetId - 元の図形の`id`
+ * @property {Path|Line|null} shape - 点を消した新しい図形（`id`は`null`）。`null`は図形ごと消える
+ */
+
+/**
+ * 消した点にかかる区間の並び`run`を、残る前後の点をつなぐ1つの区間にする。
+ * 「つなぐ区間の種類」の規則の唯一の箇所：すべて`line`なら`line`、すべて`bezier`なら最初の`control1`と最後の`control2`の`bezier`、それ以外は`smooth`。
+ * 区間が1つなら（消した点にかからない区間）その区間の写し。引数を書き換えず、結果は新しい値。
+ * @param {Array<{kind: string, control1?: {x: number, y: number}, control2?: {x: number, y: number}}>} run - 区間の並び（1つ以上）
+ * @returns {{kind: string, control1?: {x: number, y: number}, control2?: {x: number, y: number}}} つないだ区間
+ */
+function connectRun(run) {
+    if (run.length === 1) {
+        return copySegmentValue(run[0]);
+    }
+    if (run.every((segment) => segment.kind === SEGMENT_KIND_LINE)) {
+        return { kind: SEGMENT_KIND_LINE };
+    }
+    if (run.every((segment) => segment.kind === SEGMENT_KIND_BEZIER)) {
+        return copySegmentValue({
+            kind: SEGMENT_KIND_BEZIER,
+            control1: run[0].control1,
+            control2: run[run.length - 1].control2,
+        });
+    }
+    return { kind: SEGMENT_KIND_SMOOTH };
+}
+
+/**
+ * 輪郭の元から、消す点の集合を除いた新しいパスを組み立てる。残りが1点以下なら`null`。
+ * 開いたパスは残る点の間を`run`の規則でつなぐ。閉じたパスは残りが3点以上なら閉じたまま（最後の残る点から最初の残る点へ戻る区間も同じ規則）、
+ * 残りが2点なら開いた線（`a`→`b`が1区間ならそれ、折り返しが1区間なら`[b, a]`でそれ、どちらでもなければ`a`→`b`の`run`をつなぐ）。
+ * @param {OutlineSource} source - 輪郭の元
+ * @param {Set<number>} removed - 消す点の番号の集合
+ * @returns {Path|null} 新しいパス。図形ごと消えるときは`null`
+ */
+function buildRemovedPath(source, removed) {
+    const n = source.points.length;
+    const kept = [];
+    for (let i = 0; i < n; i++) {
+        if (!removed.has(i)) {
+            kept.push(i);
+        }
+    }
+    if (kept.length <= 1) {
+        return null;
+    }
+    const flags = readCornerFlags(source);
+    const runBetween = (from, to) => {
+        const run = [];
+        for (let i = from; i !== to; i = (i + 1) % n) {
+            run.push(source.segments[i]);
+        }
+        return run;
+    };
+    const build = (indices, closed, segments) => new Path(
+        indices.map((i) => source.points[i]),
+        closed,
+        source.strokeColor,
+        source.strokeWidth,
+        source.fillColor,
+        segments,
+        indices.map((i) => flags[i]),
+    );
+    if (!source.closed) {
+        const segments = [];
+        for (let j = 0; j + 1 < kept.length; j++) {
+            segments.push(connectRun(source.segments.slice(kept[j], kept[j + 1])));
+        }
+        return build(kept, false, segments);
+    }
+    if (kept.length >= 3) {
+        const segments = kept.map((from, j) => connectRun(runBetween(from, kept[(j + 1) % kept.length])));
+        return build(kept, true, segments);
+    }
+    const [a, b] = kept;
+    if (b === a + 1) {
+        return build([a, b], false, [connectRun([source.segments[a]])]);
+    }
+    if (a === 0 && b === n - 1) {
+        return build([b, a], false, [connectRun([source.segments[n - 1]])]);
+    }
+    return build([a, b], false, [connectRun(runBetween(a, b))]);
+}
+
+/**
+ * 今の曲線（始点・制御点・終点）から1点を消した結果を作る。残った2点を結ぶ直線（残った順）。残りが1点以下なら`null`。
+ * @param {Object} data - 曲線の`toJSON()`の値（`points`は3点）
+ * @param {Set<number>} removed - 消す点の番号の集合
+ * @returns {Line|null} 残った2点を結ぶ直線。図形ごと消えるときは`null`
+ */
+function buildRemovedCurve(data, removed) {
+    const kept = data.points.filter((_, i) => !removed.has(i));
+    if (kept.length !== 2) {
+        return null;
+    }
+    return new Line(kept[0].x, kept[0].y, kept[1].x, kept[1].y, data.strokeColor, data.strokeWidth, data.fillColor);
+}
+
+/**
+ * 選んだ点を消した新しい図形の組み立てを、図形ごとに計画する。
+ * 図形は`targets`に最初に現れた順。消す点は0以上・頂点の数未満の整数だけ（重複は1つ）。消す点が1つ以上ある図形だけを結果に入れる。
+ * `type`が`curve`なら残った2点を結ぶ直線（2点以上消すと図形ごと消える）、`line`・`rect`・`path`は輪郭の元に「消したらどうなるか」の規則を当てる
+ * （つなぐ区間の種類・閉じたパスが2点になったときの扱い・残りが1点以下で図形ごと消える）。それ以外の図形は飛ばす。
+ * 引数を書き換えず、結果は引数と配列・点を共有しない。新しい図形の`id`は`null`。
+ * @param {VertexTarget[]} targets - 選んだ点
+ * @returns {VertexRemovalPlanItem[]} 図形ごとの結果（`shape`が`null`のものは図形ごと消える）
+ */
+export function planVertexRemoval(targets) {
+    const groups = new Map();
+    for (const target of targets) {
+        if (!groups.has(target.shape)) {
+            groups.set(target.shape, []);
+        }
+        groups.get(target.shape).push(target.vertexIndex);
+    }
+    const plan = [];
+    for (const [shape, indices] of groups) {
+        const type = shape.type;
+        if (type !== 'line' && type !== 'rect' && type !== 'curve' && type !== 'path') {
+            continue;
+        }
+        const data = shape.toJSON();
+        const count = data.points.length;
+        const removed = new Set(indices.filter((i) => Number.isInteger(i) && i >= 0 && i < count));
+        if (removed.size === 0) {
+            continue;
+        }
+        let built;
+        if (type === 'curve') {
+            built = buildRemovedCurve(data, removed);
+        } else {
+            const source = outlineSourceOf(data);
+            built = source === null ? null : buildRemovedPath(source, removed);
+        }
+        plan.push({ targetId: shape.id, shape: built });
+    }
+    return plan;
 }
