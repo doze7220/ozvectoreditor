@@ -168,7 +168,7 @@
         *   `planVertexRemoval(targets)`と、typedef`VertexTarget`（`{ shape, vertexIndex }`。`PathCornerRules.CornerTarget`と同じ形である旨をJSDocに書く）・`VertexRemovalPlanItem`（`{ targetId, shape: Path|Line|null }`）、つなぐ区間の種類を決める非公開の関数（`run`の規則の唯一の箇所）をJSDoc付きで足す（「要件3」の仕様と「点を消したら何になるか」の表のとおり）。
         *   テスト（表の行ごと）：開いたパスの途中の点（1つ・続いた複数・離れた複数）、始点・終点（先頭・末尾から続いた複数を含む）、つなぐ区間の種類の組み合わせ（`line`+`line`→`line`、`bezier`+`bezier`→前の`control1`と後の`control2`の`bezier`、3つ続いた`bezier`→最初の`control1`と最後の`control2`、`smooth`を含む→`smooth`、`line`+`bezier`→`smooth`）、閉じたパス（残り3点以上・最後の点と始点をまたぐ消し方・残り2点で触れていない区間がある（`a→b`・折り返しの`b→a`）／無い・残り1点以下）、開いたパスの残り1点以下、直線（1点・2点）、矩形（1点＝三角形・隣り合う2点・向かい合う2点・3点）、今の曲線（始点・制御点・終点のそれぞれ＝`Line`・2点以上＝`null`）、円・弧の組・範囲外や整数でない番号・同じ点の重複は無視、複数の図形の結果が`targets`に最初に現れた順、残った点の角・ほかの区間の種類・スタイル3つ（閉じたパスが開いても`fillColor`の値）・新しい図形の`id`が`null`、引数を書き換えない・結果が引数と配列・点を共有しない。
 
-*   [ ] タスク4: ダブルクリックと削除の入口の規則
+*   [x] タスク4: ダブルクリックと削除の入口の規則
     *   **対象ファイル** :
         *   `./js/core/VertexEditRules.js` :（新規）
         *   `./test/core/VertexEditRules.test.js` :（新規）
@@ -246,7 +246,8 @@
 
 ### タスク4: ダブルクリックと削除の入口の規則
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/VertexEditRules.js`（新規・LF）：値`DELETE_ROUTE`（凍結）・`resolveDeleteRoute(mode)`・`resolveDoubleClickInsertTarget({ mode, state, isDragging, clickSuppressed, hit })`。importは`InputModes`の`InputState`・`OperationMode`のみ。`hit`は`handle`・`bodyId`だけを読む（`handle`は`PointHit`では`{shapeId, handle}`の組なので、JSDocは`Object|null`と書いた）。
+    *   `test/core/VertexEditRules.test.js`（新規・LF）：12件（振り分け・凍結・足す条件の各否定・引数不変）。`node --test`全体で3779件すべて合格（既存のテストは変更なし）。
 
 ### タスク5: 点の追加・削除の編集操作
 *   **作業内容** :
