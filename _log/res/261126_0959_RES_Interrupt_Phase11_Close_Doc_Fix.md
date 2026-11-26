@@ -289,7 +289,7 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
         *   **No.35**（312行の頭書き「(a)〜(d)は入力・見分け方だけ。期待値の観点は変えない」）：`FileContentReader.test.js` の「sourceが無いスプライト（…）」で JS の期待が読み込み不可から読めるへ変わったことと食い違わないようにする（Survey 4章タスク16を必要なら読む）。
         *   テストの件数の記載（No.13・52・53・56・57に関わるもの以外）は変えない。235行付近は変えない。原則10を確かめる。0-4 を行う。
 
-*   [ ] タスク17: 要件8の確認と懸念事項の記入（固定タスク）
+*   [x] タスク17: 要件8の確認と懸念事項の記入（固定タスク）
     *   **対象ファイル** :
         *   本RES :更新（4章・5章）
     *   **作業内容** :
@@ -478,7 +478,12 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
 
 ### タスク17: 要件8の確認と懸念事項の記入（固定タスク）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   `node --check`：タスク1〜5で変えた `js/`・`test/` の全ファイル（計 `git diff --name-only 367952c HEAD` の js/・test/ 分）が通った。
+*   `node --test`：tests 3699 / suites 609 / pass 3699 / fail 0（変更前と同数）。
+*   `git diff 367952c HEAD`（PLAN コミット以降）：`js/` の変更はコメント・JSDocのみ。`test/` の非コメント変更は C16（`DocumentSerializer.roundtrip.test.js` の題を「版4」）・C17（`ItemPlaceRules.test.js` の題）・C19（`ShapeInserter.insertTarget.test.js` の未使用 `inserter` の分割代入と `assert.ok(inserter)` の削除）だけ。`index.html`・`sprite-check.html`・`asset/`・`PROJECT_CONSTITUTION.md`・`_doc/` の `arch/` 以外・`_log/` の本RES以外に変更なし。
+*   `wc -l`：`js/main.js`=1234、`js/core/InputTracker.js`=2023（不変）。
+*   行末（0-3の方法）：表の全31ファイルが表の値と一致（`ShapeInserter.insertTarget.test.js` のみ C19 の1行削除で LF=CR=320）。
+*   番号の処理：No.1〜65（対の項 2と37・4と58・15と38・44と57・36と45・39と48・40と49・41と50・42と51 を含む）、A1〜A14、C1〜C19 は、5章の割り当てどおりタスク1〜16で処理済み（漏れなし、タスク1〜16すべて [x]）。直せなかった・直さなかった番号は無い。
 
 ## 5. 懸念事項・要確認ポイント
 * （計画時点）番号の割り当て：No.1〜65 と A1〜A14・C1〜C19 は、次のとおりタスクへ割り当てた（漏れの確認用）。
@@ -492,3 +497,4 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
 * （実装統括AI）行末：`core.autocrlf=true` のため、リポジトリ（index・HEAD）はすべて LF で、作業ツリーが CRLF／LF に分かれる。`git show HEAD:…` で測った値は作業前の作業ツリーの値ではない。タスク4・5 で表では CRLF の4ファイル（`js/shapes/EndpointSnapRules.js`・`PathJoinRules.js`・`test/core/ItemPlaceRules.test.js`・`test/edit/ShapeInserter.insertTarget.test.js`）の作業ツリーが LF に変わっていたため、実装統括AIが CRLF に戻した（コミットの中身は LF のままで、差分は出ない）。0-3 の表は正しい。作業ツリーの行末は `git ls-files --eol` の `w/` 欄で確かめられる。
 * （タスク13）No.28の式のサムネイル幅28は旧記述の値を引き継いだ。`ItemListPanel.js`のcanvas寸法で目視確認を推奨。名前の幅50px・42pxは計算値で、テストプレイでの実測は未実施。
 * （タスク14）原則10の他の章：3章7.・14.・1章（行32885・39332付近）にも`insertItemsAbove`・`ShapeOrderEditor.applyOrder`の言及があるが、消えたことが書かれているかは未確認（担当外）。→（実装統括AI）`PROJECT_ARCHITECTURE.md`の`insertItemsAbove`・`applyOrder`の言及（1章57・117・306・309・313行、3章14. 656行、28. 942行）をgrepで確かめ、すべて消えた・置き換えたことが書かれていた。直すものは無い。
+* （タスク17）確認で見つかった誤りは無い。上記の各タスク追記（タスク13・14）以外の新規の懸念なし。
