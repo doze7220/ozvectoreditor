@@ -1,0 +1,8 @@
+*   **VertexTargetRules.js**：頂点の選択から、点を対象にする編集操作へ渡す図形と頂点の番号の組（`{ shape, vertexIndex }`）を集める手順を、状態を持たない関数として提供する（Phase 12-02で新設。流れは`PROJECT_ARCHITECTURE.md`3章30.・23.・29.）。
+    *   **公開**：`collectVertexTargets(mode, selectedIds, selectedVertices, shapes)` → `Array<{ shape, vertexIndex }>`、typedef`VertexTargetPair`（`shapes/PathVertexRules.VertexTarget`・`shapes/PathCornerRules.CornerTarget`・`shapes/PathSegmentKindRules.SegmentSwitchTarget`・`shapes/PathSplitRules.SplitTarget`と同じ形）。
+    *   **`collectVertexTargets`**：`resolveNudgeTarget(mode, selectedIds, selectedVertices)`が`'vertices'`のときだけ、頂点の選択の順に、`shapes`から`id`で図形を探して`getVertexIndexForHandle(handle)`で番号を得る。図形が無い組・番号が`null`の組は飛ばす。同じ組が重複していれば重複したまま並べる。それ以外（`'vertices'`でない・`null`）は空配列。引数を書き換えず、毎回新しい配列を返す。
+    *   **読むもの**：渡された引数と`core/NudgeTargetRules`の`resolveNudgeTarget`の結果だけ。図形は共通プロパティ`id`と共通メソッド`getVertexIndexForHandle`だけを使う。importは`core/NudgeTargetRules`のみ（`core/`内の規則どうしの一方向のimport）。
+    *   **知らないこと**：DOM・`VectorModel`・履歴・図形種別・ハンドル名の形式・図形固有のプロパティ名・操作モードの意味（`mode`は`resolveNudgeTarget`へ渡すだけ）。状態を持たない。
+    *   **使う側**：`edit/PathCornerEditor`（角の切り替え・区間の切り替え）・`edit/PathVertexEditor`（点の削除）・`edit/PathSplitEditor`（分割・区間の削除・押せるかの照会）の非公開`#collectTargets()`が呼ぶだけ。以前は`PathCornerEditor`・`PathVertexEditor`が同じ手順を別々に持っていた（写し）。Phase 12-02で1か所に括り、3つ目の写しを作らない。
+    *   **置き場所の理由**：「頂点の選択から対象の組を集める」は操作モードの知識（`resolveNudgeTarget`）を要し、`edit/`は操作モードを知らない約束のため、3つの編集操作に共通の手順を`edit/`に置けない。状態を持たない規則として`core/`に置いた（`NudgeTargetRules`・`VertexEditRules`と同じ形）。循環は無い（`NudgeTargetRules` ← `VertexTargetRules` ← `edit/`）。
+    *   **テスト**：`test/core/VertexTargetRules.test.js`（6件。順序・非VERTEXモードで空・選択空・飛ばす組・重複・引数を書き換えない。`_doc/arch/16_test.md`）。

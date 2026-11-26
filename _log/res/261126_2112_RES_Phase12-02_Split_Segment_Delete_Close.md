@@ -262,7 +262,7 @@
         *   ※ 実装AIによる開発資料の書き換えは原則禁止だが、この最終タスクのみ明示的な例外とする。
         *   『開発資料の更新予定』を確認し、1章（構成図・依存方向の列挙・「存在しないもの」・「フォルダ分割の方針」）、2章（`path`の分割・区間の削除の規則、「作られるのは次のとき」の列）、3章（2.の同期の経路・6.履歴・11.結合の1本のときの規則と押せる条件・12.の線を引いて閉じる経路・18.頂点の選択・23.・24.・29.の対象の集め方・新しい節30.）、4章の一覧（`67_VertexTargetRules.md`）へ反映する。書く内容は実コードで確かめる。「弧1本は閉じない」「同じ弧の両端の間を途中の点なしで引いても何も起きない」「`canJoin`は表示倍率を見ない」「パスの分割は存在しない」「閉じたパスを開くはやらない」「`#collectTargets`の写し」という古い記述を残さない。書き換える前に行末を実測して保つ。
 
-*   [ ] タスク9: 開発資料の反映（`_doc/arch/`）
+*   [x] タスク9: 開発資料の反映（`_doc/arch/`）
     *   **対象ファイル** :
         *   `./_doc/arch/`の`01_index_html.md`・`02_main.md`・`03_VectorModel.md`・`12_shapes.md`・`13_palette.md`・`14_edit.md`・`16_test.md`・`41_NudgeTargetRules.md`（と、使う側を列挙していれば`46_ItemTreeRules.md`・`62_ItemPlaceRules.md`） :（更新）
         *   `./_doc/arch/67_VertexTargetRules.md` :（新規）
@@ -328,7 +328,9 @@
 
 ### タスク9: 開発資料の反映（`_doc/arch/`）
 *   **作業内容** :
-    *   (未記入)
+    *   『開発資料の更新予定』のとおり`_doc/arch/`を反映した。行末は各ファイルの実測どおり（`46_ItemTreeRules.md`だけLF、ほかはCRLF。新規`67_VertexTargetRules.md`は`66_VertexEditRules.md`に合わせCRLF）。
+    *   新規：`67_VertexTargetRules.md`。更新：`01_index_html.md`（分割のまとまり・2行目の幅の見積もり約1111px・id列挙）、`02_main.md`（行数1296・`// 7.17.`の行・注入の一覧2行・主な関数・押せる／押せない状態の`viewTransform.onChange`・起動時の同期）、`03_VectorModel.md`（`deleteShapes`・`replaceShape`・`addShapesWithNewIds`・`setSelection`の呼び出し元に`PathSplitEditor`・不変条件の記述）、`12_shapes.md`（`PathSplitRules`の新しい節、`PathVertexRules`の2関数と使う側とテスト、`PathSegmentKindRules`の判定、`PathJoinRules`の`classifyJoin`・`buildClosedPath`・弧・`endpointVertexIndexOf`の使う側。Phase 09の当時の記述は「Phase 09-03bの時点」と明記して残した）、`13_palette.md`（`OptionBarSplitGroup`の節・ツールバーの位置づけ）、`14_edit.md`（`PathSplitEditor`の節、`PathJoiner`の`canJoin`、`PathCornerEditor`・`PathVertexEditor`の依存と`#collectTargets`、依存の例外の列挙）、`16_test.md`（Phase 12-02の新設分・書き換えた既存のテスト6件・件数）、`41_NudgeTargetRules.md`（使う側）、`46_ItemTreeRules.md`・`62_ItemPlaceRules.md`（使う側に`PathSplitEditor`）。
+    *   実測：`main.js`は1296行、`node --test`は tests 3910 / suites 652 / pass 3910 / fail 0、テストファイルは152（作業前は 3801 / 631 / 144）。`PROJECT_ARCHITECTURE.md`・`_doc/COWORK_STATUS.md`は触れていない。
 
 ## 5. 懸念事項・要確認ポイント
 *   **計画で決めたこと（REQの文言から一意に決まらなかった点。発注者の確認を推奨）**：
@@ -366,3 +368,4 @@
     *   注意：分割した直後、切った点には2本の線の端の点が重なっている。その点を押して少しだけ（画面上8px以内）ドラッグして離すと、重なっていたもう一方の端へ吸い付いて結合し直る（今の端点への吸い付き）。離したまま動かすときは8pxより遠くへ動かすか、`Ctrl`を押したままドラッグする。
     *   注意：オプションバー2行目の右端に「分割」のまとまりが増える。1280px幅の画面で2行目が切れずに見えることを確かめてほしい。
 *   **タスク8の記録**：判断に迷った点＝(1)3章の12.（端点への吸い付きと描き足し）の本文には線を引いて閉じる経路の記述が22.にあるため、弧の両端の間の記述は22.（行は「曲線のツール」の段落）と、描き終えの流れの「計画が何も起こさない場合」に直した。(2)REQのやらないことの原文は読まず、本RESの『開発資料の更新予定』の列挙どおりに1章へ足した。(3)2章の`addShapesWithNewIds`・`replaceShape`の前提の記述は資料に無いため、30.の計画で決めたこと(g)に正しい記述を書いた。目視確認の推奨：1章「存在しないもの」は1行が非常に長いので、足した「Phase 12-02でやらないと決めたこと」の文の続きが意図どおりか。
+*   **タスク9の記録**：判断に迷った点＝(1)`46_ItemTreeRules.md`・`62_ItemPlaceRules.md`は使う側を列挙しているため`PathSplitEditor`を足した。(2)`14_edit.md`の「`edit/`から`core/`をimportする…12個」の列挙は、Phase 12-01の`PathVertexEditor`が入っていなかったため、`PathVertexEditor`と`PathSplitEditor`を足して14個に直した（`PROJECT_ARCHITECTURE.md`の(3)の14ファイルと合わせた）。(3)`test`の件数は新設ファイルごとに`node --test <file>`で実測した（6・15・20・28・12・4・17・7＝109）。目視確認の推奨：`12_shapes.md`の`PathJoinRules`の行（8行目）は非常に長く、足した「Phase 12-02の変更」の文が意図どおり読めるか。
