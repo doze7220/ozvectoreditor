@@ -192,7 +192,7 @@
         *   `PathCornerEditor.js`・`PathVertexEditor.js`：`import { resolveNudgeTarget } from '../core/NudgeTargetRules.js';`を`import { collectVertexTargets } from '../core/VertexTargetRules.js';`に替え、`#collectTargets()`の本体を`return collectVertexTargets(this.#getMode(), this.#model.getSelectedIds(), this.#model.getSelectedVertices(), this.#model.getShapes());`だけにする（メソッド名・JSDocの戻り値は変えない）。クラスのJSDocの「依存の制約」のimportの記述を直す（`model`が使うメソッドの列は変わらない）。ほかのメソッド・ファイル先頭の責務は変えない。
         *   テスト（`VertexTargetRules.test.js`。図形は実物の`Path`・`Line`・`Curve`・`Ellipse`で作る）：`VERTEX`で頂点の選択の順に`{ shape, vertexIndex }`が並ぶ（パス・直線・今の曲線の制御点の番号1を含む）、`SELECT`・`CREATE`・`PAN`では空、`VERTEX`で頂点の選択が空なら空、図形が無い組・`getVertexIndexForHandle`が`null`の組（円のハンドル名・知らない名前）は飛ばす、同じ組が2回あれば2回並ぶ（今の手順と同じ）、引数の配列を書き換えない。`PathCornerEditor`・`PathVertexEditor`の既存のテストが変更なしで全件合格すること（ふるまいが変わらないことの確認）。
 
-*   [ ] タスク2: 選んだ点の番号と選んでいる区間の判定を1か所に括る
+*   [x] タスク2: 選んだ点の番号と選んでいる区間の判定を1か所に括る
     *   **対象ファイル** :
         *   `./js/shapes/PathVertexRules.js` :（更新）
         *   `./js/shapes/PathSegmentKindRules.js` :（更新）
@@ -281,7 +281,11 @@
 
 ### タスク2: 選んだ点の番号と選んでいる区間の判定を1か所に括る
 *   **作業内容** :
-    *   (未記入)
+    *   `js/shapes/PathVertexRules.js`：`outlineVertexIndexOf(data, vertexIndex)`・`selectedSegmentIndexesOf(data, vertexIndexes)`をJSDoc付きでexport（今ある関数の中身は変えていない）。先頭の責務は、監査check1の指摘（追加仕様）に従い、輪郭の元への読み替え（選んだ点の番号と、両端の点が選ばれている区間の読み方を含む。`PathSegmentKindRules`・`PathSplitRules`へ渡す共有の箇所）を、頂点の追加・削除の規則と並ぶ項目として2行で書き直した。
+    *   `js/shapes/PathSegmentKindRules.js`：`selectedSegmentIndexesOf`をimportし、`collectSwitchEntries`の区間の判定を`selectedSegmentIndexesOf(data, [...selected])`の1行に置き換えた。`dataOf`（矩形・円・弧を対象外）・番号の受け付け・エントリの順は変えていない。JSDocを新しい分担（判定は`PathVertexRules`、対象の絞り込みはここ）に直した。
+    *   `test/shapes/PathVertexRules.select.test.js`を新規作成（`outlineVertexIndexOf`3件・`selectedSegmentIndexesOf`7件・「曲線に」「直線に」が変わらないこと5件）。
+    *   `node --test`：3822件すべて合格（既存のテストは変更なし）。行末は2つの既存ファイルともLFのまま。
+    *   diff監査の修正：`PathVertexRules.js`先頭の責務2行目を「…表示倍率を知らず、ワールド座標の許容幅を引数で受け取る。」に戻した（3行以内、行末LFのまま）。
 
 ### タスク3: 分割の規則（ピースの組み立て）
 *   **作業内容** :

@@ -6,6 +6,7 @@ import { Path, SEGMENT_KIND_LINE, SEGMENT_KIND_SMOOTH, readCornerFlags } from '.
 import { Line } from './Line.js';
 import { segmentKindsOf, segmentSpecsOf } from './PathJoinRules.js';
 import { resolveCornerState, CornerState } from './PathCornerRules.js';
+import { selectedSegmentIndexesOf } from './PathVertexRules.js';
 
 /**
  * 区間の切り替えの操作の値。唯一の定義箇所。
@@ -65,10 +66,9 @@ function dataOf(cache, shape) {
 }
 
 /**
- * 切り替える区間を図形ごとに集める。切り替える区間の決め方の唯一の箇所。
- * パス・単独の直線は「区間を持つ線」として、区間`i`の両端（`i`と`(i + 1) % n`）がどちらも選ばれていれば切り替える区間
- * （閉じたパスの終点→始点の区間を含む。開いたパスは折り返さない）。今の曲線は始点（番号0）と終点（番号2）が選ばれていれば区間0。
- * 矩形・円・弧ほかは対象外。番号は0以上・頂点の数未満の整数だけを選んだ点とする。同じ点が2回あっても結果は同じ。
+ * 切り替える区間を図形ごとに集める。両端の点が選ばれている区間の判定は`PathVertexRules.selectedSegmentIndexesOf`に任せ、
+ * ここでは区間の切り替えの対象（パス・直線・今の曲線。矩形・円・弧ほかは対象外）の絞り込みと、番号の受け付け（0以上・頂点の数未満の整数だけを選んだ点とする）を行う。
+ * 同じ点が2回あっても結果は同じ。
  * @param {SegmentSwitchTarget[]} targets - 選んだ点
  * @param {Map<Object, Object|null>} cache - 図形ごとのデータの使い回し先
  * @returns {SwitchEntry[]} 図形ごとの結果（`targets`に最初に現れた順。切り替える区間が無い図形も含む）
@@ -87,16 +87,7 @@ function collectSwitchEntries(targets, cache) {
     const entries = [];
     for (const [shape, selected] of selectedByShape) {
         const data = cache.get(shape);
-        const segmentIndexes = [];
-        if (data.type === 'curve') {
-            if (selected.has(0) && selected.has(2)) segmentIndexes.push(0);
-        } else {
-            const n = data.points.length;
-            const count = segmentKindsOf(data).length;
-            for (let i = 0; i < count; i++) {
-                if (selected.has(i) && selected.has((i + 1) % n)) segmentIndexes.push(i);
-            }
-        }
+        const segmentIndexes = selectedSegmentIndexesOf(data, [...selected]);
         entries.push({ shape, data, segmentIndexes });
     }
     return entries;

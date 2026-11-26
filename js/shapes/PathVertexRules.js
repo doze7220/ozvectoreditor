@@ -1,6 +1,6 @@
 /**
- * 責務: 線・パスの頂点の追加と削除の規則（輪郭の元への読み替え・区間の上の最も近い位置・曲がり方を持つ区間の分割・点を足した／消した新しい図形の組み立て）を、
- * 状態を持たない関数として提供する。モデル・履歴・選択・操作モード・表示倍率を知らず、ワールド座標の許容幅を引数で受け取る。
+ * 責務: 線・パスの輪郭の元への読み替え（選んだ点の番号と、両端の点が選ばれている区間の読み方を含む。`PathSegmentKindRules`・`PathSplitRules`へ渡す共有の箇所）と、頂点の追加・削除の規則
+ * （区間の上の最も近い位置・曲がり方を持つ区間の分割・点を足した／消した新しい図形の組み立て）を、状態を持たない関数として提供する。モデル・履歴・選択・操作モード・表示倍率を知らず、ワールド座標の許容幅を引数で受け取る。
  */
 import {
     Path,
@@ -126,6 +126,62 @@ export function outlineSourceOf(data) {
         default:
             return null;
     }
+}
+
+/**
+ * 選んだ点の番号（図形の`getVertexIndexForHandle`の番号＝`toJSON()`の`points`の番号）を、輪郭の元（`outlineSourceOf`）の点の番号へ読み替える。「輪郭の番号」への読み替えの唯一の箇所
+ * （使う側＝`selectedSegmentIndexesOf`・`PathSplitRules`）。直線・矩形・パスは0以上・`points.length`未満の整数ならそのまま、
+ * 今の曲線は始点0→0・終点2→1（制御点1は線の上に無いので`null`）、円・弧ほか・範囲外・整数でない値は`null`。
+ * @param {Object} data - 図形の`toJSON()`の値
+ * @param {number} vertexIndex - 選んだ点の番号
+ * @returns {number|null} 輪郭の元の点の番号。無いときは`null`
+ */
+export function outlineVertexIndexOf(data, vertexIndex) {
+    if (!Number.isInteger(vertexIndex)) {
+        return null;
+    }
+    switch (data.type) {
+        case 'line':
+        case 'rect':
+        case 'path':
+            return vertexIndex >= 0 && vertexIndex < data.points.length ? vertexIndex : null;
+        case 'curve':
+            if (vertexIndex === 0) return 0;
+            if (vertexIndex === 2) return 1;
+            return null;
+        default:
+            return null;
+    }
+}
+
+/**
+ * 選んだ点のうち両端の点がどちらも選ばれている区間の番号を求める。「選んでいる区間」の判定の唯一の箇所（使う側＝`PathSegmentKindRules`・`PathSplitRules`）。
+ * 輪郭の元（`outlineSourceOf`）の区間`i`（`points[i]`→`points[(i + 1) % n]`。閉じた形の最後の区間を含み、開いた線は折り返さない）のうち、
+ * `i`と`(i + 1) % n`がどちらも（`outlineVertexIndexOf`で読み替えた番号として）選ばれているもの。輪郭の元が無い図形（円・弧ほか）は空。同じ点の重複は1つ。引数を書き換えない。
+ * @param {Object} data - 図形の`toJSON()`の値
+ * @param {Iterable<number>} vertexIndexes - 選んだ点の番号
+ * @returns {number[]} 選んでいる区間の番号（昇順）
+ */
+export function selectedSegmentIndexesOf(data, vertexIndexes) {
+    const source = outlineSourceOf(data);
+    if (source === null) {
+        return [];
+    }
+    const selected = new Set();
+    for (const vertexIndex of vertexIndexes) {
+        const outlineIndex = outlineVertexIndexOf(data, vertexIndex);
+        if (outlineIndex !== null) {
+            selected.add(outlineIndex);
+        }
+    }
+    const n = source.points.length;
+    const result = [];
+    for (let i = 0; i < source.segments.length; i++) {
+        if (selected.has(i) && selected.has((i + 1) % n)) {
+            result.push(i);
+        }
+    }
+    return result;
 }
 
 /**
