@@ -183,7 +183,7 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
         *   **No.54**（2章 外枠・外枠のハンドルの位置「選択集合の図形から**毎回求める**（…）」）：原則4で、選択中で変えられる図形から求めることが分かるように（同じ資料の1章 `ShapeExtentReader.js` の項の言い方にそろえる）。
         *   原則10（2章の中の同じ誤り）を確かめる。0-4 を行う。
 
-*   [ ] タスク9: `_doc/arch/16_test.md` 前半（No.56・44/57・36/45・46・47・39/48・40/49・41/50・42/51、C18）
+*   [x] タスク9: `_doc/arch/16_test.md` 前半（No.56・44/57・36/45・46・47・39/48・40/49・41/50・42/51、C18）
     *   **対象ファイル** :
         *   `./_doc/arch/16_test.md` :更新
     *   **作業内容** :
@@ -385,7 +385,17 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
 
 ### タスク9: `_doc/arch/16_test.md` 前半（No.56・44/57・36/45・46・47・39/48・40/49・41/50・42/51、C18）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   **No.56**（8行）：「例外は`…keydown.test.js`のみ」→「例外は`…keydown.test.js`・`…group.test.js`の2ファイル」。`KeyboardShortcuts.group.test.js` が `installGlobal`（`Object.defineProperty(globalThis,…)`）で`document`・`HTMLElement`等を置き、`after`で戻すことを実コードで確認（後半の説明はそのまま両方に当てはまる）。
+    *   **No.44・57**（10行）：「…は12ファイル（Phase 11-04bまで）：」→「…は計44ファイル（数え方：実物の`core/VectorModel.js`をimportする`test/edit/*.test.js`の42ファイルと、`test/core/`の`EditableHit.test.js`・`SelectionRules.test.js`。`VectorModel.*.test.js`は数えない）。以下はその組み合わせ方で、まずPhase 11-03より前の12ファイル：」。括弧内の「`test/core/`の`EditableHit.test.js`も」→「`EditableHit.test.js`・`SelectionRules.test.js`も」。数え方：`ls test/edit/*.test.js`＝49、`grep -l "core/VectorModel" test/edit/*.test.js`＝42。`test/core/` で `VectorModel` を含むファイルは `VectorModel.*.test.js`（16）と `EditableHit`・`SelectionRules`。`SelectionRules.test.js` は実物の`VectorModel`（6行 import、290行以降の「規則＋VectorModel」の`describe`）と規則を組み合わせるため例外に含めた。`test/io/` 等ほかのフォルダに `VectorModel` を使うテストは無い。個別の説明（Phase 11-03・11-05の列挙など）は残した。
+    *   **No.36・45**（30行）：「`version`は2」→「`version`は4」。
+    *   **No.46**（130行）：「`checkFormat`が版1〜3を受理」→「版1〜4を受理」。同じ行の「版3・`bezierPath`」「**書き換え**：`formatVersion`の期待値2→3」は Phase 09-01a の経緯なので残し、「当時の版3」「**書き換え**（当時）」と時点だけ書き添えた。
+    *   **No.47**（131行）：「版3の曲線のパスを含むJS」→「版4の…」。「`formatVersion`を2に書き換えた同じJS」は今のテスト（445〜449行）も2に書き換えるので変えていない。
+    *   **No.39・48**（162行）：「版2・キー順」→「版4・キー順」、「書き出し形式の版3」→「版4」。
+    *   **No.40・49**（172行）：「`version`は2のまま」→「作業データの版は4のまま」。**No.41・50**（180行）：同様に「作業データの版は4のまま」。
+    *   **No.42・51**（191行）：「弧は上半分のまま」→「弧は下半分の弧として読まれる」（205行の(c)・テスト880行の題と同じ言い方）、「版2」→「版4」。
+    *   **C18**：`16_test.md` に旧題「塗り・線なしの往復（作業データの版2）」・「insertItemsAt：insertItemsAbove と同じ値（above）」は書かれていない（`Grep`で該当なし）。該当なし。
+    *   **原則10**：同じファイルの「`version`は2」「12ファイル」は他に無い（残る「版2」は migration 等の別の記述で今回の担当外）。
+    *   検証：`16_test.md` LF＝CR＝315（CRLF保持）。
 
 ### タスク10: `PROJECT_ARCHITECTURE.md` 3章3.〜17.（No.18・14・2/37・4/58、A6・A7・A8（696・711行））
 *   **作業内容** :
