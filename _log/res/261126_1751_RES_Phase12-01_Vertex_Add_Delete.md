@@ -176,7 +176,7 @@
         *   先頭に3行以内の責務（頂点の選択のダブルクリックで点を足す相手の決め方と、削除の入口（`Delete`・`Backspace`・削除ボタン）を点の削除と図形の削除のどちらへ振り分けるかを、状態を持たない関数と値として提供する。importは`InputModes`のみ）。値`DELETE_ROUTE`（凍結）・`resolveDeleteRoute(mode)`・`resolveDoubleClickInsertTarget({ mode, state, isDragging, clickSuppressed, hit })`をJSDoc付きで作る（「要件1」「要件3」の仕様どおり。`hit`は`PointHitRules`のtypedef`PointHit`の形で、`handle`・`bodyId`だけを読む）。
         *   テスト：`resolveDeleteRoute`（`VERTEX`→`VERTICES`、`SELECT`・`CREATE`・`PAN`・未知の値→`ITEMS`）、`DELETE_ROUTE`が凍結されていること。`resolveDoubleClickInsertTarget`（本体に当たり条件がそろえばそのid、モードが`VERTEX`でない（4モード）・`IDLE`でない（`DRAWING`・`DRAGGING_HANDLE`・`MARQUEE_SELECTING`等）・ドラッグ中・直前のクリックが抑止された・頂点のハンドルの上（`bodyId`があっても）・空白（両方`null`）・`hit`が`null`のときは`null`）。削除ボタンの押せる・押せないは、規則のファイルに照会の選び分けが無いため、ここでは上の`resolveDeleteRoute`のテストで足りる（`InputTracker.canDeleteSelectionOrVertices`と同じ式を写した小さな関数を作って確かめることはしない）。押せる・押せないの実際の値はタスク5の`canRemoveSelectedVertices`のテストで確かめる。
 
-*   [ ] タスク5: 点の追加・削除の編集操作
+*   [x] タスク5: 点の追加・削除の編集操作
     *   **対象ファイル** :
         *   `./js/edit/PathVertexEditor.js` :（新規）
         *   `./test/edit/PathVertexEditor.test.js` :（新規）
@@ -251,7 +251,8 @@
 
 ### タスク5: 点の追加・削除の編集操作
 *   **作業内容** :
-    *   （未記入）
+    *   `js/edit/PathVertexEditor.js`（新規・CRLF。`edit/`の既存に合わせた）：`constructor({ model, editRecorder, getMode })`・`insertAt(shapeId, point, tolerance)`・`canRemoveSelectedVertices()`・`removeSelectedVertices()`・非公開`#collectTargets()`。importは`resolveNudgeTarget`・`planVertexInsertion`・`planVertexRemoval`のみ。`insertAt`は`getEditableShapes()`から探し、足した点のハンドル名を`getVertexIndexForHandle`で求め、`replaceShape(…, { keepId: true, select: true })`→`setSelectedVertices`。削除は`clearSelectedVertices`→`replaceShape`×k→`deleteShapes`（図形ごと消える組があるときだけ）。
+    *   `test/edit/PathVertexEditor.test.js`（新規・CRLF）：15件（追加・足せない各ケース・照会・まとめて消す・今の曲線→直線・触れない・ロック）。`test/edit/PathVertexEditor.items.test.js`（新規・CRLF）：7件（取り消し/やり直し1回・引き継ぎ・空のフォルダが残る・位置・履歴に入らない・作業データの往復と版4）。`node --test`全体で3801件すべて合格（既存のテストは変更なし）。
 
 ### タスク6: 入力（ダブルクリックの受け付けと削除の入口の振り分け）
 *   **作業内容** :
