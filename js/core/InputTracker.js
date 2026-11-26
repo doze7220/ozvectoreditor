@@ -409,8 +409,8 @@ export class InputTracker {
      * @param {() => boolean} [isFillHitExcluded=() => false] - 塗った内側を当たりに含めないかの照会（真なら含めない。
      *     当たり分類のたびに呼ぶ）。省略時は常に含める（従来どおり動作する）。関数でなければ`console.warn`して既定（常に含める）を使う
      * @param {InputAssist} [inputAssist=NO_INPUT_ASSIST] - 入力の解釈の外へ委ねる補助（実体はmain.jsが注入する）。
-     *     項目（duplicateSelection・isPickingShape・pickShape・getUnitSnapStep・getSelectionFrameBounds・getReferencePoint）ごとに、関数でなければ既定へ置き換える（`console.warn`は出さない）。
-     *     省略時は従来どおり動作する（複製しない・図形を渡す待ち受けなし・丸めない・外枠のハンドルなし・回転の中心は外枠の中心）
+     *     項目（duplicateSelection・isPickingShape・pickShape・getUnitSnapStep・getSelectionFrameBounds・getReferencePoint・deleteSelectedItems）ごとに、関数でなければ既定へ置き換える（`console.warn`は出さない）。
+     *     省略時は従来どおり動作する（複製しない・図形を渡す待ち受けなし・丸めない・外枠のハンドルなし・回転の中心は外枠の中心・削除の実体は何もしない）
      */
     constructor(canvas, model, viewTransform, editRecorder = NO_EDIT_RECORDER, snapAssist = NO_SNAP_ASSIST, isFillHitExcluded = () => false, inputAssist = NO_INPUT_ASSIST) {
         this.canvas = canvas;
@@ -1078,7 +1078,7 @@ export class InputTracker {
      * DRAWING状態（直線・曲線のツール以外）では、まず注入された吸い付きの補助のcommitDrawnLine(#drawStartSnap, #drawEndSnap)を呼ぶ
      * （描き終えの端点は、クリック位置で取り直さず直前のmousemoveで照会した#drawEndSnapを使う）。
      * trueなら補助が反映済み（記録も補助側）。falseのときだけ従来どおり、作成中の図形を確定登録する。
-     * 確定登録（commitDraft({ atInsertTarget: true })。描き込む先のすぐ上へ入り、描き込む先が無ければ末尾）の直前に記録先のbeginEdit()、直後にcommitEdit()を呼び、図形の作成を1件の編集操作として伝える
+     * 確定登録（commitDraft({ atInsertTarget: true })。行の上ならその行のすぐ上・フォルダの中ならその一番上か一番下へ入り、描き込む先が無ければいちばん外側の末尾）の直前に記録先のbeginEdit()、直後にcommitEdit()を呼び、図形の作成を1件の編集操作として伝える
      * （作成の開始・作成途中の破棄は伝えない）。その後IDLE状態へ遷移し、#resetSnapState()で吸い付きの状態と表示を消す。
      * IDLE状態かつ図形作成モード中の描き始めは、丸めていないクリック位置で吸い付きを照会し（ホバー状態は参照しない）、
      * 結果を#drawStartSnapに保持・表示し、吸い付いていれば端点の座標をそのまま、吸い付かなかったときだけクリック位置を

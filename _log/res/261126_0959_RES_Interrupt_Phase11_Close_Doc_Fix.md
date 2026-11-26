@@ -86,7 +86,7 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
 *   タスクの実行中に、担当外のファイルで同じ誤りや矛盾に気づいた場合は、直さずに5章へ追記する。
 
 ## 3. タスクリスト
-*   [ ] タスク1: `js/core` 入力系と `main.js` のコメント（C1・C2・C3・C4・C8）
+*   [x] タスク1: `js/core` 入力系と `main.js` のコメント（C1・C2・C3・C4・C8）
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` :更新（コメントのみ。**行数2023を変えない**）
         *   `./js/core/KeyboardShortcuts.js` :更新（JSDocのみ）
@@ -306,7 +306,13 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
 
 ### タスク1: `js/core` 入力系と `main.js` のコメント（C1・C2・C3・C4・C8）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   **C1**（`InputTracker.js` click のJSDoc）：「描き込む先のすぐ上へ入り、描き込む先が無ければ末尾」→「行の上ならその行のすぐ上・フォルダの中ならその一番上か一番下へ入り、描き込む先が無ければいちばん外側の末尾」。根拠：`VectorModel.commitDraft`→`#placeAdded`→`ItemPlaceRules.insertItemsAt`（ABOVE＝行の直後の添字、INSIDE＝フォルダ内の list 末尾、BOTTOM＝list 先頭、place が null＝外側の末尾）。同じ行内で置換。
+    *   **C2**（`InputTracker.js` コンストラクタ `@param inputAssist`）：列挙へ `deleteSelectedItems` を追加（typedef・`NO_INPUT_ASSIST`・412〜447行付近の既定置換で確認）。「省略時は…」の括弧にも既定の動き（`NO_INPUT_ASSIST.deleteSelectedItems` は空関数）を「削除の実体は何もしない」として追記。行数不変。
+    *   **C3**（`KeyboardShortcuts.js`）：`selectAll`「全図形を選択する」→「変えられる図形を全て選択する」（`InputTracker.selectAll` は `getEditableShapes`）。`deleteSelection`「選択集合の全図形を削除する」→「選択中の変えられる図形と選んでいるフォルダを削除する」（`GroupEditor.removeSelection`）。`invertSelection`「全図形のうち…」→「変えられる図形のうち…」（`main.js` の `getEditableShapes`）。`resetColors`「その全図形へ記録し」→「その変えられる図形へ記録し」（`ShapeStyleEditor` は `getEditableSelectedShapes` 対象）。
+    *   **C4**（`InputModes.js`）：`MOVING_SELECTION`「選択集合の全図形を平行移動する」→「選択中の変えられる図形を平行移動する」（`InputTracker` の移動は `getEditableSelectedIds`/`getEditableSelectedShapes`）。
+    *   **C8**（`main.js` 343行）：「ここでmodel.deleteShapesを直接呼ばないこと」→「ここでGroupEditor.removeSelectionを直接呼ばずinputTracker.deleteSelection()を通すこと」。行数不変。
+    *   検証：`node --check` 4ファイル通過。行数 main.js 1234・InputTracker.js 2023 のまま。行末は4ファイルとも LF＝CR（CRLF保持）。
+    *   原則10：同ファイル内に同じ誤りは見当たらず（追加修正なし）。
 
 ### タスク2: `js/core` モデル・一覧の規則のコメント（C6・C7・C9・C15）
 *   **作業内容** :

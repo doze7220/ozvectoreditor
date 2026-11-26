@@ -340,7 +340,7 @@ document.addEventListener('DOMContentLoaded', () => {
     model.onChange(syncDeleteButtonState);
 
     // 削除ボタン：受理条件の判定と削除はinputTracker.deleteSelection()のみが担う
-    // （切り取りの削除と同一経路。Delete/BackspaceはdeleteLastLinePointOrSelection()を通り、線を引いている途中でなければ同じ削除。ここでmodel.deleteShapesを直接呼ばないこと）
+    // （切り取りの削除と同一経路。Delete/BackspaceはdeleteLastLinePointOrSelection()を通り、線を引いている途中でなければ同じ削除。ここでGroupEditor.removeSelectionを直接呼ばずinputTracker.deleteSelection()を通すこと）
     deleteSelectionBtn.addEventListener('click', () => inputTracker.deleteSelection());
 
     // 結合（選択中の線の結合）。規則はshapes/PathJoinRules、手順はedit/PathJoinerが担い、ここは配線のみ。
