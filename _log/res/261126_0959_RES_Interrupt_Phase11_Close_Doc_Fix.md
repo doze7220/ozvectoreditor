@@ -277,7 +277,7 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
         *   **No.6**（`46` 11行「`VectorModel`は`#items`だけを状態にでき…」）：原則2で範囲を限った断定に（タスク7・8の `03_VectorModel.md`・2章の書き方にそろえる）。
         *   原則10（各ファイルの中の同じ誤り）を確かめる。0-4 を行う（`07`・`46` は LF）。
 
-*   [ ] タスク16: `_doc/arch/16_test.md` 後半（No.33・34・35・52・53、Phase 11-03の項の消えた関数の断り）
+*   [x] タスク16: `_doc/arch/16_test.md` 後半（No.33・34・35・52・53、Phase 11-03の項の消えた関数の断り）
     *   **対象ファイル** :
         *   `./_doc/arch/16_test.md` :更新
     *   **作業内容** :
@@ -285,7 +285,7 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
         *   **No.53**（258行 Phase 11-03 の項「既存6ファイルへの追加39件・消した1件」）：追加40件・消した1件（純増39件）と読めるように（265行の個別の値「+6件・−1件」と合うことを確かめる）。
         *   **259〜265行（Phase 11-03 の項）**：今の HEAD に無い関数（`resolveInsertTarget`・`resolveInsertMarkId`・`toDrawOrder`・`isSameOrder`・`applyOrder`・`insertItemsAbove`）が今は無いこと（Phase 11-04b で置き換えた・消した）を、項の中の1文で断る（各関数が今の `js/` に無いことを `Grep` で確かめてから）。
         *   **No.33**（287行 11-04a の「テストできない箇所」「`main.js`の`// 7.8.`の`groupEditor`・`performGroupCommand`・`onCollapsedChange`の登録・`// 8.`の`group`・`ungroup`の注入」）：`performGroupCommand` は `// 8.`、`onCollapsedChange` の登録は `// 7.6.` であることに合わせる（`main.js` で確かめる）。
-        *   **No.34**（312行 11-06a の (a)「各ファイル内の`withSource`」）：`withSource` を持つのは4ファイルで、ほかはその場で `source` を足す別の書き方であることが分かるように。
+        *   **No.34**（312行 11-06a の (a)「各ファイル内の`withSource`」）：`withSource` を持つのは5ファイル（(a)の4ファイル＋新設の `FileContentReader.elements.test.js`）で、ほかはその場で `source` を足す別の書き方であることが分かるように。
         *   **No.35**（312行の頭書き「(a)〜(d)は入力・見分け方だけ。期待値の観点は変えない」）：`FileContentReader.test.js` の「sourceが無いスプライト（…）」で JS の期待が読み込み不可から読めるへ変わったことと食い違わないようにする（Survey 4章タスク16を必要なら読む）。
         *   テストの件数の記載（No.13・52・53・56・57に関わるもの以外）は変えない。235行付近は変えない。原則10を確かめる。0-4 を行う。
 
@@ -466,7 +466,15 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
 
 ### タスク16: `_doc/arch/16_test.md` 後半（No.33・34・35・52・53、Phase 11-03の項の消えた関数の断り）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   **No.52**：Phase 11-02の項「新設7ファイル96件」→「100件」（100＋14＝114で+114と合う）。
+    *   **No.53**：Phase 11-03の項「追加39件・消した1件」→「追加40件・消した1件（純増39件）」（個別の値＋9＋9＋9＋5＋6＋2＝40、ShapeOrderEditorの「+6件・−1件」と合う）。
+    *   **消えた関数の断り**：Phase 11-03の項の末尾へ1文を追加（`resolveInsertTarget`・`resolveInsertMarkId`・`toDrawOrder`・`isSameOrder`・`applyOrder`・`insertItemsAbove`は今の`js/`に無い＝Phase 11-04bで置き換えた・消した。この項は当時の記録）。`Grep`で`js/`に6つとも無いことを確認。
+    *   **No.33**：11-04aの「テストできない箇所」を「`// 7.6.`の`onCollapsedChange`の登録・`// 7.8.`の`groupEditor`・`// 8.`の`performGroupCommand`・`group`・`ungroup`の注入」に直した（Surveyの行番号の記述で確認）。
+    *   **No.34**：11-06aの(a)へ「`withSource`を持つのは`FileContentReader.test.js`・`CanvasFileOperations.test.js`・`CanvasFileOperations.items.test.js`・`SpriteSerializer.items.test.js`の4ファイルと、新設で(a)の対象外の`FileContentReader.elements.test.js`の計5ファイルで、ほかはその場で`source`を足す」を追記（(a)の列挙の8ファイルは変えず）。
+    *   **No.35**：頭書きの括弧へ「例外：`FileContentReader.test.js`の「sourceが無いスプライト（…）」は、JSの期待を読み込み不可から読めるへ変えた」を追記（`test/io/FileContentReader.test.js`で確認）。
+    *   **原則10**：同ファイル内に同じ誤りは見つからず（No.34の「4ファイル」は監査指摘で5ファイルへ直した。ほかは同種の誤りなし）。10行の例外の数（計44ファイル）・235行付近・他の件数は触っていない。
+    *   検証：`16_test.md`=LF315/CR315（CRLF保持）。
+    *   監査指摘の修正：No.34の「4ファイル」を、新設の`FileContentReader.elements.test.js`を加えた「計5ファイル」へ直した（`16_test.md`312行、36行と食い違わない）。`16_test.md`=LF315/CR315を確認。
 
 ### タスク17: 要件8の確認と懸念事項の記入（固定タスク）
 *   **作業内容** :
