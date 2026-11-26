@@ -234,7 +234,7 @@
         *   テスト（`PathJoinRules.close.test.js`）：表Cの行ごとに`classifyJoin`・`planJoin`・`buildClosedPath`の結果（直線・今の曲線・点2つのパス＝`null`、点3つで両端が重なる開いたパス＝`classifyJoin`は`'close'`のまま・`planJoin`は`null`、点3つ以上で離れている・点4つ以上で重なるパス＝今の値のまま、弧＝点`[始点, 頂上, 終点]`・区間`bezier`・`bezier`・`line`で`bezier`の引っ張る点が`chainSourceOf(弧)`の値と同じ・`corners`なし・`closed: true`・スタイル3つ（`fillColor`の値を含む）・`isFillable()`が真・`keepId: true`、回した・左右に裏返した弧、両端の距離が許容距離以内の小さな弧＝`null`、閉じたパス・矩形・円＝`null`）、`planJoin`が`null`でないとき`classifyJoin`も`null`でない（多数の図形で）。`planDrawnLineJoin`：同じ弧の両端・途中の点なしで直線のツール＝閉じる区間`line`、曲線のツール（`drawnKindSource`が`smooth`のパス）＝`smooth`、途中の点ありは今の値のまま、同じ端点は`null`のまま。2本の結合の結果が今の値のまま（直線2本・弧と直線の代表の組）。
         *   テスト（`PathJoiner.close.test.js`）：偽の依存で、点3つの開いたパス（両端の距離4）は許容距離5で`canJoin()`が`false`・`join()`が`false`で記録先に触れない、許容距離3で両方`true`。いくつもの選択（0本・直線・今の曲線・点2つのパス・点3つで重なる・点3つ以上・弧・閉じたパス・矩形・円・2本・3本）で`canJoin()`が真のときは必ず`join()`が真、偽のときは`join()`が偽で記録先に触れない。実物の`VectorModel`・`SnapshotAdapter`・`HistoryManager`で、弧1本の`join()`が`id`・名前（「弧 1」等の元の名前）・一覧の位置・フォルダの所属を保った閉じたパスにし、取り消し1回で元の弧・やり直しで閉じたパスに戻る。実物の`EndpointSnapper`（`model.getEditableShapes()`に弧を入れた組み合わせ）で、作成途中の直線を弧の始点から終点への吸い付きで`commitDrawnLine`すると弧の`id`の閉じたパスになり履歴が1件増える（既存の`test/edit/EndpointSnapper.test.js`の組み立て方に合わせる。組み立てが重ければ`planDrawnLineJoin`の規則のテストだけにして、その旨を詳細作業内容に書く）。
 
-*   [ ] タスク6: 分割・区間の削除の編集操作
+*   [x] タスク6: 分割・区間の削除の編集操作
     *   **対象ファイル** :
         *   `./js/edit/PathSplitEditor.js` :（新規）
         *   `./test/edit/PathSplitEditor.test.js` :（新規）
@@ -311,7 +311,9 @@
 
 ### タスク6: 分割・区間の削除の編集操作
 *   **作業内容** :
-    *   (未記入)
+    *   `js/edit/PathSplitEditor.js`を新規作成（先頭の責務3行以内・クラスJSDocに手順①〜④・表示とロックを渡さない理由・入る場所の順・通知の回数・依存の制約・前提）。`getAvailability`・`splitAtSelectedVertices`・`deleteSelectedSegments`・非公開`#collectTargets`・`#apply`。importは計画どおりの4つ。行末LF。
+    *   `test/edit/PathSplitEditor.test.js`（新規・17件。実物の`VectorModel`と偽の記録先。照会・分割・区間の削除・計画が空で通知0回・ロック／非表示の点は対象外・新しい線の表示／ロック）、`test/edit/PathSplitEditor.items.test.js`（新規・7件。実物の`SnapshotAdapter`・`HistoryManager`・`DocumentSerializer`。取り消し1回／やり直し・複数の図形・空のフォルダが残る・履歴に入らない・版4のまま往復・分割した線への`PathVertexEditor`の続けた操作）を作成。
+    *   `node --test`：3910件すべて合格（既存のテストは変更なし）。
 
 ### タスク7: ボタンと配線（`palette/`・`index.html`・`main.js`）
 *   **作業内容** :
