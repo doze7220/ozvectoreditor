@@ -233,7 +233,7 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
         *   **A9**（20. 788行付近・27. 915行付近の「選択の外枠（`ShapeExtentReader`）」＝線を含まない外枠 `getSelectedGeometryBounds`、21. 806行付近＝図形ごとの外枠 `getSelectedBoundsPerShape`）：実際に読むものに直す（各 `edit/` の実コードで呼ぶメソッドを確かめる）。
         *   直した版の書き方を、タスク10で直した 3章15.・16.・17. の書き方とそろえる。原則10（3章18.〜27.の中の同じ誤り）を確かめる。0-4 を行う。
 
-*   [ ] タスク13: `_doc/arch/01_index_html.md`・`13_palette.md`・`61_ItemRowRules.md`（No.21・22・23・28・29・64）
+*   [x] タスク13: `_doc/arch/01_index_html.md`・`13_palette.md`・`61_ItemRowRules.md`（No.21・22・23・28・29・64）
     *   **対象ファイル** :
         *   `./_doc/arch/01_index_html.md` :更新
         *   `./_doc/arch/13_palette.md` :更新
@@ -429,7 +429,14 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
 
 ### タスク13: `_doc/arch/01_index_html.md`・`13_palette.md`・`61_ItemRowRules.md`（No.21・22・23・28・29・64）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   **No.23**（`01`）：「収まらないときは右のまとまりから切れる（角→整列・分布→位置→スタイルの順）」→「収まらないときは行ごとに右のまとまりから切れる（2行目では角→整列・分布→変形→大きさ→位置の順。Phase 10-03で2行にした）」（`index.html`のCSSコメント737行・2行目の並びで確認）。
+    *   **No.22**（`01`）：「1行目約646px」→「1行目約489px」（`index.html`のCSSコメント735行。同資料の16行と一致）。
+    *   **No.21**（`13`）：「使う側：`wiring/ItemListWiring`だけ（生成・購読・同期）」→「生成・購読・同期は`wiring/ItemListWiring`だけ。`wiring/ItemListRowDrag`も、`ItemListWiring`から注入された`panel`のメソッドを呼ぶ」。
+    *   **No.64**（`13`）：オプションバーの4つの「選択中の図形」を「選択中で変えられる図形」に（スタイルは「新しく描く図形」を別に残した）。
+    *   **No.28**（`61`）：名前の幅の見積もりを計算し直し、実測ではないと明記。式（`index.html`のCSS）：図形＝240−枠1−スクロールバー約17−左右の余白16（`.item-row`のpadding 8×2）−サムネイル28−間8（`.item-row`のgap）−字下げ72−名前の後ろの間8−`.item-row-states`40（`.item-row-state`20px×2）＝50px。フォルダ＝206−字下げ72＝134、三角（16−margin-right4＋gap8＝20）・フォルダの絵（16＋gap8＝24）・名前の後ろの間8＋帯40＝48を引いて42px。サムネイルの幅28は旧記述の値のまま（ItemListPanelの`canvas`寸法は再確認していない）。「どちらも名前が読める」は50px・42pxでは言えないため削除。旧記述のフォルダ「約78px」は絵の幅差（28→16）を入れていなかったが、新しい式では絵の分を入れた。
+    *   **No.29**（`61`）：「読むもの」に図形のアイテムの`item.shape`を追加（`ItemRowRules.js:91`）。
+    *   **原則10**：3ファイル内に同じ誤りは無い（`01`の16行の「約646px→約489px」は経緯で正しい）。
+    *   検証：`01`=LF22/CR22、`13`=89/89、`61`=13/13（CRLF保持）。
 
 ### タスク14: `PROJECT_ARCHITECTURE.md` 3章28.（No.24〜27・30〜32、A10・A11・A12）
 *   **作業内容** :
@@ -457,3 +464,4 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
 * （計画時点）順序の依存：A3（タスク6）は C13・C14（タスク4）の後、`06_InputTracker.md` 44行（タスク11）は C1（タスク1）の後、`PROJECT_ARCHITECTURE.md` 2章の No.8（タスク8）は `15_io.md` 37行（タスク7）の後、C18（タスク9）は C16・C17（タスク5）の後になるよう並べた。同じファイルを触るタスクは並べていない。
 * （計画時点）No.44・57（`16_test.md` 10行の例外の数）は、数え方によって数が大きく変わる（`test/edit/` で `VectorModel` を import するのは計画時点で42ファイル）。数え方の選択と、`test/core/SelectionRules.test.js` を例外に含めるかはタスク9で決め、4章に根拠を書く。
 * （実装統括AI）行末：`core.autocrlf=true` のため、リポジトリ（index・HEAD）はすべて LF で、作業ツリーが CRLF／LF に分かれる。`git show HEAD:…` で測った値は作業前の作業ツリーの値ではない。タスク4・5 で表では CRLF の4ファイル（`js/shapes/EndpointSnapRules.js`・`PathJoinRules.js`・`test/core/ItemPlaceRules.test.js`・`test/edit/ShapeInserter.insertTarget.test.js`）の作業ツリーが LF に変わっていたため、実装統括AIが CRLF に戻した（コミットの中身は LF のままで、差分は出ない）。0-3 の表は正しい。作業ツリーの行末は `git ls-files --eol` の `w/` 欄で確かめられる。
+* （タスク13）No.28の式のサムネイル幅28は旧記述の値を引き継いだ。`ItemListPanel.js`のcanvas寸法で目視確認を推奨。名前の幅50px・42pxは計算値で、テストプレイでの実測は未実施。
