@@ -46,9 +46,10 @@ export const SEGMENT_KIND_BEZIER = 'bezier';
 
 /**
  * 曲線の区間（打った点の曲線の区間・曲がり方を持つ区間）1つを折れ線で近似するときの分割数。当たり判定・範囲選択・塗りの内側が共有する唯一の定義。
+ * 使う側は`Path`自身と`PathVertexRules`（区間の上の最も近い位置の距離を`hitTest`と同じ測り方にするため）。
  * @type {number}
  */
-const SMOOTH_SEGMENT_SAMPLE_COUNT = 100;
+export const SMOOTH_SEGMENT_SAMPLE_COUNT = 100;
 
 /**
  * 受理する区間の種類の並び（直線・打った点の曲線・曲がり方を持つ区間）。並びの定義の唯一の箇所。
@@ -106,6 +107,34 @@ const VERTEX_HANDLE_PATTERN = /^vertex-(0|[1-9][0-9]*)$/;
  */
 export function readCornerFlags(data) {
     return Array.from({ length: data.points.length }, (_, i) => Array.isArray(data.corners) && data.corners[i] === true);
+}
+
+/**
+ * 区間ごとの曲線の制御点を求める（曲線の区間・曲がり方を持つ区間は`{ control1, control2 }`、直線の区間は`null`）。
+ * 区間の種類による制御点の分岐の唯一の箇所（`Path`の描画・当たり判定・範囲選択・塗りの内側・書き出しと`PathVertexRules`が共有）。
+ * 角の点（`corners`）は`readCornerFlags(data)`で読み、`computeSmoothSegmentControls`の第4引数へ渡す（両側とも打った点の曲線の区間の角の点で連なりが切れる）。
+ * 曲がり方を持つ区間は`computeSmoothSegmentControls`へは打った点の曲線の区間として渡さず（偽）、結果のその区間を区間の値の引っ張る点（新しい写し）に置き換える。
+ * 引数を書き換えず、結果は引数と何も共有しない。
+ * @param {{points: Array<{x: number, y: number}>, closed?: boolean, segments: Array<{kind: string, control1?: {x: number, y: number}, control2?: {x: number, y: number}}>, corners?: boolean[]}} data - `Path`のインスタンスか`toJSON()`の値
+ * @returns {Array<{control1: {x: number, y: number}, control2: {x: number, y: number}}|null>} 区間ごとの制御点
+ */
+export function resolveSegmentControls(data) {
+    const controls = computeSmoothSegmentControls(
+        data.points,
+        data.segments.map((segment) => segment.kind === SEGMENT_KIND_SMOOTH),
+        data.closed === true,
+        readCornerFlags(data),
+    );
+    return controls.map((control, i) => {
+        const segment = data.segments[i];
+        if (segment.kind !== SEGMENT_KIND_BEZIER) {
+            return control;
+        }
+        return {
+            control1: { x: segment.control1.x, y: segment.control1.y },
+            control2: { x: segment.control2.x, y: segment.control2.y },
+        };
+    });
 }
 
 /**
@@ -176,29 +205,12 @@ export class Path {
     }
 
     /**
-     * 区間ごとの曲線の制御点を求める（曲線の区間・曲がり方を持つ区間は`{ control1, control2 }`、直線の区間は`null`）。
-     * 区間の種類による分岐の置き場所（`#tracePath`・`#someSegment`・`#fillPolygon`・`toDrawElement`が共有）。
-     * 角の点（`corners`）は`computeSmoothSegmentControls`の第4引数へ渡す（両側とも打った点の曲線の区間の角の点で連なりが切れる）。
-     * 曲がり方を持つ区間は`computeSmoothSegmentControls`へは打った点の曲線の区間として渡さず（偽）、結果のその区間を区間の値の引っ張る点（新しい写し）に置き換える。
+     * 区間ごとの曲線の制御点を求める（`#tracePath`・`#someSegment`・`#fillPolygon`・`toDrawElement`が共有）。
+     * 中身は区間の種類による分岐の唯一の箇所の`resolveSegmentControls`（自身を渡すだけ）。
      * @returns {Array<{control1: {x: number, y: number}, control2: {x: number, y: number}}|null>} 区間ごとの制御点
      */
     #segmentControls() {
-        const controls = computeSmoothSegmentControls(
-            this.points,
-            this.segments.map((segment) => segment.kind === SEGMENT_KIND_SMOOTH),
-            this.closed,
-            this.corners,
-        );
-        return controls.map((control, i) => {
-            const segment = this.segments[i];
-            if (segment.kind !== SEGMENT_KIND_BEZIER) {
-                return control;
-            }
-            return {
-                control1: { x: segment.control1.x, y: segment.control1.y },
-                control2: { x: segment.control2.x, y: segment.control2.y },
-            };
-        });
+        return resolveSegmentControls(this);
     }
 
     /**

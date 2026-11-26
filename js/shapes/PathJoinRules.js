@@ -118,7 +118,7 @@ export function segmentSpecsOf(data) {
 }
 
 /**
- * 今の曲線・弧を区間として読む（非公開。今の曲線・弧から区間への変換の唯一の箇所。2次から3次への変換の式はここ、楕円の4分の1の近似の式は`arcChainSourceOf`）。
+ * 今の曲線・弧を区間として読む（`PathVertexRules`からも使う。今の曲線・弧から区間への変換の唯一の箇所。2次から3次への変換の式はここ、楕円の4分の1の近似の式は`arcChainSourceOf`）。
  * 弧（`data.type`が`'arc'`）なら`arcChainSourceOf`の結果（頂点3つと曲がり方を持つ区間2つの開いたパス）を返す。
  * `data.type`が`'curve'`なら、頂点2つ（始点・終点）と曲がり方を持つ区間1つの開いたパスの図形データに読み替えて返す（スタイル3つは元の値。`corners`なし）。
  * 頂点の並びは今の曲線の約束（`points[0]`＝始点・`[1]`＝制御点・`[2]`＝終点）から読む。
@@ -127,7 +127,7 @@ export function segmentSpecsOf(data) {
  * @param {Object} data 結合できる線の`toJSON()`の値
  * @returns {Object} 今の曲線・弧なら開いたパスの図形データ、それ以外は`data`そのもの
  */
-function chainSourceOf(data) {
+export function chainSourceOf(data) {
     if (data.type === 'arc') return arcChainSourceOf(data);
     if (data.type !== 'curve') return data;
     const [s, c, e] = data.points;

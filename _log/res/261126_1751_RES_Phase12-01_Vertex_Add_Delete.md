@@ -139,7 +139,7 @@
 ## 3. タスクリスト
 ※ 全タスク共通：(a) コード修正の後、JSDocの記載漏れ（新しいファイルの先頭の3行以内の責務、関数・メソッド・引数・戻り値・typedef、意味が変わった既存のJSDoc・importの記述・「`model`は…だけを使う」の記述）が無いことを確認する。(b) リポジトリのルートで`node --test`が全件合格することを確認する（既存のテストファイルは変更しない。値を変えざるを得ないテストが出たら中断して質問する）。(c) 本RESの「4. 詳細作業内容」の担当の欄を書き、タスクを`[x]`にする。(d) 開発資料に影響が出たら資料本体は直さず『開発資料の更新予定』欄へ追記する。(e) 既存のファイルは書き換える前に行末（CRLF／LF）を実測して保ち、新規のファイルは同じフォルダの既存のファイルに合わせる。(f) 対象ファイル以外は変更しない。
 
-*   [ ] タスク1: 区間の制御点の共有と、区間の上の最も近い位置・ベジェの分割
+*   [x] タスク1: 区間の制御点の共有と、区間の上の最も近い位置・ベジェの分割
     *   **対象ファイル** :
         *   `./js/shapes/Path.js` :（更新）
         *   `./js/shapes/PathJoinRules.js` :（更新）
@@ -229,7 +229,10 @@
 
 ### タスク1: 区間の制御点の共有と、区間の上の最も近い位置・ベジェの分割
 *   **作業内容** :
-    *   （未記入）
+    *   `Path.js`（CRLFのまま）：`resolveSegmentControls(data)`をexportの関数として`Path`クラスの前に新設（旧`#segmentControls`の本体。角は`readCornerFlags(data)`、閉じているかは`data.closed === true`）。`#segmentControls()`は`return resolveSegmentControls(this);`だけ。`SMOOTH_SEGMENT_SAMPLE_COUNT`に`export`を付けJSDocに使う側を追記。
+    *   `PathJoinRules.js`（CRLFのまま）：`chainSourceOf`に`export`、JSDocの「非公開」を「`PathVertexRules`からも使う」へ。中身は不変。
+    *   `PathVertexRules.js`（新規・LF）：import、typedef`OutlineSource`・`SegmentLocation`・`CubicSplit`、定数`NEAREST_REFINE_ITERATIONS`（40）、`outlineSourceOf`・`findNearestSegmentLocation`・`splitCubicBezier`をexport。非公開の補助`copySegmentValue`・`projectOntoLine`・`projectOntoCurve`。
+    *   `test/shapes/PathVertexRules.locate.test.js`（新規・LF）：26件。`node --test`全体で3725件すべて合格（既存のテストは変更なし）。
 
 ### タスク2: 点を足した図形の組み立て
 *   **作業内容** :
@@ -280,6 +283,7 @@
 *   **`PathVertexEditor.#collectTargets`**：`PathCornerEditor.#collectTargets`と同じ手順の写し（どちらも非公開で共有できない。共有するには`PathCornerEditor`を変えることになるため今回はしない）。
 *   **既存のテストの値**：変えるものは無い見込み（`Path`の`#segmentControls`の移し替えは結果が同じ）。
 *   **確認の状況**：`dblclick`の購読・`handleDoubleClick`・削除の入口の振り分け（`InputTracker`）と`main.js`の配線、ブラウザのダブルクリックの判定（間隔・位置）、カーソルの形、削除ボタンの見た目の切り替わりは`node --test`で確かめられない（テストプレイで確かめる範囲）。
+*   **タスク1で判断した点**：(1) `outlineSourceOf`のパスは「`toJSON()`の値そのもの」と「引数と共有しない」が両立するよう、`toJSON()`と同じ内容の新しい値（`id`も写す）にした。(2) `projectOntoCurve`は、三分探索の結果が折れ線上の位置（`t0`）より遠い場合（単峰でない場合）は`t0`を使う安全策を足した（仕様の三分探索に追加。通常は探索結果が使われる）。(3) 曲線の区間の`distance`は仕様どおり折れ線の近似の距離で、`point`は真の曲線の上の点のため、`point`との実際の距離は`distance`と微小にずれ得る。(4) 新しい`PathVertexRules.js`のimportは、後続タスクで使う`Line`・`readCornerFlags`・`SEGMENT_KIND_SMOOTH`・`SEGMENT_KIND_BEZIER`・`Path`をまだ入れていない（使うタスクで足す）。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0.  **準備**：画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。直線（直線のツールで2点）・矩形（塗りあり）・直線のツールで描いた折れ線（3点以上）・曲線のツールで描いた曲線（3点以上）・閉じたパス（直線のツールで始点をクリックして閉じたもの）を描く。最後に頂点の選択（`A`）にする。
