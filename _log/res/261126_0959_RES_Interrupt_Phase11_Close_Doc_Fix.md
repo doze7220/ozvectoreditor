@@ -157,7 +157,7 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
         *   **A3**（依存方向の「**例外（Phase 11-02）**：規則どうしの`ItemListRules → ItemTreeRules`・`InputModes`…」）：今は `ItemListRules → InputModes` だけであること（行の並びは `ItemRowRules` へ移った。Phase 11-04a）に合わせる。同じ行の末尾「`shapes/EndpointSnapRules.js`・`shapes/PathJoinRules.js`のJSDocの「`model.getShapes()`の並び」は、`shapes/`を変えないため残る（…）」は、タスク4（C13・C14）で直ったため消す。消す前に、渡るのが変えられる図形の並びであるという事実が同じ行か3章に残っていることを `Grep` で確かめ、無ければ短く残す。
         *   原則10（1章の中の同じ誤り）を確かめる。0-4 を行う。
 
-*   [ ] タスク7: `_doc/arch/03_VectorModel.md`・`15_io.md`・`12_shapes.md`（No.7・8（`15_io.md`）・10・11・12・13・55、A13）
+*   [x] タスク7: `_doc/arch/03_VectorModel.md`・`15_io.md`・`12_shapes.md`（No.7・8（`15_io.md`）・10・11・12・13・55、A13）
     *   **対象ファイル** :
         *   `./_doc/arch/03_VectorModel.md` :更新
         *   `./_doc/arch/15_io.md` :更新
@@ -362,7 +362,16 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
 
 ### タスク7: `_doc/arch/03_VectorModel.md`・`15_io.md`・`12_shapes.md`（No.7・8（`15_io.md`）・10・11・12・13・55、A13）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   **No.10**（`03` 3行）：「状態は非公開の`#items`…だけ」→「図形の並びの状態は非公開の`#items`…だけ」。
+    *   **No.55**（`03` 3行）：「`replaceAllShapes`・`addShapesWithNewIds`・`addShape`は配列の要素にアイテムまたは素の図形インスタンスを受け」→「`replaceAllShapes`・`addShapesWithNewIds`は配列の要素に…を受け（`addShape`は単一の図形インスタンスだけを受け）」。
+    *   **No.11**（`03` 5行）：「描画・書き出し・⛶の外枠が使う」→「描画・⛶の外枠が使う。書き出しは`ItemStateRules.listVisibleShapes`を直接使い、同じく見えている図形だけを書き出す」。
+    *   **No.12**（`03` 13行）：`addShapesWithNewIds`の後ろに「（`asUnits`が真なら選んでいるフォルダの候補は入れたいちばん外側のフォルダのid）」を足した（空の列挙の中の注記）。
+    *   **No.13**（`03` 16行）：「11件を足した」→「12件を足した」。
+    *   **No.7**（`15_io.md` 28行）：`it(`を数えて14件を確認し、「（12件）」→「（14件）」。
+    *   **No.8**（`15_io.md` 37行）：「ここで見るのは「描画要素の語彙」と「変換に要る項目があるか」だけ」の後ろに、そのまま次を足した（タスク8はこの文言にそろえる）：「（`ellipse`は`x`・`y`・`radiusX`・`radiusY`・`startAngle`・`endAngle`の有限性と半径が負でないことも見る）」。
+    *   **A13**：`15_io.md` 9行「作業データの版は2、書き出し形式の版は3のまま」→「…版は当時の2、…版は当時の3のまま」、10行「作業データの版は2のまま」→「当時の2のまま」、同「書き出しの版は3のまま」→「当時の3のまま」。`12_shapes.md` 89行「作業データの版は2のまま」→「当時の2のまま」（この1か所のみ）。
+    *   **原則10**：`03`・`15_io.md` 内に同じ誤り（`getVisibleShapes`の使い手に書き出し、版2・3の残り）は他に無いことを確認した。
+    *   検証：`03` LF＝CR＝29、`15_io.md` 45＝45、`12_shapes.md` 92＝92（CRLF保持）。
 
 ### タスク8: `PROJECT_ARCHITECTURE.md` 2章（No.5・8（392行）・9・54、A5）
 *   **作業内容** :
