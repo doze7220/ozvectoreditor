@@ -163,7 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 4. Controller (入力管理)
-    // 端点への吸い付き。規則はshapes/EndpointSnapRules・shapes/PathJoinRules、手順はedit/EndpointSnapperが担い、
+    // 端点への吸い付き（結合する吸い付き）と頂点への吸い付き（吸い付くだけ。結合しない）。規則はshapes/EndpointSnapRules・shapes/PathJoinRules・shapes/VertexSnapRules、手順はedit/EndpointSnapperが担い、
     // InputTrackerは注入されたものを呼ぶだけ（core/はedit/をimportしないため、ここで生成して注入する）。
     const endpointSnapper = new EndpointSnapper({
         model,
@@ -211,7 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     /**
-     * Modelの現在の状態（shapes/hoveredId/draftShape/selectionRect/snapPoint）とビュー変換の現在の状態
+     * Modelの現在の状態（shapes/hoveredId/draftShape/selectionRect/snapPoint/snapPointVertex（吸い付きの表示が吸い付くだけか））とビュー変換の現在の状態
      * （`viewTransform.getState()`による倍率・オフセットのスナップショット）をCanvasManagerへ渡し、
      * 再描画を要求するローカル関数。表示の状態（`displayState.getState()`のアウトライン表示・背景の白/黒・グリッドの表示）も
      * あわせて渡す。model.onChange・viewTransform.onChange・displayState.onChangeのコールバックと
@@ -239,6 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
             draftShape: model.getDraftShape(),
             selectionRect: model.getSelectionRect(),
             snapPoint: model.getSnapPoint(),
+            snapPointVertex: model.isSnapPointVertex(),
             view: viewTransform.getState()
         });
     }

@@ -97,6 +97,12 @@ const SNAP_INDICATOR_SIZE = 8;
 const SNAP_INDICATOR_FILL_COLOR = '#4a90e2';
 
 /**
+ * 吸い付くだけ（ほかの図形の頂点への吸い付き。結合しない）の表示の中の色。結合する吸い付き（`SNAP_INDICATOR_FILL_COLOR`）と見分けるため白にする。
+ * @type {string}
+ */
+const SNAP_INDICATOR_VERTEX_FILL_COLOR = '#ffffff';
+
+/**
  * 吸い付きの表示の枠の色。
  * @type {string}
  */
@@ -205,13 +211,14 @@ export class CanvasManager {
      * @param {{scale: number, offsetX: number, offsetY: number}} [state.view] - ビュー変換値
      *     （`スクリーン = ワールド × scale ＋ offset`。offsetX/offsetYはスクリーン座標のCSSピクセル）。
      *     省略時は倍率1.0・オフセット(0,0)
-     * @param {{x: number, y: number}|null} [state.snapPoint] - 端点への吸い付きの表示の点（ワールド座標）。
+     * @param {{x: number, y: number}|null} [state.snapPoint] - 吸い付きの表示の点（ワールド座標）。
      *     非nullの場合、作成中の図形の後・選択矩形の前に、画面上一定の大きさの正方形で描画する
+     * @param {boolean} [state.snapPointVertex] - 真なら吸い付くだけ（中が白の正方形）、偽なら結合する吸い付き（中を塗った正方形）の表示。省略時は偽
      * @param {boolean} [state.outline] - 真ならアウトライン表示（図形・作成中の図形を drawOutline で描く）。省略時は偽（通常描画）
      * @param {boolean} [state.darkBackground] - 真なら黒の背景用の配色の組、偽なら白の背景用の配色の組を使う。省略時は偽
      * @param {boolean} [state.showGrid] - 偽なら背景グリッド（細線・太線）のみ描かない（軸線・原点マークは常に描く）。省略時は真
      */
-    render(shapes, { hoveredId = null, draftShape = null, selectionRect = null, view = DEFAULT_VIEW, snapPoint = null, outline = false, darkBackground = false, showGrid = true, vertexHandles = [], scaleFrame = null } = {}) {
+    render(shapes, { hoveredId = null, draftShape = null, selectionRect = null, view = DEFAULT_VIEW, snapPoint = null, snapPointVertex = false, outline = false, darkBackground = false, showGrid = true, vertexHandles = [], scaleFrame = null } = {}) {
         const dpr = this.#pixelRatio;
         const scheme = darkBackground ? COLOR_SCHEMES.dark : COLOR_SCHEMES.light;
 
@@ -268,7 +275,7 @@ export class CanvasManager {
 
         // 6-2. 吸い付きの表示があれば、作成中の図形の上・選択矩形の下に描画する
         if (snapPoint) {
-            this.#drawSnapIndicator(snapPoint, view.scale);
+            this.#drawSnapIndicator(snapPoint, view.scale, snapPointVertex);
         }
 
         // 7. 範囲選択中の選択矩形があれば、最前面に描画する
@@ -356,15 +363,16 @@ export class CanvasManager {
     }
 
     /**
-     * 端点への吸い付きの表示（画面上一定の大きさの正方形。中心が渡された点）を描画する。
+     * 吸い付きの表示（結合する吸い付き＝中を塗った正方形、吸い付くだけ＝中が白の正方形。画面上一定の大きさ。中心が渡された点）を描画する。
      * 呼び出し時点でワールド座標の描画変換が設定済みであることを前提とする。
      * - 大きさ・線幅は`÷ scale`し、画面上で一定（`SNAP_INDICATOR_SIZE`px・`SNAP_INDICATOR_LINE_WIDTH`px）にする。
      * - 倍率が正の有限値でなければ描かない。
      * - スタイルは`save()`/`restore()`で後続の描画へ残さない。
      * @param {{x: number, y: number}} point - 表示する点（ワールド座標。正方形の中心）
      * @param {number} scale - ビュー変換の倍率（ワールド長 → スクリーン長の係数）
+     * @param {boolean} vertex - 真なら吸い付くだけの表示（中の色が`SNAP_INDICATOR_VERTEX_FILL_COLOR`）、偽なら結合する吸い付きの表示（`SNAP_INDICATOR_FILL_COLOR`）
      */
-    #drawSnapIndicator(point, scale) {
+    #drawSnapIndicator(point, scale, vertex) {
         if (!(scale > 0) || !Number.isFinite(scale)) {
             return;
         }
@@ -372,7 +380,7 @@ export class CanvasManager {
 
         this.ctx.save();
         this.ctx.lineWidth = SNAP_INDICATOR_LINE_WIDTH / scale;
-        this.ctx.fillStyle = SNAP_INDICATOR_FILL_COLOR;
+        this.ctx.fillStyle = vertex ? SNAP_INDICATOR_VERTEX_FILL_COLOR : SNAP_INDICATOR_FILL_COLOR;
         this.ctx.strokeStyle = SNAP_INDICATOR_STROKE_COLOR;
         this.ctx.beginPath();
         this.ctx.rect(point.x - size / 2, point.y - size / 2, size, size);

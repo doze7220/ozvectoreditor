@@ -1,5 +1,5 @@
 /**
- * 責務：図形とフォルダのアイテムの入れ子の並び・選択集合・ホバー・作成中図形・選択矩形・吸い付きの表示の点・新しく描く図形のスタイル（直前に使った値）の
+ * 責務：図形とフォルダのアイテムの入れ子の並び・選択集合・ホバー・作成中図形・選択矩形・吸い付きの表示の点（結合する吸い付きか吸い付くだけかの別を含む）・新しく描く図形のスタイル（直前に使った値）の
  * 状態管理（SSOT：Single Source of Truth）と更新通知を担う。頂点の選択（変えられる図形の組だけ。一時的な状態）と、描き込む先（保存しない）も保持する。
  * アイテムの名前・表示・ロックの値の変更を受け付け、表示・ロックの照会（見えている図形・変えられる図形・選んでいる変えられる図形・消えるものがあるか）を規則へ渡して答える。
  */
@@ -178,6 +178,14 @@ export class VectorModel {
     #snapPoint;
 
     /**
+     * @type {boolean}
+     * 吸い付きの表示の点が「吸い付くだけ」（ほかの図形の頂点への吸い付き。結合しない）か。偽は結合する吸い付き。
+     * 表示専用で保存しない。表示していないときは偽。
+     * @private
+     */
+    #snapPointVertex;
+
+    /**
      * @type {Array<{shapeId: string, handle: string}>}
      * 頂点の選択（選んだ順）。表示専用で保存しない（作業データ・履歴・書き出しに入れない）。
      * 常に選択集合に含まれ、かつ変えられる図形の組だけを含む（#pruneSelectedVerticesで保つ）。
@@ -218,6 +226,7 @@ export class VectorModel {
         this.#draftShape = null;
         this.#selectionRect = null;
         this.#snapPoint = null;
+        this.#snapPointVertex = false;
         this.#selectedVertices = [];
         this.#nextId = 1;
         this.#newShapeStyle = { ...DEFAULT_NEW_SHAPE_STYLE };
@@ -589,35 +598,47 @@ export class VectorModel {
 
     /**
      * 吸い付きの表示の点を設定し、値が変わったときだけ変更を通知する（1回）。
-     * 現在の点と同じ座標なら何もしない（mousemoveごとの無駄な再描画を避ける）。
+     * 現在の点と座標も「吸い付くだけか」の別も同じなら何もしない（mousemoveごとの無駄な再描画を避ける）。
      * @param {number} x 点のX座標（ワールド座標）
      * @param {number} y 点のY座標（ワールド座標）
+     * @param {boolean} [vertex=false] 真なら吸い付くだけ（ほかの図形の頂点への吸い付き。結合しない）の表示、偽・省略は結合する吸い付きの表示
      */
-    setSnapPoint(x, y) {
-        if (this.#snapPoint !== null && this.#snapPoint.x === x && this.#snapPoint.y === y) {
+    setSnapPoint(x, y, vertex = false) {
+        const isVertex = vertex === true;
+        if (this.#snapPoint !== null && this.#snapPoint.x === x && this.#snapPoint.y === y && this.#snapPointVertex === isVertex) {
             return;
         }
         this.#snapPoint = { x, y };
+        this.#snapPointVertex = isVertex;
         this.#notifyChange();
     }
 
     /**
-     * 吸い付きの表示の点を消去する。表示中だった場合のみ変更を通知する（1回）。
+     * 吸い付きの表示の点（と「吸い付くだけか」の別）を消去する。表示中だった場合のみ変更を通知する（1回）。
      */
     clearSnapPoint() {
         if (this.#snapPoint === null) {
             return;
         }
         this.#snapPoint = null;
+        this.#snapPointVertex = false;
         this.#notifyChange();
     }
 
     /**
-     * 吸い付きの表示の点を取得する。
+     * 吸い付きの表示の点を取得する（「吸い付くだけか」の別は含まない。別は`isSnapPointVertex`で問い合わせる）。
      * @returns {{x: number, y: number}|null} 点のコピー（ワールド座標）、表示していない場合はnull
      */
     getSnapPoint() {
         return this.#snapPoint ? { ...this.#snapPoint } : null;
+    }
+
+    /**
+     * 表示中の吸い付きの表示の点が「吸い付くだけ」（ほかの図形の頂点への吸い付き。結合しない）かを返す。
+     * @returns {boolean} 表示中で吸い付くだけなら真。表示していない・結合する吸い付きなら偽
+     */
+    isSnapPointVertex() {
+        return this.#snapPoint !== null && this.#snapPointVertex;
     }
 
     /**
@@ -960,6 +981,7 @@ export class VectorModel {
         this.#draftShape = null;
         this.#selectionRect = null;
         this.#snapPoint = null;
+        this.#snapPointVertex = false;
 
         this.#notifyChange();
         return reassignTargets.length;
