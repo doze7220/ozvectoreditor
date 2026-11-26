@@ -210,7 +210,7 @@
         *   『要件2・3・5：配線』のとおり、`EndpointSnapAssist`のtypedefと`NO_SNAP_ASSIST`の項目を置き換え・足し、`handleMouseMove`（線を引いている途中・弧・矩形・円の`DRAWING`・図形作成モードのIDLE）・`handleClick`（描き始め）・`#applyLeftDragUpdate`（点の数によらず`findVertexDragSnap`で照会し、座標の組を`buildVertexDragUpdates`で作る）・`#showSnap`（別を`isVertexSnap`で問い合わせて`setSnapPoint`の3つ目の引数へ）を直す。importに`buildVertexDragUpdates`を足す。JSDoc（ファイル先頭の責務（3行以内のまま）・クラス・typedef・作業用フィールド・各メソッド）を直す。『要件2・3・5：配線』の「変えないもの」には触れない。行数を実測して『開発資料の更新予定』へ書く。
         *   テスト：このタスクでは足さない（`InputTracker`はテストを置かない方針。規則・手順はタスク1〜5で確かめている）。既存の全件合格を確かめ、`EndpointSnapAssist`の全項目が`EndpointSnapper`の公開メソッドと名前・引数でそろっていること（`main.js`が`endpointSnapper`をそのまま注入している）をコードで確かめて詳細作業内容に書く。
 
-*   [ ] タスク7: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
+*   [x] タスク7: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新。行末はCRLF）
     *   **作業内容** :
@@ -272,7 +272,13 @@
 
 ### タスク7: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
 *   **作業内容** :
-    *   （未記入）
+    *   `PROJECT_ARCHITECTURE.md`（CRLFを保持。CR/LFとも1072から1091）を、実コード（`VertexSnapRules`・`VertexDragRules`・`EndpointSnapper`・`InputTracker`・`VectorModel`・`CanvasManager`）で確かめながら直した。用語は「結合する吸い付き」「吸い付くだけ」「スナップ（丸め）」で統一した。
+    *   1章：構成図（`VertexSnapRules.js`・`VertexDragRules.js`の新規2行、`EndpointSnapRules.js`・`EndpointSnapper.js`・`PathJoinRules.js`・`PathVertexRules.js`の行、テスト一覧に今回の6ファイル）、「存在しないもの」（12-01・12-02の項を「結合する吸い付きの対象は広げていない・吸い付くだけが入った」へ、2つ以上選んだときの吸い付きを結合する吸い付きに限定、Phase 12-03でやらないと決めたことを新設）、「フォルダ分割の方針」（用語・`VertexSnapRules`・`VertexDragRules`）、「依存方向」（(1)(2)と`core/`内の向き）。
+    *   2章「吸い付きの表示の点」（別の持ち方）。3章3.（吸い付きの項・頂点のドラッグの項）、6.（記録の時点は変わらない旨の1文）、12.（見出し・用語・モジュールの分担・描き始め・描いている途中・描き終え・ハンドルのドラッグ・対象・表示・表示を消す箇所・`Ctrl`の間・やらないこと・変えられる図形だけが対象（`joinDraggedEndpoint`を足す・吸い付くだけを外す）、新しい項「吸い付くだけ（頂点への吸い付き。Phase 12-03）」の導入の項を含む10項目を追加）、17.（用語・優先・やらないこと・座標の表示の注）、18.（まとめ移動・発注者の決定(11)への注記・やらないこと）、22.（見出し・モジュールの分担・`mousemove`の照会・クリックの判定の順に吸い付くだけの場合を追記）。
+    *   22.の「`dblclick`のリスナーは無く」は、実コードで`handleDoubleClick`の存在と`resolveDoubleClickInsertTarget`（頂点の選択のモード・`IDLE`のときだけ図形のidを返す）を確かめて、「ハンドラはあるが図形作成モードでは何もしないため2回の`click`のまま」に直した。
+    *   4章の一覧に`VertexDragRules.js`→`_doc/arch/68_VertexDragRules.md`の1行を足した（資料本体はタスク8で作る）。
+    *   古い記述の扱い：「端点への吸い付きの対象は広げない」「2つ以上では吸い付かない」は結合する吸い付きの話として残し、「弧・矩形・円のツールでは常に`null`」は`findDrawEndSnap`（矩形だけ□）に、「直線・曲線以外の図形種別のmousemoveで表示を消す」は`findDrawStartSnap`が`null`のとき・`Ctrl`の間に直した。
+    *   diff監査の軽微2件を修正した：(1) 3章3.の吸い付きの項の「吸い付くだけだけ」を「矩形・円・弧のツールでは吸い付くだけが働く（1つ目の点は3つとも、2つ目の点は矩形だけ）」に直した。(2) 上の「9項目」を、導入の項を含む「10項目」に直した。
 
 ### タスク8: 開発資料の反映（`_doc/arch/`）
 *   **作業内容** :
@@ -305,3 +311,4 @@
 9.  **ほかが今までどおり**：線の端点への吸い付きと描き足し・結合・閉じる、自分の始点で閉じる（点を3つ以上打って始点に近づけると中を塗った四角）、2本の結合（`J`）、点の追加（頂点の選択で線の上をダブルクリック）・削除（点を選んで`Delete`）、分割・区間を消す、分割した直後の重なった端の点を少しだけドラッグして離すと結合し直ること、スナップ（🧲）の丸め（吸い付かなかったときの点の位置）が今までどおり動く。
 *   **タスク3の実装メモ**：(i) `joinDraggedEndpoint`に足した`#toUsableSnap`は、既存テストの入力では結果が変わらず全件合格。(ii) `findDrawnLinePointSnap`は`startSnap`が`undefined`のとき今の`findDrawnLineSnap`と同じく`findDrawnLineSnapTarget`へそのまま渡る（`InputTracker`は`null`を渡す前提）。(iii) 開発資料への影響：`EndpointSnapper`の公開メソッド（新しい照会5つ・結合への関門`#toUsableSnap`の吸い付くだけの分岐・`joinDraggedEndpoint`の関門）と`edit/ → shapes/VertexSnapRules`のimport、テストの2ファイル（31件・5件）を、タスク7・8で反映する（既存の『開発資料の更新予定』の範囲内）。
 *   **タスク3の修正（diff監査の軽微3件）**：`EndpointSnapper`の`commitDrawnLine`・`clickDrawnLine`・`findDrawnLineSnap`・`finishDrawnLine`の`@param`を`VertexSnap`を受ける実態（吸い付くだけは`null`と同じ扱い）に直した（JSDocのみ）。隠した・ロックした図形のテストと描き始めが端点のテストに、除外が無ければ吸い付く点だったことを確かめる対照を足した。
+*   **タスク7の実装メモ**：(i) 12.の新しい項は、計画の『開発資料の更新予定』の内容を実コードで確かめて書いた（`findDrawEndSnap`は矩形だけ、`#toUsableSnap`の通る箇所に`joinDraggedEndpoint`を足した、など）。(ii) 12.の既存の行にある「`getEditableShapes()`（`EndpointSnapper`の6か所）」は、実コードで20箇所ほどに増えているため数をやめて「各所」にした。(iii) 12.・17.の古い見出し・歴史的な決定の文（Phase 07-05の「`Ctrl`を押している間は端点への吸い付きが働かなくなる」、17.の発注者の決定(1)など）は、当時の記述として直さず残した。目視で気になる箇所があれば、12.の冒頭の「単に吸い付きと書いた箇所は結合する吸い付きのこと」の一文で読み分ける。(iv) 資料の1章・12.の記述の行数・テストの件数（`16_test.md`）はタスク8で実測して直す。`PROJECT_ARCHITECTURE.md`本体にはファイルの行数・件数は書いていない（既存の通り）。
