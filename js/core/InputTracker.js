@@ -1,6 +1,6 @@
 /**
  * 責務：ユーザー入力（図形作成（直線・曲線のツールでは点を打って続けて引く）・選択・範囲選択・本体ドラッグ・ハンドルドラッグ・頂点の複数選択とまとめ移動・外枠のハンドルでの拡大縮小・外枠の角の外側での回転・パン・ズーム。キーはスペースパンのみ）の解釈と
- * Model・ビュー変換への反映（修飾キーの読み取りは、規則の関数へ渡すこと、Altで注入された複製を呼ぶかを決めること、Ctrlの間に端点への吸い付きの照会を省くこと、Shiftで線を引いている途中の向きを限定するかを決めること、拡大縮小のドラッグでShift・Alt・Ctrlを規則の関数へ渡すこと、回転のドラッグでShiftを規則の関数へ渡すことにだけ使う。待ち受け中のクリックは図形のidを外へ渡すだけ）、状態依存の操作（一括削除・取消・全選択・進行中操作の中断・線を引いている途中の最後の点の削除と終える）の公開、編集操作の開始・確定の通知（注入された記録先へ）、
+ * Model・ビュー変換への反映（修飾キーの読み取りは、規則の関数へ渡すこと、Altで注入された複製を呼ぶかを決めること、Ctrlの間に吸い付き（結合する吸い付き・吸い付くだけ）の照会を省くこと、Shiftで線を引いている途中の向きを限定するかを決めること、拡大縮小のドラッグでShift・Alt・Ctrlを規則の関数へ渡すこと、回転のドラッグでShiftを規則の関数へ渡すことにだけ使う。待ち受け中のクリックは図形のidを外へ渡すだけ）、状態依存の操作（一括削除・取消・全選択・進行中操作の中断・線を引いている途中の最後の点の削除と終える）の公開、編集操作の開始・確定の通知（注入された記録先へ）、
  * および入力状態に応じたカーソル形状のキャンバスへの適用（形の判定は規則の関数へ渡すだけで本クラスは持たない）を担う。
  */
 
@@ -15,6 +15,7 @@ import { resolveCursorShape } from './CursorShapeRules.js';
 import { resolveUserClickSelection, resolveMarqueeSelection, resolveVertexMarqueeSelection, resolveVertexClickSelection } from './SelectionRules.js';
 import { DELETE_ROUTE, resolveDeleteRoute, resolveDoubleClickInsertTarget } from './VertexEditRules.js';
 import { constrainMoveDirection } from './MoveDirectionRules.js';
+import { buildVertexDragUpdates } from './VertexDragRules.js';
 import { resolveUnitSnapStep, roundPointToUnit, roundDeltaToUnit, roundConstrainedDeltaToUnit, roundPointFromOriginToUnit, roundConstrainedPointFromOriginToUnit } from './UnitSnapRules.js';
 import { collectScaleFrame, hitTestScaleHandle, computeBoundsScale, toScaleTransform } from './ScaleHandleRules.js';
 import { hitTestRotationZone, computeRotationCenter, computeRotationAngle, toRotationTransform } from './RotationRules.js';
@@ -62,24 +63,32 @@ const NO_EDIT_RECORDER = Object.freeze({
 });
 
 /**
- * 端点への吸い付きの照会と反映を委ねる補助（実体はmain.jsが注入するedit/EndpointSnapper。本ファイルはedit/をimportしない）。
- * 吸い付き結果（SnapTarget）は`x`・`y`（ワールド座標）だけを読み、他のプロパティは解釈せずそのまま補助へ返す。
+ * 吸い付き（結合する吸い付き＝端点への吸い付き・吸い付くだけ＝ほかの図形の頂点への吸い付き）の照会と反映を委ねる補助
+ * （実体はmain.jsが注入するedit/EndpointSnapper。本ファイルはedit/をimportしない）。
+ * 吸い付き結果（SnapTarget・DrawnStartSnap・VertexSnap）は`x`・`y`（ワールド座標）だけを読み、他のプロパティ（kindを含む）は解釈せずそのまま補助へ返す
+ * （結合する吸い付きか吸い付くだけかは補助のisVertexSnapへ問い合わせる）。
  * @typedef {Object} EndpointSnapAssist
- * @property {(shapeType: string, point: {x: number, y: number}) => ({x: number, y: number}|null)} findDrawSnap
- *     描く図形種別とワールド座標で吸い付く端点を照会する（吸い付かない種別・範囲外はnull）
+ * @property {(shapeType: string, point: {x: number, y: number}) => ({x: number, y: number}|null)} findDrawStartSnap
+ *     描き始め（図形作成モードのIDLEのmousemoveの表示と1点目のクリック）で、描く図形種別とワールド座標で吸い付く点を照会する
+ *     （結合する吸い付き・吸い付くだけのうち近い方。吸い付かない種別・範囲外はnull）
+ * @property {(shapeType: string, point: {x: number, y: number}) => ({x: number, y: number}|null)} findDrawEndSnap
+ *     弧・矩形・円のツールの2つ目の点（DRAWINGのmousemove）で吸い付く点を照会する（吸い付くだけだけ。矩形以外・範囲外はnull）
+ * @property {(snap: Object|null) => boolean} isVertexSnap
+ *     吸い付き結果が吸い付くだけか（表示を中が白の正方形にするかの問い合わせ。結果の種類は本クラスが解釈しない）。既定はfalse
  * @property {(shapeId: string, handleName: string) => ('start'|'end'|null)} resolveDragEndpoint
  *     ハンドルが結合できる線の端点のハンドルなら'start'/'end'、それ以外はnull
- * @property {(dragged: {shapeId: string, end: string}, point: {x: number, y: number}) => ({x: number, y: number}|null)} findDragSnap
- *     端点のハンドルのドラッグ中に吸い付く端点を照会する
+ * @property {(dragged: ({shapeId: string, end: string}|null), movingShapeIds: string[], point: {x: number, y: number}) => ({x: number, y: number}|null)} findVertexDragSnap
+ *     頂点のハンドルのドラッグ中に吸い付く点を照会する。draggedは動かす点が1つで端点のハンドルのときだけ（結合する吸い付きも照会する）、
+ *     それ以外はnull（吸い付くだけだけ）。movingShapeIdsは動かしている点を持つ図形のid（その図形の頂点は吸い付くだけの候補にしない）
  * @property {(startSnap: Object|null, endSnap: Object|null) => boolean} commitDrawnLine
  *     描き終えを反映する（両方nullなら何もせずfalse。それ以外は作成途中の図形を破棄して反映しtrue）
  * @property {(dragged: {shapeId: string, end: string}, snap: Object) => boolean} joinDraggedEndpoint
  *     ドラッグした端点の結合・閉じるを反映する（開いている編集操作の中で行い、記録は呼び出し側）
  * @property {() => boolean} isDrawingLine 線を引いている途中か（作成途中の図形が直線・曲線のツールの線か）。既定は常にfalse
  *     （補助が注入されないときは今の2クリックの直線のまま動き、以下の項目は呼ばれない）
- * @property {(startSnap: Object|null, point: {x: number, y: number}) => ({x: number, y: number}|null)} findDrawnLineSnap
- *     線を引いている途中の吸い付きを照会する（描き始めの端点を除き、条件を満たせば作成途中の線の始点も対象）。既定はnull。
- *     結果の種類の項目（kind）は解釈せず、そのまま補助へ返す
+ * @property {(startSnap: Object|null, point: {x: number, y: number}) => ({x: number, y: number}|null)} findDrawnLinePointSnap
+ *     線を引いている途中の吸い付きを照会する（結合する吸い付き＝描き始めの端点を除き、条件を満たせば作成途中の線の始点も対象、
+ *     および吸い付くだけ）。既定はnull。結果の種類の項目（kind）は解釈せず、そのまま補助へ返す
  * @property {() => ({x: number, y: number}|null)} getDrawnLineLastPoint 最後に打った点（Shiftで向きを限定する基準点）。なければnull。既定はnull
  * @property {(startSnap: Object|null, endSnap: Object|null) => boolean} clickDrawnLine
  *     線を引いている途中のクリックを反映する。点を打って引き続けるならtrue、終えた（閉じる・開いたまま・つながる）ならfalse。既定はfalse
@@ -89,17 +98,23 @@ const NO_EDIT_RECORDER = Object.freeze({
 
 /**
  * 吸い付きの補助が注入されなかった場合の既定値（吸い付かない）。InputTrackerのコンストラクタ第5引数の省略時に用いる。
- * 照会は常にnull、commitDrawnLine・joinDraggedEndpointは常にfalse、線を引いている途中かは常にfalse（今の2クリックの直線のまま）。
+ * 照会は常にnull、isVertexSnap・commitDrawnLine・joinDraggedEndpointは常にfalse、線を引いている途中かは常にfalse（今の2クリックの直線のまま）。
  * @type {EndpointSnapAssist}
  */
 const NO_SNAP_ASSIST = Object.freeze({
-    findDrawSnap() {
+    findDrawStartSnap() {
         return null;
+    },
+    findDrawEndSnap() {
+        return null;
+    },
+    isVertexSnap() {
+        return false;
     },
     resolveDragEndpoint() {
         return null;
     },
-    findDragSnap() {
+    findVertexDragSnap() {
         return null;
     },
     commitDrawnLine() {
@@ -111,7 +126,7 @@ const NO_SNAP_ASSIST = Object.freeze({
     isDrawingLine() {
         return false;
     },
-    findDrawnLineSnap() {
+    findDrawnLinePointSnap() {
         return null;
     },
     getDrawnLineLastPoint() {
@@ -187,7 +202,7 @@ const NO_INPUT_ASSIST = Object.freeze({
 
 /**
  * マウスイベントでCtrl（macOSの⌘を含む）が押されているかを読み取る。
- * 用途は、選択の規則の関数へ渡す値（判定そのものは規則側）、スナップの一時無効（Ctrlの間は丸めない）、端点への吸い付きの省略。
+ * 用途は、選択の規則の関数へ渡す値（判定そのものは規則側）、スナップの一時無効（Ctrlの間は丸めない）、吸い付き（結合する吸い付き・吸い付くだけ）の省略。
  * main.jsがCanvasCursorTrackerへ注入するためexportする（Ctrl（⌘を含む）の読み取りを二重に定義しないため）。
  * @param {MouseEvent} event
  * @returns {boolean} ctrlKeyまたはmetaKeyが真ならtrue
@@ -217,7 +232,7 @@ export function hasCtrlModifier(event) {
  * 移動方向の限定はMoveDirectionRules、移動量の丸め（スナップ。Ctrlの間は丸めない）はUnitSnapRulesの関数へ渡すだけで本クラスは持たない。
  * 移動量は、押した位置からの移動量（限定・丸めの適用後）と反映済みの移動量の差分で求める。
  * 直線・曲線のツールで線を引いている途中（DRAWINGで、注入された補助のisDrawingLine()が真）は、mousemove・click・Escの枝で補助の線を引く手順
- * （findDrawnLineSnap・getDrawnLineLastPoint・clickDrawnLine・finishDrawnLine・removeDrawnLinePoint）を呼ぶだけで、打った点の並び・終える／閉じる／最後の点かの判定は
+ * （findDrawnLinePointSnap・getDrawnLineLastPoint・clickDrawnLine・finishDrawnLine・removeDrawnLinePoint）を呼ぶだけで、打った点の並び・終える／閉じる／最後の点かの判定は
  * 持たない（点の並びはVectorModelの作成途中の図形だけが持ち、作業用フィールドも足さない）。付いてくる線の先は、吸い付けば端点の座標、吸い付かずShiftなら
  * 最後の点を基準にMoveDirectionRulesで限定した移動量をUnitSnapRulesのroundConstrainedPointFromOriginToUnitで丸めた位置、それ以外は今のroundPointToUnit。
  * Shiftを見るのはそのmousemoveイベント（キーの購読なし）。
@@ -227,17 +242,19 @@ export function hasCtrlModifier(event) {
  * 編集操作（図形の作成・一括削除・選択集合の平行移動・ハンドルによる変形・外枠のハンドルでの拡大縮小・回転）は、変更処理を注入された記録先（EditRecorder）の
  * beginEdit()／commitEdit()で挟んで開始・確定を伝える（履歴の保持・適用は行わない。記録先はコンストラクタ第4引数）。
  * 範囲選択・クリック選択・全選択・選択解除・ホバー・パン・ズーム・モード/図形種別の切り替えは編集操作として伝えない。
- * 端点への吸い付きの照会と反映（直線・曲線のツールで描くときの描き足し・結合・閉じる）は、注入された補助（EndpointSnapAssist。コンストラクタ第5引数）へ
- * 委ね、本クラスは呼ぶ場面の配線と吸い付きの表示（model.setSnapPoint/clearSnapPoint）の設定・消去のみを行う。
+ * 吸い付きの照会と反映（結合する吸い付き＝直線・曲線のツールで描くときの描き足し・結合・閉じる、吸い付くだけ＝ほかの図形の頂点に合わせるだけで結合しない）は、
+ * 注入された補助（EndpointSnapAssist。コンストラクタ第5引数）へ委ね、本クラスは呼ぶ場面の配線と吸い付きの表示（model.setSnapPoint/clearSnapPoint。
+ * 結合する吸い付きか吸い付くだけかの別は補助のisVertexSnapへ問い合わせて渡す）の設定・消去のみを行う。
  * Ctrl（hasCtrlModifier）を押している間は、この吸い付きを照会せず表示も消す（図形作成の描き始めのclick・描いている途中と図形作成モードのIDLEのmousemove、
- * 端点のハンドルのドラッグ中。照会結果がnullのときと同じ経路を通る）。
+ * 頂点のハンドルのドラッグ中。照会結果がnullのときと同じ経路を通る）。
  * 吸い付きの規則（探索・距離・候補の選び方）・結果の組み立て・描く図形種別の判定は持たない。
  * 図形の作成で打つ点（描き始め・描いている途中の終点）は、吸い付かなかったときだけUnitSnapRulesのroundPointToUnitで
  * スナップの刻みへ丸める（吸い付いたときはその座標をそのまま使う。Ctrlの間・スナップOFFでは丸めない。図形種別の分岐は持たない）。
  * 頂点のハンドルのドラッグ（DRAGGING_HANDLE）では、追従のたびにUnitSnapRulesの関数で、押下時のハンドル位置（図形のgetHandlePositionを
  * 図形種別によらずポリモーフィックに呼んで得る）に丸めた移動量を足した位置を、押したハンドル（アンカー）の目標にする（Ctrlの間は丸めない）。
  * 頂点の数によらず（1つのときも）、アンカーの移動量（目標−押下時の位置）を、押下時に組み立てた各頂点の押下時の位置へ足して、
- * 全頂点の更新をmodel.updateVerticesへ1回で渡す（updateVertexは使わない。端点への吸い付きはドラッグする頂点が1つのときだけ）。
+ * 全頂点の更新（座標の組み立てはVertexDragRulesのbuildVertexDragUpdates）をmodel.updateVerticesへ1回で渡す（updateVertexは使わない。
+ * 結合する吸い付き（端点への吸い付き）はドラッグする頂点が1つで端点のハンドルのときだけ、吸い付くだけは押した頂点（アンカー）について頂点の数によらず働く）。
  * 図形種別の分岐・図形固有のプロパティ名は持たない。
  * 当たり分類の規則（ハンドル・本体の優先順位）はPointHitRules.classifyPointHitに委ねる。#classifyPointは、操作モードからハンドルを当たりに含めるか
  * （includeHandles。頂点の選択のモードのみ真）を決めて渡し、結果をそのまま返す（頂点のハンドルだけに絞り込むのはPointHitRulesの側）
@@ -326,7 +343,7 @@ export class InputTracker {
     #isEditOpen = false;
 
     /**
-     * 端点への吸い付きの照会と反映を委ねる補助（コンストラクタ第5引数。省略時はNO_SNAP_ASSIST＝吸い付かない）。
+     * 吸い付きの照会と反映を委ねる補助（コンストラクタ第5引数。省略時はNO_SNAP_ASSIST＝吸い付かない）。
      * @type {EndpointSnapAssist}
      */
     #snapAssist;
@@ -359,14 +376,14 @@ export class InputTracker {
     #duplicateOnMove = false;
 
     /**
-     * 直線・曲線のツールで描き始めたときに吸い付いていた端点（handleClickのIDLE・図形作成モードで照会した結果。吸い付いていなければnull）。
-     * 描き終えのcommitDrawnLineへ渡す。#resetSnapState()でnullに戻す。
+     * 描き始めたときに吸い付いていた点（handleClickのIDLE・図形作成モードで照会した結果。吸い付いていなければnull。
+     * 吸い付くだけの結果も入る）。描き終えのcommitDrawnLineへ渡す。#resetSnapState()でnullに戻す。
      * @type {Object|null}
      */
     #drawStartSnap = null;
 
     /**
-     * 直線・曲線のツールで描いている途中の直前のmousemoveで吸い付いていた端点（吸い付いていなければnull）。
+     * 描いている途中の直前のmousemoveで吸い付いていた点（吸い付いていなければnull。吸い付くだけの結果も入る）。
      * 描き終えの端点として使う（クリック位置で取り直さない）。#resetSnapState()でnullに戻す。
      * @type {Object|null}
      */
@@ -374,7 +391,8 @@ export class InputTracker {
 
     /**
      * 端点のハンドルのドラッグ中の、ドラッグしている端点（{ shapeId, end }。#beginLeftDragのDRAGGING_HANDLE開始時に
-     * 注入された補助のresolveDragEndpointで解決した結果。端点のハンドルでなければnull）。#resetSnapState()でnullに戻す。
+     * 注入された補助のresolveDragEndpointで解決した結果。端点のハンドルでなければnull）。結合する吸い付きのためだけに使い、
+     * 吸い付くだけは動かす点の数・端点かによらない。#resetSnapState()でnullに戻す。
      * @type {Object|null}
      */
     #dragEndpoint = null;
@@ -429,7 +447,7 @@ export class InputTracker {
      * @param {ViewTransform} viewTransform - スクリーン⇔ワールド変換とズーム・パンを担うビュー変換
      * @param {EditRecorder} [editRecorder=NO_EDIT_RECORDER] - 編集操作の開始・確定を受け取る記録先（実体はmain.jsが注入する
      *     HistoryManager）。省略時は何も記録しない（既存の呼び出しは従来どおり動作する）
-     * @param {EndpointSnapAssist} [snapAssist=NO_SNAP_ASSIST] - 端点への吸い付きの照会と反映を委ねる補助（実体はmain.jsが注入する
+     * @param {EndpointSnapAssist} [snapAssist=NO_SNAP_ASSIST] - 吸い付き（結合する吸い付き・吸い付くだけ）の照会と反映を委ねる補助（実体はmain.jsが注入する
      *     EndpointSnapper）。省略時は吸い付かない（従来どおり動作する）
      * @param {() => boolean} [isFillHitExcluded=() => false] - 塗った内側を当たりに含めないかの照会（真なら含めない。
      *     当たり分類のたびに呼ぶ）。省略時は常に含める（従来どおり動作する）。関数でなければ`console.warn`して既定（常に含める）を使う
@@ -896,13 +914,13 @@ export class InputTracker {
     }
 
     /**
-     * 吸い付きの結果を表示に反映する。snapがあればmodel.setSnapPoint(snap.x, snap.y)、なければmodel.clearSnapPoint()。
-     * SnapTargetはx・yだけを読み、他のプロパティは解釈しない。
-     * @param {{x: number, y: number}|null} snap 吸い付いた端点（吸い付いていなければnull）
+     * 吸い付きの結果を表示に反映する。snapがあればmodel.setSnapPoint(snap.x, snap.y, 補助のisVertexSnap(snap))、なければmodel.clearSnapPoint()。
+     * x・yだけを読み、他のプロパティ（kindを含む）は解釈しない（吸い付くだけか＝中が白の正方形にするかは補助へ問い合わせる）。
+     * @param {{x: number, y: number}|null} snap 吸い付いた点（結合する吸い付き・吸い付くだけ。吸い付いていなければnull）
      */
     #showSnap(snap) {
         if (snap) {
-            this.model.setSnapPoint(snap.x, snap.y);
+            this.model.setSnapPoint(snap.x, snap.y, this.#snapAssist.isVertexSnap(snap));
         } else {
             this.model.clearSnapPoint();
         }
@@ -965,16 +983,17 @@ export class InputTracker {
      * ホバー更新（bodyIdがあればModelへホバー登録、なければホバー解除）とカーソル形状の更新で共用する
      * （カーソル形状へは外枠のハンドル（#findScaleHandle。頂点の選択のモードでは規則がnullを返す）の名前も渡す。ホバーは外枠のハンドルの下でも今のまま）
      * （それ以外のモードのIDLE状態では何もしない）。
-     * DRAWING状態では、丸めていないカーソル位置で吸い付きを照会して#drawEndSnapに保持・表示し、作成中の図形の終点を
-     * 吸い付いていれば端点の座標をそのまま、吸い付かなかったときだけカーソル位置をスナップの刻みで丸めた位置
+     * DRAWING状態では、丸めていないカーソル位置で吸い付きを照会して（弧・矩形・円は補助のfindDrawEndSnap。吸い付くだけは矩形だけ）
+     * #drawEndSnapに保持・表示し、作成中の図形の終点を
+     * 吸い付いていれば吸い付いた点の座標をそのまま、吸い付かなかったときだけカーソル位置をスナップの刻みで丸めた位置
      * （roundPointToUnit。スナップOFFでは丸めずカーソル位置）に追従させる。
      * Ctrl（hasCtrlModifier）を見るのはこのmousemoveイベント。Ctrlの間は吸い付きを照会せず（照会結果がnullのときと同じ経路で
      * 保持をnull・表示を消す）、スナップでも丸めない。
-     * 線を引いている途中（直線・曲線のツール。補助のisDrawingLine()が真）は、先頭の枝で補助のfindDrawnLineSnap(#drawStartSnap, 丸めていないカーソル位置)を照会して
+     * 線を引いている途中（直線・曲線のツール。補助のisDrawingLine()が真）は、先頭の枝で補助のfindDrawnLinePointSnap(#drawStartSnap, 丸めていないカーソル位置)を照会して
      * #drawEndSnapに保持・表示し、付いてくる線の先を、吸い付けばその座標、吸い付かなければ#resolveDrawnLineEnd（Shiftなら最後の点を基準に
      * 向きを限定して丸める。それ以外は今のroundPointToUnit）に追従させる。吸い付いたときは限定もスナップもしない。Shiftを見るのはこのmousemoveイベント。
-     * IDLE状態かつ図形作成モード中は、描く図形種別で吸い付きを照会して表示だけを更新する（直線・曲線のツール以外では常に表示されない。
-     * Ctrlの間は照会せず表示を消す）。
+     * IDLE状態かつ図形作成モード中は、描く図形種別で補助のfindDrawStartSnapにより吸い付きを照会して表示だけを更新する
+     * （直線・曲線・矩形・円・弧のツールで働く。Ctrlの間は照会せず表示を消す）。
      * Modelへ渡す座標・当たり判定に用いる座標はすべてワールド座標（getWorldCoordinate由来）。
      * ドラッグセッション中（パン・左ドラッグ。閾値以前を含む）は何もしない。追従はDragTrackerのonMoveが担い
      * （パンは#beginPan、左ドラッグは#applyLeftDragUpdate）、ホバー判定・作成途中図形の更新は走らせない。
@@ -991,14 +1010,14 @@ export class InputTracker {
             const point = this.getWorldCoordinate(event);
             const suppressed = hasCtrlModifier(event);
             if (this.#snapAssist.isDrawingLine()) {
-                const lineSnap = suppressed ? null : this.#snapAssist.findDrawnLineSnap(this.#drawStartSnap, point);
+                const lineSnap = suppressed ? null : this.#snapAssist.findDrawnLinePointSnap(this.#drawStartSnap, point);
                 this.#drawEndSnap = lineSnap;
                 this.#showSnap(lineSnap);
                 const lineEnd = lineSnap ? lineSnap : this.#resolveDrawnLineEnd(point, event, suppressed);
                 this.model.updateDraft(lineEnd.x, lineEnd.y);
                 return;
             }
-            const snap = suppressed ? null : this.#snapAssist.findDrawSnap(this.currentShapeType, point);
+            const snap = suppressed ? null : this.#snapAssist.findDrawEndSnap(this.currentShapeType, point);
             this.#drawEndSnap = snap;
             this.#showSnap(snap);
             const end = snap ? snap : roundPointToUnit(point, resolveUnitSnapStep(this.#inputAssist.getUnitSnapStep(), suppressed));
@@ -1007,7 +1026,7 @@ export class InputTracker {
         }
 
         if (this.state === InputState.IDLE && this.currentMode === OperationMode.CREATE) {
-            this.#showSnap(hasCtrlModifier(event) ? null : this.#snapAssist.findDrawSnap(this.currentShapeType, this.getWorldCoordinate(event)));
+            this.#showSnap(hasCtrlModifier(event) ? null : this.#snapAssist.findDrawStartSnap(this.currentShapeType, this.getWorldCoordinate(event)));
             return;
         }
 
@@ -1172,7 +1191,8 @@ export class InputTracker {
      * 図形の選択から外れた図形の頂点は、VectorModelが頂点の選択から落とす。通知は頂点の選択の変更と図形の選択の変更で別々に起こり得る（最大2回）。
      * 押下の判定表（PressActionRules）はCtrlで変えないため、選ばれている頂点をCtrlで押して閾値以内で離すと、このclickで選択から外れる。
      * REQどおりの正しいふるまいであり、ガード処理を足さない（閾値を超えて動かした場合は移動し、直後のclickはconsumeSuppressedClick()で抑止されるため選択は変わらない）。
-     * IDLE状態かつ図形作成モード中では、Modelへ新規図形作成の開始を指示してDRAWING状態へ遷移する。
+     * IDLE状態かつ図形作成モード中では、補助のfindDrawStartSnapで描き始めの吸い付き（結合する吸い付き・吸い付くだけ）を照会して#drawStartSnapに保持・表示し
+     * （Ctrlの間は照会しない）、Modelへ新規図形作成の開始を指示してDRAWING状態へ遷移する（吸い付けばその座標、吸い付かなければスナップで丸めた位置から始める）。
      * 作成する図形のtypeには、現在記憶している図形種別（currentShapeType）をそのまま使用し、
      * 作成開始位置はクリック位置のワールド座標とする。
      * 選択モード・頂点の選択のモード・図形作成モード以外のモード（キャンバス移動モード等）では、IDLE状態のクリックを無視する。
@@ -1258,7 +1278,7 @@ export class InputTracker {
 
         if (this.currentMode === OperationMode.CREATE) {
             const suppressed = hasCtrlModifier(event);
-            const snap = suppressed ? null : this.#snapAssist.findDrawSnap(this.currentShapeType, { x, y });
+            const snap = suppressed ? null : this.#snapAssist.findDrawStartSnap(this.currentShapeType, { x, y });
             this.#drawStartSnap = snap;
             this.#showSnap(snap);
             const start = snap ? snap : roundPointToUnit({ x, y }, resolveUnitSnapStep(this.#inputAssist.getUnitSnapStep(), suppressed));
@@ -1434,7 +1454,8 @@ export class InputTracker {
      * 終了（onEnd：左ボタンの解放）は#onLeftDragEnd、中断（onCancel：blur・setMode・abortOngoingOperation・Esc（cancelDraftOrClearSelectionの(1)。拡大縮小・回転のドラッグ中のみ））は#onLeftDragCancelが担う。
      * DRAGGING_HANDLEで開始できたときは、注入された補助のresolveDragEndpoint(図形id, ハンドル名)で端点のハンドルかを解決し、
      * 端点なら#dragEndpoint（{ shapeId, end }）に、そうでなければnullにする（頂点の番号の規約は補助側が持つ）。
-     * この解決は#vertexDragOriginsが1つだけのときに限る（頂点を2つ以上動かすときは端点への吸い付きをせず、#dragEndpointはnullのまま）。
+     * この解決は#vertexDragOriginsが1つだけのときに限る（頂点を2つ以上動かすときは結合する吸い付きをせず、#dragEndpointはnullのまま。
+     * 吸い付くだけは#dragEndpointによらず#applyLeftDragUpdateが押した頂点について照会する）。
      * @param {MouseEvent} event ドラッグを開始したmousedownイベント
      * @param {'DRAGGING_HANDLE'|'MOVING_SELECTION'|'MARQUEE_SELECTING'|'SCALING_SELECTION'|'ROTATING_SELECTION'} nextState 遷移先の状態（InputStateの値。SCALING_SELECTION・ROTATING_SELECTIONでは#moveOrigin等は
      *     nullのまま、#vertexDragOriginsは空のまま。#scaleDrag・#rotateDragは呼び出し側の#beginScaleSelection・#beginRotateSelectionが先に設定する）
@@ -1606,13 +1627,14 @@ export class InputTracker {
      * origin+(target-origin)は浮動小数でtargetと厳密に一致しないため。頂点が1つだけのときの結果が前半と完全に同じになる要点）。
      * ほかの頂点には、アンカーの移動量（アンカーの行き先-#unitSnapHandleOrigin。#unitSnapHandleOriginがnullなら0）を
      * それぞれの押下時の位置へ足した座標を渡す（選んでいる頂点すべてが同じだけ動く）。
-     * 端点のハンドル（#dragEndpointあり）なら、頂点を渡す前に注入された補助のfindDragSnap(#dragEndpoint, カーソル位置)で
-     * 吸い付きを照会して#dragSnapに保持・表示し、吸い付いていればその端点の座標、いなければカーソル位置を頂点の座標にする（Ctrlの間は照会せず吸い付かない）。
+     * 頂点を渡す前に、動かす点の数・端点かによらず注入された補助のfindVertexDragSnap(#dragEndpoint, 動かしている点を持つ図形のid, カーソル位置)で
+     * 吸い付きを照会して#dragSnapに保持・表示し、吸い付いていればその点の座標、いなければカーソル位置を頂点の座標にする（Ctrlの間は照会せず吸い付かない）。
+     * 結合する吸い付き（端点への吸い付き）は動かす点が1つで端点のハンドルのとき（#dragEndpointがあるとき）だけで、吸い付くだけは押した点（アンカー）について常に照会する
+     * （結果の種類は解釈しない）。座標の組はVertexDragRulesのbuildVertexDragUpdatesで組み立てる。
      * 吸い付かなかったときは、ドラッグを始めた時点のハンドルの位置（#unitSnapHandleOrigin）を基準に、そこからの移動量を
      * スナップの刻みで丸めた位置（roundPointFromOriginToUnit。Ctrlの間・スナップOFFでは丸めずカーソル位置）を頂点の座標にする。
      * 位置が得られない（#unitSnapHandleOriginがnull）ときは丸めない。Shiftは頂点のハンドルには効かせない。
-     * 端点への吸い付きは頂点が1つだけのとき（#dragEndpointがあるとき）にしか起きない。
-     * @param {MouseEvent} event カーソル位置とshiftKey・ctrlKey・metaKeyを持つイベント（window captureのmousemove、またはwheel。shiftKeyはMOVING_SELECTIONの移動方向の限定とSCALING_SELECTIONの比率の保持に、altKeyはSCALING_SELECTIONの中心からの拡大縮小にのみ（ROTATING_SELECTIONの15度刻みにもshiftKey）、Ctrlの有無は丸め・端点への吸い付きの省略に使う）
+     * @param {MouseEvent} event カーソル位置とshiftKey・ctrlKey・metaKeyを持つイベント（window captureのmousemove、またはwheel。shiftKeyはMOVING_SELECTIONの移動方向の限定とSCALING_SELECTIONの比率の保持に、altKeyはSCALING_SELECTIONの中心からの拡大縮小にのみ（ROTATING_SELECTIONの15度刻みにもshiftKey）、Ctrlの有無は丸め・吸い付きの照会の省略に使う）
      */
     #applyLeftDragUpdate(event) {
         if (!this.#isLeftDragState()) {
@@ -1655,11 +1677,9 @@ export class InputTracker {
         const suppressed = hasCtrlModifier(event);
         let target = { x, y };
         let snap = null;
-        if (this.#dragEndpoint) {
-            snap = suppressed ? null : this.#snapAssist.findDragSnap(this.#dragEndpoint, target);
-            this.#dragSnap = snap;
-            this.#showSnap(snap);
-        }
+        snap = suppressed ? null : this.#snapAssist.findVertexDragSnap(this.#dragEndpoint, this.#vertexDragOrigins.map((o) => o.shapeId), target);
+        this.#dragSnap = snap;
+        this.#showSnap(snap);
         if (snap) {
             target = snap;
         } else if (this.#unitSnapHandleOrigin) {
@@ -1669,16 +1689,7 @@ export class InputTracker {
                 resolveUnitSnapStep(this.#inputAssist.getUnitSnapStep(), suppressed),
             );
         }
-        const delta = this.#unitSnapHandleOrigin
-            ? { dx: target.x - this.#unitSnapHandleOrigin.x, dy: target.y - this.#unitSnapHandleOrigin.y }
-            : { dx: 0, dy: 0 };
-        const updates = this.#vertexDragOrigins.map((o) => {
-            if (o === anchor) {
-                return { id: o.shapeId, vertexIndex: o.vertexIndex, x: target.x, y: target.y };
-            }
-            return { id: o.shapeId, vertexIndex: o.vertexIndex, x: o.x + delta.dx, y: o.y + delta.dy };
-        });
-        this.model.updateVertices(updates);
+        this.model.updateVertices(buildVertexDragUpdates(this.#vertexDragOrigins, anchor, target, this.#unitSnapHandleOrigin));
     }
 
     /**
@@ -1774,8 +1785,9 @@ export class InputTracker {
      * 左ドラッグの終了処理（DragTrackerのonEnd：開始ボタン（左）の解放、またはbuttonsによる解放の検知）。
      * MARQUEE_SELECTINGかつ閾値を超えて動かしていた場合のみ#commitMarqueeで範囲選択を確定し、その後#finishLeftDragで後始末する。
      * 閾値以内で離した範囲選択は何も確定しない（直後のclickが通常の空白クリック＝全解除として処理される）。
-     * DRAGGING_HANDLEで閾値を超えて動かし、#dragEndpointと#dragSnap（離す直前に吸い付いていた端点）がともにあるときは、
+     * DRAGGING_HANDLEで閾値を超えて動かし、#dragEndpointと#dragSnap（離す直前に吸い付いていた点）がともにあるときは、
      * #finishLeftDragの前に注入された補助のjoinDraggedEndpoint(#dragEndpoint, #dragSnap)を呼ぶ（結合・閉じる）。
+     * #dragSnapが吸い付くだけの結果のときは補助が結合せずfalseを返す（本クラスは種類を解釈しない）。
      * この反映は閾値超過時にbeginEdit()済みの編集操作の中で行われ、#finishLeftDragのcommitEdit()で頂点の移動とあわせて1件になる。
      * 吸い付いていなければ従来どおり頂点を動かしただけで終わる（中断の#onLeftDragCancelでは結合しない）。
      * ROTATING_SELECTIONで閾値を超えて動かし（#isEditOpen）#rotateDragがあるときは、#finishLeftDragの前に#rotateDragをnullにしてから、

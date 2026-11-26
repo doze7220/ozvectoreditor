@@ -143,6 +143,7 @@
 *   **3章22.（線を続けて引く）**：`mousemove`の照会が`findDrawnLinePointSnap`になり吸い付くだけを含むこと。「クリックの判定の順」（22.の番号の1.〜4.。`EndpointSnapper.js`のJSDocの「処理順」の2.〜5.に当たる）で、吸い付くだけの頂点でのクリックは1.（始点で閉じる）・3.（端点への吸い付き）に当たらず、2.（最後の点と重なる）を今までどおり先に見て、4.（点を打つ）になること（`#toUsableSnap`で`null`と同じ）。描き始めが吸い付くだけの線は新しい線。モジュールの分担の手順の列に新しい照会。あわせて、2.の括弧書きの「`dblclick`のリスナーは無く2回の`click`として扱う」は、Phase 12-01で`InputTracker`に`dblclick`のハンドラ（`handleDoubleClick`。InputTracker.js 1271行付近）が入った後の実態と食い違っているため見直す（`handleDoubleClick`は`VertexEditRules.resolveDoubleClickInsertTarget`が頂点の選択のモードでしか図形のidを返さず図形作成モードでは働かないため、線を引いている途中のダブルクリックのふるまいは2回の`click`のまま、という形に直す。書く前に実コードで確かめる）。
 *   **3章6.（履歴）**：記録の時点は変わらない旨を、必要なら1文（吸い付きは別の編集操作にならない）。
 *   **4章の一覧と`_doc/arch/`**：新規`68_VertexDragRules.md`（一覧の表に足す）。更新`02_main.md`（`renderCurrentState`の`snapPointVertex`・`// 4.`のコメント・行数）、`03_VectorModel.md`（`setSnapPoint`の3つ目の引数・`isSnapPointVertex`・公開メソッドの列）、`04_CanvasManager.md`（`render`の`snapPointVertex`・定数`SNAP_INDICATOR_VERTEX_FILL_COLOR`）、`06_InputTracker.md`（`EndpointSnapAssist`の項目の置き換え・呼ぶ場面・`#applyLeftDragUpdate`の照会と`VertexDragRules`・`#showSnap`・`Ctrl`の間は照会しない項の呼ぶメソッド名・importの列・行数）、`12_shapes.md`（`EndpointSnapRules`の新しい公開2つと使う側・新しい節`VertexSnapRules.js`・`PathJoinRules`・`PathVertexRules`の使う側）、`14_edit.md`（`EndpointSnapper`の公開メソッド・依存・契約・注意（関門）・使う側）、`16_test.md`（新しいテストファイル・件数）、`38_VertexHandleRules.md`・`30_UnitSnapRules.md`・`67_VertexTargetRules.md`・`08_HistoryManager.md`（記述が今回の変更と食い違う箇所があれば直す。無ければ変えない）。`main.js`・`InputTracker.js`の行数・テストの件数は実測して直す（作業前は`main.js`1296行・`InputTracker.js`2112行・tests 3910 / suites 652 / 152ファイル）。
+*   **（タスク6で実測）`InputTracker.js`の行数**：2112行から2124行（`06_InputTracker.md`のタスク8で`wc -l`により再実測して直す。`EndpointSnapAssist`の項目の置き換え・importに`VertexDragRules`・`#applyLeftDragUpdate`と`#showSnap`の記述）。
 *   **（タスク5で実測）`main.js`の行数**：1296行から1297行（`02_main.md`のタスク8で`wc -l`により再実測して直す）。`VectorModel`の`isSnapPointVertex()`・`setSnapPoint`の3つ目の引数は`03_VectorModel.md`・2章「吸い付きの表示の点」、`CanvasManager`の`snapPointVertex`・`SNAP_INDICATOR_VERTEX_FILL_COLOR`は`04_CanvasManager.md`に反映する。
 
 ## 3. タスクリスト
@@ -202,7 +203,7 @@
         *   `main.js`：`renderCurrentState`の`render`の引数に`snapPointVertex: model.isSnapPointVertex()`を足し、`renderCurrentState`のJSDoc・`// 4.`の`EndpointSnapper`の説明コメントを直す。行数を実測して『開発資料の更新予定』へ書く。
         *   テスト（`VectorModel.snapPointVertex.test.js`）：初期は`isSnapPointVertex()`が偽、`setSnapPoint(x, y, true)`で真・`getSnapPoint()`は`{ x, y }`だけ、2引数の`setSnapPoint`は偽、同じ座標で別だけ変わると通知1回・座標も別も同じなら通知なし、`clearSnapPoint`・`replaceAllShapes`で偽に戻る、表示なしでは偽。既存の`VectorModel.snapPoint.test.js`が変更なしで全件合格すること。`CanvasManager`・`main.js`はテストを置かない（描画・配線は`node --test`の対象外）。
 
-*   [ ] タスク6: 入力の配線（`InputTracker`）
+*   [x] タスク6: 入力の配線（`InputTracker`）
     *   **対象ファイル** :
         *   `./js/core/InputTracker.js` :（更新。行末はCRLF）
     *   **作業内容** :
@@ -264,7 +265,10 @@
 
 ### タスク6: 入力の配線（`InputTracker`）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/InputTracker.js`（CRLF保持。2112行から2124行、CR/LFとも2124）：importに`buildVertexDragUpdates`を足し、`EndpointSnapAssist`のtypedefと`NO_SNAP_ASSIST`を`findDrawStartSnap`・`findDrawEndSnap`・`isVertexSnap`（既定false）・`findVertexDragSnap`・`findDrawnLinePointSnap`に置き換え・追加した。呼ぶ場面：`handleMouseMove`の線を引いている途中は`findDrawnLinePointSnap`、弧・矩形・円の`DRAWING`は`findDrawEndSnap`、図形作成モードのIDLEと`handleClick`の描き始めは`findDrawStartSnap`。`#applyLeftDragUpdate`は`#dragEndpoint`の有無によらず（Ctrlでなければ）`findVertexDragSnap(#dragEndpoint, #vertexDragOriginsのshapeId, target)`で照会し、座標の組を`buildVertexDragUpdates(#vertexDragOrigins, anchor, target, #unitSnapHandleOrigin)`で作る（今の`delta`・`updates`の計算を置き換え）。`#showSnap`は`setSnapPoint(snap.x, snap.y, this.#snapAssist.isVertexSnap(snap))`。`#onLeftDragEnd`・`#resetSnapState`・`hitTestHandle`・丸めの順などは変えていない。
+    *   JSDoc：ファイル先頭の責務（行数は従来のまま）・クラス・typedef・`#snapAssist`・`#drawStartSnap`・`#drawEndSnap`・`#dragEndpoint`・コンストラクタの`@param`・`hasCtrlModifier`・`handleMouseMove`・`handleClick`・`#beginLeftDrag`・`#applyLeftDragUpdate`・`#onLeftDragEnd`・`#showSnap`を直した。
+    *   確認：`EndpointSnapAssist`の全項目（`findDrawStartSnap`・`findDrawEndSnap`・`findDrawnLinePointSnap`・`findVertexDragSnap`・`isVertexSnap`・`resolveDragEndpoint`・`commitDrawnLine`・`joinDraggedEndpoint`・`isDrawingLine`・`getDrawnLineLastPoint`・`clickDrawnLine`・`finishDrawnLine`・`removeDrawnLinePoint`）が`js/edit/EndpointSnapper.js`の公開メソッドと名前・引数でそろっていること、`main.js`が`endpointSnapper`をそのまま第5引数へ注入していること（`main.js`192行）をコードで確かめた。旧名（`findDrawSnap`・`findDragSnap`・`findDrawnLineSnap`）は`InputTracker.js`に残っていない。
+    *   `node --test`は4010件全件合格（既存テストの値は変更なし）。
 
 ### タスク7: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
 *   **作業内容** :
