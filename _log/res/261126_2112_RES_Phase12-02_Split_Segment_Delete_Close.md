@@ -124,13 +124,14 @@
 
 ### 要件7：自動テストと、既存のテストで値を変えるもの
 *   **足すテストファイル**：`test/core/VertexTargetRules.test.js`（タスク1）・`test/shapes/PathVertexRules.select.test.js`（タスク2）・`test/shapes/PathSplitRules.split.test.js`（タスク3）・`test/shapes/PathSplitRules.segments.test.js`（タスク4）・`test/shapes/PathJoinRules.close.test.js`・`test/edit/PathJoiner.close.test.js`（タスク5）・`test/edit/PathSplitEditor.test.js`・`test/edit/PathSplitEditor.items.test.js`（タスク6）。
-*   **既存のテストで値を変えるもの（タスク5で、この5件だけ。要件5の発注者の決定で変わる値）**：
+*   **既存のテストで値を変えるもの（タスク5で、この6件だけ。要件5の発注者の決定で変わる値。6件目は実装時に見つかり、発注者の承認を得て追加）**：
     1.  `test/shapes/PathJoinRules.test.js`の`it('classifyJoin：弧と円・矩形・閉じたパスは null、弧1本は null')`の最後の`assert.equal(classifyJoin([makeArc()]), null)` → `'close'`（テスト名の「弧1本は null」も「弧1本は close」へ直す。円・矩形・閉じたパスとの2本の`null`はそのまま）。
     2.  同ファイル`describe('閉じる（半月形）')`の`it('弧1本は buildClosedPath が null、planJoin も null')` → `buildClosedPath(makeArc(), 0)`が点3つ（`[L, T, R]`）・`closed: true`・区間`[...arcBeziers(), { kind: 'line' }]`のパス、`planJoin([withId(makeArc(), 'A')], 0)`が`keepId: true`・`targetId: 'A'`・`removeIds: []`で同じパス（テスト名も直す）。
     3.  同ファイル`describe('planDrawnLineJoin')`の`it('同じ弧の両端で途中の点なしは null')` → 計画が`keepId: true`・`targetId: 'A'`で、パスが`closed: true`・点`[L, T, R]`・区間`[...arcBeziers(), { kind: 'line' }]`（テスト名も直す）。
     4.  同ファイル`describe('planEndpointDragJoin')`の`it('弧のもう一方の端点への自分のドラッグは null（弧1本は閉じない）')` → 両方の向きとも`keepId: true`の閉じたパスの計画（実際の操作では起きない入力である旨をテスト名に書く）。
+    6.  （タスク5で追加）`test/shapes/PathJoinRules.test.js`の`describe('classifyJoin')`の`it('曲線・矩形・円・弧の1つはnull')` → 曲線・矩形・円の1本は`null`のまま、弧の1本は`'close'`（テスト名も直す）。
     5.  `test/edit/PathJoiner.test.js`の`test('canJoin・join（弧を含む選択。Phase 09-03b）: …弧1本は結合できない…')`の`one`の3つの検証 → `canJoin()`が`true`、`join()`が`true`、呼び出しが`beginEdit`・`replaceShape`（`'r'`・閉じたパス・`{ keepId: true, removeIds: [] }`）・`commitEdit`（テスト名も直す）。
-*   上の5件のほかに値が変わるテストが出たら、そのタスクを中断して質問する（`canJoin`が許容距離を見るようになるため、点3つで両端が重なる開いたパスを`canJoin`で`true`と確かめているテストがあれば該当する。現場設計と計画時の確認では見つかっていない）。タスク1・2の括り直しは結果を変えないため、既存のテストの値は変えない。
+*   上の6件のほかに値が変わるテストが出たら、そのタスクを中断して質問する（`canJoin`が許容距離を見るようになるため、点3つで両端が重なる開いたパスを`canJoin`で`true`と確かめているテストがあれば該当する。現場設計と計画時の確認では見つかっていない）。タスク1・2の括り直しは結果を変えないため、既存のテストの値は変えない。
 
 ### モジュールの分担（全体）
 | 層 | ファイル | 持つもの | 持たないもの |
@@ -218,7 +219,7 @@
         *   `PathSplitRules.js`：importに`selectedSegmentIndexesOf`を足し、export`planSegmentDeletion(targets)`（`buildPieces`へ切る点の空の集合と選んでいる区間を渡す。ピースが空なら`pieces: []`＝図形ごと消える）と`resolveSplitAvailability(targets)`、typedef`SplitAvailability`（`palette/OptionBarSplitGroup.js`との二重定義である旨。ファイルはタスク7で作る）をJSDoc付きで足す（表Bのとおり。押せるかは計画と同じ非公開の判定を使う）。
         *   テスト（表Bの行ごと）：直線・今の曲線・点2つのパスの区間＝`pieces: []`、開いたパスの最初の区間（点0が消え`[1..]`が引き継ぐ）・最後の区間・途中の区間（2本・`[0..s]`が引き継ぐ）・続いた2区間（間の点が消える）・離れた2区間・すべての区間、閉じたパスの1区間（途中・最後の区間＝点`n−1`→点0。点`n`の開いた線）・2区間（隣り合う・離れた）・点0を挟む2区間（点0が消え、`start`の最小が引き継ぐ）・すべての区間、矩形の1辺・隣り合う2辺・向かい合う2辺・3辺・4辺・対角の2つの角だけ（計画が空）。区間の種類・引っ張る点・角・スタイル3つ・`id`が`null`・引数を書き換えない。`resolveSplitAvailability`：選択なし・切れる点なし・区間なしは両方`false`、表A・表Bの各行の押せる・押せない、`split`が真なら`planSplitAtVertices`が1件以上・偽なら空、`deleteSegments`が真なら`planSegmentDeletion`が1件以上・偽なら空（多数の選択の組で確かめる＝押せるときは必ず計画ができる）。
 
-*   [ ] タスク5: 閉じる（弧1本・押せる見た目と結果の一致）
+*   [x] タスク5: 閉じる（弧1本・押せる見た目と結果の一致）
     *   **対象ファイル** :
         *   `./js/shapes/PathJoinRules.js` :（更新）
         *   `./js/edit/PathJoiner.js` :（更新）
@@ -302,7 +303,11 @@
 
 ### タスク5: 閉じる（弧1本・押せる見た目と結果の一致）
 *   **作業内容** :
-    *   (未記入)
+    *   `js/shapes/PathJoinRules.js`：`classifyJoin`の1本の分岐を`isJoinableLine`＋`chainSourceOf(...).points.length >= 3`に、`buildClosedPath`の受け付けを`isJoinableLine`＋`chainOf`の点が3つ以上に変更（弧は点3つ・`bezier`×2＋閉じる区間の半月形）。先頭の責務・`classifyJoin`・`buildClosedPath`・`planCloseOf`のJSDocを直した。2本の結合・描き足しは変えていない。行末CRLFのまま。
+    *   `js/edit/PathJoiner.js`：`canJoin()`を`planJoin(...) !== null`にし、importから`classifyJoin`を外した。責務・クラス・`canJoin`のJSDocを直した。行末LFのまま。
+    *   既存のテストの値：要件7の1.〜5.に加え、実装時に見つかった6件目（`PathJoinRules.test.js`の`classifyJoin`の「曲線・矩形・円・弧の1つはnull」。弧は`'close'`。`makeUnjoinable('arc')`は実物の`Ellipse`の弧で、`'close'`になる理由も実際の弧と同じ）を、発注者の承認を得て直した。テスト名も内容に合わせて直した。
+    *   `test/shapes/PathJoinRules.close.test.js`（新規・12件。表Cの各行・小さな弧・裏返した弧・`planJoin`が非`null`なら`classifyJoin`も非`null`・`planDrawnLineJoin`の直線／曲線のツール）、`test/edit/PathJoiner.close.test.js`（新規・4件。許容距離での`canJoin`／`join`の一致・多数の選択での一致・実物の弧1本の閉じると取り消し／やり直し・実物の`EndpointSnapper.commitDrawnLine`で弧を閉じる）を作成（行末LF）。
+    *   `node --test`：3886件すべて合格。
 
 ### タスク6: 分割・区間の削除の編集操作
 *   **作業内容** :
@@ -329,7 +334,7 @@
     *   **新しい線の表示・ロック**：値を読まずに補う値（表示・ロックなし）にする。対象は必ず変えられる図形のため、元の行の値と同じになる（『要件1〜3：1件の編集操作』）。
     *   **ボタンの記号**：「分割」`✂`・「区間を消す」`✕`（どちらも仮）。置き場所は角のまとまりのすぐ右の新しいまとまり。
     *   **選んだ点を図形ごとに束ねる手順の写し**：`PathSplitRules`の非公開`collectEntries`の「選んだ点を図形のオブジェクトで束ね（最初に現れた順）、番号を0以上・点の数未満の整数に絞る」手順は、`PathVertexRules.planVertexRemoval`（`js/shapes/PathVertexRules.js:427-442`）・`PathSegmentKindRules.collectSwitchEntries`（`js/shapes/PathSegmentKindRules.js:76-86`）に続く3つ目の写しになる（REQの「写しを作らない4項目」には入っていない）。承知のうえで残し、括らない。理由：(1)共有できるのは束ねる10行ほどで、対象にする図形の種類（点の削除・分割＝`line`・`rect`・`curve`・`path`、区間の切り替え＝`rect`を含まない）・データの読み方（`collectSwitchEntries`は`dataOf`の使い回し先を通し、有効な番号が無い図形もエントリに残す）・束ねた後の使い方（番号のまま使う／輪郭の番号へ読み替える）が3か所で違い、括ると分岐を引数で渡す形になる。(2)括るとPhase 12-01の2つの手順を書き換えることになり、今回のスコープが広がる。番号を輪郭の番号・選んでいる区間へ読み替える判定は`outlineVertexIndexOf`・`selectedSegmentIndexesOf`の1か所に括るため、写しが判定の食い違いを生まない。4つ目が要るときに括り直しを検討する。
-*   **既存のテストの値を変えるもの**：『要件7』の5件（弧1本の`classifyJoin`・`buildClosedPath`／`planJoin`・同じ弧の両端の`planDrawnLineJoin`・弧の自分の端点どうしの`planEndpointDragJoin`・`PathJoiner`の弧1本の`canJoin`／`join`）。4件目（`planEndpointDragJoin`）は弧が端点のハンドルを持たないため実際の操作では起きない入力で、`planDrawnLineJoin`と共有する`planCloseOf`の結果が変わることによる。
+*   **既存のテストの値を変えるもの**：『要件7』の6件（弧1本の`classifyJoin`・`buildClosedPath`／`planJoin`・同じ弧の両端の`planDrawnLineJoin`・弧の自分の端点どうしの`planEndpointDragJoin`・`PathJoiner`の弧1本の`canJoin`／`join`、`classifyJoin`の「曲線・矩形・円・弧の1つ」の弧）。4件目（`planEndpointDragJoin`）は弧が端点のハンドルを持たないため実際の操作では起きない入力で、`planDrawnLineJoin`と共有する`planCloseOf`の結果が変わることによる。
 *   **結合のボタンが表示倍率で変わる**：点3つの開いたパスの両端の距離が画面上5pxをまたぐと、ズームだけで押せる・押せないが変わる（`viewTransform.onChange`で同期するため見た目と`J`の結果は一致する）。小さな弧（両端の距離が画面上5px以内）も同じ。
 *   **「閉じようとしても何も起きない形」（`_doc/COWORK_STATUS.md` 2章A）の解消の見込み**：(1)頂点3つで両端が重なった開いた線＝ボタンが押せない見た目になり、「押せるのに何も起きない」は解消（閉じられないのは発注者の決定どおり。点を1つ足せば閉じられる）。(2)今の曲線と直線の半月形・今の曲線2本のレンズ形＝2本の結合は今のまま成功し、結果の線は(1)の形のためボタンが押せない見た目になる（同じく解消。点を足せば閉じられる）。(3)同じ弧の両端の間を途中の点なしで引く＝閉じるようになり解消。`_doc/COWORK_STATUS.md`は実装AIが書き換えない。
 *   **切った点のドラッグ**：分割した直後は切った点の位置に2本の線の端の点が重なっている。頂点の選択でその点を押すと手前（新しい線）の端の点が選ばれ（ハンドルは手前優先）、少しだけドラッグして離すと、もう一方の線の端点へ吸い付いて（画面上8px以内）結合し直る（今の端点への吸い付きのふるまい。変えない）。離したまま動かしたいときは8pxより遠くへ動かすか、`Ctrl`を押したままドラッグする（`Ctrl`の間は吸い付かない）。

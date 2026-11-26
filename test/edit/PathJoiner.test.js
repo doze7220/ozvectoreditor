@@ -435,14 +435,18 @@ function makeArc(id) {
     return arc;
 }
 
-test('canJoin・join（弧を含む選択。Phase 09-03b）: 偽物の依存で弧と直線は結合でき、弧1本は結合できない。置き換える図形の区間はbezier・bezier・line', () => {
+test('canJoin・join（弧を含む選択。Phase 09-03b）: 偽物の依存で弧と直線は結合でき、弧1本は閉じたパスにできる。置き換える図形の区間はbezier・bezier・line', () => {
     const arc = makeArc('r');
     const line = makeLine('a', 160, 200, 200, 200);
 
     const one = setupFake([arc], ['r'], { tolerance: 5 });
-    assert.equal(one.joiner.canJoin(), false);
-    assert.equal(one.joiner.join(), false);
-    assert.deepEqual(one.calls, []);
+    assert.equal(one.joiner.canJoin(), true);
+    assert.equal(one.joiner.join(), true);
+    assert.deepEqual(one.calls.map((c) => c[0]), ['beginEdit', 'replaceShape', 'commitEdit']);
+    assert.equal(one.calls[1][1], 'r');
+    assert.equal(one.calls[1][2].toJSON().closed, true);
+    assert.deepEqual(kindsOf(one.calls[1][2]), ['bezier', 'bezier', 'line']);
+    assert.deepEqual(one.calls[1][3], { keepId: true, removeIds: [] });
 
     const two = setupFake([arc, line], ['r', 'a'], { tolerance: 5 });
     assert.equal(two.joiner.canJoin(), true);

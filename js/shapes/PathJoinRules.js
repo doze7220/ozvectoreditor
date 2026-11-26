@@ -1,5 +1,5 @@
 /**
- * 責務: 線の結合の規則（結合できる線＝直線・開いたパス（区間の種類によらない）・今の曲線・弧。結果は元の区間の種類と途中の角の点を保つ。閉じる／2本の結合／描き足し／吸い付いた端点での計画）と、
+ * 責務: 線の結合の規則（結合できる線＝直線・開いたパス（区間の種類によらない）・今の曲線・弧。結果は元の区間の種類と途中の角の点を保つ。閉じる（開いたパス・弧1本）／2本の結合／描き足し／吸い付いた端点での計画）と、
  * 直線・曲線のツールで続けて引く作成途中の線の点の並びの規則（足す区間の種類は作成途中の線のもの。点2つの開いた線は直線）を、
  * 状態を持たない関数と定数として提供する。表示倍率・モデル・履歴を知らず、ワールド座標の許容距離を引数で受け取る。
  */
@@ -266,18 +266,16 @@ function reverseChain(chain) {
 }
 
 /**
- * 選択中の図形から結合の種類を判定する。ボタンの押せる/押せないの同期からも呼ばれる（表示倍率は見ない）。
- * 負荷回避のため、図形の数 → `isJoinableLine`（`type`を先に見て、パスのときだけ`toJSON()`を呼ぶ）の順に判定し、`toJSON()`を呼ぶ回数を抑える（パス1本のときは`isJoinableLine`と判定本体で複数回呼ぶ）。
+ * 選択中の図形から結合の種類を判定する分類（表示倍率は見ない）。ボタンの押せる/押せないは、この分類ではなく`planJoin`の結果（許容距離を見る）で決まる（`PathJoiner.canJoin`）。
+ * 負荷回避のため、図形の数 → `isJoinableLine`（`type`を先に見て、パスのときだけ`toJSON()`を呼ぶ）の順に判定し、`toJSON()`を呼ぶ回数を抑える。
  * @param {Array<Object>} shapes 選択中で変えられる図形を重なり順（`model.getEditableSelectedShapes()`の並び。奥が先）で並べた配列
- * @returns {'close'|'join'|null} 'close'＝頂点3つ以上の開いたパス1本（区間の種類によらない。今の曲線・弧1本は閉じない）を閉じる／'join'＝結合できる線2本（今の曲線・弧を含む）／それ以外はnull
+ * @returns {'close'|'join'|null} 'close'＝結合できる線1本のうち、線として読んだ頂点（`chainSourceOf`）が3つ以上のもの（頂点3つ以上の開いたパスと弧。区間の種類によらない。直線・今の曲線・頂点2つのパスは頂点が2つでnull）を閉じる／'join'＝結合できる線2本（今の曲線・弧を含む）／それ以外はnull
  */
 export function classifyJoin(shapes) {
     if (shapes.length === 1) {
         const shape = shapes[0];
-        if (shape.type !== 'path' || !isJoinableLine(shape)) return null;
-        const data = shape.toJSON();
-        if (!data.closed && data.points.length >= CLOSED_MIN_POINTS) return 'close';
-        return null;
+        if (!isJoinableLine(shape)) return null;
+        return chainSourceOf(shape.toJSON()).points.length >= CLOSED_MIN_POINTS ? 'close' : null;
     }
     if (shapes.length === 2) {
         const [a, b] = shapes;
@@ -287,21 +285,22 @@ export function classifyJoin(shapes) {
 }
 
 /**
- * 頂点3つ以上の開いたパス1本を、閉じたパスにする。
+ * 頂点3つ以上の開いたパス1本・弧1本を、閉じたパスにする。
  * 始点と終点の距離が`tolerance`以下なら最後の頂点を除く。残りが3つ未満ならnull。頂点の並び・向きは変えない。色・太さ・塗りは元のパスのもの（開いたパスの塗りが閉じることで現れる）。
  * 区間の種類・途中の角の点は元のまま保つ（始点・終点は`chainOf`で端の点としてなめらかな点になる）。始点と終点が離れているときは閉じる区間（終点→始点）を`gapSegmentKind`で足し、
  * 重なっているときは除いた頂点につながっていた区間（最後の区間）が閉じる区間として種類を保つ。
- * 今の曲線・弧1本は`null`（`type`が`'path'`でない）。
+ * 弧1本は`chainOf`（→`chainSourceOf`）の頂点3つ（始点・頂上・終点）・曲がり方を持つ区間2つに閉じる区間（終点→始点）を足した半月形の閉じたパスになる（見た目の弧は変わらない）。
+ * 直線・今の曲線・頂点2つのパス（`chainOf`の頂点が2つ）・閉じたパス・矩形・円は`null`。
  * @param {Object} shape 図形
  * @param {number} tolerance ワールド座標の許容距離（長さ）
  * @param {string} [gapSegmentKind] 始点と終点が離れているときの閉じる区間の種類。省くと直線。重なっているときは使わない（閉じる区間は最後の区間の種類のまま。全区間が曲線なら1周なめらかな輪）
- * @returns {Path|null} 閉じたパス（idはnull）。頂点3つ以上の開いた（結合できる線の）パスでない場合、またはまとめると3つ未満になる場合はnull
+ * @returns {Path|null} 閉じたパス（idはnull）。結合できる線として読んだ頂点が3つ以上でない場合、またはまとめると3つ未満になる場合はnull
  */
 export function buildClosedPath(shape, tolerance, gapSegmentKind = JOIN_GAP_SEGMENT_KIND) {
-    if (shape.type !== 'path' || !isJoinableLine(shape)) return null;
+    if (!isJoinableLine(shape)) return null;
     const data = shape.toJSON();
-    if (data.closed || data.points.length < CLOSED_MIN_POINTS) return null;
     const chain = chainOf(data);
+    if (chain.points.length < CLOSED_MIN_POINTS) return null;
     const points = chain.points.slice();
     const kinds = chain.kinds.slice();
     const corners = chain.corners.slice();
@@ -476,7 +475,7 @@ function planJoinAt(shapes, first, second, tolerance, gapSegmentKind) {
 }
 
 /**
- * 同じ線を閉じる計画を作る（非公開）。元のidと位置を保つ。
+ * 同じ線を閉じる計画を作る（非公開。弧も閉じたパスにする）。元のidと位置を保つ。
  * @param {Array<Object>} shapes 重なり順の図形の配列
  * @param {*} shapeId 閉じる線のid
  * @param {number} tolerance ワールド座標の許容距離（長さ）

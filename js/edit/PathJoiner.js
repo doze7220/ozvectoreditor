@@ -1,12 +1,13 @@
 /**
  * 責務: 選択中で変えられる線（直線・開いたパス・今の曲線・弧）の結合を、結合の規則（`shapes/PathJoinRules`）で作った計画に従ってモデルへ反映する
- * 1件の編集操作（閉じる・2本の結合）と、結合できる選択かの照会を担う。DOMに触れない。
+ * 1件の編集操作（閉じる（開いたパス・弧1本）・2本の結合）と、結合できる選択かの照会を担う。DOMに触れない。
  */
-import { JOIN_TOLERANCE_SCREEN_PX, classifyJoin, planJoin } from '../shapes/PathJoinRules.js';
+import { JOIN_TOLERANCE_SCREEN_PX, planJoin } from '../shapes/PathJoinRules.js';
 
 /**
  * 選択中の線を結合する1件の編集操作を行うクラス。
  * ボタン（`main.js`の`performJoin`）とキー`J`の共通の手順であり、押せる/押せないの同期（`canJoin`）にも使う。
+ * 押せる見た目（`canJoin()`が真）なら必ず`join()`が計画を作って結合し、計画を作れないなら押せない（同じ`planJoin`の入口）。
  *
  * 依存の制約:
  *   - importは`../shapes/PathJoinRules.js`のみ（`edit/`の例外）。VectorModel・HistoryManagerはimportせず、インスタンスを注入で受け取る。
@@ -53,12 +54,16 @@ export class PathJoiner {
     }
 
     /**
-     * 現在の選択（のうち変えられる図形）が結合できる選択（開いたパス1本で頂点3つ以上／結合できる線2本）か。
-     * 表示倍率は見ない。モデル・履歴を変えない。
-     * @returns {boolean} 結合できる選択なら`true`
+     * 現在の選択（のうち変えられる図形）の結合の計画を、表示倍率で換算した許容距離で作れるか。
+     * `join()`と同じ`planJoin`の入口（頂点3つ以上の開いたパス・弧の1本、結合できる線2本のとき真。両端が重なってまとめると頂点が2つになるパス・小さな弧は偽）。
+     * モデル・履歴を変えない。
+     * @returns {boolean} 計画を作れる（`join()`が結合する）なら`true`
      */
     canJoin() {
-        return classifyJoin(this.#selectedShapesInOrder()) !== null;
+        return planJoin(
+            this.#selectedShapesInOrder(),
+            this.#screenLengthToWorld(JOIN_TOLERANCE_SCREEN_PX)
+        ) !== null;
     }
 
     /**

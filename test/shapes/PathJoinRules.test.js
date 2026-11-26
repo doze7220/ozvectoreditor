@@ -169,10 +169,11 @@ describe('classifyJoin', () => {
         }
     });
 
-    it('曲線・矩形・円・弧の1つはnull', () => {
-        for (const kind of ['curve', 'rect', 'circle', 'arc']) {
+    it('曲線・矩形・円の1つはnull、弧の1つはclose（頂点3つの線として読める）', () => {
+        for (const kind of ['curve', 'rect', 'circle']) {
             assert.equal(classifyJoin([makeUnjoinable(kind)]), null, kind);
         }
+        assert.equal(classifyJoin([makeUnjoinable('arc')]), 'close');
     });
 
     it('3つ以上（直線3本）はnull', () => {
@@ -2373,12 +2374,12 @@ describe('PathJoinRules 弧の結合（Phase 09-03b）', () => {
             }
         });
 
-        it('classifyJoin：弧と円・矩形・閉じたパスは null、弧1本は null', () => {
+        it('classifyJoin：弧と円・矩形・閉じたパスは null、弧1本は close', () => {
             for (const kind of ['circle', 'rect', 'closedPath']) {
                 assert.equal(classifyJoin([makeArc(), makeUnjoinable(kind)]), null);
                 assert.equal(classifyJoin([makeUnjoinable(kind), makeArc()]), null);
             }
-            assert.equal(classifyJoin([makeArc()]), null);
+            assert.equal(classifyJoin([makeArc()]), 'close');
         });
 
         it('作成途中の線の関数は弧を受け付けない', () => {
@@ -2532,9 +2533,19 @@ describe('PathJoinRules 弧の結合（Phase 09-03b）', () => {
             assert.equal(second.path.hitTestFill(100, 190), true);
         });
 
-        it('弧1本は buildClosedPath が null、planJoin も null', () => {
-            assert.equal(buildClosedPath(makeArc(), 0), null);
-            assert.equal(planJoin([withId(makeArc(), 'A')], 0), null);
+        it('弧1本は buildClosedPath が半月形の閉じたパス、planJoin も keepId の同じパス', () => {
+            const expectedSegments = [...arcBeziers(), { kind: 'line' }];
+            const closed = buildClosedPath(makeArc(), 0).toJSON();
+            assert.equal(closed.closed, true);
+            assert.deepEqual(coordsOf(closed.points), [L, T, R]);
+            assertSegmentsNear(closed.segments, expectedSegments);
+            const plan = planJoin([withId(makeArc(), 'A')], 0);
+            assert.equal(plan.keepId, true);
+            assert.equal(plan.targetId, 'A');
+            assert.deepEqual(plan.removeIds, []);
+            assert.equal(plan.path.toJSON().closed, true);
+            assert.deepEqual(coordsOf(plan.path.toJSON().points), [L, T, R]);
+            assertSegmentsNear(plan.path.toJSON().segments, expectedSegments);
         });
     });
 
@@ -2587,10 +2598,16 @@ describe('PathJoinRules 弧の結合（Phase 09-03b）', () => {
             assertSegmentsNear(plan.path.toJSON().segments, [{ kind: 'line' }, ...arcBeziers()]);
         });
 
-        it('同じ弧の両端で途中の点なしは null', () => {
+        it('同じ弧の両端で途中の点なしは弧を閉じる（弧のid・閉じた半月形）', () => {
             const arc = withId(makeArc(), 'A');
             const drawn = makeLine(40, 200, 160, 200);
-            assert.equal(planDrawnLineJoin([arc], drawn, ref('A', 'start'), ref('A', 'end'), TOL), null);
+            const plan = planDrawnLineJoin([arc], drawn, ref('A', 'start'), ref('A', 'end'), TOL);
+            assert.equal(plan.keepId, true);
+            assert.equal(plan.targetId, 'A');
+            const data = plan.path.toJSON();
+            assert.equal(data.closed, true);
+            assert.deepEqual(coordsOf(data.points), [L, T, R]);
+            assertSegmentsNear(data.segments, [...arcBeziers(), { kind: 'line' }]);
         });
 
         it('途中の点ありで同じ弧の両端：閉じたパス（弧のid）', () => {
@@ -2626,10 +2643,14 @@ describe('PathJoinRules 弧の結合（Phase 09-03b）', () => {
             }
         });
 
-        it('弧のもう一方の端点への自分のドラッグは null（弧1本は閉じない）', () => {
+        it('弧のもう一方の端点への自分のドラッグは閉じた計画（弧は端点のハンドルを持たないため実際の操作では起きない入力）', () => {
             const arc = withId(makeArc(), 'A');
-            assert.equal(planEndpointDragJoin([arc], ref('A', 'start'), ref('A', 'end'), 1), null);
-            assert.equal(planEndpointDragJoin([arc], ref('A', 'end'), ref('A', 'start'), 1), null);
+            for (const [from, to] of [['start', 'end'], ['end', 'start']]) {
+                const plan = planEndpointDragJoin([arc], ref('A', from), ref('A', to), 1);
+                assert.equal(plan.keepId, true);
+                assert.equal(plan.targetId, 'A');
+                assert.equal(plan.path.toJSON().closed, true);
+            }
         });
     });
 
