@@ -1,4 +1,4 @@
-*   **UnitSnapRules.js**：スナップ（座標・移動量を刻みの倍数へ丸めること。端点への吸い付きとは別）の規則を、状態を持たない関数として提供する（Phase 07-05で新設。`MoveDirectionRules`と同じ形）。
+*   **UnitSnapRules.js**：スナップ（座標・移動量を刻みの倍数へ丸めること。吸い付き（結合する吸い付き・吸い付くだけ）とは別）の規則を、状態を持たない関数として提供する（Phase 07-05で新設。`MoveDirectionRules`と同じ形）。
     *   **公開**：`resolveUnitSnapStep(activeStep, suppressed)` → `number|null`、`roundPointToUnit(point, step)` → `{x, y}`、`roundDeltaToUnit(delta, step)` → `{dx, dy}`、`roundConstrainedDeltaToUnit(delta, step)` → `{dx, dy}`、`roundPointFromOriginToUnit(origin, target, step)` → `{x, y}`、`roundConstrainedPointFromOriginToUnit(origin, delta, step)` → `{x, y}`（いずれも新しいオブジェクト。引数を書き換えない）。有限の数値を前提とする（NaN・Infinityは扱わない）。
     *   **契約**：
         *   **刻み（`step`）の約束**：正の有限の数値なら丸める。それ以外（`null`＝スナップOFF・`Ctrl`を押している間、ほかの値も同じ扱い）は**丸めない**＝入力と同じ値（`-0`の入力もそのまま）を新しいオブジェクトで返す。単位の値（1・10）はこのファイルに書かない（唯一の定義箇所は`core/UnitSnapSettings.js`の`UNIT_SNAP_STEPS`）。
@@ -10,5 +10,5 @@
         *   `roundConstrainedPointFromOriginToUnit`：基準点`origin`（直線・曲線のツールで線を引いている途中の最後の点）に、`constrainMoveDirection`で限定した移動量`delta`を`roundConstrainedDeltaToUnit`で丸めた移動量を足した位置`origin + 丸めた移動量`を返す（`Shift`で限定した向きを保つ）。基準点が刻みの倍数なら結果も倍数、基準点が小数の座標でも小数の部分は保たれる。刻みが無効なら丸めず`origin + delta`（`roundPointFromOriginToUnit`と違い`target`ではなく限定した移動量を受け取るため、丸めないときも足し算を行う）。結果に`-0`を含めない。
     *   **読むもの・知らないこと**：なし（何もimportしない。DOM・図形・`VectorModel`・表示倍率・修飾キー・スナップの設定・`Shift`キーを知らない）。
     *   **使う側**：`core/InputTracker`（6つの関数すべてを、点を打つ・図形を動かす・頂点を動かす入力の丸めに使う。`roundConstrainedPointFromOriginToUnit`は直線・曲線のツールで線を引いている途中の`Shift`だけ）と`wiring/DisplayWiring`（`resolveUnitSnapStep`・`roundPointToUnit`をステータスバーの座標の表示に使う。Phase 08-01で`main.js`から移った）と`core/ScaleHandleRules`（`roundPointToUnit`だけ。外枠のハンドルを引いたときの目標位置の丸めに使い、丸め方は写さない。Phase 10-01。規則の関数どうしのimportで、`UnitSnapRules`は何もimportしないため循環しない）。`SelectionRules`と同じく両方が使う位置づけ（1章「フォルダ分割の方針」）。座標の表示は点を打つ位置と同じ規則の関数を通る（丸めるか＝`getActiveStep`と`resolveUnitSnapStep`、丸め＝`roundPointToUnit`）。
-    *   **注意**：丸める箇所の一覧・`Ctrl`を見る時点・端点への吸い付きとの優先は`PROJECT_ARCHITECTURE.md`3章17.。規則を変えると点を打つ位置・移動量・座標の表示が同時に変わる。
+    *   **注意**：丸める箇所の一覧・`Ctrl`を見る時点・吸い付き（結合する・だけ）との優先は`PROJECT_ARCHITECTURE.md`3章17.。規則を変えると点を打つ位置・移動量・座標の表示が同時に変わる。
     *   **テスト**：`test/core/UnitSnapRules.test.js`（`_doc/arch/16_test.md`）。

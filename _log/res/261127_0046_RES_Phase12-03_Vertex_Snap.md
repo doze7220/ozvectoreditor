@@ -217,7 +217,7 @@
         *   ※ 実装AIによる開発資料の書き換えは原則禁止だが、この最終タスクのみ明示的な例外とする。
         *   『開発資料の更新予定』を確認し、1章（構成図・「存在しないもの」の吸い付きの項とPhase 12-03でやらないと決めたこと・「フォルダ分割の方針」・依存方向）、2章（吸い付きの表示の点）、3章（3.・12.の「やらないこと」・対象・表示・流れ・17.の用語と「端点への吸い付きとの優先」・18.頂点の選択・22.線を続けて引く・必要なら6.）、4章の一覧（`68_VertexDragRules.md`）へ反映する。書く内容は実コードで確かめる。用語は「結合する吸い付き」「吸い付くだけ」「スナップ（丸め）」を混ぜない。「端点への吸い付きの対象を広げない」「2つ以上では吸い付かない」「弧・矩形・円のツールでは常に`null`」「直線・曲線以外の図形種別のmousemoveで表示を消す」という古い記述を、結合する吸い付きの話として正しく残すか直す。書き換える前に行末を実測して保つ。
 
-*   [ ] タスク8: 開発資料の反映（`_doc/arch/`）
+*   [x] タスク8: 開発資料の反映（`_doc/arch/`）
     *   **対象ファイル** :
         *   `./_doc/arch/`の`02_main.md`・`03_VectorModel.md`・`04_CanvasManager.md`・`06_InputTracker.md`・`12_shapes.md`・`14_edit.md`・`16_test.md`（と、記述が食い違えば`08_HistoryManager.md`・`30_UnitSnapRules.md`・`38_VertexHandleRules.md`・`67_VertexTargetRules.md`） :（更新）
         *   `./_doc/arch/68_VertexDragRules.md` :（新規。行末はCRLF）
@@ -282,7 +282,16 @@
 
 ### タスク8: 開発資料の反映（`_doc/arch/`）
 *   **作業内容** :
-    *   （未記入）
+    *   行末は書き換え前に実測して保った（`02`・`03`・`04`・`06`・`12`・`14`・`16`・`68`はCRLF、`30`はLF。編集後にCR数・LF数を再測定して一致を確認）。`08_HistoryManager.md`・`38_VertexHandleRules.md`・`67_VertexTargetRules.md`は今回の変更と食い違う記述が無く変えていない。`_doc/COWORK_STATUS.md`は書き換えていない。
+    *   `02_main.md`：行数を1296行から1297行（`wc -l`で実測）へ、`renderCurrentState`の`snapPointVertex`の受け渡し・`// 4.`の`EndpointSnapper`の説明の更新を足した。
+    *   `03_VectorModel.md`：公開メソッドの列に`isSnapPointVertex`、「吸い付きの表示の点」に別（`setSnapPoint`の3つ目の引数・`#snapPointVertex`・通知・`clearSnapPoint`・`replaceAllShapes`・`getSnapPoint`は`{ x, y }`のまま）を反映した。
+    *   `04_CanvasManager.md`：`render`の`snapPointVertex`と、吸い付きの表示の中の色の描き分け（`SNAP_INDICATOR_FILL_COLOR`・新しい定数`SNAP_INDICATOR_VERTEX_FILL_COLOR`）を反映した。
+    *   `06_InputTracker.md`：行数を2112行から2124行（`wc -l`で実測）へ。`EndpointSnapAssist`の項目の置き換え・呼ぶ場面（`findDrawStartSnap`・`findDrawEndSnap`・`findDrawnLinePointSnap`・`findVertexDragSnap`・`isVertexSnap`）・`#applyLeftDragUpdate`の照会と`VertexDragRules.buildVertexDragUpdates`・`#showSnap`・`#dragEndpoint`は結合する吸い付きのためだけで吸い付くだけは点の数によらないこと・`Ctrl`の間は照会しない項のメソッド名・スナップの項を直した。実コード（`InputTracker.js`の呼び出し箇所）で確かめた。
+    *   `12_shapes.md`：`EndpointSnapRules`の新しい公開2つ（`snapDistance`・`findNearestSnapPoint`）と使う側、新しい節`VertexSnapRules.js`（公開・`snapVerticesOf`・`findVertexSnapTarget`・`chooseSnapTarget`・ツールごとに働く点・読むもの・使う側・知らないこと・注意・テスト）、`PathJoinRules`（`lineEndpointOf`）・`PathVertexRules`（`outlineSourceOf`）の使う側を反映した。
+    *   `14_edit.md`：`EndpointSnapper`の責務・公開メソッド（新しい5つの照会。今の3つは結合する吸い付きだけの照会として残る）・依存（`VertexSnapRules`のimport。`edit/`から`shapes/`をimportする例外の記述）・契約（`commitDrawnLine`・`joinDraggedEndpoint`）・注意（関門`#toUsableSnap`が吸い付くだけを`null`にし、`joinDraggedEndpoint`にも通る）を直した。
+    *   `16_test.md`：Phase 12-03の新設分（6ファイル100件。各ファイルの件数は`node --test <ファイル>`で実測）・書き換えた既存のテスト無し・テストできない箇所・件数を足した。件数は`node --test`の実測で tests 4010 / suites 659 / pass 4010 / fail 0（作業前は tests 3910 / suites 652）。テストファイルは`find test -name '*.test.js'`で158（152から+6）。
+    *   `30_UnitSnapRules.md`：「端点への吸い付きとは別」「端点への吸い付きとの優先」を、吸い付き（結合する吸い付き・吸い付くだけ）に直した。
+    *   `68_VertexDragRules.md`（新規・CRLF）：`67_VertexTargetRules.md`の書き方に合わせ、`buildVertexDragUpdates`・typedef・「アンカーの行き先をそのまま渡す」理由・使う側・置き場所の理由・テスト（8件）を書いた。内容は`js/core/VertexDragRules.js`で確かめた。
 
 ## 5. 懸念事項・要確認ポイント
 *   **計画で決めたこと（REQの文言から一意に決まらなかった点。発注者の確認を推奨）**：
@@ -311,4 +320,5 @@
 9.  **ほかが今までどおり**：線の端点への吸い付きと描き足し・結合・閉じる、自分の始点で閉じる（点を3つ以上打って始点に近づけると中を塗った四角）、2本の結合（`J`）、点の追加（頂点の選択で線の上をダブルクリック）・削除（点を選んで`Delete`）、分割・区間を消す、分割した直後の重なった端の点を少しだけドラッグして離すと結合し直ること、スナップ（🧲）の丸め（吸い付かなかったときの点の位置）が今までどおり動く。
 *   **タスク3の実装メモ**：(i) `joinDraggedEndpoint`に足した`#toUsableSnap`は、既存テストの入力では結果が変わらず全件合格。(ii) `findDrawnLinePointSnap`は`startSnap`が`undefined`のとき今の`findDrawnLineSnap`と同じく`findDrawnLineSnapTarget`へそのまま渡る（`InputTracker`は`null`を渡す前提）。(iii) 開発資料への影響：`EndpointSnapper`の公開メソッド（新しい照会5つ・結合への関門`#toUsableSnap`の吸い付くだけの分岐・`joinDraggedEndpoint`の関門）と`edit/ → shapes/VertexSnapRules`のimport、テストの2ファイル（31件・5件）を、タスク7・8で反映する（既存の『開発資料の更新予定』の範囲内）。
 *   **タスク3の修正（diff監査の軽微3件）**：`EndpointSnapper`の`commitDrawnLine`・`clickDrawnLine`・`findDrawnLineSnap`・`finishDrawnLine`の`@param`を`VertexSnap`を受ける実態（吸い付くだけは`null`と同じ扱い）に直した（JSDocのみ）。隠した・ロックした図形のテストと描き始めが端点のテストに、除外が無ければ吸い付く点だったことを確かめる対照を足した。
+*   **タスク8の実装メモ**：(i) `06_InputTracker.md`の行数の注記は、直前の値2112行を「Phase 12-02完了時の値（Phase 12-01の値と同じ）」と書いた（`InputTracker`はPhase 12-02で変えていないため。計画の『作業前は2112行』による）。(ii) `06_InputTracker.md`の古い歴史的な記述（Phase 07-05の「端点への吸い付き」の見出し語など、当時の決定の文）は、結合する吸い付きの話として残し、新しい記述は項の先頭・該当箇所に足す形にした。目視で食い違いが気になる箇所があれば、`06`の「吸い付き（結合する吸い付き・吸い付くだけ）」の項を正とする。(iii) `PROJECT_ARCHITECTURE.md`4章の一覧に`68_VertexDragRules.md`は既に足してあり、資料本体を今回作った。
 *   **タスク7の実装メモ**：(i) 12.の新しい項は、計画の『開発資料の更新予定』の内容を実コードで確かめて書いた（`findDrawEndSnap`は矩形だけ、`#toUsableSnap`の通る箇所に`joinDraggedEndpoint`を足した、など）。(ii) 12.の既存の行にある「`getEditableShapes()`（`EndpointSnapper`の6か所）」は、実コードで20箇所ほどに増えているため数をやめて「各所」にした。(iii) 12.・17.の古い見出し・歴史的な決定の文（Phase 07-05の「`Ctrl`を押している間は端点への吸い付きが働かなくなる」、17.の発注者の決定(1)など）は、当時の記述として直さず残した。目視で気になる箇所があれば、12.の冒頭の「単に吸い付きと書いた箇所は結合する吸い付きのこと」の一文で読み分ける。(iv) 資料の1章・12.の記述の行数・テストの件数（`16_test.md`）はタスク8で実測して直す。`PROJECT_ARCHITECTURE.md`本体にはファイルの行数・件数は書いていない（既存の通り）。

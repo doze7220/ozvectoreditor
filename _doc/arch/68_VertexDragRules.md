@@ -1,0 +1,9 @@
+*   **VertexDragRules.js**：頂点のハンドルのドラッグ（頂点のまとめ移動）で、押した頂点（アンカー）の行き先から、動かす頂点すべての座標の組を組み立てる規則を、状態を持たない関数として提供する（Phase 12-03で新設。`InputTracker`の`#applyLeftDragUpdate`の座標の組み立てを、ふるまいを変えずに切り出した。流れは`PROJECT_ARCHITECTURE.md`3章18.・3章12.）。
+    *   **公開**：`buildVertexDragUpdates(origins, anchor, target, anchorOrigin)` → `VertexDragUpdate[]`、typedef`VertexDragOrigin`（`{ shapeId, handle, vertexIndex, x, y }`。`InputTracker`の`#vertexDragOrigins`の要素。`x`・`y`はアンカーだけ`null`があり得る）・`VertexDragUpdate`（`{ id, vertexIndex, x, y }`。`VectorModel.updateVertices`の引数の要素の形）。
+    *   **`buildVertexDragUpdates`**：`origins`の順に新しい配列を返す。アンカー（`origins`の要素の1つ。同一性`===`で比べる）には`target.x`・`target.y`を**そのまま**入れる（足し算を通さない）。ほかの頂点には、`anchorOrigin`が`null`でなければ移動量`(target − anchorOrigin)`を各自の押下時の`x`・`y`へ足した値を、`null`なら移動量0として入れる。引数を書き換えない。
+    *   **アンカーの行き先をそのまま渡す理由**：`origin + (target − origin)`は浮動小数では`target`と厳密に一致しないことがあり、吸い付いた先の頂点の座標からずれて隣り合う塗りにすき間ができるため。頂点を1つだけ選んだときの結果を、Phase 08-02b以来の動きと完全に同じに保つ要でもある（`PROJECT_ARCHITECTURE.md`3章18.）。崩さないこと。
+    *   **読むもの**：渡された引数だけ。importなし。
+    *   **知らないこと**：DOM・`VectorModel`・図形・図形種別・吸い付き（結合する吸い付き・吸い付くだけ）・スナップ（丸め）。行き先（吸い付けばその座標、吸い付かなければ丸めた座標）は呼び出し側（`InputTracker`）が決めて渡す。状態を持たない。
+    *   **使う側**：`core/InputTracker`の`#applyLeftDragUpdate`（`DRAGGING_HANDLE`）だけ。結果を`model.updateVertices`へ1回で渡す（通知1回・取り消し1件）。
+    *   **置き場所の理由**：`VertexHandleRules`の責務（頂点のハンドルの一覧・判定・範囲）とは別の責務のため新しいファイル。`InputTracker`はテストを置かない方針のため、「押した点だけが吸い付き、ほかの選んだ点は同じ量だけ動く」を`node --test`で確かめられるよう、座標の組み立てを状態を持たない規則へ切り出した（`core/`内で処理が規則をimportする向き）。
+    *   **テスト**：`test/core/VertexDragRules.test.js`（8件。規則5件＝アンカーが`target`と厳密に一致（`0.7→0.1`のように足し算を通すと一致しない値）・点3つの移動量と並び・`anchorOrigin`が`null`・同一性での比較・引数を書き換えない。実物の`VectorModel`・`HistoryManager`・`EndpointSnapper`との流れ3件＝押した点が他図形の頂点にちょうど合いほかの点が同じ量動く・取り消し1回／別の線の端点の近くでも吸い付くだけで`joinDraggedEndpoint`が`false`（対照に結合する吸い付き）／動かしている図形の頂点には吸い付かず動かしていない図形には吸い付く。`_doc/arch/16_test.md`）。
