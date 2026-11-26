@@ -255,7 +255,7 @@
         *   `main.js`：importに`PathSplitEditor`・`OptionBarSplitGroup`を足す。`// 6.`の`model.onChange(syncJoinButtonState);`の後に`viewTransform.onChange(syncJoinButtonState);`を足し、`syncJoinButtonState`のJSDoc（表示倍率で換算した許容距離で結合の計画を作れるかに同期する。`model.onChange`と`viewTransform.onChange`に登録する）と近くのコメントを直す。`// 7.16.`の後に『要件4』の`// 7.17.`のブロック（`pathSplitEditor`・`performPathSplit`（JSDoc付き。ドラッグ中は不受理で`false`）・`optionBarSplitGroup`・`syncOptionBarSplitGroup`（JSDoc付き）・`model.onChange(syncOptionBarSplitGroup)`）を足し、判定・計算を書かない旨の説明コメントを付ける。起動時の明示の同期の列の`syncOptionBarCornerGroup();`の後に`syncOptionBarSplitGroup();`とその説明コメントを足す。行数を実測して『開発資料の更新予定』へ書く。
         *   テスト：このタスクでは足さない（DOMと配線は`node --test`の対象外。判定はタスク4、手順はタスク6で確かめている。既存の全件合格だけを確かめる）。
 
-*   [ ] タスク8: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
+*   [x] タスク8: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新）
     *   **作業内容** :
@@ -324,7 +324,7 @@
 
 ### タスク8: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
 *   **作業内容** :
-    *   (未記入)
+    *   `PROJECT_ARCHITECTURE.md`（行末CRLFのまま）に『開発資料の更新予定』を反映した。1章：構成図（`core/VertexTargetRules.js`・`shapes/PathSplitRules.js`・`palette/OptionBarSplitGroup.js`・`edit/PathSplitEditor.js`の行、`NudgeTargetRules`・`ItemTreeRules`・`ItemPlaceRules`・`PathJoinRules`・`PathSegmentKindRules`・`PathVertexRules`の行、`PathCornerEditor`・`PathVertexEditor`の行、テストの一覧、`index.html`の行）、「存在しないもの」（「パスの分割」「弧1本の閉じる」を消し、Phase 12-01でやらないと決めた線を切る等に「Phase 12-02で入った」を足し、Phase 12-02でやらないと決めたことを足し、「パスを開く／閉じる」を専用のボタン・キーに直した）、「フォルダ分割の方針」（`shapes/`の第3の種類・`edit/`の一覧・`#collectTargets`の写しの記述）、「依存方向」の(1)(2)(3)（(3)は14ファイル）と`core/`内の規則どうしのimport。2章：`path`の「作られるのは次のとき」の(1)に弧の閉じる・(7)分割・区間の削除、新しい項「分割・区間の削除」。3章：2.の同期の経路（`syncJoinButtonState`の`viewTransform.onChange`）、6.履歴、11.結合（1本のときの規則・押せる条件・弧の結合・今の曲線の結合・やらないこと）、12.相当の22.（弧の両端の間を引くと閉じる・計画が何も起こさない場合・`planEndpointDragJoin`）、18.、23.・24.・29.の対象の集め方（29.は(j)も）、新しい節30.。4章の一覧に`67_VertexTargetRules.md`。「弧1本は閉じない」「同じ弧の両端の間を…何も起きない」「`canJoin`は表示倍率を見ない」「パスの分割は存在しない」「`#collectTargets`の写し」のうち、Phase 12-01の当時の記述として残したもの（29.の(j)・「曲線に」との関係）は「Phase 12-01の時点」と明記した。`_doc/arch/`は触れていない。`node --test`：3910件すべて合格。
 
 ### タスク9: 開発資料の反映（`_doc/arch/`）
 *   **作業内容** :
@@ -365,3 +365,4 @@
 9.  **ほかが今までどおり**：2本の結合（`J`）・直線・曲線のツールでの端点への吸い付きと描き足し・点の追加（頂点の選択で線の上をダブルクリック）と削除（点を選んで`Delete`）・「曲線に」「直線に」「角」が今までどおり動く。
     *   注意：分割した直後、切った点には2本の線の端の点が重なっている。その点を押して少しだけ（画面上8px以内）ドラッグして離すと、重なっていたもう一方の端へ吸い付いて結合し直る（今の端点への吸い付き）。離したまま動かすときは8pxより遠くへ動かすか、`Ctrl`を押したままドラッグする。
     *   注意：オプションバー2行目の右端に「分割」のまとまりが増える。1280px幅の画面で2行目が切れずに見えることを確かめてほしい。
+*   **タスク8の記録**：判断に迷った点＝(1)3章の12.（端点への吸い付きと描き足し）の本文には線を引いて閉じる経路の記述が22.にあるため、弧の両端の間の記述は22.（行は「曲線のツール」の段落）と、描き終えの流れの「計画が何も起こさない場合」に直した。(2)REQのやらないことの原文は読まず、本RESの『開発資料の更新予定』の列挙どおりに1章へ足した。(3)2章の`addShapesWithNewIds`・`replaceShape`の前提の記述は資料に無いため、30.の計画で決めたこと(g)に正しい記述を書いた。目視確認の推奨：1章「存在しないもの」は1行が非常に長いので、足した「Phase 12-02でやらないと決めたこと」の文の続きが意図どおりか。
