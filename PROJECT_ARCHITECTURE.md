@@ -143,6 +143,7 @@
 │       ├── SpriteCheckCanvas.js
 │       └── SpriteCheckInspector.js
 ├── asset/
+│   ├── icon/                   # WEBアイコン（ブラウザのタブなどに出る画像。favicon-32.png・apple-touch-icon-180.png・icon-192.png・icon-512.png）。OZ Engine の土台の assets/icon/ の4つのPNGを中身を変えずにコピーしたもの。index.html・sprite-check.html の<link>だけが使う。JSからはimportしない
 │   └── sprite/                 # ツールのアイコンの仮のスプライトJS（select-arrow.js・vertex-arrow.js）。本アプリの書き出し（CodeExporter）が作った生成物で、手で書き換えない。何もimportしない。wiring/ToolIconWiringだけが使う
 ├── test/                       # 自動テスト（node --test でのみ実行。index.html・js/からは参照しない）。中はjs/の構成に合わせる
 │   ├── core/
