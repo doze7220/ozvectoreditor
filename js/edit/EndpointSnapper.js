@@ -1,7 +1,7 @@
 /**
- * 責務: 端点への吸い付きの照会（直線・曲線のツールで描くとき・端点のハンドルのドラッグ中。線を引いている途中は作成途中の線の始点も）と、
- * 吸い付いた端点での描き足し・結合・閉じる操作、および直線・曲線のツールで続けて引く線の点を打つ・最後の点を消す・終える操作の
- * モデルへの反映を、規則（`shapes/EndpointSnapRules`・`shapes/PathJoinRules`）に従って行う手順を担う。DOMに触れない。
+ * 責務: 吸い付きの照会（結合する吸い付き＝端点・線を引いている途中の始点と、吸い付くだけ＝ほかの図形の頂点）と、吸い付いた端点での描き足し・結合・閉じる操作、
+ * 直線・曲線のツールで続けて引く線の点を打つ・最後の点を消す・終える操作のモデルへの反映を、規則（`shapes/EndpointSnapRules`・`shapes/PathJoinRules`・`shapes/VertexSnapRules`）に従って行う手順を担う。
+ * 吸い付くだけの結果は結合として扱わない関門`#toUsableSnap`を持つ。DOMに触れない。
  */
 import {
     SNAP_TOLERANCE_SCREEN_PX,
@@ -23,16 +23,24 @@ import {
     isOnLastDrawnPoint,
     canCloseDrawnLine
 } from '../shapes/PathJoinRules.js';
+import {
+    isVertexSnap,
+    findVertexSnapTarget,
+    chooseSnapTarget,
+    isVertexSnapDrawStartShapeType,
+    isVertexSnapDrawEndShapeType
+} from '../shapes/VertexSnapRules.js';
 
 /**
- * 端点への吸い付きの照会と、吸い付いた端点での描き足し・結合・閉じる操作の反映を行うクラス。
+ * 吸い付きの照会（結合する吸い付き・吸い付くだけ）と、吸い付いた端点での描き足し・結合・閉じる操作の反映を行うクラス。
  * `main.js`が生成して`InputTracker`へ注入する（`InputTracker`は注入されたものを呼ぶだけ）。
  *
  * 依存の制約:
- *   - importは`../shapes/EndpointSnapRules.js`と`../shapes/PathJoinRules.js`のみ（`edit/`の例外）。
+ *   - importは`../shapes/EndpointSnapRules.js`・`../shapes/PathJoinRules.js`・`../shapes/VertexSnapRules.js`のみ（`edit/`の例外）。
  *     VectorModel・HistoryManagerはimportせず、インスタンスを注入で受け取る。`model`は`getShapes`（変えられなくなった図形の判定だけ）・`getEditableShapes`・`getDraftShape`・`cancelDraft`・`replaceShape`・`replaceDraft`・`commitDraft`のみ使う。
  *   - InputTrackerには依存しない。DOMに触れない。
- *   - 吸い付く先・結合の対象は変えられる図形（`model.getEditableShapes()`）だけ。隠れている・ロックされている図形の端点には吸い付かず、結合・描き足しもしない。
+ *   - 吸い付く先・結合の対象は変えられる図形（`model.getEditableShapes()`）だけ。隠れている・ロックされている図形の端点・頂点には吸い付かず、結合・描き足しもしない。
+ *   - 吸い付くだけ（`VertexSnap`）は結合に使わない。`#toUsableSnap`が`null`と同じに扱うため、`commitDrawnLine`・`clickDrawnLine`・`finishDrawnLine`・`joinDraggedEndpoint`では結合・描き足し・閉じるにならない。
  *   - 図形種別の分岐・図形固有のプロパティ名・idの形式・操作モードの知識を持たない（読むのは共通プロパティ`id`のみ）。
  *   - `try/catch`を持たない。
  *
@@ -41,6 +49,10 @@ import {
  *   - 線を引く手順のメソッド（`findDrawnLineSnap`・`getDrawnLineLastPoint`・`clickDrawnLine`・`finishDrawnLine`・`removeDrawnLinePoint`）は、
  *     作成途中の線があるとき（`isDrawingLine()`が真のとき）に呼ぶ。
  *   - `joinDraggedEndpoint`は呼び出し側が開いた編集操作の中で、選択モードのときに呼ぶ（記録の確定も呼び出し側）。
+ *   - 新しい照会（`findDrawStartSnap`・`findDrawEndSnap`・`findDrawnLinePointSnap`・`findVertexDragSnap`・`isVertexSnap`）は`InputTracker`が呼ぶ。
+ *     `findDrawnLinePointSnap`は作成途中の線があるときに呼ぶ（無ければ`null`）。
+ *
+ * 通知の回数（照会）: 新しい照会・`isVertexSnap`・今の照会（`findDrawSnap`・`findDragSnap`・`findDrawnLineSnap`）はモデル・記録先を変えず、通知しない。
  *
  * 通知の回数: `commitDrawnLine`は`cancelDraft`（1回）と`replaceShape`（1回）。`joinDraggedEndpoint`は`replaceShape`（1回）。
  *   `clickDrawnLine`は点を打つとき`replaceDraft`（1回）、閉じるとき`replaceDraft`と`commitDraft`（各1回）、つながって終えるとき`commitDrawnLine`と同じ。
@@ -83,6 +95,7 @@ export class EndpointSnapper {
      * 直線・曲線のツールで描き始めるときの吸い付く端点を照会する。
      * `isSnapDrawShapeType(shapeType)`が偽（直線・曲線のツール以外）なら`screenLengthToWorld`も呼ばず`null`。
      * 真なら`findSnapTarget(model.getEditableShapes(), point, screenLengthToWorld(SNAP_TOLERANCE_SCREEN_PX))`。
+     * 結合する吸い付きだけの照会。`InputTracker`は`findDrawStartSnap`を呼び、その中で使われる。
      * @param {*} shapeType 描く図形種別（不透明な値として規則へ渡す）
      * @param {{x: number, y: number}} point 照会する点（ワールド座標）
      * @returns {import('../shapes/EndpointSnapRules.js').SnapTarget|null} 吸い付く端点。無ければnull
@@ -96,6 +109,132 @@ export class EndpointSnapper {
             point,
             this.#screenLengthToWorld(SNAP_TOLERANCE_SCREEN_PX)
         );
+    }
+
+    /**
+     * 描き始め（図形作成モードのIDLEの`mousemove`の表示と1点目のクリック）の吸い付き先を照会する。
+     *
+     * 処理順:
+     *   1. `joinSnap = findDrawSnap(shapeType, point)`（直線・曲線のツールだけ結果が出る）。
+     *   2. `isVertexSnapDrawStartShapeType(shapeType)`が偽なら`joinSnap`を返す。
+     *   3. 真なら`chooseSnapTarget(point, joinSnap, findVertexSnapTarget(model.getEditableShapes(), point, screenLengthToWorld(SNAP_TOLERANCE_SCREEN_PX), []))`。
+     *
+     * モデル・記録先を変えない。`InputTracker`が呼ぶ。
+     * @param {*} shapeType 描く図形種別（不透明な値として規則へ渡す）
+     * @param {{x: number, y: number}} point 照会する点（ワールド座標。丸めていないカーソル位置）
+     * @returns {import('../shapes/EndpointSnapRules.js').SnapTarget|import('../shapes/VertexSnapRules.js').VertexSnap|null} 吸い付き先。無ければnull
+     */
+    findDrawStartSnap(shapeType, point) {
+        const joinSnap = this.findDrawSnap(shapeType, point);
+        if (!isVertexSnapDrawStartShapeType(shapeType)) {
+            return joinSnap;
+        }
+        return chooseSnapTarget(
+            point,
+            joinSnap,
+            findVertexSnapTarget(
+                this.#model.getEditableShapes(),
+                point,
+                this.#screenLengthToWorld(SNAP_TOLERANCE_SCREEN_PX),
+                []
+            )
+        );
+    }
+
+    /**
+     * 弧・矩形・円のツールの2つ目の点（`DRAWING`の`mousemove`）の吸い付き先（吸い付くだけ）を照会する。
+     * `isVertexSnapDrawEndShapeType(shapeType)`が偽なら`screenLengthToWorld`も呼ばず`null`。
+     * 真なら`findVertexSnapTarget(model.getEditableShapes(), point, screenLengthToWorld(SNAP_TOLERANCE_SCREEN_PX), [])`。
+     * 結合する吸い付きは返さない。モデル・記録先を変えない。`InputTracker`が呼ぶ。
+     * @param {*} shapeType 描く図形種別（不透明な値として規則へ渡す）
+     * @param {{x: number, y: number}} point 照会する点（ワールド座標。丸めていないカーソル位置）
+     * @returns {import('../shapes/VertexSnapRules.js').VertexSnap|null} 吸い付く頂点。無ければnull
+     */
+    findDrawEndSnap(shapeType, point) {
+        if (!isVertexSnapDrawEndShapeType(shapeType)) {
+            return null;
+        }
+        return findVertexSnapTarget(
+            this.#model.getEditableShapes(),
+            point,
+            this.#screenLengthToWorld(SNAP_TOLERANCE_SCREEN_PX),
+            []
+        );
+    }
+
+    /**
+     * 線を引いている途中の`mousemove`の吸い付き先（結合する吸い付きと吸い付くだけ）を照会する。
+     *
+     * 処理順:
+     *   1. 作成途中の図形が無ければ`null`。
+     *   2. `joinSnap = findDrawnLineSnap(startSnap, point)`。
+     *   3. 除く図形＝`#toUsableSnap(startSnap)`が`null`・`undefined`でも始点への吸い付きでもない（描き始めが端点）なら`[その図形のid]`、それ以外は`[]`。
+     *      （描き始めが端点なら描き足しの結果はその線になるため、その線の点は吸い付くだけの候補にしない）
+     *   4. `chooseSnapTarget(point, joinSnap, findVertexSnapTarget(model.getEditableShapes(), point, screenLengthToWorld(SNAP_TOLERANCE_SCREEN_PX), 除く図形))`。
+     *
+     * モデル・記録先を変えない。`InputTracker`が呼ぶ。
+     * @param {import('../shapes/PathJoinRules.js').EndpointRef|import('../shapes/VertexSnapRules.js').VertexSnap|null} startSnap 描き始めの吸い付き（吸い付くだけなら無いものとして扱う）
+     * @param {{x: number, y: number}} point 照会する点（ワールド座標。丸めていないカーソル位置）
+     * @returns {import('../shapes/EndpointSnapRules.js').SnapTarget|import('../shapes/EndpointSnapRules.js').DrawnStartSnap|import('../shapes/VertexSnapRules.js').VertexSnap|null} 吸い付き先。無ければnull
+     */
+    findDrawnLinePointSnap(startSnap, point) {
+        const drawn = this.#model.getDraftShape();
+        if (drawn === null || drawn === undefined) {
+            return null;
+        }
+        const joinSnap = this.findDrawnLineSnap(startSnap, point);
+        const usable = this.#toUsableSnap(startSnap);
+        const excluded = usable === null || usable === undefined || isDrawnStartSnap(usable)
+            ? []
+            : [usable.shapeId];
+        return chooseSnapTarget(
+            point,
+            joinSnap,
+            findVertexSnapTarget(
+                this.#model.getEditableShapes(),
+                point,
+                this.#screenLengthToWorld(SNAP_TOLERANCE_SCREEN_PX),
+                excluded
+            )
+        );
+    }
+
+    /**
+     * 頂点のハンドルのドラッグの更新での吸い付き先（結合する吸い付きと吸い付くだけ）を照会する。
+     *
+     * 処理順:
+     *   1. `dragged`が`null`でなければ`joinSnap = findDragSnap(dragged, point)`、`null`なら`joinSnap = null`
+     *      （動かす点が2つ以上・端点でない点では結合する吸い付きを照会しない）。
+     *   2. `chooseSnapTarget(point, joinSnap, findVertexSnapTarget(model.getEditableShapes(), point, screenLengthToWorld(SNAP_TOLERANCE_SCREEN_PX), movingShapeIds))`。
+     *
+     * モデル・記録先を変えない。`InputTracker`が呼ぶ。
+     * @param {{shapeId: *, end: 'start'|'end'}|null} dragged 動かす点が1つで端点のハンドルのときの端点。それ以外はnull
+     * @param {Array<*>} movingShapeIds 動かしている点を持つ図形のid（重なりを許す。これらの図形の点は吸い付くだけの候補にしない）
+     * @param {{x: number, y: number}} point 照会する点（ワールド座標。丸めていないカーソル位置）
+     * @returns {import('../shapes/EndpointSnapRules.js').SnapTarget|import('../shapes/VertexSnapRules.js').VertexSnap|null} 吸い付き先。無ければnull
+     */
+    findVertexDragSnap(dragged, movingShapeIds, point) {
+        const joinSnap = dragged === null || dragged === undefined ? null : this.findDragSnap(dragged, point);
+        return chooseSnapTarget(
+            point,
+            joinSnap,
+            findVertexSnapTarget(
+                this.#model.getEditableShapes(),
+                point,
+                this.#screenLengthToWorld(SNAP_TOLERANCE_SCREEN_PX),
+                movingShapeIds
+            )
+        );
+    }
+
+    /**
+     * 吸い付きの結果が吸い付くだけ（表示を中が白の正方形にするもの）かを返す。`VertexSnapRules.isVertexSnap`の結果。
+     * `InputTracker`が結果の種類を自分で解釈しないための受け渡し。
+     * @param {*} snap 吸い付きの結果
+     * @returns {boolean} 吸い付くだけなら真
+     */
+    isVertexSnap(snap) {
+        return isVertexSnap(snap);
     }
 
     /**
@@ -115,6 +254,7 @@ export class EndpointSnapper {
 
     /**
      * 端点のハンドルのドラッグ中の吸い付く端点を照会する（ドラッグしている端点は対象外）。
+     * 結合する吸い付きだけの照会。`InputTracker`は`findVertexDragSnap`を呼び、その中で使われる。
      * @param {{shapeId: *, end: 'start'|'end'}} dragged ドラッグしている端点
      * @param {{x: number, y: number}} point 照会する点（ワールド座標）
      * @returns {import('../shapes/EndpointSnapRules.js').SnapTarget|null} 吸い付く端点。無ければnull
@@ -142,8 +282,8 @@ export class EndpointSnapper {
      *   6. `editRecorder.beginEdit()` → `model.replaceShape(..., { keepId, removeIds, select: false })` → `editRecorder.commitEdit()`。
      *   7. `true`を返す。
      *
-     * @param {import('../shapes/PathJoinRules.js').EndpointRef|null} startSnap 描き始めの点が吸い付いた端点
-     * @param {import('../shapes/PathJoinRules.js').EndpointRef|null} endSnap 描き終えの点が吸い付いた端点
+     * @param {import('../shapes/PathJoinRules.js').EndpointRef|import('../shapes/VertexSnapRules.js').VertexSnap|null} startSnap 描き始めの点が吸い付いた端点（吸い付くだけ・変えられなくなった図形の端点は`null`と同じ扱い）
+     * @param {import('../shapes/PathJoinRules.js').EndpointRef|import('../shapes/VertexSnapRules.js').VertexSnap|null} endSnap 描き終えの点が吸い付いた端点（吸い付くだけ・変えられなくなった図形の端点は`null`と同じ扱い。`DrawnStartSnap`は渡さない）
      * @returns {boolean} 反映（または何も起きない扱い）にしたか。両方nullのときだけfalse
      */
     commitDrawnLine(startSnap, endSnap) {
@@ -161,14 +301,16 @@ export class EndpointSnapper {
      * `beginEdit`/`commitEdit`は呼ばない（呼び出し側が開いた編集操作の中で行い、頂点の移動とあわせて1件になる）。
      *
      * 処理順:
-     *   1. `planEndpointDragJoin`で計画を作る（許容距離は`screenLengthToWorld(JOIN_TOLERANCE_SCREEN_PX)`）。`null`なら何も呼ばず`false`。
-     *   2. `model.replaceShape(..., { keepId, removeIds, select: true })`（結果だけを選択）。`true`を返す。
+     *   1. `#toUsableSnap(snap)`で結合に使えない吸い付き（吸い付くだけ・変えられなくなった図形の端点）を`null`にする。
+     *   2. `planEndpointDragJoin`で計画を作る（許容距離は`screenLengthToWorld(JOIN_TOLERANCE_SCREEN_PX)`）。`null`なら何も呼ばず`false`。
+     *   3. `model.replaceShape(..., { keepId, removeIds, select: true })`（結果だけを選択）。`true`を返す。
      *
      * @param {{shapeId: *, end: 'start'|'end'}} dragged ドラッグしていた端点
-     * @param {import('../shapes/PathJoinRules.js').EndpointRef|null} snap 吸い付いた端点
+     * @param {import('../shapes/PathJoinRules.js').EndpointRef|import('../shapes/VertexSnapRules.js').VertexSnap|null} snap 吸い付いた端点（吸い付くだけなら結合しない）
      * @returns {boolean} 反映したか（計画がnullのときfalse）
      */
     joinDraggedEndpoint(dragged, snap) {
+        snap = this.#toUsableSnap(snap);
         const plan = planEndpointDragJoin(
             this.#model.getEditableShapes(),
             dragged,
@@ -201,12 +343,13 @@ export class EndpointSnapper {
 
     /**
      * 線を引いている途中の吸い付く先（描き始めの端点を除く端点と、作成途中の線の始点）を照会する。
+     * 結合する吸い付きだけの照会。`InputTracker`は`findDrawnLinePointSnap`を呼び、その中で使われる。
      *
      * 処理順:
      *   1. 作成途中の図形が無ければ`screenLengthToWorld`も呼ばず`null`。
      *   2. `findDrawnLineSnapTarget(model.getEditableShapes(), 作成途中の図形, point, screenLengthToWorld(SNAP_TOLERANCE_SCREEN_PX), startSnap)`を返す。
      *
-     * @param {import('../shapes/PathJoinRules.js').EndpointRef|null} startSnap 描き始めの点が吸い付いた端点
+     * @param {import('../shapes/PathJoinRules.js').EndpointRef|import('../shapes/VertexSnapRules.js').VertexSnap|null} startSnap 描き始めの点が吸い付いた端点（吸い付くだけ・変えられなくなった図形の端点は`null`と同じ扱い）
      * @param {{x: number, y: number}} point 照会する点（ワールド座標）
      * @returns {import('../shapes/EndpointSnapRules.js').SnapTarget|import('../shapes/EndpointSnapRules.js').DrawnStartSnap|null} 吸い付く先。無ければnull
      */
@@ -248,8 +391,8 @@ export class EndpointSnapper {
      *   4. `endSnap`が`null`でなく始点への吸い付きでもなければ、`commitDrawnLine(startSnap, endSnap)`（つながって終える）で`false`。
      *   5. それ以外（始点への吸い付きでも閉じられないときを含む）は`model.replaceDraft(addDrawnPoint(作成途中の図形))`（点を打つ。記録先に触れない）で`true`。
      *
-     * @param {import('../shapes/PathJoinRules.js').EndpointRef|null} startSnap 描き始めの点が吸い付いた端点
-     * @param {import('../shapes/EndpointSnapRules.js').SnapTarget|import('../shapes/EndpointSnapRules.js').DrawnStartSnap|null} endSnap 直前の照会結果
+     * @param {import('../shapes/PathJoinRules.js').EndpointRef|import('../shapes/VertexSnapRules.js').VertexSnap|null} startSnap 描き始めの点が吸い付いた端点（吸い付くだけ・変えられなくなった図形の端点は`null`と同じ扱い）
+     * @param {import('../shapes/EndpointSnapRules.js').SnapTarget|import('../shapes/EndpointSnapRules.js').DrawnStartSnap|import('../shapes/VertexSnapRules.js').VertexSnap|null} endSnap 直前の照会結果（吸い付くだけ・変えられなくなった図形の端点は`null`と同じ扱い。`DrawnStartSnap`は始点への吸い付き）
      * @returns {boolean} 点を打って引き続けるならtrue、終えた（または何もしなかった）ならfalse
      */
     clickDrawnLine(startSnap, endSnap) {
@@ -285,7 +428,7 @@ export class EndpointSnapper {
      *   4. それ以外は`#reflectDrawnJoin(終えた線, startSnap, null, 作成途中の図形)`（描き始めの線の続きとして描き足す。計画が`null`なら作成途中の線を捨てるだけ）。
      *      描いた区間の種類は作成途中の線から読む（点2つの終えた線は`Line`で区間の種類を持たないため）。
      *
-     * @param {import('../shapes/PathJoinRules.js').EndpointRef|null} startSnap 描き始めの点が吸い付いた端点
+     * @param {import('../shapes/PathJoinRules.js').EndpointRef|import('../shapes/VertexSnapRules.js').VertexSnap|null} startSnap 描き始めの点が吸い付いた端点（吸い付くだけ・変えられなくなった図形の端点は`null`と同じ扱い）
      */
     finishDrawnLine(startSnap) {
         startSnap = this.#toUsableSnap(startSnap);
@@ -330,13 +473,17 @@ export class EndpointSnapper {
     }
 
     /**
-     * 引き始めた後で変えられなくなった図形の端点への吸い付きを外す（線を引いている途中に、一覧の行のドラッグでロックしたフォルダの中へ動かされた場合など）。
-     * `null`・`undefined`・始点への吸い付きはそのまま。`model.getShapes()`にあるのに`model.getEditableShapes()`に無い図形の端点なら`null`。
+     * 結合に使えない吸い付きを外す。吸い付くだけ（`VertexSnap`）は`null`にする（結合として扱わない唯一の関門）。
+     * 引き始めた後で変えられなくなった図形の端点への吸い付きも外す（線を引いている途中に、一覧の行のドラッグでロックしたフォルダの中へ動かされた場合など）。
+     * 吸い付くだけ以外では、`null`・`undefined`・始点への吸い付きはそのまま。`model.getShapes()`にあるのに`model.getEditableShapes()`に無い図形の端点なら`null`。
      * それ以外（今ある変えられる図形・もう無い図形）はそのまま。モデル・記録先を変えない。
-     * @param {import('../shapes/PathJoinRules.js').EndpointRef|import('../shapes/EndpointSnapRules.js').DrawnStartSnap|null|undefined} snap 吸い付き
-     * @returns {import('../shapes/PathJoinRules.js').EndpointRef|import('../shapes/EndpointSnapRules.js').DrawnStartSnap|null|undefined} 使える吸い付き。外すときはnull
+     * @param {import('../shapes/PathJoinRules.js').EndpointRef|import('../shapes/EndpointSnapRules.js').DrawnStartSnap|import('../shapes/VertexSnapRules.js').VertexSnap|null|undefined} snap 吸い付き
+     * @returns {import('../shapes/PathJoinRules.js').EndpointRef|import('../shapes/EndpointSnapRules.js').DrawnStartSnap|null|undefined} 結合に使える吸い付き。外すときはnull
      */
     #toUsableSnap(snap) {
+        if (isVertexSnap(snap)) {
+            return null;
+        }
         if (snap === null || snap === undefined || isDrawnStartSnap(snap)) {
             return snap;
         }

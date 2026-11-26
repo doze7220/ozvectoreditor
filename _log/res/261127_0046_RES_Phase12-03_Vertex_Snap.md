@@ -165,7 +165,7 @@
         *   『要件1』の`VertexSnapRules.js`のとおり、先頭に3行以内の責務、import（`findNearestSnapPoint`・`snapDistance`・`lineEndpointOf`・`outlineSourceOf`）、`VERTEX_SNAP_KIND`・typedef`VertexSnap`・`isVertexSnap`・`snapVerticesOf`・`findVertexSnapTarget`・`chooseSnapTarget`・`isVertexSnapDrawStartShapeType`・`isVertexSnapDrawEndShapeType`をJSDoc付きで作る（`VertexSnap`を結合の計画・`EndpointSnapper`の反映へ渡してはならない旨、円・弧の2つ目の点に吸い付かない理由（発注者の決定 2026-11-27）、同じ距離なら結合する吸い付き、を書く）。『要件1』の「使う側の列挙」のとおり、`PathJoinRules.js`の`lineEndpointOf`のJSDocと`PathVertexRules.js`のファイル先頭の責務に`VertexSnapRules`を足す（どちらもコメントだけで、コードは変えない）。
         *   テスト（実物の`Line`・`Curve`・`Rect`・`Ellipse`・`Path`）：`snapVerticesOf`＝開いたパス（途中の点を含むすべての点・並び）、閉じたパス（すべての点）、曲がり方を持つ区間のパス（`control1`・`control2`の座標が入らない）、矩形（4つの角。回した矩形も`points`の4点）、直線（両端）、今の曲線（始点・終点だけ。制御点が入らない）、弧（`lineEndpointOf`の始点・終点と中心`points[0]`の3点。頂上・`points[1]`〜`[4]`が入らない。回した弧も`lineEndpointOf`と同じ値）、円（中心だけ）、未知の図形は空、戻り値が図形の点と同じオブジェクトでない・図形を書き換えない。`findVertexSnapTarget`＝点の種類ごと（パスの途中の点・閉じたパスの点・矩形の角・直線の両端・今の曲線の始点と終点・弧の両端・円と弧の中心）に吸い付く、吸い付かない点（今の曲線の制御点・引っ張る点・弧の頂上）、許容距離ちょうどは吸い付く・外は吸い付かない、いちばん近い点、同じ距離なら前面の図形、`excludedShapeIds`の図形の点は吸い付かない（ほかの図形には吸い付く）、結果が`{ kind: 'vertex', x, y }`だけ（`shapeId`・`end`を持たない）、引数を書き換えない。`chooseSnapTarget`＝結合する吸い付きだけ・吸い付くだけだけ・両方無し、近い方、同じ距離なら結合する吸い付き（`SnapTarget`・`DrawnStartSnap`とも）、引数のオブジェクトそのものを返す。`isVertexSnap`＝`VertexSnap`で真、`SnapTarget`・`DrawnStartSnap`・`null`・`undefined`で偽、`isDrawnStartSnap`が`VertexSnap`で偽。ツールの判定＝描き始めは`line`・`curve`・`rect`・`arc`・`circle`が真で`path`・未知・`null`が偽、2つ目の点は`rect`だけ真。
 
-*   [ ] タスク3: 照会の手順と、吸い付くだけを結合として扱わない関門
+*   [x] タスク3: 照会の手順と、吸い付くだけを結合として扱わない関門
     *   **対象ファイル** :
         *   `./js/edit/EndpointSnapper.js` :（更新。行末はLF）
         *   `./test/edit/EndpointSnapper.vertexSnap.test.js` :（新規。行末はLF）
@@ -242,7 +242,10 @@
 
 ### タスク3: 照会の手順と、吸い付くだけを結合として扱わない関門
 *   **作業内容** :
-    *   （未記入）
+    *   `js/edit/EndpointSnapper.js`（LF保持）：`findDrawStartSnap`・`findDrawEndSnap`・`findDrawnLinePointSnap`・`findVertexDragSnap`・`isVertexSnap`をJSDoc付きで追加。`#toUsableSnap`の先頭に`isVertexSnap(snap)`なら`null`の分岐を足し、`joinDraggedEndpoint`の冒頭に`snap = this.#toUsableSnap(snap)`を足した。importに`VertexSnapRules`の5つを追加。ファイル先頭の責務・クラスのJSDoc（依存の制約・前提・通知の回数）を直し、今の3つの照会のJSDocに「結合する吸い付きだけの照会」を足した。今の公開メソッドの中身・ほかの非公開メソッドは変えていない。
+    *   `findDrawnLinePointSnap`は、作成途中の図形が無ければ最初に`null`を返し`screenLengthToWorld`も呼ばない（計画の「作成途中が無ければ`null`」のとおり）。
+    *   `test/edit/EndpointSnapper.vertexSnap.test.js`（新規・LF）：偽のmodelで最初の表の欄・関門・`Ctrl`列・今の照会が`null`のまま、を確かめる（31件）。`test/edit/EndpointSnapper.vertexSnap.flow.test.js`（新規・LF）：実物のVectorModel・HistoryManagerで、隠した・ロックした図形・ロックしたフォルダの中の図形に吸い付かないこと、直線のツール（点2つ・点3つ）・ほかの線の途中の点・矩形のツールの流れ、取り消し1回を確かめる（5件）。
+    *   `node --test`は3995件全件合格（既存テストの値は変更なし）。行末はEndpointSnapper.jsとテスト2本ともLF（CR数0）。
 
 ### タスク4: まとめ移動の座標の組み立てを規則へ切り出す
 *   **作業内容** :
@@ -289,3 +292,5 @@
 7.  **ロック・非表示**：一覧の鍵でロックした図形・目で隠した図形の点には、どちらの吸い付きも出ない。
 8.  **取り消し**：吸い付かせて動かした点のドラッグ・吸い付かせて描いた図形は、`Ctrl`+`Z` 1回で戻る（線を引いている途中の`Ctrl`+`Z`は最後の点を消す操作で、描き終えた後の`Ctrl`+`Z`が図形の取り消し）。
 9.  **ほかが今までどおり**：線の端点への吸い付きと描き足し・結合・閉じる、自分の始点で閉じる（点を3つ以上打って始点に近づけると中を塗った四角）、2本の結合（`J`）、点の追加（頂点の選択で線の上をダブルクリック）・削除（点を選んで`Delete`）、分割・区間を消す、分割した直後の重なった端の点を少しだけドラッグして離すと結合し直ること、スナップ（🧲）の丸め（吸い付かなかったときの点の位置）が今までどおり動く。
+*   **タスク3の実装メモ**：(i) `joinDraggedEndpoint`に足した`#toUsableSnap`は、既存テストの入力では結果が変わらず全件合格。(ii) `findDrawnLinePointSnap`は`startSnap`が`undefined`のとき今の`findDrawnLineSnap`と同じく`findDrawnLineSnapTarget`へそのまま渡る（`InputTracker`は`null`を渡す前提）。(iii) 開発資料への影響：`EndpointSnapper`の公開メソッド（新しい照会5つ・結合への関門`#toUsableSnap`の吸い付くだけの分岐・`joinDraggedEndpoint`の関門）と`edit/ → shapes/VertexSnapRules`のimport、テストの2ファイル（31件・5件）を、タスク7・8で反映する（既存の『開発資料の更新予定』の範囲内）。
+*   **タスク3の修正（diff監査の軽微3件）**：`EndpointSnapper`の`commitDrawnLine`・`clickDrawnLine`・`findDrawnLineSnap`・`finishDrawnLine`の`@param`を`VertexSnap`を受ける実態（吸い付くだけは`null`と同じ扱い）に直した（JSDocのみ）。隠した・ロックした図形のテストと描き始めが端点のテストに、除外が無ければ吸い付く点だったことを確かめる対照を足した。
