@@ -143,7 +143,7 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
         *   **C19**（292〜306行のテスト「ShapeInserter 記録しない入口: …」）：最後の `assert.ok(inserter);` の1行を消し、同じテストの先頭 `const { model, history, inserter } = setup();` を `const { model, history } = setup();` にする（このテストの中で `inserter` はほかに使われていないことを確かめてから）。確かめる内容は変えない。
         *   `node --test test/io/DocumentSerializer.roundtrip.test.js test/core/ItemPlaceRules.test.js test/edit/ShapeInserter.insertTarget.test.js` が全件成功し、件数が変わらないことを確かめる（変更前の件数もこの3ファイルで先に測る）。行末（LF／CRLF／CRLF）。C16・C17 の題が `_doc/arch/16_test.md` に書かれているかは、タスク9（C18）で確かめる。
 
-*   [ ] タスク6: `PROJECT_ARCHITECTURE.md` 1章（No.1・3・59・60・61、A1・A2・A3・A4）
+*   [x] タスク6: `PROJECT_ARCHITECTURE.md` 1章（No.1・3・59・60・61、A1・A2・A3・A4）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :更新（1章のみ）
     *   **作業内容** :
@@ -349,7 +349,16 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
 
 ### タスク6: `PROJECT_ARCHITECTURE.md` 1章（No.1・3・59・60・61、A1・A2・A3・A4）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   **No.1・A1**（構成図 `ItemTreeRules.js`）：「VectorModel・io/DocumentSerializer・io/SpriteSerializer・ItemAttributeRules・ItemListRulesから使う」→「VectorModel・ItemAttributeRules・ItemRowRules・ItemPlaceRules・ItemStateRules・InsertTargetRules・GroupTreeRules・GroupSelectionRules・GroupCollapseRules・ListDragRules・RemovalRules・edit/GroupEditor・io/DocumentSerializer・io/SpriteSerializerから使う」（`from '…/ItemTreeRules.js'` の `Grep` と一致。`ItemListRules` は外した）。
+    *   **A1**：`GroupTreeRules.js` の項へ `ItemStateRules`・`RemovalRules`・`SoloVisibilityRules` を、`GroupSelectionRules.js` の項へ `InsertTargetRules`・`edit/ClipboardController`・`wiring/ItemListWiring` を足した（`Grep` で import を確認）。
+    *   **No.59・60**：`TransformInputEditor.js`・`ShapeAlignEditor.js` の項の「選んでいる図形」→「選択中の変えられる図形」。
+    *   **No.61**：1章 `edit/` の説明の「選択中の図形・全図形の外枠の照会」→「選択中の変えられる図形・見えている全図形の外枠の照会」。
+    *   **A4**：「`Home`/`PageUp`/`PageDown`/`End`は選択中の図形1つずつに働くまま」→「選んでいる図形・フォルダのまとまり1つずつに兄弟の並びごとに働くまま」。『離れた選択図形をまとめる並び替えをしない』という「やらないこと」は `ShapeOrderRules` のJSDoc（離れた選択中の要素はまとまらず）どおり今も成り立つため残した。
+    *   **No.3**：「`ItemListRules`・…・`ThumbnailRules`は`wiring/ItemListWiring`だけが使う」→「…だけが使う（`ThumbnailRules`は`ThumbnailRenderer`もimportする）状態を持たない規則で」。
+    *   **A2**：`InsertTargetRules`（`VectorModel`が唯一の持ち主として呼ぶ。…）→「描き込む先の値の持ち主は`VectorModel`だけで、規則をimportするのは`VectorModel`・`edit/ClipboardController`（貼り付け・複製の入る場所`resolvePastePlace`・`resolveDuplicatePlace`）・`wiring/ItemListWiring`（印の規則`resolveInsertMark`だけ）の3つ。」（`resolveInsertMark`の記述は残した）。
+    *   **A3**：「`ItemListRules → ItemTreeRules`・`InputModes`」→「`ItemListRules → InputModes`（Phase 11-04aで`ItemTreeRules`のimportをやめた）」。末尾の「`shapes/…`のJSDocの「`model.getShapes()`の並び」は…残る（…）」の文を消した（2章に`getEditableShapes()`＝変えられる図形で端点への吸い付きを行う旨が既にあり、C13・C14で直ったため）。
+    *   **原則10**：同じ誤りとして、構成図 `ShapeExtentReader.js` の項の頭の「選択中の図形・全図形の外枠の照会」も No.61 と同様に直した。
+    *   検証：`PROJECT_ARCHITECTURE.md` の LF＝CR＝1021（CRLF保持）。
 
 ### タスク7: `_doc/arch/03_VectorModel.md`・`15_io.md`・`12_shapes.md`（No.7・8（`15_io.md`）・10・11・12・13・55、A13）
 *   **作業内容** :
