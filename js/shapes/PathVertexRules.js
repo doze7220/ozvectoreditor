@@ -2,7 +2,14 @@
  * 責務: 線・パスの頂点の追加と削除の規則（輪郭の元への読み替え・区間の上の最も近い位置・曲がり方を持つ区間の分割・点を足した／消した新しい図形の組み立て）を、
  * 状態を持たない関数として提供する。モデル・履歴・選択・操作モード・表示倍率を知らず、ワールド座標の許容幅を引数で受け取る。
  */
-import { SEGMENT_KIND_LINE, SMOOTH_SEGMENT_SAMPLE_COUNT, resolveSegmentControls } from './Path.js';
+import {
+    Path,
+    SEGMENT_KIND_LINE,
+    SEGMENT_KIND_BEZIER,
+    SMOOTH_SEGMENT_SAMPLE_COUNT,
+    readCornerFlags,
+    resolveSegmentControls,
+} from './Path.js';
 import { segmentSpecsOf, chainSourceOf } from './PathJoinRules.js';
 import { cubicBezierPoint } from './ShapeGeometry.js';
 
@@ -40,6 +47,13 @@ const NEAREST_REFINE_ITERATIONS = 40;
  * @property {{control1: {x: number, y: number}, control2: {x: number, y: number}}} first 前半の制御点
  * @property {{x: number, y: number}} point 分けた点
  * @property {{control1: {x: number, y: number}, control2: {x: number, y: number}}} second 後半の制御点
+ */
+
+/**
+ * 点を足した結果の計画。
+ * @typedef {Object} VertexInsertionPlan
+ * @property {Path} shape - 点を足した新しいパス（`id`は`null`）
+ * @property {number} insertedIndex - 足した点の番号（区間`i`に足したなら`i + 1`。閉じたパスの最後の区間に足したときは末尾）
  */
 
 /**
@@ -232,4 +246,59 @@ export function splitCubicBezier(p0, p1, p2, p3, t) {
         point: p0123,
         second: { control1: p123, control2: p23 },
     };
+}
+
+/**
+ * 線・パスの区間の上に点を足した新しいパスを組み立てる。
+ * 足す位置は`point`に最も近い区間の上の位置。`t`が0か1（頂点と同じ位置）・許容幅の外・円・弧などの対象外の図形は`null`。
+ * 足した点の角は`false`、ほかの点の角・ほかの区間・スタイル3つは元のまま。直線の区間は`line`×2、曲がり方を持つ区間（`bezier`）はde Casteljauで分けた`bezier`×2（形は同じ）、
+ * 打った点の曲線の区間（`smooth`）は`smooth`×2（足した点は元の曲線の上に乗る。足した区間と隣の曲線の区間の曲がり方は少し変わる）。
+ * 直線・矩形・今の曲線はパス（点が1つ増えた開いたパス・閉じたパス）になる。`shape`の`type`・`toJSON()`だけを読み、引数を書き換えない。
+ * @param {Object} shape - 図形（`type`・`toJSON()`を持つ。`type`が対象外なら`toJSON()`を呼ばない）
+ * @param {{x: number, y: number}} point - ダブルクリックしたワールド座標
+ * @param {number} tolerance - 許容幅（ワールド座標の長さ）
+ * @returns {VertexInsertionPlan|null} 点を足した新しいパスと足した点の番号。足さないときは`null`
+ */
+export function planVertexInsertion(shape, point, tolerance) {
+    if (shape.type !== 'line' && shape.type !== 'rect' && shape.type !== 'curve' && shape.type !== 'path') {
+        return null;
+    }
+    const source = outlineSourceOf(shape.toJSON());
+    if (source === null) {
+        return null;
+    }
+    const location = findNearestSegmentLocation(source, point, tolerance);
+    if (location === null || location.t <= 0 || location.t >= 1) {
+        return null;
+    }
+    const index = location.segmentIndex;
+    const n = source.points.length;
+    const segment = source.segments[index];
+    let newPoint;
+    let replacement;
+    if (segment.kind === SEGMENT_KIND_LINE) {
+        newPoint = { x: location.point.x, y: location.point.y };
+        replacement = [{ kind: SEGMENT_KIND_LINE }, { kind: SEGMENT_KIND_LINE }];
+    } else if (segment.kind === SEGMENT_KIND_BEZIER) {
+        const a = source.points[index];
+        const b = source.points[(index + 1) % n];
+        const split = splitCubicBezier(a, segment.control1, segment.control2, b, location.t);
+        newPoint = split.point;
+        replacement = [
+            { kind: SEGMENT_KIND_BEZIER, control1: split.first.control1, control2: split.first.control2 },
+            { kind: SEGMENT_KIND_BEZIER, control1: split.second.control1, control2: split.second.control2 },
+        ];
+    } else {
+        newPoint = { x: location.point.x, y: location.point.y };
+        replacement = [{ kind: segment.kind }, { kind: segment.kind }];
+    }
+    const insertedIndex = index + 1;
+    const points = source.points.slice();
+    points.splice(insertedIndex, 0, newPoint);
+    const segments = source.segments.slice();
+    segments.splice(index, 1, ...replacement);
+    const corners = readCornerFlags(source);
+    corners.splice(insertedIndex, 0, false);
+    const built = new Path(points, source.closed, source.strokeColor, source.strokeWidth, source.fillColor, segments, corners);
+    return { shape: built, insertedIndex };
 }

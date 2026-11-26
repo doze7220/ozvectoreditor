@@ -151,7 +151,7 @@
         *   `PathVertexRules.js`（新規）：先頭に3行以内の責務（線・パスの頂点の追加と削除の規則＝輪郭の元への読み替え・区間の上の最も近い位置・曲がり方を持つ区間の分割・点を足した／消した新しい図形の組み立てを、状態を持たない関数として提供する）。このタスクではimportと、typedef`OutlineSource`・`SegmentLocation`・`CubicSplit`、定数`NEAREST_REFINE_ITERATIONS`（40）、`outlineSourceOf`・`findNearestSegmentLocation`・`splitCubicBezier`をJSDoc付きで作る（「要件2」の仕様どおり）。
         *   テスト（`PathVertexRules.locate.test.js`）：`resolveSegmentControls`が`toDrawElement`の`cubic`の制御点と同じ値（`smooth`・`bezier`・角あり・閉じたパス）・直線の区間は`null`。`outlineSourceOf`（直線・矩形（回した矩形を含む）・今の曲線＝`chainSourceOf`と同じ値・パスはそのまま・円と弧は`null`・引数を書き換えない）。`findNearestSegmentLocation`：直線の区間（途中・端で`t`が0/1に収まる・長さ0の区間）、`smooth`の区間（点が曲線の上に乗る＝`cubicBezierPoint`で`t`から求め直した値と一致・距離が折れ線の近似の距離）、`bezier`の区間、閉じたパスの最後の区間（`segmentIndex === n − 1`）、複数の区間で最も近いものを選ぶ・同じ距離なら番号の小さい区間、許容幅の外は`null`、許容幅ちょうどは当たり、点が1つの元は`null`。`splitCubicBezier`：前半・後半を多数の`t`で評価した点が元の曲線の点と許容誤差（1e-9）で一致・`t`の点が`cubicBezierPoint`と一致・引数を書き換えない。
 
-*   [ ] タスク2: 点を足した図形の組み立て
+*   [x] タスク2: 点を足した図形の組み立て
     *   **対象ファイル** :
         *   `./js/shapes/PathVertexRules.js` :（更新）
         *   `./test/shapes/PathVertexRules.insert.test.js` :（新規）
@@ -236,7 +236,8 @@
 
 ### タスク2: 点を足した図形の組み立て
 *   **作業内容** :
-    *   （未記入）
+    *   `PathVertexRules.js`（LF）：typedef`VertexInsertionPlan`と`planVertexInsertion(shape, point, tolerance)`を足した。importに`Path`・`SEGMENT_KIND_BEZIER`・`readCornerFlags`を追加。`type`が対象外なら`toJSON()`を呼ばず`null`。`outlineSourceOf` → `findNearestSegmentLocation` → `t`が0か1なら`null`。区間の種類で分岐（`line`→`line`×2・`bezier`→`splitCubicBezier`の`bezier`×2・それ以外（`smooth`）→`smooth`×2）。足した点の角は`false`。
+    *   `test/shapes/PathVertexRules.insert.test.js`（新規・LF）：20件（パスの`line`・`bezier`・`smooth`（開いた・閉じた・末尾）、直線、矩形（回した矩形含む）、今の曲線、円・弧／許容幅の外／`t`が0か1／塗りの内側は`null`、引数不変、「曲線に」の結果が今の値のまま）。`node --test`全体で3745件すべて合格（既存のテストは変更なし）。
 
 ### タスク3: 点を消した図形の組み立て
 *   **作業内容** :
@@ -284,6 +285,7 @@
 *   **既存のテストの値**：変えるものは無い見込み（`Path`の`#segmentControls`の移し替えは結果が同じ）。
 *   **確認の状況**：`dblclick`の購読・`handleDoubleClick`・削除の入口の振り分け（`InputTracker`）と`main.js`の配線、ブラウザのダブルクリックの判定（間隔・位置）、カーソルの形、削除ボタンの見た目の切り替わりは`node --test`で確かめられない（テストプレイで確かめる範囲）。
 *   **タスク1で判断した点**：(1) `outlineSourceOf`のパスは「`toJSON()`の値そのもの」と「引数と共有しない」が両立するよう、`toJSON()`と同じ内容の新しい値（`id`も写す）にした。(2) `projectOntoCurve`は、三分探索の結果が折れ線上の位置（`t0`）より遠い場合（単峰でない場合）は`t0`を使う安全策を足した（仕様の三分探索に追加。通常は探索結果が使われる）。(3) 曲線の区間の`distance`は仕様どおり折れ線の近似の距離で、`point`は真の曲線の上の点のため、`point`との実際の距離は`distance`と微小にずれ得る。(4) 新しい`PathVertexRules.js`のimportは、後続タスクで使う`Line`・`readCornerFlags`・`SEGMENT_KIND_SMOOTH`・`SEGMENT_KIND_BEZIER`・`Path`をまだ入れていない（使うタスクで足す）。
+*   **タスク2で判断した点**：(1) 区間が`line`でも`bezier`でもない場合は`smooth`として扱い、`segment.kind`をそのまま2つに複製した（仕様の「点を通る曲線の区間」）。(2) テストで今の曲線の制御点を動かした形は、`Curve`のコンストラクタが終点2つしか取らないため`Curve.fromJSON`で作った。回した矩形も`Rect.fromJSON`で斜めの点を渡して作った。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0.  **準備**：画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。直線（直線のツールで2点）・矩形（塗りあり）・直線のツールで描いた折れ線（3点以上）・曲線のツールで描いた曲線（3点以上）・閉じたパス（直線のツールで始点をクリックして閉じたもの）を描く。最後に頂点の選択（`A`）にする。
