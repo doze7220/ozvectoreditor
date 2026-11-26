@@ -200,7 +200,7 @@
         *   クラスのJSDoc（入力の補助の項目の列挙・削除の経路・区切りの説明）とコンストラクタの`@param inputAssist`の項目の列挙を直す。図形種別の分岐・計算を持ち込まない。行数を実測して『開発資料の更新予定』へ書く。
         *   テスト：このタスクでは足さない（判定はタスク4の規則のテスト、手順はタスク5のテストで確かめている。`InputTracker`はDOMに触れるため`node --test`の対象外。既存の全件合格だけを確かめる）。
 
-*   [ ] タスク7: 配線（`main.js`）
+*   [x] タスク7: 配線（`main.js`）
     *   **対象ファイル** :
         *   `./js/main.js` :（更新）
         *   `./js/core/KeyboardShortcuts.js` :（更新。JSDocの1か所のみ）
@@ -261,7 +261,10 @@
 
 ### タスク7: 配線（`main.js`）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/main.js`（CRLFのまま。1234行→1248行）：`PathVertexEditor`をimport。`// 4.`の`InputTracker`の第7引数に`insertVertexAt`・`hasRemovableVertices`・`removeSelectedVertices`（前方参照の説明コメント付き）。`// 7.16. 頂点の追加・削除配線`を`// 8.`の前に立て`new PathVertexEditor({ model, editRecorder: historyManager, getMode })`を生成。`syncDeleteButtonState`を`!inputTracker.canDeleteSelectionOrVertices()`にしJSDocを直し、削除ボタンの`click`を`inputTracker.deleteSelectionOrVertices()`に。切り取りの注入（`deleteSelection()`）と`// 8.`の`deleteLastLinePointOrSelection()`は変えず、コメントだけ振り分けの旨を追記。
+    *   `js/core/KeyboardShortcuts.js`（CRLFのまま）：typedef`deleteSelection`の説明に「頂点の選択では選んだ点を消す。振り分けは注入された実体の側」を追記（1か所のみ）。
+    *   `node --test`全体で3801件すべて合格（既存のテストは変更なし。新規テストなし）。
+    *   開発資料の更新予定への追記：`02_main.md`の`main.js`の行数は1248行（`wc -l`）。`// 7.16.`の生成と注入・`InputAssist`の3項目・`syncDeleteButtonState`・削除ボタンの`click`の記述を反映する。
 
 ### タスク8: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
 *   **作業内容** :

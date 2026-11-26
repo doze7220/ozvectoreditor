@@ -48,6 +48,7 @@ import { OptionBarPositionGroup } from './palette/OptionBarPositionGroup.js';
 import { ShapeAlignEditor } from './edit/ShapeAlignEditor.js';
 import { OptionBarAlignGroup } from './palette/OptionBarAlignGroup.js';
 import { PathCornerEditor } from './edit/PathCornerEditor.js';
+import { PathVertexEditor } from './edit/PathVertexEditor.js';
 import { OptionBarCornerGroup } from './palette/OptionBarCornerGroup.js';
 import { DisplayState } from './core/DisplayState.js';
 import { UnitSnapSettings } from './core/UnitSnapSettings.js';
@@ -200,6 +201,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // 選んでいる図形・フォルダの削除の実体（groupEditorは後の「// 7.8.」でconst宣言されるが、呼ばれるのは削除の操作中（起動完了後）だけ。
         // 記録の手順はGroupEditorが挟み、InputTrackerは受理の判定だけを持つ）
         deleteSelectedItems: () => { groupEditor.removeSelection(); },
+        // 頂点の選択でのダブルクリックの点の追加・選んだ点の削除の実体（pathVertexEditorは後の「// 7.16.」でconst宣言されるが、呼ばれるのは入力・同期の操作中（起動完了後）だけ。
+        // 記録の手順はPathVertexEditorが挟み、InputTrackerは受け渡しだけを持つ）
+        insertVertexAt: (shapeId, point, tolerance) => pathVertexEditor.insertAt(shapeId, point, tolerance),
+        hasRemovableVertices: () => pathVertexEditor.canRemoveSelectedVertices(),
+        removeSelectedVertices: () => pathVertexEditor.removeSelectedVertices(),
     });
 
     /**
@@ -326,22 +332,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * ツールバーの削除ボタン（`#selection-delete`）の押せる/押せない状態を、Modelの選択集合に
-     * 同期する。消えるものが無い（選択が空、または選んでいるのが隠れた・ロックされたものだけ。`model.hasRemovableSelection()`が偽）なら押せない状態（HTMLの`disabled`属性）にする。model.onChangeの
+     * 同期する。押せるかの照会は`inputTracker.canDeleteSelectionOrVertices()`の1つだけを呼ぶ（頂点の選択では選んだ点があるときだけ押せる。それ以外のモードでは、
+     * 消えるものが無い＝選択が空、または選んでいるのが隠れた・ロックされたものだけ、のとき押せない）。モードの判定は`VertexEditRules`、照会は`InputTracker`が持ち、ここにモードの分岐を書かない。
+     * 押せない状態は、HTMLの`disabled`属性にする。model.onChangeの
      * コールバックとして登録し、起動時にも明示的に1回呼び出す（通知の有無に依存しない）。
      * ボタンのDOM更新はmain.jsが担い、VectorModel・InputTrackerはDOMに触れない。
      * 選択集合は操作モード切替でクリアされるため、図形作成・キャンバス移動モード中は常に押せない
      * 状態になる（モード別の分岐は不要）。
      */
     function syncDeleteButtonState() {
-        deleteSelectionBtn.disabled = !model.hasRemovableSelection();
+        deleteSelectionBtn.disabled = !inputTracker.canDeleteSelectionOrVertices();
     }
 
     // 選択集合の変化（選択・選択解除・削除）に応じて削除ボタンの状態を更新する
     model.onChange(syncDeleteButtonState);
 
-    // 削除ボタン：受理条件の判定と削除はinputTracker.deleteSelection()のみが担う
-    // （切り取りの削除と同一経路。Delete/BackspaceはdeleteLastLinePointOrSelection()を通り、線を引いている途中でなければ同じ削除。ここでGroupEditor.removeSelectionを直接呼ばずinputTracker.deleteSelection()を通すこと）
-    deleteSelectionBtn.addEventListener('click', () => inputTracker.deleteSelection());
+    // 削除ボタン：振り分け（頂点の選択では選んだ点の削除、それ以外は図形・フォルダの削除）と受理条件の判定はinputTracker.deleteSelectionOrVertices()が担う
+    // （図形・フォルダの削除はinputTracker.deleteSelection()を通る。切り取りは今のままdeleteSelection()を注入するため、頂点の選択では何もしない。
+    // Delete/BackspaceはdeleteLastLinePointOrSelection()を通り、線を引いている途中でなければ同じ振り分け。ここでGroupEditor.removeSelectionを直接呼ばないこと）
+    deleteSelectionBtn.addEventListener('click', () => inputTracker.deleteSelectionOrVertices());
 
     // 結合（選択中の線の結合）。規則はshapes/PathJoinRules、手順はedit/PathJoinerが担い、ここは配線のみ。
     // 端点の重なりの許容距離（画面上のpx）は、結合を行う時点の表示倍率でワールド座標の長さへ換算する
@@ -540,7 +549,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 処理本体はedit/の新設クラスが持ち、ここは生成と注入のみを行う。
     // 貼り付け・複製は編集操作の記録先（EditRecorder）としてhistoryManagerを注入する
     const shapeInserter = new ShapeInserter({ model, editRecorder: historyManager, insertsAtTarget: true });
-    // 切り取りの削除は、既存の唯一の削除経路inputTracker.deleteSelection()を注入する（削除ボタンと同一経路。Delete/BackspaceはdeleteLastLinePointOrSelection()を通り、線を引いている途中でなければ同じ削除）
+    // 切り取りの削除は、既存の唯一の削除経路inputTracker.deleteSelection()を注入する（Delete/BackspaceはdeleteLastLinePointOrSelection()を通り、線を引いている途中でなければ削除ボタンと同じ振り分けの削除。頂点の選択で点を消す振り分けがあっても、切り取りはdeleteSelection()のままなので何もしない）
     // getCanvasIdは「自分のコピー」の見分け用。canvasLibraryはこの後で宣言されるが、呼ばれるのは操作のとき（起動完了後）だけ
     const clipboardController = new ClipboardController({
         model,
@@ -967,6 +976,11 @@ document.addEventListener('DOMContentLoaded', () => {
         itemStateEditor
     });
 
+    // 7.16. 頂点の追加・削除配線
+    // 規則はshapes/PathVertexRulesとcore/VertexEditRules、手順（記録つきの1件）はedit/PathVertexEditorが担い、ここは生成のみを行う（判定・計算を書かない）。
+    // InputTrackerへの受け渡しは「// 4.」の第7引数（insertVertexAt・hasRemovableVertices・removeSelectedVertices）。操作モードの照会はinputTracker.getMode()を渡すだけで、ここでは解釈しない。
+    const pathVertexEditor = new PathVertexEditor({ model, editRecorder: historyManager, getMode: () => inputTracker.getMode() });
+
     // 8. キーボードショートカット配線
     /**
      * 表示中キャンバスの中心を基準に、ホイール1刻みと同じ刻み幅（WHEEL_ZOOM_STEP）で拡大・縮小する。
@@ -1050,7 +1064,7 @@ document.addEventListener('DOMContentLoaded', () => {
             performInvertSelection();
             return true;
         },
-        // 線を引いている途中は最後の点を消し、それ以外は選択集合の削除（削除ボタンと同一経路の`deleteSelection()`）。
+        // 線を引いている途中は最後の点を消し、それ以外は削除ボタンと同じ振り分けの削除（頂点の選択では選んだ点を消し、ほかのモードでは選択集合の`deleteSelection()`）。
         // 判定はInputTrackerが持つ
         deleteSelection: () => inputTracker.deleteLastLinePointOrSelection(),
         // 選択中の線の結合（結合ボタンと同一経路。結合した場合のみtrue）
