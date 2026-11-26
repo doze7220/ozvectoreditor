@@ -224,7 +224,7 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
         *   **No.17**（`08` 12行「`beginEdit`/`commitEdit`は`InputTracker`（作成・切り取り・ドラッグ。…）」）：`InputTracker` が呼ぶのは作成とドラッグだけ。切り取りの記録は `ClipboardController.cut` → `inputTracker.deleteSelection()` → `GroupEditor.removeSelection()` が挟むことが分かるように（同じ括弧の「削除の記録は、Phase 11-04aから`GroupEditor`が挟む」とまとめて短く）。
         *   原則10（各ファイルの中の同じ誤り）を確かめる。0-4 を行う。
 
-*   [ ] タスク12: `PROJECT_ARCHITECTURE.md` 3章18.〜27.（No.15/38、A8（760・773・790・896行）、A9）
+*   [x] タスク12: `PROJECT_ARCHITECTURE.md` 3章18.〜27.（No.15/38、A8（760・773・790・896行）、A9）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :更新（3章18.〜27.のみ）
     *   **作業内容** :
@@ -421,7 +421,11 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
 
 ### タスク12: `PROJECT_ARCHITECTURE.md` 3章18.〜27.（No.15/38、A8（760・773・790・896行）、A9）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   **A8**（19.・20.・21.）：「版はどちらも2のまま」→「版はどちらも当時の2のまま。今は4」（20.は「…今は4。欄の値は保存しない」、21.は「…今は4。結果は図形の座標そのもの…」）。27.（Phase 10-03）：「作業データ形式（版3）」→「作業データ形式（当時の版3。今は4）」（書き出し形式の版4は今も4のため変えない）。
+    *   **No.15・38**（24.）：「作業データの版は2、書き出しの版は3のまま」→「作業データの版は当時の2、書き出しの版は当時の3のまま。今はどちらも4」。
+    *   **A9**：20.の「外枠は`ShapeExtentReader`の選択の外枠」→「…`ShapeExtentReader.getSelectedGeometryBounds()`の線を含まない外枠」（`PositionInputEditor.js:86`）。27.の同文も同様（`TransformInputEditor.js:136`）。21.の「選択の外枠（`ShapeExtentReader`）」→「図形ごとの外枠（`ShapeExtentReader.getSelectedBoundsPerShape()`）」（`ShapeAlignEditor.js:87・106`）。
+    *   **原則10**：3章18.〜27.に他の同じ誤りは無い（18.の「当時の2のまま。今の版は2章」・22.の「版は2章」・26.の「版2→3」「現行版は4」は経緯の記述で、そのまま）。
+    *   検証：`PROJECT_ARCHITECTURE.md` LF＝CR＝1021（CRLF保持）。
 
 ### タスク13: `_doc/arch/01_index_html.md`・`13_palette.md`・`61_ItemRowRules.md`（No.21・22・23・28・29・64）
 *   **作業内容** :
