@@ -209,7 +209,7 @@
         *   `KeyboardShortcuts.js`：typedefの`deleteSelection`の説明（55行目付近「選択中の変えられる図形と選んでいるフォルダを削除する」）に「（頂点の選択では選んだ点を消す。振り分けは注入された実体の側）」の趣旨を足す。対応表・判定・ほかの行は変えない。
         *   テスト：このタスクでは足さない（`main.js`は`node --test`の対象外。既存の全件合格だけを確かめる）。
 
-*   [ ] タスク8: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
+*   [x] タスク8: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新）
     *   **作業内容** :
@@ -268,7 +268,14 @@
 
 ### タスク8: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
 *   **作業内容** :
-    *   （未記入）
+    *   `PROJECT_ARCHITECTURE.md`（CRLFのまま。1022行→1045行）に『開発資料の更新予定』の該当分（1章・2章・3章・4章の一覧）を反映した。
+    *   1章：構成図（`core/VertexEditRules.js`・`shapes/PathVertexRules.js`・`edit/PathVertexEditor.js`・テスト6ファイルの追加。`InputModes`・`NudgeTargetRules`・`ShapeGeometry`・`Path`・`PathJoinRules`の行の使う側・export）、「存在しないもの」（「頂点の削除」を消す・`main.js`の判定の項を直す・「曲線に」「直線に」で点の数を変える項を直す・Phase 12-01でやらないと決めたことを追記）、「フォルダ分割の方針」（`shapes/`・`edit/`）、「依存方向」（(1)(2)(3)・13ファイル・`VertexEditRules`・`InputAssist`の項目）。
+    *   2章：`path`（作られるのは(6)・`corners`の記述・新しい項「頂点の追加・削除」に2つの表の要約）、`deleteShapes`の記述（点の削除で図形ごと消えるとき`PathVertexEditor`が呼ぶ）。
+    *   3章：3.（`deleteSelection()`は変えないこと・新しい項「ダブルクリックと頂点の削除の入口」・`Delete`/`Backspace`の実体・削除ボタンの照会）、6.（点の追加・削除の記録の項と、`deleteShapes`の記述）、18.（`Delete`の記述・発注者の決定(4)(8)をPhase 12-01で変えた旨と日付・やらないこと・モジュールの分担）、22.・24.（古い「やらない」「`deleteSelection()`」の記述）、28.の`deleteShapes`と同じ扱いの記述、新しい節29.（流れ・正本・モジュールの分担・発注者の決定・計画で決めたこと・「曲線に」との関係・確認の状況）。
+    *   4章の一覧に`VertexEditRules.js` → `_doc/arch/66_VertexEditRules.md`の行を追加（ファイル本体はタスク9）。
+    *   `node --test`全体で3801件すべて合格（変更なし）。
+    *   3章19.〜21.等の過去のPhaseの「やらないこと」（頂点の追加・削除を含む。微調整・位置の数値入力・整列の各Phaseの範囲の記述）は、そのPhaseの記録のため直していない。
+    *   懸念事項へ追記：「資料の決定の変更」は、18.の発注者の決定(4)(8)の各項と新しい節29.の発注者の決定の両方に日付（2026-11-26）つきで残した。
 
 ### タスク9: 開発資料の反映（`_doc/arch/`）
 *   **作業内容** :
