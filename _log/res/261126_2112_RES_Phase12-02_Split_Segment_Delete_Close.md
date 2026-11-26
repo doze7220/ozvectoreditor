@@ -202,7 +202,7 @@
         *   `PathSegmentKindRules.js`：`import { selectedSegmentIndexesOf } from './PathVertexRules.js';`を足し、`collectSwitchEntries`の区間の判定（`data.type === 'curve'`の分岐と`for`の分岐）を`const segmentIndexes = selectedSegmentIndexesOf(data, [...selected]);`に置き換える。`dataOf`（矩形・円・弧を対象外にする）・番号の受け付け・エントリの順は変えない。JSDoc（`collectSwitchEntries`の「切り替える区間の決め方の唯一の箇所」）を「両端の点が選ばれている区間の判定は`PathVertexRules.selectedSegmentIndexesOf`に任せる。区間の切り替えの対象（パス・直線・今の曲線。矩形は含まない）の絞り込みはここ」の趣旨に直す。
         *   テスト（`PathVertexRules.select.test.js`）：`outlineVertexIndexOf`（直線・矩形・パスは同じ番号、今の曲線0→0・1→`null`・2→1、円・弧・範囲外・整数でない値は`null`）。`selectedSegmentIndexesOf`（開いたパスの隣り合う2点・3点続き・始点と終点だけは区間なし（折り返さない）、閉じたパスの最後の点と始点＝最後の区間、矩形の隣り合う角・対角だけは空・4つの角で4区間、直線の両端、今の曲線の始点と終点＝区間0・制御点は関係しない、円・弧は空、同じ点の重複、引数を書き換えない）。「曲線に」「直線に」が変わらないこと：`resolveSegmentSwitchAvailability`・`planSegmentKindSwitch`を、今の曲線の始点と終点・閉じたパスの終点→始点の区間・開いたパスの始点と終点だけ・矩形の隣り合う角（押せない・空のまま）に当てた結果がリテラルで書いた今の値のままであること。`PathSegmentKindRules`・`PathCornerEditor`・`PathVertexRules`の既存のテストが変更なしで全件合格すること。
 
-*   [ ] タスク3: 分割の規則（ピースの組み立て）
+*   [x] タスク3: 分割の規則（ピースの組み立て）
     *   **対象ファイル** :
         *   `./js/shapes/PathSplitRules.js` :（新規）
         *   `./test/shapes/PathSplitRules.split.test.js` :（新規）
@@ -289,7 +289,9 @@
 
 ### タスク3: 分割の規則（ピースの組み立て）
 *   **作業内容** :
-    *   (未記入)
+    *   `js/shapes/PathSplitRules.js`を新規作成（先頭の責務3行以内）。typedef`SplitTarget`・`SplitPlanItem`・非公開の`SplitEntry`・`Piece`、非公開`collectEntries`・`cutPointsOf`（開いた線の端は`endpointVertexIndexOf`と図形の番号で比べる）・`buildPieces(source, cutPoints, removedSegments)`（消える区間も扱う一般形。このタスクでは空の`Set`を渡す）・`orderPieces`・`pieceToPath`、export`planSplitAtVertices(targets)`。importは`Path`・`readCornerFlags`・`outlineSourceOf`・`outlineVertexIndexOf`・`endpointVertexIndexOf`（`selectedSegmentIndexesOf`・`SplitAvailability`・`resolveSplitAvailability`・`planSegmentDeletion`はタスク4）。
+    *   `test/shapes/PathSplitRules.split.test.js`を新規作成（20件。表Aの行：切れない図形・開いたパス・閉じたパス・矩形・複数の図形・引数を書き換えない）。
+    *   `node --test`：3842件すべて合格（既存のテストは変更なし）。新規ファイルの行末はLF。
 
 ### タスク4: 区間の削除の規則と押せるかの判定
 *   **作業内容** :
