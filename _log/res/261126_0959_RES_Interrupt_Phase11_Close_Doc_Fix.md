@@ -247,7 +247,7 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
         *   **No.29**（`61` 8行「読むもの：…だけ」）：図形のアイテムの `item.shape` を足す。
         *   原則10（各ファイルの中の同じ誤り）を確かめる。0-4 を行う（`index.html` は読むだけで変えない）。
 
-*   [ ] タスク14: `PROJECT_ARCHITECTURE.md` 3章28.（No.24〜27・30〜32、A10・A11・A12）
+*   [x] タスク14: `PROJECT_ARCHITECTURE.md` 3章28.（No.24〜27・30〜32、A10・A11・A12）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :更新（3章28.のみ）
     *   **作業内容** :
@@ -440,7 +440,18 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
 
 ### タスク14: `PROJECT_ARCHITECTURE.md` 3章28.（No.24〜27・30〜32、A10・A11・A12）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   **No.24**（(k)）：「中の図形がすべて選ばれているもの（空のフォルダを除く）だけ」→「…ものと、中が空のフォルダだけ（空のフォルダは図形の選択が空でも選べる）」。
+    *   **No.25・A10（918行）**：「一覧が`wiring/`の…同期の予約だけ」→「`wiring/ItemListWiring`の…同期の予約の5つ（行のドラッグの控え・座標は`wiring/ItemListRowDrag`が別に持つ。どれも保存しない・履歴に入れない）」。同じ行の「変えていない」へ「Phase 11-02の時点では」を付記。
+    *   **No.26**：`Shift`の起点は「ふつうのクリック・`Ctrl`＋クリック・行のドラッグの押下で選ぶ`selectRow`でだけ変わり（…）、キャンバスの切り替えで`null`になる」（`ItemListWiring.js`の`selectRow`・`canvasLibrary.onChange`で確認）。
+    *   **No.27**：「（Phase 11-02の時点では`KeyboardShortcuts`・`FocusKeyYieldRules`は変えていない）」。
+    *   **A10（930行）**：「Phase 11-03の時点では、`KeyboardShortcuts`の対応表・判定の関数・`DragTracker`・`InputTracker`のコードは変えていない」。
+    *   **No.30・A11（929行）**：`canStartRowDrag`の条件へ「押したのが目・鍵のアイコンの上でない（`isOnStateIcon`。Phase 11-05）」を追加。「**フォルダがあっても始まる**（Phase 11-04aの引数`hasGroups`は消した）」と括弧を直し、全体の閉じ括弧を補った。
+    *   **No.31**：新しい図形の列挙から複製・`Alt`+ドラッグを外し、貼り付け（描き込む先が自分のコピーのフォルダの中ならそのフォルダのすぐ上＝`resolvePastePlace`）と、複製・`Alt`+ドラッグ（描き込む先を使わず、選んでいるまとまりの一番上のもののすぐ上＝`resolveDuplicatePlace`。`ClipboardController.js`の複製・`duplicateInPlaceWithinEdit`とも`resolveDuplicatePlace`）を書き分けた。
+    *   **No.32**：`ItemRow`のキーに`visible, locked, hiddenByAncestor, lockedByAncestor, hidden`（末尾の5つはPhase 11-05）を足し、`resolveRowViews`の`RowView`のキーへ同じ5つを足した（`ItemRowRules.js`で確認）。
+    *   **A11（935行）**：フォルダの行の構成へ「末尾の`.item-row-states`（目・鍵のアイコン。Phase 11-05。図形の行と同じ）」を追加。
+    *   **A12**：確認の状況（Phase 11-03）の`ItemTreeRules.insertItemsAbove`・`ShapeOrderEditor.applyOrder`へ「（Phase 11-04bで消えた）」を付記（`js/`に両方とも無いことを確認）。
+    *   **原則10**：同じ章28.内の同種の誤りは見つからず（1章の「Phase 11-03で入ったもの」の「描く・貼り付け・複製・`Alt`+ドラッグ・インポートの入る位置」は当時の記録として残した）。他の章の`insertItemsAbove`・`applyOrder`の言及は担当外のため直していない。
+    *   検証：`PROJECT_ARCHITECTURE.md`=LF1021/CR1021（CRLF保持）。
 
 ### タスク15: `_doc/arch/07_KeyboardShortcuts.md`・`14_edit.md`・`46_ItemTreeRules.md`（No.6・19・20・65、A14）
 *   **作業内容** :
@@ -465,3 +476,4 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
 * （計画時点）No.44・57（`16_test.md` 10行の例外の数）は、数え方によって数が大きく変わる（`test/edit/` で `VectorModel` を import するのは計画時点で42ファイル）。数え方の選択と、`test/core/SelectionRules.test.js` を例外に含めるかはタスク9で決め、4章に根拠を書く。
 * （実装統括AI）行末：`core.autocrlf=true` のため、リポジトリ（index・HEAD）はすべて LF で、作業ツリーが CRLF／LF に分かれる。`git show HEAD:…` で測った値は作業前の作業ツリーの値ではない。タスク4・5 で表では CRLF の4ファイル（`js/shapes/EndpointSnapRules.js`・`PathJoinRules.js`・`test/core/ItemPlaceRules.test.js`・`test/edit/ShapeInserter.insertTarget.test.js`）の作業ツリーが LF に変わっていたため、実装統括AIが CRLF に戻した（コミットの中身は LF のままで、差分は出ない）。0-3 の表は正しい。作業ツリーの行末は `git ls-files --eol` の `w/` 欄で確かめられる。
 * （タスク13）No.28の式のサムネイル幅28は旧記述の値を引き継いだ。`ItemListPanel.js`のcanvas寸法で目視確認を推奨。名前の幅50px・42pxは計算値で、テストプレイでの実測は未実施。
+* （タスク14）原則10の他の章：3章7.・14.・1章（行32885・39332付近）にも`insertItemsAbove`・`ShapeOrderEditor.applyOrder`の言及があるが、消えたことが書かれているかは未確認（担当外）。→（実装統括AI）`PROJECT_ARCHITECTURE.md`の`insertItemsAbove`・`applyOrder`の言及（1章57・117・306・309・313行、3章14. 656行、28. 942行）をgrepで確かめ、すべて消えた・置き換えたことが書かれていた。直すものは無い。
