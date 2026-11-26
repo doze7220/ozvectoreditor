@@ -200,7 +200,7 @@ function arcChainSourceOf(data) {
  * 結合できる線の端点の座標を返す（端点の読み方の唯一の箇所。外から読む入口）。
  * `chainSourceOf`で読み替えた頂点の並びの先頭（`'start'`）・末尾（`'end'`）。直線・パスは`points`の先頭・末尾、今の曲線は始点・終点、
  * 弧は始点`P(π)`・終点`P(2π)`（今の約束の位置では左端・右端。弧の`points`の先頭の中心・末尾の終了角の制御点ではない）。結合できる線の`toJSON()`の値を渡す。
- * 使う側は`PathJoinRules`の中（`buildJoinedPath`・`buildJoinedPathAt`・`buildExtendedPath`）と`EndpointSnapRules`（`findNearestEndpoint`）。引数を書き換えない。
+ * 使う側は`PathJoinRules`の中（`buildJoinedPath`・`buildJoinedPathAt`・`buildExtendedPath`）と`EndpointSnapRules`（`findNearestEndpoint`）・`VertexSnapRules`（`snapVerticesOf`。弧の両端）。引数を書き換えない。
  * @param {Object} data 結合できる線の`toJSON()`の値
  * @param {'start'|'end'} end 'start'＝始点／'end'＝終点
  * @returns {{x: number, y: number}} 端点の座標（新しいオブジェクト）

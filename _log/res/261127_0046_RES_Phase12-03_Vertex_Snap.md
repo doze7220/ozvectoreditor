@@ -155,7 +155,7 @@
         *   『要件1』の`EndpointSnapRules.js`のとおり、`snapDistance(a, b)`・`findNearestSnapPoint(shapes, point, tolerance, pointsOf)`をJSDoc付きでexportし（唯一の箇所である旨と使う側＝このファイルと`VertexSnapRules`を書く）、非公開`findNearestEndpoint`の本体と`findDrawnLineSnapTarget`の始点の距離をそれらの呼び出しに書き換える。`findNearestEndpoint`のJSDoc（走査を`findNearestSnapPoint`に任せる）を直す。ファイル先頭の責務を3行以内のまま直す。ほかの関数・定数・typedefは変えない。
         *   テスト（`EndpointSnapRules.scan.test.js`）：`snapDistance`（値・引数の順を入れ替えても同じ・負の座標）。`findNearestSnapPoint`：図形が無い・候補が無い（`pointsOf`が空）は`shape`・`candidate`が`null`で`distance`が`Infinity`、許容距離ちょうどは選ぶ・わずかに外は選ばない、いちばん近い候補、同じ距離なら前面（配列で後ろ）の図形、同じ図形の中で同じ距離なら`pointsOf`の並びの前の方、`candidate`は`pointsOf`が返したオブジェクトそのもの（ほかのキーも保つ）・`shape`は図形そのもの、引数を書き換えない。既存の`test/shapes/EndpointSnapRules.test.js`が変更なしで全件合格すること（`findSnapTarget`・`findDrawnLineSnapTarget`の結果が変わらないことの確認）。
 
-*   [ ] タスク2: 吸い付くだけの規則
+*   [x] タスク2: 吸い付くだけの規則
     *   **対象ファイル** :
         *   `./js/shapes/VertexSnapRules.js` :（新規。行末はLF）
         *   `./test/shapes/VertexSnapRules.test.js` :（新規。行末はLF）
@@ -234,7 +234,11 @@
 
 ### タスク2: 吸い付くだけの規則
 *   **作業内容** :
-    *   （未記入）
+    *   `js/shapes/VertexSnapRules.js`（新規・LF）：`VERTEX_SNAP_KIND`・typedef`VertexSnap`・`isVertexSnap`・`snapVerticesOf`・`findVertexSnapTarget`・`chooseSnapTarget`・`isVertexSnapDrawStartShapeType`・`isVertexSnapDrawEndShapeType`をJSDoc付きで作成（計画どおり）。
+    *   `js/shapes/PathJoinRules.js`（CRLF保持）：`lineEndpointOf`のJSDocの使う側に`VertexSnapRules`を追記（コメントのみ）。`js/shapes/PathVertexRules.js`（LF保持）：ファイル先頭の責務の共有先に`VertexSnapRules`を追記（3行のまま。コメントのみ）。
+    *   `test/shapes/VertexSnapRules.test.js`（新規・LF）：37件。回した矩形・弧は`createTransformed`で作った。
+    *   `node --test`は3959件全件合格（既存テストの値は変更なし）。
+    *   修正（diff監査の指摘）：曲線の制御点`points[1]`・弧の頂上`points[2]`に吸い付かないことを無条件で検証するよう直した（以前は分岐で検証が飛んでいた）。候補に曲線・弧の`points`全部を足す一時変更で2件とも落ちることを確認し、元に戻した。
 
 ### タスク3: 照会の手順と、吸い付くだけを結合として扱わない関門
 *   **作業内容** :
