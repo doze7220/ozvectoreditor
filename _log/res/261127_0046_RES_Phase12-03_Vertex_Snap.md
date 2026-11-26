@@ -147,7 +147,7 @@
 ## 3. タスクリスト
 ※ 全タスク共通：(a) コード修正の後、JSDocの記載漏れ（新しいファイルの先頭の3行以内の責務、関数・メソッド・引数・戻り値・typedef、意味が変わった既存のJSDoc・ファイル先頭の責務・importの記述・「`model`は…だけを使う」の記述）が無いことを確認する。(b) リポジトリのルートで`node --test`が全件合格することを確認する（既存のテストファイルの値は変えない。値を変えざるを得ないテストが出たら中断して質問する）。(c) 本RESの「4. 詳細作業内容」の担当の欄を書き、タスクを`[x]`にする。(d) 開発資料に影響が出たら資料本体は直さず『開発資料の更新予定』欄へ追記する。(e) 行末：既存のファイルは書き換える前に行末（CRLF／LF）を実測して保つ。計画時の実測（CR数/LF数）は次のとおり。**CRLF**＝`js/shapes/EndpointSnapRules.js`(162/162)・`js/shapes/PathJoinRules.js`(778/778)・`js/core/InputTracker.js`(2112/2112)・`js/main.js`(1296/1296)・`PROJECT_ARCHITECTURE.md`(1072/1072)・`_doc/arch/`の`02_main.md`(94/94)・`03_VectorModel.md`(29/29)・`04_CanvasManager.md`(8/8)・`06_InputTracker.md`(65/65)・`08_HistoryManager.md`(15/15)・`12_shapes.md`(113/113)・`14_edit.md`(166/166)・`16_test.md`(328/328)・`67_VertexTargetRules.md`(8/8)。**LF**＝`js/shapes/PathVertexRules.js`(0/512)・`js/edit/EndpointSnapper.js`(0/401)・`js/core/VectorModel.js`(0/1462)・`js/core/CanvasManager.js`(0/532)・`_doc/arch/30_UnitSnapRules.md`(0/14)・`_doc/arch/38_VertexHandleRules.md`(0/12)。変更しないが合格を確かめる既存のテストは、`test/shapes/EndpointSnapRules.test.js`が**混在**(542/621)、`test/core/VectorModel.snapPoint.test.js`がLF(0/102)、`test/edit/EndpointSnapper.test.js`がCRLF(1207/1207)。混在のファイルを書き換える場合（今の計画では書き換えない）は、ファイル全体を一方へそろえず、既存の行は行ごとの今の行末を保ち、足す行は周りの行（直前の行。無ければ直後の行）の行末に合わせる。**新規のファイル**は同じフォルダが混在しているため（`js/shapes/` LF8・CRLF5、`js/core/` LF35・CRLF19、`test/shapes/` LF9・CRLF6・混在2、`test/edit/` LF29・CRLF24・混在1、`test/core/` LF42・CRLF21・混在1）ファイルごとに次のとおりにする：LF＝`js/shapes/VertexSnapRules.js`・`js/core/VertexDragRules.js`・`test/shapes/EndpointSnapRules.scan.test.js`・`test/shapes/VertexSnapRules.test.js`・`test/edit/EndpointSnapper.vertexSnap.test.js`・`test/edit/EndpointSnapper.vertexSnap.flow.test.js`・`test/core/VertexDragRules.test.js`・`test/core/VectorModel.snapPointVertex.test.js`（各フォルダで多い方）、CRLF＝`_doc/arch/68_VertexDragRules.md`（書き方を合わせる`67_VertexTargetRules.md`と同じ）。各タスクの対象ファイル欄にも行末を書いた。(f) 対象ファイル以外は変更しない。
 
-*   [ ] タスク1: 吸い付く先の点の走査と距離を1か所に出す（結果は変えない）
+*   [x] タスク1: 吸い付く先の点の走査と距離を1か所に出す（結果は変えない）
     *   **対象ファイル** :
         *   `./js/shapes/EndpointSnapRules.js` :（更新。行末はCRLF）
         *   `./test/shapes/EndpointSnapRules.scan.test.js` :（新規。行末はLF）
@@ -228,7 +228,9 @@
 
 ### タスク1: 吸い付く先の点の走査と距離を1か所に出す（結果は変えない）
 *   **作業内容** :
-    *   （未記入）
+    *   `js/shapes/EndpointSnapRules.js`（CRLFを保持）：`snapDistance(a, b)`・`findNearestSnapPoint(shapes, point, tolerance, pointsOf)`をJSDoc付きでexport。非公開`findNearestEndpoint`を`findNearestSnapPoint`の呼び出しに書き換え（名前・引数・戻り値・走査順・同距離の扱いは不変）、`findDrawnLineSnapTarget`の始点の距離を`snapDistance`に置き換え。ファイル先頭の責務に走査と距離の共有を追記（コメント行数は従来の枠のまま）。
+    *   `test/shapes/EndpointSnapRules.scan.test.js`（新規・LF）：計画どおりの欄を追加。
+    *   `node --test`は3922件全件合格（既存テストの値は変更なし）。
 
 ### タスク2: 吸い付くだけの規則
 *   **作業内容** :

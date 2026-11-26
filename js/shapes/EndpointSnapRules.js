@@ -1,6 +1,7 @@
 /**
  * 責務: 端点への吸い付きの規則（吸い付く対象の端点・候補の選び方・吸い付く距離・描く図形種別と端点のハンドルの判定、
- * 線を引いている途中の吸い付き＝描き始めの端点を除く端点と作成途中の線の始点）を、状態を持たない関数と定数として提供する。表示倍率・モデルを知らない。
+ * 線を引いている途中の吸い付き＝描き始めの端点を除く端点と作成途中の線の始点、吸い付く先の点の走査と距離の測り方＝吸い付くだけの規則`VertexSnapRules`と共有）を、
+ * 状態を持たない関数と定数として提供する。表示倍率・モデルを知らない。
  */
 import { isJoinableLine, canCloseByMergingEnds, canCloseDrawnLine, lineEndpointOf, endpointVertexIndexOf } from './PathJoinRules.js';
 
@@ -88,9 +89,49 @@ export function findSnapTarget(shapes, point, tolerance, dragged = null) {
 }
 
 /**
- * 結合できる線の端点のうち、`point`にいちばん近い端点を選ぶ走査。`findSnapTarget`と`findDrawnLineSnapTarget`が共有する（候補の選び方の唯一の箇所）。
- * 図形を`shapes`の末尾（前面）から先頭へ、各図形は始点→終点の順に調べ、距離が`tolerance`以下で、かつ厳密に小さいときだけ更新する。
- * `isExcluded`が真を返す端点は対象にしない。端点は`lineEndpointOf`で読む。引数を書き換えない。
+ * 吸い付きの距離の測り方（2点間の距離）の唯一の箇所。使う側はこのファイルの走査と`VertexSnapRules`。
+ * 差の符号によらず同じ値になる。引数を書き換えない。
+ * @param {{x: number, y: number}} a 点（ワールド座標）
+ * @param {{x: number, y: number}} b 点（ワールド座標）
+ * @returns {number} 2点間の距離
+ */
+export function snapDistance(a, b) {
+    return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+/**
+ * 吸い付く先の点の走査の唯一の箇所。使う側はこのファイルの`findNearestEndpoint`と`VertexSnapRules`。
+ * 図形を`shapes`の末尾（前面）から先頭へ、各図形は`pointsOf(shape)`が返す配列の並びの順に調べ、
+ * `snapDistance(候補, point)`が`tolerance`以下（ちょうどを含む）で、かつそれまでの最小より厳密に小さいときだけ更新する
+ * （いちばん近い点／同距離なら前面の図形／同じ図形の中で同距離なら並びの前の方）。引数を書き換えない。
+ * @param {Array<Object>} shapes 図形の配列（奥が先）
+ * @param {{x: number, y: number}} point 照会する点（ワールド座標）
+ * @param {number} tolerance ワールド座標の許容距離
+ * @param {function(Object): Array<{x: number, y: number}>} pointsOf 図形から吸い付く先の候補（`{ x, y, ...}`）の配列を返す関数
+ * @returns {{shape: Object|null, candidate: Object|null, distance: number}} 選んだ図形・候補（`pointsOf`が返したオブジェクトそのもの）・距離。無ければ`shape`・`candidate`はnullで`distance`は`Infinity`
+ */
+export function findNearestSnapPoint(shapes, point, tolerance, pointsOf) {
+    let bestShape = null;
+    let bestCandidate = null;
+    let bestDist = Infinity;
+    for (let i = shapes.length - 1; i >= 0; i--) {
+        const shape = shapes[i];
+        for (const candidate of pointsOf(shape)) {
+            const d = snapDistance(candidate, point);
+            if (d <= tolerance && d < bestDist) {
+                bestShape = shape;
+                bestCandidate = candidate;
+                bestDist = d;
+            }
+        }
+    }
+    return { shape: bestShape, candidate: bestCandidate, distance: bestDist };
+}
+
+/**
+ * 結合できる線の端点のうち、`point`にいちばん近い端点を選ぶ。`findSnapTarget`と`findDrawnLineSnapTarget`が共有する（候補の選び方の唯一の箇所）。
+ * 走査は`findNearestSnapPoint`に任せる。各図形は結合できる線のときだけ`toJSON()`を1回読み、始点→終点の順に`isExcluded`が偽の端点を候補にする
+ * （結合できる線でなければ候補なし）。端点は`lineEndpointOf`で読む。引数を書き換えない。
  * @param {Array<Object>} shapes 図形の配列（奥が先）
  * @param {{x: number, y: number}} point 照会する点（ワールド座標）
  * @param {number} tolerance ワールド座標の許容距離
@@ -98,26 +139,20 @@ export function findSnapTarget(shapes, point, tolerance, dragged = null) {
  * @returns {{target: SnapTarget|null, distance: number}} 選んだ端点とその距離。無ければ`target`はnullで`distance`は`Infinity`
  */
 function findNearestEndpoint(shapes, point, tolerance, isExcluded) {
-    let best = null;
-    let bestDist = Infinity;
-    for (let i = shapes.length - 1; i >= 0; i--) {
-        const shape = shapes[i];
-        if (!isJoinableLine(shape)) continue;
+    const found = findNearestSnapPoint(shapes, point, tolerance, (shape) => {
+        if (!isJoinableLine(shape)) return [];
         const data = shape.toJSON();
-        const ends = [
-            { end: 'start', p: lineEndpointOf(data, 'start') },
-            { end: 'end', p: lineEndpointOf(data, 'end') }
-        ];
-        for (const { end, p } of ends) {
+        const candidates = [];
+        for (const end of ['start', 'end']) {
             if (isExcluded(shape, end)) continue;
-            const d = Math.hypot(p.x - point.x, p.y - point.y);
-            if (d <= tolerance && d < bestDist) {
-                best = { shapeId: shape.id, end, x: p.x, y: p.y };
-                bestDist = d;
-            }
+            const p = lineEndpointOf(data, end);
+            candidates.push({ end, x: p.x, y: p.y });
         }
-    }
-    return { target: best, distance: bestDist };
+        return candidates;
+    });
+    if (found.shape === null) return { target: null, distance: Infinity };
+    const { end, x, y } = found.candidate;
+    return { target: { shapeId: found.shape.id, end, x, y }, distance: found.distance };
 }
 
 /**
@@ -153,7 +188,7 @@ export function findDrawnLineSnapTarget(shapes, drawn, point, tolerance, startSn
         : { target: null, distance: Infinity };
     if (startSnap === null && canCloseDrawnLine(drawn)) {
         const start = drawn.toJSON().points[0];
-        const d = Math.hypot(start.x - point.x, start.y - point.y);
+        const d = snapDistance(start, point);
         if (d <= tolerance && (nearest.target === null || d < nearest.distance)) {
             return { kind: DRAWN_START_SNAP_KIND, x: start.x, y: start.y };
         }
