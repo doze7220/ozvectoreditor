@@ -268,7 +268,7 @@ function reverseChain(chain) {
 /**
  * 選択中の図形から結合の種類を判定する。ボタンの押せる/押せないの同期からも呼ばれる（表示倍率は見ない）。
  * 負荷回避のため、図形の数 → `isJoinableLine`（`type`を先に見て、パスのときだけ`toJSON()`を呼ぶ）の順に判定し、`toJSON()`を呼ぶ回数を抑える（パス1本のときは`isJoinableLine`と判定本体で複数回呼ぶ）。
- * @param {Array<Object>} shapes 選択集合の図形を重なり順（`model.getShapes()`の並び。奥が先）で並べた配列
+ * @param {Array<Object>} shapes 選択中で変えられる図形を重なり順（`model.getEditableSelectedShapes()`の並び。奥が先）で並べた配列
  * @returns {'close'|'join'|null} 'close'＝頂点3つ以上の開いたパス1本（区間の種類によらない。今の曲線・弧1本は閉じない）を閉じる／'join'＝結合できる線2本（今の曲線・弧を含む）／それ以外はnull
  */
 export function classifyJoin(shapes) {

@@ -74,7 +74,7 @@ export function resolveEndpointHandle(shape, handleName) {
  * `dragged`を渡したとき、`dragged.shapeId`の図形では`dragged.end`の端点を対象にせず、もう一方の端点は
  * `canCloseByMergingEnds`が真（頂点4つ以上の開いたパス）のときだけ対象にする。他の図形は通常どおり。
  * 引数を書き換えない。
- * @param {Array<Object>} shapes 図形の配列（`model.getShapes()`の並び。奥が先）
+ * @param {Array<Object>} shapes 図形の配列（`model.getEditableShapes()`の並び（変えられる図形だけ）。奥が先）
  * @param {{x: number, y: number}} point 照会する点（ワールド座標）
  * @param {number} tolerance ワールド座標の許容距離（長さ。表示倍率の換算は呼び出し側）
  * @param {{shapeId: *, end: 'start'|'end'}|null} [dragged=null] ドラッグしている端点（ハンドルのドラッグのときだけ渡す）
@@ -138,7 +138,7 @@ export function isDrawnStartSnap(snap) {
  * 2. 始点：`startSnap`が`null`で`canCloseDrawnLine(drawn)`（打った点が3つ以上）のときだけ、`drawn`の始点（`toJSON().points[0]`）を候補にする。
  *    距離が`tolerance`以下で、かつ1.の結果が無いか1.の距離より厳密に小さいときだけ選ぶ（同距離なら端点が残る）。
  * 結果の`DrawnStartSnap`は`PathJoinRules`の計画へ渡してはならない（`isDrawnStartSnap`で先に区別する）。引数を書き換えない。
- * @param {Array<Object>} shapes 図形の配列（`model.getShapes()`の並び。奥が先。作成途中の図形は含まない）
+ * @param {Array<Object>} shapes 図形の配列（`model.getEditableShapes()`の並び（変えられる図形だけ）。奥が先。作成途中の図形は含まない）
  * @param {Object} drawn 作成途中の線
  * @param {{x: number, y: number}} point 照会する点（ワールド座標）
  * @param {number} tolerance ワールド座標の許容距離（長さ）

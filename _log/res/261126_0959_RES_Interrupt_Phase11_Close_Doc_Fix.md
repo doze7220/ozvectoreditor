@@ -124,7 +124,7 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
         *   **C12**（`ItemListPanel.js` 536行、`startNameEdit` の `@param id` の「図形のid」）：図形またはフォルダのidに直す（同ファイルの他の `@param id` の言い方にそろえる）。
         *   0-4 を行う（`node --check` 3ファイル、行末＝LF）。
 
-*   [ ] タスク4: `js/shapes` のJSDoc（C13・C14）
+*   [x] タスク4: `js/shapes` のJSDoc（C13・C14）
     *   **対象ファイル** :
         *   `./js/shapes/EndpointSnapRules.js` :更新（JSDocのみ）
         *   `./js/shapes/PathJoinRules.js` :更新（JSDocのみ）
@@ -334,7 +334,10 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
 
 ### タスク4: `js/shapes` のJSDoc（C13・C14）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   **C13**（`EndpointSnapRules.js` 77・141行）：「`model.getShapes()`の並び。奥が先」→「`model.getEditableShapes()`の並び（変えられる図形だけ）。奥が先」（141行は「作成途中の図形は含まない」を保持）。根拠：`EndpointSnapper` は `findSnapTarget` 等へ `model.getEditableShapes()` を渡す。
+    *   **C14**（`PathJoinRules.js` 271行 `classifyJoin` の `@param shapes`）：「選択集合の図形を重なり順（`model.getShapes()`の並び。奥が先）」→「選択中で変えられる図形を重なり順（`model.getEditableSelectedShapes()`の並び。奥が先）」。根拠：`PathJoiner.#selectedShapesInOrder` が `model.getEditableSelectedShapes()` を返し `classifyJoin`・`planJoin` へ渡す。
+    *   検証：`node --check` 2ファイル通過。`shapes/` へ import は足していない。行数不変（EndpointSnapRules 162・PathJoinRules 779）。行末は2ファイルとも LF のみ（CR＝0。0-3 の表の「CRLF」は実態と異なり、作業前から git の HEAD も LF。変えていない）。
+    *   原則10：同ファイル内に同じ誤りは見当たらず。
 
 ### タスク5: テストの題と不要な1行（C16・C17・C19）
 *   **作業内容** :
@@ -397,3 +400,4 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
   * タスク14＝No.24・25・26・27・30・31・32、A10・A11・A12／タスク15＝No.6・19・20・65、A14／タスク16＝No.33・34・35・52・53
 * （計画時点）順序の依存：A3（タスク6）は C13・C14（タスク4）の後、`06_InputTracker.md` 44行（タスク11）は C1（タスク1）の後、`PROJECT_ARCHITECTURE.md` 2章の No.8（タスク8）は `15_io.md` 37行（タスク7）の後、C18（タスク9）は C16・C17（タスク5）の後になるよう並べた。同じファイルを触るタスクは並べていない。
 * （計画時点）No.44・57（`16_test.md` 10行の例外の数）は、数え方によって数が大きく変わる（`test/edit/` で `VectorModel` を import するのは計画時点で42ファイル）。数え方の選択と、`test/core/SelectionRules.test.js` を例外に含めるかはタスク9で決め、4章に根拠を書く。
+* （タスク4）0-3 の表で `js/shapes/EndpointSnapRules.js`・`PathJoinRules.js` を CRLF としたが、実測は LF のみ（CR＝0。git の HEAD も LF）。行末は変えていない。他の「CRLF」とした js ファイルも実測と異なる可能性があるため、各タスクは作業前の実測値を基準にすること。
