@@ -211,7 +211,7 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
         *   **A8**（16. 696行付近・17. 711行付近の版の値）：原則3（当時の値と分かるように）。文言で箇所を特定する。
         *   原則10（3章3.〜17.の中の同じ誤り）を確かめる。0-4 を行う。
 
-*   [ ] タスク11: `_doc/arch/02_main.md`・`06_InputTracker.md`・`08_HistoryManager.md`（No.16・43・62・63・17、`06` 44行）
+*   [x] タスク11: `_doc/arch/02_main.md`・`06_InputTracker.md`・`08_HistoryManager.md`（No.16・43・62・63・17、`06` 44行）
     *   **対象ファイル** :
         *   `./_doc/arch/02_main.md` :更新
         *   `./_doc/arch/06_InputTracker.md` :更新
@@ -411,7 +411,13 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
 
 ### タスク11: `_doc/arch/02_main.md`・`06_InputTracker.md`・`08_HistoryManager.md`（No.16・43・62・63・17、`06` 44行）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   **No.43**（`02` 3行）：「`// 7.8.`（重なり順のまとまり。約40行）」→「`// 7.8.`（重なり順（キー）配線。`ShapeOrderEditor`・`GroupEditor`の生成と`performShapeOrder`。約24行）」（`main.js`の718〜741行で確認）。
+    *   **No.62**（`02` 41行）・**No.63**（`06` 45行）：「選んでいる図形全体の線を含まない外枠の照会」→「選択中で変えられる図形全体の線を含まない外枠の照会」。
+    *   **No.16**（`02` 87行）：「`ItemRenameEditor`と`ItemListWiring`の生成と注入のみ」→「`ItemRenameEditor`・`ItemStateEditor`・`ItemListWiring`の生成と注入のみ」。
+    *   **`06` 44行**：「`InputTracker.js`のJSDocの…古い言葉のまま…」の断りを消した（`js/`にその古い言葉は残っておらずC1で直っている）。
+    *   **No.17**（`08` 12行）：「`InputTracker`（作成・切り取り・ドラッグ。削除の記録は…`GroupEditor`が挟む）」→「`InputTracker`（作成・ドラッグ。切り取り・削除の記録は、Phase 11-04aから`ClipboardController.cut`／`InputTracker.deleteSelection()`の先の`GroupEditor.removeSelection()`が挟み、`InputTracker`は記録先を呼ばない）」。
+    *   **原則10**：3ファイル内に同じ誤りは他に無い（「選んでいる図形全体」の残りなし）。
+    *   検証：`02` LF＝CR＝89、`06` 58、`08` 15（CRLF保持）。
 
 ### タスク12: `PROJECT_ARCHITECTURE.md` 3章18.〜27.（No.15/38、A8（760・773・790・896行）、A9）
 *   **作業内容** :
