@@ -263,7 +263,7 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
         *   **No.24**（945行付近「Phase 11-04bのふるまいの注意」(k)「…（空のフォルダを除く）だけ」）：空のフォルダも選べる実態（`core/GroupSelectionRules.js` の不変条件、`test/core/VectorModel.groupSelection.test.js` の「空のフォルダは図形の選択が空でも選べる」）がはっきり読める文にする。
         *   原則10（3章28.の中の同じ誤り）を確かめる。0-4 を行う。
 
-*   [ ] タスク15: `_doc/arch/07_KeyboardShortcuts.md`・`14_edit.md`・`46_ItemTreeRules.md`（No.6・19・20・65、A14）
+*   [x] タスク15: `_doc/arch/07_KeyboardShortcuts.md`・`14_edit.md`・`46_ItemTreeRules.md`（No.6・19・20・65、A14）
     *   **対象ファイル** :
         *   `./_doc/arch/07_KeyboardShortcuts.md` :更新
         *   `./_doc/arch/14_edit.md` :更新
@@ -455,7 +455,14 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
 
 ### タスク15: `_doc/arch/07_KeyboardShortcuts.md`・`14_edit.md`・`46_ItemTreeRules.md`（No.6・19・20・65、A14）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   **No.19**（`07` 3行）：`ShiftRule.REQUIRED`の列挙へ「`Ctrl`+`Shift`+`G`（`ungroup`。Phase 11-04a）」を足した（`07`の13行に`ungroup`のエントリがあることと合う）。
+    *   **No.65**（`14` ShapeAlignRules.js）：「選んでいる図形の整列・分布の規則」→「選んでいる中の変えられる図形の外枠（渡るのは`ShapeAlignEditor`が求めたもの）の整列・分布の規則」。
+    *   **No.20**（`14` SnapshotAdapter.js）：`restore`＝`replaceAllShapes(result.items, …)`→`replaceAllShapes(items, …)`＋「`items`は`result.items`を折りたたみの復元に通したもの」（詳細は続く行のまま）。
+    *   **A14**（`14`）：「8つ目の例外」→「例外（Phase 11-02の時点で8つ目）」。
+    *   **A14**（`46` 使う側）：`core/ItemPlaceRules`・`core/InsertTargetRules`・`core/ItemStateRules`・`core/ListDragRules`・`core/RemovalRules`（いずれも`ITEM_KIND`）を足した（`js/`の`import`行で確認。`ItemListRules`・`SoloVisibilityRules`は`ItemTreeRules`をimportしていない）。`PROJECT_ARCHITECTURE.md`の`ItemTreeRules.js`の項には「使う側」の列挙が無く、食い違いは無い。
+    *   **No.6**（`46` 置き場所の理由）：「`VectorModel`は`#items`だけを状態にでき」→「`VectorModel`は図形の並びの状態を`#items`だけにでき」。
+    *   **原則10**：3ファイル内に同じ誤りは無い（`14`の`result.items`の他の言及は`restoreCollapsed`の説明など正しいもの）。
+    *   検証：`07`=LF24/CR0、`14`=148/148、`46`=12/0（行末保持）。
 
 ### タスク16: `_doc/arch/16_test.md` 後半（No.33・34・35・52・53、Phase 11-03の項の消えた関数の断り）
 *   **作業内容** :
