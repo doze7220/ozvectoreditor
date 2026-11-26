@@ -100,7 +100,7 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
         *   **C8**（`main.js` 343行の行コメント）：「ここでmodel.deleteShapesを直接呼ばないこと」を、削除の実体（`GroupEditor.removeSelection`）を直接呼ばず `inputTracker.deleteSelection()` を通す、という今の約束に合わせる（同じ行の中で置き換え、行数を変えない）。
         *   0-4 を行う（`node --check` 4ファイル、`wc -l js/main.js js/core/InputTracker.js` が 1234・2023 のまま、行末）。
 
-*   [ ] タスク2: `js/core` モデル・一覧の規則のコメント（C6・C7・C9・C15）
+*   [x] タスク2: `js/core` モデル・一覧の規則のコメント（C6・C7・C9・C15）
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js` :更新（JSDocのみ）
         *   `./js/core/ListSelectionRules.js` :更新（JSDoc・typedefのみ）
@@ -316,7 +316,12 @@ Phase 11 のクローズの整合確認（Survey）で見つかった、開発�
 
 ### タスク2: `js/core` モデル・一覧の規則のコメント（C6・C7・C9・C15）
 *   **作業内容** :
-    *   （タスク実行時に記入）
+    *   **C6**（`VectorModel.js`）：`#nextId` の説明と `#issueId` のJSDocの採番経路の列挙へ `rearrangeItems` を追加。根拠：`rearrangeItems` が新しいフォルダに `#issueId(GROUP_ID_PREFIX)` を呼ぶ（1187行付近）。ほかの `#issueId` 呼び出しは commitDraft・replaceAllShapes・addShapesWithNewIds・replaceShape のみで、列挙に漏れなし。
+    *   **C7**（`VectorModel.js` `rearrangeItems` のJSDoc）：用途の列挙へ「行のドラッグでの移動（フォルダへの出し入れ）」を追加。根拠：`ShapeOrderEditor.moveTo` が `rearrangeItems(nextItems)` を呼ぶ。
+    *   **C9**（`ListSelectionRules.js`）：`ListClickSelection` typedef の `ids`・`anchorId`、`resolveListClickSelection` の `rowIds`・`selectedIds`・`hitId`・`anchorId` の「図形id」を「行のid（図形またはフォルダ）」に直した。`resolveRowClickSelection` が行のid（フォルダ含む）で呼ぶことを確認。`RowClickSelection` の `ids`（図形idのみ）は直していない。
+    *   **C15**（`ItemListRules.js` `resolveRowHover` の `@param id`）：「図形 id」→「行の id（図形またはフォルダ）」。`ItemListWiring.#handleRowHover` が行のidを渡すことを確認。
+    *   検証：`node --check` 3ファイル通過。行末は3ファイルとも LF のみ（CR＝0）を保持。
+    *   原則10：同ファイル内に同じ誤りは見当たらず（`resolveRowHover` の `@param queryExists`「その id の図形が今あるか」は C15 の範囲外のため直していない）。
 
 ### タスク3: `js/wiring`・`js/palette` のコメント（C5・C10・C11・C12）
 *   **作業内容** :

@@ -187,7 +187,7 @@ export class VectorModel {
 
     /**
      * @type {number} 図形id採番用の連番カウンタ（次に#issueId()が発行する連番）。
-     * #issueId()による採番（図形・フォルダ共通。commitDraft・replaceAllShapes・addShapesWithNewIds・replaceShape）で1ずつ増える。
+     * #issueId()による採番（図形・フォルダ共通。commitDraft・replaceAllShapes・addShapesWithNewIds・replaceShape・rearrangeItems）で1ずつ増える。
      * 単調増加し、減らさない。replaceAllShapesでは、保持したidのうち採番形式（`shape-<連番>`・`group-<連番>`。
      * 連番がNumber.isSafeIntegerのもの）の最大連番をnとして max(現在値, n + 1) へ繰り上げる
      * （以後に発行するidが保持idと衝突しないため）。
@@ -1153,7 +1153,7 @@ export class VectorModel {
     }
 
     /**
-     * 入れ子を新しい形へ動かす唯一の公開操作（まとめる・解除・フォルダの削除・フォルダの中での並べ替え・空のフォルダの追加）。以下の順に処理する。
+     * 入れ子を新しい形へ動かす唯一の公開操作（まとめる・解除・フォルダの削除・フォルダの中での並べ替え・空のフォルダの追加・行のドラッグでの移動（フォルダへの出し入れ））。以下の順に処理する。
      * (1)検証：図形のアイテムはすべて今持っている図形インスタンスで重複なし、フォルダは`id`が`null`か`undefined`（新しいフォルダ）か、今あるフォルダのidで重複なし。
      *    外れたら`console.warn`して何も変えず`false`を返す。
      * (2)今と構造（種類・id・並び）が同じ（`GroupTreeRules.isSameTree`）なら、何も変えず通知もせず`false`を返す。
@@ -1255,7 +1255,7 @@ export class VectorModel {
 
     /**
      * 新しいidを1つ発行する（`<接頭辞><連番>`。発行のたびに#nextIdを1増やす。図形とフォルダで同じカウンタを使う）。
-     * 図形idの採番（`shape-<連番>`）・フォルダidの採番（`group-<連番>`）はすべてこのメソッドを経由する（commitDraft・replaceAllShapes・addShapesWithNewIds・replaceShape）。
+     * 図形idの採番（`shape-<連番>`）・フォルダidの採番（`group-<連番>`）はすべてこのメソッドを経由する（commitDraft・replaceAllShapes・addShapesWithNewIds・replaceShape・rearrangeItems）。
      * @param {string} [prefix=ID_PREFIX] idの接頭辞（図形は`shape-`、フォルダは`group-`）
      * @returns {string} 発行したid
      * @private

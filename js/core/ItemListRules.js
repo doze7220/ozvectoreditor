@@ -169,7 +169,7 @@ export const ROW_HOVER_ACTION = Object.freeze({
 /**
  * 行へのカーソルの動きに対する、ホバーの扱いを決める。照会の関数は、表の順にその行まで進んだときだけ呼ぶ。
  * @param {Object} params - 判定の材料
- * @param {?string} params.id - カーソルの下の行の図形 id（行が無ければ null）
+ * @param {?string} params.id - カーソルの下の行の id（図形またはフォルダ。行が無ければ null）
  * @param {?string} params.hoveredRowId - 一覧が出したホバーとして記録している id
  * @param {?string} params.hoveredId - モデルの今のホバーの id
  * @param {boolean} params.isDragging - ドラッグ・パンの最中か

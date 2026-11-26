@@ -7,8 +7,8 @@ import { resolveClickSelection } from './SelectionRules.js';
 /**
  * 一覧のクリックの結果。
  * @typedef {Object} ListClickSelection
- * @property {string[]} ids - 次の選択の図形id（新しい配列）
- * @property {string|null} anchorId - 次の`Shift`の起点の図形id
+ * @property {string[]} ids - 次の選択の行のid（図形またはフォルダ。新しい配列）
+ * @property {string|null} anchorId - 次の`Shift`の起点の行のid
  */
 
 /**
@@ -20,12 +20,12 @@ import { resolveClickSelection } from './SelectionRules.js';
  * - どちらでもない：`[hitId]`、`anchorId`は`hitId`。
  * `hitId`が`rowIds`に無いときは、選択の写しと渡された`anchorId`をそのまま返す（防御）。
  * @param {Object} params
- * @param {string[]} params.rowIds - 行の図形idの並び（上の行から。書き換えない）
- * @param {string[]} params.selectedIds - 今の選択の図形id（書き換えない）
- * @param {string} params.hitId - 押した行の図形id
+ * @param {string[]} params.rowIds - 行のid（図形またはフォルダ）の並び（上の行から。書き換えない）
+ * @param {string[]} params.selectedIds - 今の選択の行のid（書き換えない）
+ * @param {string} params.hitId - 押した行のid
  * @param {boolean} params.additive - `Ctrl`（または`Meta`）が押されているか
  * @param {boolean} params.range - `Shift`が押されているか
- * @param {string|null} params.anchorId - 今の起点の図形id（無ければ`null`）
+ * @param {string|null} params.anchorId - 今の起点の行のid（無ければ`null`）
  * @returns {ListClickSelection} 次の選択と起点
  */
 export function resolveListClickSelection({ rowIds, selectedIds, hitId, additive, range, anchorId }) {
