@@ -216,7 +216,7 @@
         *   ※ 実装AIによる開発資料の書き換えは原則禁止だが、この最終タスクのみ明示的な例外とする。
         *   『開発資料の更新予定』を確認し、1章（構成図・「存在しないもの」・「フォルダ分割の方針」・依存方向の列挙）、2章（`path`の頂点の追加・削除の規則・`deleteShapes`の記述）、3章（3.入力監視・6.履歴・18.頂点の選択の`Delete`の記述と発注者の決定(4)(8)の扱い、新しい節29.）、4章の一覧（`66_VertexEditRules.md`）へ反映する。書く内容は実コードで確かめる。「頂点の選択で`Delete`は何もしない」「頂点の削除は存在しない」という古い記述を残さない。書き換える前に行末を実測して保つ。
 
-*   [ ] タスク9: 開発資料の反映（`_doc/arch/`）
+*   [x] タスク9: 開発資料の反映（`_doc/arch/`）
     *   **対象ファイル** :
         *   `./_doc/arch/`の`02_main.md`・`03_VectorModel.md`・`06_InputTracker.md`・`07_KeyboardShortcuts.md`・`12_shapes.md`・`14_edit.md`・`16_test.md`・`32_InputModes.md`・`41_NudgeTargetRules.md` :（更新）
         *   `./_doc/arch/66_VertexEditRules.md` :（新規）
@@ -279,7 +279,15 @@
 
 ### タスク9: 開発資料の反映（`_doc/arch/`）
 *   **作業内容** :
-    *   （未記入）
+    *   `_doc/arch/`の10ファイルに『開発資料の更新予定』の該当分を反映した。書き換え前に行末を実測して保った（`07_KeyboardShortcuts.md`・`32_InputModes.md`はLF、ほかはCRLF。新規の`66_VertexEditRules.md`は近い`65_SoloVisibilityRules.md`に合わせてCRLF）。
+    *   新規`66_VertexEditRules.md`（10行）：`DELETE_ROUTE`・`resolveDeleteRoute`・`resolveDoubleClickInsertTarget`・読むもの・知らないこと・使う側・置き場所の理由・注意・テスト。
+    *   `02_main.md`：行数を1248行（`wc -l`実測。1234行から14行増）に直し、`// 7.16.`の配線ブロックの行、注入の一覧（`InputTracker`の第7引数に3項目・`PathVertexEditor`の行・`ClipboardController`の`deleteSelection`は変えていない旨・`KeyboardShortcuts`の`deleteSelection`の実体の意味）、同一経路の原則（削除ボタン・`Delete`/`Backspace`）、押せる/押せない状態（`syncDeleteButtonState`）、キーボードのコールバックの記述を直した。
+    *   `03_VectorModel.md`：`deleteShapes`の使う側（`PathVertexEditor`）、`replaceShape`の呼び出し元に`PathVertexEditor`、`select: true`を頂点の選択から使っても不変条件を崩さないこと（JSDocの前提の記述との差）を記した。
+    *   `06_InputTracker.md`：公開メソッドに`handleDoubleClick`・`deleteSelectionOrVertices`・`canDeleteSelectionOrVertices`、`InputAssist`の3項目（7→10項目）、新しい項「ダブルクリックと頂点の削除の入口」（`#lastClickSuppressed`・`deleteLastLinePointOrSelection`の振り分け・テストできない箇所）、`deleteSelection()`を変えていない旨、行数2112行（`wc -l`実測。2023行から89行増）。
+    *   `07_KeyboardShortcuts.md`：`deleteSelection`の注入の実体の意味が頂点の選択で広がった旨を1項目足した。
+    *   `12_shapes.md`：`ShapeGeometry`の使う側、`PathJoinRules.chainSourceOf`のexportと使う側、`Path.resolveSegmentControls`・`SMOOTH_SEGMENT_SAMPLE_COUNT`のexport、頂点の追加・削除の不変条件の記述、新しい節`PathVertexRules.js`。
+    *   `14_edit.md`：新しい節`PathVertexEditor.js`。`16_test.md`：Phase 12-01の新設分・テストできない箇所・件数（tests 3801 / suites 631。`node --test`実測。作業前3699 / 609。テストファイル138→144）。`32_InputModes.md`・`41_NudgeTargetRules.md`：使う側を足した。
+    *   `node --test`全体で3801件すべて合格（コード・テストは変更していない）。
 
 ## 5. 懸念事項・要確認ポイント
 *   **計画で決めたこと（REQの文言から一意に決まらなかった点。発注者の確認を推奨）**：
@@ -302,6 +310,8 @@
 *   **タスク2で判断した点**：(1) 区間が`line`でも`bezier`でもない場合は`smooth`として扱い、`segment.kind`をそのまま2つに複製した（仕様の「点を通る曲線の区間」）。(2) テストで今の曲線の制御点を動かした形は、`Curve`のコンストラクタが終点2つしか取らないため`Curve.fromJSON`で作った。回した矩形も`Rect.fromJSON`で斜めの点を渡して作った。
 
 *   **タスク3で判断した点**：(1) 図形の束ね方は`shape`オブジェクトの同一性（`Map`）で行う。(2) 図形ごと消える組の`targetId`は`shape.id`（`id`が`null`の図形でもそのまま入れる）。(3) 閉じたパスで残りが2点のとき、`b === a + 1`の判定を先にし、次に`a === 0 && b === n - 1`を見る（仕様の順）。
+
+*   **タスク9で判断した点**：(1) `VertexEditRules.test.js`の件数は、計画・タスク4の記述の12件ではなく`node --test`の実測で11件（6ファイル合計102件・全体3699→3801と一致）。`_doc/arch`には実測の11件を書いた。(2) `07_KeyboardShortcuts.md`・`32_InputModes.md`はLF、ほかの`_doc/arch/`はCRLFで、それぞれ保った。(3) `04_CanvasManager`等の更新予定に無いファイルは変えていない。(4) 3章の詳細（流れ・発注者の決定）は`PROJECT_ARCHITECTURE.md`3章29.（タスク8）が正本で、`_doc/arch/`は個々のモジュールの記述にとどめた。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0.  **準備**：画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。直線（直線のツールで2点）・矩形（塗りあり）・直線のツールで描いた折れ線（3点以上）・曲線のツールで描いた曲線（3点以上）・閉じたパス（直線のツールで始点をクリックして閉じたもの）を描く。最後に頂点の選択（`A`）にする。
