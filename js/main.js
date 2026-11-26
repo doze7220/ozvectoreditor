@@ -50,6 +50,8 @@ import { OptionBarAlignGroup } from './palette/OptionBarAlignGroup.js';
 import { PathCornerEditor } from './edit/PathCornerEditor.js';
 import { PathVertexEditor } from './edit/PathVertexEditor.js';
 import { OptionBarCornerGroup } from './palette/OptionBarCornerGroup.js';
+import { PathSplitEditor } from './edit/PathSplitEditor.js';
+import { OptionBarSplitGroup } from './palette/OptionBarSplitGroup.js';
 import { DisplayState } from './core/DisplayState.js';
 import { UnitSnapSettings } from './core/UnitSnapSettings.js';
 import { TransformInputSettings } from './core/TransformInputSettings.js';
@@ -378,8 +380,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * ツールバーの結合ボタン（`#selection-join`）の押せる/押せない状態を、現在の選択が結合できるか
-     * （pathJoiner.canJoin()）に同期する（HTMLの`disabled`属性）。canJoin()は表示倍率を見ない。
-     * model.onChangeのコールバックとして登録し、起動時にも明示的に1回呼び出す。ボタンのDOM更新はmain.jsが担う。
+     * （pathJoiner.canJoin()）に同期する（HTMLの`disabled`属性）。canJoin()は表示倍率で換算した許容距離で結合の計画を作れるかを見る
+     * （押せる見た目なら必ず結合の結果ができる）。model.onChangeとviewTransform.onChangeのコールバックとして登録し、
+     * 起動時にも明示的に1回呼び出す。ボタンのDOM更新はmain.jsが担う。
      */
     function syncJoinButtonState() {
         joinSelectionBtn.disabled = !pathJoiner.canJoin();
@@ -387,6 +390,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 選択集合・図形の変化に応じて結合ボタンの状態を更新する
     model.onChange(syncJoinButtonState);
+    // 押せる・押せないは両端の距離が画面上の許容距離をまたぐと表示倍率だけで変わるため、表示倍率の変化にも追従する
+    viewTransform.onChange(syncJoinButtonState);
 
     // 結合ボタン：受理条件の判定と結合はperformJoin→pathJoiner.join()のみが担う（キー`J`と同一経路）
     joinSelectionBtn.addEventListener('click', () => performJoin());
@@ -981,6 +986,45 @@ document.addEventListener('DOMContentLoaded', () => {
     // InputTrackerへの受け渡しは「// 4.」の第7引数（insertVertexAt・hasRemovableVertices・removeSelectedVertices）。操作モードの照会はinputTracker.getMode()を渡すだけで、ここでは解釈しない。
     const pathVertexEditor = new PathVertexEditor({ model, editRecorder: historyManager, getMode: () => inputTracker.getMode() });
 
+    // 7.17. オプションバー（分割のまとまり）配線
+    // 表示（「分割」「区間を消す」の押せる・押せない）はOptionBarSplitGroup（palette/）が、変更の手順（1件の編集操作と押せるかの照会）は
+    // PathSplitEditor（edit/）が、切れる点・ピースの組み立て・押せるかの判定はPathSplitRules（shapes/）が持つ。
+    // ここは生成・注入・同期とドラッグ中の受理判定のみを行う（判定・計算・操作モードの判定を書かない）。表示の同期はmodel.onChangeのみで行う
+    // （モードの切り替えは選択の解除の通知で追従する。機能専用の同期経路は足さない）。キーボードショートカットは割り当てない（ボタンのみ）。
+    const pathSplitEditor = new PathSplitEditor({ model, editRecorder: historyManager, getMode: () => inputTracker.getMode() });
+
+    /**
+     * 頂点の選択で選んだ点での分割・選んでいる区間の削除を行う。オプションバーの「分割」「区間を消す」ボタンの経路（キーは割り当てない）。
+     * (1) ドラッグ中（InputTracker.isDragging()が真）なら何もせずfalse（不受理）。ドラッグが開いている編集操作と
+     *     beginEdit／commitEditの対を崩さないため。
+     * (2) それ以外はapplySplit()の結果を返す。
+     * @param {() => boolean} applySplit pathSplitEditorの操作のメソッド（splitAtSelectedVertices／deleteSelectedSegments）を呼ぶ関数
+     * @returns {boolean} 図形を変えた場合のみtrue（不受理・変わらない操作ではfalse）
+     */
+    function performPathSplit(applySplit) {
+        if (inputTracker.isDragging()) {
+            return false;
+        }
+        return applySplit();
+    }
+
+    // 戻り値をそのまま返すだけ
+    const optionBarSplitGroup = new OptionBarSplitGroup(document.getElementById('option-split-group'), {
+        onSplit: () => performPathSplit(() => pathSplitEditor.splitAtSelectedVertices()),
+        onDeleteSegments: () => performPathSplit(() => pathSplitEditor.deleteSelectedSegments())
+    });
+
+    /**
+     * オプションバーの分割のまとまりの2つのボタンの押せる・押せない表示を、現在の選択・頂点の選択・図形の状態に同期する
+     * （optionBarSplitGroup.render（pathSplitEditor.getAvailability()））。
+     * model.onChangeのコールバックとして登録し、起動時にも明示的に1回呼び出す。DOMの更新はOptionBarSplitGroupが担い、ここは橋渡しのみ。
+     */
+    function syncOptionBarSplitGroup() {
+        optionBarSplitGroup.render(pathSplitEditor.getAvailability());
+    }
+
+    model.onChange(syncOptionBarSplitGroup);
+
     // 8. キーボードショートカット配線
     /**
      * 表示中キャンバスの中心を基準に、ホイール1刻みと同じ刻み幅（WHEEL_ZOOM_STEP）で拡大・縮小する。
@@ -1225,6 +1269,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // オプションバーの角のまとまりのチェックボックス（押せる/押せない・チェック・「−」）も同様に、index.htmlの初期disabled属性や
     // onChange通知に依存させず、選択集合・頂点の選択・図形の実値で明示的に1回同期する
     syncOptionBarCornerGroup();
+
+    // オプションバーの分割のまとまり（「分割」「区間を消す」）の押せる/押せないも同様に、index.htmlの初期disabled属性や
+    // onChange通知に依存させず、選択集合・頂点の選択・図形の実値で明示的に1回同期する
+    syncOptionBarSplitGroup();
 
     // オプションバーの大きさのまとまり（幅・高さ・比率の鍵）と変形のまとまり（角度・基準点・反転）も同様に、index.htmlの初期状態や
     // onChange通知に依存させず、選択・操作モード・図形の実値と設定の実値で明示的に1回同期する

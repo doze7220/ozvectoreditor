@@ -244,7 +244,7 @@
         *   テスト（`PathSplitEditor.test.js`。実物の`VectorModel`・図形クラスと、呼び出しを記録する偽の記録先）：`getAvailability`（選択（`V`）のモード・点なし・端の点だけ・途中の点・区間ありの各組）。分割：開いたパスの途中の点で2本（元の`id`・名前・位置が`[0..c]`、新しい線が元の行のすぐ上で同じ名前・新しい`id`）、途中の点2つで3本（後の線ほど上）、閉じたパス・矩形の1点で同じ`id`の開いた線1本（新しい行なし）、フォルダの中の図形で新しい線も同じフォルダ、複数の図形の点をまとめて切る（記録先が`beginEdit`・`commitEdit`の1組）。区間の削除：2本に分かれる、片方が点1つで消える、直線の両端で図形ごと消える（入っていたフォルダは空で残る）、複数の図形にまたがる。どの操作も、操作の後は元の選択（消えた図形を除く）と新しい線が選ばれ頂点の選択は空、計画が空なら`false`で記録先・モデルに触れない（通知0回）、ロックした図形・隠した図形（上のフォルダから受け継いだものを含む）の点は頂点の選択に入らず対象にならない、新しい線は表示・ロックが元と同じ（変えられる）。
         *   テスト（`PathSplitEditor.items.test.js`。実物の`VectorModel`・`SnapshotAdapter`・`HistoryManager`・`DocumentSerializer`）：分割・区間の削除がそれぞれ取り消し1回で元の図形・名前・並び・フォルダ・選択に戻り（頂点の選択は外れる）、やり直しで操作の後に戻る。複数の図形をまとめて切った・消したときも1回で戻る。図形ごと消えて空になったフォルダが残り、取り消しで図形が戻る。何も変わらないときは履歴に入らない。作業データ（`DocumentSerializer`の往復）で結果の`path`・名前・並びが保たれ`version`が4のまま。Phase 12-01の点の追加・削除（`PathVertexEditor`）を同じモデルで続けて使っても結果が今のまま（分割した線に点を足す・消す）。
 
-*   [ ] タスク7: ボタンと配線（`palette/`・`index.html`・`main.js`）
+*   [x] タスク7: ボタンと配線（`palette/`・`index.html`・`main.js`）
     *   **対象ファイル** :
         *   `./js/palette/OptionBarSplitGroup.js` :（新規）
         *   `./index.html` :（更新）
@@ -317,7 +317,10 @@
 
 ### タスク7: ボタンと配線（`palette/`・`index.html`・`main.js`）
 *   **作業内容** :
-    *   (未記入)
+    *   `js/palette/OptionBarSplitGroup.js`を新規作成（先頭の責務3行以内・importなし・typedef`SplitAvailability`（`PathSplitRules`との二重定義の旨）・`OptionBarSplitGroupActions`・クラス（`constructor`・`render`）。要素が欠ければ`console.warn`して配線しない・`blur`なし・`aria-pressed`なし）。行末LF。
+    *   `index.html`：`#option-corner-group`の直後に`#option-split-group`（`#option-split-at-vertices`＝✂・`#option-delete-segments`＝✕、初期`disabled`）を足し、2行目の幅の見積もりのコメントを約1111pxに直した。行末LFのまま。
+    *   `js/main.js`：importに`PathSplitEditor`・`OptionBarSplitGroup`を足し、`viewTransform.onChange(syncJoinButtonState);`と`syncJoinButtonState`のJSDocを直し、`// 7.17.`のブロック（`pathSplitEditor`・`performPathSplit`・`optionBarSplitGroup`・`syncOptionBarSplitGroup`・`model.onChange`登録）を`// 8.`の前に、起動時の同期の列の`syncOptionBarCornerGroup();`の後に`syncOptionBarSplitGroup();`を足した。行末CRLFのまま。行数は1248行から1296行。
+    *   `node --test`：3910件すべて合格（テストは足していない）。
 
 ### タスク8: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
 *   **作業内容** :
@@ -343,6 +346,8 @@
 *   **`smooth`の区間の形**：分割・区間の削除で端になった点の隣の`smooth`の区間は、点を通る曲線の式で端の仮の点を使うようになるため曲がり方が少し変わる（REQで許容）。テストプレイの確認項目4で見てほしい。
 *   **`VectorModel`のJSDocの前提**：`replaceShape`・`addShapesWithNewIds`のJSDocの「呼び出し側が選択モードであること」は古い（不変条件は「選択モード・頂点の選択モード以外では空」）。`VectorModel.js`は今回の変更対象ではないため直さず、資料（`03_VectorModel.md`）に正しい記述を残す。
 *   **通知の回数**：分割・区間の削除の1回の操作で`model.onChange`が複数回出る（`replaceShape`・`addShapesWithNewIds`が図形ごと、`deleteShapes`・`setSelection`が1回ずつ）。途中の通知でも状態は正しく、取り消しは1件（`PathCornerEditor`と同じ考え方）。
+*   **タスク7の記録**：`main.js`は1248行から1296行（+48）。新規の`OptionBarSplitGroup.js`の行末はLF（同じフォルダは`OptionBarCornerGroup.js`がCRLF・`OptionBarAlignGroup.js`がLFと混在のため、直近の新規ファイルに合わせた）。
+*   **開発資料の更新予定への追記（タスク7）**：`main.js`の行数は1296行（`02_main.md`）。`index.html`は935行から939行（`01_index_html.md`）。`palette/OptionBarSplitGroup.js`は85行（`13_palette.md`）。
 *   **確認の状況**：`OptionBarSplitGroup`（DOM）・`main.js`の`// 7.17.`・`viewTransform.onChange`への登録・`index.html`の見た目と1280px幅での収まり（見積もり約1111px）は`node --test`で確かめられない（テストプレイで確かめる範囲）。
 
 *   **タスク4の記録**：表Bの「矩形・向かい合う2辺／3辺（規則のテストだけ）」は、選んでいる区間が選んだ点から決まるため公開API（`planSegmentDeletion`）では再現できず、テストは「4つの角を選ぶと4辺すべて」で代えた（`buildPieces`の消える区間の集合を直接渡す手段は非公開のため）。点が少ない図形では「離れた2区間」が選んだ点だけでは作れない（点5つで区間1・3の点を選ぶと区間2も選ばれる）ため、離れた2区間のテストは点6つの図形で行った。
