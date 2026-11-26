@@ -181,7 +181,7 @@
 ## 3. タスクリスト
 ※ 全タスク共通：(a) コード修正の後、JSDocの記載漏れ（新しいファイルの先頭の3行以内の責務、関数・メソッド・引数・戻り値・typedef、意味が変わった既存のJSDoc・importの記述・「`model`は…だけを使う」の記述）が無いことを確認する。(b) リポジトリのルートで`node --test`が全件合格することを確認する（既存のテストファイルは、タスク5で『要件7』に挙げた5件の値を直すほかは変更しない。ほかに値を変えざるを得ないテストが出たら中断して質問する）。(c) 本RESの「4. 詳細作業内容」の担当の欄を書き、タスクを`[x]`にする。(d) 開発資料に影響が出たら資料本体は直さず『開発資料の更新予定』欄へ追記する。(e) 既存のファイルは書き換える前に行末（CRLF／LF）を実測して保ち、新規のファイルは同じフォルダの既存のファイルに合わせる。(f) 対象ファイル以外は変更しない。
 
-*   [ ] タスク1: 頂点の選択から対象を集める手順を1か所に括る
+*   [x] タスク1: 頂点の選択から対象を集める手順を1か所に括る
     *   **対象ファイル** :
         *   `./js/core/VertexTargetRules.js` :（新規）
         *   `./js/edit/PathCornerEditor.js` :（更新）
@@ -274,7 +274,10 @@
 
 ### タスク1: 頂点の選択から対象を集める手順を1か所に括る
 *   **作業内容** :
-    *   (未記入)
+    *   `js/core/VertexTargetRules.js`を新規作成（`collectVertexTargets(mode, selectedIds, selectedVertices, shapes)`・typedef`VertexTargetPair`。importは`NudgeTargetRules`のみ）。
+    *   `PathCornerEditor`・`PathVertexEditor`のimportを`collectVertexTargets`へ替え、`#collectTargets()`を呼び出し1行にした。クラスJSDocの「依存の制約」のimport記述も直した。ふるまいは変えていない（既存のテストは変更なしで全件合格）。
+    *   `test/core/VertexTargetRules.test.js`を新規作成（6件。順序・非VERTEXモードで空・選択空・飛ばす組・重複・引数を書き換えない）。
+    *   `node --test`：3807件すべて合格。行末は既存のファイルのまま（`PathVertexEditor.js`はCRLF、ほかはLF）。
 
 ### タスク2: 選んだ点の番号と選んでいる区間の判定を1か所に括る
 *   **作業内容** :

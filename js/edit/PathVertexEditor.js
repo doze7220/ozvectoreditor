@@ -3,7 +3,7 @@
  * DOM・操作モードの解釈・図形種別の判定・ハンドル名の形式を持たない。
  */
 // 依存の向き: `edit/`から`core/`（状態を持たない規則の関数）・`shapes/`（図形をまたぐ規則の関数）への下向きの依存のみ（`main.js → edit → io → core → shapes`の一方向に沿い、どちらも`edit/`を読まないため循環しない）。
-import { resolveNudgeTarget } from '../core/NudgeTargetRules.js';
+import { collectVertexTargets } from '../core/VertexTargetRules.js';
 import { planVertexInsertion, planVertexRemoval } from '../shapes/PathVertexRules.js';
 
 /**
@@ -29,7 +29,7 @@ import { planVertexInsertion, planVertexRemoval } from '../shapes/PathVertexRule
  *   消した後は頂点の選択が空で、残った図形は選ばれたまま、消えた図形は選択から外れる。
  *
  * 依存の制約:
- *   - importは`core/NudgeTargetRules`の`resolveNudgeTarget`と、`shapes/PathVertexRules`の`planVertexInsertion`・`planVertexRemoval`のみ。
+ *   - importは`core/VertexTargetRules`の`collectVertexTargets`と、`shapes/PathVertexRules`の`planVertexInsertion`・`planVertexRemoval`のみ。
  *   - `model`は`getEditableShapes`・`getShapes`・`getSelectedIds`・`getSelectedVertices`・`replaceShape`・`setSelectedVertices`・`clearSelectedVertices`・`deleteShapes`だけを使う。
  *   - `editRecorder`（実体は`HistoryManager`）は`beginEdit`・`commitEdit`だけを使う。
  *   - 操作モードの値は解釈せず（`getMode`の戻り値を規則へ渡すだけ）、DOMを知らない。
@@ -121,17 +121,6 @@ export class PathVertexEditor {
      * @returns {Array<{ shape: Object, vertexIndex: number }>} 対象
      */
     #collectTargets() {
-        const target = resolveNudgeTarget(this.#getMode(), this.#model.getSelectedIds(), this.#model.getSelectedVertices());
-        if (target === null || target.type !== 'vertices') return [];
-        const shapes = this.#model.getShapes();
-        const targets = [];
-        for (const { shapeId, handle } of target.vertices) {
-            const shape = shapes.find((s) => s.id === shapeId);
-            if (!shape) continue;
-            const vertexIndex = shape.getVertexIndexForHandle(handle);
-            if (vertexIndex === null) continue;
-            targets.push({ shape, vertexIndex });
-        }
-        return targets;
+        return collectVertexTargets(this.#getMode(), this.#model.getSelectedIds(), this.#model.getSelectedVertices(), this.#model.getShapes());
     }
 }
