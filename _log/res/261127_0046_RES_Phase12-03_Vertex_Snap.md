@@ -181,7 +181,7 @@
             *   関門：`commitDrawnLine(VertexSnap, VertexSnap)`・`commitDrawnLine(null, VertexSnap)`・`commitDrawnLine(VertexSnap, null)`は`false`でモデル・記録先の呼び出しなし。`commitDrawnLine(VertexSnap, SnapTarget)`は`commitDrawnLine(null, SnapTarget)`と同じ呼び出し（描き足し）。`clickDrawnLine(null, VertexSnap)`・`clickDrawnLine(VertexSnap, VertexSnap)`は`true`で`replaceDraft`（点を打つ）だけ・記録先に触れない。`clickDrawnLine(VertexSnap, SnapTarget)`は`(null, SnapTarget)`と同じ。`finishDrawnLine(VertexSnap)`は`finishDrawnLine(null)`と同じ（新しい線として`replaceDraft`・`beginEdit`・`commitDraft`・`commitEdit`）。`joinDraggedEndpoint(dragged, VertexSnap)`は`false`で`replaceShape`を呼ばない。`Ctrl`の列：`null`を渡したときの結果が今のまま（`commitDrawnLine(null, null)`＝`false`等）。今の照会（`findDrawSnap`・`findDragSnap`・`findDrawnLineSnap`）が頂点の近くでも今までどおり`null`（吸い付くだけを返さない）。
         *   テスト（`EndpointSnapper.vertexSnap.flow.test.js`。実物の`VectorModel`・`SnapshotAdapter`・`HistoryManager`）：隠した図形・ロックした図形（上のフォルダから受け継いだものを含む）の点には新しい照会のどれも吸い付かない。直線のツールの流れ：矩形の角で`findDrawStartSnap`→その座標で`startDraft`、途中で円の中心へ`findDrawnLinePointSnap`→その座標で`updateDraft`→`clickDrawnLine`が`true`で点が円の中心の座標にちょうど打たれ図形の数が変わらない、同じ位置で`clickDrawnLine`→終えて新しい線が1本増え（点2つなら直線、点3つ以上ならパス。テストではもう1点打ってパスにした場合も確かめる）、点が矩形の角・円の中心の座標とちょうど同じ、矩形・円は変わらず別の図形のまま、`Ctrl`+`Z`相当の`history.undo()`1回で線が消え`redo()`で戻る。直線のツールでほかの線の途中の点でクリックしても描き足し・結合にならない（その線の`id`・点が変わらない）。矩形のツールの流れ：1つ目・2つ目の角を`findDrawStartSnap`・`findDrawEndSnap`で頂点に合わせ、`commitDrawnLine`が`false`で呼び出し側の`commitDraft`で矩形が1つ増え、角が頂点の座標とちょうど同じ、取り消し1回で消える。
 
-*   [ ] タスク4: まとめ移動の座標の組み立てを規則へ切り出す
+*   [x] タスク4: まとめ移動の座標の組み立てを規則へ切り出す
     *   **対象ファイル** :
         *   `./js/core/VertexDragRules.js` :（新規。行末はLF）
         *   `./test/core/VertexDragRules.test.js` :（新規。行末はLF）
@@ -249,7 +249,9 @@
 
 ### タスク4: まとめ移動の座標の組み立てを規則へ切り出す
 *   **作業内容** :
-    *   （未記入）
+    *   `js/core/VertexDragRules.js`（新規・LF）：先頭の責務（3行以内）、typedef`VertexDragOrigin`・`VertexDragUpdate`、`buildVertexDragUpdates(origins, anchor, target, anchorOrigin)`をJSDoc付きで作成（アンカーへ`target`をそのまま入れる理由を記載）。importなし。計算は`InputTracker`の`#applyLeftDragUpdate`の今の`delta`・`updates`と同じ（`InputTracker`は変えていない）。
+    *   `test/core/VertexDragRules.test.js`（新規・LF）：規則5件（`0.7→0.1`のように足し算を通すと一致しない値でアンカーが`target`と厳密に一致・点3つの移動量と並び・`anchorOrigin`が`null`・同一性での比較と対照・引数を書き換えない）と、実物の`VectorModel`・`HistoryManager`・`EndpointSnapper`の流れ3件（押した点が他図形の頂点にちょうど合いほかの点が同じ量動く・取り消し1回／別の線の端点の近くでも`VertexSnap`で`joinDraggedEndpoint`が`false`・対照に`SnapTarget`／動かしている図形の頂点には吸い付かず動かしていない図形には吸い付く）。
+    *   `node --test`は4003件全件合格（既存テストの値は変更なし）。行末は新規2ファイルともLF（CR数0）。
 
 ### タスク5: 吸い付くだけの表示（モデルの別・描き分け・受け渡し）
 *   **作業内容** :
