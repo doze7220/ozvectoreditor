@@ -210,7 +210,7 @@
         *   `PathSplitRules.js`：先頭に3行以内の責務（頂点の選択で選んだ点・区間から、線・パスの分割と区間の削除で切れる点・消える区間を決め、分かれた線（開いたパス）と元の行を引き継ぐ1本を組み立てる規則と押せるかの判定を、状態を持たない関数として提供する。モデル・履歴・選択・操作モード・名前・一覧の位置を知らない）。import（このタスクでは`Path`・`readCornerFlags`・`outlineSourceOf`・`outlineVertexIndexOf`・`endpointVertexIndexOf`。`selectedSegmentIndexesOf`はタスク4で足す）、typedef`SplitTarget`・`SplitPlanItem`・ピースの内部の形、非公開`collectEntries`・`cutPointsOf`・`buildPieces`（消える区間の引数も受ける。このタスクでは空の集合を渡す）・`orderPieces`・ピースから`Path`を作る関数、export`planSplitAtVertices(targets)`をJSDoc付きで作る（『要件1・2：分割・区間を消す』と表Aのとおり）。
         *   テスト（表Aの行ごと）：直線・今の曲線（始点・制御点・終点のどれを選んでも）・点2つの開いたパスは計画が空。開いたパスの途中の点1つ・2つ・続いた2点（間が点2つの線になる）・端の点を混ぜて選んでも数えない、閉じたパスの1点（点0・途中の点・最後の点。点`n+1`で始点と終点が同じ座標）・2点・すべての点（点2つの線が`n`本）、矩形の1点（点5つ・`line`×4・開始が切った角）・2点・4点、回した矩形。各ピースの点・`closed: false`・区間の種類と`bezier`の`control1`・`control2`の値・角（途中の点の角、端になった点の角の値も元のまま）・スタイル3つ（矩形・閉じたパスの`fillColor`の値を含む）・`id`が`null`。元の行を引き継ぐ1本（`pieces[0]`）と新しい線の並び（`start`の小さい順）：開いたパスは`[0..c1]`、閉じたパスは点0で切れば`[0..]`・点0を切らなければ折り返しのピース。複数の図形の点（`targets`に最初に現れた順・図形ごとに束ねる）、範囲外・整数でない番号・同じ点の重複は無視、`bezier`・`line`のピースの形が元の区間と同じ（多数の`t`で評価した点が一致）、`smooth`のピースは点・区間の種類が元のまま、引数を書き換えない・結果が引数と配列・点を共有しない、結果の`toJSON()`が`Path.fromJSON`で読める。
 
-*   [ ] タスク4: 区間の削除の規則と押せるかの判定
+*   [x] タスク4: 区間の削除の規則と押せるかの判定
     *   **対象ファイル** :
         *   `./js/shapes/PathSplitRules.js` :（更新）
         *   `./test/shapes/PathSplitRules.segments.test.js` :（新規）
@@ -295,7 +295,10 @@
 
 ### タスク4: 区間の削除の規則と押せるかの判定
 *   **作業内容** :
-    *   (未記入)
+    *   `js/shapes/PathSplitRules.js`：importに`selectedSegmentIndexesOf`を足し、typedef`SplitAvailability`（`palette/OptionBarSplitGroup.js`との二重定義の旨をJSDocに記載）、export`planSegmentDeletion(targets)`（`buildPieces`へ空の切る点と選んでいる区間を渡す。ピースが空なら`pieces: []`）・`resolveSplitAvailability(targets)`（`cutPointsOf`・`selectedSegmentIndexesOf`と同じ非公開の判定）を足した。既存の関数は変えていない。行末はLF。
+    *   `test/shapes/PathSplitRules.segments.test.js`を新規作成（28件。表Bの行：直線・曲線・点2つ・円、開いたパスの最初・最後・途中・続いた2区間・離れた2区間・すべて、閉じたパスの1区間・最後の区間・2区間・点0を挟む2区間・すべて、矩形の1辺・2辺・4辺・対角、値の保ち方、`resolveSplitAvailability`の各行と、多数の選択の組で押せる＝計画が1件以上の一致）。
+    *   `node --test`：3870件すべて合格（既存のテストは変更なし）。
+    *   diff監査の指摘で、`PathSplitRules.js`の先頭の責務定義に「押せるかの判定」を足した（文言はタスク3の計画に合わせた）。
 
 ### タスク5: 閉じる（弧1本・押せる見た目と結果の一致）
 *   **作業内容** :
@@ -334,6 +337,8 @@
 *   **`VectorModel`のJSDocの前提**：`replaceShape`・`addShapesWithNewIds`のJSDocの「呼び出し側が選択モードであること」は古い（不変条件は「選択モード・頂点の選択モード以外では空」）。`VectorModel.js`は今回の変更対象ではないため直さず、資料（`03_VectorModel.md`）に正しい記述を残す。
 *   **通知の回数**：分割・区間の削除の1回の操作で`model.onChange`が複数回出る（`replaceShape`・`addShapesWithNewIds`が図形ごと、`deleteShapes`・`setSelection`が1回ずつ）。途中の通知でも状態は正しく、取り消しは1件（`PathCornerEditor`と同じ考え方）。
 *   **確認の状況**：`OptionBarSplitGroup`（DOM）・`main.js`の`// 7.17.`・`viewTransform.onChange`への登録・`index.html`の見た目と1280px幅での収まり（見積もり約1111px）は`node --test`で確かめられない（テストプレイで確かめる範囲）。
+
+*   **タスク4の記録**：表Bの「矩形・向かい合う2辺／3辺（規則のテストだけ）」は、選んでいる区間が選んだ点から決まるため公開API（`planSegmentDeletion`）では再現できず、テストは「4つの角を選ぶと4辺すべて」で代えた（`buildPieces`の消える区間の集合を直接渡す手段は非公開のため）。点が少ない図形では「離れた2区間」が選んだ点だけでは作れない（点5つで区間1・3の点を選ぶと区間2も選ばれる）ため、離れた2区間のテストは点6つの図形で行った。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0.  **準備**：画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。直線のツールの折れ線（点5つほど。クリックで点を打ち、最後は`Esc`で終える）・曲線のツールの曲線（点4つほど）・塗った閉じたパス（直線のツールで始点をクリックして閉じ、塗りを付ける）・塗った矩形・弧を、フォルダの中にも外にも描き、一覧で名前を付けておく。2点だけの直線（直線のツールで2回クリック）も1本描く。

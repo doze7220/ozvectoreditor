@@ -1,9 +1,9 @@
 /**
- * 責務: 頂点の選択で選んだ点・区間から、線・パスの分割と区間の削除で切れる点・消える区間を決め、分かれた線（開いたパス）と元の行を引き継ぐ1本を組み立てる規則を、状態を持たない関数として提供する。
+ * 責務: 頂点の選択で選んだ点・区間から、線・パスの分割と区間の削除で切れる点・消える区間を決め、分かれた線（開いたパス）と元の行を引き継ぐ1本を組み立てる規則と押せるかの判定を、状態を持たない関数として提供する。
  * モデル・履歴・選択・操作モード・名前・一覧の位置を知らない。
  */
 import { Path, readCornerFlags } from './Path.js';
-import { outlineSourceOf, outlineVertexIndexOf } from './PathVertexRules.js';
+import { outlineSourceOf, outlineVertexIndexOf, selectedSegmentIndexesOf } from './PathVertexRules.js';
 import { endpointVertexIndexOf } from './PathJoinRules.js';
 
 /**
@@ -11,6 +11,13 @@ import { endpointVertexIndexOf } from './PathJoinRules.js';
  * @typedef {Object} SplitTarget
  * @property {Object} shape - 図形（`type`・`id`・`toJSON()`を持つ）
  * @property {number} vertexIndex - 頂点の番号（図形の`getVertexIndexForHandle`の番号＝`toJSON()`の`points`の番号）
+ */
+
+/**
+ * 「分割」「区間を消す」が押せるか。`palette/OptionBarSplitGroup.js`のtypedef`SplitAvailability`と同じ内容の二重定義（互いに存在を書く）。
+ * @typedef {Object} SplitAvailability
+ * @property {boolean} split - 切れる点を1つ以上持つ図形があるか（`planSplitAtVertices`が1件以上になる）
+ * @property {boolean} deleteSegments - 選んでいる区間を1つ以上持つ図形があるか（`planSegmentDeletion`が1件以上になる）
  */
 
 /**
@@ -231,4 +238,44 @@ export function planSplitAtVertices(targets) {
         plan.push({ targetId: entry.shape.id, pieces: pieces.map((piece) => pieceToPath(entry.source, piece)) });
     }
     return plan;
+}
+
+/**
+ * 選んでいる区間（両端の点が選ばれている区間）をすべて消した結果を、図形ごとに計画する。
+ * 図形は`targets`に最初に現れた順。選んでいる区間を1つ以上持つ図形だけを結果に入れる。ピースが残らないときは`pieces: []`（図形ごと消える）。
+ * `pieces[0]`が元の行を引き継ぐ1本、`pieces[1..]`が新しくできた線（下から上の順）。分かれた線はすべて開いたパス（区間の種類・引っ張る点・角・スタイル3つは元のまま）。
+ * 引数を書き換えず、結果は引数と配列・点を共有しない。
+ * @param {SplitTarget[]} targets - 選んだ点
+ * @returns {SplitPlanItem[]} 図形ごとの結果
+ */
+export function planSegmentDeletion(targets) {
+    const plan = [];
+    for (const entry of collectEntries(targets)) {
+        const removed = new Set(selectedSegmentIndexesOf(entry.data, entry.vertexIndexes));
+        if (removed.size === 0) {
+            continue;
+        }
+        const pieces = orderPieces(buildPieces(entry.source, new Set(), removed));
+        plan.push({ targetId: entry.shape.id, pieces: pieces.map((piece) => pieceToPath(entry.source, piece)) });
+    }
+    return plan;
+}
+
+/**
+ * 「分割」「区間を消す」が押せるかを求める。計画の関数と同じ非公開の判定を使う（押せるとき必ず計画が1件以上になる）。
+ * @param {SplitTarget[]} targets - 選んだ点
+ * @returns {SplitAvailability} 押せるか
+ */
+export function resolveSplitAvailability(targets) {
+    let split = false;
+    let deleteSegments = false;
+    for (const entry of collectEntries(targets)) {
+        if (!split && cutPointsOf(entry).size > 0) {
+            split = true;
+        }
+        if (!deleteSegments && selectedSegmentIndexesOf(entry.data, entry.vertexIndexes).length > 0) {
+            deleteSegments = true;
+        }
+    }
+    return { split, deleteSegments };
 }
