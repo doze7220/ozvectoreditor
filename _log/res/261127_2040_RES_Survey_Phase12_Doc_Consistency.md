@@ -214,7 +214,7 @@ Phase 12 のコード変更で変わった・広がった・なくなったも�
     * `17` の `+` 部分を照合する。
     * 既知の傷4（`js/io/DrawElementReader.js` の、Phase 12-04で足したメソッドの前の空行の抜け）が今も残っているかを確かめる。
 
-* [ ] タスク12: 要件2の検索（前半）：点の追加・削除（12-01）・分割・区間の削除・閉じる（12-02）・頂点への吸い付き（12-03）・WEBアイコン・使われ方の変わったメソッド
+* [x] タスク12: 要件2の検索（前半）：点の追加・削除（12-01）・分割・区間の削除・閉じる（12-02）・頂点への吸い付き（12-03）・WEBアイコン・使われ方の変わったメソッド
   * **対象ファイル**:
     * `./PROJECT_ARCHITECTURE.md` と `./_doc/arch/` 配下の全ファイル :（検索対象。差分のない行・差分のないファイルを含む）
     * `./js/core/InputTracker.js`・`./js/core/KeyboardShortcuts.js`・`./js/main.js`・`./js/shapes/PathJoinRules.js`・`./js/shapes/EndpointSnapRules.js`・`./js/shapes/VertexSnapRules.js`・`./js/edit/EndpointSnapper.js`・`./js/core/VertexTargetRules.js`・`./js/edit/PathCornerEditor.js`・`./js/edit/PathVertexEditor.js`・`./js/core/VectorModel.js`・`./asset/` ほか事実の確認に必要なファイル :（事実の確認に使うコード）
@@ -331,11 +331,31 @@ Phase 12 のコード変更で変わった・広がった・なくなったも�
 
 ### タスク12: 要件2の検索（前半）
 * **調査内容**: 
-  * （未実施）
+  * 検索対象は `./PROJECT_ARCHITECTURE.md` と `./_doc/arch/` 配下の全ファイル（`Grep`・自作の語検索スクリプトで全ファイルを走査）。使った式と件数（件数は資料全体の行ヒット数。多数の語は前後を読んで判定）：
+    * `deleteShapes`：30件（読んだ。下の相違1・所見）／`製品コードから|呼び出し元は無|呼び出し元はない|呼ばれない|呼ばれていない`：10件／`製品コードからの呼び出し元が無くなった`・`一本化|rearrangeItems…`：21件
+    * 点の追加・削除（12-01）：`押せる見た目|消せない|閉じられない|'path'だけ|1対1|一対一|ほかの図形の頂点|他の図形の頂点`：22件／`(頂点の選択|A).{0,60}何もしない|何もしない.{0,40}…|点を(足す|消す|追加).{0,20}(無|ない|しない)|(足せ|消せ)ない`：21件／`(dblclick|handleDoubleClick|ダブルクリック)…(使わない|扱わない|無視|未対応|無い|ない|しない|なし)`：4件（`ダブルクリック`の単純検索は34件）／`何もしない`単純検索：101件（頂点の選択・`Delete`・`Backspace`・ダブルクリックの近くを上の式で絞って読んだ）
+    * 分割・区間の削除・閉じる（12-02）：`(線を切る|分割|区間を消す|区間の削除|切断)…(行わない|しない|無い|ない|できない|未|やらない|対象外)|閉じ…(だけ|のみ)|弧…(閉じない|閉じられない)|開いた線を閉じる…`：5件／`'close'|classifyJoin|canCloseByMergingEnds`：43件／`(結合|閉じる)…(ボタン|J)…押せ|両端が重な…(押せ|何も起きない)|何も起きない…(結合|閉じ)|syncJoinButtonState|joinSelectionBtn`：17件／`押せる見た目で何も`（全ファイルの行数）：1件（`12_shapes.md:13`）
+    * 頂点への吸い付き（12-03）：`吸い付(く|き)…は…(だけ|のみ)|端点だけ|吸い付く先…(だけ|のみ)|結合できる線の端点(だけ|のみ)|…`：14件／`吸い付かない|吸い付きは(無|ない|しない)|吸い付き…結合|…`：23件
+    * WEBアイコン：`asset/…(には|は|の下|配下)|asset/sprite|asset/(icon|sprite)|apple-touch|favicon|rel="icon"`：24件／`(asset|アセット)…(のみ|だけ|唯一|1つ)`：0件（`PROJECT_ARCHITECTURE.md:156-158` の構成図は `icon/` と `sprite/` の2つ）
+    * `VertexTargetRules`・`#collectTargets`・`collectTargets`・`対象の集め方`：82件（全件を読んだ）／`(PathCornerEditor|PathVertexEditor)…(NudgeTargetRules|resolveNudgeTarget)`：5件／`getSelectedVertices|setSelectedVertices|clearSelectedVertices`の呼び出し元の記述（`03_VectorModel.md:22`）を実コード `grep` と照合
+  * 実コードの事実の確認：`git diff --name-status c30239d HEAD -- js index.html test asset sprite-check.html`、`Grep deleteShapes js`（呼び出しの件数は下記）、`js/core/VertexTargetRules.js`・`js/edit/PathCornerEditor.js`・`PathVertexEditor.js`・`PathSplitEditor.js`・`js/shapes/PathJoinRules.js`（`classifyJoin`・`planJoin`・`buildClosedPath`・`canCloseByMergingEnds`）・`js/edit/PathJoiner.js`（`canJoin`）・`js/shapes/VertexSnapRules.js`・`js/core/KeyboardShortcuts.js`・`ls asset`。
+  * 行数の実測（`wc -l`）：`js/core/InputTracker.js` 2126・`js/main.js` 1305・`js/core/VectorModel.js` 1513・`index.html` 975（計画立案時と同じ。行数の検索はタスク13）。
 * **事実（実コードの記述）**:
-  * （未実施）
+  * `VectorModel.deleteShapes` の製品コードの呼び出しは**2件**：`js/edit/PathVertexEditor.js:113`（点の削除で図形ごと消える組）と `js/edit/PathSplitEditor.js:137`（分割・区間の削除で消す図形）。`js/core/InputTracker.js:695` はコメントで「`deleteShapes`も呼ばない」とあるだけ（呼び出しでない）。定義は `js/core/VectorModel.js:929`。
+  * 頂点の選択から対象を集める手順は `js/core/VertexTargetRules.js` の `collectVertexTargets`（`resolveNudgeTarget`のみimport）の1か所。`PathCornerEditor.js:165`・`PathVertexEditor.js:124`・`PathSplitEditor.js:107` の `#collectTargets()` はいずれも `collectVertexTargets(...)` を呼ぶだけで、3者とも `NudgeTargetRules` を直接importしない。
+  * `js/core/KeyboardShortcuts.js:172` は `Delete`・`Backspace`（`ctrl: false`・`ShiftRule.FORBIDDEN`）を `deleteSelection` に対応づける（モードでの除外はなく、受理判定は注入された側）。`InputTracker.js:562` が `dblclick` を購読する（`handleDoubleClick`）。`js/main.js:392-393` の `syncJoinButtonState` は `!pathJoiner.canJoin()` を `disabled` にし、`js/edit/PathJoiner.js:62-67` の `canJoin` は `planJoin(...) !== null`。
+  * `js/shapes/PathJoinRules.js:279-283`（`classifyJoin`）：1本のとき `isJoinableLine(shape)`（直線・開いたパス・今の曲線・弧）かつ `chainSourceOf(shape.toJSON()).points.length >= 3` なら `'close'`（弧は頂点3つで`'close'`）。`buildClosedPath`（同ファイル。まとめると頂点が3つ未満なら `null`）。始点と終点が重なる頂点3つの開いたパスは、まとめると頂点2つになり `buildClosedPath` が `null` → `planJoin` が `null` → `canJoin` が偽 → 結合のボタンは `disabled`。
+  * `js/shapes/VertexSnapRules.js:104-106`：`isVertexSnapDrawEndShapeType` は `'rect'` のときだけ真（`PROJECT_ARCHITECTURE.md:689` の「矩形のときだけ吸い付くだけ」と一致）。
+  * `ls asset` は `icon/`（`apple-touch-icon-180.png`・`favicon-32.png`・`icon-192.png`・`icon-512.png`）と `sprite/` の2つ。
+  * `VectorModel` の頂点の選択の設定・解除の呼び出し元：`setSelectedVertices` は `InputTracker.js:1121,1925`・`PathCornerEditor.js:124`・`PathVertexEditor.js:81`、`clearSelectedVertices` は `InputTracker.js:750,1274,1922`・`PathSplitEditor.js:122`・`PathVertexEditor.js:104`。`getSelectedVertices` を読む編集操作は `NudgeEditor`・`PositionInputEditor`・`TransformInputEditor`・`PathCornerEditor`・`PathSplitEditor`・`PathVertexEditor` と `main.js:236`。
+  * 12-01〜12-03の「古い形」として検索基準Cに挙がった記述のうち、次は**現在の資料に「今もそうである」形では残っていない**（見つかった箇所はすべて「Phase 12-01で変えた」「Phase 12-02で括った」「Phase 12-02で変わった」と経緯が付く）：「`A`で`Delete`・`Backspace`は何もしない」（`PROJECT_ARCHITECTURE.md:838` 末尾に「Phase 12-01で変えた」あり。`:1040` に変更を明記）、「削除ボタンは押せる見た目のまま」（`:838` の(8)は`:1040`で変更を明記。`:830` は新しい挙動）、「点を足す・消す操作は無い」（0件）、「ダブルクリックは何もしない」（`:906` は図形作成モードの話で正しい）、「パスを分割できない」「区間を消せない」（0件）、「弧は閉じられない」（`12_shapes.md:8` に「Phase 09-03bの時点では」と経緯付き）、「吸い付くのは端点だけ」（`PROJECT_ARCHITECTURE.md:694` は「結合する吸い付きの先」の話で正しく、`:533`・`:691` も「結合する吸い付きは」と限定）、「ほかの図形の頂点には吸い付かない」（0件。`:689` の「円・弧では吸い付かない」は実コードと一致）、「`asset/`には`sprite/`だけ」（0件）、`PathCornerEditor`・`PathVertexEditor`の`#collectTargets`の写し（`PROJECT_ARCHITECTURE.md:362,922,936,937,1037,1041`・`14_edit.md:93,104`・`41_NudgeTargetRules.md:7`・`67_VertexTargetRules.md:6` はいずれも「Phase 12-01の時点では写し／Phase 12-02で括った」の経緯の書き方で、現在は括った後の記述）。
+  * 相違（5章に記載。4件）：(1) `_doc/arch/03_VectorModel.md:19` の「`deleteShapes`は製品コードからの呼び出し元が無くなった」、(2) `_doc/arch/12_shapes.md:13` の「`classifyJoin`が`'close'`を返すのは選択が1本の`path`で頂点3つ以上の開いたパスのときだけ」、(3) 同行の「ボタンは押せる見た目で何も起きない」、(4) `_doc/arch/03_VectorModel.md:22` の頂点の選択の設定・解除と読み手の呼び出し元の一覧。（(2)(3)は同じ行・同じ段落の別の文。計4件）
 * **推測・所見**:
-  * （未実施）
+  * 読み方が分かれる記述：`_doc/arch/03_VectorModel.md:3`（`+`行）と `:19`（`+`でない行）が同じファイル内で矛盾する。`:3` は`deleteShapes`の製品コードの呼び出し元に`PathVertexEditor`・`PathSplitEditor`を挙げ実コードと一致するが、`:19` の「呼び出し元が無くなった」は Phase 11-04a 時点の文が残ったもの（推測）。`PROJECT_ARCHITECTURE.md:381` は「呼ばれなかったが、Phase 12-01から…」と正しく更新されている。
+  * 読み方が分かれる記述：`_doc/arch/12_shapes.md:13` の「何も起きないのは…ボタンは押せる見た目で何も起きない。直線2本の同じ形と同じ」は、結合ボタンの状態の話とも、`planJoin`が`null`で何もしない結果の話とも読める。ただし直前の「結合のボタン」の文脈では Phase 12-02 前の挙動（押せるが何も起きない）で、現在（`canJoin`が`planJoin`の結果）とは合わない。対応する `PROJECT_ARCHITECTURE.md:674` は「Phase 12-02から、この形を選ぶと結合のボタンは押せない見た目になる」と更新済み。5章へ上げた。
+  * コードのコメント：検索の範囲では、頂点の選択・`deleteShapes`・`#collectTargets`・吸い付きに関して古い説明は見つからなかった（`InputTracker.js:695`・`PathJoiner.js:9-10,58`・`main.js:388` は現状と合っている）。既知の傷2（`VectorModel.js`の`replaceShape`・`addShapesWithNewIds`のJSDocの「呼び出し側が選択モードであること」）はタスク2の担当のため本タスクでは確かめていない。
+  * 照合できなかった主張：なし（本タスクの項目はすべてコードで確かめられた）。
+  * 補足（範囲外の気づき）：`03_VectorModel.md:22` の読み手の一覧に `TransformInputEditor`（Phase 10-03 から）も無い。`getSelectedVertices` の読み手の網羅は本タスクの項目外だが、同じ箇所の相違のため5章の(4)に併記した。
 
 ### タスク13: 要件2の検索（後半）
 * **調査内容**: 
@@ -350,7 +370,11 @@ Phase 12 のコード変更で変わった・広がった・なくなったも�
 * 形式: **（対象：資料のファイルと節）**：（資料の記述）→（実コードの実態。`ファイル:行` を添える）（タスクN）
 * 相違が見つからなかった場合は、タスク14で「相違なし」と記載する（未確認と区別するため）。
 
-（未確認）
+（タスク12の分。タスク13の分は続けて追記する。いずれも差分の`+`行でない記述）
+* **（対象：`_doc/arch/03_VectorModel.md` 19行目の末尾）**：「`deleteShapes`は製品コードからの呼び出し元が無くなった（削除は`rearrangeItems`へ一本化。既存のテストが使うため残す）」→ 製品コードの呼び出しは `js/edit/PathVertexEditor.js:113` と `js/edit/PathSplitEditor.js:137` の2件（Phase 12-01・12-02から。同ファイル3行目・`PROJECT_ARCHITECTURE.md:381`・`14_edit.md:102-114` は正しく書かれており、同ファイル内で矛盾）（タスク12）
+* **（対象：`_doc/arch/12_shapes.md` 13行目 `PathJoinRules` の項）**：「`classifyJoin`が`'close'`を返すのは選択が1本の`path`で頂点3つ以上の開いたパスのときだけ（今の曲線1本は閉じない）」→ `classifyJoin` の1本の分岐は `isJoinableLine` かつ `chainSourceOf(...).points.length >= 3` で、Phase 12-02から弧1本（頂点3つ）も `'close'`（`js/shapes/PathJoinRules.js:279-283`。同ファイル8行目・13行目の前の文・`PROJECT_ARCHITECTURE.md:673` は「弧は頂点3つで`'close'`」と書き、同行内で矛盾）（タスク12）
+* **（対象：`_doc/arch/12_shapes.md` 13行目 `PathJoinRules` の項）**：「何も起きないのは、そうしてできた始点と終点が重なる頂点3つの開いたパスを閉じようとしたとき（まとめると頂点2つで`planJoin`が`null`を返す。ボタンは押せる見た目で何も起きない。直線2本の同じ形と同じ）」→ Phase 12-02から `canJoin` は `planJoin(...) !== null` で、この形を選ぶと結合のボタンは `disabled`（押せない見た目）（`js/edit/PathJoiner.js:62-67`・`js/main.js:392-393`。`PROJECT_ARCHITECTURE.md:674`・`12_shapes.md:8` は押せないと書く）（タスク12）
+* **（対象：`_doc/arch/03_VectorModel.md` 22行目 頂点の選択の項）**：「設定・解除を呼ぶのは`InputTracker`と、`edit/PathCornerEditor`（…`setSelectedVertices`を呼ぶ。Phase 09-02b）」「そのほかに`getSelectedVertices`を読むのは`main.js`（`renderCurrentState`）・`edit/NudgeEditor`・`edit/PositionInputEditor`・`edit/PathCornerEditor`」→ Phase 12-01・12-02から `PathVertexEditor` が `setSelectedVertices`（`js/edit/PathVertexEditor.js:81`）・`clearSelectedVertices`（`:104`）を、`PathSplitEditor` が `clearSelectedVertices`（`js/edit/PathSplitEditor.js:122`）を呼ぶ。読み手にも `PathVertexEditor`（`:124`）・`PathSplitEditor`（`:107`）・`TransformInputEditor`（`:134`）が加わる。同ファイル26行目（`+`行）は `PathVertexEditor`・`PathSplitEditor` の呼び出しを書いている（タスク12）
 
 ## 6. 懸念事項・今後の修正における注意点
 * （タスク14で、4章の各タスクの「推測・所見」に書かれた「読み方が分かれる記述」「コードのコメント」「照合できなかった主張」を、資料のファイルと節・要点・タスク番号の一覧としてまとめる）
