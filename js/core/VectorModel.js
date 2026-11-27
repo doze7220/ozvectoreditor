@@ -1,7 +1,7 @@
 /**
  * 責務：図形とフォルダのアイテムの入れ子の並び・選択集合・ホバー・作成中図形・選択矩形・吸い付きの表示の点（結合する吸い付きか吸い付くだけかの別を含む）・新しく描く図形のスタイル（直前に使った値）の
  * 状態管理（SSOT：Single Source of Truth）と更新通知を担う。頂点の選択（変えられる図形の組だけ。一時的な状態）と、描き込む先（保存しない）も保持する。
- * アイテムの名前・表示・ロックの値の変更を受け付け、表示・ロックの照会（見えている図形・変えられる図形・選んでいる変えられる図形・消えるものがあるか）を規則へ渡して答える。
+ * アイテムの名前・表示・ロックの値の変更を受け付け、表示・ロックの照会（見えている図形・変えられる図形・選んでいる変えられる図形・消えるものがあるか）を規則へ渡して答える。フォルダの複合パスの値の変更と、効いている複合パスの照会も規則へ委ねる。
  */
 import { ShapeFactory, SHAPE_TYPES } from './ShapeFactory.js';
 import { ITEM_KIND, toItems, listItems, listShapeItems, listShapes, placeShapeItems, filterShapes } from './ItemTreeRules.js';
@@ -12,6 +12,7 @@ import { itemIdOf, isSameTree } from './GroupTreeRules.js';
 import { resolveGroupCandidates, resolveSelectedGroupIds, resolveRevealIds, resolveSelectedUnitIds } from './GroupSelectionRules.js';
 import { listVisibleShapes, listEditableShapes, collectEditableIds, applyItemStates } from './ItemStateRules.js';
 import { resolveRemoval } from './RemovalRules.js';
+import { setCompound, listCompoundPaths } from './CompoundPathRules.js';
 import { setCollapsed, expandGroupsContaining } from './GroupCollapseRules.js';
 
 /**
@@ -93,6 +94,7 @@ const ID_PATTERN = new RegExp(`^(?:${ID_PREFIX}|${GROUP_ID_PREFIX})(\\d+)$`);
  * 状態を変更するAPIは変更後にonChangeの登録リスナーへ通知する。図形idの採番（`shape-<連番>`）・フォルダidの採番（`group-<連番>`。同じカウンタ）も本クラスが担う。
  * 名前・表示・ロックの規則（名前の変更`renameItem`を含む）は`ItemAttributeRules`、入れ子の計算は`ItemTreeRules`へ委譲する。
  * 図形の生成はShapeFactoryへ委譲する（復元は`DocumentSerializer`→`ShapeFactory.fromJSON`が行い、本クラスは復元済みの図形一式を受け取るのみ）。図形固有の頂点構造には依存しない（ポリモーフィック呼び出しのみ）。
+ * フォルダの複合パスの値の変更（`setGroupCollapsed`と違い履歴の対象。記録は`CompoundPathEditor`が挟む）と、効いている複合パスの照会（`CompoundPathRules`へ委譲）も行う。
  * 新しく描く図形のスタイル（直前に使った値）も保持する（作業データ・履歴のスナップショットには含まれない）。
  * 選んでいるフォルダ（`#selectedGroupIds`。明示して選んだフォルダのidだけ。保存・履歴の比較・書き出しに入らず、不変条件は`GroupSelectionRules`）と、
  * フォルダの折りたたみ（フォルダのアイテムの`collapsed`。`setGroupCollapsed`・選択が変わったときの自動で開く。`onCollapsedChange`で通知）も扱う。
@@ -328,6 +330,33 @@ export class VectorModel {
         }
         this.#applyState({ items: nextItems });
         this.#pruneSelectedVertices();
+        this.#notifyChange();
+        return true;
+    }
+
+    /**
+     * 効いている複合パス（上のフォルダのどれも複合パスでないもの）を前順で返す照会。毎回`#items`から求める（キャッシュしない）。
+     * @returns {Array<Object>} 効いている複合パス（`CompoundPathRules.listCompoundPaths`の結果）
+     */
+    getCompoundPaths() {
+        return listCompoundPaths(this.#items);
+    }
+
+    /**
+     * フォルダの複合パスの値を変える唯一の公開操作。変わらない（同じ値・無いid・図形のid）なら何もせず（通知もせず）falseを返す。
+     * 変われば入れ子を差し替え、変更を通知して（1回）trueを返す。
+     * 選択・選んでいるフォルダ・描き込む先・頂点の選択・ホバー・作成途中の図形・折りたたみ（`onCollapsedChange`）には触れない。
+     * 履歴の記録はしない（記録は`CompoundPathEditor`が`beginEdit`・`commitEdit`で挟む）。
+     * @param {string} id フォルダのid
+     * @param {boolean} compound 複合パスにするならtrue、普通のフォルダへ戻すならfalse
+     * @returns {boolean} 値が変わったか
+     */
+    setGroupCompound(id, compound) {
+        const nextItems = setCompound(this.#items, id, compound);
+        if (nextItems === this.#items) {
+            return false;
+        }
+        this.#applyState({ items: nextItems });
         this.#notifyChange();
         return true;
     }

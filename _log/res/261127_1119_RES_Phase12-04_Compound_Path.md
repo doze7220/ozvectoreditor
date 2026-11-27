@@ -204,7 +204,7 @@
         *   『要件1』の「一覧（DOMと配線）」の`core/ItemRowRules.js`の項のとおり、行`Row`と行の見た目`RowView`に`compound`（フォルダなら`isCompoundGroup(item)`、図形は`false`）をJSDoc付きで足す（importに`./CompoundPathRules.js`の`isCompoundGroup`を足し、ファイル先頭の責務（3行以内）のimportの列・typedefを直す）。ほかの項目・関数は変えない。`ItemListPanel`・`ItemListWiring`はこのタスクでは変えない（`compound`を絵のクラスに使うのはタスク13）。
         *   テスト（`ItemRowRules.compound.test.js`）：`buildItemRows`のフォルダの行の`compound`（複合パスで真・普通のフォルダと図形の行で偽・内側の複合パスも真・閉じたフォルダの行も）、`resolveRowViews`の`compound`が行の値のまま、ほかの項目が今と同じ。既存の`ItemRowRules.test.js`が変更なしで合格すること（行・見た目のオブジェクト全体を`deepEqual`していないことをコードで確かめて詳細作業内容に書く）。既存の一覧のテスト（`ItemListWiring`等の行の見た目を使うもの）も変更なしで全件合格すること。
 
-*   [ ] タスク4: モデルの照会と、値を変える唯一の公開操作
+*   [x] タスク4: モデルの照会と、値を変える唯一の公開操作
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js` :（更新。行末はLF）
         *   `./test/core/VectorModel.compound.test.js` :（新規。行末はLF）
@@ -343,7 +343,8 @@
 
 ### タスク4: モデルの照会と、値を変える唯一の公開操作
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/VectorModel.js`（LF）：importに`CompoundPathRules`の`setCompound`・`listCompoundPaths`を足し、`getCompoundPaths()`（毎回`listCompoundPaths(#items)`）・`setGroupCompound(id, compound)`（同じ参照なら`false`で通知なし、変われば`#applyState({ items })`・通知1回・`true`。履歴の記録・選択等・折りたたみには触れない）をJSDoc付きで追加。ファイル先頭の責務（3行のまま）とクラスのJSDocに複合パスの値の変更・照会を追記。ほかのメソッドは変えていない。
+    *   新規テスト：`test/core/VectorModel.compound.test.js`（LF）13件。切り替え・戻し（キーが消える）、通知1回、同じ値・無いid・図形のidで`false`・通知なし、選択・選んでいるフォルダ・描き込む先・頂点の選択・ホバー・作成途中・折りたたみ・`onCollapsedChange`が不変、図形のスタイル不変、`getCompoundPaths`が`listCompoundPaths(getItems())`と同じ中身、`setItemStates`で一番下を隠すと先頭が変わる、`replaceAllShapes`・`addShapesWithNewIds`（`asUnits`）で`compound: true`が保たれる。`node --test`は4075件すべて合格。既存テストの値は変更なし。
 
 ### タスク5: 描画（複合パスのレンダラー・描く単位ごとの描画・受け渡し）
 *   **作業内容** :
