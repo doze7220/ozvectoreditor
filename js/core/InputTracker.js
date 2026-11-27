@@ -2035,6 +2035,7 @@ export class InputTracker {
      * ・本体：選択集合の図形の輪郭を手前優先で優先し、なければ手前から輪郭または塗った内側（選択集合の内側を優先しない）。
      *   塗った内側を当たりに含めるかは、注入された照会（#isFillHitExcluded）の否定をそのまま渡して決める（含めないときは輪郭だけ）。
      * ・ハンドルを当たりに含めるのは頂点の選択のモードだけ（includeHandles。選択モードでは含めず、handleは常にnull）。
+     * ・複合パスの中の図形の塗った内側は、第8引数にmodel.getCompoundPaths()を渡して規則（PointHitRules・CompoundPathRules）に判定させる（穴は素通り）。
      * 許容誤差は#getWorldHitTolerance()（画面上hitTolerance pxのワールド換算値）。
      * @param {{x: number, y: number}} point 判定位置（ワールド座標）
      * @returns {PointHit} 当たり分類の結果（handle・bodyIdともnullなら空白）
@@ -2047,7 +2048,8 @@ export class InputTracker {
             point.y,
             this.#getWorldHitTolerance(),
             !this.#isFillHitExcluded(),
-            this.currentMode === OperationMode.VERTEX
+            this.currentMode === OperationMode.VERTEX,
+            this.model.getCompoundPaths()
         );
     }
 

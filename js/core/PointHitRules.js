@@ -1,9 +1,10 @@
 /**
  * 責務: 選択モード・頂点の選択のモードの当たり分類の規則（ある点が選択集合の図形の頂点のハンドル・図形の本体・空白のどれに当たるか）を、
  * 図形の公開メソッドと選択中かの照会だけで判定する、状態を持たない関数として提供する。頂点でないハンドルは当たりにせず、奥の頂点を隠さない。
- * 塗った内側・ハンドルを当たりに含めるかは引数で受け取る。
+ * 塗った内側・ハンドルを当たりに含めるかは引数で受け取る。複合パスの中の図形の塗った内側は、複合パスの規則（CompoundPathRules）に委ねる。
  */
 import { isVertexHandle } from './VertexHandleRules.js';
+import { mapCompoundsByShape, hitTestCompoundFill } from './CompoundPathRules.js';
 
 /**
  * 当たり分類の結果。ホバー・押下・クリック・カーソル形状の判定で共通に用いる（正本。`InputTracker`はこれを参照する）。
@@ -50,7 +51,8 @@ function findHandleHit(shapes, isSelected, x, y, tolerance) {
  * 2. 1で決まらなければ、図形配列の後ろ（手前）から順に`hitTest || (includeFill && hitTestFill)`（輪郭、または`includeFill`が真のときの塗った内側）が真の最初の図形を採る。
  *    選択集合の図形の内側もこの順番の中で扱い、選択集合だからといって内側を優先しない。
  *    `includeFill`が偽のとき、塗った内側は空白として扱い、手前の塗った図形に隠れていた奥の図形の輪郭が選ばれる。
- * 図形種別の分岐・`isFillable()`・`fillColor`の読み取りは持たず、`hitTest`・`hitTestFill`のポリモーフィック呼び出しのみで判定する。
+ *    複合パスの中の図形の塗った内側は、`hitTestFill`ではなく`hitTestCompoundFill(複合パス, 図形, x, y)`で判定する（穴は当たらない）。
+ * 図形種別の分岐・`isFillable()`・`fillColor`の読み取りは持たず、`hitTest`・`hitTestFill`のポリモーフィック呼び出しと複合パスの規則の呼び出しのみで判定する。
  * `shapes`は読むだけで書き換えず、`isSelected`は呼ぶだけ。
  * @param {Array<{id: string, hitTest: function(number, number, number): boolean, hitTestFill: function(number, number): boolean}>} shapes - 図形の配列（描画順。後ろが手前）
  * @param {function(string): boolean} isSelected - 選択集合に含まれるかの照会
@@ -58,9 +60,10 @@ function findHandleHit(shapes, isSelected, x, y, tolerance) {
  * @param {number} y - 判定する点のY座標（ワールド座標）
  * @param {number} tolerance - 輪郭の当たりの許容誤差（ワールドの長さ）
  * @param {boolean} includeFill - 塗った内側を当たりに含めるか
+ * @param {Map<Object, import('./CompoundPathRules.js').CompoundPath>} compoundByShape - 図形（インスタンス）→入っている複合パスの`Map`（空なら複合パスなし）
  * @returns {string | null} 本体の図形のid。どれにも当たらなければnull
  */
-function findBodyHit(shapes, isSelected, x, y, tolerance, includeFill) {
+function findBodyHit(shapes, isSelected, x, y, tolerance, includeFill, compoundByShape) {
     for (let i = shapes.length - 1; i >= 0; i--) {
         const shape = shapes[i];
         if (isSelected(shape.id) && shape.hitTest(x, y, tolerance)) {
@@ -69,8 +72,15 @@ function findBodyHit(shapes, isSelected, x, y, tolerance, includeFill) {
     }
     for (let i = shapes.length - 1; i >= 0; i--) {
         const shape = shapes[i];
-        if (shape.hitTest(x, y, tolerance) || (includeFill && shape.hitTestFill(x, y))) {
+        if (shape.hitTest(x, y, tolerance)) {
             return shape.id;
+        }
+        if (includeFill) {
+            const compound = compoundByShape.get(shape);
+            const filled = compound ? hitTestCompoundFill(compound, shape, x, y) : shape.hitTestFill(x, y);
+            if (filled) {
+                return shape.id;
+            }
         }
     }
     return null;
@@ -80,6 +90,7 @@ function findBodyHit(shapes, isSelected, x, y, tolerance, includeFill) {
  * 指定した点の当たり分類を行う。`handle`と`bodyId`は独立に求める（ハンドルが当たっても`bodyId`を求める）。
  * 規則：頂点のハンドル（選択集合・手前優先。頂点でないハンドルは当たりにしない）→ 本体（選択集合の図形の輪郭・手前優先 → 手前から輪郭、または`includeFill`が真のときの塗った内側）。
  * `includeFill`が偽のとき塗った内側は空白になる（ハンドルと選択集合の図形の輪郭の優先は変わらない）。
+ * 複合パス（`compoundPaths`。省略時は空＝今までと同じ）の中の図形の塗った内側は、複合パス全体の`evenodd`の塗られた所で、かつその図形が点を囲むときだけ当たる（穴は後ろの図形へ素通り）。
  * `includeHandles`が偽のときは`findHandleHit`を呼ばず`handle`を常にnullにする（`bodyId`・`includeFill`の意味は変わらない）。
  * 渡された図形だけを見る（変えられる図形かどうかの判定は持たない）。使う図形のメンバーは`id`・`hitTestHandle`・`getVertexHandleNames`・`hitTest`・`hitTestFill`のみ。
  * `shapes`は読むだけで書き換えず、`isSelected`は呼ぶだけ。例外を投げない（図形が契約を満たす前提）。
@@ -90,11 +101,13 @@ function findBodyHit(shapes, isSelected, x, y, tolerance, includeFill) {
  * @param {number} tolerance - 輪郭・ハンドルの当たりの許容誤差（ワールドの長さ）
  * @param {boolean} [includeFill=true] - 塗った内側を当たりに含めるか。省略時は含める
  * @param {boolean} [includeHandles=true] - ハンドルを当たりに含めるか。省略時は含める（偽ならhandleは常にnull）
+ * @param {Array<import('./CompoundPathRules.js').CompoundPath>} [compoundPaths=[]] - 効いている複合パス（`model.getCompoundPaths()`の戻り値）。省略時は複合パスなし
  * @returns {PointHit} 当たり分類の結果（handle・bodyIdともnullなら空白）
  */
-export function classifyPointHit(shapes, isSelected, x, y, tolerance, includeFill = true, includeHandles = true) {
+export function classifyPointHit(shapes, isSelected, x, y, tolerance, includeFill = true, includeHandles = true, compoundPaths = []) {
+    const compoundByShape = mapCompoundsByShape(compoundPaths);
     return {
         handle: includeHandles ? findHandleHit(shapes, isSelected, x, y, tolerance) : null,
-        bodyId: findBodyHit(shapes, isSelected, x, y, tolerance, includeFill),
+        bodyId: findBodyHit(shapes, isSelected, x, y, tolerance, includeFill, compoundByShape),
     };
 }
