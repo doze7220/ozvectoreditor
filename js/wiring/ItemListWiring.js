@@ -1,5 +1,5 @@
 /**
- * 責務：右端の図形の一覧の配線（購読・生成・注入と、規則の結果を`model`・パネル・`itemStateEditor`へ渡す橋渡し）を担う。
+ * 責務：右端の図形の一覧の配線（購読・生成・注入と、規則の結果を`model`・パネル・`itemStateEditor`・`compoundPathEditor`へ渡す橋渡し。複合パスのボタンの見た目と切り替えを含む）を担う。
  * 判定・計算の規則は持たず、各規則のモジュールへ渡すだけ。保存しない一時的な値だけを持つ。
  */
 import {
@@ -22,7 +22,9 @@ import { resolveInsertMark } from '../core/InsertTargetRules.js';
 import { buildItemRows, resolveRowHighlight, resolveRowViews } from '../core/ItemRowRules.js';
 import { resolveSelectedUnitIds } from '../core/GroupSelectionRules.js';
 import { canMoveItems } from '../core/ItemPlaceRules.js';
-import { FOLDER_BUTTON_ACTION, resolveFolderButtonAction } from '../core/GroupCommandRules.js';
+import { collectEditableIds } from '../core/ItemStateRules.js';
+import { collectCompoundGroupIds } from '../core/CompoundPathRules.js';
+import { FOLDER_BUTTON_ACTION, canToggleCompound, resolveCompoundButtonState, resolveFolderButtonAction } from '../core/GroupCommandRules.js';
 import { resolveRowClickSelection } from '../core/ListSelectionRules.js';
 import { hasHighlightChanged, resolveSelectionScrollTop, resolveVisibleRowRange } from '../core/ListScrollRules.js';
 import { THUMBNAIL_SIZE_PX, buildThumbnailKey, needsThumbnailRedraw } from '../core/ThumbnailRules.js';
@@ -66,6 +68,8 @@ export class ItemListWiring {
     #groupEditor;
     /** @type {import('../edit/ItemStateEditor.js').ItemStateEditor} 表示・ロックを切り替える編集操作 */
     #itemStateEditor;
+    /** @type {import('../edit/CompoundPathEditor.js').CompoundPathEditor} 複合パスを切り替える編集操作 */
+    #compoundPathEditor;
     /** @type {ItemListRowDrag} 行のドラッグ（並べ替え）の進行 */
     #rowDrag;
     /** @type {string|null} `Shift`＋クリックの範囲の起点の行のid（図形またはフォルダ） */
@@ -91,8 +95,9 @@ export class ItemListWiring {
      * @param {(ids: Array<string>, place: import('../core/ItemPlaceRules.js').ItemPlace) => boolean} deps.applyRowDrop - 行のドラッグで決まった場所へ動かす（動かすもののidと場所を渡す。記録つきの編集操作）
      * @param {import('../edit/GroupEditor.js').GroupEditor} deps.groupEditor - フォルダをまとめる・空のフォルダを足す編集操作（作るボタンが使う）
      * @param {import('../edit/ItemStateEditor.js').ItemStateEditor} deps.itemStateEditor - 目・鍵・その行だけの表示の編集操作（アイコンが使う。キャンバスを切り替えたときに記憶を忘れさせる）
+     * @param {import('../edit/CompoundPathEditor.js').CompoundPathEditor} deps.compoundPathEditor - 選んだフォルダを複合パス⇔普通のフォルダに切り替える編集操作（複合パスのボタンが使う）
      */
-    constructor({ model, shapeExtentReader, displayState, canvasLibrary, getMode, isDragging, isPicking, selectSelectTool, readCtrlModifier, itemRenameEditor, applyRowDrop, groupEditor, itemStateEditor }) {
+    constructor({ model, shapeExtentReader, displayState, canvasLibrary, getMode, isDragging, isPicking, selectSelectTool, readCtrlModifier, itemRenameEditor, applyRowDrop, groupEditor, itemStateEditor, compoundPathEditor }) {
         this.#model = model;
         this.#shapeExtentReader = shapeExtentReader;
         this.#canvasLibrary = canvasLibrary;
@@ -104,6 +109,7 @@ export class ItemListWiring {
         this.#itemRenameEditor = itemRenameEditor;
         this.#groupEditor = groupEditor;
         this.#itemStateEditor = itemStateEditor;
+        this.#compoundPathEditor = compoundPathEditor;
         this.#lastOpenCanvasId = canvasLibrary.getState().openCanvasId;
         this.#panel = new ItemListPanel(document.getElementById('item-list-panel'), {
             thumbnailSize: THUMBNAIL_SIZE_PX,
@@ -119,7 +125,8 @@ export class ItemListWiring {
             onNameCommit: (id, text) => this.#itemRenameEditor.rename(id, text),
             resolveNameEditKey,
             onGroupToggle: (id) => this.#handleGroupToggle(id),
-            onAddGroup: () => this.#handleAddGroup()
+            onAddGroup: () => this.#handleAddGroup(),
+            onCompoundToggle: () => this.#handleCompoundToggle()
         });
         this.#rowDrag = new ItemListRowDrag({
             panel: this.#panel,
@@ -200,6 +207,7 @@ export class ItemListWiring {
             insertMark
         });
         this.#panel.render(views);
+        this.#panel.renderCompoundButton(this.#resolveCompoundButtonState());
         const { selectedIds, markId, indexes } = resolveRowHighlight(views);
 
         if (allowScroll && hasHighlightChanged({ previousSelectedIds: previousIds, selectedIds, previousMarkId, markId })) {
@@ -390,6 +398,39 @@ export class ItemListWiring {
         } else if (action === FOLDER_BUTTON_ACTION.ADD) {
             this.#groupEditor.addEmptyGroup({ selects: false });
         }
+    }
+
+    /**
+     * 複合パスのボタンの状態を、規則に任せて求める（見た目なのでドラッグ中・ロック中は含めない）。
+     * @returns {{groupId: string|null, enabled: boolean, pressed: boolean}} ボタンの状態
+     */
+    #resolveCompoundButtonState() {
+        const model = this.#model;
+        const items = model.getItems();
+        const editableIds = collectEditableIds(items);
+        const compoundIds = collectCompoundGroupIds(items);
+        return resolveCompoundButtonState({
+            unitIds: this.#resolveUnitIds(),
+            selectedGroupIds: model.getSelectedGroupIds(),
+            isEditable: (id) => editableIds.has(id),
+            isCompound: (id) => compoundIds.has(id)
+        });
+    }
+
+    /**
+     * 複合パスのボタンのクリックを処理する。切り替えてよいかは`canToggleCompound`に任せ、真なら`compoundPathEditor`を呼び、表示を今の`model`にそろえるだけ。
+     * @returns {void}
+     */
+    #handleCompoundToggle() {
+        const state = this.#resolveCompoundButtonState();
+        const canToggle = canToggleCompound({
+            state,
+            isDragging: this.#isDragging(),
+            isRowDragging: this.#rowDrag.isActive(),
+            isLocked: isListLocked(this.#canvasLibrary.getState())
+        });
+        if (canToggle) this.#compoundPathEditor.toggle(state.groupId);
+        this.sync({ allowScroll: false });
     }
 
     /**

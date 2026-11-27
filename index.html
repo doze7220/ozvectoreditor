@@ -83,6 +83,24 @@
             font-size: 14px;
             line-height: 1;
         }
+        /* 複合パスのボタン（選んだフォルダを複合パス⇔普通のフォルダに切り替える。フォルダを作るボタンと同じ並べ方） */
+        .item-list-compound {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 6px;
+            padding: 2px 8px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .item-list-compound[aria-pressed="true"] {
+            background-color: #dbe9ff;
+            border-color: #6699ff;
+        }
+        .item-list-compound:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
         .item-row {
             position: relative;
             display: flex;
@@ -138,6 +156,24 @@
             height: 3px;
             border-radius: 2px 2px 0 0;
             background-color: #e8b94a;
+        }
+        /* 複合パスのフォルダの絵（地の色を変え、真ん中に丸い穴を描く） */
+        .item-row-folder-icon.is-compound {
+            background-color: #5b9bd5;
+        }
+        .item-row-folder-icon.is-compound::before {
+            background-color: #5b9bd5;
+        }
+        .item-row-folder-icon.is-compound::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 5px;
+            height: 5px;
+            margin: -2.5px 0 0 -2.5px;
+            border-radius: 50%;
+            background-color: #fff;
         }
         .item-row.insert-target {
             background-color: #eef4ff;
@@ -855,7 +891,7 @@
             </div>
         </div>
     </header>
-    <aside id="item-list-panel" class="item-list-panel"><div id="item-list" class="item-list"></div><div class="item-list-footer"><button type="button" id="item-list-add-group" class="item-list-add-group" title="フォルダを作る (Ctrl+G)"><span class="item-list-add-group-plus">＋</span><span class="item-row-folder-icon"></span></button></div></aside>
+    <aside id="item-list-panel" class="item-list-panel"><div id="item-list" class="item-list"></div><div class="item-list-footer"><button type="button" id="item-list-add-group" class="item-list-add-group" title="フォルダを作る (Ctrl+G)"><span class="item-list-add-group-plus">＋</span><span class="item-row-folder-icon"></span></button><button type="button" id="item-list-compound" class="item-list-compound" title="複合パス（選んだフォルダを複合パス⇔普通のフォルダに切り替える）" aria-pressed="false" disabled><span class="item-row-folder-icon is-compound"></span><span>複合パス</span></button></div></aside>
     <footer id="status-bar" class="status-bar">
         <div class="status-bar-side status-bar-left">
             <div class="status-bar-group status-bar-group-shrink">

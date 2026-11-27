@@ -40,6 +40,7 @@ import { ShapeOrderEditor } from './edit/ShapeOrderEditor.js';
 import { GroupEditor } from './edit/GroupEditor.js';
 import { ItemRenameEditor } from './edit/ItemRenameEditor.js';
 import { ItemStateEditor } from './edit/ItemStateEditor.js';
+import { CompoundPathEditor } from './edit/CompoundPathEditor.js';
 import { NudgeEditor } from './edit/NudgeEditor.js';
 import { PositionInputEditor } from './edit/PositionInputEditor.js';
 import { ShapeExtentReader } from './edit/ShapeExtentReader.js';
@@ -966,6 +967,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const itemRenameEditor = new ItemRenameEditor({ model, editRecorder: historyManager });
     // 目・鍵・その行だけの表示の編集操作（記録つき）はItemStateEditor（edit/）が持ち、ここで生成して渡す。
     const itemStateEditor = new ItemStateEditor({ model, editRecorder: historyManager });
+    // 複合パスの切り替えの編集操作（記録つき）はCompoundPathEditor（edit/）が持ち、ここで生成して渡す。
+    const compoundPathEditor = new CompoundPathEditor({ model, editRecorder: historyManager });
     const itemListWiring = new ItemListWiring({
         model,
         shapeExtentReader,
@@ -982,7 +985,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // フォルダを作るボタンが使う編集操作（7.8.で生成済み）
         groupEditor,
         // 目・鍵のアイコンが使う編集操作（上で生成）
-        itemStateEditor
+        itemStateEditor,
+        // 複合パスのボタンが使う編集操作（上で生成）
+        compoundPathEditor
     });
 
     // 7.16. 頂点の追加・削除配線

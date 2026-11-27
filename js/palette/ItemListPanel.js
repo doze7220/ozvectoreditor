@@ -1,5 +1,5 @@
 /**
- * 責務：右端の図形の一覧のパネル（`#item-list-panel`内の`#item-list`）の行の表示（差分の反映。目と鍵のアイコンを含む）・スクロール・サムネイル用`<canvas>`の提供を担う。
+ * 責務：右端の図形の一覧のパネル（`#item-list-panel`内の`#item-list`）の行の表示（差分の反映。目と鍵のアイコン・複合パスのフォルダの絵を含む）・複合パスのボタンの表示・スクロール・サムネイル用`<canvas>`の提供を担う。
  * 図形・VectorModel・状態の持ち主には関与しない。DOM操作と通知だけ（表示・ロックの規則は持たない）。
  */
 
@@ -22,6 +22,7 @@
  * @property {boolean} [hiddenByAncestor] 上のフォルダの表示が切のため隠れているか（省けば偽。真なら目に`is-inherited`）
  * @property {boolean} [lockedByAncestor] 上のフォルダのロックが入のためロックされているか（省けば偽。真なら鍵に`is-inherited`）
  * @property {boolean} [hidden] 隠れているか（省けば偽。真なら行に`item-hidden`）
+ * @property {boolean} [compound] 複合パスのフォルダか（省けば偽。真ならフォルダの絵に`is-compound`。フォルダの行だけ使う）
  */
 
 /**
@@ -57,6 +58,8 @@
  * @property {number} indent 表示中の字下げ（px）
  * @property {boolean|null} collapsed 表示中の折りたたみ（フォルダの行。`null`は未描画で、最初の`render`で必ず書く）
  * @property {boolean|null} canToggle 表示中の三角の有無（フォルダの行。`null`は未描画で、最初の`render`で必ず書く）
+ * @property {HTMLSpanElement|null} iconElement フォルダの絵の`<span class="item-row-folder-icon">`（図形の行は`null`）
+ * @property {boolean|null} compound 表示中の`is-compound`（フォルダの行。`null`は未描画で、最初の`render`で必ず書く）
  */
 
 /**
@@ -92,6 +95,7 @@
  * @property {(key: string, isComposing: boolean) => ('commit'|'cancel'|null)} resolveNameEditKey 名前の欄のキーを確定・取りやめ・無関係（`null`）に対応づける規則
  * @property {(id: string) => void} onGroupToggle フォルダの行の三角（`.item-row-toggle`）がクリックされたときにフォルダのidで呼ばれる（このとき`onRowClick`は呼ばれない）
  * @property {() => void} onAddGroup フォルダを作るボタン（`#item-list-add-group`）がクリックされたときに（ボタンを`blur()`してから）呼ばれる
+ * @property {() => void} onCompoundToggle 複合パスのボタン（`#item-list-compound`）がクリックされたときに（ボタンを`blur()`してから）呼ばれる
  */
 
 /**
@@ -103,9 +107,9 @@
  *   - 控えに残ったidの行が`render`で除かれていても失敗しない（行が無ければ飛ばす）。
  *
  * ■ 構成
- *   - ルート要素（`#item-list-panel`）の中の`#item-list`に、行（`<div class="item-row" data-item-id>`）を並べる。パネルの下端の`.item-list-footer`にフォルダを作るボタン`#item-list-add-group`がある（`.item-list`の外）。
+ *   - ルート要素（`#item-list-panel`）の中の`#item-list`に、行（`<div class="item-row" data-item-id>`）を並べる。パネルの下端の`.item-list-footer`にフォルダを作るボタン`#item-list-add-group`と複合パスのボタン`#item-list-compound`がある（`.item-list`の外）。複合パスのボタンの`disabled`・`aria-pressed`は`renderCompoundButton`だけが書く。
  *   - 図形の行は`<canvas class="item-row-thumbnail">`と`<span class="item-row-name">`。名前は`textContent`・`title`だけで書く。
- *   - フォルダの行は`<span class="item-row-toggle">`（`▸`／`▾`。押せないときは`visibility: hidden`）・`<span class="item-row-folder-icon">`（CSSで描く絵）・`<span class="item-row-name">`（サムネイルは無い）。
+ *   - フォルダの行は`<span class="item-row-toggle">`（`▸`／`▾`。押せないときは`visibility: hidden`）・`<span class="item-row-folder-icon">`（CSSで描く絵。複合パスのフォルダには`is-compound`を付ける）・`<span class="item-row-name">`（サムネイルは無い）。
  *   - すべての行の末尾に`<span class="item-row-states">`があり、目（`data-state-icon="visible"`）と鍵（`data-state-icon="lock"`）の`<span class="item-row-state">`が入る。隠れている行は`item-hidden`、目は`is-off`・`is-inherited`、鍵は`is-on`・`is-inherited`のクラスで書く（クラスの書き換えと押した通知だけで、表示・ロックの規則は持たない）。
  *   - アイコンの上の押下は`onRowPress`の第4引数で知らせ、クリックは行のクリックにせず`onStateIconClick`だけで知らせる。
  *   - 字下げはカスタムプロパティ`--row-indent`で行の左の余白に足す。弱い選択は`selected-in-group`、見えない行の印は`has-hidden-mark`のクラスで書く。
@@ -139,6 +143,10 @@ export class ItemListPanel {
     #onGroupToggle;
     /** @type {() => void} */
     #onAddGroup;
+    /** @type {() => void} */
+    #onCompoundToggle;
+    /** @type {HTMLButtonElement|null} 複合パスのボタン（無ければ`null`） */
+    #compoundButton = null;
     /** @type {Map<string, ItemListRowEntry>} id→行の控え */
     #rows = new Map();
     /** @type {ItemListNameEdit|null} 編集中の名前の欄の控え（編集中でなければ`null`） */
@@ -156,7 +164,7 @@ export class ItemListPanel {
      * 要素を解決してイベントを配線する。要素が欠ければ`console.warn`して配線しない（以後の公開メソッドは何もしない）。
      * @param {HTMLElement} rootElement パネルのルート要素（`#item-list-panel`）
      * @param {ItemListPanelOptions} options 設定
-     * @throws {Error} `onScroll`・`onRowPress`・`onStateIconClick`・`onRowClick`・`onRowHover`・`onNameEditRequest`・`onNameCommit`・`resolveNameEditKey`・`onGroupToggle`・`onAddGroup`のいずれかが関数でないとき
+     * @throws {Error} `onScroll`・`onRowPress`・`onStateIconClick`・`onRowClick`・`onRowHover`・`onNameEditRequest`・`onNameCommit`・`resolveNameEditKey`・`onGroupToggle`・`onAddGroup`・`onCompoundToggle`のいずれかが関数でないとき
      */
     constructor(rootElement, options) {
         if (!options || typeof options.onScroll !== 'function') {
@@ -189,6 +197,9 @@ export class ItemListPanel {
         if (typeof options.onAddGroup !== 'function') {
             throw new Error('ItemListPanel: options.onAddGroupは関数である必要があります。');
         }
+        if (typeof options.onCompoundToggle !== 'function') {
+            throw new Error('ItemListPanel: options.onCompoundToggleは関数である必要があります。');
+        }
         this.#onScroll = options.onScroll;
         this.#onRowPress = options.onRowPress;
         this.#onStateIconClick = options.onStateIconClick;
@@ -199,6 +210,7 @@ export class ItemListPanel {
         this.#resolveNameEditKey = options.resolveNameEditKey;
         this.#onGroupToggle = options.onGroupToggle;
         this.#onAddGroup = options.onAddGroup;
+        this.#onCompoundToggle = options.onCompoundToggle;
         this.#thumbnailSize = options.thumbnailSize;
 
         const list = rootElement ? rootElement.querySelector('#item-list') : null;
@@ -259,7 +271,27 @@ export class ItemListPanel {
                 this.#onAddGroup();
             });
         }
+        // 複合パスのボタン（.item-listの外）。無ければ配線しない。押した直後にblurする（Enterで再び押されない）
+        const compoundButton = rootElement.querySelector('#item-list-compound');
+        if (compoundButton) {
+            this.#compoundButton = compoundButton;
+            compoundButton.addEventListener('click', () => {
+                compoundButton.blur();
+                this.#onCompoundToggle();
+            });
+        }
         this.#wired = true;
+    }
+
+    /**
+     * 複合パスのボタンの見た目を書く（`disabled`と`aria-pressed`だけ。ボタンが無い・配線されていなければ何もしない）。
+     * @param {{enabled: boolean, pressed: boolean}} state 押せるか・押された見た目か
+     * @returns {void}
+     */
+    renderCompoundButton({ enabled, pressed }) {
+        if (!this.#wired || !this.#compoundButton) return;
+        this.#compoundButton.disabled = !enabled;
+        this.#compoundButton.setAttribute('aria-pressed', pressed ? 'true' : 'false');
     }
 
     /**
@@ -370,6 +402,11 @@ export class ItemListPanel {
                 if (entry.canToggle !== canToggle) {
                     entry.toggleElement.style.visibility = canToggle ? '' : 'hidden';
                     entry.canToggle = canToggle;
+                }
+                const compound = row.compound === true;
+                if (entry.compound !== compound) {
+                    entry.iconElement.classList.toggle('is-compound', compound);
+                    entry.compound = compound;
                 }
             }
         }
@@ -640,12 +677,13 @@ export class ItemListPanel {
 
         let canvas = null;
         let toggleElement = null;
+        let iconElement = null;
         if (kind === 'group') {
             toggleElement = document.createElement('span');
             toggleElement.className = 'item-row-toggle';
-            const icon = document.createElement('span');
-            icon.className = 'item-row-folder-icon';
-            element.append(toggleElement, icon, nameElement);
+            iconElement = document.createElement('span');
+            iconElement.className = 'item-row-folder-icon';
+            element.append(toggleElement, iconElement, nameElement);
         } else {
             canvas = document.createElement('canvas');
             canvas.className = 'item-row-thumbnail';
@@ -690,7 +728,9 @@ export class ItemListPanel {
             lockInherited: false,
             indent: 0,
             collapsed: null,
-            canToggle: null
+            canToggle: null,
+            iconElement,
+            compound: null
         };
     }
 }
