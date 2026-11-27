@@ -1,5 +1,5 @@
 /**
- * 責務：フォルダを作る・解除する操作を受け付ける操作モードと、フォルダを作るボタンの動作を判定する。
+ * 責務：フォルダを作る・解除する操作を受け付ける操作モードと、フォルダを作るボタン・複合パスのボタンの動作と状態を判定する。
  * 状態を持たず、DOMにも触れない。importするのは InputModes のみ。
  */
 import { OperationMode } from './InputModes.js';
@@ -49,4 +49,40 @@ export function resolveFolderButtonAction({ mode, hasUnits, isDragging, isRowDra
         return FOLDER_BUTTON_ACTION.ADD_AND_SELECT;
     }
     return FOLDER_BUTTON_ACTION.ADD;
+}
+
+/**
+ * フォルダのアイテムのボタン（複合パス）の状態を求める。
+ * 選んでいるまとまり（unitIds）がちょうど1つで、それが選んでいるフォルダ（selectedGroupIds）に入っているとき
+ * だけ groupId がそのid、ほかは null。pressed は groupId があり複合パスのとき、enabled は groupId があり変えられるとき。
+ * 操作モードは見ない（フォルダを選べるのは選択・頂点の選択モードだけで、ほかのモードでは選択が空になり groupId が null になるため）。
+ * ドラッグ中・ロック中は見た目に含めない（同期の契機が model.onChange だけで、ドラッグの終わりに描き直されないため）。
+ * 押された見た目は、複合パスなら押せないとき（ロック等）も出す。
+ * @param {Object} params - 引数
+ * @param {Array<string>} params.unitIds - 選んでいるまとまりのid
+ * @param {Array<string>} params.selectedGroupIds - 選んでいるフォルダのid
+ * @param {function(string): boolean} params.isEditable - フォルダが変えられる（隠れていない・ロックされていない）か
+ * @param {function(string): boolean} params.isCompound - フォルダが複合パスか
+ * @returns {{groupId: string|null, enabled: boolean, pressed: boolean}} ボタンの状態
+ */
+export function resolveCompoundButtonState({ unitIds, selectedGroupIds, isEditable, isCompound }) {
+    const groupId = unitIds.length === 1 && selectedGroupIds.includes(unitIds[0]) ? unitIds[0] : null;
+    if (groupId === null) {
+        return { groupId: null, enabled: false, pressed: false };
+    }
+    return { groupId, enabled: isEditable(groupId), pressed: isCompound(groupId) };
+}
+
+/**
+ * 複合パスのボタンを押したときに切り替えを行うかを返す。
+ * ボタンが押せて、ロック中・ドラッグ中・行のドラッグ中でないときだけ真（フォルダを作るボタンの none の条件と揃える）。
+ * @param {Object} params - 引数
+ * @param {{enabled: boolean}} params.state - resolveCompoundButtonState の結果
+ * @param {boolean} params.isDragging - キャンバスのドラッグ中か
+ * @param {boolean} params.isRowDragging - 一覧の行のドラッグ中か
+ * @param {boolean} params.isLocked - 操作がロックされているか
+ * @returns {boolean} 切り替えるなら true
+ */
+export function canToggleCompound({ state, isDragging, isRowDragging, isLocked }) {
+    return state.enabled && !isLocked && !isDragging && !isRowDragging;
 }

@@ -277,7 +277,7 @@
         *   『要件6：書き出したJSをエディタで開く』のとおり、`DrawElementReader.toCompoundPathShapeData`（JSDoc付き。作業データの語彙を書かない旨を書く。ファイル先頭の責務（3行以内のまま）に「`compoundPath`は輪郭ごとの図形データの並びへ」を足す）、`DocumentSerializer.deserializeShapeElements`の省ける第3引数`toCompoundShapeData`と複合パスのフォルダの要素の組み立て・`#readElement`の切り出し（`deserializeShapeElements`のJSDoc（`@param`・「フォルダは作らない」の記述）とファイル先頭の責務（3行以内のまま）を直す）、`FileContentReader`の第3引数の受け渡し（クラスのJSDocの表・規則を直す。「描画要素→図形データの変換は`DrawElementReader`、作業データ・旧版の変換と読み飛ばしの記録は`DocumentSerializer`だけが知る」の規則は保ち、複合パスのフォルダに組み立てるのも`DocumentSerializer`である旨を足す）を行う。`toShapeData`・今の変換関数は変えない。`DrawElementReader`のコード・JSDocに`type: 'group'`・`compound`のキー・`children`を書かないこと（`grep`で確かめて詳細作業内容に書く）。作業の順は、まず`DrawElementReader.toCompoundPathShapeData`とその単体のテスト → `DocumentSerializer.deserializeShapeElements`の第3引数 → `FileContentReader`の受け渡し → 往復のテスト、とする。
         *   テスト（テストファイルは`DrawElementReader.compound.test.js`の1つで、`DrawElementReader.toCompoundPathShapeData`単体のテストと、`DocumentSerializer.deserializeShapeElements`の第3引数・`FileContentReader`を通した往復のテストの両方を持つ。最初の表の「エディタで開く」の行の欄ごと）：`toCompoundPathShapeData`（`compoundPath`→輪郭ごとの図形データの配列で、それぞれ`ShapeFactory.fromJSON`で図形になり線・塗り・太さが要素の値、塗れない形（直線・弧・今の曲線）も`fillColor`が要素の値、`strokeColor`が文字列でなければ`null`・`strokeWidth`が不正なら2、結果の配列の要素に`type`・`compound`・`children`のキーが無い、`compoundPath`でない要素（今の`kind`・未知の`kind`・オブジェクトでない）は`null`、`outlines`が配列でない・空・輪郭が未知の`kind`・オブジェクトでないなら`Error`、引数を書き換えない）。`deserializeShapeElements`＋`toShapeData`・`toCompoundPathShapeData`（複合パスのフォルダ1つ・自動の名前「フォルダ 1」と図形の自動の名前・表示・ロックなし・`compound: true`、前後の図形の並び、輪郭の変換ができない要素は`[position]`の1件の読み飛ばし・図形データとして不正な輪郭は`[position, j]`の1件で残りは入る、第3引数が配列でも`null`でもない値を返すと`[position]`の1件の読み飛ばし、第3引数を省いた結果・読み飛ばしの記録が今と同じ）。`FileContentReader.deserializeFromText`の往復（タスク9の書き出し→`CodeExporter.toModuleText`→読み込みで、複合パスのフォルダに戻り、もう一度書き出すと同じ`elements`・`bounds`。中のフォルダは平らになる。一番下を隠して書き出すと隠した図形は戻らない）。既存の`FileContentReader*.test.js`・`DrawElementReader.test.js`・`DocumentSerializer.shapeElements.test.js`が変更なしで（タスク9で版の数字を直したものを除き）全件合格すること。
 
-*   [ ] タスク12: 切り替えの規則と1件の編集操作
+*   [x] タスク12: 切り替えの規則と1件の編集操作
     *   **対象ファイル** :
         *   `./js/core/GroupCommandRules.js` :（更新。行末はCRLF）
         *   `./js/edit/CompoundPathEditor.js` :（新規。行末はLF）
@@ -398,7 +398,10 @@
 
 ### タスク12: 切り替えの規則と1件の編集操作
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/GroupCommandRules.js`（CRLF維持）：`resolveCompoundButtonState({ unitIds, selectedGroupIds, isEditable, isCompound })`・`canToggleCompound({ state, isDragging, isRowDragging, isLocked })`をJSDoc付きで足した（操作モードを見ない理由・見た目にドラッグ中等を含めない理由をJSDocに記載）。ファイル先頭の責務（3行以内）を直した。importは`InputModes`のまま。
+    *   `js/edit/CompoundPathEditor.js`（新規・LF）：`constructor({ model, editRecorder })`・`toggle(groupId)`（`resolveCompoundToggle`が`null`なら`beginEdit`を呼ばず`false`、そうでなければ`beginEdit`→`model.setGroupCompound`→`commitEdit`）。importは`core/CompoundPathRules`の`resolveCompoundToggle`のみ。
+    *   新規テスト：`test/core/GroupCommandRules.compound.test.js`（LF）11件、`test/edit/CompoundPathEditor.test.js`（LF）7件（偽の依存2件・実物5件）。
+    *   `node --test`は4186件すべて合格（作業前4168＋新規18）。
 
 ### タスク13: 一覧での見分けとボタン（パネル・配線・`index.html`）
 *   **作業内容** :
