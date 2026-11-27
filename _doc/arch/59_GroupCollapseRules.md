@@ -5,6 +5,7 @@
     *   **`expandGroupsContaining(items, shapeIds, canExpand)`**：`shapeIds`の図形を含む閉じたフォルダ（入れ子の上のすべて）のうち、`canExpand(id)`が真のものを開く。`canExpand`が偽のフォルダの上のフォルダも、対象の図形を含んでいれば開く。変わらなければ同じ参照。`VectorModel.#applyState`が「変わる前の`#items`にあったフォルダだけ」を`canExpand`で渡す（インポートしたフォルダの折りたたみを保つため）。
     *   **`withoutCollapsed(items)`・`listCollapsedIds(items)`**：すべてのフォルダから`collapsed`のキーを取り除いた新しい入れ子（図形のアイテムも写す）と、閉じているフォルダのidを前順で返す。`SnapshotAdapter.capture`が、履歴の記録から折りたたみを外して別に`collapsedGroupIds`として持つために使う（折りたたみは取り消しの対象外）。
     *   **`restoreCollapsed(items, currentItems, recordedIds)`**（今の状態を保つ判定の1か所）：`items`のフォルダ（入れ子の中も含む）ごとに、`currentItems`に同じidのフォルダがあればその今の折りたたみ、無ければ`recordedIds`に含まれるときだけ閉じる。`items`側の`collapsed`は使わない。`SnapshotAdapter.restore`が`replaceAllShapes`へ渡す前に通す（取り消し/やり直しをしても今の折りたたみが保たれ、取り消しで復活したフォルダだけ記録のとおりになる）。
+    *   **複合パスの属性`compound`との関係（Phase 12-04）**：`withoutCollapsed`は`collapsed`のキーだけを取り除き、**`compound`は保つ**（写すときのスプレッドで値が残る。コードは変えていない）。そのため`SnapshotAdapter.capture`の`document`（`serialize(withoutCollapsed(...))`）は`compound`を含み、複合パスの切り替えは履歴の前後比較・取り消しの対象になる（折りたたみが対象外なのと逆）。`setCollapsed`・`expandGroupsContaining`・`restoreCollapsed`も`compound`に触れず、`collapsed`と`compound`は互いに独立。テスト：`test/edit/CompoundPath.flow.test.js`（取り消し／やり直し）。
     *   **契約**：引数を書き換えず、新しい入れ子を返す（変わらない関数は同じ参照を返すことがある）。図形のアイテムは共有または写し。
     *   **読むもの**：渡された入れ子の`kind`・フォルダの`id`・`collapsed`・`children`と図形の`shape.id`（`itemIdOf`）だけ。
     *   **知らないこと**：DOM・`VectorModel`・選択・図形種別・作業データ形式・履歴。importは`core/ItemTreeRules`（`ITEM_KIND`）・`core/GroupTreeRules`（`itemIdOf`）のみ。

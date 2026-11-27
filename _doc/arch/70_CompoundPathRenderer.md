@@ -1,0 +1,9 @@
+*   **CompoundPathRenderer.js**：複合パス1つのCanvas描画（中の図形の輪郭を1つのパスにまとめ、一番下の図形のスタイルで`evenodd`の塗りと線を描く）だけを、`CanvasManager`・`ThumbnailRenderer`と同じ「引数だけから毎回描く、状態を持たないレンダラー」として提供する（Phase 12-04で新設。流れは`PROJECT_ARCHITECTURE.md`3章2.・31.）。
+    *   **公開**：`drawCompoundPath(ctx, compound)`のみ。呼び出し元は`core/CanvasManager`の`render`（複合パスの単位で、アウトライン表示でないとき）だけ。
+    *   **手順（命令の順）**：`compound.style`の`fillColor`が文字列（塗る）・`strokeColor`が文字列（線）のどちらも偽、または`compound.shapes`が空なら何も呼ばない。そうでなければ`ctx.beginPath()` → 中の図形ごとに`shape.appendOutline(ctx)` → 塗るなら`ctx.fillStyle = fillColor`→`ctx.fill('evenodd')` → 線なら`ctx.strokeStyle = strokeColor`→`ctx.lineWidth = strokeWidth`→`ctx.stroke()`。塗りは`isFillable()`を問わず`fillColor`が文字列なら塗る（複合パスは全体として塗れる形）。線の太さは一番下の図形の太さ。
+    *   **契約**：図形の`draw`は呼ばない（共通メソッドの`appendOutline`だけを呼ぶ。`12_shapes.md`の第19メソッド）。図形・`compound`を書き換えない。図形種別の分岐・固有のプロパティ名を持たない。引数`compound`は`CompoundPathRules`の`CompoundPath`（複合パスの描く単位でも同じ形）で、`shapes`と`style`だけを読む。
+    *   **書き出したJSとの一致**：命令の順は、書き出したJSの`draw`（`io/CodeExporter`の`DRAW_SOURCE`の`drawCompoundPath`。`15_io.md`）と同じ（エディタで見えるものと書き出したJSで描かれるものを一致させるため）。一致は`test/io/CodeExporter.compound.test.js`が確かめる。
+    *   **読むもの・知らないこと**：importなし。複合パスの中身の集め方・一番下の図形・スタイルの読み替え（`CompoundPathRules`）、ホバーの強調（`CanvasManager`が図形ごとに`drawHover`を呼ぶ）、アウトライン表示（`CanvasManager`が図形ごとの`drawOutline`にする）、状態・DOM・ビュー変換を知らない（変換は呼び出し側が`ctx`に設定済み）。
+    *   **使う側**：`core/CanvasManager`だけ（`PROJECT_ARCHITECTURE.md`3章31.）。
+    *   **置き場所の理由**：`ThumbnailRenderer`と同じく、`CanvasManager`はテストを置かない方針のため、描き方を`node --test`で確かめられるよう`CanvasManager`から分けて置いた（`core/`内で処理が規則・レンダラーをimportする向き）。実際の見た目（`evenodd`の穴・アンチエイリアス）は`node --test`で確かめられず、テストプレイで確かめる範囲。
+    *   **テスト**：`test/core/CompoundPathRenderer.test.js`（6件。偽の`ctx`で、命令の順（大きな円＋小さな円）・塗りなし・線なし・塗りも線も無い／`shapes`が空なら何も呼ばない・塗れない形が一番下でも`fillColor`が文字列なら塗る・図形1つ・`draw`を呼ばず図形を書き換えないこと。`16_test.md`）。
