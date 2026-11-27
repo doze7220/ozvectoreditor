@@ -1,6 +1,6 @@
 /**
  * 責務: 作業データ形式（キャンバス全体の版番号付きJSON表現。図形の名前・表示・ロックとフォルダの入れ子・折りたたみ・複合パスの値を含む）の
- * シリアライズ・デシリアライズと旧版からのマイグレーション、および変換関数つきの図形の並びの読み込みを担う。
+ * シリアライズ・デシリアライズと旧版からのマイグレーション、および変換関数つきの図形の並びの読み込み（複合パスの図形データの並びは複合パスのフォルダとして）を担う。
  * 図形単位の変換はShapeFactory・図形クラスへ委譲する。
  */
 import { ShapeFactory } from '../core/ShapeFactory.js';
@@ -221,7 +221,8 @@ const MIGRATIONS = Object.freeze({ 1: migrateVersion1To2, 2: migrateVersion2To3,
  * 文字列層（serializeToString / deserializeFromString）とオブジェクト層（serialize / deserialize）の両方を提供する。
  * デシリアライズ系のメソッドは例外をthrowせず、すべての失敗をDeserializeResultで返す。
  * `deserializeShapeElements`は、作業データではなく「図形データへ変換できる要素の並び」と変換関数を受け取って同じ結果を返す
- * （変換元の形式は知らない。名前・表示・ロックは持たない図形が読み込みの規則で自動の名前・既定の表示・ロックなしになる）。
+ * （変換元の形式は知らない。名前・表示・ロックは持たない図形が読み込みの規則で自動の名前・既定の表示・ロックなしになる。
+ * 第3引数が図形データの配列を返した要素は複合パスのフォルダとして読む）。
  */
 export class DocumentSerializer {
     /**
@@ -313,18 +314,43 @@ export class DocumentSerializer {
     /**
      * 「図形データへ変換できる要素の並び」から図形を作り、結果オブジェクトを返す。例外をthrowしない。引数を書き換えない。
      * `elements`の要素ごとに`toShapeData(element)`で図形データを得て`ShapeFactory.fromJSON`で図形にし、
-     * 名前・表示・ロックのキーを持たない図形のアイテムとして集める（名前は読み込みの規則が自動で付け、表示・ロックは既定になる。フォルダは作らない）。
+     * 名前・表示・ロックのキーを持たない図形のアイテムとして集める（名前は読み込みの規則が自動で付け、表示・ロックは既定になる）。
+     * 第3引数`toCompoundShapeData`が図形データの配列を返した要素は、複合パスのフォルダ（`type: 'group'`・`compound: true`・id・名前・表示・ロックなしの要素。ここで組み立てる）として読む
+     * （中の不正な図形データは`path`が`[index, j]`の1件ずつの読み飛ばし）。
      * `toShapeData`が投げたError・`ShapeFactory.fromJSON`が投げたErrorは図形単位で捕捉し、その要素だけをスキップとして記録して続行する
      * （`index`は`elements`内の位置、`path`は`[index]`。RangeErrorは全体失敗）。スキップ1件ごと・全体失敗時にconsole.warnを出す。
+     * `toCompoundShapeData`がErrorを投げた・配列でも`null`でもない値を返したときも、元の要素の`[index]`の1件の読み飛ばし。
      * `elements`が配列でない等、図形単位の捕捉の外で例外が出た場合は全体の読み込み失敗（ok=false）にする。
      * @param {*} elements - 図形データへ変換できる要素の並び（配列でなければ全体失敗）
      * @param {function(*): Object} toShapeData - 要素1つを図形データ（`ShapeFactory.fromJSON`が受ける形）へ変換する関数。変換できなければErrorを投げる
+     * @param {?function(*): ?Array<Object>} [toCompoundShapeData=null] - 要素1つを、複合パスのフォルダにまとめる図形データの配列へ変換する関数。対象外なら`null`を返し、変換できなければErrorを投げる。省くと使わない
      * @returns {DeserializeResult} 結果オブジェクト
      */
-    static deserializeShapeElements(elements, toShapeData) {
+    static deserializeShapeElements(elements, toShapeData, toCompoundShapeData = null) {
         return DocumentSerializer.#buildResult((skipped) => {
             const items = [];
             elements.forEach((element, position) => {
+                let compoundData = null;
+                if (typeof toCompoundShapeData === 'function') {
+                    try {
+                        compoundData = toCompoundShapeData(element);
+                        if (compoundData !== null && !Array.isArray(compoundData)) {
+                            throw new Error('複合パスの図形データが配列ではありません');
+                        }
+                    } catch (error) {
+                        if (error instanceof RangeError) throw error;
+                        DocumentSerializer.#recordSkip(skipped, [position], element, DocumentSerializer.#messageOf(error));
+                        return;
+                    }
+                }
+                if (compoundData !== null) {
+                    const folder = { type: GROUP_TYPE, compound: true, children: compoundData };
+                    const item = DocumentSerializer.#readElement(folder, [position], skipped);
+                    if (item !== null) {
+                        items.push(item);
+                    }
+                    return;
+                }
                 try {
                     items.push({ kind: ITEM_KIND.SHAPE, shape: ShapeFactory.fromJSON(toShapeData(element)) });
                 } catch (error) {
@@ -422,39 +448,52 @@ export class DocumentSerializer {
     static #readElements(elements, parentPath, skipped) {
         const items = [];
         elements.forEach((element, position) => {
-            const path = [...parentPath, position];
-            if (DocumentSerializer.#isPlainObject(element) && element.type === GROUP_TYPE) {
-                if (!Array.isArray(element.children)) {
-                    DocumentSerializer.#recordSkip(skipped, path, element, 'フォルダのchildrenが配列ではありません');
-                    return;
-                }
-                items.push({
-                    kind: ITEM_KIND.GROUP,
-                    id: element.id,
-                    name: element.name,
-                    visible: element.visible,
-                    locked: element.locked,
-                    collapsed: element.collapsed,
-                    compound: element.compound,
-                    children: DocumentSerializer.#readElements(element.children, path, skipped),
-                });
-                return;
-            }
-            try {
-                const plain = DocumentSerializer.#isPlainObject(element);
-                items.push({
-                    kind: ITEM_KIND.SHAPE,
-                    shape: ShapeFactory.fromJSON(element),
-                    name: plain ? element.name : undefined,
-                    visible: plain ? element.visible : undefined,
-                    locked: plain ? element.locked : undefined,
-                });
-            } catch (error) {
-                if (error instanceof RangeError) throw error;
-                DocumentSerializer.#recordSkip(skipped, path, element, DocumentSerializer.#messageOf(error));
+            const item = DocumentSerializer.#readElement(element, [...parentPath, position], skipped);
+            if (item !== null) {
+                items.push(item);
             }
         });
         return items;
+    }
+
+    /**
+     * 作業データの要素1つを読み、アイテムを返す。読めない要素は読み飛ばして`skipped`へ記録し`null`を返す（RangeErrorは再送出）。
+     * @param {*} element - 要素（図形データまたはフォルダの要素）
+     * @param {Array<number>} path - この要素の最上位からの位置の並び
+     * @param {Array<SkippedShape>} skipped - 読み飛ばしの記録の追加先
+     * @returns {Object|null} 読めたアイテム、読み飛ばしたなら`null`
+     */
+    static #readElement(element, path, skipped) {
+        if (DocumentSerializer.#isPlainObject(element) && element.type === GROUP_TYPE) {
+            if (!Array.isArray(element.children)) {
+                DocumentSerializer.#recordSkip(skipped, path, element, 'フォルダのchildrenが配列ではありません');
+                return null;
+            }
+            return {
+                kind: ITEM_KIND.GROUP,
+                id: element.id,
+                name: element.name,
+                visible: element.visible,
+                locked: element.locked,
+                collapsed: element.collapsed,
+                compound: element.compound,
+                children: DocumentSerializer.#readElements(element.children, path, skipped),
+            };
+        }
+        try {
+            const plain = DocumentSerializer.#isPlainObject(element);
+            return {
+                kind: ITEM_KIND.SHAPE,
+                shape: ShapeFactory.fromJSON(element),
+                name: plain ? element.name : undefined,
+                visible: plain ? element.visible : undefined,
+                locked: plain ? element.locked : undefined,
+            };
+        } catch (error) {
+            if (error instanceof RangeError) throw error;
+            DocumentSerializer.#recordSkip(skipped, path, element, DocumentSerializer.#messageOf(error));
+            return null;
+        }
     }
 
     /**

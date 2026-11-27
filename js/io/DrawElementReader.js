@@ -1,5 +1,5 @@
 /**
- * 責務: スプライトデータの描画要素1つを、図形クラスの`toJSON()`の形（図形データ）へ変換する規則を持つ（描画要素→図形データの知識はここだけ）。
+ * 責務: スプライトデータの描画要素1つを、図形クラスの`toJSON()`の形（図形データ）へ変換する規則を持つ（描画要素→図形データの知識はここだけ。`compoundPath`は輪郭ごとの図形データの並びへ変換する）。
  * 状態・DOMを持たず、図形データの規則（点の数・座標の有限性等）の検証は`ShapeFactory.fromJSON`に任せる。
  */
 import { resolveStrokeWidth } from './SpriteSerializer.js';
@@ -258,5 +258,40 @@ export class DrawElementReader {
             throw new Error(`DrawElementReader: 描画要素のkindが未知です（${String(kind)}）`);
         }
         return CONVERTER_BY_KIND[kind](element);
+    }
+    /**
+     * 描画要素`compoundPath`を、輪郭ごとの図形データ（`ShapeFactory.fromJSON`が受ける形）の配列にして返す。
+     * 輪郭に要素のスタイル（線の色・太さ・塗りの色）を足したものを`toShapeData`と同じ変換関数で図形データにし、
+     * 塗りの色だけを要素の値（文字列ならその値、でなければ`null`。塗れない形でも保つ）で上書きする。
+     * 図形データの並びを返すだけで、それをどう組み立てて読むかは呼び出し側が決める（作業データの語彙はここでは扱わない）。
+     * 引数を書き換えず、警告を出さない。
+     * @param {*} element - 描画要素
+     * @returns {Array<Object>|null} 輪郭ごとの図形データの配列。`compoundPath`でない要素（オブジェクトでない・`kind`が`compoundPath`でない）は`null`（対象外）
+     * @throws {Error} `outlines`が配列でない・空、輪郭がオブジェクトでない・`kind`が変換表に無い、または輪郭の変換に失敗したとき
+     */
+    static toCompoundPathShapeData(element) {
+        if (!isPlainObject(element) || element.kind !== 'compoundPath') {
+            return null;
+        }
+        if (!Array.isArray(element.outlines) || element.outlines.length === 0) {
+            throw new Error('DrawElementReader: compoundPathのoutlinesが空でない配列ではありません');
+        }
+        const fillColor = typeof element.fillColor === 'string' ? element.fillColor : null;
+        return element.outlines.map((outline, index) => {
+            if (!isPlainObject(outline)) {
+                throw new Error(`DrawElementReader: compoundPathのoutlines[${index}]がオブジェクトではありません`);
+            }
+            const kind = outline.kind;
+            if (typeof kind !== 'string' || !Object.prototype.hasOwnProperty.call(CONVERTER_BY_KIND, kind)) {
+                throw new Error(`DrawElementReader: compoundPathのoutlines[${index}]のkindが未知です（${String(kind)}）`);
+            }
+            const data = CONVERTER_BY_KIND[kind]({
+                ...outline,
+                strokeColor: element.strokeColor,
+                strokeWidth: element.strokeWidth,
+                fillColor: element.fillColor,
+            });
+            return { ...data, fillColor };
+        });
     }
 }

@@ -29,8 +29,9 @@ import { DrawElementReader } from './DrawElementReader.js';
  * ■ 規則
  *   - `source`のキーがあれば`source`だけを使い、`elements`・`bounds`は読まない（`null`・不正な値も今までどおり読み込み不可。`elements`から組み立てない）。
  *   - `source`のキーが無ければ、`elements`が配列でない場合は読み込み不可、配列なら
- *     `DocumentSerializer.deserializeShapeElements(elements, DrawElementReader.toShapeData)`で図形を組み立てる
+ *     `DocumentSerializer.deserializeShapeElements(elements, DrawElementReader.toShapeData, DrawElementReader.toCompoundPathShapeData)`で図形を組み立てる
  *     （`bounds`は読まない。読めない要素は読み飛ばして`skipped`に記録。名前は自動、表示・ロックは既定）。
+ *     `compoundPath`の要素は、輪郭ごとの図形データの並び（`DrawElementReader`）を`DocumentSerializer`が複合パスのフォルダに組み立てて読む。
  *   - 全体失敗の警告（`console.warn`）はどの経路でも1回（本クラス自身が判定した読み込み不可は本クラスが、
  *     `DocumentSerializer`の判定による失敗は`DocumentSerializer`が出す。スプライトのJSONは後者）。
  *   - JSONの結果は`DocumentSerializer.deserializeFromString`と同じ分類になる
@@ -85,7 +86,11 @@ export class FileContentReader {
         if (!Array.isArray(data.elements)) {
             return FileContentReader.#failure('スプライトのelementsが配列ではありません');
         }
-        return DocumentSerializer.deserializeShapeElements(data.elements, (element) => DrawElementReader.toShapeData(element));
+        return DocumentSerializer.deserializeShapeElements(
+            data.elements,
+            (element) => DrawElementReader.toShapeData(element),
+            (element) => DrawElementReader.toCompoundPathShapeData(element)
+        );
     }
 
     /**
