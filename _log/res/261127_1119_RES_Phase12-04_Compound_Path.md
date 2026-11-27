@@ -302,7 +302,7 @@
     *   **作業内容** :
         *   製品コードは変えない。実物の`VectorModel`・`HistoryManager`・`SnapshotAdapter`・`GroupEditor`・`CompoundPathEditor`・`ShapeStyleEditor`・`StyleEyedropper`・`ClipboardController`・`ShapeInserter`・`DocumentSerializer`・`SpriteSerializer`・`CodeExporter`・`FileContentReader`を組み合わせ、テストプレイの確認項目0〜8に当たる流れを確かめる：円を2つ描いて（`addShapesWithNewIds`）大きい円に塗り→`groupSelection`でまとめ→フォルダだけを選んで`resolveCompoundButtonState`が押せる→`toggle`で`getCompoundPaths()`が1件（一番下＝大きい円）・`buildDrawUnits`が1単位・ドーナツの輪と穴の`classifyPointHit`の結果→`undo`で戻り`redo`で戻る、小さい円を動かす（`moveShapes`）と穴の位置の当たりが変わる、小さい円をフォルダの外へ出す（`ShapeOrderEditor.moveTo`または`rearrangeItems`）と複合パスの単位に入らず自分のスタイル、小さい円を選んで塗りを変えると大きい円の`fillColor`が変わり小さい円は変わらない・普通のフォルダに戻すと小さい円は元の値、一番下を隠すと先頭が次の図形、保存（`serialize`→`deserialize`→`replaceAllShapes`）とコピー・貼り付け（`copy`→`paste`）で複合パスのまま、書き出し→JSのテキスト→開くで複合パスのフォルダに戻る、版4の作業データ・版4のJS（今の書き出しの`formatVersion`を4に書き換えたもの・`compoundPath`を含まないもの）が今までどおり開ける。
 
-*   [ ] タスク15: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
+*   [x] タスク15: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新。行末はCRLF）
     *   **作業内容** :
@@ -422,7 +422,11 @@
 
 ### タスク15: 開発資料の反映（`PROJECT_ARCHITECTURE.md`）
 *   **作業内容** :
-    *   （未実施）
+    *   `PROJECT_ARCHITECTURE.md`（CRLF維持。作業前に`git ls-files --eol`で`w/crlf`を確認し、全行CRLFのまま書き換えた）を『開発資料の更新予定』のとおり更新した。書く内容は実コードで確かめた（`export`の一覧・`CanvasManager.render`・`CompoundPathRenderer`・`GroupCommandRules`・`index.html`のボタン）。`_doc/COWORK_STATUS.md`・`_doc/arch/`は触っていない。
+    *   1章：構成図に`core/CompoundPathRules.js`・`core/CompoundPathRenderer.js`・`edit/CompoundPathEditor.js`を足し、`index.html`・`PointHitRules`・`ItemTreeRules`・`ItemAttributeRules`・`ItemRowRules`・`GroupCommandRules`・`ShapeGeometry`・`ItemListPanel`・`ItemListWiring`・`ShapeStyleEditor`・`StyleEyedropper`の行と、テストの一覧（今回の16ファイル）を更新。「存在しないもの」に複合パスが入った旨・弧・曲線等の塗りへの添え書き・Phase 12-04でやらないと決めたことを足し、「フォルダ分割の方針」（`core/`・`io/`・`edit/`の段落）と「依存方向」（`io/`のimportの列・(3)`edit/ → core/`を14→17ファイル・`core/`内のimport・規則の段）を更新。
+    *   2章：共通メソッド契約を20メソッドへ（第19`appendOutline`・第20`isInsideOutline`）、スタイル3つを読む側に`CompoundPathRules`、塗れる形、アイテムのフォルダの`(compound)`と新しい項「フォルダの複合パスの属性`compound`」（`setGroupCompound`・`getCompoundPaths`）、作業データ形式（現行版5・版4→5の移行・版5のフォルダの要素・古いエディタで開くと断られる）、スプライト（版5・`compoundPath`の描画要素・複合パスの単位・読む側の規則・外枠・エディタで開くときの組み立て・2つの版の履歴・エンジンとの約束(c)＝版5の連絡は次のサブフェイズ）を更新。
+    *   3章：2.・3.・5.・6.・7.・9.・10.・13.・15.・16.・28.に複合パスの項を足し、27.の「今の現行版」の数字を直し、新しい31.「複合パス（Phase 12-04）」（用語・最初の表の要約・モジュールの分担・流れ・計画で決めたこと・やらないこと・確認の状況）を30.の後に足した（1.は変わらない）。4章の一覧に`69_CompoundPathRules.md`・`70_CompoundPathRenderer.md`を足した（`_doc/arch/`の本文はタスク16）。
+    *   実測：`node --test`は4199件すべて合格（suites 696。製品コード・テストは変えていない）。`main.js`は1305行・`InputTracker.js`は2126行（行数は`_doc/arch/`のタスク16で書く。`PROJECT_ARCHITECTURE.md`には行数・件数を書いていない）。
 
 ### タスク16: 開発資料の反映（`_doc/arch/`）
 *   **作業内容** :
@@ -449,6 +453,8 @@
 *   **（タスク13の実施メモ）一覧の見た目は目視確認を推奨**：複合パスのフォルダの絵（青い地に白い丸の穴）・「複合パス」ボタンの押せる・押された・押せない見た目・ボタンが「フォルダを作る」の右に並ぶ1行の収まり（`margin-left: 6px`はこのタスクで足した）はDOM・CSSのためテストが無い。ボタンの見た目は`model.onChange`の同期でだけ更新される（ドラッグ中・ロック中は含めない。押しても何もしない）。`#handleCompoundToggle`は何も切り替えなくても最後に`sync`する（`#handleAddGroup`と違い、押した見た目をそろえるため）。
 
 *   **（タスク14の実施メモ）通しの確かめの前提**：`Ellipse`は中心と「縁の点」で作るが、半径は`max(|dx|,|dy|)`（縦横が同じに近い点で与えないと潰れた楕円になる）。通しのテストの円は`new Ellipse(100,100,200,200,'circle',…)`のように縦横とも離した点で作っている。フォルダの行の選択（`setSelection(中の図形のid, { groupIds })`）は、点の当たりの確認（`bodyAt`）が`clearSelection`するため、ボタンの状態の確認は当たりの確認より前に置く。
+*   **（タスク15の実施メモ）開発資料の書き方**：`PROJECT_ARCHITECTURE.md`は1行が非常に長いため、既存の長い行は書き換えず、新しい項目は直後の子の箇条書きとして足した（3章は各見出しの直後・2章はフォルダ・版3→4の移行・版4の読み方・描画要素`ellipse`・外枠の求め方・組み立ての規則の各行の直後）。既存の行を直したのは、現在形で食い違う箇所だけ（共通メソッド契約の数、`現行版は4`→5、`formatVersion: 4`→5、`checkFormat`の受理する版、(3)`edit/ → core/`のファイル数14→17、`io/`のimportの列、27.の「今の現行版」）。履歴として「当時は版4のまま」と述べている箇所（版は4のまま、18メソッドの経緯等）は直していない。OZ Engineへの連絡は書かず、版5の連絡は次のサブフェイズである旨だけ書いた（2章のエンジンとの約束(c)・1章・31.）。
+*   **（タスク15の実施メモ）タスク16への引き継ぎ**：`_doc/arch/`の各ファイルは、`PROJECT_ARCHITECTURE.md`の新しい31.と2章の項を正として揃えること。行数（`main.js`1305・`InputTracker.js`2126）・テストの件数（4199。suites 696）はタスク16で`_doc/arch/`だけに書く。
 
 ### テストプレイの確認項目（発注者がブラウザで確かめる手順）
 0.  **準備と切り替え**：画面を開き、`Ctrl`+`F5`（強制再読み込み）で最新の状態にする。円のツールで大きい円を描き、その中に小さい円を描く。選択（`V`）で大きい円を選び、オプションバーで塗りを「あり」にして色を付ける。2つの円を選んで（`Ctrl`+クリック）`Ctrl`+`G`でフォルダにまとめる。一覧でフォルダの行をクリックして選び、一覧の下端の「複合パス」ボタンを押すと、ドーナツ型（小さい円の所が抜ける）になり、ボタンが押された見た目になる。もう一度押すと元の2つの円（小さい円は自分の見た目）に戻る。`Ctrl`+`Z`で切り替えが戻り、`Ctrl`+`Y`でやり直せる（1回ずつ）。
