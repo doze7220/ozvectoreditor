@@ -196,7 +196,7 @@
         *   テスト（`CompoundPathRules.test.js`。実物の`Rect`・`Ellipse`・`Line`・`Path`・`Curve`）：`isCompoundGroup`（`true`だけ真・`'true'`・`1`・図形のアイテムは偽）。`setCompound`（真でキーが付く・偽でキーが消える・同じ値・無いid・図形のidは同じ参照・入れ子の中のフォルダ・引数を書き換えない・図形インスタンスを共有）。`resolveCompoundToggle`・`collectCompoundGroupIds`（入れ子・隠れたフォルダも）。`listCompoundPaths`＝最初の表の欄ごと：普通のフォルダは返さない、複合パス（中の図形が描画順・一番下の図形のスタイルが`style`）、中のフォルダ（普通・複合パス）の図形も外側に入り内側の複合パスを別に返さない、外側が普通で内側が複合パスなら内側を返す、一番下の図形を隠すと次の図形が先頭・`style`も次の図形、フォルダごと隠すと返さない、空・すべて隠れは返さない、1つだけは1件、ロックした図形は入る・一番下がロックなら`baseEditable`が偽・フォルダごとロックも偽、塗れない形が一番下でも`style.fillColor`はその値、図形を書き換えない。`mapCompoundsByShape`（空の`compoundPaths`で空の`Map`、中の図形がそれぞれ自分の複合パス（`listCompoundPaths`の結果と同じ参照）に引ける、中のフォルダ・内側の複合パスの図形も外側の複合パスに引ける、複合パスの外の図形・隠れた図形はキーに無い、2つの複合パス、引数を書き換えない）。`buildDrawUnits`（複合パスなしで図形1つずつ・同じ並び、複合パスは先頭の位置に1つ・中の図形は並びから消える、前後の図形の順、2つの複合パス）。`findCompoundOf`。`isInsideCompoundFill`・`hitTestCompoundFill`（大きな円の中に小さな円＝輪の所で真・穴で偽・外で偽、塗りなしは偽、開いたパスの弦の内側も数に入る、囲む図形だけが真＝小さな円は輪の所で偽・大きな円は真）。`resolveStyleTargets`（複合パスなしは同じ並び・`fillShapes`は`isFillable()`、中の図形は一番下の図形へ・同じ複合パスは1回、一番下が塗れない形でも`fillShapes`に入る、一番下がロックの複合パスは外れる、フォルダの外の図形と混ざった並び）。
         *   テスト（`ItemAttributeRules.compound.test.js`）：`resolveItems`が`compound: true`を残し、`false`・`'true'`・`undefined`のキーを消す、入れ子の中のフォルダも、図形のアイテムには触れない、2回通しても同じ。
 
-*   [ ] タスク3: 一覧の行の値（行・行の見た目の`compound`）
+*   [x] タスク3: 一覧の行の値（行・行の見た目の`compound`）
     *   **対象ファイル** :
         *   `./js/core/ItemRowRules.js` :（更新。行末はCRLF）
         *   `./test/core/ItemRowRules.compound.test.js` :（新規。行末はLF）
@@ -337,7 +337,9 @@
 
 ### タスク3: 一覧の行の値（行・行の見た目の`compound`）
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/ItemRowRules.js`（CRLF維持）：importに`CompoundPathRules`の`isCompoundGroup`を足し、ファイル先頭の責務のimportの列を直した。typedef`ItemRow`・`RowView`に`compound`を足し、`visitList`の行に`compound: isGroup && isCompoundGroup(item)`、`resolveRowViews`の見た目に`compound: row.compound`を足した（JSDocに追記）。ほかの項目・関数は変えていない。`ItemListPanel`・`ItemListWiring`は未変更。
+    *   新規テスト：`test/core/ItemRowRules.compound.test.js`（LF）。行の`compound`（複合パス・普通のフォルダ・図形・内側の複合パス・閉じた／空のフォルダ）と、見た目の`compound`が行の値のまま・ほかの項目が今と同じことを確認。
+    *   既存`ItemRowRules.test.js`は行・見た目のオブジェクト全体を`deepEqual`していない（`rows.map(...)`・`rows[n].ancestorIds`等の項目単位のみ）ことをgrepで確かめた。変更なしで合格。`node --test`は4062件すべて合格。既存テストの値は変更なし。
 
 ### タスク4: モデルの照会と、値を変える唯一の公開操作
 *   **作業内容** :
