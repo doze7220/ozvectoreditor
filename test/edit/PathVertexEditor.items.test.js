@@ -223,7 +223,7 @@ test('作業データの往復で結果のパス・直線が保たれ、版は4�
     assert.equal(editor.removeSelectedVertices(), true);
 
     const document = DocumentSerializer.serialize(model.getItems());
-    assert.equal(document.version, 4);
+    assert.equal(document.version, 5);
     const text = JSON.stringify(document);
     const restored = DocumentSerializer.deserialize(JSON.parse(text));
     assert.equal(JSON.stringify(DocumentSerializer.serialize(restored.items)), text);

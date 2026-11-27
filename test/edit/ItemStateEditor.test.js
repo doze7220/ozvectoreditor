@@ -223,12 +223,12 @@ describe('ItemStateEditor: 実物での切り替え', () => {
         assert.equal(folder.children[1].locked === true, false);
     });
 
-    it('DocumentSerializer の往復で値が保たれる（版4）', () => {
+    it('DocumentSerializer の往復で値が保たれる（版5）', () => {
         const { model, editor } = setupReal([s('a'), g('f', [s('b')])]);
         editor.toggleVisible('a');
         editor.toggleLocked('f');
         const values = DocumentSerializer.serialize(model.getItems());
-        assert.equal(values.version, 4);
+        assert.equal(values.version, 5);
         const restored = DocumentSerializer.deserialize(JSON.parse(JSON.stringify(values)));
         const items = restored.items ?? restored;
         assert.equal(items[0].visible, false);

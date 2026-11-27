@@ -142,7 +142,7 @@ describe('SpriteSerializer.serialize: アイテムの入れ子', () => {
         assert.equal(data.formatVersion, 4);
         assert.equal(Object.hasOwn(data, 'source'), false);
         const work = DocumentSerializer.serialize(items);
-        assert.equal(work.version, 4);
+        assert.equal(work.version, 5);
         assert.equal(DocumentSerializer.deserialize(work).shapes.length, 6);
     });
 

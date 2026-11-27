@@ -211,7 +211,7 @@ test('作業データの往復で結果のpath・名前・並びが保たれ、�
     assert.equal(editor.splitAtSelectedVertices(), true);
 
     const document = DocumentSerializer.serialize(model.getItems());
-    assert.equal(document.version, 4);
+    assert.equal(document.version, 5);
     const text = JSON.stringify(document);
     const restored = DocumentSerializer.deserialize(JSON.parse(text));
     assert.equal(JSON.stringify(DocumentSerializer.serialize(restored.items)), text);

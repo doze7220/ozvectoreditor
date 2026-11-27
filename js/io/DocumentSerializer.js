@@ -1,5 +1,5 @@
 /**
- * 責務: 作業データ形式（キャンバス全体の版番号付きJSON表現。図形の名前・表示・ロックとフォルダの入れ子・折りたたみを含む）の
+ * 責務: 作業データ形式（キャンバス全体の版番号付きJSON表現。図形の名前・表示・ロックとフォルダの入れ子・折りたたみ・複合パスの値を含む）の
  * シリアライズ・デシリアライズと旧版からのマイグレーション、および変換関数つきの図形の並びの読み込みを担う。
  * 図形単位の変換はShapeFactory・図形クラスへ委譲する。
  */
@@ -18,7 +18,7 @@ const DOCUMENT_FORMAT = 'oz-vector-editor';
  * シリアライズは常にこの版で出力し、デシリアライズは1〜この版までを受理する（旧版はMIGRATIONSで現行版へ変換する）。
  * @type {number}
  */
-const CURRENT_DOCUMENT_VERSION = 4;
+const CURRENT_DOCUMENT_VERSION = 5;
 
 /**
  * 作業データのフォルダの要素の`type`の値（作業データ上の識別子。エディタの中のアイテムの`kind`とは別）。
@@ -143,6 +143,30 @@ function migrateVersion3To4(doc) {
 }
 
 /**
+ * 版4の作業データを版5へ変換する（フォルダの`compound`のキーを除く）。
+ * 版4以前に複合パスの意味は無いため、`shapes`の要素を再帰でたどり、`type: 'group'`のプレーンオブジェクトから
+ * `compound`のキーを除いた新しいオブジェクトにする（`children`が配列ならその中も同じく。配列でなければそのまま＝後段の読み飛ばしに任せる）。
+ * ほかの要素・配列でない`shapes`はそのまま残す。引数を書き換えない。
+ * 極端に深い・循環する入れ子は再帰の限界の例外をthrowし、呼び出し側で全体の読み込み失敗になる。
+ * @param {Object} doc - 版4の作業データ（プレーンオブジェクト）
+ * @returns {Object} 版5の作業データ（新しいオブジェクト）
+ */
+function migrateVersion4To5(doc) {
+    /**
+     * 要素1つから、フォルダの`compound`を再帰で除く。
+     * @param {*} item - `shapes`・`children`の要素
+     * @returns {*} フォルダなら`compound`を除いた新しいオブジェクト、ほかはそのまま
+     */
+    const strip = (item) => {
+        if (typeof item !== 'object' || item === null || Array.isArray(item) || item.type !== GROUP_TYPE) return item;
+        const { compound, ...rest } = item;
+        return Array.isArray(rest.children) ? { ...rest, children: rest.children.map(strip) } : rest;
+    };
+    const shapes = Array.isArray(doc.shapes) ? doc.shapes.map(strip) : doc.shapes;
+    return { ...doc, version: 5, shapes };
+}
+
+/**
  * 作業データ形式のマイグレーション表。
  * キー＝変換元の版n、値＝「版nの作業データ（プレーンオブジェクト）を受け取り、版n+1の作業データを新しいオブジェクトとして返す関数」。
  * 関数は引数を書き換えてはならない。変換できない場合はErrorをthrowしてよい（全体の読み込み失敗として扱う）。
@@ -155,19 +179,20 @@ function migrateVersion3To4(doc) {
  *
  * 現時点の登録: 版1→版2（migrateVersion1To2。全図形のfillColorをnullにする）、
  * 版2→版3（migrateVersion2To3。円・弧の5つの点を今の約束の位置へそろえる）、
- * 版3→版4（migrateVersion3To4。図形に名前なし・表示・ロックなしを補う）。
+ * 版3→版4（migrateVersion3To4。図形に名前なし・表示・ロックなしを補う）、
+ * 版4→版5（migrateVersion4To5。フォルダの`compound`のキーを除く。版4以前に複合パスの意味は無い）。
  * @type {Readonly<Object<number, (doc: Object) => Object>>}
  */
-const MIGRATIONS = Object.freeze({ 1: migrateVersion1To2, 2: migrateVersion2To3, 3: migrateVersion3To4 });
+const MIGRATIONS = Object.freeze({ 1: migrateVersion1To2, 2: migrateVersion2To3, 3: migrateVersion3To4, 4: migrateVersion4To5 });
 
 /**
- * 作業データ形式（現行版4）の最上位の形。知らないキーは最上位・図形の要素・フォルダの要素とも読まない。
+ * 作業データ形式（現行版5）の最上位の形。知らないキーは最上位・図形の要素・フォルダの要素とも読まない。
  * 図形の要素は`{ type, id, points, strokeColor, strokeWidth, fillColor, name, visible, locked }`（pathは`closed`・`segments`が加わり、角の点があるときだけ`corners`も加わる）。
- * フォルダの要素は`{ type: 'group', id, name, visible, locked, (collapsed), children }`（`collapsed: true`は閉じているときだけ書く。無ければ開いている。`children`は図形・フォルダの要素の配列。空でもよい）。
+ * フォルダの要素は`{ type: 'group', id, name, visible, locked, (collapsed), (compound), children }`（`collapsed: true`は閉じているときだけ書く。無ければ開いている。`compound: true`は複合パスのときだけ書く。無ければ普通のフォルダ。`children`は図形・フォルダの要素の配列。空でもよい）。
  * strokeColorは色の文字列またはnull（線なし）、fillColorは色の文字列またはnull（塗りなし。キーが無ければnullとして読む）。
  * @typedef {Object} DocumentData
  * @property {string} format 作業データ形式の識別子（'oz-vector-editor'）
- * @property {number} version 作業データ形式の版番号（1以上の整数。シリアライズは常に現行版の4）
+ * @property {number} version 作業データ形式の版番号（1以上の整数。シリアライズは常に現行版の5）
  * @property {Array<Object>} shapes 図形の要素・フォルダの要素の配列（描画順。フォルダは自身の次にその中身が並ぶ順で重なる）
  */
 
@@ -363,7 +388,7 @@ export class DocumentSerializer {
     /**
      * アイテムを作業データの要素へ変換する（フォルダは再帰）。
      * @param {Object} item - resolveItemsを通したアイテム
-     * @returns {Object} 図形の要素（図形データ＋name・visible・locked）またはフォルダの要素（閉じているときだけcollapsedを持つ）
+     * @returns {Object} 図形の要素（図形データ＋name・visible・locked）またはフォルダの要素（閉じているときだけcollapsed、複合パスのときだけcompoundを持つ）
      */
     static #itemToElement(item) {
         if (item.kind === ITEM_KIND.GROUP) {
@@ -377,6 +402,9 @@ export class DocumentSerializer {
             if (item.collapsed === true) {
                 element.collapsed = true;
             }
+            if (item.compound === true) {
+                element.compound = true;
+            }
             element.children = item.children.map((child) => DocumentSerializer.#itemToElement(child));
             return element;
         }
@@ -384,7 +412,7 @@ export class DocumentSerializer {
     }
 
     /**
-     * 作業データの要素の配列を再帰で読み、アイテムの配列（名前・表示・ロック・フォルダのcollapsedは要素の値のまま。補い・整えは呼び出し側）を返す。
+     * 作業データの要素の配列を再帰で読み、アイテムの配列（名前・表示・ロック・フォルダのcollapsed・compoundは要素の値のまま。補い・整えは呼び出し側）を返す。
      * 読めない要素は読み飛ばして`skipped`へ記録する。図形単位ではRangeErrorを再送出し、呼び出し側（deserialize）が全体の失敗にする。
      * @param {Array<*>} elements - 要素の配列
      * @param {Array<number>} parentPath - この配列の最上位からの位置の並び（最上位なら空）
@@ -407,6 +435,7 @@ export class DocumentSerializer {
                     visible: element.visible,
                     locked: element.locked,
                     collapsed: element.collapsed,
+                    compound: element.compound,
                     children: DocumentSerializer.#readElements(element.children, path, skipped),
                 });
                 return;

@@ -116,7 +116,7 @@ describe('SpriteSerializer.serialize: 表示・ロックの書き出し', () => 
         const items = makeItems({ folderVisible: false });
         const data = SpriteSerializer.serialize(items);
         assert.equal(data.formatVersion, 4);
-        assert.equal(DocumentSerializer.serialize(items).version, 4);
+        assert.equal(DocumentSerializer.serialize(items).version, 5);
         assert.deepEqual(Object.keys(data), ['format', 'formatVersion', 'bounds', 'elements']);
     });
 

@@ -1,5 +1,5 @@
 /**
- * 責務: DocumentSerializerの版4（図形の名前・表示・ロックとフォルダの入れ子）の書き出し・読み込み・旧版からの移行を、公開APIのみを通して検証する。
+ * 責務: DocumentSerializerの版5（図形の名前・表示・ロックとフォルダの入れ子）の書き出し・読み込み・旧版からの移行を、公開APIのみを通して検証する。
  * 入れ子の読み飛ばし（index・path）・名前の補い・極端に深い入れ子での全体失敗もここで確かめる。
  */
 import { describe, it } from 'node:test';
@@ -90,13 +90,13 @@ function namesOf(items) {
     return items.flatMap((item) => [item.name, ...(item.kind === 'group' ? namesOf(item.children) : [])]);
 }
 
-describe('DocumentSerializer 版4: 書き出し', () => {
+describe('DocumentSerializer 版5: 書き出し', () => {
     it('図形の要素は図形データの後ろにname・visible・lockedが並び、フォルダの要素はこのキー順', () => {
         const items = [
             groupItem('group-1', [shapeItem(line('shape-1'), { name: 'あ', visible: false, locked: true })], { name: 'F', visible: true, locked: false }),
         ];
         const data = DocumentSerializer.serialize(items);
-        assert.equal(data.version, 4);
+        assert.equal(data.version, 5);
         assert.deepStrictEqual(Object.keys(data), ['format', 'version', 'shapes']);
         assert.deepStrictEqual(Object.keys(data.shapes[0]), ['type', 'id', 'name', 'visible', 'locked', 'children']);
         assert.deepStrictEqual(data.shapes[0], {
@@ -122,7 +122,7 @@ describe('DocumentSerializer 版4: 書き出し', () => {
     });
 });
 
-describe('DocumentSerializer 版4: 往復', () => {
+describe('DocumentSerializer 版5: 往復', () => {
     /**
      * アイテムの入れ子を作る（空のフォルダ・多段・表示なし・ロックあり）。
      * @returns {Array<object>} アイテム
@@ -176,7 +176,7 @@ describe('DocumentSerializer 版4: 往復', () => {
     });
 });
 
-describe('DocumentSerializer 版4: 読み込みの規則', () => {
+describe('DocumentSerializer 版5: 読み込みの規則', () => {
     it('知らないキー（最上位・図形・フォルダ）は読まず、書き出しにも出ない', (t) => {
         silenceWarn(t);
         const data = {
@@ -239,7 +239,7 @@ describe('DocumentSerializer 版4: 読み込みの規則', () => {
     });
 });
 
-describe('DocumentSerializer 版4: children と読み飛ばし', () => {
+describe('DocumentSerializer 版5: children と読み飛ばし', () => {
     for (const [label, children] of [['無い', undefined], ['null', null], ['オブジェクト', {}]]) {
         it(`childrenが${label}フォルダは1件の読み飛ばし（type: group）で、他の図形は残る`, (t) => {
             const warn = silenceWarn(t);
@@ -300,7 +300,7 @@ describe('DocumentSerializer 版4: children と読み飛ばし', () => {
     });
 });
 
-describe('DocumentSerializer 版4: 旧版からの移行', () => {
+describe('DocumentSerializer 版5: 旧版からの移行', () => {
     it('版3: 名前なし・表示・ロックなしを補い、番号は描画順（種類ごと）', (t) => {
         silenceWarn(t);
         const rectData = { ...rect('r').toJSON() };
@@ -329,7 +329,7 @@ describe('DocumentSerializer 版4: 旧版からの移行', () => {
         assert.equal(warn.mock.callCount(), 1);
     });
 
-    it('版1・版2から版4まで順に移行できる', (t) => {
+    it('版1・版2から版5まで順に移行できる', (t) => {
         silenceWarn(t);
         const circle = new Ellipse(50, 50, 80, 20, 'circle');
         circle.id = 'c';
@@ -343,15 +343,15 @@ describe('DocumentSerializer 版4: 旧版からの移行', () => {
         assert.deepStrictEqual(r2.items.map((i) => i.name), ['直線 1', '円 1']);
     });
 
-    it('版5以上は全体失敗', (t) => {
+    it('版6以上は全体失敗', (t) => {
         silenceWarn(t);
-        const result = DocumentSerializer.deserialize(doc(5, []));
+        const result = DocumentSerializer.deserialize(doc(6, []));
         assert.equal(result.ok, false);
         assert.deepStrictEqual(result.items, []);
     });
 });
 
-describe('DocumentSerializer 版4: 全体失敗と極端な入れ子', () => {
+describe('DocumentSerializer 版5: 全体失敗と極端な入れ子', () => {
     it('全体失敗の結果はitems・shapes・skippedが空配列', (t) => {
         silenceWarn(t);
         const result = DocumentSerializer.deserialize(null);

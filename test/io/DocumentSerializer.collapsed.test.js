@@ -78,7 +78,7 @@ describe('DocumentSerializer: 折りたたみの書き出し', () => {
 
     it('入れ子の中の閉じたフォルダも書かれ、versionは4のまま', () => {
         const data = DocumentSerializer.serialize([groupItem('G1', [groupItem('G2', [], true)], false)]);
-        assert.equal(data.version, 4);
+        assert.equal(data.version, 5);
         assert.equal(Object.hasOwn(data.shapes[0], 'collapsed'), false);
         assert.equal(data.shapes[0].children[0].collapsed, true);
     });
@@ -153,6 +153,6 @@ describe('SpriteSerializer: 折りたたみと書き出し', () => {
         const openSource = DocumentSerializer.serialize(openItems);
         assert.equal(closedSource.shapes[0].collapsed, true);
         assert.equal(Object.hasOwn(openSource.shapes[0], 'collapsed'), false);
-        assert.equal(closedSource.version, 4);
+        assert.equal(closedSource.version, 5);
     });
 });
