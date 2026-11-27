@@ -183,7 +183,7 @@
         *   テスト（`ShapeGeometry.evenodd.test.js`）：四角の内側・外側、自己交差（五芒星）の中心は偶数で外側（nonzeroでは内側になる点）、逆向きに回った多角形でも内側、辺の上・頂点の上は偽、頂点3未満・面積0は偽、引数を書き換えない。
         *   テスト（`OutlineMethods.test.js`。命令を記録する偽の`ctx`）：`appendOutline`＝5種それぞれの命令の並びと値（`beginPath`・`fill`・`stroke`・スタイルの代入を呼ばない）、`Rect`・`Path`（直線の区間・曲線の区間・閉じる区間が直線／曲線）・`Line`・`Curve`は`draw`の`beginPath`の後〜塗りの前の命令と同じ、`Ellipse`は円・弧・回した楕円で先に`#pointOnOutline`相当の始点へ`moveTo`→`ellipse`（引数は`toDrawElement()`の値と同じ）→円だけ`closePath`、2回続けて呼ぶとサブパスが2つ並ぶ。`isInsideOutline`＝矩形（回した矩形も）の内側・外側・辺の上、閉じたパス（曲線の区間を含む）、開いたパス（始点と終点を結んだ形の内側が真）、直線は常に偽、今の曲線（曲線と弦の間が真）、円（回した楕円も）、弧（弧と弦の間が真・外側が偽）、`fillColor`が`null`・線なしでも結果が同じ（スタイルを読まない）、図形を書き換えない。既存の図形のテスト（`draw`・`drawHover`・`drawOutline`・`hitTestFill`）が変更なしで全件合格すること。
 
-*   [ ] タスク2: 複合パスの規則（中身の集め方・一番下の図形・描く単位・塗られた所・スタイルの反映先）と属性の補い
+*   [x] タスク2: 複合パスの規則（中身の集め方・一番下の図形・描く単位・塗られた所・スタイルの反映先）と属性の補い
     *   **対象ファイル** :
         *   `./js/core/CompoundPathRules.js` :（新規。行末はLF）
         *   `./js/core/ItemTreeRules.js` :（更新。typedef`GroupItem`のJSDocだけ。行末はLF）
@@ -331,7 +331,9 @@
 
 ### タスク2: 複合パスの規則（中身の集め方・一番下の図形・描く単位・塗られた所・スタイルの反映先）と属性の補い
 *   **作業内容** :
-    *   （未実施）
+    *   `js/core/CompoundPathRules.js`（新規・LF）を作成。`isCompoundGroup`・`setCompound`・`resolveCompoundToggle`・`collectCompoundGroupIds`・`listCompoundPaths`・`DRAW_UNIT_KIND`・`mapCompoundsByShape`・`buildDrawUnits`・`findCompoundOf`・`isInsideCompoundFill`・`hitTestCompoundFill`・`resolveStyleTargets`とtypedef`CompoundStyle`・`CompoundPath`・`DrawUnit`。importは`ItemTreeRules`の`ITEM_KIND`・`listShapeItems`と`ItemStateRules`の`listItemStates`のみ。図形→複合パスの引きは`mapCompoundsByShape`だけで、他3関数はそれを使う。
+    *   `ItemTreeRules.js`の`GroupItem`に`@property {true} [compound]`（JSDocのみ）。`ItemAttributeRules.resolveItems`にフォルダの`compound`が`true`以外ならキーを消す処理を足し、ファイル先頭の責務・JSDocを更新（LF維持）。
+    *   新規テスト：`test/core/CompoundPathRules.test.js`・`test/core/ItemAttributeRules.compound.test.js`（LF）。`node --test`は4057件すべて合格。既存テストの値・版の数字のテストは変更なし。
 
 ### タスク3: 一覧の行の値（行・行の見た目の`compound`）
 *   **作業内容** :
