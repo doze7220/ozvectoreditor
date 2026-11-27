@@ -1,7 +1,8 @@
 /**
- * 責務: スポイトの待ち受けの状態（待ち受け中か）の保持と変更の通知、手本の図形からスタイルを取り込んで反映する手順を担う。
+ * 責務: スポイトの待ち受けの状態（待ち受け中か）の保持と変更の通知、手本の図形（複合パスの中の図形なら複合パスのスタイル）からスタイルを取り込んで反映する手順を担う。
  * DOM・操作モード・InputTracker・ボタンを知らない。状態は作業データ・履歴・VectorModelに入れない。
  */
+import { findCompoundOf } from '../core/CompoundPathRules.js';
 import { sampleStyleFromShape } from './StylePanelRules.js';
 
 /**
@@ -16,8 +17,8 @@ import { sampleStyleFromShape } from './StylePanelRules.js';
  *   - 待ち受けの変化（start・stop・取り込み）のたびに、onChangeで登録された関数へ通知する。
  *
  * 依存の制約:
- *   - importは ./StylePanelRules.js の sampleStyleFromShape のみ（edit/内の例外）。
- *   - modelはgetEditableShapes()だけ使う（隠れている図形・ロックされている図形は手本にならない）。
+ *   - importは ../core/CompoundPathRules.js の findCompoundOf（edit/ → core/ の状態を持たない規則）と、./StylePanelRules.js の sampleStyleFromShape（edit/内の例外）のみ。
+ *   - modelはgetEditableShapes()だけ使う（隠れている図形・ロックされている図形は手本にならない）。複合パスは注入されたgetCompoundPathsで知る。
  */
 export class StyleEyedropper {
     /**
@@ -31,6 +32,12 @@ export class StyleEyedropper {
      * @type {(style: Object) => boolean}
      */
     #applyStyle;
+
+    /**
+     * 効いている複合パスの一覧の取得関数（実体はmain.jsが注入するmodel.getCompoundPaths()の呼び出し）。
+     * @type {() => Array<Object>}
+     */
+    #getCompoundPaths;
 
     /**
      * 待ち受け中か。
@@ -48,14 +55,16 @@ export class StyleEyedropper {
      * @param {Object} deps 依存
      * @param {{ getEditableShapes: () => Array<Object> }} deps.model 図形一式の読み取り元（getEditableShapesのみ使用。変えられる図形だけ）
      * @param {(style: Object) => boolean} deps.applyStyle 取り込んだスタイル（StyleApplication）を反映する関数
+     * @param {() => Array<Object>} [deps.getCompoundPaths] 効いている複合パスの一覧を返す関数（省くと複合パスなし）
      * @throws {Error} applyStyleが関数でないとき
      */
-    constructor({ model, applyStyle } = {}) {
+    constructor({ model, applyStyle, getCompoundPaths = () => [] } = {}) {
         if (typeof applyStyle !== 'function') {
             throw new Error('StyleEyedropper: applyStyle は関数である必要があります');
         }
         this.#model = model;
         this.#applyStyle = applyStyle;
+        this.#getCompoundPaths = getCompoundPaths;
     }
 
     /**
@@ -107,6 +116,7 @@ export class StyleEyedropper {
 
     /**
      * 待ち受け中にクリックされた図形のスタイルを取り込んで反映し、待ち受けをやめる。
+     * 手本が複合パスの中の図形なら、その複合パスのスタイル（線の色・太さ・塗りの色の3つとも。塗れない形の塗りも）を取り込む。
      * 待ち受けでなければ何もしない。idの図形が無い・変えられない図形（隠れている・ロックされている）なら何もせず待ち受けは続く（通知なし）。
      * @param {string} shapeId 手本にする図形のid
      * @returns {boolean} 取り込んだらtrue（待ち受けでない・図形が無いときはfalse）
@@ -119,7 +129,8 @@ export class StyleEyedropper {
         if (!shape) {
             return false;
         }
-        this.#applyStyle(sampleStyleFromShape(shape));
+        const compound = findCompoundOf(this.#getCompoundPaths(), shape);
+        this.#applyStyle(compound === null ? sampleStyleFromShape(shape) : { ...compound.style });
         this.stop();
         return true;
     }

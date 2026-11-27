@@ -177,7 +177,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // StyleEyedropperのコンストラクタはapplyStyleを呼ばない（既存のinputTrackerの前方参照と同じ扱い）
     const styleEyedropper = new StyleEyedropper({
         model,
-        applyStyle: (style) => shapeStyleEditor.applyStyle(style)
+        applyStyle: (style) => shapeStyleEditor.applyStyle(style),
+        getCompoundPaths: () => model.getCompoundPaths()
     });
     // 外枠の照会（edit/ShapeExtentReader。状態を持たない照会）。ShapeExtentReaderの生成はDisplayWiringの内部とここの2か所で、
     // renderCurrentStateの外枠のハンドルとInputTrackerの注入（getSelectionFrameBounds）が使うため、ここ（// 4.）で生成する。

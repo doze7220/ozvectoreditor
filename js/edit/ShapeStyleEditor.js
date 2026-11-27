@@ -1,25 +1,26 @@
 /**
- * 責務: オプションバーでの変更とスタイルをまとめて当てる入口（`D`・スポイト）を、選択中で変えられる図形（塗りは塗れる形だけ）と直前に使った値へ
- * 反映する編集操作と、ピッカー操作中の記録の確定、オプションバーが覚えている色の保持を担う。DOMに触れない。
+ * 責務: オプションバーでの変更とスタイルをまとめて当てる入口（`D`・スポイト）を、選択中で変えられる図形（塗りは塗れる形だけ。複合パスの中の図形は一番下の図形へ）と
+ * 直前に使った値へ反映する編集操作と、ピッカー操作中の記録の確定、オプションバーが覚えている色の保持を担う。DOMに触れない。
  */
+import { resolveStyleTargets } from '../core/CompoundPathRules.js';
 import { buildStylePanelView, nextEnabledOnToggle, parseStrokeWidthInput, RESET_COLORS_STYLE, toColorInputValue } from './StylePanelRules.js';
 
 /**
  * 色の項目（線・塗り）ごとの対応表。項目による分岐はこの表引きで行う。
  * `shapeKey`は図形の共通プロパティ名（直前に使った値の色のキーも同じ名前）、`enabledKey`は直前に使った値の有無のキー、
- * `selectTargets`は選択中で変えられる図形（描画順）から反映の対象を選ぶ関数（塗りは`isFillable()`が真の図形だけ）。
- * @type {Readonly<Record<string, {shapeKey: string, enabledKey: string, selectTargets: (shapes: object[]) => object[]}>>}
+ * `selectTargets`は読み替えた反映先（`#styleTargets()`の結果）から反映の対象を選ぶ関数（線は`shapes`、塗りは`fillShapes`）。
+ * @type {Readonly<Record<string, {shapeKey: string, enabledKey: string, selectTargets: (targets: {shapes: object[], fillShapes: object[]}) => object[]}>>}
  */
 const COLOR_ITEMS = Object.freeze({
     stroke: Object.freeze({
         shapeKey: 'strokeColor',
         enabledKey: 'strokeEnabled',
-        selectTargets: (shapes) => shapes
+        selectTargets: (targets) => targets.shapes
     }),
     fill: Object.freeze({
         shapeKey: 'fillColor',
         enabledKey: 'fillEnabled',
-        selectTargets: (shapes) => shapes.filter((shape) => shape.isFillable())
+        selectTargets: (targets) => targets.fillShapes
     })
 });
 
@@ -33,9 +34,9 @@ const COLOR_ITEMS = Object.freeze({
 
 /**
  * オプションバーでの変更と、スタイルをまとめて当てる入口（`applyStyle`・`resetColors`。`D`・スポイトが使う）を反映する編集操作のクラス。
- * 図形への反映の対象は「選択中で変えられる図形」（`model.getEditableSelectedShapes()`。隠れてもロックされてもいない図形）だけ。選択中の図形が変えられないものだけのときは、選択が無いときと同じ（直前に使った値だけが変わり、記録しない。オプションバーの表示も選択なしと同じ）。
+ * 図形への反映の対象は「選択中で変えられる図形」（`model.getEditableSelectedShapes()`。隠れてもロックされてもいない図形）を`resolveStyleTargets`で読み替えたもの（複合パスの中の図形は、その複合パスの一番下の図形1つに読み替え、一番下の図形は塗りの対象にもなる。一番下がロックされた複合パスの分は外す）だけ。選択中の図形が変えられないものだけのときは、選択が無いときと同じ（直前に使った値だけが変わり、記録しない。オプションバーの表示も選択なしと同じ）。
  * 識別子の「Panel」（`getPanelView`・`StylePanelRules`等）は表示の部品一般を指す名前として残しており実体はオプションバー。テスト名（`test/edit/ShapeStyleEditor.test.js`）の「パネル」「パネルが覚えている色」は、オプションバー・「オプションバーが覚えている色」（`#rememberedColors`）のこと。
- * 依存の制約：importは`./StylePanelRules.js`のみ。`model`（`getShapes`・`getEditableSelectedShapes`・`getNewShapeStyle`・`updateNewShapeStyle`・`updateShapeStyles`だけを使う）と
+ * 依存の制約：importは`../core/CompoundPathRules.js`の`resolveStyleTargets`（`edit/ → core/`の状態を持たない規則）と`./StylePanelRules.js`のみ。`model`（`getShapes`・`getEditableSelectedShapes`・`getCompoundPaths`・`getNewShapeStyle`・`updateNewShapeStyle`・`updateShapeStyles`だけを使う）と
  * `editRecorder`（`beginEdit()`・`commitEdit()`）は注入で受け取る。知らないこと：DOM・図形種別の分岐・操作モード・`InputTracker`。
  * 図形の共通プロパティのスタイル3つ（`strokeColor`・`strokeWidth`・`fillColor`）は読むが、書き換えは`model.updateShapeStyles`へ渡すだけ。
  * 前提：ドラッグ中（`isDragging()`）を判定しない。判定すると太さの欄に打ち込んで`Enter`を押さずにキャンバスを押したときに入力が失われるため
@@ -57,7 +58,7 @@ export class ShapeStyleEditor {
 
     /**
      * @param {Object} deps - 依存
-     * @param {object} deps.model - `getShapes`・`getEditableSelectedShapes`・`getNewShapeStyle`・`updateNewShapeStyle`・`updateShapeStyles`を持つモデル（`VectorModel`）
+     * @param {object} deps.model - `getShapes`・`getEditableSelectedShapes`・`getCompoundPaths`・`getNewShapeStyle`・`updateNewShapeStyle`・`updateShapeStyles`を持つモデル（`VectorModel`）
      * @param {{beginEdit: function(): void, commitEdit: function(): boolean}} deps.editRecorder - 編集操作の記録先（`HistoryManager`）
      */
     constructor({ model, editRecorder }) {
@@ -73,8 +74,10 @@ export class ShapeStyleEditor {
      * @returns {import('./StylePanelRules.js').StylePanelView} オプションバーに出す内容
      */
     getPanelView() {
+        const targets = this.#styleTargets();
         const view = buildStylePanelView({
-            selectedShapes: this.#selectedShapes(),
+            selectedShapes: targets.shapes,
+            fillableShapes: targets.fillShapes,
             newShapeStyle: this.#model.getNewShapeStyle(),
             rememberedColors: { ...this.#rememberedColors }
         });
@@ -127,7 +130,7 @@ export class ShapeStyleEditor {
         if (width === null) {
             return false;
         }
-        const shapes = this.#selectedShapes();
+        const shapes = this.#styleTargets().shapes;
         if (shapes.length > 0) {
             this.#recordEdit(() => {
                 this.#model.updateShapeStyles(shapes.map((shape) => ({ id: shape.id, style: { strokeWidth: width } })));
@@ -156,12 +159,13 @@ export class ShapeStyleEditor {
         if (colorTargets.length === 0 && !hasWidth) {
             return false;
         }
-        const shapes = this.#selectedShapes();
+        const targets = this.#styleTargets();
+        const shapes = targets.shapes;
         if (shapes.length > 0) {
             /** @type {Map<string, Object>} 図形idごとに当てる項目 */
             const styleById = new Map();
             for (const item of colorTargets) {
-                for (const shape of item.selectTargets(shapes)) {
+                for (const shape of item.selectTargets(targets)) {
                     styleById.set(shape.id, { ...styleById.get(shape.id), [item.shapeKey]: style[item.shapeKey] });
                 }
             }
@@ -217,8 +221,9 @@ export class ShapeStyleEditor {
         if (converted === null) {
             return false;
         }
-        const shapes = this.#selectedShapes();
-        const targets = item.selectTargets(shapes);
+        const styleTargets = this.#styleTargets();
+        const shapes = styleTargets.shapes;
+        const targets = item.selectTargets(styleTargets);
         if (this.#preview !== null && !this.#isSamePreview(target, targets)) {
             this.#finishPreview();
         }
@@ -282,9 +287,9 @@ export class ShapeStyleEditor {
     #setEnabled(target, enabled) {
         this.#finishPreview();
         const item = COLOR_ITEMS[target];
-        const shapes = this.#selectedShapes();
-        if (shapes.length > 0) {
-            const targets = item.selectTargets(shapes);
+        const styleTargets = this.#styleTargets();
+        if (styleTargets.shapes.length > 0) {
+            const targets = item.selectTargets(styleTargets);
             if (targets.length === 0) {
                 return false;
             }
@@ -298,11 +303,12 @@ export class ShapeStyleEditor {
     }
 
     /**
-     * 選択中で変えられる図形（隠れてもロックされてもいない図形）を描画順で返す。
-     * @returns {object[]} 選択中で変えられる図形
+     * 選択中で変えられる図形（隠れてもロックされてもいない図形）を、スタイルの反映先へ読み替えて返す
+     * （複合パスの中の図形は一番下の図形へ。複合パスが無ければ選択中の図形のまま）。
+     * @returns {{shapes: object[], fillShapes: object[]}} 反映先の図形と、塗りの反映先の図形
      */
-    #selectedShapes() {
-        return this.#model.getEditableSelectedShapes();
+    #styleTargets() {
+        return resolveStyleTargets(this.#model.getEditableSelectedShapes(), this.#model.getCompoundPaths());
     }
 
     /**

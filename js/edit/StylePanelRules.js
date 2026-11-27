@@ -187,15 +187,16 @@ function newShapeColorView(enabled, color, remembered) {
  * オプションバーのスタイルのまとまりに出す内容を求める（DOMに触れない純粋な関数。引数を書き換えない）。
  * 図形を1個以上選んでいるときは選択中の図形から、選んでいないときは直前に使った値から決める。
  * 太さは線の有無にかかわらず全図形の`strokeWidth`が`===`でそろえばその値、違えば`null`。
- * 塗りは`isFillable()`が真の図形だけで決め、1つも無ければ無効（`disabled: true`・`enabled: false`・`color: rememberedColors.fill`）。
+ * 塗りは`fillableShapes`（省くと`selectedShapes`のうち`isFillable()`が真の図形）だけで決め、1つも無ければ無効（`disabled: true`・`enabled: false`・`color: rememberedColors.fill`）。
  * 読むのは図形の共通プロパティ`strokeColor`・`strokeWidth`・`fillColor`と`isFillable()`だけ。
  * @param {Object} params - 引数
  * @param {object[]} params.selectedShapes - 選択中の図形（描画順＝重なり順で最も手前が最後）
+ * @param {object[]} [params.fillableShapes] - 塗りの欄を決める図形（省くと`selectedShapes`のうち`isFillable()`が真のもの）
  * @param {PanelNewShapeStyle} params.newShapeStyle - 直前に使った値
  * @param {RememberedColors} params.rememberedColors - 覚えている色
  * @returns {StylePanelView} オプションバーのスタイルのまとまりに出す内容
  */
-export function buildStylePanelView({ selectedShapes, newShapeStyle, rememberedColors }) {
+export function buildStylePanelView({ selectedShapes, fillableShapes, newShapeStyle, rememberedColors }) {
     if (selectedShapes.length === 0) {
         return {
             stroke: newShapeColorView(newShapeStyle.strokeEnabled, newShapeStyle.strokeColor, rememberedColors.stroke),
@@ -205,10 +206,10 @@ export function buildStylePanelView({ selectedShapes, newShapeStyle, rememberedC
     }
     const firstWidth = selectedShapes[0].strokeWidth;
     const strokeWidth = selectedShapes.every((shape) => shape.strokeWidth === firstWidth) ? firstWidth : null;
-    const fillableShapes = selectedShapes.filter((shape) => shape.isFillable());
-    const fill = fillableShapes.length === 0
+    const fillShapes = fillableShapes ?? selectedShapes.filter((shape) => shape.isFillable());
+    const fill = fillShapes.length === 0
         ? { enabled: false, color: rememberedColors.fill, colorNote: '', disabled: true }
-        : { ...resolveColorView(fillableShapes, 'fillColor', rememberedColors.fill), disabled: false };
+        : { ...resolveColorView(fillShapes, 'fillColor', rememberedColors.fill), disabled: false };
     return {
         stroke: { ...resolveColorView(selectedShapes, 'strokeColor', rememberedColors.stroke), disabled: false },
         strokeWidth,
