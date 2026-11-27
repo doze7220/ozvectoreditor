@@ -1,8 +1,10 @@
 /**
- * 責務：Canvas要素への純粋な描画処理（背景の塗り・グリッド・原点表示・アウトライン表示・選択矩形・吸い付きの表示・頂点のハンドル・選択全体の外枠とそのハンドルを含む）のみを担う。
+ * 責務：Canvas要素への純粋な描画処理（背景の塗り・グリッド・原点表示・アウトライン表示・選択矩形・吸い付きの表示・頂点のハンドル・選択全体の外枠とそのハンドル・複合パスの描画（描く単位ごとの呼び分け）を含む）のみを担う。
  * 描画変換は引数で受け取った値から、配色は引数で選ばれた配色の組（モジュール定数）から毎フレーム設定し、状態は保持しない。
  */
 import { computeGridSpacing } from './GridSpacingRules.js';
+import { buildDrawUnits, DRAW_UNIT_KIND } from './CompoundPathRules.js';
+import { drawCompoundPath } from './CompoundPathRenderer.js';
 
 /**
  * `render()`の`view`省略時に用いるビュー変換値（倍率1.0・オフセット(0,0)）。
@@ -191,13 +193,16 @@ export class CanvasManager {
      * 図形・選択矩形はワールド座標で描画される。
      * 新しい引数（outline・darkBackground・showGrid）の省略時の値では、従来（白の背景・グリッドあり・通常描画）と同じ見た目になる。
      * 描画順：背景の塗り → 背景グリッド（showGridが偽なら省略） → 軸線・原点マーク
-     * → (1)全図形の draw（outlineが真なら drawOutline。＋ホバー中図形の drawHover）
+     * → (1)描く単位ごとの描画（`buildDrawUnits(shapes, compoundPaths)`。図形1つの単位は draw（outlineが真なら drawOutline。＋ホバー中図形の drawHover）、
+     *   複合パスの単位は、outlineが偽なら`drawCompoundPath`で1つのパスとして描き、図形ごとの draw は呼ばない（ホバー中図形の drawHover は呼ぶ）。
+     *   outlineが真なら複合パスの単位も図形ごとの drawOutline。複合パスが無ければ命令の並びは従来と同じ）
      * → (2)頂点のハンドル（vertexHandles。全図形の描画後・作成中の図形の前）
      *   → (2-2)外枠とそのハンドル（scaleFrame。頂点のハンドルの後・作成中の図形の前。省略・nullなら描かない）
      * → (3)作成中の図形 → (3-2)吸い付きの表示 → (4)選択矩形。
      * 頂点のハンドルを全図形の描画後にまとめて描くのは、複数選択時に前面の図形が背面図形のハンドルを覆い隠さないためである。
      * @param {Array<Object>} shapes - draw(ctx) / drawOutline(ctx, viewScale, color) / drawHover(ctx, viewScale) メソッドを持つ図形オブジェクトの配列
      * @param {Object} [state] - 描画状態
+     * @param {Array<Object>} [state.compoundPaths] - 効いている複合パス（`CompoundPathRules`の`CompoundPath`の配列）。中の図形は`shapes`の中のインスタンスで引く。省略時は空（従来と同じ）
      * @param {string|null} [state.hoveredId] - ホバー中の図形id（単一）。一致する図形の drawHover(ctx, viewScale) を追加で呼び出す
      * @param {Array<{shapeId: string, handles: Array<{x: number, y: number, selected: boolean}>}>} [state.vertexHandles] -
      *     描く頂点のハンドル（ワールド座標の位置と、選ばれているか）。全図形の描画後・作成中の図形の前に描く。省略時は空配列
@@ -218,7 +223,7 @@ export class CanvasManager {
      * @param {boolean} [state.darkBackground] - 真なら黒の背景用の配色の組、偽なら白の背景用の配色の組を使う。省略時は偽
      * @param {boolean} [state.showGrid] - 偽なら背景グリッド（細線・太線）のみ描かない（軸線・原点マークは常に描く）。省略時は真
      */
-    render(shapes, { hoveredId = null, draftShape = null, selectionRect = null, view = DEFAULT_VIEW, snapPoint = null, snapPointVertex = false, outline = false, darkBackground = false, showGrid = true, vertexHandles = [], scaleFrame = null } = {}) {
+    render(shapes, { hoveredId = null, draftShape = null, selectionRect = null, view = DEFAULT_VIEW, snapPoint = null, snapPointVertex = false, outline = false, darkBackground = false, showGrid = true, vertexHandles = [], scaleFrame = null, compoundPaths = [] } = {}) {
         const dpr = this.#pixelRatio;
         const scheme = darkBackground ? COLOR_SCHEMES.dark : COLOR_SCHEMES.light;
 
@@ -244,15 +249,24 @@ export class CanvasManager {
         // 3-2. 軸線・原点マーク（グリッドの前面・図形の背面。グリッドを隠していても描く）
         this.#drawOrigin(view, scheme);
 
-        // 4. 各Shapeの通常描画（アウトライン表示ならアウトライン描画）に加え、ホバー中の強調描画をポリモーフィックに呼び出す
-        for (const shape of shapes) {
-            if (outline) {
-                shape.drawOutline(this.ctx, view.scale, scheme.outline);
-            } else {
-                shape.draw(this.ctx);
+        // 4. 描く単位ごとに描画する（図形1つ＝各Shapeの通常描画（アウトライン表示ならアウトライン描画）、複合パス＝1つのパス）。
+        //    ホバー中の強調描画をポリモーフィックに呼び出す
+        for (const unit of buildDrawUnits(shapes, compoundPaths)) {
+            const asCompound = unit.kind === DRAW_UNIT_KIND.COMPOUND && !outline;
+            if (asCompound) {
+                drawCompoundPath(this.ctx, unit);
             }
-            if (shape.id === hoveredId) {
-                shape.drawHover(this.ctx, view.scale);
+            for (const shape of unit.shapes) {
+                if (!asCompound) {
+                    if (outline) {
+                        shape.drawOutline(this.ctx, view.scale, scheme.outline);
+                    } else {
+                        shape.draw(this.ctx);
+                    }
+                }
+                if (shape.id === hoveredId) {
+                    shape.drawHover(this.ctx, view.scale);
+                }
             }
         }
 

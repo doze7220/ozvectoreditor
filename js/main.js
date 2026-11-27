@@ -222,6 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * 回転のドラッグ中は`inputTracker.getRotationDragView()`の控えを`resolveDisplayedScaleFrame`に渡し、傾いた外枠（`corners`付き）を`scaleFrame`にする
      * （回転のドラッグ中でなければ`collectScaleFrame`の結果がそのまま渡る。分岐は規則の関数の中）。頂点のハンドルは`collectVertexHandles`が現在の操作モード・
      * 変えられる図形（`model.getEditableShapes()`）のうち選択中の図形・選択中の頂点から求めた位置の一覧を`vertexHandles`として渡す（頂点の選択のモードのときだけ中身が入る）。
+     * 複合パスは`model.getCompoundPaths()`を`compoundPaths`として渡す（描く単位ごとの呼び分けと描き方はCanvasManager・CompoundPathRendererが持つ。ここに判定・計算は書かない）。
      */
     function renderCurrentState() {
         const display = displayState.getState();
@@ -240,7 +241,8 @@ document.addEventListener('DOMContentLoaded', () => {
             selectionRect: model.getSelectionRect(),
             snapPoint: model.getSnapPoint(),
             snapPointVertex: model.isSnapPointVertex(),
-            view: viewTransform.getState()
+            view: viewTransform.getState(),
+            compoundPaths: model.getCompoundPaths()
         });
     }
 
