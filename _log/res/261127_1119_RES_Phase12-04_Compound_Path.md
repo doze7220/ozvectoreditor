@@ -171,7 +171,7 @@
 ## 3. タスクリスト
 ※ 全タスク共通：(a) コード修正の後、JSDocの記載漏れ（新しいファイルの先頭の3行以内の責務、関数・メソッド・引数・戻り値・typedef、意味が変わった既存のJSDoc・ファイル先頭の責務・importの記述・「`model`は…だけを使う」の記述・共通メソッド契約の数）が無いことを確認する。(b) リポジトリのルートで`node --test`が全件合格することを確認する（既存のテストファイルの値は変えない。版の数字だけを直すテストは2章『要件7』の列挙のとおりで、実際に直したものを詳細作業内容に列挙する。それ以外で値を変えざるを得ないテストが出たら中断して質問する）。(c) 本RESの「4. 詳細作業内容」の担当の欄を書き、タスクを`[x]`にする。(d) 開発資料に影響が出たら資料本体は直さず『開発資料の更新予定』欄へ追記する。(e) 行末：既存のファイルは書き換える前に行末（CRLF／LF）を実測して保つ。計画時の実測（CR数/LF数）：**CRLF**＝`js/main.js`(1297/1297)・`js/core/InputTracker.js`(2124/2124)・`js/core/ItemRowRules.js`(266/266)・`js/core/GroupCommandRules.js`(52/52)・`js/shapes/Ellipse.js`(709/709)・`js/shapes/Path.js`(691/691)・`js/io/SpriteSerializer.js`(375/375)・`js/io/CodeExporter.js`(231/231)・`js/io/FileContentReader.js`(100/100)・`PROJECT_ARCHITECTURE.md`(1091/1091)。**LF**＝`index.html`(0/939)・`js/core/CanvasManager.js`(0/540)・`js/core/PointHitRules.js`(0/100)・`js/core/VectorModel.js`(0/1484)・`js/core/ItemTreeRules.js`(0/140)・`js/core/ItemAttributeRules.js`(0/140)・`js/shapes/ShapeGeometry.js`(0/241)・`js/shapes/Line.js`(0/331)・`js/shapes/Curve.js`(0/384)・`js/shapes/Rect.js`(0/363)・`js/edit/ShapeStyleEditor.js`(0/353)・`js/edit/StylePanelRules.js`(0/217)・`js/edit/StyleEyedropper.js`(0/148)・`js/io/DocumentSerializer.js`(0/462)・`js/io/DrawElementReader.js`(0/262)・`js/palette/ItemListPanel.js`(0/696)・`js/wiring/ItemListWiring.js`(0/489)。版の数字を直す既存のテストは書き換える前にファイルごとに行末を実測し、混在のファイルは行ごとの今の行末を保つ。**新規のファイル**：`js/core/`・`js/edit/`・`test/`の各フォルダはLFが多いため、新しい`.js`はすべてLF。`_doc/arch/`の新しい資料は書き方を合わせる`68_VertexDragRules.md`と同じCRLF。(f) 対象ファイル以外は変更しない。(g) 用語は2章『用語』のとおり（「複合パス」＝効いている複合パス、「中の図形」＝見えている子孫の図形、「一番下の図形」）で書く。
 
-*   [ ] タスク1: 図形クラスの共通メソッド2つ（輪郭を共有のパスへ足す・自分の輪郭の`evenodd`の内側）
+*   [x] タスク1: 図形クラスの共通メソッド2つ（輪郭を共有のパスへ足す・自分の輪郭の`evenodd`の内側）
     *   **対象ファイル** :
         *   `./js/shapes/ShapeGeometry.js` :（更新。行末はLF）
         *   `./js/shapes/Line.js`・`./js/shapes/Curve.js`・`./js/shapes/Rect.js` :（更新。行末はLF）
@@ -322,7 +322,12 @@
 
 ### タスク1: 図形クラスの共通メソッド2つ（輪郭を共有のパスへ足す・自分の輪郭の`evenodd`の内側）
 *   **作業内容** :
-    *   （未実施）
+    *   `ShapeGeometry.isPointInPolygonEvenOdd(px, py, points)`を追加（境界・頂点数3未満・面積0は`isPointInPolygonNonzero`と同じく偽。規則は半直線との交差の数の偶奇）。ファイル先頭の責務に「nonzero・evenodd」を反映。
+    *   5つの図形クラスに`appendOutline(ctx)`（第19）・`isInsideOutline(x, y)`（第20）をJSDoc付きで追加し、クラスJSDocの「共通メソッド契約」を20メソッドに更新（`grep -rn "18メソッド" js`の残りは`createTransformed`の「第18メソッド」の序数のみで契約の数ではない）。
+    *   `Line`は`isInsideOutline`が常に偽。`Curve`は101点の多角形、`Rect`は4点の多角形、`Ellipse`は円＝`hitTestFill`と同じ式・弧＝101点の多角形、`Path`は`#fillPolygon`（開いたパスのみ末尾に最後の頂点を追加）の多角形。`Ellipse.appendOutline`は`ctx.ellipse`の前に始点へ`moveTo`。
+    *   `Path`は`#tracePath`を`beginPath`→`#traceSubpath`に分け、`appendOutline`は`#traceSubpath`を呼ぶ（`draw`・`drawHover`・`drawOutline`の命令は不変）。
+    *   新規テスト：`test/shapes/ShapeGeometry.evenodd.test.js`・`test/shapes/OutlineMethods.test.js`（LF）。`node --test`は4032件すべて合格。既存テストの値は変更なし。
+    *   行末：`Ellipse.js`・`Path.js`はCRLF維持、ほかはLF。
 
 ### タスク2: 複合パスの規則（中身の集め方・一番下の図形・描く単位・塗られた所・スタイルの反映先）と属性の補い
 *   **作業内容** :
@@ -396,6 +401,7 @@
 *   **複合パスの中へ描く・貼り付ける図形**：描き込む先が複合パスの中なら、新しく描いた・貼り付けた図形は入ったとたんに複合パスの一部になり、自分のスタイルでは見えない（一番下にならない限り）。中の図形の行のサムネイルは自分のスタイルのまま（REQの要件4）で、キャンバスの見た目と違って見える。
 *   **選択の外枠・⛶・ステータスバーの大きさ**：`ShapeExtentReader`（`computeShapesBounds`等）は図形ごとの自分の線の太さで外枠を求めるため、複合パスの線の太さ（一番下の図形の太さ）と違う図形を含むと、⛶の外枠が書き出しの`bounds`とわずかに違うことがある（外枠のハンドルの位置は線を含まない外枠のため影響しない）。今回は変えない。
 *   **自己交差するパス**：複合パスの中では`evenodd`で塗るため、自己交差する閉じたパス（五芒星など）は、複合パスに入れると今の`nonzero`の見た目と違う（中心が抜ける）。図形1つの複合パスでも同じ。仕様どおり（REQの要件2）。
+*   **（タスク1の実施メモ）`isInsideOutline`の重さと開いたパス**：`Curve`・`Ellipse`の弧は呼ぶたびに101点の多角形を作る（キャッシュしない）。`Path.#fillPolygon`は開いたパスのとき末尾に最後の頂点を足すようにした（`hitTestFill`は開いたパスで先に偽を返すため結果は変わらないが、今後`#fillPolygon`を別の用途で使うときは末尾の頂点の有無に注意）。`Ellipse`の円の`isInsideOutline`は`hitTestFill`と式を重複して持つ（`hitTestFill`の式を直すときは両方を見直す）。
 *   **当たり判定の重さ**：塗られた所の判定は、クリック・ホバー・カーソルのたびに中の図形すべての`isInsideOutline`（曲線は100分割の多角形）を調べる。中の図形が極端に多い複合パスで重くなるかは確かめていない。
 *   **OZ Engineへの連絡**：書き出し形式の版を5に上げ、新しい描画要素`compoundPath`（`fill('evenodd')`）を足すため、**次のサブフェイズで連絡票を出す**（今回は出さない）。版5のJSを古い読み手（版4まで）で描くと、複合パスが描かれない。
 *   **確認の状況**：`CanvasManager`の複合パスの描画・`ItemListPanel`のボタンと絵・`ItemListWiring`・`main.js`の配線・実際の見た目（`evenodd`の穴・アンチエイリアス）は`node --test`で確かめられない（テストプレイで確かめる範囲）。

@@ -3,7 +3,7 @@
  * 図形データとの相互変換、描画要素（スプライトの書き出し用）への変換、および変形（アフィン変換）を当てた新しい図形の生成を担う。
  */
 
-import { applyAffineTransformToPoint, distanceToSegment, segmentIntersectsRect, isPointInPolygonNonzero } from './ShapeGeometry.js';
+import { applyAffineTransformToPoint, distanceToSegment, segmentIntersectsRect, isPointInPolygonNonzero, isPointInPolygonEvenOdd } from './ShapeGeometry.js';
 import { validateShapeData } from './ShapeDataValidation.js';
 
 /**
@@ -14,8 +14,8 @@ const RECT_POINT_COUNT = 4;
 
 /**
  * 矩形の図形クラス（図形種別`'rect'`）。頂点は`points[0]`＝topLeft、`[1]`＝topRight、`[2]`＝bottomRight、`[3]`＝bottomLeft（4頂点独立）。
- * 共通メソッド契約（18メソッド：draw・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames・createTransformed）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（20メソッド：draw・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames・createTransformed・appendOutline・isInsideOutline）を自律実装する。座標はすべてワールド座標。
  */
 export class Rect {
     /**
@@ -119,6 +119,32 @@ export class Rect {
             return false;
         }
         return isPointInPolygonNonzero(x, y, this.points);
+    }
+
+    /**
+     * 自分の輪郭を、呼び出し側が`beginPath`した今のパスへ新しいサブパスとして足す（共通メソッド契約の第19メソッド）。
+     * `beginPath`は呼ばない。命令は`draw`のパスの部分と同じ（`moveTo(points[0])`→`lineTo(points[1])`・`[2]`・`[3]`→`closePath`）。
+     * 塗り・線・スタイルは呼ばない・読まない。
+     * @param {CanvasRenderingContext2D} ctx - 輪郭を足す先の2Dコンテキスト
+     */
+    appendOutline(ctx) {
+        ctx.moveTo(this.points[0].x, this.points[0].y);
+        ctx.lineTo(this.points[1].x, this.points[1].y);
+        ctx.lineTo(this.points[2].x, this.points[2].y);
+        ctx.lineTo(this.points[3].x, this.points[3].y);
+        ctx.closePath();
+    }
+
+    /**
+     * 点(x, y)が自分の輪郭の内側にあるかを`evenodd`で判定する（共通メソッド契約の第20メソッド）。
+     * `points[0]`→`[1]`→`[2]`→`[3]`（閉じる辺を含む）の4頂点の多角形の交差の数の偶奇で判定する。
+     * スタイル・`isFillable()`は読まない。境界（辺の上・頂点の上）は`false`。
+     * @param {number} x - 判定対象点のX座標（ワールド座標）
+     * @param {number} y - 判定対象点のY座標（ワールド座標）
+     * @returns {boolean} 輪郭の内側（境界を除く）なら`true`
+     */
+    isInsideOutline(x, y) {
+        return isPointInPolygonEvenOdd(x, y, this.points);
     }
 
     /**

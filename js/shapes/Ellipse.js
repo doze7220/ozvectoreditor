@@ -3,7 +3,7 @@
  * および図形データとの相互変換・描画要素（スプライトの書き出し用）への変換・変形を当てた新しい図形の生成を担う。
  */
 
-import { applyAffineTransformToPoint, segmentIntersectsRect } from './ShapeGeometry.js';
+import { applyAffineTransformToPoint, isPointInPolygonEvenOdd, segmentIntersectsRect } from './ShapeGeometry.js';
 import { validateShapeData } from './ShapeDataValidation.js';
 
 /**
@@ -46,8 +46,8 @@ const ELLIPSE_TYPES = Object.freeze(['circle', 'arc']);
  * `[2]`＝上端制御点、`[3]`＝開始角制御点、`[4]`＝終了角制御点。開始角・終了角は`type`から決まり、図形データには保存しない。
  * 形は`u = points[1] − points[0]`・`w = points[2] − points[0]`を共役な半径として読み（輪郭＝中心＋`u`·cos t − `w`·sin t）、
  * 傾いた楕円・楕円の弧・上下に裏返った弧を表せる（今の約束の位置では`u`が横向き・`w`が上向きで、縦横に沿った楕円）。
- * 共通メソッド契約（18メソッド：draw・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames・createTransformed）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（20メソッド：draw・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames・createTransformed・appendOutline・isInsideOutline）を自律実装する。座標はすべてワールド座標。
  */
 export class Ellipse {
     /**
@@ -516,6 +516,51 @@ export class Ellipse {
 
         const local = this.#toLocalPoint(g, x, y);
         return (local.x * local.x) / (rx * rx) + (local.y * local.y) / (ry * ry) < 1;
+    }
+
+    /**
+     * 自分の輪郭を、呼び出し側が`beginPath`した今のパスへ新しいサブパスとして足す（共通メソッド契約の第19メソッド）。
+     * `beginPath`は呼ばない。命令は`draw`のパスの部分（`ctx.ellipse(...)`。円のみ`closePath`、弧は閉じない）と同じ並び・同じ値だが、
+     * 前のサブパスの終点とつながる直線ができないよう、`ctx.ellipse`の前に輪郭の始点（`#pointOnOutline(g, g.startAngle)`）へ`moveTo`する
+     * （`draw`は変えない）。塗り・線・スタイルは呼ばない・読まない。
+     * @param {CanvasRenderingContext2D} ctx - 輪郭を足す先の2Dコンテキスト
+     */
+    appendOutline(ctx) {
+        const g = this.#readGeometry();
+        const start = this.#pointOnOutline(g, g.startAngle);
+        ctx.moveTo(start.x, start.y);
+        ctx.ellipse(g.x, g.y, g.radiusX, g.radiusY, g.rotation, g.startAngle, g.endAngle);
+        if (this.type === 'circle') {
+            ctx.closePath();
+        }
+    }
+
+    /**
+     * 点(x, y)が自分の輪郭（弧は始点と終点を弦で結んで閉じたもの）の内側にあるかを`evenodd`で判定する（共通メソッド契約の第20メソッド）。
+     * 円は`hitTestFill`と同じ式（局所座標の`(lx² / rx²) + (ly² / ry²) < 1`。半径の2乗が0なら`false`）。
+     * 弧は`ELLIPSE_INTERSECT_SEGMENTS`（100）分割で`startAngle`〜`endAngle`を`#pointOnOutline`で取った101点の多角形（弦で閉じる）の交差の数の偶奇で判定する。
+     * スタイル・`isFillable()`は読まない。境界の上は`false`。
+     * @param {number} x - 判定対象点のX座標（ワールド座標）
+     * @param {number} y - 判定対象点のY座標（ワールド座標）
+     * @returns {boolean} 輪郭の内側（境界を除く）なら`true`
+     */
+    isInsideOutline(x, y) {
+        const g = this.#readGeometry();
+        if (this.type === 'circle') {
+            const rx = g.radiusX;
+            const ry = g.radiusY;
+            if (!(rx * rx > 0 && ry * ry > 0)) {
+                return false;
+            }
+            const local = this.#toLocalPoint(g, x, y);
+            return (local.x * local.x) / (rx * rx) + (local.y * local.y) / (ry * ry) < 1;
+        }
+        const segments = ELLIPSE_INTERSECT_SEGMENTS;
+        const polygon = [];
+        for (let i = 0; i <= segments; i++) {
+            polygon.push(this.#pointOnOutline(g, g.startAngle + (g.endAngle - g.startAngle) * i / segments));
+        }
+        return isPointInPolygonEvenOdd(x, y, polygon);
     }
 
     /**

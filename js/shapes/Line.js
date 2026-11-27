@@ -13,8 +13,8 @@ const LINE_POINT_COUNT = 2;
 
 /**
  * 直線の図形クラス（図形種別`'line'`）。頂点は`x1, y1`＝始点、`x2, y2`＝終点として保持する。
- * 共通メソッド契約（18メソッド：draw・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames・createTransformed）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（20メソッド：draw・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames・createTransformed・appendOutline・isInsideOutline）を自律実装する。座標はすべてワールド座標。
  */
 export class Line {
     /**
@@ -74,6 +74,28 @@ export class Line {
         if (!this.isFillable() || typeof this.fillColor !== 'string') {
             return false;
         }
+        return false;
+    }
+
+    /**
+     * 自分の輪郭を、呼び出し側が`beginPath`した今のパスへ新しいサブパスとして足す（共通メソッド契約の第19メソッド）。
+     * `beginPath`は呼ばない。命令は`draw`のパスの部分と同じ（`moveTo(始点)`→`lineTo(終点)`。開いた形のため`closePath`しない）。
+     * 塗り・線・スタイルは呼ばない・読まない。
+     * @param {CanvasRenderingContext2D} ctx - 輪郭を足す先の2Dコンテキスト
+     */
+    appendOutline(ctx) {
+        ctx.moveTo(this.x1, this.y1);
+        ctx.lineTo(this.x2, this.y2);
+    }
+
+    /**
+     * 点(x, y)が自分の輪郭（開いた形は始点と終点を結んで閉じたもの）の内側にあるかを`evenodd`で判定する（共通メソッド契約の第20メソッド）。
+     * スタイル（`strokeColor`・`strokeWidth`・`fillColor`）・`isFillable()`は読まない。直線は面積0のため常に`false`。
+     * @param {number} x - 判定対象点のX座標（ワールド座標。使わない）
+     * @param {number} y - 判定対象点のY座標（ワールド座標。使わない）
+     * @returns {boolean} 常に`false`
+     */
+    isInsideOutline(x, y) {
         return false;
     }
 

@@ -1,6 +1,6 @@
 /**
  * 責務: 図形クラスが当たり判定・範囲選択で共通に使う幾何の計算（点と線分の距離・線分と軸平行矩形の交差・2次ベジェ曲線の点・
- * 3次ベジェ曲線の点・多角形の内側の判定（nonzero））・点へのアフィン変換（変形の式の唯一の箇所）と、
+ * 3次ベジェ曲線の点・多角形の内側の判定（nonzero・evenodd））・点へのアフィン変換（変形の式の唯一の箇所）と、
  * パスの曲線の区間（点を通るなめらかな曲線）の形の決め方（制御点）を、状態を持たない関数として提供する。
  */
 
@@ -214,6 +214,53 @@ export function isPointInPolygonNonzero(px, py, points) {
         }
     }
     return winding !== 0;
+}
+
+/**
+ * 点(px, py)が多角形の内側にあるかを、evenodd規則（点から伸ばした半直線と辺の交差の数が奇数なら内側。Canvasの`fill('evenodd')`と同じ）で判定する。
+ * `isPointInPolygonNonzero`と同じ引数の形・同じ境界の扱いで、規則だけが交差の数の偶奇（巻き数ではない）。
+ * pointsは「最後の頂点から最初の頂点へ戻る辺を常に含む閉じた多角形」として扱う（呼び出し側は始点を重複させない）。
+ * 自己交差する多角形では、巻き数が0でなくても交差の数が偶数の所（五芒星の中心など）は外側になる。
+ * 境界上の点（辺の上・頂点の上）は内側に含めない（偽）。頂点数3未満、または面積0の多角形（全頂点が一直線上、または全頂点が同じ点）は常に偽。
+ * 除算をしないため0除算は起きない。浮動小数の注意は`isPointInPolygonNonzero`と同じ（「辺の上」は外積がちょうど0の点に限る）。
+ * 引数を書き換えず、例外は投げない。
+ * @param {number} px - 判定する点のX座標（ワールド座標）
+ * @param {number} py - 判定する点のY座標（ワールド座標）
+ * @param {Array<{x: number, y: number}>} points - 多角形の頂点の並び（閉じる辺を含む。始点を重複させない）
+ * @returns {boolean} 内側（境界を除く）ならtrue
+ */
+export function isPointInPolygonEvenOdd(px, py, points) {
+    const n = points.length;
+    if (n < 3) return false;
+
+    // 境界上の点は偽
+    for (let i = 0; i < n; i++) {
+        const a = points[i];
+        const b = points[(i + 1) % n];
+        const cross = (b.x - a.x) * (py - a.y) - (b.y - a.y) * (px - a.x);
+        if (
+            cross === 0 &&
+            px >= Math.min(a.x, b.x) && px <= Math.max(a.x, b.x) &&
+            py >= Math.min(a.y, b.y) && py <= Math.max(a.y, b.y)
+        ) {
+            return false;
+        }
+    }
+
+    // 交差の数（点から+X方向へ伸ばした半直線と辺の交差）の偶奇
+    let inside = false;
+    for (let i = 0; i < n; i++) {
+        const a = points[i];
+        const b = points[(i + 1) % n];
+        if ((a.y <= py) !== (b.y <= py)) {
+            const cross = (b.x - a.x) * (py - a.y) - (b.y - a.y) * (px - a.x);
+            // 辺が点より右側（半直線の前方）にあるか。b.y > a.y なら cross > 0、そうでなければ cross < 0
+            if (b.y > a.y ? cross > 0 : cross < 0) {
+                inside = !inside;
+            }
+        }
+    }
+    return inside;
 }
 
 /**

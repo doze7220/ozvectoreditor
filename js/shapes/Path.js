@@ -8,6 +8,7 @@ import {
     computeSmoothSegmentControls,
     cubicBezierPoint,
     distanceToSegment,
+    isPointInPolygonEvenOdd,
     isPointInPolygonNonzero,
     segmentIntersectsRect,
 } from './ShapeGeometry.js';
@@ -150,8 +151,8 @@ export function resolveSegmentControls(data) {
  * 区間ごとに種類を指定して作るのは、コンストラクタへ区間の指定の配列を渡す場合（`PathJoinRules`の結合・描き足し・閉じる。結果は元の区間を保つ）と`fromJSON`（`segments`を作り直す）。
  * 角の点：公開プロパティ`corners`（頂点と同じ並びの真偽値の配列）で、曲線の連なりの途中の点を、なめらかにつなぐか角を立てるかを点ごとに持つ。
  * 角が形に効くのは両側とも曲線の区間の点だけ（直線の区間との境目・開いたパスの端はもともと角）。図形データでは角の点が1つ以上あるときだけ`corners`を`segments`の直後に出す。
- * 共通メソッド契約（18メソッド：draw・drawHover・hitTest・hitTestHandle・setVertex・translate・
- * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames・createTransformed）を自律実装する。座標はすべてワールド座標。
+ * 共通メソッド契約（20メソッド：draw・drawHover・hitTest・hitTestHandle・setVertex・translate・
+ * updateDraftEnd・getVertexIndexForHandle・intersectsRect・toJSON・static fromJSON・toDrawElement・isFillable・hitTestFill・drawOutline・getHandlePosition・getVertexHandleNames・createTransformed・appendOutline・isInsideOutline）を自律実装する。座標はすべてワールド座標。
  * パスは`ShapeFactory.create`の曲線のツールの描き始めでも作られる（頂点2つ・区間1つの曲線）。
  * 直線・曲線のツールで続けて引く線（点が3つ以上）も`PathJoinRules`が作り、作成途中の図形にもなる。
  */
@@ -215,16 +216,25 @@ export class Path {
 
     /**
      * パスの輪郭をCanvasのパスとして組み立てる（`draw`・`drawHover`・`drawOutline`が共有）。
-     * `beginPath` → `moveTo(points[0])` → 区間`i`ごとに終点`points[(i+1) % n]`へ、
-     * 曲線の区間（打った点の曲線の区間・曲がり方を持つ区間）なら`bezierCurveTo`、直線の区間なら`lineTo` → `closed`なら`closePath`。
-     * ただし閉じたパスの閉じる区間（最後の区間）が直線なら`lineTo`を呼ばず`closePath`で結ぶ。閉じる区間が曲線ならその曲線を描いてから`closePath`。
-     * 区間がすべて直線のパスの命令は`lineTo`（i=1…n-1）→`closePath`のまま。
+     * `beginPath` → `#traceSubpath`（輪郭の命令）。命令の並びは従来のまま変わらない。
      * @param {CanvasRenderingContext2D} ctx - 描画対象の2Dコンテキスト
      */
     #tracePath(ctx) {
+        ctx.beginPath();
+        this.#traceSubpath(ctx);
+    }
+
+    /**
+     * パスの輪郭を、`beginPath`を呼ばずに今のパスへ新しいサブパスとして足す（`#tracePath`・`appendOutline`が共有）。
+     * `moveTo(points[0])` → 区間`i`ごとに終点`points[(i+1) % n]`へ、
+     * 曲線の区間（打った点の曲線の区間・曲がり方を持つ区間）なら`bezierCurveTo`、直線の区間なら`lineTo` → `closed`なら`closePath`。
+     * ただし閉じたパスの閉じる区間（最後の区間）が直線なら`lineTo`を呼ばず`closePath`で結ぶ。閉じる区間が曲線ならその曲線を描いてから`closePath`。
+     * 区間がすべて直線のパスの命令は`lineTo`（i=1…n-1）→`closePath`のまま。
+     * @param {CanvasRenderingContext2D} ctx - 輪郭を足す先の2Dコンテキスト
+     */
+    #traceSubpath(ctx) {
         const n = this.points.length;
         const controls = this.#segmentControls();
-        ctx.beginPath();
         ctx.moveTo(this.points[0].x, this.points[0].y);
         for (let i = 0; i < controls.length; i++) {
             const b = this.points[(i + 1) % n];
@@ -277,6 +287,9 @@ export class Path {
     /**
      * 塗りの内側の判定に使う頂点の並びを作る。区間ごとに始点の頂点を並べ、曲線の区間（曲がり方を持つ区間を含む）ならその後に近似点（`k = 1…N-1`）を足す
      * （閉じる区間の近似点は末尾）。区間がすべて直線なら`points`と同じ並び。
+     * 開いたパスだけは、区間の始点の頂点が最後の頂点を含まないため、末尾に最後の頂点`points[n-1]`を足す
+     * （`isInsideOutline`が始点と終点を結んだ形を判定するため。閉じたパスの並びは変わらない。
+     * `hitTestFill`は開いたパスで先に偽を返すため、この追加で`hitTestFill`の結果は変わらない）。
      * @returns {{x: number, y: number}[]} 多角形の頂点の並び
      */
     #fillPolygon() {
@@ -293,6 +306,9 @@ export class Path {
                     polygon.push(cubicBezierPoint(a, control.control1, control.control2, b, k / SMOOTH_SEGMENT_SAMPLE_COUNT));
                 }
             }
+        }
+        if (!this.closed) {
+            polygon.push(this.points[n - 1]);
         }
         return polygon;
     }
@@ -381,6 +397,28 @@ export class Path {
             return false;
         }
         return isPointInPolygonNonzero(x, y, this.#fillPolygon());
+    }
+
+    /**
+     * 自分の輪郭を、呼び出し側が`beginPath`した今のパスへ新しいサブパスとして足す（共通メソッド契約の第19メソッド）。
+     * `beginPath`は呼ばない。命令は`draw`のパスの部分と同じ（`#traceSubpath`。閉じたパスは`closePath`で終わり、開いたパスは閉じない）。
+     * 塗り・線・スタイルは呼ばない・読まない。
+     * @param {CanvasRenderingContext2D} ctx - 輪郭を足す先の2Dコンテキスト
+     */
+    appendOutline(ctx) {
+        this.#traceSubpath(ctx);
+    }
+
+    /**
+     * 点(x, y)が自分の輪郭（開いたパスは始点と終点を結んで閉じたもの）の内側にあるかを`evenodd`で判定する（共通メソッド契約の第20メソッド）。
+     * `#fillPolygon`の頂点の並び（開いたパスは末尾に最後の頂点を足したもの）の多角形の交差の数の偶奇で判定する。
+     * スタイル・`isFillable()`は読まない。境界の上は`false`。
+     * @param {number} x - 判定対象点のX座標（ワールド座標）
+     * @param {number} y - 判定対象点のY座標（ワールド座標）
+     * @returns {boolean} 輪郭の内側（境界を除く）なら`true`
+     */
+    isInsideOutline(x, y) {
+        return isPointInPolygonEvenOdd(x, y, this.#fillPolygon());
     }
 
     /**
