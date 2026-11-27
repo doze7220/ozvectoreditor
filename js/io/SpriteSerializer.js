@@ -1,9 +1,10 @@
 /**
- * 責務: スプライトデータ形式（書き出し形式）の定義と判別（識別子・版）、および図形一式からのスプライトデータ（描画要素・外枠）の組み立て・JSON文字列化、外枠（線を含む・線を含まない）の照会を担う。
+ * 責務: スプライトデータ形式（書き出し形式）の定義と判別（識別子・版）、および図形一式からのスプライトデータ（描画要素・外枠。複合パスは描く単位ごとに描画要素`compoundPath`1つ）の組み立て・JSON文字列化、外枠（線を含む・線を含まない）の照会を担う。
  * DOMに依存しない。
  */
 import { toItems } from '../core/ItemTreeRules.js';
 import { listVisibleShapes } from '../core/ItemStateRules.js';
+import { buildDrawUnits, listCompoundPaths, DRAW_UNIT_KIND } from '../core/CompoundPathRules.js';
 
 /**
  * スプライトデータ形式の識別子。スプライトデータ最上位の`format`に格納する（作業データの識別子とは別の値）。
@@ -15,10 +16,11 @@ const SPRITE_FORMAT = 'oz-vector-editor-sprite';
  * スプライトデータ形式（書き出し形式）の現行版番号（唯一の定義箇所）。作業データの版とは別。
  * 版3: 曲線のパスの描画要素`bezierPath`を足した。古い読み手は未知の`kind`として描かず正しく描けないため版を上げた。
  * 版4: 描画要素`ellipse`に回転の角度`rotation`（ラジアン）を足した。版3の読み手は未知のキーとして無視すると回した楕円を正しく描けないため版を上げた（`checkFormat`は版1〜4を受理する）。
+ * 版5: 複合パスの描画要素`compoundPath`を足した。古い読み手は未知の`kind`として描かず正しく描けないため版を上げた（`checkFormat`は版1〜5を受理する）。
  * 版4のまま、`source`と描画要素の`id`を外した（読む側が使っていない項目を外すだけで、古い読み手も正しく描けるため版を上げない）。
  * @type {number}
  */
-const SPRITE_FORMAT_VERSION = 4;
+const SPRITE_FORMAT_VERSION = 5;
 
 /**
  * 線の太さの既定値（px）。`strokeWidth`が正の有限の数値でない要素はこの値として扱う（唯一の定義箇所。`CodeExporter`が埋め込みに使う）。
@@ -36,22 +38,23 @@ export const DEFAULT_STROKE_WIDTH = 2;
  */
 
 /**
- * 描画要素（図形1つ分）。共通のキーは`kind`・`strokeColor`・`strokeWidth`・`fillColor`（`fillColor`は各`kind`のキー列の最後）。
+ * 描画要素（図形1つ分。`compoundPath`は複合パス1つ分）。共通のキーは`kind`・`strokeColor`・`strokeWidth`・`fillColor`（`fillColor`は各`kind`のキー列の最後）。
  * `kind`ごとの追加のキー: `polyline`＝`points`・`closed`／`bezierPath`＝`points`・`closed`・`segments`／`quadratic`＝`points`／`ellipse`＝`x`・`y`・`radiusX`・`radiusY`・`rotation`・`startAngle`・`endAngle`・`closed`（`rotation`は`ctx.ellipse`の回転の角度。有限の数値でなければ0として扱う）。
  * `bezierPath`の`segments[i]`は`points[i]`→`points[(i + 1) % points.length]`の区間で、直線は`{kind: 'line'}`、3次ベジェは`{kind: 'cubic', control1: {x, y}, control2: {x, y}}`。
- * キー列: `polyline`＝`kind, points, closed, strokeColor, strokeWidth, fillColor`／`bezierPath`＝`kind, points, closed, segments, strokeColor, strokeWidth, fillColor`／`quadratic`＝`kind, points, strokeColor, strokeWidth, fillColor`（`fillColor`は常に`null`）／`ellipse`＝`kind, x, y, radiusX, radiusY, rotation, startAngle, endAngle, closed, strokeColor, strokeWidth, fillColor`。
+ * キー列: `polyline`＝`kind, points, closed, strokeColor, strokeWidth, fillColor`／`bezierPath`＝`kind, points, closed, segments, strokeColor, strokeWidth, fillColor`／`quadratic`＝`kind, points, strokeColor, strokeWidth, fillColor`（`fillColor`は常に`null`）／`ellipse`＝`kind, x, y, radiusX, radiusY, rotation, startAngle, endAngle, closed, strokeColor, strokeWidth, fillColor`／`compoundPath`＝`kind, outlines, strokeColor, strokeWidth, fillColor`。
+ * `compoundPath`（版5）は複合パス（フォルダの属性`compound`）1つを輪郭を複数持つ要素1つにしたもの。`outlines`は中の図形（見えているもの。描画順）の`toDrawElement()`から`strokeColor`・`strokeWidth`・`fillColor`を除いた輪郭（`kind`と形の項目だけ）の配列で、スタイルは複合パスのスタイル（一番下の図形の値。`fillColor`は塗れない形でも値のまま）。
  * @typedef {Object} DrawElement
- * @property {string} kind 描き方の種類（'polyline'|'bezierPath'|'quadratic'|'ellipse'）
+ * @property {string} kind 描き方の種類（'polyline'|'bezierPath'|'quadratic'|'ellipse'|'compoundPath'）
  * @property {string|null} strokeColor 線の色（nullは線なし）
  * @property {number} strokeWidth 線の太さ
  * @property {string|null} fillColor 塗りの色（nullは塗りなし。塗れない形の図形からはnullが入る）
  */
 
 /**
- * スプライトデータ（書き出し形式・版4）の最上位の形。
+ * スプライトデータ（書き出し形式・版5）の最上位の形。
  * @typedef {Object} SpriteData
  * @property {string} format 書き出し形式の識別子（'oz-vector-editor-sprite'）
- * @property {number} formatVersion 書き出し形式の版（現行は4。1以上の整数）
+ * @property {number} formatVersion 書き出し形式の版（現行は5。1以上の整数）
  * @property {SpriteBounds|null} bounds 外枠（図形0個ならnull）
  * @property {Array<DrawElement>} elements 描画データ（描画順）
  */
@@ -237,6 +240,33 @@ function ellipseRange(element) {
 }
 
 /**
+ * `compoundPath`の形の範囲（輪郭ごとに表の範囲関数で求めた形の範囲の和。線の太さは含まない）。
+ * @param {DrawElement} element - `kind`が`compoundPath`の描画要素
+ * @returns {ShapeRange} 形の範囲
+ * @throws {Error} 輪郭の`kind`が表に無い（入れ子の`compoundPath`を含む）場合
+ */
+function compoundPathRange(element) {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const outline of element.outlines) {
+        const rangeOf = outline.kind !== 'compoundPath' && Object.prototype.hasOwnProperty.call(SHAPE_RANGE_BY_KIND, outline.kind)
+            ? SHAPE_RANGE_BY_KIND[outline.kind]
+            : undefined;
+        if (typeof rangeOf !== 'function') {
+            throw new Error(`SpriteSerializer: 未知の輪郭のkindです: ${String(outline.kind)}`);
+        }
+        const range = rangeOf(outline);
+        minX = Math.min(minX, range.minX);
+        minY = Math.min(minY, range.minY);
+        maxX = Math.max(maxX, range.maxX);
+        maxY = Math.max(maxY, range.maxY);
+    }
+    return { minX, minY, maxX, maxY };
+}
+
+/**
  * `kind`→形の範囲を求める関数の対応表。`kind`を足すときはここへ追加する。
  * @type {Readonly<Object<string, (element: DrawElement) => ShapeRange>>}
  */
@@ -245,7 +275,28 @@ const SHAPE_RANGE_BY_KIND = Object.freeze({
     bezierPath: bezierPathRange,
     quadratic: quadraticRange,
     ellipse: ellipseRange,
+    compoundPath: compoundPathRange,
 });
+
+/**
+ * 複合パスの描く単位から描画要素`compoundPath`を組み立てる（キー順`kind, outlines, strokeColor, strokeWidth, fillColor`）。
+ * 輪郭は中の図形の`toDrawElement()`からスタイルの3キーを除いたもの、スタイルは複合パスのスタイル。
+ * @param {{shapes: Array<Object>, style: {strokeColor: (string|null), strokeWidth: number, fillColor: (string|null)}}} unit - 複合パスの描く単位
+ * @returns {DrawElement} 描画要素`compoundPath`
+ */
+function buildCompoundPathElement(unit) {
+    const outlines = unit.shapes.map((shape) => {
+        const { strokeColor, strokeWidth, fillColor, ...outline } = shape.toDrawElement();
+        return outline;
+    });
+    return {
+        kind: 'compoundPath',
+        outlines,
+        strokeColor: unit.style.strokeColor,
+        strokeWidth: unit.style.strokeWidth,
+        fillColor: unit.style.fillColor,
+    };
+}
 
 /**
  * 線の太さを解決する（正の有限の数値でなければ既定値）。使う側は外枠の計算と`DrawElementReader`（描画要素の`strokeWidth`の読み方を`draw`と合わせる）。
@@ -291,14 +342,18 @@ export class SpriteSerializer {
 
     /**
      * アイテムまたは素の図形インスタンスの配列をスプライトデータ（現行版）へ変換する。入力を検証しない（`toDrawElement`を持たない図形が混ざると例外）。
-     * `elements`・`bounds`は入れ子を描画順（深さ優先・前順）に平らにした図形のうち、見えている図形（自分の表示が切でなく、上のフォルダのどれも表示が切でないもの。ロックは効かない）だけから求める（名前・ロックは効かない）。すべて隠れていれば`elements`は空・`bounds`は`null`。戻り値は`format`・`formatVersion`・`bounds`・`elements`だけで、名前・フォルダ・ロック・隠した図形の情報（作業データ`source`）は持たない。
+     * `elements`・`bounds`は入れ子を描画順（深さ優先・前順）に平らにした図形のうち、見えている図形（自分の表示が切でなく、上のフォルダのどれも表示が切でないもの。ロックは効かない）だけから求める（名前・ロックは効かない）。
+     * 描く単位ごとに要素を作る。効いている複合パスの中の図形は複合パス1つの要素`compoundPath`（最初の中の図形の位置に置く）、そのほかの図形は今までどおり図形ごとの`toDrawElement()`。中が空・すべて隠れた複合パスは要素を作らない。すべて隠れていれば`elements`は空・`bounds`は`null`。戻り値は`format`・`formatVersion`・`bounds`・`elements`だけで、名前・フォルダ・ロック・隠した図形の情報（作業データ`source`）は持たない。
      * 名前・表示・ロック・フォルダを保つには`model.getItems()`または`DocumentSerializer.deserialize`の`items`を渡す（素の図形を渡すと名前が振り直され、フォルダは無い）。
      * @param {Array<Object>} values - アイテムまたは素の図形インスタンスの配列（描画順）
      * @returns {SpriteData} 新しいスプライトデータ（図形インスタンスと配列・頂点を共有しない。引数は書き換えない）
      * @throws {Error} 未知の`kind`の描画要素が得られた場合、または`toDrawElement`を持たない要素が混ざった場合
      */
     static serialize(values) {
-        const elements = listVisibleShapes(toItems(values)).map((shape) => shape.toDrawElement());
+        const items = toItems(values);
+        const elements = buildDrawUnits(listVisibleShapes(items), listCompoundPaths(items)).map((unit) => (
+            unit.kind === DRAW_UNIT_KIND.COMPOUND ? buildCompoundPathElement(unit) : unit.shapes[0].toDrawElement()
+        ));
         return {
             format: SPRITE_FORMAT,
             formatVersion: SPRITE_FORMAT_VERSION,

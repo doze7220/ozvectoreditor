@@ -376,7 +376,7 @@ test('保存・書き出し：変形した図形が作業データで往復し�
 
     const sprite = SpriteSerializer.serialize(shapes);
     assert.deepEqual(Object.keys(sprite).sort(), ['bounds', 'elements', 'format', 'formatVersion']);
-    assert.equal(sprite.formatVersion, 4);
+    assert.equal(sprite.formatVersion, 5);
     const work = DocumentSerializer.serialize(shapes);
     assert.equal(work.version, 5);
     assert.deepEqual(Object.keys(work).sort(), ['format', 'shapes', 'version']);

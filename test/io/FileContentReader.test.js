@@ -433,7 +433,7 @@ describe('FileContentReader.deserializeFromText: 曲線のパスを含むスプ�
         t.mock.method(console, 'warn', () => {});
         const shapes = sampleShapesWithSmoothPaths();
         const data = withSource(shapes);
-        assert.equal(data.formatVersion, 4);
+        assert.equal(data.formatVersion, 5);
         const text = CodeExporter.toModuleText(data);
         for (const source of [text, text.replace(/\n/g, '\r\n')]) {
             const result = FileContentReader.deserializeFromText(source);

@@ -112,10 +112,10 @@ describe('SpriteSerializer.serialize: 表示・ロックの書き出し', () => 
         assert.notDeepEqual(DocumentSerializer.serialize(items), DocumentSerializer.serialize([]));
     });
 
-    it('版は4で、キーはformat・formatVersion・bounds・elementsだけ（sourceのキーが無い）', () => {
+    it('版は5で、キーはformat・formatVersion・bounds・elementsだけ（sourceのキーが無い）', () => {
         const items = makeItems({ folderVisible: false });
         const data = SpriteSerializer.serialize(items);
-        assert.equal(data.formatVersion, 4);
+        assert.equal(data.formatVersion, 5);
         assert.equal(DocumentSerializer.serialize(items).version, 5);
         assert.deepEqual(Object.keys(data), ['format', 'formatVersion', 'bounds', 'elements']);
     });

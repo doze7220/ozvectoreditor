@@ -56,7 +56,7 @@ describe('SpriteSerializer.serialize: 描画要素', () => {
         const data = SpriteSerializer.serialize([withId(new Line(0, 0, 10, 10), 'a')]);
         assert.deepEqual(Object.keys(data), ['format', 'formatVersion', 'bounds', 'elements']);
         assert.equal(data.format, 'oz-vector-editor-sprite');
-        assert.equal(data.formatVersion, 4);
+        assert.equal(data.formatVersion, 5);
         assert.equal('version' in data, false);
         assert.equal(Object.hasOwn(data, 'source'), false);
         const work = DocumentSerializer.serialize([withId(new Line(0, 0, 10, 10), 'a')]);
@@ -580,13 +580,13 @@ describe('SpriteSerializer: 版3・bezierPath', () => {
         assert.deepEqual(SpriteSerializer.computeShapesBounds(shapes), SpriteSerializer.serialize(shapes).bounds);
     });
 
-    it('checkFormat は版4・3・2・1を supported、5を unsupportedVersion とする', () => {
+    it('checkFormat は版5・4・3・2・1を supported、6を unsupportedVersion とする', () => {
         const base = SpriteSerializer.serialize([]);
-        assert.equal(base.formatVersion, 4);
-        for (const formatVersion of [4, 3, 2, 1]) {
+        assert.equal(base.formatVersion, 5);
+        for (const formatVersion of [5, 4, 3, 2, 1]) {
             assert.equal(SpriteSerializer.checkFormat({ ...base, formatVersion }), 'supported');
         }
-        assert.equal(SpriteSerializer.checkFormat({ ...base, formatVersion: 5 }), 'unsupportedVersion');
+        assert.equal(SpriteSerializer.checkFormat({ ...base, formatVersion: 6 }), 'unsupportedVersion');
     });
 });
 
@@ -678,9 +678,9 @@ describe('SpriteSerializer: 区間の切り替えで作った図形（Phase 09-0
         assert.deepEqual(element.points, [{ x: 0, y: 0 }, { x: 90, y: 30 }]);
     });
 
-    it('書き出し形式の版は4のまま', () => {
+    it('書き出し形式の版は5のまま', () => {
         const path = switched(new Path(points, false), [0, 1], SegmentKindSwitch.TO_CURVE);
-        assert.equal(SpriteSerializer.serialize([path]).formatVersion, 4);
+        assert.equal(SpriteSerializer.serialize([path]).formatVersion, 5);
     });
 });
 
@@ -689,10 +689,10 @@ describe('SpriteSerializer: 曲がり方を持つ区間を含むパス（Phase 0
     const control2 = { x: 70, y: -20 };
     const points = [{ x: 0, y: 0 }, { x: 80, y: 30 }, { x: 140, y: 0 }];
 
-    it('bezierPath の区間の cubic の control1・control2 が作業データの引っ張る点と一致し、版は4', () => {
+    it('bezierPath の区間の cubic の control1・control2 が作業データの引っ張る点と一致し、版は5', () => {
         const path = withId(new Path(points, false, '#102030', 2, null, [{ kind: 'bezier', control1, control2 }, 'line']), 'bz');
         const data = SpriteSerializer.serialize([path]);
-        assert.equal(data.formatVersion, 4);
+        assert.equal(data.formatVersion, 5);
         const element = data.elements[0];
         assert.equal(element.kind, 'bezierPath');
         assert.deepEqual(element.segments.map((s) => s.kind), ['cubic', 'line']);
@@ -752,10 +752,10 @@ describe('SpriteSerializer: 弧を結合した結果（Phase 09-03b）', () => {
         return withId(plan.path, id);
     }
 
-    it('bezierPath の区間は cubic・cubic・line で、引っ張る点が作業データと一致し、版は4・外枠は形を囲む', () => {
+    it('bezierPath の区間は cubic・cubic・line で、引っ張る点が作業データと一致し、版は5・外枠は形を囲む', () => {
         const path = joinArc(new Line(160, 200, 220, 260, '#102030', 4), 'jn');
         const data = SpriteSerializer.serialize([path]);
-        assert.equal(data.formatVersion, 4);
+        assert.equal(data.formatVersion, 5);
         const element = data.elements[0];
         assert.equal(element.kind, 'bezierPath');
         assert.deepEqual(element.segments.map((s) => s.kind), ['cubic', 'cubic', 'line']);
@@ -1052,13 +1052,13 @@ describe('SpriteSerializer: 回した楕円の外枠と版4（Phase 10-02）', (
         return range;
     }
 
-    it('formatVersionは4で、checkFormatは版1〜4をsupported・版5をunsupportedVersionとする', () => {
+    it('formatVersionは5で、checkFormatは版1〜5をsupported・版6をunsupportedVersionとする', () => {
         const base = SpriteSerializer.serialize([]);
-        assert.equal(base.formatVersion, 4);
-        for (const formatVersion of [1, 2, 3, 4]) {
+        assert.equal(base.formatVersion, 5);
+        for (const formatVersion of [1, 2, 3, 4, 5]) {
             assert.equal(SpriteSerializer.checkFormat({ ...base, formatVersion }), 'supported');
         }
-        assert.equal(SpriteSerializer.checkFormat({ ...base, formatVersion: 5 }), 'unsupportedVersion');
+        assert.equal(SpriteSerializer.checkFormat({ ...base, formatVersion: 6 }), 'unsupportedVersion');
     });
 
     it('45°回した全周の楕円の外枠は、サンプリングで求めた範囲と一致する（線を含まない）', () => {
