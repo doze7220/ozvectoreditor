@@ -232,7 +232,7 @@ Phase 12 のコード変更で変わった・広がった・なくなったも�
     * **数え方**：`_doc/arch/16_test.md` の例外のファイルの数、`PROJECT_ARCHITECTURE.md` の「`edit/ → core/`のファイル数」など、列挙と数を併記している箇所を検索し、現在の実数と後の項の言い方が矛盾していないかを確かめる。
     * 経緯・過去の状態として正しく書かれているものは相違としない。
 
-* [ ] タスク14: 結果の整理（固定タスク）
+* [x] タスク14: 結果の整理（固定タスク）
   * **対象ファイル**:
     * 本RES（`./_log/res/261127_2040_RES_Survey_Phase12_Doc_Consistency.md`）の4章・5章・6章 :（整理）
   * **調査内容**:
@@ -1030,6 +1030,7 @@ Phase 12 のコード変更で変わった・広がった・なくなったも�
 * 相違が見つからなかった場合は、タスク14で「相違なし」と記載する（未確認と区別するため）。
 
 （タスク12の分。タスク13の分は続けて追記する。いずれも差分の`+`行でない記述）
+（以下の5章の相違は、タスク1〜13の分を機械的に並べたもの。タスク14で一覧にしただけで、項目は書き換えていない。相違は計46件。タスクごとの件数と、複数タスクの重複・食い違いは6章の末尾に整理した）
 * **（対象：`_doc/arch/03_VectorModel.md` 19行目の末尾）**：「`deleteShapes`は製品コードからの呼び出し元が無くなった（削除は`rearrangeItems`へ一本化。既存のテストが使うため残す）」→ 製品コードの呼び出しは `js/edit/PathVertexEditor.js:113` と `js/edit/PathSplitEditor.js:137` の2件（Phase 12-01・12-02から。同ファイル3行目・`PROJECT_ARCHITECTURE.md:381`・`14_edit.md:102-114` は正しく書かれており、同ファイル内で矛盾）（タスク12）
 * **（対象：`_doc/arch/12_shapes.md` 13行目 `PathJoinRules` の項）**：「`classifyJoin`が`'close'`を返すのは選択が1本の`path`で頂点3つ以上の開いたパスのときだけ（今の曲線1本は閉じない）」→ `classifyJoin` の1本の分岐は `isJoinableLine` かつ `chainSourceOf(...).points.length >= 3` で、Phase 12-02から弧1本（頂点3つ）も `'close'`（`js/shapes/PathJoinRules.js:279-283`。同ファイル8行目・13行目の前の文・`PROJECT_ARCHITECTURE.md:673` は「弧は頂点3つで`'close'`」と書き、同行内で矛盾）（タスク12）
 * **（対象：`_doc/arch/12_shapes.md` 13行目 `PathJoinRules` の項）**：「何も起きないのは、そうしてできた始点と終点が重なる頂点3つの開いたパスを閉じようとしたとき（まとめると頂点2つで`planJoin`が`null`を返す。ボタンは押せる見た目で何も起きない。直線2本の同じ形と同じ）」→ Phase 12-02から `canJoin` は `planJoin(...) !== null` で、この形を選ぶと結合のボタンは `disabled`（押せない見た目）（`js/edit/PathJoiner.js:62-67`・`js/main.js:392-393`。`PROJECT_ARCHITECTURE.md:674`・`12_shapes.md:8` は押せないと書く）（タスク12）
@@ -1114,3 +1115,140 @@ Phase 12 のコード変更で変わった・広がった・なくなったも�
 * （タスク11）……`15_io.md:36` のOZ Engineの連絡の事実と、`69:14`・`70:8` の性能・見え方の記述は、リポジトリの外・ブラウザでの見え方のため照合できなかった（4章「照合できなかった主張」）。
 * （タスク10）……`32` の2件（`GroupCommandRules` の欠け、`InputState` の「テストだけ」）は、同じ行の書き換えで生じた。後者は新しい文と古い文が互いに食い違う型（共通指示の「同じ行の新旧の文の食い違い」）として5章に挙げた。
 * （タスク10）……既知の傷5のコード側（`InputTracker.js:157-159`・`ScaleHandleRules.js:125`）は今も残る（4章の「コードのコメント」）。タスク9（`main.js` の分）と合わせて6章にまとめる際の材料。
+
+### タスク14の整理（タスク1〜13の4章・5章を一覧にしたもの。元の項目の文言は書き換えていない。どちらが正しいかの判定・項目の統合・削除はしていない）
+
+#### 14-A. 5章の相違の件数（タスクごと）
+* 5章の相違は計46件。「相違なし」と明記するタスクは無い（相違が0件のタスクは、タスク5だけ。4章に「読み方が分かれる記述」等は書かれている）。
+* タスク1：4件／タスク2：2件／タスク3：1件／タスク4：1件／タスク5：0件／タスク6：4件／タスク7：3件／タスク8：15件／タスク9：1件／タスク10：3件／タスク11：1件／タスク12：4件／タスク13：7件。合計46件。
+
+#### 14-B. 読み方が分かれる記述（4章の「推測・所見」。34件）
+* `PROJECT_ARCHITECTURE.md:355`「`main.js`に操作モードの判定は無い」：削除ボタンの見た目の判定に限れば一致。`main.js`全体では`getMode()`の比較が残る（タスク1）
+* `PROJECT_ARCHITECTURE.md:428`・`:459`：5章に挙げたとの注記のみ（タスク2）
+* `PROJECT_ARCHITECTURE.md:445`・`FileContentReader`の説明：`deserializeShapeElements`の第2・3引数を直接渡す書き方と、コードのラムダ包み。同じ関数への委譲（タスク2）
+* `_doc/arch/03_VectorModel.md:9〜12` `setGroupCompound`「選択・選んでいるフォルダ・描き込む先に触れない」：`#applyState`を通る。値が変わらないの意味と読める（タスク2）
+* `PROJECT_ARCHITECTURE.md:540`（3章6.の`InputAssist`項）「`InputTracker`は…`beginEdit`／`commitEdit`も呼ばない」：点の追加・削除の経路なら一致。`InputTracker`全体には左ドラッグで呼ぶ（タスク3）
+* `PROJECT_ARCHITECTURE.md:561`「`model.deleteShapes`はここでは呼ばず…だけ`PathVertexEditor`が呼ぶ」：「ここでは」なら一致、「だけ」を製品コード全体と読むと相違（5章に挙げた）（タスク3）
+* `PROJECT_ARCHITECTURE.md:550`「`canDeleteSelectionOrVertices()`が削除ボタンの唯一の照会」：`main.js:350-351`の1か所だけが呼ぶことと一致（タスク3）
+* `_doc/arch/61_ItemRowRules.md:7`「規則の段」の「同じ段」：定義が無く、段の数え方で合う・合わないが分かれる（タスク4）
+* `PROJECT_ARCHITECTURE.md:838`（17.の発注者の決定(8)）：押せる条件は`planVertexRemoval(...).length > 0`。通常の操作では「選んだ点があれば押せる」と同じ（タスク4）
+* `PROJECT_ARCHITECTURE.md:796`（16.の用語）「既存の識別子の`snap`はすべて吸い付きを指す」：`UnitSnap`等との範囲の読み方（タスク4）
+* `PROJECT_ARCHITECTURE.md:1035`（29.）・`:1044`（30.）「版は上げない（4のまま）」：当時の値として読めば正しい。現在は作業データ5・書き出し形式5（タスク5）
+* `PROJECT_ARCHITECTURE.md:1039`（29.）・`:1047`（30.）「変えないもの：`VectorModel`・…・`io/`・`palette/`・`index.html`」：そのサブフェイズの話なら正しい。12-04で変更されている（タスク5）
+* `PROJECT_ARCHITECTURE.md:1042`「共有するのは`Path.resolveSegmentControls`・…だけ」：12-01時点の話なら正しい。現在は`PathSegmentKindRules`・`VertexSnapRules`も`PathVertexRules`を import（タスク5）
+* `PROJECT_ARCHITECTURE.md:1037`・`:1041`(j)・`:1051`(f)「写し」：経緯の記述。`collectEntries`の3つ目の写しは今も成り立つ（タスク5）
+* `PROJECT_ARCHITECTURE.md:1051`(i)「少しだけドラッグして離すともう一方の端点へ吸い付いて結合し直る」：重なった端点の場面に限れば、吸い付くだけの規則と共存（タスク5）
+* `_doc/arch/12_shapes.md:3`「`cubicBezierPoint`…Phase 12-01」：使い始めを指すなら一致、新設なら食い違い（`c30239d`時点で既存）（タスク6）
+* `_doc/arch/12_shapes.md:13`「ファイル先頭の責務定義も変えていない」：12-01時点では正しい。今は先頭の責務が12-02で変わっている（タスク6）
+* `_doc/arch/14_edit.md:53`（`EndpointSnapper`）「描くツール」の範囲：5種類すべてか、直線・曲線に限るか（タスク7）
+* `_doc/arch/14_edit.md:4`「14個だけで、他のクラスは`core/`をimportしない」：実際は17個（5章に挙げた）。同じ段落の前半の記述と矛盾（タスク7）
+* `_doc/arch/02_main.md:3`（経緯）「`new PathVertexEditor({ model, editRecorder: historyManager, getMode })`」：`getMode`を省略形で書いている。30行目の表は完全な形（タスク9）
+* `_doc/arch/02_main.md:4`「主な関数」に`performGroupCommand`が無い：「主な」と書かれ網羅を述べていない（タスク9）
+* `_doc/arch/02_main.md:81`（`KeyboardShortcuts`の表）`deleteSelection`：コードと一致。他のキーは`-`行にそのまま同じ文があり未照合（タスク9）
+* `_doc/arch/41_NudgeTargetRules.md:7`「`core/VertexTargetRules`（頂点の選択から`{ shape, vertexIndex }`を集める唯一の箇所）」：`NudgeEditor.js:142`も番号を引くが組の型が違う（タスク10）
+* `_doc/arch/06_InputTracker.md:59`「`EndpointSnapAssist`の項目（Phase 12-03で置き換え）」：項目の数が資料に併記されていない（タスク10）
+* `_doc/arch/15_io.md:49`「戻った図形の`fillColor`は一番下なら塗られる」：意味が複数に読める（タスク11）
+* `_doc/arch/17_sprite_check.md:19`「`check/`・`sprite-check.html`のコードは変更なし」：`sprite-check.html`に`c30239d`からWEBアイコンの`<link>`が足されている。12-04についての文なら一致（タスク11）
+* `_doc/arch/15_io.md:58`「`deserializeShapeElements(elements, DrawElementReader.toShapeData, DrawElementReader.toCompoundPathShapeData)`」：コードは無名関数で包む。実質の食い違いではない（タスク11）
+* `_doc/arch/03_VectorModel.md:3`（`+`行）と`:19`が同じファイル内で矛盾（`deleteShapes`の呼び出し元）。5章に挙げた（タスク12）
+* `_doc/arch/12_shapes.md:13`「何も起きないのは…ボタンは押せる見た目で何も起きない」：結合ボタンの状態の話か`planJoin`が`null`の結果の話か。5章に挙げた（タスク12）
+* `PROJECT_ARCHITECTURE.md:429`「引数なし＝nonzero」：`compoundPath`は`evenodd`という限定が文中に無い（`:439`に別の項で書かれる）（タスク13）
+* `_doc/arch/12_shapes.md:123`「共通メソッド契約は18のまま」：12-01時点では正しい経緯。現在は20（5章には入れていない）（タスク13）
+* `PROJECT_ARCHITECTURE.md:363`「4章の`main.js`の行数の項」：4章は案内の表1行。行数は`_doc/arch/02_main.md:3`（Phase 12より前から）（タスク13）
+* `_doc/arch/16_test.md:162,191,240,279,303,318,324`の「版4」「版4のまま」：当時の記述か今の内容か。対応するテストは今は版5（5章には入れていない）（タスク13）
+* `PROJECT_ARCHITECTURE.md:405`「`migrateVersion3To4`…`MIGRATIONS`は`{ 1, 2, 3 }`」・`:404`：Phase 11-01の時点の値。現在は`{ 1, 2, 3, 4 }`（タスク13）
+
+#### 14-C. コードのコメント（4章の「推測・所見」。18件。うち「古い説明なし」の確認のみは6件）
+* `js/core/VectorModel.js:1034`（`addShapesWithNewIds`）・`:1098`（`replaceShape`）のJSDoc「呼び出し側が選択モードであること」が今も残る（既知の傷2）（タスク2・5・7）
+* `js/core/KeyboardShortcuts.js:57`の`join`のJSDocが「開いたパス1本を閉じる」のままで、弧1本の閉じる（12-02）が反映されていない（タスク3）
+* `js/core/InputTracker.js:1457`「頂点を2つ以上動かすときは結合する吸い付きをせず」：古い説明なし（確認のみ）（タスク3）
+* `js/io/SpriteSerializer.js:20`「版4のまま、`source`と描画要素の`id`を外した」が、`:19`の「版5」の後ろに置かれ時系列として読みにくい（タスク4）
+* `js/edit/ShapeStyleEditor.js:11`：現在のコードと合う（確認のみ）（タスク4）
+* `js/edit/PathSplitEditor.js:51`「ドラッグ中でないこと（`main.js`の配線が判定する）」：資料と同じ内容（確認のみ）（タスク7）
+* `test/io/SpriteSerializer.items.test.js:139`（既知の傷3）、`test/edit/PathVertexEditor.items.test.js:212`、`PathSplitEditor.items.test.js:209`、`test/io/DocumentSerializer.collapsed.test.js:79`の題が「版4のまま」で、確かめる値は5（タスク8）
+* `test/io/DocumentSerializer.migration.test.js:2`の責務は版3→版4まで。版4→版5は`DocumentSerializer.compound.test.js:106`が担う（タスク8）
+* `js/main.js:193`・`:221-222`「選んでいる図形全体の…外枠」が、実際は「選択中の変えられる図形」の外枠（既知の傷5）（タスク9）
+* `js/core/InputTracker.js:157-159`・`js/core/ScaleHandleRules.js:125`：同じ型の古さ（既知の傷5のコード側）（タスク10）
+* `js/io/DrawElementReader.js:261-262`：JSDocの前の空行の抜け（既知の傷4。今も残る）（タスク11）
+* `test/io/DocumentSerializer.collapsed.test.js:79`の題「versionは4のまま」で値は5（`:81`）（タスク13。タスク8と同じ箇所）
+* 古い説明が見つからなかった：タスク1（`InputTracker.js:148-168`等）・タスク6（`PathJoinRules.js`等）・タスク12（`InputTracker.js:695`・`PathJoiner.js`・`main.js:388`。既知の傷2は担当外として未確認）（確認のみ）
+
+#### 14-D. 照合できなかった主張（4章の「推測・所見」。29件）
+* `PROJECT_ARCHITECTURE.md:158`（`asset/icon/`）・`:355`「OZ Engineへの連絡（版5の連絡はPhase 12-05で済んだ）」：リポジトリ外（タスク1）
+* `PROJECT_ARCHITECTURE.md:355`「発注者の決定、2026-11-27」「計画で決めたこと」「やらないと決めたこと」：コードの不在を網羅確認する手段が無い（タスク1）
+* `PROJECT_ARCHITECTURE.md:416`「版5への版上げはエンジンへ連絡済み…エンジンのコードの変更なしに表示できた」：リポジトリ外（タスク2）
+* `_doc/arch/04_CanvasManager.md:5`「`evenodd`の穴・アンチエイリアスの見た目はテストプレイで確かめる範囲」：ブラウザでの見え方（タスク2）
+* `PROJECT_ARCHITECTURE.md` 12.の注意事項(b)・(a)・(c)・(d)：実際の操作・見え方・重さ（タスク3）
+* `PROJECT_ARCHITECTURE.md` 12.の「発注者の決定、2026-11-27」「2026-11-18」「計画で決めたこと」：方針。「円・弧の2つ目の点が頂点を通らない」の理由部分は未照合（タスク3）
+* `PROJECT_ARCHITECTURE.md` 12.の「確認の状況（Phase 12-03）」「実際のマウスでの吸い付きの見た目…テストプレイ」：テストの範囲の記述（タスク3）
+* `PROJECT_ARCHITECTURE.md:827,830,838`の「2026-11-27」「2026-11-26」の決定の日付：コードから確かめられない（タスク4）
+* `PROJECT_ARCHITECTURE.md:1004`「丸い穴をCSSで描く」の見え方：`index.html:161-170`までを確認（タスク4）
+* `PROJECT_ARCHITECTURE.md:735`の`ShapeStyleEditor`が「読み替えた図形に対して行う」：本体とテスト13件で確認（タスク4）
+* `PROJECT_ARCHITECTURE.md:1043`「3801件」・`:1053`「3910件」：過去の時点の件数（現在は4199件）。ブラウザの挙動・1280px幅の収まり・見た目も（タスク5）
+* `PROJECT_ARCHITECTURE.md:1061`「書き出し形式の版5の連絡はPhase 12-05で済んだ」：リポジトリ外（タスク5）
+* `PROJECT_ARCHITECTURE.md:1038`「区間の制御点の求め方…移す前とビット単位で同じ」：移す前のコードとの比較（タスク5）
+* `PROJECT_ARCHITECTURE.md:1040`・`:1050`・`:1041`・`:1051`「発注者の決定」「計画で決めたこと」：方針（タスク5）
+* `_doc/arch/12_shapes.md`の`PROJECT_ARCHITECTURE.md`3章の番号・`16_test.md`への参照の「内容」：参照先の存在と見出しだけ確認（タスク6）
+* `_doc/arch/12_shapes.md`（`Path`の追加）の数値の性質（「曲がり方が少し変わる」「ずれは最大で半径の約0.027%」等）：式の性質の説明（タスク6）
+* `_doc/arch/12_shapes.md`（`VertexSnapRules`）「発注者の決定、2026-11-27」：コードのコメント（`VertexSnapRules.js:99`）の記述までを確認（タスク6）
+* `_doc/arch/12_shapes.md`（`appendOutline`）「命令は変わらない」「`draw`は変えていない」：`git diff`の読みと`OutlineMethods.test.js`で確認（タスク6）
+* `_doc/arch/14_edit.md`の「Phase 12-02で…それまでは`#collectTargets`の中身」「写しだった」等の経緯：今のコードからは確かめられない（タスク7）
+* `_doc/arch/16_test.md:130,205,244`の「当時の版3」「書き換え（当時）」等の記録：過去の時点との比較（タスク8）
+* `_doc/arch/16_test.md`の12-02「見積もり約1111px」「1280px幅で収まる」・12-03「実際のマウスでの吸い付きの見た目」・12-04「`evenodd`の穴・アンチエイリアス」：実ブラウザの見え方（タスク8）
+* `_doc/arch/16_test.md`の12-02「`PathCornerEditor`・`PathVertexEditor`の括り直しは既存のテストを1件も変えずに」：当時の作業の過程（タスク8）
+* `_doc/arch/01_index_html.md:17,18,24`の実測・絵の見え方：CSSの値と幅の足し算までを確認（タスク9）
+* `_doc/arch/06_InputTracker.md:54`のブラウザのダブルクリックの判定・削除ボタンの見た目、`66`・`68`・`18`の`PROJECT_ARCHITECTURE.md`3章への参照の内容、`68`冒頭の「ふるまいを変えずに切り出した」：過去の時点との比較（タスク10）
+* `_doc/arch/15_io.md:36`「OZ Engineへの連絡票はPhase 12-05で出し、エンジンのコードの変更なしに表示できた」・「古い読み手で描くと複合パスが描かれない」：リポジトリ外（タスク11）
+* `_doc/arch/69_CompoundPathRules.md:14`（`hitTestCompoundFill`の重さ）・`70_CompoundPathRenderer.md:8`（`evenodd`の穴・アンチエイリアス）・`17_sprite_check.md:19`（穴のあいた形の見た目）：性能・ブラウザでの見え方（タスク11）
+* `PROJECT_ARCHITECTURE.md:416`・`_doc/arch/15_io.md:36`・`PROJECT_ARCHITECTURE.md:355,1061`：OZ Engine側の結果・連絡。連絡票を出した痕跡はリポジトリ内に無い（タスク13）
+* `PROJECT_ARCHITECTURE.md:399`「版4（Phase 11-01）の要素は2種類」：版4の読み方の説明で、版5の`compound`は別の位置に書かれているため一致とした（タスク13。「確認していない主張」として4章に記載）
+* （タスク12は「照合できなかった主張：なし」と明記している）
+
+#### 14-E. 対象外で見つけた記述（4章の「推測・所見」。9件。5章に入っているもの・入っていないものを含む）
+* `_doc/arch/12_shapes.md:13`「`classifyJoin`が`'close'`を返すのは…今の曲線1本は閉じない」：コードは弧1本でも`'close'`（`-`行にも同じ文）。タスク12が5章に挙げた（タスク6）
+* `_doc/arch/12_shapes.md:124`「…18メソッドは増やしていない」：当時の事実としては正しい経緯。現在の契約は20と並ぶ。5章には無い（タスク6）
+* `_doc/arch/16_test.md:10`「計44ファイル（42ファイル＋2ファイル）」：現在は51ファイル＋4ファイル。タスク13が5章に挙げた（タスク8）
+* `_doc/arch/16_test.md:8`の`globalThis`の例外の2ファイル・`:10`の`node:fs`の例外1ファイル：一致（タスク8）
+* `_doc/arch/06_InputTracker.md:13`「ホバー・押下・クリック・カーソルの4箇所で共用し」：`#classifyPoint`の呼び出しは6か所。17行の同じ言い方は5章に挙げた（タスク10）
+* `_doc/arch/32_InputModes.md:4`のテスト側の列挙が`VertexEditRules.test.js`等を挙げていない：網羅を述べる語が無く相違に挙げない（タスク10）
+* `_doc/arch/15_io.md:59`「`deserializeShapeElements(data.elements, (element) => DrawElementReader.toShapeData(element))`」・`:13`：第3引数`toCompoundPathShapeData`が無く、コード（`FileContentReader.js:89-93`）と食い違う。5章には入っていない（タスク11）
+* `_doc/arch/14_edit.md:44`「`formatVersion` 4・…`version` 4」：テストは5を確かめる。5章に挙げた（タスク13）
+* `_doc/arch/14_edit.md:138`「約1200行でも1クラスにまとめている」：対象クラスは確かめていない（タスク13）
+
+#### 14-F. タスク間の重複・食い違い（判定・統合・削除はしていない）
+重複（同じ資料の同じ箇所・同じ事実を複数のタスクが挙げているもの。13項目）
+1. `_doc/arch/12_shapes.md:28`「図形クラスの共通メソッドは足さない（18メソッド契約のまま）」：5章に2件（タスク6・タスク13）
+2. `_doc/arch/14_edit.md:4`「`edit/`から`core/`をimportするのは…14個だけ」（実際は17個）：5章に2件（タスク7・タスク13）。タスク7の4章にも読み方が分かれる記述として記載。タスク13は`PROJECT_ARCHITECTURE.md:365`の「17ファイルだけ」との食い違いとして挙げる
+3. `_doc/arch/16_test.md:227`「現在は版4で`MIGRATIONS`に…」：5章に2件（タスク8・タスク13）
+4. `_doc/arch/16_test.md:10`「計44ファイル」：タスク13が5章に、タスク8が4章の「対象外で見つけた記述」に記載（タスク8の6章はタスク12・13の担当としている）
+5. `_doc/arch/12_shapes.md:13`（`PathJoinRules`の`classifyJoin`の`'close'`）：タスク12が5章に、タスク6が4章の「対象外で見つけた記述」・6章に記載
+6. `_doc/arch/16_test.md:162,191,240,279,303,318,324`の「版4」「版4のまま」：タスク8が5章に7件（`:318`・`:324`・`:162`・`:191`・`:240`・`:279`・`:303`）、タスク13が4章の「読み方が分かれる記述」に同じ行を記載
+7. `_doc/arch/14_edit.md:44`（タスク13）と`_doc/arch/16_test.md:214`（タスク8）：どちらも`test/edit/TransformInputEditor.test.js:379,381`が5であることを5章に挙げる（別の資料の行）
+8. `PROJECT_ARCHITECTURE.md:561`（タスク3）と`_doc/arch/03_VectorModel.md:19`（タスク12）：どちらも`deleteShapes`の製品コードの呼び出し元が`PathVertexEditor`・`PathSplitEditor`の2か所であることを5章に挙げる（別の資料の行）
+9. `PROJECT_ARCHITECTURE.md:29`（タスク1）と`_doc/arch/32_InputModes.md:4`（タスク10）：どちらも`core/GroupCommandRules`が`InputModes`の使う側の列挙に無いことを5章に挙げる（別の資料の行）
+10. `js/core/VectorModel.js:1034,1098`のJSDoc（既知の傷2）：タスク2・5・7が4章の「コードのコメント」に記載
+11. `test/io/DocumentSerializer.collapsed.test.js:79`の題：タスク8・13が4章の「コードのコメント」に記載
+12. OZ Engine側の記述（照合できなかった主張）：`PROJECT_ARCHITECTURE.md:355`はタスク1・13、`:416`はタスク2・13、`:1061`はタスク5・13、`_doc/arch/15_io.md:36`はタスク11・13
+13. `deserializeShapeElements`のラムダ包みの書き方：`PROJECT_ARCHITECTURE.md:445`（タスク2）と`_doc/arch/15_io.md:58`（タスク11）が、どちらも読み方が分かれる記述として記載
+
+食い違い（あるタスクの5章の項目と、別のタスクの4章・5章・6章の判定が合わないもの。8項目）
+1. `_doc/arch/16_test.md:162,191,240,279,303,318,324`の「版4」：タスク8は5章の相違（確かめる値が5）、タスク13は4章・6章で「当時の記述か今の内容かで判定が分かれる」として5章に入れていない。タスク8の6章は「題が版4で残るものも値が5のため相違とした」と書く
+2. `_doc/arch/12_shapes.md:123`「共通メソッド契約は18のまま」：タスク6は5章に挙げ（現在は20）、タスク13は4章・6章で「12-01時点の経緯」として5章に入れていない（同`:28`はタスク13も5章に入れた）。タスク6の6章も「経緯の記述と見るかは判断が分かれる」と書く
+3. 版の数字の扱い：`PROJECT_ARCHITECTURE.md:981`「作業データ形式（当時の版3。今は4）・書き出し形式（版4）」はタスク13が5章に挙げ、同じ型の`PROJECT_ARCHITECTURE.md:1035,1044`「（4のまま）」（タスク5）・`:405`・`:404`（タスク13）は4章で「当時の値として読めば相違ではない」として5章に入れていない
+4. `_doc/arch/61_ItemRowRules.md:7`の「`CompoundPathRules`は…`InsertTargetRules`等と同じ段」：タスク4は「段」の定義が無く読み方が分かれるとするが、同じ内容の`PROJECT_ARCHITECTURE.md:358`をタスク1は「コードは358行側に合う」として、`:365`との食い違いを5章に挙げる
+5. `_doc/arch/15_io.md:58`と`:59`：タスク11は`:58`を「実質の食い違いではない」とし、`:59`（第3引数が無い書き方）は「コードと食い違う」が担当外として5章に入れず、6章で「タスク12・13で要確認」としている。タスク12・13の5章にこの項目は無い
+6. `_doc/arch/12_shapes.md:124`「18メソッドは増やしていない」：タスク6が4章の「対象外」で「要件2（タスク12・13）で扱う候補」とするが、タスク12・13の5章・4章にこの行は無い
+7. `PROJECT_ARCHITECTURE.md:428`と`:429`：タスク2は`:428`を5章に挙げ（`:439`と食い違う）、タスク13は`:429`の「引数なし＝nonzero」の限定の無さを読み方が分かれる記述にとどめる（`:439`が別の項で`evenodd`を書く）
+8. `PROJECT_ARCHITECTURE.md:561`：タスク3は4章で「ここでは呼ばず」の読み方が分かれるとしながら5章に挙げ（「だけ」を相違）、タスク12は`PROJECT_ARCHITECTURE.md:381`だけを正しいとして`:561`には触れていない
+
+#### 14-G. 件数のまとめ
+* 5章の相違：計46件（タスク1：4、2：2、3：1、4：1、5：0、6：4、7：3、8：15、9：1、10：3、11：1、12：4、13：7）。
+* 6章に足した一覧：読み方が分かれる記述34件・コードのコメント18件・照合できなかった主張29件・対象外で見つけた記述9件（計90件。同じ主張が複数の資料の行にまたがる項は、行ごとに1件と数えた）。
+* 重複13項目・食い違い8項目。
+
+#### 14-H. タスク14の懸念事項・開発資料の更新予定
+* `git status`：終了時に確認した（ソースコード・資料ファイルに変更なし。変更は本RESのみ）。
+* 5章の46件は、差分の`+`行の相違と`+`行でない相違（タスク12・13、タスク6・8の一部）が混ざっている。区別は各項の記載のとおり。
+* 版の数字（「版4」「4のまま」）の扱い（当時の記述か今の内容か）はタスク間で判定が分かれている。発注者の方針確認が要る。
+* `_doc/arch/15_io.md:59`・`:13`と`_doc/arch/12_shapes.md:124`は、どのタスクの5章にも入っていない候補。
+* 開発資料の更新予定：本タスクでは資料本体は変更していない。5章の相違の修正は、別のREQで行う。
