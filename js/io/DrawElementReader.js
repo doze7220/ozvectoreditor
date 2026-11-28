@@ -259,6 +259,7 @@ export class DrawElementReader {
         }
         return CONVERTER_BY_KIND[kind](element);
     }
+
     /**
      * 描画要素`compoundPath`を、輪郭ごとの図形データ（`ShapeFactory.fromJSON`が受ける形）の配列にして返す。
      * 輪郭に要素のスタイル（線の色・太さ・塗りの色）を足したものを`toShapeData`と同じ変換関数で図形データにし、

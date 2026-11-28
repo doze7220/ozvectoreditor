@@ -54,7 +54,7 @@ const ShiftRule = Object.freeze({
  * @property {() => boolean} selectAll 変えられる図形を全て選択する（選択モード以外では選択モードへ切り替えた後）
  * @property {() => boolean} deleteSelection 選択中の変えられる図形と選んでいるフォルダを削除する（頂点の選択では選んだ点を消す。振り分けは注入された実体の側）
  *     （直線・曲線のツールで線を引いている途中は、代わりに最後の点を消す。始点だけならやめる）
- * @property {() => boolean} join 選択中の線を結合する（開いたパス1本を閉じる・2本を1本の開いたパスにする）。
+ * @property {() => boolean} join 選択中の線を結合する（頂点3つ以上の開いたパス・弧の1本を閉じる・2本を1本の開いたパスにする）。
  *     結合した場合のみtrue（結合できない選択ではfalse）
  * @property {() => boolean} bringToFront 選択中の図形を最前面へ移す。並びを変えた場合のみtrue
  *     （何も選んでいない・すでに最前面・ドラッグ中ではfalse）

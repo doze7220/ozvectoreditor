@@ -122,7 +122,7 @@ Phase 12 クローズの整合確認（Survey `./_log/res/261127_2040_RES_Survey
     *   **作業内容** :
         *   詳細は4章のタスク8。
 
-*   [ ] タスク9: `js/`のJSDoc・空行その1（C1・C2・C3・C7、C6）
+*   [x] タスク9: `js/`のJSDoc・空行その1（C1・C2・C3・C7、C6）
     *   **対象ファイル** :
         *   `./js/core/VectorModel.js` :（更新。JSDocのみ。LF）
         *   `./js/core/KeyboardShortcuts.js` :（更新。JSDocのみ。CRLF）
@@ -365,7 +365,15 @@ Phase 12 クローズの整合確認（Survey `./_log/res/261127_2040_RES_Survey
     *   **確認**：直した後、`git diff -- js/core/VectorModel.js js/core/KeyboardShortcuts.js js/io/SpriteSerializer.js js/io/DrawElementReader.js` を読み、変わったのがコメント・JSDocの行と空行1行だけであることを確かめる。
     *   **行末**：`VectorModel.js`・`DrawElementReader.js`＝LF、`KeyboardShortcuts.js`・`SpriteSerializer.js`＝CRLF（足す空行・入れ替える行も同じ行末にする）。
 *   **作業内容（レポート）** :
-    *   （タスク実行時に記入）
+    *   **C1**（`js/core/VectorModel.js`）：`addShapesWithNewIds`（1034行）・`replaceShape`（1098行）のJSDocの「前提」を直した。2か所とも「選択モードであること」→「選択モードまたは頂点の選択モードであること」、「選択モード以外では常に空」→「選択モード・頂点の選択モード以外では常に空」。直した後の文言（タスク13・15が合わせる）：
+        *   `addShapesWithNewIds`：「前提：呼び出し側が選択モードまたは頂点の選択モードであることを保証すること（選択集合は選択モード・頂点の選択モード以外では常に空という不変条件を守るため）。」
+        *   `replaceShape`：「前提：`select`が真のときは、呼び出し側が選択モードまたは頂点の選択モードであることを保証すること（選択集合は選択モード・頂点の選択モード以外では常に空という不変条件を守るため）。」（次行の「作成モードでは`select: false`で呼ぶ。」は変えず）
+    *   **C2**（`js/core/KeyboardShortcuts.js` 57行）：`join`のJSDoc「（開いたパス1本を閉じる・2本を1本の開いたパスにする）」→「（頂点3つ以上の開いたパス・弧の1本を閉じる・2本を1本の開いたパスにする）」。
+    *   **C3**（`js/io/SpriteSerializer.js` 17〜21行）：「版4のまま、`source`と…」の行を「版5: …」の行の前へ移した（行の入れ替えのみ・文言は不変）。並びは 版3 → 版4 → 版4のまま → 版5。
+    *   **C7**（`js/io/DrawElementReader.js` 261〜262行）：`toShapeData`の閉じ括弧`    }`と`toCompoundPathShapeData`のJSDocの間に空文字の空行1行を足した（LF）。
+    *   **C6**：`VectorModel.js`に「選択モード以外」「選択モードであること」の別の言い方は無い（上の2か所のみ）。`KeyboardShortcuts.js`に「開いたパス1本」の別の記述は無い。`SpriteSerializer.js`の版の言及（45・54行）は今の値で、直す箇所なし。別のファイルの見つけたものは無い。
+    *   **行末の実測（前→後）**：`VectorModel.js` bytes=86213 LF=1513 CR=0 → bytes=86333 LF=1513 CR=0。`KeyboardShortcuts.js` bytes=35126 LF=376 CR=376 → bytes=35154 LF=376 CR=376。`SpriteSerializer.js` bytes=24014 LF=430 CR=430 → 同じ（入れ替えのみ）。`DrawElementReader.js` bytes=12839 LF=297 CR=0 → bytes=12840 LF=298 CR=0。
+    *   **確認**：`git diff -U0`で、変わったのはコメント・JSDocの行と空行1行だけ（コード不変）。資料は変えていない。
 
 ### タスク10: テストの題その1（C4、C6）
 *   **計画** :
