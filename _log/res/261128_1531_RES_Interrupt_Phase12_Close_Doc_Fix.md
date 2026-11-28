@@ -160,7 +160,7 @@ Phase 12 クローズの整合確認（Survey `./_log/res/261127_2040_RES_Survey
     *   **作業内容** :
         *   詳細は4章のタスク13。
 
-*   [ ] タスク14: `js/`のコメント・JSDocその2（C5、C6）
+*   [x] タスク14: `js/`のコメント・JSDocその2（C5、C6）
     *   **対象ファイル** :
         *   `./js/main.js` :（更新。コメント・JSDocのみ。CRLF）
         *   `./js/core/InputTracker.js` :（更新。JSDocのみ。CRLF）
@@ -488,7 +488,15 @@ Phase 12 クローズの整合確認（Survey `./_log/res/261127_2040_RES_Survey
     *   **確認**：`git diff -- js/main.js js/core/InputTracker.js js/core/ScaleHandleRules.js` を読み、変わったのがコメント・JSDocの行だけであることを確かめる。
     *   **行末**：`main.js`・`InputTracker.js`＝CRLF、`ScaleHandleRules.js`＝LF。
 *   **作業内容（レポート）** :
-    *   （タスク実行時に記入）
+    *   **C5**（実際の対象＝`getEditableSelectedShapes()`の外枠に合わせた）：
+        *   `main.js` 193行：「選んでいる図形全体の線を含まない外枠か、選択なしでnull」→「選択中の変えられる図形の線を含まない外枠か、変えられる選択なしでnull」。
+        *   `main.js` 221行：「選んでいる図形全体の外枠とそのハンドルは、」→「選択中の変えられる図形の外枠とそのハンドルは、」。
+        *   `InputTracker.js` 157・158行：「選んでいる図形全体の外枠」→「選択中の変えられる図形の外枠」、「選択なしは`null`」→「変えられる選択なしは`null`」。
+        *   `ScaleHandleRules.js` 125行：「選んでいる図形全体の線を含まない外枠」→「選択中の変えられる図形の線を含まない外枠」。
+    *   **C6**：`InputTracker.js` 268行のクラス説明「選択モードで選んだ図形全体の外枠のハンドル」→「選択モードで選んだ変えられる図形の外枠のハンドル」。`main.js` 1148行の「選択なし」は別の話（線・塗りの記録先）なので直していない。`grep 図形全体`は3ファイルで該当なし。別ファイル（資料含む）は調べていない。
+    *   **確認**：`git diff -U0 -- js`の変更は上の6か所（12行）のコメント・JSDocのみ。
+    *   **行末の実測（前→後）**：main.js bytes=96374 LF=1305 CR=1305 → bytes=96401 LF=1305 CR=1305／InputTracker.js bytes=154814 LF=2126 CR=2126 → bytes=154844 LF=2126 CR=2126／ScaleHandleRules.js bytes=17458 LF=328 CR=0 → bytes=17464 LF=328 CR=0。
+    *   **懸念・目視確認**：なし。
 
 ### タスク15: `PROJECT_ARCHITECTURE.md` 3章29.・30.・`_doc/arch/14_edit.md`（C1の追随の残り3か所。発注者の決定）
 *   **計画** :

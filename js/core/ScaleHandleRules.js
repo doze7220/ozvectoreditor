@@ -122,7 +122,7 @@ export function computeFrameCenter(bounds) {
  * - 並び：辺（`n`・`e`・`s`・`w`の順で出すものだけ）→ 角（`nw`・`ne`・`se`・`sw`）。後ろほど優先（角が優先）。
  * 引数を書き換えない。`bounds`は新しいオブジェクトに写して返す。
  * @param {string} mode 操作モード（`OperationMode`の値）
- * @param {{minX: number, minY: number, maxX: number, maxY: number}|null} bounds 選んでいる図形全体の線を含まない外枠
+ * @param {{minX: number, minY: number, maxX: number, maxY: number}|null} bounds 選択中の変えられる図形の線を含まない外枠
  * @param {number} viewScale 表示倍率
  * @returns {ScaleFrame|null} 外枠とハンドル。出さないなら`null`
  */

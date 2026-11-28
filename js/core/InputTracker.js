@@ -154,8 +154,8 @@ const NO_SNAP_ASSIST = Object.freeze({
  * @property {() => (number|null)} getUnitSnapStep スナップ（座標・移動量を刻みの倍数へ丸めること。端点への吸い付きとは別）の今効いている刻みの照会
  *     （`null`＝丸めない）。追従・クリックのたびに呼ぶ。戻り値は検証せずUnitSnapRulesの関数へ渡す（正の有限の数値以外は丸めない扱い）。
  *     既定は常に`null`（丸めない）
- * @property {() => ({minX: number, minY: number, maxX: number, maxY: number}|null)} getSelectionFrameBounds 選んでいる図形全体の外枠
- *     （線の太さを含まない。外枠のハンドルの元）の照会。選択なしは`null`。外枠のハンドルの当たり・押下・カーソルのたびに呼ぶ。
+ * @property {() => ({minX: number, minY: number, maxX: number, maxY: number}|null)} getSelectionFrameBounds 選択中の変えられる図形の外枠
+ *     （線の太さを含まない。外枠のハンドルの元）の照会。変えられる選択なしは`null`。外枠のハンドルの当たり・押下・カーソルのたびに呼ぶ。
  *     戻り値は検証せずScaleHandleRulesの関数へ渡す。既定は常に`null`（外枠のハンドルなし）
  * @property {() => (string|null)} getReferencePoint 基準点の名前の照会。回転のドラッグの押下（#beginRotateSelection）で1回だけ呼び、
  *     戻り値は検証せずRotationRulesのcomputeRotationCenterへ渡す。既定は常に`null`（外枠の中心）
@@ -265,7 +265,7 @@ export function hasCtrlModifier(event) {
  * 入力の解釈の外へ委ねる補助（InputAssist。コンストラクタ第7引数。項目はduplicateSelection・isPickingShape・pickShape・getUnitSnapStep・getSelectionFrameBounds・getReferencePoint・deleteSelectedItems・insertVertexAt・hasRemovableVertices・removeSelectedVertices）も注入される。
  * 頂点の選択のモードのダブルクリック（handleDoubleClick）は、当たり分類の結果をVertexEditRulesのresolveDoubleClickInsertTargetへ渡し、図形のidが返ったときだけ補助のinsertVertexAtを呼ぶ。
  * 削除の入口（deleteSelectionOrVertices・canDeleteSelectionOrVertices）の振り分けはVertexEditRulesのresolveDeleteRouteへ渡し、頂点の選択のモードでは補助のremoveSelectedVertices・hasRemovableVerticesを呼ぶだけ（点の削除の計算・記録は持たない）。
- * 選択モードで選んだ図形全体の外枠のハンドル（外枠の出し方・位置・当たり・倍率と動かない点の計算・スナップの当て方・変換の組み立てはScaleHandleRulesの関数。
+ * 選択モードで選んだ変えられる図形の外枠のハンドル（外枠の出し方・位置・当たり・倍率と動かない点の計算・スナップの当て方・変換の組み立てはScaleHandleRulesの関数。
  * 本クラスは持たない）を押して引くと拡大縮小（SCALING_SELECTION）になる。押下の時点の選択中の変えられる図形のインスタンスを#scaleDragに控え、追従のたびに
  * 規則の関数が返した変換を控えの図形へ当てて（図形のcreateTransformed）、VectorModel.replaceShapesKeepingIdsで同じidの位置へ差し替えるだけ。
  * 離すと確定して取り消し1件、中断（Escのcancel・blur・setMode・abortOngoingOperation）では控えのインスタンスへ戻して記録しない（ほかの左ドラッグは中断しても反映済みの変化が残り1件として確定する）。

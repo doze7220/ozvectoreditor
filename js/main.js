@@ -190,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 第7引数は入力の補助：Alt+ドラッグで選択中の図形を複製する補助（実体はclipboardController.duplicateInPlaceWithinEdit()）と、
     // スポイトの待ち受けの照会・クリックした図形の受け渡し（実体はstyleEyedropper。InputTrackerはスポイト・スタイルを知らない）、
     // スナップの刻みの照会（実体はunitSnapSettings.getActiveStep()。ONなら刻み、OFFならnull＝丸めない。InputTrackerはスナップの設定を知らない）、
-    // 外枠のハンドルの照会（実体はshapeExtentReader.getSelectedGeometryBounds()。選んでいる図形全体の線を含まない外枠か、選択なしでnull）
+    // 外枠のハンドルの照会（実体はshapeExtentReader.getSelectedGeometryBounds()。選択中の変えられる図形の線を含まない外枠か、変えられる選択なしでnull）
     const inputTracker = new InputTracker(canvas, model, viewTransform, historyManager, endpointSnapper, () => displayState.isOutline(), {
         // clipboardControllerは後の「// 7.5.」でconst宣言されるが、呼ばれるのはAlt+ドラッグ中（起動完了後）だけで、
         // InputTrackerのコンストラクタはduplicateSelectionを呼ばない（既存のinputTrackerの前方参照と同じ扱い）
@@ -218,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * 再描画を要求するローカル関数。表示の状態（`displayState.getState()`のアウトライン表示・背景の白/黒・グリッドの表示）も
      * あわせて渡す。model.onChange・viewTransform.onChange・displayState.onChangeのコールバックと
      * resizeAndRenderViews（windowのresizeと、図形の一覧のパネルの出し入れでのdisplayState.onChange）を含む4経路から同一の引数構成で呼び出すことで、再描画トリガーの重複定義を避ける。
-     * 描く図形は見えている図形（`model.getVisibleShapes()`。隠れた図形は描かない）。図形ごとのハンドルは描かない。選んでいる図形全体の外枠とそのハンドルは、
+     * 描く図形は見えている図形（`model.getVisibleShapes()`。隠れた図形は描かない）。図形ごとのハンドルは描かない。選択中の変えられる図形の外枠とそのハンドルは、
      * `collectScaleFrame`が現在の操作モード・線を含まない外枠（`shapeExtentReader.getSelectedGeometryBounds()`）・表示倍率から
      * 求めた位置を`scaleFrame`として渡す（選択モードで選択があるときだけ値が入る。描くのはCanvasManager）。
      * 回転のドラッグ中は`inputTracker.getRotationDragView()`の控えを`resolveDisplayedScaleFrame`に渡し、傾いた外枠（`corners`付き）を`scaleFrame`にする
