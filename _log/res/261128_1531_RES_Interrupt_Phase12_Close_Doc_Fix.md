@@ -73,7 +73,7 @@ Phase 12 クローズの整合確認（Survey `./_log/res/261127_2040_RES_Survey
     *   **作業内容** :
         *   No.14・No.13・No.15・No.16・A6 を直す（詳細は4章のタスク1）。原則9で1章の中を確かめる。
 
-*   [ ] タスク2: `_doc/arch/03_VectorModel.md`・`02_main.md`・`69_CompoundPathRules.md`・`40_asset_sprite.md`（No.1＋A11・No.4・No.42・No.43・No.8）
+*   [x] タスク2: `_doc/arch/03_VectorModel.md`・`02_main.md`・`69_CompoundPathRules.md`・`40_asset_sprite.md`（No.1＋A11・No.4・No.42・No.43・No.8）
     *   **対象ファイル** :
         *   `./_doc/arch/03_VectorModel.md` :（更新。CRLF）
         *   `./_doc/arch/02_main.md` :（更新。CRLF）
@@ -223,7 +223,14 @@ Phase 12 クローズの整合確認（Survey `./_log/res/261127_2040_RES_Survey
     *   **No.8（`40_asset_sprite.md` 2行「現行の書き出し形式は版4（Phase 10-02）で、…（`SpriteSerializer.checkFormat`は版1〜4を受理し、…）」）**：現行は版5（Phase 12-04）、`checkFormat`は版1〜5を受理（`js/io/SpriteSerializer.js`の`SPRITE_FORMAT_VERSION = 5`・`checkFormat`）。今の値に直す。「生成物は版2・`source`入りのまま書き換えない」等のほかの部分は変えない。
     *   **行末**：`03`・`02`・`69`＝CRLF、`40`＝LF。
 *   **作業内容（レポート）** :
-    *   （タスク実行時に記入）
+    *   **No.1＋A11**（`03` 19行末）：「`deleteShapes`は製品コードからの呼び出し元が無くなった（削除は`rearrangeItems`へ一本化。既存のテストが使うため残す）」→「図形・フォルダの削除は`rearrangeItems`へ一本化。`deleteShapes`の製品コードの呼び出し元は`edit/PathVertexEditor`・`edit/PathSplitEditor`だけ（上の項）」（実測 `PathVertexEditor.js:113`・`PathSplitEditor.js:137` の2か所のみ。2・3行目と一致）。
+    *   **No.4**（`03` 22行末）：設定・解除に`edit/PathVertexEditor`（`setSelectedVertices`・`clearSelectedVertices`。Phase 12-01）・`edit/PathSplitEditor`（`clearSelectedVertices`。Phase 12-02）を足し、読む側に`edit/TransformInputEditor`を足した。「後の3つは`resolveNudgeTarget`」→「この3つ（`NudgeEditor`・`PositionInputEditor`・`TransformInputEditor`）は`resolveNudgeTarget`」、`PathCornerEditor`・`PathVertexEditor`・`PathSplitEditor`は「`collectVertexTargets`の引数に渡す。`PathCornerEditor`は付け替えでも読む」（`PathCornerEditor.js:165`の誤りも同じ文のため一緒に直した）。実測と一致。
+    *   **No.42**（`02` 71行）：`PathVertexEditor`の「`core/NudgeTargetRules`へ渡すだけ」→「`core/VertexTargetRules`へ渡すだけ」。原則9：72行の`PathSplitEditor`は既に`VertexTargetRules`で正しい。`PathCornerEditor`の注入の説明に同じ誤りは無し（`02_main.md`に`NudgeTargetRules`はもう無い）。
+    *   **No.43**（`69` 13行）：「`edit/`は`io/`をimportできず」→「`edit/`をimportできず」（主語は`io/`。`io/ → edit/`は禁止、`edit/ → io/`は許される向き。実コードでも`edit/`は`io/`をimportしている）。読みの根拠：依存方向`main.js → edit → io → core → shapes`と、`PROJECT_ARCHITECTURE.md` 358行付近の文を主語`io/`と読む読みが合うため。Survey 5章の「`edit/`が`core/`をimportできない」という推測の読みとは違う。
+    *   **No.8**（`40` 2行）：「版4（Phase 10-02）」→「版5（Phase 12-04）」、「`checkFormat`は版1〜4を受理」→「版1〜5を受理」（`SPRITE_FORMAT_VERSION = 5`を確認）。「生成物は版2・`source`入りのまま書き換えない」等は不変。
+    *   **原則9で直したもの／見つけたが直さなかったもの**：直したもの＝上記の`PathCornerEditor`の読み先（No.4と同じ文）。直さず懸念事項へ送る：`69_CompoundPathRules.md` 13行の「描画（`main.js`→`CanvasManager`）・…の4か所が使う」（No.15と同じ誤り。別の指示の対象外のため未修正）。
+    *   **行末の実測**（前→後）：`03` bytes=43136→43512 LF=33 CR=33（維持）、`02` 63589→63590 LF=96 CR=96（維持）、`69` 10082→10074 LF=15 CR=15（維持）、`40` 2972→2972 LF=6 CR=0（維持）。
+    *   **判断**：Survey記述と実コードの食い違いは無し。
 
 ### タスク3: `PROJECT_ARCHITECTURE.md` 2章（No.25・26、A4・A5、原則9の版の古い値）
 *   **計画** :
