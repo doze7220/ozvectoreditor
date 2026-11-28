@@ -67,7 +67,7 @@ Phase 12 クローズの整合確認（Survey `./_log/res/261127_2040_RES_Survey
 *   スリム化はしない（クローズの片付けで現場設計セッションが行う）。
 
 ## 3. タスクリスト
-*   [ ] タスク1: `PROJECT_ARCHITECTURE.md` 1章（No.13・14・15・16、A6）
+*   [x] タスク1: `PROJECT_ARCHITECTURE.md` 1章（No.13・14・15・16、A6）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新。1章＝15〜368行付近だけ。CRLF）
     *   **作業内容** :
@@ -202,7 +202,14 @@ Phase 12 クローズの整合確認（Survey `./_log/res/261127_2040_RES_Survey
     *   **原則9**：1章の中で「4か所」「の段」、`InputModes`・`ItemTreeRules`・`CompoundPathRules`の使う側の列挙、「今は4」を `grep` で確かめる。
     *   **行末**：CRLF（作業前後で CR＝LF）。
 *   **作業内容（レポート）** :
-    *   （タスク実行時に記入）
+    *   **No.14**（構成図`InputModes.js`）：「…ScaleHandleRules・VertexEditRules…」→「ScaleHandleRules・GroupCommandRules・ItemListRules・VertexEditRules…」（12ファイルの実測と一致。既存の順は不変）。
+    *   **No.13**（構成図`ItemTreeRules.js`）：「…ListDragRules・RemovalRules・edit/GroupEditor…」→「…RemovalRules・CompoundPathRules・edit/GroupEditor…」（16ファイルの実測と一致）。
+    *   **No.15**（358行付近）：「描画（`main.js`→`CanvasManager`）・当たり判定（`PointHitRules`）・スタイル（`edit/`）・書き出し（`io/SpriteSerializer`）の4か所から使われる」→「描画（`CanvasManager`）・当たり判定（`PointHitRules`）・`VectorModel`・一覧の行（`ItemRowRules`・`wiring/ItemListWiring`）・スタイルと切り替え（`edit/`の3ファイル）・書き出し（`io/SpriteSerializer`）の9ファイルから使われる」（9ファイルの実測と一致、`main.js`は無い）。続く括弧は不変。
+    *   **No.16**（365行付近）：「`InsertTargetRules`・`ItemRowRules`・`RemovalRules`・`SoloVisibilityRules`、`ListDragRules`の段」→「`InsertTargetRules`・`RemovalRules`・`SoloVisibilityRules`・`CompoundPathRules`、`ItemRowRules`、`ListDragRules`の段」（各ファイルのimportを実測して確認。358行付近・63行付近の「`CompoundPathRules`の1つ後の段」・344行付近の「`ItemRowRules`が次の段」と矛盾しない）。
+    *   **A6**（355行付近）：「`main.js`に操作モードの判定は無い。Phase 12-01。3章29.」→「削除ボタンの見た目の判定は`main.js`に無い。…」（`main.js`に`getMode()`の比較が残ることを確認）。同じ言い回しの3章838行付近（18.）・1045行付近（30.）は共通の決まり7により直さず（A項）、ここに記録する。
+    *   **原則9**：1章の中の「4か所」「今は4」は他に無し。「の段」は上記3か所のみで、直した記述と一致。`InputModes`・`ItemTreeRules`・`CompoundPathRules`の使う側の列挙の別の箇所は無し。
+    *   **行末の実測**：`PROJECT_ARCHITECTURE.md` 前 bytes=673223 LF=1140 CR=1140、後 bytes=673415 LF=1140 CR=1140（CR＝LF維持）。
+    *   **判断**：Survey記述と実コードの食い違いは無し。No.14・13の追加位置は既存の順を保つ位置（No.14は`ScaleHandleRules`の後、No.13は`RemovalRules`の後）に置いた。
 
 ### タスク2: `_doc/arch/03_VectorModel.md`・`02_main.md`・`69_CompoundPathRules.md`・`40_asset_sprite.md`（No.1＋A11・No.4・No.42・No.43・No.8）
 *   **計画** :
