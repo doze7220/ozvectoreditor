@@ -88,7 +88,7 @@ Phase 12 クローズの整合確認（Survey `./_log/res/261127_2040_RES_Survey
     *   **作業内容** :
         *   No.25・A5・No.26・A4 と、原則9の「今は4」「版は4のまま」を直す（詳細は4章のタスク3）。
 
-*   [ ] タスク4: `_doc/arch/12_shapes.md`（No.2・3・9（＝No.21）・22・23・24、X3、A8・A9）
+*   [x] タスク4: `_doc/arch/12_shapes.md`（No.2・3・9（＝No.21）・22・23・24、X3、A8・A9）
     *   **対象ファイル** :
         *   `./_doc/arch/12_shapes.md` :（更新。CRLF）
     *   **作業内容** :
@@ -267,7 +267,18 @@ Phase 12 クローズの整合確認（Survey `./_log/res/261127_2040_RES_Survey
     *   **原則9**：125行にも「18メソッドは増やしていない」がある（X3と同じ誤り）。同じ形で時点を書き添える。12_shapes の中の「18」「19」の言及は計画時に76行（`createTransformed`＝第18メソッド。正しい）・77行（`appendOutline`＝第19メソッド。正しい）も見つけた。これらは直さない。表現（「当時の18…。今は20」等）は 123・124・125行でそろえる。
     *   **行末**：CRLF。
 *   **作業内容（レポート）** :
-    *   （タスク実行時に記入）
+    *   **No.24**（3行）：「各図形クラスの`isInsideOutline`が使う」→「`Curve`・`Rect`・`Path`・`Ellipse`（弧のみ）の`isInsideOutline`が使う（`Line`は使わず常に偽、`Ellipse`の円は独自の式）」（`grep isPointInPolygonEvenOdd js/shapes`と`Line.isInsideOutline`＝偽を確認）。
+    *   **A9**（3行）：「`Path`・`shapes/PathVertexRules`が使う。Phase 12-01」→「`Path`と、Phase 12-01から`shapes/PathVertexRules`が使う」。
+    *   **No.2**（13行）：09-03bの時点の段落の文だったため、時点を書き添えた：「（今の曲線1本は閉じない。Phase 09-03bの時点の記述で、Phase 12-02から弧1本も頂点3つなので`'close'`）」（`classifyJoin`の`chainSourceOf(...).points.length >= CLOSED_MIN_POINTS`を確認）。
+    *   **No.3**（13行）：「ボタンは押せる見た目で何も起きない」→「Phase 12-02から`canJoin`は偽で、ボタンは押せない見た目。それまでは押せる見た目で何も起きなかった」（`PathJoiner.canJoin`＝`planJoin(...) !== null`を確認）。
+    *   **A8**（13行）：`chainSourceOf`の「ファイル先頭の責務定義も変えていない」に「Phase 12-01の時点で、責務はPhase 12-02で変わった」を添えた。`segmentKindsOf`（Phase 09-02b）の同じ言い回しは直さず（A項。共通の決まり7）、ここに記録。
+    *   **No.23**（17行）：`snapDistance`の使い手の「`findNearestEndpoint`」→「`findNearestSnapPoint`」（`EndpointSnapRules.js`:120・:191、`VertexSnapRules.js`:85を確認）。
+    *   **No.9（＝No.21）**（28行）：「18メソッド契約のまま」→「20メソッド契約のまま」。
+    *   **No.22**（123行）：「共通メソッド契約は18のまま。」→「共通メソッド契約は当時の18のまま。今は20。」。
+    *   **X3**（124行）・**原則9**（125行）：「18メソッドは増やしていない」→「当時の18メソッドは増やしていない（今は20）」（2か所。表現は123〜125行でそろえた）。76・77行の「第18メソッド」「第19メソッド」は正しいので不変。
+    *   **見つけたが直さなかったもの**：上記A8の`segmentKindsOf`の言い回し。
+    *   **行末の実測**：`_doc/arch/12_shapes.md` 前 bytes=96307 LF=127 CR=127、後 bytes=96721 LF=127 CR=127（CR＝LF維持）。
+    *   **判断**：Survey記述と実コードの食い違いは無し。No.2は時点を書き添える方を選んだ。
 
 ### タスク5: `PROJECT_ARCHITECTURE.md` 3章の1.〜20.（No.5・20、A7、原則9の「今は4」）
 *   **計画** :
