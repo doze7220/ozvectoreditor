@@ -76,7 +76,7 @@ describe('DocumentSerializer: 折りたたみの書き出し', () => {
         assert.equal(DocumentSerializer.serializeToString([withKey]).includes('collapsed'), false);
     });
 
-    it('入れ子の中の閉じたフォルダも書かれ、versionは4のまま', () => {
+    it('入れ子の中の閉じたフォルダも書かれ、versionは5のまま', () => {
         const data = DocumentSerializer.serialize([groupItem('G1', [groupItem('G2', [], true)], false)]);
         assert.equal(data.version, 5);
         assert.equal(Object.hasOwn(data.shapes[0], 'collapsed'), false);

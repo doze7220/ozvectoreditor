@@ -209,7 +209,7 @@ test('何も変わらないときは履歴に入らない', () => {
     assert.equal(model.getShapes().length, 2);
 });
 
-test('作業データの往復で結果のパス・直線が保たれ、版は4のまま', () => {
+test('作業データの往復で結果のパス・直線が保たれ、版は5のまま', () => {
     const curve = new Curve(0, 0, 40, 20, '#000000', 2, null);
     curve.id = 'shape-2';
     const { model, editor } = setupReal(

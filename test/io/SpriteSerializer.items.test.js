@@ -136,7 +136,7 @@ describe('SpriteSerializer.serialize: アイテムの入れ子', () => {
         assert.deepEqual(Object.keys(data), ['format', 'formatVersion', 'bounds', 'elements']);
     });
 
-    it('formatVersionが5で、sourceのキーが無く、作業データは版4で全部の図形を持つ', () => {
+    it('formatVersionが5で、sourceのキーが無く、作業データは版5で全部の図形を持つ', () => {
         const items = makeItems(makeShapes());
         const data = SpriteSerializer.serialize(items);
         assert.equal(data.formatVersion, 5);

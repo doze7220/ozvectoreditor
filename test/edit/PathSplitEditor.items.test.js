@@ -206,7 +206,7 @@ test('何も変わらないときは履歴に入らない', () => {
     assert.equal(model.getShapes().length, 2);
 });
 
-test('作業データの往復で結果のpath・名前・並びが保たれ、版は4のまま', () => {
+test('作業データの往復で結果のpath・名前・並びが保たれ、版は5のまま', () => {
     const { model, editor } = setupReal(nestedItems(), ['shape-1'], [['shape-1', [2]]]);
     assert.equal(editor.splitAtSelectedVertices(), true);
 

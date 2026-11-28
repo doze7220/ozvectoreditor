@@ -144,7 +144,7 @@ Phase 12 クローズの整合確認（Survey `./_log/res/261127_2040_RES_Survey
     *   **作業内容** :
         *   詳細は4章のタスク11。
 
-*   [ ] タスク12: テストの題その2（C4、C6）
+*   [x] タスク12: テストの題その2（C4、C6）
     *   **対象ファイル** :
         *   `./test/io/SpriteSerializer.items.test.js` :（更新。`it`の題の文字列のみ。LF）
         *   `./test/edit/PathVertexEditor.items.test.js` :（更新。`test`の題の文字列のみ。LF）
@@ -440,7 +440,14 @@ Phase 12 クローズの整合確認（Survey `./_log/res/261127_2040_RES_Survey
     *   **確認**：`git diff`で、変わったのが`it`・`test`の第1引数の文字列だけであることを確かめる。`_doc/arch/16_test.md`がこれらの題を文字どおり引いている箇所があれば直さず作業レポートに書く（タスク13で扱う）。
     *   **行末**：4ファイルとも LF。
 *   **作業内容（レポート）** :
-    *   （タスク実行時に記入）
+    *   **C4**（題の数字だけを4→5。期待値・入力・コードは不変）：
+        *   `SpriteSerializer.items.test.js` 139行「…作業データは版4で…」→「版5で」（145行`work.version, 5`）。
+        *   `PathVertexEditor.items.test.js` 212行「…版は4のまま」→「5のまま」（226行`document.version, 5`）。
+        *   `PathSplitEditor.items.test.js` 209行「…版は4のまま」→「5のまま」（214行`document.version, 5`）。
+        *   `DocumentSerializer.collapsed.test.js` 79行「…versionは4のまま」→「5のまま」（81行`data.version, 5`）。
+    *   **C6**：4ファイルを`grep`で確認。ほかに版の食い違う題は無い。`DocumentSerializer.collapsed.test.js` 55行の`version: 4`は入力データなので直していない。
+    *   **確認**：`git diff -U0`で変更は上の4題の文字列のみ。`_doc/arch/16_test.md`にこれらの題の文字どおりの引用は無い（grep該当なし）。資料は変えていない。
+    *   **行末の実測（前→後、同じ）**：SpriteSerializer.items bytes=9936 LF=196 CR=0／PathVertexEditor.items bytes=10475 LF=232 CR=0／PathSplitEditor.items bytes=10580 LF=233 CR=0／DocumentSerializer.collapsed bytes=7345 LF=158 CR=0。
 
 ### タスク13: `_doc/arch/16_test.md` その2・`03_VectorModel.md` 26行（No.39・40・41・27・28・29、C1の追随）
 *   **計画** :
