@@ -429,7 +429,7 @@ describe('FileContentReader.deserializeFromText: 曲線のパスを含むスプ�
         return shapes;
     }
 
-    it('今までのJS（source入り）の版4のJS・CRLFのJSから曲線のパスを含む全図形が元どおり（区間の種類も）戻る', (t) => {
+    it('今までのJS（source入り）の版5のJS・CRLFのJSから曲線のパスを含む全図形が元どおり（区間の種類も）戻る', (t) => {
         t.mock.method(console, 'warn', () => {});
         const shapes = sampleShapesWithSmoothPaths();
         const data = withSource(shapes);

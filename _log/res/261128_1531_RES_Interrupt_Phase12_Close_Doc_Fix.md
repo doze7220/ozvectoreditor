@@ -131,7 +131,7 @@ Phase 12 クローズの整合確認（Survey `./_log/res/261127_2040_RES_Survey
     *   **作業内容** :
         *   コメント・JSDocの文字と空行だけを変える。コードは1文字も変えない（詳細は4章のタスク9）。
 
-*   [ ] タスク10: テストの題その1（C4、C6）
+*   [x] タスク10: テストの題その1（C4、C6）
     *   **対象ファイル** :
         *   `./test/io/DocumentSerializer.roundtrip.test.js` :（更新。`it`の題の文字列のみ。LF）
         *   `./test/io/FileContentReader.test.js` :（更新。`it`の題の文字列のみ。LF）
@@ -387,7 +387,15 @@ Phase 12 クローズの整合確認（Survey `./_log/res/261127_2040_RES_Survey
     *   **確認**：`git diff`で、変わったのが`it`の第1引数の文字列だけであることを確かめる。`_doc/arch/16_test.md`がこれらの題を文字どおり引いている箇所があれば（`grep -n '版は4のまま\|version が 4' _doc/arch/16_test.md`）、直さず作業レポートに書く（タスク11・13で扱う）。
     *   **行末**：2ファイルとも LF。
 *   **作業内容（レポート）** :
-    *   （タスク実行時に記入）
+    *   **C4**（題の数字だけを4→5に変更。期待値・入力・コードは不変）：
+        *   `DocumentSerializer.roundtrip.test.js` 542行「serializeの version が 4 である」→「…version が 5 である」（544・545行で`.version, 5`を確かめる）。
+        *   同 648行「作業データの版は4のまま・…」→「5のまま」（651行で`doc.version, 5`）。
+        *   同 704行「…、作業データの版は4のまま」→「5のまま」（721・722行で`.version, 5`）。
+        *   同 780行テンプレート「`…作業データの版は4のまま（${route.name}）`」→「5のまま」（790行で`.version, 5`。`${…}`は不変）。
+        *   `FileContentReader.test.js` 432行「…の版4のJS・CRLFのJS…」→「版5のJS」。`withSource`は`SpriteSerializer.serialize(values)`を使い（77〜78行）、436行で`data.formatVersion, 5`を確かめるため入力も版5。
+    *   **C6**：2ファイルを`grep`で確認。ほかに版の食い違う題は無い。`FileContentReader.test.js` 456行 describe「版4の入れ子と名前（Phase 11-01）」は、本体に版の検証が無く、Phase 11-01 当時の版の題でありタスク計画の直す対象に挙がっていないため直していない（目視確認の候補）。`version: 4`等の入力を作るテストの題は直していない。
+    *   **確認**：`git diff -U0`で変更は上の5つの`it`の題の文字列のみ。`_doc/arch/16_test.md`は`版は4のまま`・`version が 4`の文字どおりの引用が無い（172・180行は別の語の一致）。資料は変えていない。
+    *   **行末の実測（前→後）**：`DocumentSerializer.roundtrip.test.js` bytes=46664 LF=978 CR=0 → 同じ。`FileContentReader.test.js` bytes=23623 LF=512 CR=0 → 同じ（数字の置換のみ）。
 
 ### タスク11: `_doc/arch/16_test.md` その1（No.11・30・31・32・33・34・35・36・38・7（＝No.37））
 *   **計画** :

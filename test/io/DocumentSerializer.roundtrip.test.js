@@ -539,7 +539,7 @@ describe('塗り・線なしの往復（作業データの版5）', () => {
         });
     }
 
-    it('serializeの version が 4 である', (t) => {
+    it('serializeの version が 5 である', (t) => {
         silenceWarn(t);
         assert.equal(DocumentSerializer.serialize(makeFillStrokeShapes()).version, 5);
         assert.equal(JSON.parse(DocumentSerializer.serializeToString(makeFillStrokeShapes())).version, 5);
@@ -645,7 +645,7 @@ describe('区間の切り替えで作った図形の往復（Phase 09-02b）', (
         }
     }
 
-    it('作業データの版は4のまま・図形データのキーは名前・表示・ロックのほかに増えない', () => {
+    it('作業データの版は5のまま・図形データのキーは名前・表示・ロックのほかに増えない', () => {
         const path = switched(new Path(openPoints, false, '#102030', 3), [0, 1, 2], SegmentKindSwitch.TO_CURVE);
         const doc = DocumentSerializer.serialize([path]);
         assert.equal(doc.version, 5);
@@ -701,7 +701,7 @@ describe('曲がり方を持つ区間を含むパスの往復（Phase 09-03a）'
         }
     }
 
-    it('今の曲線と直線を結合した結果が往復で保たれ、作業データの版は4のまま', (t) => {
+    it('今の曲線と直線を結合した結果が往復で保たれ、作業データの版は5のまま', (t) => {
         const warn = silenceWarn(t);
         const curve = new Curve(0, 0, 60, 0);
         curve.setVertex(1, 30, 60);
@@ -777,7 +777,7 @@ describe('弧を結合した結果の往復（Phase 09-03b）', () => {
     ];
     for (const state of states) {
         for (const route of ROUTES) {
-            it(`${state.name}が保たれ、作業データの版は4のまま（${route.name}）`, (t) => {
+            it(`${state.name}が保たれ、作業データの版は5のまま（${route.name}）`, (t) => {
                 const warn = silenceWarn(t);
                 const path = state.build();
                 path.id = 'joined-arc';
