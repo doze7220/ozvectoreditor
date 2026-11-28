@@ -168,7 +168,7 @@ Phase 12 クローズの整合確認（Survey `./_log/res/261127_2040_RES_Survey
     *   **作業内容** :
         *   詳細は4章のタスク14。
 
-*   [ ] タスク15: `PROJECT_ARCHITECTURE.md` 3章29.・30.・`_doc/arch/14_edit.md`（C1の追随の残り3か所。発注者の決定）
+*   [x] タスク15: `PROJECT_ARCHITECTURE.md` 3章29.・30.・`_doc/arch/14_edit.md`（C1の追随の残り3か所。発注者の決定）
     *   **対象ファイル** :
         *   `./PROJECT_ARCHITECTURE.md` :（更新。3章29.の(i)・30.の(g)の2か所だけ。CRLF。タスク7とは別のタスク）
         *   `./_doc/arch/14_edit.md` :（更新。114行付近の1か所だけ。CRLF。タスク8とは別のタスク）
@@ -510,7 +510,14 @@ Phase 12 クローズの整合確認（Survey `./_log/res/261127_2040_RES_Survey
     *   **原則9**：`PROJECT_ARCHITECTURE.md`・`14_edit.md`の中に同じ「JSDocは古い」「`VectorModel.js`は変えず」の記述がほかに無いかを `grep` で確かめる（例：`LC_ALL=C.UTF-8 grep -n -o -P '.{0,100}選択モードであること.{0,100}' <ファイル>`）。見つけても、発注者の決定はこの3か所に限るため直さず、作業レポートに「懸念事項へ送る」と書く。
     *   **行末**：2ファイルとも CRLF。
 *   **作業内容（レポート）** :
-    *   （タスク実行時に記入）
+    *   **前提の確認**：`js/core/VectorModel.js` 1034行（`addShapesWithNewIds`）・1098行（`replaceShape`）のJSDocは「選択モードまたは頂点の選択モードであることを保証すること」に直っている（C1済み）。
+    *   **3章29.(i)**（`PROJECT_ARCHITECTURE.md`）：「…は古い（…）。`VectorModel.js`は変えず、…正しい記述を残す。」→「…は古かった（…）。Phase 12-01では`VectorModel.js`を変えず、…正しい記述を残した（JSDocはInterrupt `261128_1423`で直した）。」
+    *   **3章30.(g)**：同じ形で「は古かった」「Phase 12-02では`VectorModel.js`を変えず、…残した（JSDocはInterrupt `261128_1423`で直した）」。
+    *   **`14_edit.md` 114行**：「…古い記述で、頂点の選択から呼んでも…」→「…古い記述だった（Interrupt `261128_1423`で直した）。頂点の選択から呼んでも…」。
+    *   書き添えの表現は`03_VectorModel.md` 26行（タスク13）の「JSDocはInterrupt `261128_1423`で直した」にそろえた。
+    *   **原則9**：2ファイルを`grep`（`選択モードであること`・`VectorModel.js`は変え・`VectorModel.js`のJSDoc・「古い」）で確認。直した3か所のほかに同じ「JSDocは古い」「`VectorModel.js`は変えず」の記述は無い。`14_edit.md` 3行の「選択モードであること」は`ShapeInserter`等の前提の記述で別の話のため直していない。
+    *   **行末の実測（前→後）**：`PROJECT_ARCHITECTURE.md` bytes=673841 LF=1140 CR=1140 → bytes=673988 LF=1140 CR=1140／`14_edit.md` bytes=111413 LF=176 CR=176 → bytes=111460 LF=176 CR=176。
+    *   **懸念・目視確認**：なし。
 
 ### タスク16: 確認（要件6）
 *   **計画** :
