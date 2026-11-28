@@ -100,7 +100,7 @@ Phase 12 クローズの整合確認（Survey `./_log/res/261127_2040_RES_Survey
     *   **作業内容** :
         *   詳細は4章のタスク5。
 
-*   [ ] タスク6: `_doc/arch/06_InputTracker.md`・`32_InputModes.md`・`61_ItemRowRules.md`（No.44＋A10・No.45・No.46＋A12・A13）
+*   [x] タスク6: `_doc/arch/06_InputTracker.md`・`32_InputModes.md`・`61_ItemRowRules.md`（No.44＋A10・No.45・No.46＋A12・A13）
     *   **対象ファイル** :
         *   `./_doc/arch/06_InputTracker.md` :（更新。CRLF）
         *   `./_doc/arch/32_InputModes.md` :（更新。LF）
@@ -306,7 +306,12 @@ Phase 12 クローズの整合確認（Survey `./_log/res/261127_2040_RES_Survey
     *   **原則9**：`06`の中に「4箇所」の同じ言い方が13・17行のほかに無いか、`32`の中に`InputModes`の使う側・`InputState`の使う側の別の列挙が無いかを確かめる（13行は A10 として直すので対象内）。
     *   **行末**：`06`・`61`＝CRLF、`32`＝LF。
 *   **作業内容（レポート）** :
-    *   （タスク実行時に記入）
+    *   **No.44・A10**（`06_InputTracker.md` 17行・13行）：「ホバー・押下・クリック・カーソルの4箇所」を、実コード（`#classifyPoint(`の呼び出し6か所＝ホバー・押下2・クリック2・ダブルクリック。カーソルは`#updateCursor`がホバーの結果を使う）に合わせ、13行は「ホバー・押下・クリック・ダブルクリックで共用し（カーソルはホバーの結果を使う。…）」、17行は「ホバー・押下・クリック・ダブルクリックは同じ`#classifyPoint`の結果を共用し、カーソルはホバーの結果を使うため、すべて同じ当たりになる」に直した。
+    *   **No.45**（`32_InputModes.md` 4行）：使う側の列挙に`core/GroupCommandRules`（`OperationMode`）を`ItemListRules`の前に足した。`grep`で`InputModes.js`をimportする12ファイルと一致（タスク1のNo.14と同じ）。
+    *   **No.46・A12**（同4行）：「`InputState`を…の外で使うのはテストだけ」を「`InputTracker.js`・`CursorShapeRules.js`・`VertexEditRules.js`の外で使うのはテストだけ」に直した（製品コードで`InputState`をimportするのは`InputTracker`・`CursorShapeRules`・`VertexEditRules`の3つ）。
+    *   **A13**（`61_ItemRowRules.md` 7行）：「（**規則の段**：…同じ段、…その次の段、…更にその次）」を「（**importの向き**：`CompoundPathRules`は`ItemTreeRules`・`ItemStateRules`だけをimportし（このファイルをimportしないため循環しない）、`ListDragRules`がこのファイルをimportする）」に直した（「段」の語を使わない）。
+    *   **原則9**：`06`に「4箇所」は他に無し（grepで0件）。`32`の`InputState`の記述は4行の1か所のみ（列挙は他に無し）。`61`に「規則の段」は他に無し。
+    *   **行末の実測**（bytes/LF/CR）：`06` 前70432/66/66→後70517/66/66、`32` 前6748/8/0→後6819/8/0、`61` 前10194/14/14→後10209/14/14。いずれも作業前と同じ関係を保った。
 
 ### タスク7: `PROJECT_ARCHITECTURE.md` 3章の21.〜31.（No.6、A1・A2・A3、原則9の「今は4」）
 *   **計画** :
