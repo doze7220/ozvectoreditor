@@ -114,7 +114,7 @@ Phase 12 クローズの整合確認（Survey `./_log/res/261127_2040_RES_Survey
     *   **作業内容** :
         *   詳細は4章のタスク7。
 
-*   [ ] タスク8: `_doc/arch/14_edit.md`・`15_io.md`・`17_sprite_check.md`（No.10（＝No.17）・12・18・19、X1・X2、A14）
+*   [x] タスク8: `_doc/arch/14_edit.md`・`15_io.md`・`17_sprite_check.md`（No.10（＝No.17）・12・18・19、X1・X2、A14）
     *   **対象ファイル** :
         *   `./_doc/arch/14_edit.md` :（更新。CRLF）
         *   `./_doc/arch/15_io.md` :（更新。CRLF）
@@ -343,7 +343,16 @@ Phase 12 クローズの整合確認（Survey `./_log/res/261127_2040_RES_Survey
     *   **原則9**：`14_edit.md`の中の`edit/ → core/`の数え方の別の記述、`#toUsableSnap`の通す側の別の列挙（53・56行付近にもある）、`15_io.md`の中の`deserializeShapeElements`の別の書き方（58行付近は`DrawElementReader.toShapeData, DrawElementReader.toCompoundPathShapeData`の形で第3引数を含む＝誤りではない）を確かめる。
     *   **行末**：3ファイルとも CRLF。
 *   **作業内容（レポート）** :
-    *   （タスク実行時に記入）
+    *   **No.10（＝No.17）**（`14_edit.md` 4行）：「…`ItemStateEditor`・`GroupEditor`・`ShapeOrderEditor`・`SnapshotAdapter`の14個だけ」→列挙に`CompoundPathEditor`・`ShapeStyleEditor`・`StyleEyedropper`を`SnapshotAdapter`の前へ足し「17個」（`grep -l "from '../core/" js/edit/*.js`の実測17ファイルと一致）。
+    *   **No.12**（`14_edit.md` 44行）：`formatVersion` 4→5、`version` 4→5（テスト379・381行付近の値）。
+    *   **No.18**（`14_edit.md` 57行）：`#toUsableSnap`を通す側に「`findDrawnLinePointSnap`（`startSnap`。除く図形を決めるため）」を足した（実コード：`findDrawnLineSnap`の後に`#toUsableSnap(startSnap)`を通す）。
+    *   **No.19**（`14_edit.md` 54行）：「`commitDrawnLine`は3引数のまま」→「`commitDrawnLine`からの`#reflectDrawnJoin`の呼び出しは3引数のまま」。
+    *   **X1**（`15_io.md` 13行）：`deserializeShapeElements(elements, toShapeData)`→`deserializeShapeElements(elements, toShapeData, toCompoundShapeData = null)（第3引数はPhase 12-04。下の項）`。
+    *   **X2**（`15_io.md` 59行）：契約の項の呼び出し例に第3引数`(element) => DrawElementReader.toCompoundPathShapeData(element)`を足した（`FileContentReader.js`の実コードと一致）。
+    *   **A14**（`17_sprite_check.md` 19行）：版5の文の括弧「（`check/`・`sprite-check.html`のコードは変更なし。」→「（Phase 12-04で`check/`・`sprite-check.html`のコードは変えていない。」。同じ行のほかの「コードは変更なし」（版3・版4・情報欄）は直さず（共通の決まり7）。
+    *   **原則9**：`14_edit.md`に「14個」「3引数」の別の記述は無し。`#toUsableSnap`の別の列挙（53・56行付近）は`findDrawnLinePointSnap`の説明・`joinDraggedEndpoint`の冒頭の記述で、通す側の列挙ではなく誤りではないので不変。`15_io.md`の58行付近は第3引数を含む形で誤りなし。いずれも追加で直したものは無し。
+    *   **行末の実測**：`14_edit.md` 前 bytes=111229 LF=176 CR=176、後 bytes=111413 LF=176 CR=176／`15_io.md` 前 bytes=48476 LF=59 CR=59、後 bytes=48611 LF=59 CR=59／`17_sprite_check.md` 前 bytes=8147 LF=23 CR=23、後 bytes=8167 LF=23 CR=23（CR＝LF維持）。
+    *   **判断**：Survey記述と実コードの食い違いは無し。114行付近（タスク15担当）には触れていない。
 
 ### タスク9: `js/`のJSDoc・空行その1（C1・C2・C3・C7、C6）
 *   **計画** :
